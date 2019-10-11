@@ -5,8 +5,8 @@
 
 namespace SZ{
 
-#define META_DATA_SIZE 4
-typedef unsigned int uint32;
+typedef unsigned int uint;
+typedef unsigned char uchar;
 
 }
 #endif

@@ -15,17 +15,17 @@
 
 namespace SZ{
 // N-dimensional multi_dimensional_range
-template <class Type, int N>
-class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensional_range<Type, N>> {
+template <class T, size_t N>
+class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensional_range<T, N>> {
   public:
 
   class multi_dimensional_iterator {
     public:
-      using value_type = Type;
+      using value_type = T;
       using difference_type = std::ptrdiff_t;
-      using reference = Type&;
-      using const_reference = Type const&;
-      using pointer = Type*;
+      using reference = T&;
+      using const_reference = T const&;
+      using pointer = T*;
       using iterator_category = std::bidirectional_iterator_tag;
 
       ~multi_dimensional_iterator()=default;
@@ -87,17 +87,24 @@ class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensi
       bool operator!=(multi_dimensional_iterator const& rhs) const {
         return current_offset != rhs.current_offset;
       }
-      size_t get_current_index(int i) const{
+      size_t get_current_index(size_t i) const{
       	return current_index[i];
       }
-      size_t get_dimensions(int i) const{
+      size_t get_dimensions(size_t i) const{
       	return range->dimensions[i];
       }
       ptrdiff_t get_offset() const{
       	return current_offset;
       }
-      Type prev(int i) const{
-      	auto offset = current_offset - range->global_dim_strides[i];
+      template <class... Args>
+      T prev(Args&&... pos) const{
+        // TODO: check int type
+      	static_assert(sizeof...(Args) == N, "Must have the same number of arguments");
+      	auto offset = current_offset;
+      	std::array<int, N> args{std::forward<Args>(pos)...};
+      	for(int i=0; i<N; i++){
+      		offset -= args[i] ? range->global_dim_strides[i] : 0;
+      	}
       	return (offset >= 0) ? range->data[offset] : 0;
       }
 
@@ -110,9 +117,9 @@ class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensi
 
   using iterator = multi_dimensional_iterator;
   using const_iterator = multi_dimensional_iterator;
-  using value_type = Type;
-  using reference = Type&;
-  using pointer = Type*;
+  using value_type = T;
+  using reference = T&;
+  using pointer = T*;
 
   multi_dimensional_iterator begin() {
     return multi_dimensional_iterator(this->shared_from_this(), start_offset);
@@ -175,7 +182,7 @@ class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensi
   }
   template <class ForwardIt1>
   multi_dimensional_range(
-      Type* data_,
+      T* data_,
       ForwardIt1 global_dims_begin,
       ForwardIt1 global_dims_end,
       size_t stride_,
@@ -205,14 +212,14 @@ class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensi
   size_t num_dims() const { return dimensions.size(); };
 
   private:
-	std::array<int, N> global_dimensions;
-	std::array<int, N> global_dim_strides;
-    std::array<size_t, N> dimensions; 			// the dimensions 
-    std::array<size_t, N> dim_strides; 			// strides for dimensions
-    size_t access_stride;						// stride for access pattern
-    ptrdiff_t start_offset;						// offset for start point
-    ptrdiff_t end_offset;						// offset for end point
-    Type* data;									// data pointer
+	std::array<size_t, N> global_dimensions;
+	std::array<size_t, N> global_dim_strides;
+  std::array<size_t, N> dimensions; 			  // the dimensions 
+  std::array<size_t, N> dim_strides; 			  // strides for dimensions
+  size_t access_stride;					          	// stride for access pattern
+  ptrdiff_t start_offset;					          // offset for start point
+  ptrdiff_t end_offset;						          // offset for end point
+  T * data;									                // data pointer
 };
 
 }
