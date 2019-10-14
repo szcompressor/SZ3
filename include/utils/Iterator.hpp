@@ -99,11 +99,13 @@ class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensi
       template <class... Args>
       T prev(Args&&... pos) const{
         // TODO: check int type
+        // TODO: change to offset map for efficiency
       	static_assert(sizeof...(Args) == N, "Must have the same number of arguments");
       	auto offset = current_offset;
       	std::array<int, N> args{std::forward<Args>(pos)...};
       	for(int i=0; i<N; i++){
-      		offset -= args[i] ? range->global_dim_strides[i] : 0;
+          if(current_index[i] < args[i]) return 0;
+          offset -= args[i] ? range->global_dim_strides[i] : 0;
       	}
       	return (offset >= 0) ? range->data[offset] : 0;
       }
@@ -111,7 +113,7 @@ class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensi
     private:
       friend multi_dimensional_range;
       std::shared_ptr<multi_dimensional_range> range;
-	  std::array<size_t, N> current_index; 		// index of current_offset position
+	    std::array<size_t, N> current_index; 		// index of current_offset position
       ptrdiff_t current_offset;
   };
 
@@ -127,13 +129,7 @@ class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensi
   multi_dimensional_iterator end() {
     return multi_dimensional_iterator(this->shared_from_this(), end_offset);
   }
-  /**
-   * constructs a multi_dimensional_range
-   *
-   * \param[in] global_dims the dimensions of the overall array
-   * \param[in] stride how many items to skip in the global array in each direction
-   * \param[in] count how many items to include from the global array in each direction
-   */
+
   template <class ForwardIt1>
   void set_global_dimensions(ForwardIt1 begin, ForwardIt1 end){
     int i = 0;
@@ -206,7 +202,6 @@ class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensi
     set_dimensions_auto();
     set_dim_strides();
     set_offsets(offset_);
-    // std::cout << start_offset << " " << end_offset << std::endl;
   }
 
   size_t num_dims() const { return dimensions.size(); };

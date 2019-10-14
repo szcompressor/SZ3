@@ -23,26 +23,30 @@ public:
 	LinearQuantizer()=default;
 	LinearQuantizer(T eb, int r) : PredictionBasedQuantizer<T>(eb, r){}
 	~LinearQuantizer()=default;
-	int quantize(T data, T predicted);
-	int quantize(T data, T predicted, T& dec_data);
+	int quantize(T data, T pred);
+	int quantize(T data, T pred, T& dec_data);
+	T recover(T pred, int quant_index);
 };
 
 template <class T>
 int LinearQuantizer<T>::quantize(T data, T pred){
 	int radius = this->radius;
-	int quant_index = ((int)((pred - data) * this->error_bound_reciprocal) + 1);
-	quant_index /= 2;
+	int quant_index = (int)((data - pred) * this->error_bound_reciprocal);
+	quant_index = (quant_index > 0) ? (quant_index + 1)/2 : (quant_index - 1)/2;
 	return (quant_index > 0) ? (quant_index < radius ? quant_index + radius : 0) : (quant_index > -radius ? quant_index + radius : 0);
 }
 template <class T>
 int LinearQuantizer<T>::quantize(T data, T pred, T& dec_data){
 	int radius = this->radius;
-	int quant_index = ((int)((pred - data) * this->error_bound_reciprocal) + 1);
-	dec_data = pred - quant_index * this->error_bound;
-	quant_index /= 2;
+	int quant_index = (int)((data - pred) * this->error_bound_reciprocal);
+	quant_index = (quant_index > 0) ? (quant_index + 1)/2 : (quant_index - 1)/2;
+	dec_data = pred + 2 * quant_index * this->error_bound;
 	return (quant_index > 0) ? (quant_index < radius ? quant_index + radius : 0) : (quant_index > -radius ? quant_index + radius : 0);
 }
-
+template <class T>
+T LinearQuantizer<T>::recover(T pred, int quant_index){
+	return pred + 2 * (quant_index - this->radius) * this->error_bound;
+}
 
 }
 #endif
