@@ -36,9 +36,10 @@ int main(int argc, char ** argv){
 	// use Hurricane for testing
 	auto data = readfile<float>(argv[1], num);
 	std::cout << "Read " << num << " elements\n";
-	SZ::SZ_General_Compressor<float, 3> sz(data, 100, 500, 500);
-	std::cout << sz.compress(0.0001) << std::endl;
-	auto compressed = sz.get_compressed_data();
+	SZ::SZ_General_Compressor<float, 3> sz(100, 500, 500);
+	size_t compressed_size = 0;
+	auto compressed = sz.compress(data, 0.0001, compressed_size);
+	std::cout << compressed_size << std::endl;
 	SZ::SZ_General_Decompressor<float, 3> sz_dec;
 	auto dec_data = sz_dec.decompress(compressed);
 	float max_err = 0;

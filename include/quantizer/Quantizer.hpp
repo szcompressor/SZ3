@@ -2,7 +2,5 @@
 #define _SZ_QUANTIZER_HPP
 
 #include  "IntegerQuantizer.hpp"
-namespace SZ{
 
-}
 #endif

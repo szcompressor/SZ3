@@ -96,6 +96,11 @@ class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensi
       ptrdiff_t get_offset() const{
       	return current_offset;
       }
+      // assuming the iterator is at [i0, j0, k0, ...]
+      // return the value of [i0 - pos[0], j0 - pos[1], k0 - pos[2] ...]
+      // return 0 if range is exceeded
+      // [input] offset for all the dimensions
+      // [output] value of data at the target position
       template <class... Args>
       T prev(Args&&... pos) const{
         // TODO: check int type
@@ -130,18 +135,6 @@ class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensi
     return multi_dimensional_iterator(this->shared_from_this(), end_offset);
   }
 
-  template <class ForwardIt1>
-  void set_global_dimensions(ForwardIt1 begin, ForwardIt1 end){
-    int i = 0;
-    for(auto iter = begin; iter != end; iter ++){
-    	global_dimensions[i ++] = *iter;
-    }
-    size_t cur_stride = 1;
-    for(int i=N-1; i>=0; i--){
-    	global_dim_strides[i] = cur_stride;
-    	cur_stride *= global_dimensions[i];
-    }     
-  }
   template <class ForwardIt1>
   void set_dimensions(ForwardIt1 begin, ForwardIt1 end){
     int i = 0;
@@ -197,7 +190,16 @@ class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensi
     	exit(0);
     }
     set_access_stride(stride_);
-    set_global_dimensions(global_dims_begin, global_dims_end);
+    // set global dimensions
+    int i = 0;
+    for(auto iter = global_dims_begin; iter != global_dims_end; iter ++){
+      global_dimensions[i ++] = *iter;
+    }
+    size_t cur_stride = 1;
+    for(int i=N-1; i>=0; i--){
+      global_dim_strides[i] = cur_stride;
+      cur_stride *= global_dimensions[i];
+    }     
     // set_dimensions(dims_begin, dims_end);
     set_dimensions_auto();
     set_dim_strides();

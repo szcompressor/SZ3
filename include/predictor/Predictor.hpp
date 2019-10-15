@@ -3,7 +3,5 @@
 
 #include "LorenzoPredictor.hpp"
 
-namespace SZ{
 
-}
 #endif

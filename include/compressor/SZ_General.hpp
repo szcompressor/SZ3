@@ -13,21 +13,14 @@ template <class T, size_t N, uint block_size_ = 0, template<class, uint> class P
 class SZ_General_Compressor{
 public:
 	SZ_General_Compressor()=default;
-	~SZ_General_Compressor(){
-		if(data) free(data);
-		if(compressed_data) free(compressed_data);
-	}
+	~SZ_General_Compressor()=default;
 	template <class ... Args>
-	SZ_General_Compressor(T const * data_, Args&&... dims) : block_size(block_size_), global_dimensions{static_cast<size_t>(dims)...}{
+	SZ_General_Compressor(Args&&... dims) : block_size(block_size_), global_dimensions{static_cast<size_t>(dims)...}{
       	static_assert(sizeof...(Args) == N, "Number of arguments must be the same as N");
 		num_elements = 1;
 		for(const auto& d:global_dimensions){
 			num_elements *= d;
 		}
-		// make a copy of the data		
-		data = (T *) malloc(num_elements * sizeof(T));
-		memcpy(data, data_, num_elements * sizeof(T));
-		compressed_data = nullptr;
 		if(block_size == 0){
 			switch(N){
 				case 1:
@@ -44,15 +37,15 @@ public:
 			}
 		}
 	}
-	uint get_num_of_global_dimensions() const{ return global_dimensions.size();}
-	size_t get_global_dimensions(uint i) const{ 
-		return global_dimensions[i];
-	}
 	// compress given the error bound
-	size_t compress (double eb){
-		auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data, 
+	uchar * compress (const T * data_, double eb, size_t& compressed_size){
+		// make a copy of the data		
+		std::vector<T> data = std::vector<T>(num_elements);
+		memcpy(data.data(), data_, num_elements * sizeof(T));
+
+		auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data.data(), 
 		  std::begin(global_dimensions), std::end(global_dimensions), block_size, 0);
-		auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data,
+		auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data.data(),
 		  std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
 		Predictor<T, N> predictor;
 		int quant_radius = 32768;
@@ -83,39 +76,34 @@ public:
 		  }
 		}
 		std::cout << "unpred_num = " << unpred_data.size() << std::endl;
-		compressed_data = (uchar *) malloc(2 * num_elements * sizeof(T));
-		compressed_data_pos = compressed_data;
+		uchar * compressed_data = (uchar *) malloc(2 * num_elements * sizeof(T));
+		uchar * compressed_data_pos = compressed_data;
 		// TODO: serialize and record predictor, quantizer, and encoder
 		// Or do these in a outer loop wrapper?
-		write(global_dimensions.data(), N);
-		write(block_size);
-		write(eb);
-		write(quant_radius);
-		write(unpred_data.size());
-		write(unpred_data.data(), unpred_data.size());
-		write(quant_inds.data(), quant_inds.size());
-		return (compressed_data_pos - compressed_data);
-	}
-	uchar * get_compressed_data() const{
+		write(global_dimensions.data(), N, compressed_data_pos);
+		write(block_size, compressed_data_pos);
+		write(eb, compressed_data_pos);
+		write(quant_radius, compressed_data_pos);
+		write(unpred_data.size(), compressed_data_pos);
+		write(unpred_data.data(), unpred_data.size(), compressed_data_pos);
+		write(quant_inds.data(), quant_inds.size(), compressed_data_pos);
+		compressed_size = compressed_data_pos - compressed_data;
 		return compressed_data;
 	}
 	// write array
 	template <class T1>
-	void write(T1 * array, size_t num_elements){
+	void write(T1 const * array, size_t num_elements, uchar *& compressed_data_pos){
 		memcpy(compressed_data_pos, array, num_elements*sizeof(T1));
 		compressed_data_pos += num_elements*sizeof(T1);
 	}
 	// write variable
 	template <class T1>
-	void write(T1 var){
+	void write(T1 const var, uchar *& compressed_data_pos){
 		memcpy(compressed_data_pos, &var, sizeof(T1));
 		compressed_data_pos += sizeof(T1);
 	}
 
 private:
-	T * data = nullptr;
-	uchar * compressed_data = nullptr;
-	uchar * compressed_data_pos;
 	uint block_size;
 	size_t num_elements;
 	std::array<size_t, N> global_dimensions;
@@ -126,32 +114,30 @@ template <class T, size_t N, template<class, uint> class Predictor = LorenzoPred
 class SZ_General_Decompressor{
 public:
 	SZ_General_Decompressor()=default;
-	~SZ_General_Decompressor(){
-		if(dec_data) free(dec_data);
-	}
+	~SZ_General_Decompressor()=default;
 	T * decompress(uchar const * compressed_data){
-		compressed_data_pos = compressed_data;
-		read(global_dimensions.data(), N);
+		uchar const * compressed_data_pos = compressed_data;
+		read(global_dimensions.data(), N, compressed_data_pos);
 		num_elements = 1;
 		for(const auto& d : global_dimensions){
 			num_elements *= d;
 		}
 		uint block_size = 0;
-		read(block_size);
+		read(block_size, compressed_data_pos);
 		double eb = 0;
-		read(eb);
+		read(eb, compressed_data_pos);
 		int quant_radius = 0;
-		read(quant_radius);
+		read(quant_radius, compressed_data_pos);
 		size_t unpred_data_size = 0;
-		read(unpred_data_size);
+		read(unpred_data_size, compressed_data_pos);
 		T const * unpred_data_pos = (T const *) compressed_data_pos;
 		compressed_data_pos += unpred_data_size * sizeof(T);
 		int const * quant_inds_pos = (int const *) compressed_data_pos;
 		std::array<size_t, N> intra_block_dims;
-		T * dec_data = (T *) malloc(num_elements * sizeof(T));
-		auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data, 
+		std::vector<T> dec_data = std::vector<T>(num_elements);
+		auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.data(), 
 		  std::begin(global_dimensions), std::end(global_dimensions), block_size, 0);
-		auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data,
+		auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.data(),
 		  std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
 		Predictor<T, N> predictor;
 		Quantizer<T> quantizer(eb, quant_radius);
@@ -164,6 +150,7 @@ public:
 		  }
 		  intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
 		  intra_block_range->set_offsets(block.get_offset());
+		  // preprocess
 		  for(auto element=intra_block_range->begin(); element!=intra_block_range->end(); element++){
 		  	int quant_index = *(quant_inds_pos ++);
 		  	if(quant_index){
@@ -174,24 +161,22 @@ public:
 		  	}
 		  }
 		}
-		return dec_data;
+		return dec_data.data();
 	}
 	// read array
 	template <class T1>
-	void read(T1 * array, size_t num_elements){
+	void read(T1 * array, size_t num_elements, uchar const *& compressed_data_pos){
 		memcpy(array, compressed_data_pos, num_elements*sizeof(T1));
 		compressed_data_pos += num_elements*sizeof(T1);
 	}
 	// read variable
 	template <class T1>
-	void read(T1& var){
+	void read(T1& var, uchar const *& compressed_data_pos ){
 		memcpy(&var, compressed_data_pos, sizeof(T1));
 		compressed_data_pos += sizeof(T1);
 	}
 
 private:
-	uchar const * compressed_data_pos;
-	T * dec_data = nullptr;
 	uint block_size;
 	size_t num_elements;
 	std::array<size_t, N> global_dimensions;

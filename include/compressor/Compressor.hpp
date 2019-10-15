@@ -3,7 +3,4 @@
 
 #include "SZ_General.hpp"
 
-namespace SZ{
-
-}
 #endif
