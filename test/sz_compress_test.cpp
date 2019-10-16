@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <fstream>
 #include <iostream>
+#include <fstream>
 #include <cmath>
 
 template<typename Type>

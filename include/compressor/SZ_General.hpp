@@ -5,6 +5,7 @@
 #include "quantizer/Quantizer.hpp"
 #include "utils/Iterator.hpp"
 #include "def.hpp"
+#include <cstring>
 
 namespace SZ{
 // type T
