@@ -9,14 +9,15 @@
 
 namespace SZ{
 // type T
-template <class T, size_t N, uint block_size_ = 0, template<class, uint> class Predictor = LorenzoPredictor, 
-	template <class> class Quantizer = LinearQuantizer >
+template <class T, size_t N, uint block_size_ = 0, class Predictor = LorenzoPredictor<T,N>, 
+	class Quantizer = LinearQuantizer<T> >
 class SZ_General_Compressor{
 public:
+  static_assert(concepts::is_predictor<Predictor>::value, "must must implement the predictor interface");
 	SZ_General_Compressor()=default;
 	~SZ_General_Compressor()=default;
 	template <class ... Args>
-	SZ_General_Compressor(Args&&... dims) : block_size(block_size_), global_dimensions{static_cast<size_t>(dims)...}{
+	SZ_General_Compressor(Predictor predictor, Quantizer quantizer, Args&&... dims) : predictor(predictor), quantizer(quantizer), block_size(block_size_), global_dimensions{static_cast<size_t>(dims)...}{
       	static_assert(sizeof...(Args) == N, "Number of arguments must be the same as N");
 		num_elements = 1;
 		for(const auto& d:global_dimensions){
@@ -48,9 +49,7 @@ public:
 		  std::begin(global_dimensions), std::end(global_dimensions), block_size, 0);
 		auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data.data(),
 		  std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
-		Predictor<T, N> predictor;
 		int quant_radius = 32768;
-		Quantizer<T> quantizer(eb, quant_radius);
 		std::array<size_t, N> intra_block_dims;
 		std::vector<int> quant_inds(num_elements);
 		std::vector<T> unpred_data;
@@ -104,18 +103,6 @@ public:
 		compressed_data_pos += sizeof(T1);
 	}
 
-private:
-	uint block_size;
-	size_t num_elements;
-	std::array<size_t, N> global_dimensions;
-};
-
-template <class T, size_t N, template<class, uint> class Predictor = LorenzoPredictor, 
-	template <class> class Quantizer = LinearQuantizer >
-class SZ_General_Decompressor{
-public:
-	SZ_General_Decompressor()=default;
-	~SZ_General_Decompressor()=default;
 	T * decompress(uchar const * compressed_data){
 		uchar const * compressed_data_pos = compressed_data;
 		read(global_dimensions.data(), N, compressed_data_pos);
@@ -140,8 +127,6 @@ public:
 		  std::begin(global_dimensions), std::end(global_dimensions), block_size, 0);
 		auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.data(),
 		  std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
-		Predictor<T, N> predictor;
-		Quantizer<T> quantizer(eb, quant_radius);
 		for(auto block=inter_block_range->begin(); block!=inter_block_range->end(); block++){
 		  // std::cout << *block << " " << lp.predict(block) << std::endl;
 		  for(int i=0; i<intra_block_dims.size(); i++){
@@ -178,10 +163,23 @@ public:
 	}
 
 private:
+  Predictor predictor;
+  Quantizer quantizer;
 	uint block_size;
 	size_t num_elements;
 	std::array<size_t, N> global_dimensions;
 };
+
+
+template <class T, uint block_size_ = 0, class Predictor, class Quantizer, class... Args>
+SZ_General_Compressor<T,sizeof...(Args),block_size_,Predictor, Quantizer>
+make_sz_general(
+    Predictor predictor,
+    Quantizer quantizer,
+    Args... args
+    ) {
+  return SZ_General_Compressor<T, sizeof...(Args), block_size_, Predictor, Quantizer>(predictor, quantizer, args...);
+}
 
 
 }

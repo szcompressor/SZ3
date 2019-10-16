@@ -21,7 +21,7 @@ template <class T>
 class LinearQuantizer : public PredictionBasedQuantizer<T>{
 public:
 	LinearQuantizer()=default;
-	LinearQuantizer(T eb, int r) : PredictionBasedQuantizer<T>(eb, r){}
+	LinearQuantizer(T eb, int r = 32768) : PredictionBasedQuantizer<T>(eb, r){}
 	~LinearQuantizer()=default;
 	// quantize the data with a prediction value, and returns the quantization index
 	int quantize(T data, T pred);

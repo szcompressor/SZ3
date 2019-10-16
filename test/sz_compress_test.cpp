@@ -1,3 +1,4 @@
+#include "quantizer/IntegerQuantizer.hpp"
 #include <compressor/Compressor.hpp>
 #include <quantizer/Quantizer.hpp>
 #include <utils/Iterator.hpp>
@@ -37,12 +38,20 @@ int main(int argc, char ** argv){
 	// use Hurricane for testing
 	auto data = readfile<float>(argv[1], num);
 	std::cout << "Read " << num << " elements\n";
-	SZ::SZ_General_Compressor<float, 3> sz(100, 500, 500);
+  auto sz = SZ::make_sz_general<float>(
+    SZ::LorenzoPredictor<float, 3>(),
+    SZ::LinearQuantizer<float>(0.0001f),
+    100,
+    500,
+    500
+  );
+	//SZ::SZ_General_Compressor<float, 3> sz(lorenzo, linear_quantizer, 100, 500, 500);
+
 	size_t compressed_size = 0;
 	auto compressed = sz.compress(data, 0.0001, compressed_size);
+
 	std::cout << compressed_size << std::endl;
-	SZ::SZ_General_Decompressor<float, 3> sz_dec;
-	auto dec_data = sz_dec.decompress(compressed);
+	auto dec_data = sz.decompress(compressed);
 	float max_err = 0;
 	for(int i=0; i<num; i++){
 		max_err = std::max(max_err, std::abs(data[i] - dec_data[i]));
