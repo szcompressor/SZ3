@@ -12,21 +12,20 @@ class LorenzoPredictor;
 template <class T>
 class LorenzoPredictor<T, 1>{
 public:
-	using Iterator = typename multi_dimensional_range<T, 1>::multi_dimensional_iterator;
-	void preprocess(const Iterator iter) const noexcept{};
-	void postprocess(const Iterator iter) const noexcept{};
-	inline T predict(Iterator iter) const noexcept{
-		return iter.prev(0);
-	};
+  using iterator =
+    typename multi_dimensional_range<T, 1>::iterator;
+  void preprocess(const iterator iter) const noexcept {};
+  void postprocess(const iterator iter) const noexcept {};
+  inline T predict(iterator iter) const noexcept { return iter.prev(0); };
 };
 
 template <class T>
 class LorenzoPredictor<T, 2>{
 public:
-	using Iterator = typename multi_dimensional_range<T, 2>::multi_dimensional_iterator;
-	void preprocess(const Iterator iter) const noexcept{};
-	void postprocess(const Iterator iter) const noexcept{};
-	inline T predict(Iterator iter) const noexcept{
+	using iterator = typename multi_dimensional_range<T, 2>::iterator;
+	void preprocess(const iterator iter) const noexcept{};
+	void postprocess(const iterator iter) const noexcept{};
+	inline T predict(iterator iter) const noexcept{
 		return iter.prev(0, 1) + iter.prev(1, 0) - iter.prev(1, 1);
 	};
 };
@@ -34,10 +33,10 @@ public:
 template <class T>
 class LorenzoPredictor<T, 3>{
 public:
-	using Iterator = typename multi_dimensional_range<T, 3>::multi_dimensional_iterator;
-	void preprocess(const Iterator iter) const noexcept{};
-	void postprocess(const Iterator iter) const noexcept{};
-	inline T predict(Iterator iter) const noexcept{
+	using iterator = typename multi_dimensional_range<T, 3>::iterator;
+	void preprocess(const iterator iter) const noexcept{};
+	void postprocess(const iterator iter) const noexcept{};
+	inline T predict(const iterator iter) const noexcept{
 		return iter.prev(0, 0, 1) + iter.prev(0, 1, 0) + iter.prev(1, 0, 0) 
 				- iter.prev(0, 1, 1) - iter.prev(1, 0, 1) - iter.prev(1, 1, 0)
 				+ iter.prev(1, 1, 1);
