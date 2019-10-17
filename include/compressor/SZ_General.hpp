@@ -13,8 +13,8 @@ template <class T, size_t N, uint block_size_ = 0, class Predictor = LorenzoPred
 	class Quantizer = LinearQuantizer<T> >
 class SZ_General_Compressor{
 public:
-  static_assert(concepts::is_predictor<Predictor>::value, "must must implement the predictor interface");
-  static_assert(concepts::is_quantizer<Quantizer>::value, "must must implement the quatizer interface");
+  static_assert(concepts::is_predictor<Predictor>::value, "must implement the predictor interface");
+  static_assert(concepts::is_quantizer<Quantizer>::value, "must implement the quatizer interface");
 
 	template <class ... Args>
 	SZ_General_Compressor(Predictor predictor, Quantizer quantizer, Args&&... dims) : predictor(predictor), quantizer(quantizer), block_size(block_size_), global_dimensions{static_cast<size_t>(dims)...}{
@@ -68,14 +68,7 @@ public:
       predictor.precompress_block(intra_block_range->begin());
       quantizer.precompress_block();
 		  for(auto element=intra_block_range->begin(); element!=intra_block_range->end(); element++){
-		  	quant_inds[count] = quantizer.quantize(*element, predictor.predict(element), dec_data);
-		  	if(quant_inds[count]){
-		  		*element = dec_data;
-		  	}
-		  	else{
-		  		unpred_data.push_back(*element);
-		  	}
-		  	count ++;
+		  	quant_inds[count ++] = quantizer.quantize_and_overwrite(*element, predictor.predict(element));
 		  }
 		}
     predictor.postcompress_data(inter_block_range->begin());
@@ -91,6 +84,7 @@ public:
 
     auto serialized_predictor = predictor.save();
     write(serialized_predictor.data(), serialized_predictor.size(), compressed_data_pos);
+    // auto serialized_quantizer = quantizer.save();
 		write(eb, compressed_data_pos);
 		write(quant_radius, compressed_data_pos);
 		write(unpred_data.size(), compressed_data_pos);
@@ -156,13 +150,7 @@ public:
       predictor.predecompress_block(intra_block_range->begin());
       quantizer.predecompress_block();
 		  for(auto element=intra_block_range->begin(); element!=intra_block_range->end(); element++){
-		  	int quant_index = *(quant_inds_pos ++);
-		  	if(quant_index){
-		  		*element = quantizer.recover(predictor.predict(element), quant_index);
-		  	}
-		  	else{
-		  		*element = *(unpred_data_pos ++);
-		  	}
+	  		*element = quantizer.recover(predictor.predict(element), *(quant_inds_pos ++));
 		  }
 		}
     predictor.postdecompress_data(inter_block_range->begin());

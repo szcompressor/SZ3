@@ -2,7 +2,6 @@
 #define _SZ_INTEGER_QUANTIZER_HPP
 #include <string>
 #include <cassert>
-
 namespace SZ{
 
 // data with T type
@@ -43,7 +42,8 @@ public:
 	// quantize the data with a prediction value, and returns the quantization index
 	int quantize(T data, T pred);
 	// quantize the data with a prediction value, and returns the quantization index and the decompressed data
-	int quantize(T data, T pred, T& dec_data);
+	// int quantize(T data, T pred, T& dec_data);
+	int quantize_and_overwrite(T& data, T pred);
 	// recover the data using the quantization index
 	T recover(T pred, int quant_index);
 
@@ -61,29 +61,49 @@ public:
     remaining_length -= sizeof(uint8_t);
     T error_bound;
     int radius;
+
+    // std::cout << "unpred data size " << unpred.size() << std::endl;
     return LinearQuantizer<T>{error_bound, radius};
   }
 
+private:
+	std::vector<T> unpred;
+	size_t index = 0; // used in decompression only
 };
 
 template <class T>
 int LinearQuantizer<T>::quantize(T data, T pred){
 	int radius = this->radius;
+	// compute quantization index
 	int quant_index = (int)((data - pred) * this->error_bound_reciprocal);
 	quant_index = (quant_index > 0) ? (quant_index + 1)/2 : (quant_index - 1)/2;
+	// shift quantization index, set overbound to 0
 	return (quant_index > 0) ? (quant_index < radius ? quant_index + radius : 0) : (quant_index > -radius ? quant_index + radius : 0);
 }
 template <class T>
-int LinearQuantizer<T>::quantize(T data, T pred, T& dec_data){
+int LinearQuantizer<T>::quantize_and_overwrite(T& data, T pred){
 	int radius = this->radius;
+	// compute quantization index
 	int quant_index = (int)((data - pred) * this->error_bound_reciprocal);
 	quant_index = (quant_index > 0) ? (quant_index + 1)/2 : (quant_index - 1)/2;
-	dec_data = pred + 2 * quant_index * this->error_bound;
-	return (quant_index > 0) ? (quant_index < radius ? quant_index + radius : 0) : (quant_index > -radius ? quant_index + radius : 0);
+	// shift quantization index, set overbound to 0
+	int quant_index_shifted = (quant_index > 0) ? (quant_index < radius ? quant_index + radius : 0) : (quant_index > -radius ? quant_index + radius : 0);
+	if(quant_index_shifted){
+		data = pred + 2 * quant_index * this->error_bound;		
+	}
+	else{
+		unpred.push_back(data);
+	}
+	return quant_index_shifted;
 }
 template <class T>
 T LinearQuantizer<T>::recover(T pred, int quant_index){
-	return pred + 2 * (quant_index - this->radius) * this->error_bound;
+	if(quant_index){
+		return pred + 2 * (quant_index - this->radius) * this->error_bound;
+	}
+	else{
+		return unpred[index ++];
+	}
 }
 
 }

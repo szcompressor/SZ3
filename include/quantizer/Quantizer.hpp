@@ -56,11 +56,15 @@ namespace SZ {
             std::declval<typename T::value_type>(),
             std::declval<typename T::value_type>()
             )),
-      decltype(std::declval<T>().quantize(
-            std::declval<typename T::value_type>(),
-            std::declval<typename T::value_type>(),
-            std::declval<typename T::reference>())
-          ),
+      // decltype(std::declval<T>().quantize(
+      //       std::declval<typename T::value_type>(),
+      //       std::declval<typename T::value_type>(),
+      //       std::declval<typename T::reference>())
+      //     ),
+      decltype(std::declval<T>().quantize_and_overwrite(
+            std::declval<typename T::reference>(),
+            std::declval<typename T::value_type>()
+            )),
       decltype(std::declval<T>().recover(
             std::declval<typename T::value_type>(),
             std::declval<int>())
@@ -79,12 +83,19 @@ namespace SZ {
               decltype(std::declval<T>().save()),
               std::string
             >::value, "save must return a string");
+        // static_assert(
+        //     std::is_same<
+        //     decltype(std::declval<T>().quantize(
+        //           std::declval<typename T::value_type>(),
+        //           std::declval<typename T::value_type>(),
+        //           std::declval<typename T::reference>())),
+        //     int
+        //     >::value, "quantize must return an int");
         static_assert(
             std::is_same<
-            decltype(std::declval<T>().quantize(
-                  std::declval<typename T::value_type>(),
-                  std::declval<typename T::value_type>(),
-                  std::declval<typename T::reference>())),
+            decltype(std::declval<T>().quantize_and_overwrite(
+                  std::declval<typename T::reference>(),
+                  std::declval<typename T::value_type>())),
             int
             >::value, "quantize must return an int");
         static_assert(
