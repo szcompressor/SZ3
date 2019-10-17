@@ -90,9 +90,6 @@ class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensi
       size_t get_current_index(size_t i) const{
       	return current_index[i];
       }
-      size_t get_dimensions(size_t i) const{
-      	return range->dimensions[i];
-      }
       ptrdiff_t get_offset() const{
       	return current_offset;
       }
@@ -207,6 +204,9 @@ class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensi
   }
 
   size_t num_dims() const { return dimensions.size(); };
+  size_t get_dimensions(size_t i) const{
+    return dimensions[i];
+  }
 
   private:
 	std::array<size_t, N> global_dimensions;
