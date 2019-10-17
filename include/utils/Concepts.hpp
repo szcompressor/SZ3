@@ -1,6 +1,9 @@
 #include <type_traits>
 #include <utility>
 
+#ifndef _SZ_CONCEPTS
+#define _SZ_CONCEPTS
+
 namespace SZ {
   namespace concepts {
     template<typename... Ts> struct make_void { typedef void type;};
@@ -10,3 +13,5 @@ namespace SZ {
 
   }
 }
+
+#endif /*_SZ_CONCEPTS*/

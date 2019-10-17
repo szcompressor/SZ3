@@ -43,7 +43,7 @@ namespace SZ {
      *  std::string save() const;
      *
      *  /// returns a predictor from a serialized form
-     *  static my_predictor load(const char*, size_t len);
+     *  static my_predictor load(const unsigned char*&, size_t& len);
      *
      * };
      */
