@@ -59,7 +59,7 @@ public:
 		  // std::cout << *block << " " << lp.predict(block) << std::endl;
 		  for(int i=0; i<intra_block_dims.size(); i++){
 		  	size_t cur_index = block.get_current_index(i);
-		  	size_t dims = block.get_dimensions(i);
+		  	size_t dims = inter_block_range->get_dimensions(i);
 		  	intra_block_dims[i] = (cur_index == dims - 1) ? global_dimensions[i] - cur_index * block_size : block_size;
 		  }
 		  intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
@@ -82,7 +82,7 @@ public:
     quantizer.postcompress_data();
 
 		std::cout << "unpred_num = " << unpred_data.size() << std::endl;
-		uchar* compressed_data = new uchar[2 * num_elements];
+		uchar* compressed_data = new uchar[2 * num_elements * sizeof(T)];
 		uchar* compressed_data_pos = compressed_data;
 		// TODO: serialize and record predictor, quantizer, and encoder
 		// Or do these in a outer loop wrapper?
@@ -91,7 +91,6 @@ public:
 
     auto serialized_predictor = predictor.save();
     write(serialized_predictor.data(), serialized_predictor.size(), compressed_data_pos);
-
 		write(eb, compressed_data_pos);
 		write(quant_radius, compressed_data_pos);
 		write(unpred_data.size(), compressed_data_pos);
@@ -148,7 +147,7 @@ public:
 		  // std::cout << *block << " " << lp.predict(block) << std::endl;
 		  for(int i=0; i<intra_block_dims.size(); i++){
 		  	size_t cur_index = block.get_current_index(i);
-		  	size_t dims = block.get_dimensions(i);
+		  	size_t dims = inter_block_range->get_dimensions(i);
 		  	intra_block_dims[i] = (cur_index == dims - 1) ? global_dimensions[i] - cur_index * block_size : block_size;
 		  }
 		  intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
@@ -173,7 +172,7 @@ public:
 	// read array
 	template <class T1>
 	void read(T1 * array, size_t num_elements, uchar const *& compressed_data_pos, size_t& remaining_length){
-    assert(num_elements*sizeof(T1) > remaining_length);
+    assert(num_elements*sizeof(T1) < remaining_length);
 		memcpy(array, compressed_data_pos, num_elements*sizeof(T1));
     remaining_length -= num_elements*sizeof(T1);
 		compressed_data_pos += num_elements*sizeof(T1);
@@ -181,7 +180,7 @@ public:
 	// read variable
 	template <class T1>
 	void read(T1& var, uchar const *& compressed_data_pos, size_t& remaining_length ){
-    assert(sizeof(T1) > remaining_length);
+    assert(sizeof(T1) < remaining_length);
 		memcpy(&var, compressed_data_pos, sizeof(T1));
     remaining_length -= sizeof(T1);
 		compressed_data_pos += sizeof(T1);

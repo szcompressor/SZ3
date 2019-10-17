@@ -48,14 +48,21 @@ int main(int argc, char ** argv){
 	//SZ::SZ_General_Compressor<float, 3> sz(lorenzo, linear_quantizer, 100, 500, 500);
 
 	size_t compressed_size = 0;
+    struct timespec start, end;
+    int err = 0;
+    err = clock_gettime(CLOCK_REALTIME, &start);
 	auto compressed = sz.compress(data, 0.0001, compressed_size);
-
-	std::cout << compressed_size << std::endl;
+    err = clock_gettime(CLOCK_REALTIME, &end);
+    std::cout << "Compression time: " << (double)(end.tv_sec - start.tv_sec) + (double)(end.tv_nsec - start.tv_nsec)/(double)1000000000 << "s" << std::endl;
+	std::cout << "Compressed size = " << compressed_size << std::endl;
+    err = clock_gettime(CLOCK_REALTIME, &start);
 	auto dec_data = sz.decompress(compressed, compressed_size);
+    err = clock_gettime(CLOCK_REALTIME, &end);
+    std::cout << "Decompression time: " << (double)(end.tv_sec - start.tv_sec) + (double)(end.tv_nsec - start.tv_nsec)/(double)1000000000 << "s" << std::endl;
 	float max_err = 0;
 	for(int i=0; i<num; i++){
 		max_err = std::max(max_err, std::abs(data[i] - dec_data[i]));
 	}
-	std::cout << max_err << std::endl;
+	std::cout << "Max error = " << max_err << std::endl;
 	return 0;
 }
