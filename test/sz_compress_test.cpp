@@ -51,7 +51,7 @@ int main(int argc, char ** argv){
 	auto compressed = sz.compress(data, 0.0001, compressed_size);
 
 	std::cout << compressed_size << std::endl;
-	auto dec_data = sz.decompress(compressed);
+	auto dec_data = sz.decompress(compressed, compressed_size);
 	float max_err = 0;
 	for(int i=0; i<num; i++){
 		max_err = std::max(max_err, std::abs(data[i] - dec_data[i]));

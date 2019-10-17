@@ -14,8 +14,7 @@ template <class T, size_t N, uint block_size_ = 0, class Predictor = LorenzoPred
 class SZ_General_Compressor{
 public:
   static_assert(concepts::is_predictor<Predictor>::value, "must must implement the predictor interface");
-	SZ_General_Compressor()=default;
-	~SZ_General_Compressor()=default;
+
 	template <class ... Args>
 	SZ_General_Compressor(Predictor predictor, Quantizer quantizer, Args&&... dims) : predictor(predictor), quantizer(quantizer), block_size(block_size_), global_dimensions{static_cast<size_t>(dims)...}{
       	static_assert(sizeof...(Args) == N, "Number of arguments must be the same as N");
@@ -42,8 +41,7 @@ public:
 	// compress given the error bound
 	uchar * compress (const T * data_, double eb, size_t& compressed_size){
 		// make a copy of the data		
-		std::vector<T> data = std::vector<T>(num_elements);
-		memcpy(data.data(), data_, num_elements * sizeof(T));
+		std::vector<T> data = std::vector<T>(data_, data_+num_elements);
 
 		auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data.data(), 
 		  std::begin(global_dimensions), std::end(global_dimensions), block_size, 0);
@@ -54,6 +52,7 @@ public:
 		std::vector<int> quant_inds(num_elements);
 		std::vector<T> unpred_data;
 		int count = 0;
+    predictor.precompress_data(inter_block_range->begin());
 		for(auto block=inter_block_range->begin(); block!=inter_block_range->end(); block++){
 		  // std::cout << *block << " " << lp.predict(block) << std::endl;
 		  for(int i=0; i<intra_block_dims.size(); i++){
@@ -64,6 +63,7 @@ public:
 		  intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
 		  intra_block_range->set_offsets(block.get_offset());
 	  	  T dec_data = 0;
+      predictor.precompress_block(intra_block_range->begin());
 		  for(auto element=intra_block_range->begin(); element!=intra_block_range->end(); element++){
 		  	quant_inds[count] = quantizer.quantize(*element, predictor.predict(element), dec_data);
 		  	if(quant_inds[count]){
@@ -75,13 +75,19 @@ public:
 		  	count ++;
 		  }
 		}
+    predictor.postcompress_data(inter_block_range->begin());
+
 		std::cout << "unpred_num = " << unpred_data.size() << std::endl;
-		uchar * compressed_data = (uchar *) malloc(2 * num_elements * sizeof(T));
-		uchar * compressed_data_pos = compressed_data;
+		uchar* compressed_data = new uchar[2 * num_elements];
+		uchar* compressed_data_pos = compressed_data;
 		// TODO: serialize and record predictor, quantizer, and encoder
 		// Or do these in a outer loop wrapper?
 		write(global_dimensions.data(), N, compressed_data_pos);
 		write(block_size, compressed_data_pos);
+
+    auto serialized_predictor = predictor.save();
+    write(serialized_predictor.data(), serialized_predictor.size(), compressed_data_pos);
+
 		write(eb, compressed_data_pos);
 		write(quant_radius, compressed_data_pos);
 		write(unpred_data.size(), compressed_data_pos);
@@ -103,21 +109,25 @@ public:
 		compressed_data_pos += sizeof(T1);
 	}
 
-	T * decompress(uchar const * compressed_data){
+	T * decompress(uchar const * compressed_data, const size_t length){
 		uchar const * compressed_data_pos = compressed_data;
-		read(global_dimensions.data(), N, compressed_data_pos);
+    size_t remaining_length = length;
+		read(global_dimensions.data(), N, compressed_data_pos, remaining_length);
 		num_elements = 1;
 		for(const auto& d : global_dimensions){
 			num_elements *= d;
 		}
 		uint block_size = 0;
-		read(block_size, compressed_data_pos);
+		read(block_size, compressed_data_pos, remaining_length);
+
+    predictor.load(compressed_data_pos, remaining_length);
+
 		double eb = 0;
-		read(eb, compressed_data_pos);
+		read(eb, compressed_data_pos, remaining_length);
 		int quant_radius = 0;
-		read(quant_radius, compressed_data_pos);
+		read(quant_radius, compressed_data_pos, remaining_length);
 		size_t unpred_data_size = 0;
-		read(unpred_data_size, compressed_data_pos);
+		read(unpred_data_size, compressed_data_pos, remaining_length);
 		T const * unpred_data_pos = (T const *) compressed_data_pos;
 		compressed_data_pos += unpred_data_size * sizeof(T);
 		int const * quant_inds_pos = (int const *) compressed_data_pos;
@@ -125,6 +135,8 @@ public:
 		std::vector<T> dec_data = std::vector<T>(num_elements);
 		auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.data(), 
 		  std::begin(global_dimensions), std::end(global_dimensions), block_size, 0);
+    predictor.predecompress_data(inter_block_range->begin());
+
 		auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.data(),
 		  std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
 		for(auto block=inter_block_range->begin(); block!=inter_block_range->end(); block++){
@@ -136,7 +148,8 @@ public:
 		  }
 		  intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
 		  intra_block_range->set_offsets(block.get_offset());
-		  // preprocess
+
+      predictor.predecompress_block(intra_block_range->begin());
 		  for(auto element=intra_block_range->begin(); element!=intra_block_range->end(); element++){
 		  	int quant_index = *(quant_inds_pos ++);
 		  	if(quant_index){
@@ -147,18 +160,23 @@ public:
 		  	}
 		  }
 		}
+    predictor.postdecompress_data(inter_block_range->begin());
 		return dec_data.data();
 	}
 	// read array
 	template <class T1>
-	void read(T1 * array, size_t num_elements, uchar const *& compressed_data_pos){
+	void read(T1 * array, size_t num_elements, uchar const *& compressed_data_pos, size_t& remaining_length){
+    assert(num_elements*sizeof(T1) > remaining_length);
 		memcpy(array, compressed_data_pos, num_elements*sizeof(T1));
+    remaining_length -= num_elements*sizeof(T1);
 		compressed_data_pos += num_elements*sizeof(T1);
 	}
 	// read variable
 	template <class T1>
-	void read(T1& var, uchar const *& compressed_data_pos ){
+	void read(T1& var, uchar const *& compressed_data_pos, size_t& remaining_length ){
+    assert(sizeof(T1) > remaining_length);
 		memcpy(&var, compressed_data_pos, sizeof(T1));
+    remaining_length -= sizeof(T1);
 		compressed_data_pos += sizeof(T1);
 	}
 
