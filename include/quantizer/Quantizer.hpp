@@ -69,20 +69,25 @@ namespace SZ {
             std::declval<typename T::value_type>(),
             std::declval<int>())
           ),
-      decltype(T::load(std::declval<const unsigned char*&>(), std::declval<size_t&>())),
+      decltype(std::declval<T>().save(
+            std::declval<unsigned char*&>())
+          ),
+      decltype(std::declval<T>().load(
+            std::declval<const unsigned char*&>(), std::declval<size_t&>())
+          ),
+      // decltype(T::load(std::declval<const unsigned char*&>(), std::declval<size_t&>())),
       decltype(std::declval<T>().precompress_data()),
       decltype(std::declval<T>().postcompress_data()),
       decltype(std::declval<T>().precompress_block()),
       decltype(std::declval<T>().predecompress_data()),
       decltype(std::declval<T>().postdecompress_data()),
-      decltype(std::declval<T>().predecompress_block()),
-      decltype(std::declval<T>().save())
+      decltype(std::declval<T>().predecompress_block())//,
       >> : true_type{
-        static_assert(
-            std::is_same<
-              decltype(std::declval<T>().save()),
-              std::string
-            >::value, "save must return a string");
+        // static_assert(
+        //     std::is_same<
+        //       decltype(std::declval<T>().save()),
+        //       std::string
+        //     >::value, "save must return a string");
         // static_assert(
         //     std::is_same<
         //     decltype(std::declval<T>().quantize(

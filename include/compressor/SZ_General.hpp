@@ -53,8 +53,8 @@ public:
 		std::vector<int> quant_inds(num_elements);
 		std::vector<T> unpred_data;
 		int count = 0;
-    predictor.precompress_data(inter_block_range->begin());
-    quantizer.precompress_data();
+    	predictor.precompress_data(inter_block_range->begin());
+    	quantizer.precompress_data();
 		for(auto block=inter_block_range->begin(); block!=inter_block_range->end(); block++){
 		  // std::cout << *block << " " << lp.predict(block) << std::endl;
 		  for(int i=0; i<intra_block_dims.size(); i++){
@@ -65,14 +65,14 @@ public:
 		  intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
 		  intra_block_range->set_offsets(block.get_offset());
 	  	  T dec_data = 0;
-      predictor.precompress_block(intra_block_range->begin());
-      quantizer.precompress_block();
+      	predictor.precompress_block(intra_block_range->begin());
+      	quantizer.precompress_block();
 		  for(auto element=intra_block_range->begin(); element!=intra_block_range->end(); element++){
 		  	quant_inds[count ++] = quantizer.quantize_and_overwrite(*element, predictor.predict(element));
 		  }
 		}
-    predictor.postcompress_data(inter_block_range->begin());
-    quantizer.postcompress_data();
+    	predictor.postcompress_data(inter_block_range->begin());
+    	quantizer.postcompress_data();
 
 		std::cout << "unpred_num = " << unpred_data.size() << std::endl;
 		uchar* compressed_data = new uchar[2 * num_elements * sizeof(T)];
@@ -82,11 +82,9 @@ public:
 		write(global_dimensions.data(), N, compressed_data_pos);
 		write(block_size, compressed_data_pos);
 
-    auto serialized_predictor = predictor.save();
-    write(serialized_predictor.data(), serialized_predictor.size(), compressed_data_pos);
-    // auto serialized_quantizer = quantizer.save();
-		write(eb, compressed_data_pos);
-		write(quant_radius, compressed_data_pos);
+    	auto serialized_predictor = predictor.save();
+    	write(serialized_predictor.data(), serialized_predictor.size(), compressed_data_pos);
+	    quantizer.save(compressed_data_pos);
 		write(unpred_data.size(), compressed_data_pos);
 		write(unpred_data.data(), unpred_data.size(), compressed_data_pos);
 		write(quant_inds.data(), quant_inds.size(), compressed_data_pos);
@@ -117,12 +115,8 @@ public:
 		uint block_size = 0;
 		read(block_size, compressed_data_pos, remaining_length);
 
-    predictor.load(compressed_data_pos, remaining_length);
-
-		double eb = 0;
-		read(eb, compressed_data_pos, remaining_length);
-		int quant_radius = 0;
-		read(quant_radius, compressed_data_pos, remaining_length);
+    	predictor.load(compressed_data_pos, remaining_length);
+    	quantizer.load(compressed_data_pos, remaining_length);
 		size_t unpred_data_size = 0;
 		read(unpred_data_size, compressed_data_pos, remaining_length);
 		T const * unpred_data_pos = (T const *) compressed_data_pos;
@@ -132,8 +126,8 @@ public:
 		std::vector<T> dec_data = std::vector<T>(num_elements);
 		auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.data(), 
 		  std::begin(global_dimensions), std::end(global_dimensions), block_size, 0);
-    predictor.predecompress_data(inter_block_range->begin());
-    quantizer.predecompress_data();
+    	predictor.predecompress_data(inter_block_range->begin());
+    	quantizer.predecompress_data();
 
 		auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.data(),
 		  std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
@@ -147,14 +141,14 @@ public:
 		  intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
 		  intra_block_range->set_offsets(block.get_offset());
 
-      predictor.predecompress_block(intra_block_range->begin());
-      quantizer.predecompress_block();
+      	  predictor.predecompress_block(intra_block_range->begin());
+      	  quantizer.predecompress_block();
 		  for(auto element=intra_block_range->begin(); element!=intra_block_range->end(); element++){
 	  		*element = quantizer.recover(predictor.predict(element), *(quant_inds_pos ++));
 		  }
 		}
-    predictor.postdecompress_data(inter_block_range->begin());
-    quantizer.postdecompress_data();
+    	predictor.postdecompress_data(inter_block_range->begin());
+    	quantizer.postdecompress_data();
 		return dec_data.data();
 	}
 	// read array
@@ -162,7 +156,7 @@ public:
 	void read(T1 * array, size_t num_elements, uchar const *& compressed_data_pos, size_t& remaining_length){
     assert(num_elements*sizeof(T1) < remaining_length);
 		memcpy(array, compressed_data_pos, num_elements*sizeof(T1));
-    remaining_length -= num_elements*sizeof(T1);
+    	remaining_length -= num_elements*sizeof(T1);
 		compressed_data_pos += num_elements*sizeof(T1);
 	}
 	// read variable

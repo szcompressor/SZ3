@@ -2,6 +2,7 @@
 #define _SZ_INTEGER_QUANTIZER_HPP
 #include <string>
 #include <cassert>
+#include <iostream>
 namespace SZ{
 
 // data with T type
@@ -36,8 +37,8 @@ class LinearQuantizer : public PredictionBasedQuantizer<T>{
 public:
 	LinearQuantizer(T eb, int r = 32768) : PredictionBasedQuantizer<T>(eb, r){}
 
-  using value_type = T;
-  using reference = T&;
+    using value_type = T;
+    using reference = T&;
 
 	// quantize the data with a prediction value, and returns the quantization index
 	int quantize(T data, T pred);
@@ -47,23 +48,36 @@ public:
 	// recover the data using the quantization index
 	T recover(T pred, int quant_index);
 
-  std::string save() const {
-    std::string serialized(1 + sizeof(T) + sizeof(int),0);
-    serialized.front() = 0b00000010;
-    *reinterpret_cast<T*>(serialized[1]) = this->error_bound;
-    *reinterpret_cast<T*>(serialized[1 + sizeof(T)]) = this->radius;
-    return serialized;
+  void save(unsigned char*& c) const {
+    // std::string serialized(sizeof(uint8_t) + sizeof(T) + sizeof(int),0);
+    c[0] = 0b00000010;
+    c += 1;
+    std::cout << this->error_bound << " " << this->radius << std::endl;
+    *reinterpret_cast<T*>(c) = this->error_bound;
+    c += sizeof(T);
+    *reinterpret_cast<int*>(c) = this->radius;
+    c += sizeof(int);
+    *reinterpret_cast<size_t*>(c) = unpred.size();
+    c += sizeof(size_t);
+    memcpy(c, unpred.data(), unpred.size()*sizeof(T));
+    c += unpred.size()*sizeof(T);
   };
 
-  static LinearQuantizer<T> load(const unsigned char*& c, size_t& remaining_length) {
-    assert(remaining_length > (sizeof(uint8_t) + sizeof(int) + sizeof(T)));
-    c += 1;
+  void load(const unsigned char*& c, size_t& remaining_length) {
+    assert(remaining_length > (sizeof(uint8_t) + sizeof(T) + sizeof(int)));
+    c += sizeof(uint8_t);
     remaining_length -= sizeof(uint8_t);
-    T error_bound;
-    int radius;
+    this->error_bound = *reinterpret_cast<const T*>(c);
+    c += sizeof(T);
+    this->radius = *reinterpret_cast<const int*>(c);
+    c += sizeof(int);
+    size_t unpred_size = *reinterpret_cast<const size_t*>(c);
+    c += sizeof(size_t);
+    this->unpred = std::vector<T>(reinterpret_cast<const T*>(c), reinterpret_cast<const T*>(c) + unpred_size);
+    c += unpred_size * sizeof(T);
 
     // std::cout << "unpred data size " << unpred.size() << std::endl;
-    return LinearQuantizer<T>{error_bound, radius};
+    // return LinearQuantizer<T>(c);
   }
 
 private:
