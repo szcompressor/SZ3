@@ -75,7 +75,8 @@ public:
     c += sizeof(size_t);
     this->unpred = std::vector<T>(reinterpret_cast<const T*>(c), reinterpret_cast<const T*>(c) + unpred_size);
     c += unpred_size * sizeof(T);
-
+    // reset index
+    index = 0;
     // std::cout << "unpred data size " << unpred.size() << std::endl;
     // return LinearQuantizer<T>(c);
   }

@@ -3,6 +3,7 @@
 
 #include "utils/Concepts.hpp"
 #include "LorenzoPredictor.hpp"
+#include "RegressionPredictor.hpp"
 
 namespace SZ {
 

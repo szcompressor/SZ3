@@ -51,7 +51,7 @@ int main(int argc, char ** argv){
     struct timespec start, end;
     int err = 0;
     err = clock_gettime(CLOCK_REALTIME, &start);
-	auto compressed = sz.compress(data, 0.0001, compressed_size);
+	auto compressed = sz.compress(data, 0.1, compressed_size);
     err = clock_gettime(CLOCK_REALTIME, &end);
     std::cout << "Compression time: " << (double)(end.tv_sec - start.tv_sec) + (double)(end.tv_nsec - start.tv_nsec)/(double)1000000000 << "s" << std::endl;
 	std::cout << "Compressed size = " << compressed_size << std::endl;
