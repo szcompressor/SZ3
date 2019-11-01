@@ -41,6 +41,7 @@ public:
 	}
 	// compress given the error bound
 	uchar * compress (const T * data_, double eb, size_t& compressed_size){
+		// TODO: new quantizer if eb does not match
 		// make a copy of the data		
 		std::vector<T> data = std::vector<T>(data_, data_+num_elements);
 
@@ -48,7 +49,6 @@ public:
 		  std::begin(global_dimensions), std::end(global_dimensions), block_size, 0);
 		auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data.data(),
 		  std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
-		int quant_radius = 32768;
 		std::array<size_t, N> intra_block_dims;
 		std::vector<int> quant_inds(num_elements);
 		std::vector<T> unpred_data;
@@ -65,7 +65,7 @@ public:
 		  intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
 		  intra_block_range->set_offsets(block.get_offset());
 	  	  T dec_data = 0;
-      	predictor.precompress_block(intra_block_range->begin());
+      	predictor.precompress_block(intra_block_range);
       	quantizer.precompress_block();
 		  for(auto element=intra_block_range->begin(); element!=intra_block_range->end(); element++){
 		  	quant_inds[count ++] = quantizer.quantize_and_overwrite(*element, predictor.predict(element));
@@ -74,16 +74,16 @@ public:
     	predictor.postcompress_data(inter_block_range->begin());
     	quantizer.postcompress_data();
 
-		std::cout << "unpred_num = " << unpred_data.size() << std::endl;
 		uchar* compressed_data = new uchar[2 * num_elements * sizeof(T)];
 		uchar* compressed_data_pos = compressed_data;
 		// TODO: serialize and record predictor, quantizer, and encoder
 		// Or do these in a outer loop wrapper?
 		write(global_dimensions.data(), N, compressed_data_pos);
 		write(block_size, compressed_data_pos);
-
-    	auto serialized_predictor = predictor.save();
-    	write(serialized_predictor.data(), serialized_predictor.size(), compressed_data_pos);
+		std::cout << "block_size = " << block_size << std::endl;
+    	// auto serialized_predictor = predictor.save();
+    	// write(serialized_predictor.data(), serialized_predictor.size(), compressed_data_pos);
+		predictor.save(compressed_data_pos);
 	    quantizer.save(compressed_data_pos);
 		write(unpred_data.size(), compressed_data_pos);
 		write(unpred_data.data(), unpred_data.size(), compressed_data_pos);
@@ -111,9 +111,12 @@ public:
 		num_elements = 1;
 		for(const auto& d : global_dimensions){
 			num_elements *= d;
+			std::cout << d << " ";
 		}
+		std::cout << std::endl;
 		uint block_size = 0;
 		read(block_size, compressed_data_pos, remaining_length);
+		std::cout << "block_size = " << block_size << std::endl;
 
     	predictor.load(compressed_data_pos, remaining_length);
     	quantizer.load(compressed_data_pos, remaining_length);
@@ -126,13 +129,20 @@ public:
 		std::vector<T> dec_data = std::vector<T>(num_elements);
 		auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.data(), 
 		  std::begin(global_dimensions), std::end(global_dimensions), block_size, 0);
+
+		// auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data.data(), 
+		//   std::begin(global_dimensions), std::end(global_dimensions), block_size, 0);
+		// auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data.data(),
+		//   std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
+		auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.data(),
+		  std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
+
     	predictor.predecompress_data(inter_block_range->begin());
     	quantizer.predecompress_data();
 
-		auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.data(),
-		  std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
+    	std::cout << "start decompression" << std::endl;
+    	// exit(0);
 		for(auto block=inter_block_range->begin(); block!=inter_block_range->end(); block++){
-		  // std::cout << *block << " " << lp.predict(block) << std::endl;
 		  for(int i=0; i<intra_block_dims.size(); i++){
 		  	size_t cur_index = block.get_current_index(i);
 		  	size_t dims = inter_block_range->get_dimensions(i);
@@ -141,8 +151,11 @@ public:
 		  intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
 		  intra_block_range->set_offsets(block.get_offset());
 
-      	  predictor.predecompress_block(intra_block_range->begin());
+      	  predictor.predecompress_block(intra_block_range);
       	  quantizer.predecompress_block();
+		  // std::cout << "dimensions: " << intra_block_range->get_dimensions(0) << " " << intra_block_range->get_dimensions(1) << " " << intra_block_range->get_dimensions(2) << std::endl;
+		  // std::cout << "index: " << block.get_current_index(0) << " " << block.get_current_index(1) << " " << block.get_current_index(2) << std::endl;
+		  // exit(0);
 		  for(auto element=intra_block_range->begin(); element!=intra_block_range->end(); element++){
 	  		*element = quantizer.recover(predictor.predict(element), *(quant_inds_pos ++));
 		  }

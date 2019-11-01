@@ -52,7 +52,7 @@ public:
     // std::string serialized(sizeof(uint8_t) + sizeof(T) + sizeof(int),0);
     c[0] = 0b00000010;
     c += 1;
-    std::cout << this->error_bound << " " << this->radius << std::endl;
+    std::cout << "saving eb = " << this->error_bound << ", unpred_num = "  << unpred.size() << std::endl;
     *reinterpret_cast<T*>(c) = this->error_bound;
     c += sizeof(T);
     *reinterpret_cast<int*>(c) = this->radius;
@@ -75,6 +75,7 @@ public:
     c += sizeof(size_t);
     this->unpred = std::vector<T>(reinterpret_cast<const T*>(c), reinterpret_cast<const T*>(c) + unpred_size);
     c += unpred_size * sizeof(T);
+    std::cout << "loading: eb = " << this->error_bound << ", unpred_num = "  << unpred.size() << std::endl;
     // reset index
     index = 0;
     // std::cout << "unpred data size " << unpred.size() << std::endl;
@@ -117,6 +118,10 @@ T LinearQuantizer<T>::recover(T pred, int quant_index){
 		return pred + 2 * (quant_index - this->radius) * this->error_bound;
 	}
 	else{
+		// if(index >= unpred.size()){
+		// 	std::cout << "index = " << index << ", unpred_size = " << unpred.size() << std::endl;
+		// 	exit(0);
+		// }
 		return unpred[index ++];
 	}
 }
