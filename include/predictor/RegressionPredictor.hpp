@@ -4,7 +4,7 @@
 #include "def.hpp"
 #include "utils/Iterator.hpp"
 #include "quantizer/Quantizer.hpp"
-
+#include <cstring>
 #include <iostream>
 namespace SZ{
 

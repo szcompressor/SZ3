@@ -1,8 +1,9 @@
 #ifndef _SZ_INTEGER_QUANTIZER_HPP
 #define _SZ_INTEGER_QUANTIZER_HPP
-#include <string>
+#include <cstring>
 #include <cassert>
 #include <iostream>
+#include <vector>
 namespace SZ{
 
 // data with T type
