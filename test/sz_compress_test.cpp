@@ -1,4 +1,4 @@
-#include "quantizer/IntegerQuantizer.hpp"
+#include <quantizer/IntegerQuantizer.hpp>
 #include <compressor/Compressor.hpp>
 #include <quantizer/Quantizer.hpp>
 #include <utils/Iterator.hpp>
