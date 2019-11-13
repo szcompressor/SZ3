@@ -80,12 +80,14 @@ class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensi
       const_reference operator*() const {
         return range->data[current_offset];
       }
-
       bool operator==(multi_dimensional_iterator const& rhs) const {
         return current_offset == rhs.current_offset;
       }
       bool operator!=(multi_dimensional_iterator const& rhs) const {
         return current_offset != rhs.current_offset;
+      }
+      std::array<size_t, N> get_current_index_vector() const{
+        return current_index;
       }
       size_t get_current_index(size_t i) const{
       	return current_index[i];
@@ -106,7 +108,7 @@ class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensi
       	auto offset = current_offset;
       	std::array<int, N> args{std::forward<Args>(pos)...};
       	for(int i=0; i<N; i++){
-          if(current_index[i] < args[i]) return 0;
+          if(current_index[i] < args[i] && range->whether_global_start_position(i)) return 0;
           offset -= args[i] ? range->global_dim_strides[i] : 0;
       	}
       	return (offset >= 0) ? range->data[offset] : 0;
@@ -166,6 +168,12 @@ class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensi
   void set_access_stride(size_t stride_){
   	access_stride = stride_;
   }
+  // NOTE: did not consider the real offset for simplicity
+  void set_starting_position(const std::array<size_t, N>& dims){
+    for(int i=0; i<N; i++){
+      start_position[i] = (dims[i] == 0);
+    }
+  }
   template <class ForwardIt1>
   multi_dimensional_range(
       T* data_,
@@ -173,7 +181,7 @@ class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensi
       ForwardIt1 global_dims_end,
       size_t stride_,
       ptrdiff_t offset_
-      ): data(data_)
+      ): data(data_), start_position{false}
   {
     static_assert(
         std::is_convertible<
@@ -207,12 +215,16 @@ class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensi
   size_t get_dimensions(size_t i) const{
     return dimensions[i];
   }
+  bool whether_global_start_position(size_t i) const{
+    return start_position[i];
+  }
 
   private:
 	std::array<size_t, N> global_dimensions;
 	std::array<size_t, N> global_dim_strides;
   std::array<size_t, N> dimensions; 			  // the dimensions 
   std::array<size_t, N> dim_strides; 			  // strides for dimensions
+  std::array<bool, N> start_position;       // indicator for starting position, used for block-wise lorenzo predictor
   size_t access_stride;					          	// stride for access pattern
   ptrdiff_t start_offset;					          // offset for start point
   ptrdiff_t end_offset;						          // offset for end point

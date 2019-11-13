@@ -64,6 +64,7 @@ public:
 		  }
 		  intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
 		  intra_block_range->set_offsets(block.get_offset());
+		  intra_block_range->set_starting_position(block.get_current_index_vector());
 	  	  T dec_data = 0;
       	predictor.precompress_block(intra_block_range);
       	quantizer.precompress_block();
@@ -152,6 +153,7 @@ public:
 		  }
 		  intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
 		  intra_block_range->set_offsets(block.get_offset());
+		  intra_block_range->set_starting_position(block.get_current_index_vector());
 
       	  predictor.predecompress_block(intra_block_range);
       	  quantizer.predecompress_block();
