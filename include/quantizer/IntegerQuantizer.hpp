@@ -31,6 +31,7 @@ public:
 
 
 	PredictionBasedQuantizer(T eb, int r) : error_bound(eb), error_bound_reciprocal(1.0 / eb), radius(r){}
+	int get_radius(){return radius;}
 };
 
 template <class T>
@@ -119,10 +120,6 @@ T LinearQuantizer<T>::recover(T pred, int quant_index){
 		return pred + 2 * (quant_index - this->radius) * this->error_bound;
 	}
 	else{
-		// if(index >= unpred.size()){
-		// 	std::cout << "index = " << index << ", unpred_size = " << unpred.size() << std::endl;
-		// 	exit(0);
-		// }
 		return unpred[index ++];
 	}
 }

@@ -42,32 +42,33 @@ namespace SZ {
 		float value;
 		unsigned int ivalue;
 		unsigned char byte[4];
-	} lfloat;
-
-	typedef struct node_t {
-		struct node_t *left, *right;
-		size_t freq;
-		char t; //in_node:0; otherwise:1
-		unsigned int c;
-	} *node;	
-
-	typedef struct HuffmanTree {
-		unsigned int stateNum;
-		unsigned int allNodes;
-		struct node_t* pool;
-		node *qqq, *qq; //the root node of the HuffmanTree is qq[1]
-		int n_nodes; //n_nodes is for compression
-		int qend;
-		unsigned long **code;
-		unsigned char *cout;
-		int n_inode; //n_inode is for decompression
-		int maxBitCount;
-	} HuffmanTree;
+	} lfloat;	
 
 	template <class T>
 	class HuffmanEncoder{
 		
 		public: 
+
+			typedef struct node_t {
+				struct node_t *left, *right;
+				size_t freq;
+				char t; //in_node:0; otherwise:1
+				T c;
+			} *node;		
+
+			typedef struct HuffmanTree {
+				unsigned int stateNum;
+				unsigned int allNodes;
+				struct node_t* pool;
+				node *qqq, *qq; //the root node of the HuffmanTree is qq[1]
+				int n_nodes; //n_nodes is for compression
+				int qend;
+				unsigned long **code;
+				unsigned char *cout;
+				int n_inode; //n_inode is for decompression
+				int maxBitCount;
+			} HuffmanTree;
+
 		
 			HuffmanEncoder()
 			{
@@ -106,6 +107,7 @@ namespace SZ {
 			
 			void preprocess_encode(const std::vector<T>& bins, int stateNum)
 			{
+				nodeCount = 0;
 				huffmanTree = createHuffmanTree(stateNum);
 				init(bins.data(), bins.size());				
 				for (int i = 0; i < huffmanTree->stateNum; i++)
@@ -128,7 +130,7 @@ namespace SZ {
 					totalSize = convert_HuffTree_to_bytes_anyStates<unsigned short>(nodeCount, c);
 				else
 					totalSize = convert_HuffTree_to_bytes_anyStates<unsigned int>(nodeCount, c);			
-				//std::cout << "total size = " << totalSize << std::endl;
+				std::cout << "total size = " << totalSize << std::endl;
 				// printf("1\n");
 				c += totalSize;
 				return totalSize + sizeof(int) + sizeof(int);
@@ -225,17 +227,16 @@ namespace SZ {
 				return outSize;
 			}		
 			
-			//keep it empty for huffman encoding
 			void postprocess_encode()
 			{
-				
+				SZ_FreeHuffman();
 			}
 			
 			//empty function
 			void preprocess_decode();
 			
 			//perform decoding
-			std::vector<T> decode(const uchar* bytes, size_t targetLength) const
+			std::vector<T> decode(const uchar*& bytes, size_t targetLength) const
 			{
 				node t = treeRoot;
 				std::vector<T> out(targetLength);
@@ -250,9 +251,8 @@ namespace SZ {
 					return out;
 				}
 				
-				for(i=0;count<targetLength;i++)
+				for(i=0;count<targetLength;i++)	
 				{
-					
 					byteIndex = i>>3; //i/8
 					r = i%8;
 					if(((bytes[byteIndex] >> (7-r)) & 0x01) == 0)
@@ -267,16 +267,21 @@ namespace SZ {
 					}
 				}
 				if (t != n) printf("garbage input\n");
+				bytes += byteIndex;
 				return out;	
 			}
 			
 			//empty function
-			void postprocess_decode();
+			void postprocess_decode()
+			{
+				SZ_FreeHuffman();
+			}
 			
 			//load Huffman tree
 			void load(const uchar *& c, size_t& remaining_length)
 			{
 				nodeCount = bytesToInt_bigEndian(c);
+				int stateNum = bytesToInt_bigEndian(c+sizeof(int))*2;
 				size_t encodeStartIndex;
 				if(nodeCount<=256)
 					encodeStartIndex = 1+3*nodeCount*sizeof(unsigned char)+nodeCount*sizeof(T);
@@ -285,6 +290,7 @@ namespace SZ {
 				else
 					encodeStartIndex = 1+2*nodeCount*sizeof(unsigned int)+nodeCount*sizeof(unsigned char)+nodeCount*sizeof(T);			
 
+				huffmanTree = createHuffmanTree(stateNum);
 				treeRoot = reconstruct_HuffTree_from_bytes_anyStates(c + sizeof(int) + sizeof(int), nodeCount);
 				c += sizeof(int) + sizeof(int) + encodeStartIndex;
 			}
@@ -522,7 +528,7 @@ namespace SZ {
 				}
 			}			
 			
-			node new_node(size_t freq, unsigned int c, node a, node b)
+			node new_node(size_t freq, T c, node a, node b)
 			{
 				node n = huffmanTree->pool + huffmanTree->n_nodes++;
 				if (freq) 
@@ -541,7 +547,7 @@ namespace SZ {
 				return n;
 			}
 			 
-			node new_node2(unsigned int c, unsigned char t)
+			node new_node2(T c, unsigned char t)
 			{
 				huffmanTree->pool[huffmanTree->n_nodes].c = c;
 				huffmanTree->pool[huffmanTree->n_nodes].t = t;
@@ -650,7 +656,7 @@ namespace SZ {
 			}
 			
 			template <class T1>
-			void pad_tree(T1* L, T1* R, T* C, T1* t, unsigned int i, node root)
+			void pad_tree(T1* L, T1* R, T* C, unsigned char* t, unsigned int i, node root)
 			{
 				C[i] = root->c;
 				t[i] = root->t;
@@ -676,7 +682,7 @@ namespace SZ {
 				//root->c = C[i];
 				if(root->t==0)
 				{
-					unsigned char l, r;
+					T1 l, r;
 					l = L[i];
 					if(l!=0)
 					{
@@ -697,15 +703,15 @@ namespace SZ {
 			template <class T1>
 			unsigned int convert_HuffTree_to_bytes_anyStates(unsigned int nodeCount, unsigned char* out) 
 			{
-				unsigned char* L = (unsigned char*)malloc(nodeCount*sizeof(T1));
+				T1* L = (T1*)malloc(nodeCount*sizeof(T1));
 				memset(L, 0, nodeCount*sizeof(T1));
-				unsigned char* R = (unsigned char*)malloc(nodeCount*sizeof(T1));
+				T1* R = (T1*)malloc(nodeCount*sizeof(T1));
 				memset(R, 0, nodeCount*sizeof(T1));
 				T* C = (T*)malloc(nodeCount*sizeof(T));
 				memset(C, 0, nodeCount*sizeof(T));
 				unsigned char* t = (unsigned char*)malloc(nodeCount*sizeof(unsigned char));
 				memset(t, 0, nodeCount*sizeof(unsigned char));				
-
+				
 				pad_tree(L,R,C,t,0,huffmanTree->qq[1]);
 				
 				unsigned int totalSize = 1+2*nodeCount*sizeof(T1)+nodeCount*sizeof(unsigned char) + nodeCount*sizeof(T);
@@ -721,7 +727,28 @@ namespace SZ {
 				free(C);
 				free(t);
 				return totalSize;	
-			}		
+			}	
+			
+			void SZ_FreeHuffman()
+			{
+				size_t i;
+				free(huffmanTree->pool);
+				huffmanTree->pool = NULL;
+				free(huffmanTree->qqq);
+				huffmanTree->qqq = NULL;
+				for(i=0;i<huffmanTree->stateNum;i++)
+				{
+					if(huffmanTree->code[i]!=NULL)
+						free(huffmanTree->code[i]);
+				}
+				free(huffmanTree->code);
+				huffmanTree->code = NULL;
+				free(huffmanTree->cout);
+				huffmanTree->cout = NULL;	
+				free(huffmanTree);
+				huffmanTree = NULL;
+			}
+				
 	};
 }
 

@@ -38,11 +38,12 @@ int main(int argc, char ** argv){
 	// use Hurricane for testing
 	auto data = readfile<float>(argv[1], num);
 	std::cout << "Read " << num << " elements\n";
-	float eb = 0.1;
+	float eb = 0.001;
 	auto sz = SZ::make_sz_general<float>(
-		// SZ::LorenzoPredictor<float, 3>(),
-		SZ::RegressionPredictor<float, 3>(0.1*eb),
-		SZ::LinearQuantizer<float>(eb, 32),
+		SZ::LorenzoPredictor<float, 3>(),
+		// SZ::RegressionPredictor<float, 3>(0.1*eb),
+		SZ::LinearQuantizer<float>(eb),
+		SZ::HuffmanEncoder<int>(),
 		100,
 		500,
 		500
