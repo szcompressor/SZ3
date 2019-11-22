@@ -38,10 +38,15 @@ int main(int argc, char ** argv){
 	// use Hurricane for testing
 	auto data = readfile<float>(argv[1], num);
 	std::cout << "Read " << num << " elements\n";
-	float eb = 0.001;
+	float eb = 10;
+
+	auto P_l = SZ::LorenzoPredictor<float, 3>(eb);
+	auto P_reg = SZ::RegressionPredictor<float, 3>(0.1*eb);
+	SZ::ComposedPredictor<float, 3> cp(P_l, P_reg);
 	auto sz = SZ::make_sz_general<float>(
-		SZ::LorenzoPredictor<float, 3>(),
+		// SZ::LorenzoPredictor<float, 3>(),
 		// SZ::RegressionPredictor<float, 3>(0.1*eb),
+		&cp,
 		SZ::LinearQuantizer<float>(eb),
 		SZ::HuffmanEncoder<int>(),
 		100,
@@ -58,6 +63,7 @@ int main(int argc, char ** argv){
     err = clock_gettime(CLOCK_REALTIME, &end);
     std::cout << "Compression time: " << (double)(end.tv_sec - start.tv_sec) + (double)(end.tv_nsec - start.tv_nsec)/(double)1000000000 << "s" << std::endl;
 	std::cout << "Compressed size = " << compressed_size << std::endl;
+	writefile("test.dat", compressed, compressed_size);
     err = clock_gettime(CLOCK_REALTIME, &start);
 	auto dec_data = sz.decompress(compressed, compressed_size);
     err = clock_gettime(CLOCK_REALTIME, &end);

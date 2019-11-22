@@ -8,32 +8,41 @@
 #include <iostream>
 namespace SZ{
 
-// N-d lorenzo predictor
+// N-d regression predictor
 template <class T, uint N>
 class RegressionPredictor{
 public:
+  static const uint8_t predictor_id = 0b00000010;
+  RegressionPredictor() : quantizer(0), current_coeffs{0} {}
   RegressionPredictor(T eb) : quantizer(eb), current_coeffs{0} {}
   using Range = multi_dimensional_range<T, N>;
   using iterator = typename multi_dimensional_range<T, N>::iterator;
+  void precompress_data(const iterator&) const noexcept{}
+  void postcompress_data(const iterator&) const noexcept{}
+  void predecompress_data(const iterator&) const noexcept{}
+  void postdecompress_data(const iterator&) const noexcept{}
+  inline T estimate_error(const iterator& iter) const noexcept {
+    return ABS(*iter - predict(iter));
+  }
   void precompress_block(const std::shared_ptr<Range>& range) noexcept {
     // std::cout << "precompress_block" << std::endl;
-  	std::array<size_t, N> dims;
-  	for(int i=0; i<N; i++){
-  		dims[i] = range->get_dimensions(i);
-  	}
-  	std::array<T, N + 1> coeffs = compute_regression_coefficients(range, dims);
+    std::array<size_t, N> dims;
+    for(int i=0; i<N; i++){
+      dims[i] = range->get_dimensions(i);
+    }
+    std::array<T, N + 1> coeffs = compute_regression_coefficients(range, dims);
     pred_and_quantize_coefficients(coeffs);
     std::copy(coeffs.begin(), coeffs.end(), current_coeffs.begin());
   }
   inline T predict(const iterator& iter) const noexcept {
-  	T pred = 0;
-  	for(int i=0; i<N; i++){
-  		pred += iter.get_current_index(i) * current_coeffs[i];
-  	}
-  	pred += current_coeffs[N];
-  	return pred;
+    T pred = 0;
+    for(int i=0; i<N; i++){
+      pred += iter.get_current_index(i) * current_coeffs[i];
+    }
+    pred += current_coeffs[N];
+    return pred;
   }
-  void save(uchar *& c){
+  void save(uchar *& c) const{
     std::cout << "save predictor" << std::endl;
     c[0] = 0b00000010;
     c += 1;
@@ -43,10 +52,6 @@ public:
     memcpy(c, regression_coeff_quant_inds.data(), regression_coeff_quant_inds.size()*sizeof(int));
     c += regression_coeff_quant_inds.size()*sizeof(int);
   }
-  void precompress_data(const iterator&) const noexcept{}
-  void postcompress_data(const iterator&) const noexcept{}
-  void predecompress_data(const iterator&) const noexcept{}
-  void postdecompress_data(const iterator&) const noexcept{}
   void predecompress_block(const std::shared_ptr<Range>& range) noexcept{
     pred_and_recover_coefficients();
   }
@@ -63,6 +68,9 @@ public:
     remaining_length -= coeff_size * sizeof(int);
     std::fill(current_coeffs.begin(), current_coeffs.end(), 0);
     regression_coeff_index = 0;
+  }
+  void print() const{
+    std::cout << "Regression predictor\n";
   }
 private:
   LinearQuantizer<T> quantizer;

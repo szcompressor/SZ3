@@ -32,6 +32,7 @@ public:
 
 	PredictionBasedQuantizer(T eb, int r) : error_bound(eb), error_bound_reciprocal(1.0 / eb), radius(r){}
 	int get_radius(){return radius;}
+	T get_eb(){return error_bound;}
 };
 
 template <class T>
@@ -70,6 +71,7 @@ public:
     c += sizeof(uint8_t);
     remaining_length -= sizeof(uint8_t);
     this->error_bound = *reinterpret_cast<const T*>(c);
+    this->error_bound_reciprocal = 1.0 / this->error_bound;
     c += sizeof(T);
     this->radius = *reinterpret_cast<const int*>(c);
     c += sizeof(int);

@@ -10,11 +10,11 @@
 
 namespace SZ{
 // type T
-template <class T, size_t N, uint block_size_ = 0, class Predictor = LorenzoPredictor<T,N>, 
+template <class T, size_t N, uint block_size_ = 0, class Predictor = LorenzoPredictor<T,N> *, 
 	class Quantizer = LinearQuantizer<T>, class Encoder = HuffmanEncoder<int> >
 class SZ_General_Compressor{
 public:
-  static_assert(concepts::is_predictor<Predictor>::value, "must implement the predictor interface");
+  // static_assert(concepts::is_predictor<Predictor>::value, "must implement the predictor interface");
   static_assert(concepts::is_quantizer<Quantizer>::value, "must implement the quatizer interface");
 
 	template <class ... Args>
@@ -53,7 +53,7 @@ public:
 		std::array<size_t, N> intra_block_dims;
 		std::vector<int> quant_inds(num_elements);
 		int count = 0;
-    	predictor.precompress_data(inter_block_range->begin());
+    	predictor->precompress_data(inter_block_range->begin());
     	quantizer.precompress_data();
 		for(auto block=inter_block_range->begin(); block!=inter_block_range->end(); block++){
 		  // std::cout << *block << " " << lp.predict(block) << std::endl;
@@ -66,13 +66,13 @@ public:
 		  intra_block_range->set_offsets(block.get_offset());
 		  intra_block_range->set_starting_position(block.get_current_index_vector());
 	  	  T dec_data = 0;
-      	predictor.precompress_block(intra_block_range);
+      	predictor->precompress_block(intra_block_range);
       	quantizer.precompress_block();
 		  for(auto element=intra_block_range->begin(); element!=intra_block_range->end(); element++){
-		  	quant_inds[count ++] = quantizer.quantize_and_overwrite(*element, predictor.predict(element));
+		  	quant_inds[count ++] = quantizer.quantize_and_overwrite(*element, predictor->predict(element));
 		  }
 		}
-    	predictor.postcompress_data(inter_block_range->begin());
+    	predictor->postcompress_data(inter_block_range->begin());
     	quantizer.postcompress_data();
 
 		uchar* compressed_data = new uchar[2 * num_elements * sizeof(T)];
@@ -82,9 +82,9 @@ public:
 		write(global_dimensions.data(), N, compressed_data_pos);
 		write(block_size, compressed_data_pos);
 		std::cout << "block_size = " << block_size << std::endl;
-    	// auto serialized_predictor = predictor.save();
-    	// write(serialized_predictor.data(), serialized_predictor.size(), compressed_data_pos);
-		predictor.save(compressed_data_pos);
+    	// auto serialized_predictor = predictor->save();
+    	// write(serialized_predictor->data(), serialized_predictor->size(), compressed_data_pos);
+		predictor->save(compressed_data_pos);
 	    quantizer.save(compressed_data_pos);
 		// write(unpred_data.size(), compressed_data_pos);
 		// write(unpred_data.data(), unpred_data.size(), compressed_data_pos);
@@ -123,7 +123,7 @@ public:
 		read(block_size, compressed_data_pos, remaining_length);
 		std::cout << "block_size = " << block_size << std::endl;
 
-    	predictor.load(compressed_data_pos, remaining_length);
+    	predictor->load(compressed_data_pos, remaining_length);
     	quantizer.load(compressed_data_pos, remaining_length);
     	encoder.load(compressed_data_pos, remaining_length);
 		// size_t unpred_data_size = 0;
@@ -141,7 +141,7 @@ public:
 		auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.data(),
 		  std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
 
-    	predictor.predecompress_data(inter_block_range->begin());
+    	predictor->predecompress_data(inter_block_range->begin());
     	quantizer.predecompress_data();
 
     	std::cout << "start decompression" << std::endl;
@@ -155,15 +155,15 @@ public:
 		  intra_block_range->set_offsets(block.get_offset());
 		  intra_block_range->set_starting_position(block.get_current_index_vector());
 
-      	  predictor.predecompress_block(intra_block_range);
+      	  predictor->predecompress_block(intra_block_range);
       	  quantizer.predecompress_block();
 		  // std::cout << "dimensions: " << intra_block_range->get_dimensions(0) << " " << intra_block_range->get_dimensions(1) << " " << intra_block_range->get_dimensions(2) << std::endl;
 		  // std::cout << "index: " << block.get_current_index(0) << " " << block.get_current_index(1) << " " << block.get_current_index(2) << std::endl;
 		  for(auto element=intra_block_range->begin(); element!=intra_block_range->end(); element++){
-	  		*element = quantizer.recover(predictor.predict(element), *(quant_inds_pos ++));
+	  		*element = quantizer.recover(predictor->predict(element), *(quant_inds_pos ++));
 		  }
 		}
-    	predictor.postdecompress_data(inter_block_range->begin());
+    	predictor->postdecompress_data(inter_block_range->begin());
     	quantizer.postdecompress_data();
 		return dec_data.data();
 	}
