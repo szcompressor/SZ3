@@ -56,23 +56,31 @@ public:
 		int count = 0;
     	predictor->precompress_data(inter_block_range->begin());
     	quantizer.precompress_data();
-		for(auto block=inter_block_range->begin(); block!=inter_block_range->end(); block++){
-		  // std::cout << *block << " " << lp.predict(block) << std::endl;
-		  for(int i=0; i<intra_block_dims.size(); i++){
-		  	size_t cur_index = block.get_current_index(i);
-		  	size_t dims = inter_block_range->get_dimensions(i);
-		  	intra_block_dims[i] = (cur_index == dims - 1) ? global_dimensions[i] - cur_index * block_size : block_size;
-		  }
-		  intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
-		  intra_block_range->set_offsets(block.get_offset());
-		  intra_block_range->set_starting_position(block.get_current_index_vector());
-	  	  T dec_data = 0;
-      	predictor->precompress_block(intra_block_range);
-      	quantizer.precompress_block();
-		  for(auto element=intra_block_range->begin(); element!=intra_block_range->end(); element++){
-		  	quant_inds[count ++] = quantizer.quantize_and_overwrite(*element, predictor->predict(element));
-		  }
-		}
+      {
+        auto inter_begin =inter_block_range->begin();
+        auto inter_end =inter_block_range->end();
+        for(auto block=inter_begin; block!=inter_end; block++){
+          // std::cout << *block << " " << lp.predict(block) << std::endl;
+          for(int i=0; i<intra_block_dims.size(); i++){
+            size_t cur_index = block.get_current_index(i);
+            size_t dims = inter_block_range->get_dimensions(i);
+            intra_block_dims[i] = (cur_index == dims - 1) ? global_dimensions[i] - cur_index * block_size : block_size;
+          }
+          intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
+          intra_block_range->set_offsets(block.get_offset());
+          intra_block_range->set_starting_position(block.get_current_index_vector());
+            T dec_data = 0;
+            predictor->precompress_block(intra_block_range);
+            quantizer.precompress_block();
+            {
+              auto intra_begin =intra_block_range->begin();
+              auto intra_end =intra_block_range->end();
+          for(auto element=intra_begin; element!=intra_end; element++){
+            quant_inds[count ++] = quantizer.quantize_and_overwrite(*element, predictor->predict(element));
+          }
+            }
+        }
+      }
     	predictor->postcompress_data(inter_block_range->begin());
     	quantizer.postcompress_data();
 
