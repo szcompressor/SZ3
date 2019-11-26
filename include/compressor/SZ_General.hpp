@@ -76,8 +76,8 @@ public:
     	predictor->postcompress_data(inter_block_range->begin());
     	quantizer.postcompress_data();
 
-    uchar* compressed_data = new uchar[2 * num_elements * sizeof(T)];
-		uchar* compressed_data_pos = compressed_data;
+      std::unique_ptr<uchar[]> compressed_data = compat::make_unique<uchar[]>(2 * num_elements * sizeof(T));
+		uchar* compressed_data_pos = compressed_data.get();
 		// TODO: serialize and record predictor, quantizer, and encoder
 		// Or do these in a outer loop wrapper?
 		write(global_dimensions.data(), N, compressed_data_pos);
@@ -94,8 +94,8 @@ public:
 		encoder.save(compressed_data_pos);
 		encoder.encode(quant_inds, compressed_data_pos);
 		encoder.postprocess_encode();
-		compressed_size = compressed_data_pos - compressed_data;
-		return compressed_data;
+		compressed_size = compressed_data_pos - compressed_data.get();
+		return compressed_data.release();
 	}
 	// write array
 	template <class T1>

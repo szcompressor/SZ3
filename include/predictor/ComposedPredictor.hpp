@@ -105,11 +105,15 @@ public:
 		auto sample_range = range;
 		// change sample range
 		std::vector<double> err(predictors.size(), 0);
-		for(auto iter = sample_range->begin(); iter != sample_range->end(); iter ++){
-			for(int i=0; i<predictors.size(); i++){
-				err[i] += predictors[i]->estimate_error(iter);
-			}
-		}
+    {
+      auto sample_begin =sample_range->begin();
+      auto sample_end = sample_range->end();
+      for(auto iter = sample_begin; iter != sample_end; iter ++){
+        for(int i=0; i<predictors.size(); i++){
+          err[i] += predictors[i]->estimate_error(iter);
+        }
+      }
+    }
 		sid = std::distance(err.begin(), std::min_element(err.begin(), err.end()));
 		selection.push_back(sid);
 		// std::cout << sid << std::endl;
