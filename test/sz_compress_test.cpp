@@ -67,7 +67,8 @@ int main(int argc, char ** argv){
 	std::cout << "Compressed size = " << compressed_size << std::endl;
 	writefile("test.dat", compressed.get(), compressed_size);
     err = clock_gettime(CLOCK_REALTIME, &start);
-	auto dec_data = sz.decompress(compressed.get(), compressed_size);
+  std::unique_ptr<float[]> dec_data;
+	dec_data.reset(sz.decompress(compressed.get(), compressed_size));
     err = clock_gettime(CLOCK_REALTIME, &end);
     std::cout << "Decompression time: " << (double)(end.tv_sec - start.tv_sec) + (double)(end.tv_nsec - start.tv_nsec)/(double)1000000000 << "s" << std::endl;
 	float max_err = 0;

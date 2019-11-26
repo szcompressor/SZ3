@@ -135,11 +135,11 @@ public:
 		encoder.postprocess_decode();
 		int const * quant_inds_pos = (int const *) quant_inds.data();
 		std::array<size_t, N> intra_block_dims;
-		std::vector<T> dec_data = std::vector<T>(num_elements);
-		auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.data(), 
+		auto dec_data = compat::make_unique<T[]>(num_elements);
+		auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.get(), 
 		  std::begin(global_dimensions), std::end(global_dimensions), block_size, 0);
 
-		auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.data(),
+		auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.get(),
 		  std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
 
     	predictor->predecompress_data(inter_block_range->begin());
@@ -166,7 +166,7 @@ public:
 		}
     	predictor->postdecompress_data(inter_block_range->begin());
     	quantizer.postdecompress_data();
-		return dec_data.data();
+		return dec_data.release();
 	}
 	// read array
 	template <class T1>
