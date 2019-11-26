@@ -84,13 +84,17 @@ private:
       num_elements *= dim;
     }
     T num_elements_recip = 1.0 / num_elements;
-  	for(auto iter=range->begin(); iter != range->end(); ++iter){
-  		T data = *iter;
-  		for(int i=0; i<N; i++){
-  			sum[i] += iter.get_current_index(i) * data;
-  		}
-  		sum[N] += data;
-  	}
+    {
+      auto range_begin = range->begin();
+      auto range_end = range->end();
+      for(auto iter=range_begin; iter != range_end; ++iter){
+        T data = *iter;
+        for(int i=0; i<N; i++){
+          sum[i] += iter.get_current_index(i) * data;
+        }
+        sum[N] += data;
+      }
+    }
   	std::array<T, N + 1> coeffs;
   	coeffs[N] = sum[N] * num_elements_recip;
   	for(int i=0; i<N; i++){

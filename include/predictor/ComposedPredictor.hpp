@@ -24,9 +24,9 @@ namespace SZ{
     virtual void predecompress_block(const std::shared_ptr<Range>&) = 0;
     virtual void save(uchar*& c) const = 0;
     virtual void load(const uchar*& c, size_t& remaining_length) = 0;
-    virtual inline T predict(const iterator& iter) const noexcept = 0;
-    virtual inline T estimate_error(const iterator& iter) const noexcept = 0;
-    virtual void print();
+    virtual T predict(const iterator& iter) const noexcept = 0;
+    virtual T estimate_error(const iterator& iter) const noexcept = 0;
+    virtual void print()=0;
   };
 
   template <class T, uint N, class Base>
