@@ -8,9 +8,10 @@
 #include <iostream>
 #include <fstream>
 #include <cmath>
+#include <memory>
 
 template<typename Type>
-Type * readfile(const char * file, size_t& num){
+std::unique_ptr<Type[]> readfile(const char * file, size_t& num){
 	std::ifstream fin(file, std::ios::binary);
 	if(!fin){
         std::cout << " Error, Couldn't find the file" << "\n";
@@ -19,7 +20,7 @@ Type * readfile(const char * file, size_t& num){
     fin.seekg(0, std::ios::end);
     const size_t num_elements = fin.tellg() / sizeof(Type);
     fin.seekg(0, std::ios::beg);
-    Type * data = (Type *) malloc(num_elements*sizeof(Type));
+    auto data = SZ::compat::make_unique<Type[]>(num_elements);
 	fin.read(reinterpret_cast<char*>(&data[0]), num_elements*sizeof(Type));
 	fin.close();
 	num = num_elements;
@@ -59,13 +60,14 @@ int main(int argc, char ** argv){
     struct timespec start, end;
     int err = 0;
     err = clock_gettime(CLOCK_REALTIME, &start);
-	auto compressed = sz.compress(data, eb, compressed_size);
+    std::unique_ptr<unsigned char[]> compressed;
+    compressed.reset(sz.compress(data.get(), eb, compressed_size));
     err = clock_gettime(CLOCK_REALTIME, &end);
     std::cout << "Compression time: " << (double)(end.tv_sec - start.tv_sec) + (double)(end.tv_nsec - start.tv_nsec)/(double)1000000000 << "s" << std::endl;
 	std::cout << "Compressed size = " << compressed_size << std::endl;
-	writefile("test.dat", compressed, compressed_size);
+	writefile("test.dat", compressed.get(), compressed_size);
     err = clock_gettime(CLOCK_REALTIME, &start);
-	auto dec_data = sz.decompress(compressed, compressed_size);
+	auto dec_data = sz.decompress(compressed.get(), compressed_size);
     err = clock_gettime(CLOCK_REALTIME, &end);
     std::cout << "Decompression time: " << (double)(end.tv_sec - start.tv_sec) + (double)(end.tv_nsec - start.tv_nsec)/(double)1000000000 << "s" << std::endl;
 	float max_err = 0;

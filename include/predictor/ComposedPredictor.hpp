@@ -4,6 +4,7 @@
 #include <cassert>
 #include "def.hpp"
 #include "utils/Iterator.hpp"
+#include "utils/Compat.hpp"
 #include "predictor/Predictor.hpp"
 #include <iostream>
 #include <memory>
@@ -14,6 +15,7 @@ namespace SZ{
   public:
     using Range = multi_dimensional_range<T, N>;
     using iterator = typename multi_dimensional_range<T, N>::iterator;
+    virtual ~VirtualPredictor()=default;
     virtual void precompress_data(const iterator&) = 0;
     virtual void postcompress_data(const iterator&) = 0;
     virtual void predecompress_data(const iterator&) = 0;
@@ -144,13 +146,13 @@ public:
     }
 	template <typename P1>
 	void instantiate(P1 p1) {
-		auto p = new RealPredictor<T, N, P1>();
+    std::unique_ptr<VirtualPredictor<T,N>> p = compat::make_unique<RealPredictor<T, N, P1>>();
 		uchar* buf_pos = buf;
 		p1.save(buf_pos);
 		const uchar* buf_pos2 = buf;
 		size_t len = 512;
 		p->load(buf_pos2, len);
-		predictors.push_back(reinterpret_cast<VirtualPredictor<T,N> *>(p));
+		predictors.emplace_back(std::move(p));
 	}
 	template <typename P1>
 	void unpack(P1 p1) {
@@ -170,7 +172,7 @@ public:
 		}
 	}
 private:
-	std::vector<VirtualPredictor<T, N>*> predictors;
+	std::vector<std::unique_ptr<VirtualPredictor<T, N>>> predictors;
 	std::vector<int> selection;
 	int sid;							// selected index
 	size_t current_index = 0;			// for decompression only

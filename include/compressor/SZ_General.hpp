@@ -5,6 +5,7 @@
 #include "quantizer/Quantizer.hpp"
 #include "encoder/Encoder.hpp"
 #include "utils/Iterator.hpp"
+#include "utils/Compat.hpp"
 #include "def.hpp"
 #include <cstring>
 
@@ -75,7 +76,7 @@ public:
     	predictor->postcompress_data(inter_block_range->begin());
     	quantizer.postcompress_data();
 
-		uchar* compressed_data = new uchar[2 * num_elements * sizeof(T)];
+    uchar* compressed_data = new uchar[2 * num_elements * sizeof(T)];
 		uchar* compressed_data_pos = compressed_data;
 		// TODO: serialize and record predictor, quantizer, and encoder
 		// Or do these in a outer loop wrapper?
