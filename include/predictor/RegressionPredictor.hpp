@@ -4,6 +4,7 @@
 #include "def.hpp"
 #include "utils/Iterator.hpp"
 #include "quantizer/Quantizer.hpp"
+#include "encoder/Encoder.hpp"
 #include <cstring>
 #include <iostream>
 namespace SZ{
@@ -44,27 +45,41 @@ public:
   }
   void save(uchar *& c) const{
     std::cout << "save predictor" << std::endl;
+    auto tmp = c;
     c[0] = 0b00000010;
     c += 1;
     quantizer.save(c);
     *reinterpret_cast<size_t*>(c) = regression_coeff_quant_inds.size();
     c += sizeof(size_t);
-    memcpy(c, regression_coeff_quant_inds.data(), regression_coeff_quant_inds.size()*sizeof(int));
-    c += regression_coeff_quant_inds.size()*sizeof(int);
+    // TODO: remove if condition when composedPredictor is fixed using pointer instead of instantiations 
+    if(regression_coeff_quant_inds.size()){
+      std::cout << "offset = " << c - tmp << std::endl;
+      HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
+      encoder.preprocess_encode(regression_coeff_quant_inds, 4*quantizer.get_radius());
+      encoder.save(c);
+      encoder.encode(regression_coeff_quant_inds, c);
+      encoder.postprocess_encode();    
+    }
   }
   void predecompress_block(const std::shared_ptr<Range>& range) noexcept{
     pred_and_recover_coefficients();
   }
   void load(const uchar*& c, size_t& remaining_length){
     std::cout << "load predictor" << std::endl;
+    auto tmp = c;
     c += sizeof(uint8_t);
     remaining_length -= sizeof(uint8_t);
     quantizer.load(c, remaining_length);
     size_t coeff_size = *reinterpret_cast<const size_t*>(c);
     c += sizeof(size_t);
     remaining_length -= sizeof(size_t);
-    regression_coeff_quant_inds = std::vector<int>(reinterpret_cast<const int*>(c), reinterpret_cast<const int*>(c) + coeff_size);
-    c += coeff_size * sizeof(int);
+    // TODO: remove if condition when composedPredictor is fixed using pointer instead of instantiations 
+    if(coeff_size){
+      HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
+      encoder.load(c, remaining_length);
+      regression_coeff_quant_inds = encoder.decode(c, coeff_size);
+      encoder.postprocess_decode();
+    }
     remaining_length -= coeff_size * sizeof(int);
     std::fill(current_coeffs.begin(), current_coeffs.end(), 0);
     regression_coeff_index = 0;
