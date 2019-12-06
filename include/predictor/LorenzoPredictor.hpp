@@ -75,7 +75,7 @@ namespace SZ{
     inline T estimate_error(const iterator& iter) const noexcept {
       return ABS(*iter - predict(iter)) + this->noise;
     }
-    inline T predict(const iterator& iter) const noexcept { return iter.prev(0); };
+    inline T predict(const iterator& iter) const noexcept { return iter.prev(1); };
   };
 
   template <class T>
