@@ -34,8 +34,6 @@ namespace SZ{
       void save(uchar*& c) const{
         c[0] = predictor_id;
         c += sizeof(uint8_t);
-        *reinterpret_cast<T*>(c) = noise;
-        c += sizeof(T);
       }
 
       /*
@@ -50,8 +48,6 @@ namespace SZ{
       void load(const uchar*& c, size_t& remaining_length){
         c += sizeof(uint8_t);
         remaining_length -= sizeof(uint8_t);
-        noise = *reinterpret_cast<const T*>(c);
-        c += sizeof(T);
       }
       void print() const{
         std::cout << "Lorenzo predictor, noise = " << noise << "\n";

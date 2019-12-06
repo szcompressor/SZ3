@@ -45,13 +45,11 @@ public:
   }
   void save(uchar *& c) const{
     std::cout << "save predictor" << std::endl;
-    auto tmp = c;
     c[0] = 0b00000010;
     c += 1;
     quantizer.save(c);
     *reinterpret_cast<size_t*>(c) = regression_coeff_quant_inds.size();
     c += sizeof(size_t);
-    std::cout << "offset = " << c - tmp << std::endl;
     HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
     encoder.preprocess_encode(regression_coeff_quant_inds, 4*quantizer.get_radius());
     encoder.save(c);
@@ -64,7 +62,6 @@ public:
   void load(const uchar*& c, size_t& remaining_length){
     //TODO: adjust remaining_length
     std::cout << "load predictor" << std::endl;
-    auto tmp = c;
     c += sizeof(uint8_t);
     remaining_length -= sizeof(uint8_t);
     quantizer.load(c, remaining_length);
