@@ -54,7 +54,7 @@ namespace SZ{
         c += sizeof(T);
       }
       void print() const{
-        std::cout << "Lorenzo predictor\n";
+        std::cout << "Lorenzo predictor, noise = " << noise << "\n";
       }
     protected:
       T noise = 0;

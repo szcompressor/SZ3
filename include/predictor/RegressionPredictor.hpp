@@ -51,20 +51,18 @@ public:
     quantizer.save(c);
     *reinterpret_cast<size_t*>(c) = regression_coeff_quant_inds.size();
     c += sizeof(size_t);
-    // TODO: remove if condition when composedPredictor is fixed using pointer instead of instantiations 
-    if(regression_coeff_quant_inds.size()){
-      std::cout << "offset = " << c - tmp << std::endl;
-      HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
-      encoder.preprocess_encode(regression_coeff_quant_inds, 4*quantizer.get_radius());
-      encoder.save(c);
-      encoder.encode(regression_coeff_quant_inds, c);
-      encoder.postprocess_encode();    
-    }
+    std::cout << "offset = " << c - tmp << std::endl;
+    HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
+    encoder.preprocess_encode(regression_coeff_quant_inds, 4*quantizer.get_radius());
+    encoder.save(c);
+    encoder.encode(regression_coeff_quant_inds, c);
+    encoder.postprocess_encode();    
   }
   void predecompress_block(const std::shared_ptr<Range>& range) noexcept{
     pred_and_recover_coefficients();
   }
   void load(const uchar*& c, size_t& remaining_length){
+    //TODO: adjust remaining_length
     std::cout << "load predictor" << std::endl;
     auto tmp = c;
     c += sizeof(uint8_t);
@@ -73,19 +71,16 @@ public:
     size_t coeff_size = *reinterpret_cast<const size_t*>(c);
     c += sizeof(size_t);
     remaining_length -= sizeof(size_t);
-    // TODO: remove if condition when composedPredictor is fixed using pointer instead of instantiations 
-    if(coeff_size){
-      HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
-      encoder.load(c, remaining_length);
-      regression_coeff_quant_inds = encoder.decode(c, coeff_size);
-      encoder.postprocess_decode();
-    }
+    HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
+    encoder.load(c, remaining_length);
+    regression_coeff_quant_inds = encoder.decode(c, coeff_size);
+    encoder.postprocess_decode();
     remaining_length -= coeff_size * sizeof(int);
     std::fill(current_coeffs.begin(), current_coeffs.end(), 0);
     regression_coeff_index = 0;
   }
   void print() const{
-    std::cout << "Regression predictor\n";
+    std::cout << "Regression predictor, eb = " << quantizer.get_eb() << "\n";
   }
 private:
   LinearQuantizer<T> quantizer;

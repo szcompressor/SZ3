@@ -32,7 +32,7 @@ public:
 
 	PredictionBasedQuantizer(T eb, int r) : error_bound(eb), error_bound_reciprocal(1.0 / eb), radius(r){}
 	int get_radius() const{return radius;}
-	T get_eb(){return error_bound;}
+	T get_eb() const{return error_bound;}
 };
 
 template <class T>

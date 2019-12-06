@@ -3,12 +3,14 @@
 #include <quantizer/Quantizer.hpp>
 #include <utils/Iterator.hpp>
 #include <predictor/Predictor.hpp>
+#include <utils/Compat.hpp>
 #include <cstdio>
 #include <fstream>
 #include <iostream>
 #include <fstream>
 #include <cmath>
 #include <memory>
+#include <type_traits>
 
 template<typename Type>
 std::unique_ptr<Type[]> readfile(const char * file, size_t& num){
@@ -41,20 +43,17 @@ int main(int argc, char ** argv){
 	std::cout << "Read " << num << " elements\n";
 	float eb = 10;
 
-	auto P_l = SZ::LorenzoPredictor<float, 3>(eb);
-	auto P_reg = SZ::RegressionPredictor<float, 3>(0.1*eb);
-	SZ::ComposedPredictor<float, 3> cp(P_l, P_reg);
+	auto P_l = std::make_shared<SZ::RealPredictor<float, 3, SZ::LorenzoPredictor<float, 3>>>(std::make_shared<SZ::LorenzoPredictor<float, 3>>(eb));
+	auto P_reg = std::make_shared<SZ::RealPredictor<float, 3, SZ::RegressionPredictor<float, 3>>>(std::make_shared<SZ::RegressionPredictor<float, 3>>(0.1*eb));
+	auto cp = std::make_shared<SZ::ComposedPredictor<float, 3>>(P_l, P_reg);
 	auto sz = SZ::make_sz_general<float>(
-		// SZ::LorenzoPredictor<float, 3>(),
-		// SZ::RegressionPredictor<float, 3>(0.1*eb),
-		&cp,
+		cp,
 		SZ::LinearQuantizer<float>(eb),
 		SZ::HuffmanEncoder<int>(),
 		100,
 		500,
 		500
 	);
-	//SZ::SZ_General_Compressor<float, 3> sz(lorenzo, linear_quantizer, 100, 500, 500);
 
 	size_t compressed_size = 0;
     struct timespec start, end;
