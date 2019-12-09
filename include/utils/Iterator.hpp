@@ -109,7 +109,7 @@ class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensi
       	std::array<int, N> args{std::forward<Args>(pos)...};
       	for(int i=0; i<N; i++){
           if(current_index[i] < args[i] && range->whether_global_start_position(i)) return 0;
-          offset -= args[i] ? range->global_dim_strides[i] : 0;
+          offset -= args[i] ? args[i] * range->global_dim_strides[i] : 0;
       	}
       	return (offset >= 0) ? range->data[offset] : 0;
       }

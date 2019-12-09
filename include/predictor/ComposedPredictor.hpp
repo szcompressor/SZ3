@@ -21,6 +21,7 @@ namespace SZ{
     virtual void predecompress_data(const iterator&) = 0;
     virtual void postdecompress_data(const iterator&) = 0;
     virtual void precompress_block(const std::shared_ptr<Range>&) = 0;
+    virtual void precompress_block_commit() = 0;
     virtual void predecompress_block(const std::shared_ptr<Range>&) = 0;
     virtual void save(uchar*& c) const = 0;
     virtual void load(const uchar*& c, size_t& remaining_length) = 0;
@@ -52,6 +53,9 @@ namespace SZ{
     void precompress_block(const std::shared_ptr<Range>& range){
       base->precompress_block(range);
     }
+	void precompress_block_commit(){
+		base->precompress_block_commit();
+	}
     void predecompress_block(const std::shared_ptr<Range>& range){
       base->predecompress_block(range);
     }
@@ -119,36 +123,46 @@ public:
 		selection.push_back(sid);
 		// std::cout << sid << std::endl;
 	}
+	void precompress_block_commit(){
+		predictors[sid]->precompress_block_commit();
+	}
 	void predecompress_block(const std::shared_ptr<Range>& range){
-		for(const auto& p:predictors){
-			p->predecompress_block(range);
-		}
 		sid = selection[current_index ++];
+		predictors[sid]->predecompress_block(range);
 	}
 	void save(uchar*& c) const{
+		auto tmp = c;
 		for(const auto& p:predictors){
+			// std::cout << "COMPOSED SAVE OFFSET = " << c - tmp << std::endl;
 			p->save(c);
 		}
+		// std::cout << "COMPOSED SAVE OFFSET = " << c - tmp << std::endl;
 		// store selection
-		*reinterpret_cast<size_t*>(c) = selection.size();
+		// TODO: use binary operations to be more efficient?
+		*reinterpret_cast<size_t*>(c) = (size_t) selection.size();
 	    c += sizeof(size_t);
 		memcpy(c, selection.data(), selection.size()*sizeof(int));
 		c += selection.size()*sizeof(int);
-		std::cout << "selection size: " << selection.size() << std::endl;
+		// std::cout << "selection size: " << selection.size() << std::endl;
 	}
 	void load(const uchar*& c, size_t& remaining_length){
+		auto tmp = c;
 		for(const auto& p:predictors){
+			// std::cout << "COMPOSED LOAD OFFSET = " << c - tmp << std::endl;
 			p->load(c, remaining_length);
 		}
+		// std::cout << "COMPOSED LOAD OFFSET = " << c - tmp << std::endl;
 		// load selection
 		size_t selection_size = *reinterpret_cast<const size_t*>(c);
 	    c += sizeof(size_t);
+	    // std::cout << "selection size = " << selection_size << std::endl;
 	    this->selection = std::vector<int>(reinterpret_cast<const int*>(c), reinterpret_cast<const int*>(c) + selection_size);
-	    c += selection_size * sizeof(T);		
+	    c += selection_size * sizeof(int);		
 	}
     inline T predict(const iterator& iter) const noexcept{
       return predictors[sid]->predict(iter);
     }
+    int get_sid() const{return sid;}
     void print() const{
 		for(const auto& p:predictors){
 			p->print();
@@ -171,8 +185,8 @@ public:
 	ComposedPredictor(Predictors&&... Ps){
 		unpack(Ps...);
 	}
-private:
 	std::vector<std::shared_ptr<VirtualPredictor<T, N>>> predictors;
+private:
 	std::vector<int> selection;
 	int sid;							// selected index
 	size_t current_index = 0;			// for decompression only

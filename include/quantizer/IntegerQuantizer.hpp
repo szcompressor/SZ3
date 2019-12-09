@@ -4,6 +4,7 @@
 #include <cassert>
 #include <iostream>
 #include <vector>
+#include "def.hpp"
 namespace SZ{
 
 // data with T type
@@ -55,7 +56,7 @@ public:
     // std::string serialized(sizeof(uint8_t) + sizeof(T) + sizeof(int),0);
     c[0] = 0b00000010;
     c += 1;
-    std::cout << "saving eb = " << this->error_bound << ", unpred_num = "  << unpred.size() << std::endl;
+    // std::cout << "saving eb = " << this->error_bound << ", unpred_num = "  << unpred.size() << std::endl;
     *reinterpret_cast<T*>(c) = this->error_bound;
     c += sizeof(T);
     *reinterpret_cast<int*>(c) = this->radius;
@@ -79,11 +80,9 @@ public:
     c += sizeof(size_t);
     this->unpred = std::vector<T>(reinterpret_cast<const T*>(c), reinterpret_cast<const T*>(c) + unpred_size);
     c += unpred_size * sizeof(T);
-    std::cout << "loading: eb = " << this->error_bound << ", unpred_num = "  << unpred.size() << std::endl;
+    // std::cout << "loading: eb = " << this->error_bound << ", unpred_num = "  << unpred.size() << std::endl;
     // reset index
     index = 0;
-    // std::cout << "unpred data size " << unpred.size() << std::endl;
-    // return LinearQuantizer<T>(c);
   }
 
 private:

@@ -23,6 +23,7 @@ namespace SZ{
       void predecompress_data(const iterator&) {}
       void postdecompress_data(const iterator&) {}
       void precompress_block(const std::shared_ptr<Range>&) {}
+      void precompress_block_commit() noexcept {}
       void predecompress_block(const std::shared_ptr<Range>&) {}
 
       /*
@@ -32,6 +33,7 @@ namespace SZ{
       //   return std::string(1, predictor_id);
       // }
       void save(uchar*& c) const{
+        std::cout << "save Lorenzo predictor" << std::endl;
         c[0] = predictor_id;
         c += sizeof(uint8_t);
       }
@@ -46,6 +48,7 @@ namespace SZ{
       //   return LorenzoPredictor<T,N>{};
       // }
       void load(const uchar*& c, size_t& remaining_length){
+        std::cout << "load Lorenzo predictor" << std::endl;
         c += sizeof(uint8_t);
         remaining_length -= sizeof(uint8_t);
       }

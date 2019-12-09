@@ -7,6 +7,7 @@
 #include "encoder/Encoder.hpp"
 #include <cstring>
 #include <iostream>
+#include <fstream>
 namespace SZ{
 
 // N-d regression predictor
@@ -14,8 +15,8 @@ template <class T, uint N>
 class RegressionPredictor{
 public:
   static const uint8_t predictor_id = 0b00000010;
-  RegressionPredictor() : quantizer(0), current_coeffs{0} {}
-  RegressionPredictor(T eb) : quantizer(eb), current_coeffs{0} {}
+  RegressionPredictor() : quantizer(0), prev_coeffs{0}, current_coeffs{0} {}
+  RegressionPredictor(T eb) : quantizer(eb), prev_coeffs{0}, current_coeffs{0} {}
   using Range = multi_dimensional_range<T, N>;
   using iterator = typename multi_dimensional_range<T, N>::iterator;
   void precompress_data(const iterator&) const noexcept{}
@@ -31,9 +32,11 @@ public:
     for(int i=0; i<N; i++){
       dims[i] = range->get_dimensions(i);
     }
-    std::array<T, N + 1> coeffs = compute_regression_coefficients(range, dims);
-    pred_and_quantize_coefficients(coeffs);
-    std::copy(coeffs.begin(), coeffs.end(), current_coeffs.begin());
+    current_coeffs = compute_regression_coefficients(range, dims);
+  }
+  void precompress_block_commit() noexcept {
+    pred_and_quantize_coefficients();
+    std::copy(current_coeffs.begin(), current_coeffs.end(), prev_coeffs.begin());
   }
   inline T predict(const iterator& iter) const noexcept {
     T pred = 0;
@@ -44,9 +47,9 @@ public:
     return pred;
   }
   void save(uchar *& c) const{
-    std::cout << "save predictor" << std::endl;
+    std::cout << "save regression predictor" << std::endl;
     c[0] = 0b00000010;
-    c += 1;
+    c += sizeof(uint8_t);
     quantizer.save(c);
     *reinterpret_cast<size_t*>(c) = regression_coeff_quant_inds.size();
     c += sizeof(size_t);
@@ -61,7 +64,7 @@ public:
   }
   void load(const uchar*& c, size_t& remaining_length){
     //TODO: adjust remaining_length
-    std::cout << "load predictor" << std::endl;
+    std::cout << "load regression predictor" << std::endl;
     c += sizeof(uint8_t);
     remaining_length -= sizeof(uint8_t);
     quantizer.load(c, remaining_length);
@@ -78,12 +81,24 @@ public:
   }
   void print() const{
     std::cout << "Regression predictor, eb = " << quantizer.get_eb() << "\n";
+    int count = 0;
+    int ind = regression_coeff_index ? regression_coeff_index :regression_coeff_quant_inds.size();
+    std::cout << "\nPrev coeffs: ";
+    for(const auto& c:prev_coeffs){
+      std::cout << c << " ";
+    }
+    std::cout << "\nCurrent coeffs: ";
+    for(const auto& c:current_coeffs){
+      std::cout << c << " ";
+    }
+    std::cout << std::endl;
   }
 private:
   LinearQuantizer<T> quantizer;
   std::vector<int> regression_coeff_quant_inds;
   size_t regression_coeff_index = 0;
   std::array<T, N + 1> current_coeffs;
+  std::array<T, N + 1> prev_coeffs;
   std::array<T, N + 1> compute_regression_coefficients(const std::shared_ptr<Range>& range, const std::array<size_t, N>& dims) const{
   	std::array<double, N + 1> sum{0};
     size_t num_elements = 1;
@@ -110,9 +125,9 @@ private:
   	}
   	return coeffs;
   }
-  void pred_and_quantize_coefficients(std::array<T, N + 1>& coeffs){
+  void pred_and_quantize_coefficients(){
   	for(int i=0; i<=N; i++){
-  		regression_coeff_quant_inds.push_back(quantizer.quantize_and_overwrite(coeffs[i], current_coeffs[i]));
+  		regression_coeff_quant_inds.push_back(quantizer.quantize_and_overwrite(current_coeffs[i], prev_coeffs[i]));
   	}
   }
   void pred_and_recover_coefficients(){

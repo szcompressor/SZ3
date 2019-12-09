@@ -56,6 +56,7 @@ public:
 		int count = 0;
     	predictor->precompress_data(inter_block_range->begin());
     	quantizer.precompress_data();
+    	size_t reg_count = 0;
       {
         auto inter_begin =inter_block_range->begin();
         auto inter_end =inter_block_range->end();
@@ -71,16 +72,19 @@ public:
           intra_block_range->set_starting_position(block.get_current_index_vector());
             T dec_data = 0;
             predictor->precompress_block(intra_block_range);
+            predictor->precompress_block_commit();
             quantizer.precompress_block();
+          	reg_count += predictor->get_sid();
             {
               auto intra_begin =intra_block_range->begin();
               auto intra_end =intra_block_range->end();
-          for(auto element=intra_begin; element!=intra_end; element++){
-            quant_inds[count ++] = quantizer.quantize_and_overwrite(*element, predictor->predict(element));
-          }
+	          for(auto element=intra_begin; element!=intra_end; element++){
+	            quant_inds[count ++] = quantizer.quantize_and_overwrite(*element, predictor->predict(element));
+	          }
             }
         }
       }
+		std::cout << "reg_count = " << reg_count << std::endl;
     	predictor->postcompress_data(inter_block_range->begin());
     	quantizer.postcompress_data();
 
@@ -90,7 +94,6 @@ public:
 		// Or do these in a outer loop wrapper?
 		write(global_dimensions.data(), N, compressed_data_pos);
 		write(block_size, compressed_data_pos);
-		std::cout << "block_size = " << block_size << std::endl;
     	// auto serialized_predictor = predictor->save();
     	// write(serialized_predictor->data(), serialized_predictor->size(), compressed_data_pos);
 		predictor->save(compressed_data_pos);
@@ -130,10 +133,10 @@ public:
 		std::cout << std::endl;
 		uint block_size = 0;
 		read(block_size, compressed_data_pos, remaining_length);
-		std::cout << "block_size = " << block_size << std::endl;
-
     	predictor->load(compressed_data_pos, remaining_length);
+    	// std::cout << "load predictor done\n";fflush(stdout);
     	quantizer.load(compressed_data_pos, remaining_length);
+    	// std::cout << "load quantizer done\n";fflush(stdout);
     	encoder.load(compressed_data_pos, remaining_length);
 		// size_t unpred_data_size = 0;
 		// read(unpred_data_size, compressed_data_pos, remaining_length);
@@ -141,6 +144,8 @@ public:
 		// compressed_data_pos += unpred_data_size * sizeof(T);
 		auto quant_inds = encoder.decode(compressed_data_pos, num_elements);
 		encoder.postprocess_decode();
+    	// std::cout << "load encoder done\n";fflush(stdout);
+    	std::cout << quant_inds[157684267] << std::endl;
 		int const * quant_inds_pos = (int const *) quant_inds.data();
 		std::array<size_t, N> intra_block_dims;
 		auto dec_data = compat::make_unique<T[]>(num_elements);
@@ -154,6 +159,7 @@ public:
     	quantizer.predecompress_data();
 
     	std::cout << "start decompression" << std::endl;
+    	size_t reg_count = 0;
       {
         auto inter_begin =inter_block_range->begin();
         auto inter_end = inter_block_range->end();
@@ -169,17 +175,19 @@ public:
 
               predictor->predecompress_block(intra_block_range);
               quantizer.predecompress_block();
+	          reg_count += predictor->get_sid();
           // std::cout << "dimensions: " << intra_block_range->get_dimensions(0) << " " << intra_block_range->get_dimensions(1) << " " << intra_block_range->get_dimensions(2) << std::endl;
           // std::cout << "index: " << block.get_current_index(0) << " " << block.get_current_index(1) << " " << block.get_current_index(2) << std::endl;
               {
                 auto intra_begin =intra_block_range->begin();  
-                auto intra_end =intra_block_range->end();  
-          for(auto element=intra_begin; element!=intra_end; element++){
-            *element = quantizer.recover(predictor->predict(element), *(quant_inds_pos ++));
-          }
+                auto intra_end =intra_block_range->end();
+		        for(auto element=intra_begin; element!=intra_end; element++){
+		          *element = quantizer.recover(predictor->predict(element), *(quant_inds_pos ++));
+		        }
               }
         }
       }
+		std::cout << "reg_count = " << reg_count << std::endl;
     	predictor->postdecompress_data(inter_block_range->begin());
     	quantizer.postdecompress_data();
 		return dec_data.release();

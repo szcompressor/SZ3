@@ -130,7 +130,6 @@ namespace SZ {
 					totalSize = convert_HuffTree_to_bytes_anyStates<unsigned short>(nodeCount, c);
 				else
 					totalSize = convert_HuffTree_to_bytes_anyStates<unsigned int>(nodeCount, c);			
-				std::cout << "total size = " << totalSize << std::endl;
 				// printf("1\n");
 				c += totalSize;
 				return totalSize + sizeof(int) + sizeof(int);
@@ -143,7 +142,7 @@ namespace SZ {
 				size_t i = 0;
 				unsigned char bitSize = 0, byteSize, byteSizep;
 				int state;
-				uchar *p = bytes;
+				uchar *p = bytes + sizeof(size_t);
 				int lackBits = 0;
 				//long totalBitSize = 0, maxBitSize = 0, bitSize21 = 0, bitSize32 = 0;
 				for (i = 0;i<bins.size();i++) 
@@ -223,7 +222,8 @@ namespace SZ {
 						}
 					}
 				}
-				bytes = p;	
+				*reinterpret_cast<size_t*>(bytes) = outSize;
+				bytes += sizeof(size_t) + outSize;	
 				return outSize;
 			}		
 			
@@ -243,7 +243,8 @@ namespace SZ {
 				size_t i = 0, byteIndex = 0, count = 0;
 				int r; 
 				node n = treeRoot;
-				
+				size_t encodedLength = *reinterpret_cast<const size_t*>(bytes);
+				bytes += sizeof(size_t);
 				if(n->t) //root->t==1 means that all state values are the same (constant)
 				{
 					for(count=0;count<targetLength;count++)
@@ -267,7 +268,7 @@ namespace SZ {
 					}
 				}
 				if (t != n) printf("garbage input\n");
-				bytes += byteIndex;
+				bytes += encodedLength;
 				return out;	
 			}
 			
