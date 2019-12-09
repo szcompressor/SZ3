@@ -11,7 +11,7 @@
 
 namespace SZ{
 // type T
-template <class T, size_t N, uint block_size_ = 0, class Predictor = LorenzoPredictor<T,N> *, 
+template <class T, size_t N, uint block_size_ = 0, class Predictor = LorenzoPredictor<T,N,1> *,
 	class Quantizer = LinearQuantizer<T>, class Encoder = HuffmanEncoder<int> >
 class SZ_General_Compressor{
 public:
