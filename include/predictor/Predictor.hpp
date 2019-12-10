@@ -4,6 +4,7 @@
 #include "utils/Concepts.hpp"
 #include "LorenzoPredictor.hpp"
 #include "RegressionPredictor.hpp"
+#include "PolyRegressionPredictor.hpp"
 #include "ComposedPredictor.hpp"
 
 namespace SZ {

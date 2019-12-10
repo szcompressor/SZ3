@@ -18,7 +18,7 @@ namespace SZ {
     typedef unsigned char uchar;
 
     std::string get_cmake_project_source_dir() {
-        return "/Users/kzhao/Documents/Workspace/sz_refactory";
+        return "@PROJECT_SOURCE_DIR@";
     }
 }
 #endif

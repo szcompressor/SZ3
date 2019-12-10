@@ -27,7 +27,6 @@ unsigned long sz_lossless_compress(unsigned char *data, unsigned long dataLength
 }
 
 
-
 template<typename Type, class Predictor>
 void compress(std::unique_ptr<Type[]> &data, Predictor predictor, Type eb, uint r1, uint r2, uint r3, size_t num) {
     auto sz = SZ::make_sz_general<Type>(
@@ -53,10 +52,12 @@ void compress(std::unique_ptr<Type[]> &data, Predictor predictor, Type eb, uint 
     std::cout << "Compression time: "
               << (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000 << "s"
               << std::endl;
-    std::cout << "Compressed size = " << compressed_size << std::endl;
+    std::cout << "Compressed size before zstd = " << compressed_size << std::endl;
 
     auto lossless_size = sz_lossless_compress(compressed.get(), compressed_size * sizeof(float));
-    std::cout << "***Compression Ratio*** = " << num * sizeof(float) * 1.0 / lossless_size << std::endl;
+
+    std::cout << "Compressed size after zstd = " << lossless_size << std::endl;
+    std::cout << "********************Compression Ratio******************* = " << num * sizeof(float) * 1.0 / lossless_size << std::endl;
     SZ::writefile("test.dat", compressed.get(), compressed_size);
 
 
@@ -112,19 +113,30 @@ int main(int argc, char **argv) {
             std::make_shared<SZ::LorenzoPredictor<float, 3, 1>>(eb));
     auto P_l2 = std::make_shared<SZ::RealPredictor<float, 3, SZ::LorenzoPredictor<float, 3, 2>>>(
             std::make_shared<SZ::LorenzoPredictor<float, 3, 2>>(eb));
-    auto P_reg = std::make_shared<SZ::RealPredictor<float, 3, SZ::RegressionPredictor<float, 3>>>(
+    auto P_r = std::make_shared<SZ::RealPredictor<float, 3, SZ::RegressionPredictor<float, 3>>>(
             std::make_shared<SZ::RegressionPredictor<float, 3>>(0.1 * eb));
-    auto cp = std::make_shared<SZ::ComposedPredictor<float, 3>>(P_l, P_reg);
+    auto P_r2 = std::make_shared<SZ::RealPredictor<float, 3, SZ::PolyRegressionPredictor<float, 3>>>(
+            std::make_shared<SZ::PolyRegressionPredictor<float, 3>>(0.1 * eb));
+    auto P_l_r = std::make_shared<SZ::ComposedPredictor<float, 3>>(P_l, P_r);
+    auto P_l2_r = std::make_shared<SZ::ComposedPredictor<float, 3>>(P_l2, P_r);
+    auto P_l_r2 = std::make_shared<SZ::ComposedPredictor<float, 3>>(P_l, P_r2);
+
 
     if (all_regression == 1) {
-        compress<float>(data, P_reg, eb, r1, r2, r3, num);
-    } else {
+        compress<float>(data, P_r, eb, r1, r2, r3, num);
+    } else if (all_regression == 2) {
+        compress<float>(data, P_r2, eb, r1, r2, r3, num);
+    } else if (all_regression == 3) {
+        compress<float>(data, P_l_r2, eb, r1, r2, r3, num);
+    } else if (all_regression == 0) {
         if (all_lorenzo == 0) {
-            compress<float>(data, cp, eb, r1, r2, r3, num);
+            compress<float>(data, P_l_r, eb, r1, r2, r3, num);
         } else if (all_lorenzo == 1) {
             compress<float>(data, P_l, eb, r1, r2, r3, num);
         } else if (all_lorenzo == 2) {
             compress<float>(data, P_l2, eb, r1, r2, r3, num);
+        } else if (all_lorenzo == 3) {
+            compress<float>(data, P_l2_r, eb, r1, r2, r3, num);
         }
     }
 

@@ -1,4 +1,6 @@
-add_library (SZ3 SHARED 
+configure_file(${PROJECT_SOURCE_DIR}/include/def.hpp.in ${PROJECT_SOURCE_DIR}/include/def.hpp)
+
+add_library (SZ3 SHARED
 	dummy.cpp
 	)
 target_include_directories(SZ3 PUBLIC ${PROJECT_SOURCE_DIR}/include)
