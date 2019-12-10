@@ -74,7 +74,7 @@ public:
             predictor->precompress_block(intra_block_range);
             predictor->precompress_block_commit();
             quantizer.precompress_block();
-          	reg_count += predictor->get_sid();
+//          	reg_count += predictor->get_sid();
             {
               auto intra_begin =intra_block_range->begin();
               auto intra_end =intra_block_range->end();
@@ -145,6 +145,7 @@ public:
 		auto quant_inds = encoder.decode(compressed_data_pos, num_elements);
 		encoder.postprocess_decode();
     	// std::cout << "load encoder done\n";fflush(stdout);
+//    	std::cout << quant_inds[157684267] << std::endl;
 		int const * quant_inds_pos = (int const *) quant_inds.data();
 		std::array<size_t, N> intra_block_dims;
 		auto dec_data = compat::make_unique<T[]>(num_elements);
@@ -174,7 +175,7 @@ public:
 
               predictor->predecompress_block(intra_block_range);
               quantizer.predecompress_block();
-	          reg_count += predictor->get_sid();
+//	          reg_count += predictor->get_sid();
           // std::cout << "dimensions: " << intra_block_range->get_dimensions(0) << " " << intra_block_range->get_dimensions(1) << " " << intra_block_range->get_dimensions(2) << std::endl;
           // std::cout << "index: " << block.get_current_index(0) << " " << block.get_current_index(1) << " " << block.get_current_index(2) << std::endl;
               {

@@ -88,7 +88,7 @@ public:
     }
     using iterator = typename LorenzoBase<T,1>::iterator;
     inline T estimate_error(const iterator& iter) const noexcept {
-        return ABS(*iter - predict(iter)) + this->noise;
+        return fabs(*iter - predict(iter)) + this->noise;
     }
     inline T predict(const iterator& iter) const noexcept { return 2*iter.prev(1)- iter.prev(2); };
 };
@@ -122,7 +122,7 @@ public:
         }
         using iterator = typename LorenzoBase<T,2>::iterator;
         inline T estimate_error(const iterator& iter) const noexcept {
-            return ABS(*iter - predict(iter)) + this->noise;
+            return fabs(*iter - predict(iter)) + this->noise;
         }
         inline T predict(const iterator& iter) const noexcept{
             return 2 * iter.prev(0, 1) - iter.prev(0, 2) + 2 * iter.prev(1, 0)
@@ -162,7 +162,7 @@ public:
         }
         using iterator = typename LorenzoBase<T,3>::iterator;
         inline T estimate_error(const iterator& iter) const noexcept {
-            return ABS(*iter - predict(iter)) + this->noise;
+            return fabs(*iter - predict(iter)) + this->noise;
         }
         inline T predict(const iterator& iter) const noexcept{
             return 2 * iter.prev(0, 0, 1) - iter.prev(0, 0, 2) + 2 * iter.prev(0, 1, 0)
