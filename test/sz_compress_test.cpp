@@ -43,7 +43,7 @@ int main(int argc, char ** argv){
 	std::cout << "Read " << num << " elements\n";
 	float eb = 10;
 
-	auto P_l = std::make_shared<SZ::RealPredictor<float, 3, SZ::LorenzoPredictor<float, 3>>>(std::make_shared<SZ::LorenzoPredictor<float, 3>>(eb));
+	auto P_l = std::make_shared<SZ::RealPredictor<float, 3, SZ::LorenzoPredictor<float, 3, 1>>>(std::make_shared<SZ::LorenzoPredictor<float, 3, 1>>(eb));
 	auto P_reg = std::make_shared<SZ::RealPredictor<float, 3, SZ::RegressionPredictor<float, 3>>>(std::make_shared<SZ::RegressionPredictor<float, 3>>(0.1*eb));
 	auto cp = std::make_shared<SZ::ComposedPredictor<float, 3>>(P_l, P_reg);
 	auto sz = SZ::make_sz_general<float>(
