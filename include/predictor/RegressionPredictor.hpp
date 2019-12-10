@@ -24,7 +24,7 @@ public:
   void predecompress_data(const iterator&) const noexcept{}
   void postdecompress_data(const iterator&) const noexcept{}
   inline T estimate_error(const iterator& iter) const noexcept {
-    return ABS(*iter - predict(iter));
+    return fabs(*iter - predict(iter));
   }
   void precompress_block(const std::shared_ptr<Range>& range) noexcept {
     // std::cout << "precompress_block" << std::endl;

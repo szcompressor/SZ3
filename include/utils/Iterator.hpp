@@ -111,7 +111,7 @@ class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensi
           if(current_index[i] < args[i] && range->whether_global_start_position(i)) return 0;
           offset -= args[i] ? args[i] * range->global_dim_strides[i] : 0;
       	}
-      	return (offset >= 0) ? range->data[offset] : 0;
+      	return range->data[offset];
       }
 
     private:
@@ -200,7 +200,7 @@ class multi_dimensional_range: public std::enable_shared_from_this<multi_dimensi
     for(auto iter = global_dims_begin; iter != global_dims_end; iter ++){
       global_dimensions[i ++] = *iter;
     }
-    size_t cur_stride = 1;
+    size_t cur_stride = stride_;
     for(int i=N-1; i>=0; i--){
       global_dim_strides[i] = cur_stride;
       cur_stride *= global_dimensions[i];

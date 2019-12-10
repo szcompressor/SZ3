@@ -8,7 +8,6 @@ namespace SZ{
 
 typedef unsigned int uint;
 typedef unsigned char uchar;
-#define ABS(a) (a>0?a:-a)
 
 }
 #endif

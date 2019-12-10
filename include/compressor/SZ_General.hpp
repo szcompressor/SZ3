@@ -145,7 +145,6 @@ public:
 		auto quant_inds = encoder.decode(compressed_data_pos, num_elements);
 		encoder.postprocess_decode();
     	// std::cout << "load encoder done\n";fflush(stdout);
-    	std::cout << quant_inds[157684267] << std::endl;
 		int const * quant_inds_pos = (int const *) quant_inds.data();
 		std::array<size_t, N> intra_block_dims;
 		auto dec_data = compat::make_unique<T[]>(num_elements);

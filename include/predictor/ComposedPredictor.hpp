@@ -111,12 +111,18 @@ public:
 		// change sample range
 		std::vector<double> err(predictors.size(), 0);
     {
-      auto sample_begin =sample_range->begin();
-      auto sample_end = sample_range->end();
+      auto sample_begin = range->begin();
+      auto sample_end = range->end();
+      // TODO: change to more efficient sample
+      int sample_N = 10;
+      int count = 0;
       for(auto iter = sample_begin; iter != sample_end; iter ++){
-        for(int i=0; i<predictors.size(); i++){
-          err[i] += predictors[i]->estimate_error(iter);
-        }
+      	if(count % sample_N == 0){
+	        for(int i=0; i<predictors.size(); i++){
+	          err[i] += predictors[i]->estimate_error(iter);
+	        }
+    	}
+    	count ++;
       }
     }
 		sid = std::distance(err.begin(), std::min_element(err.begin(), err.end()));
