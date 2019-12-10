@@ -100,7 +100,7 @@ public:
       this->noise = 0;
     }
     LorenzoPredictor(T eb){
-      this->noise = 0.81*eb;
+      this->noise = 1.08*eb;
     }
     using iterator = typename LorenzoBase<T,2>::iterator;
     inline T estimate_error(const iterator& iter) const noexcept {
@@ -118,7 +118,7 @@ public:
             this->noise = 0;
         }
         LorenzoPredictor(T eb){
-            this->noise = 0.81*eb;
+            this->noise = 2.76*eb;
         }
         using iterator = typename LorenzoBase<T,2>::iterator;
         inline T estimate_error(const iterator& iter) const noexcept {
@@ -158,7 +158,7 @@ public:
             this->noise = 0;
         }
         LorenzoPredictor(T eb){
-            this->noise = 1.22*eb;
+            this->noise = 6.80*eb;
         }
         using iterator = typename LorenzoBase<T,3>::iterator;
         inline T estimate_error(const iterator& iter) const noexcept {
