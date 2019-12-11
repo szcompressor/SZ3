@@ -95,7 +95,7 @@ namespace SZ {
                 std::cout << "quant_inds before " << quant_inds.size() << std::endl;
                 num_elements = quant_count;
                 quant_inds.resize(num_elements);
-                std::cout << "quant_inds after "<< quant_inds.size() << std::endl;
+                std::cout << "quant_inds after " << quant_inds.size() << std::endl;
 
             }
 
@@ -281,5 +281,40 @@ namespace SZ {
                                                                           args...);
     }
 
+    template<typename T, uint N, class... Args>
+    size_t get_num_sampling(T *data, uint block_size, uint stride, Args... global_dims) {
+        std::array<size_t, N> global_dimensions{static_cast<size_t>(global_dims)...};
+        auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data,
+                                                                                     std::begin(global_dimensions),
+                                                                                     std::end(global_dimensions), stride, 0);
+        auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data,
+                                                                                     std::begin(global_dimensions),
+                                                                                     std::end(global_dimensions), 1, 0);
+        std::array<size_t, N> intra_block_dims;
+        size_t quant_count = 0;
+        {
+            auto inter_begin = inter_block_range->begin();
+            auto inter_end = inter_block_range->end();
+            for (auto block = inter_begin; block != inter_end; block++) {
+                for (int i = 0; i < intra_block_dims.size(); i++) {
+                    size_t cur_index = block.get_current_index(i);
+                    size_t dims = inter_block_range->get_dimensions(i);
+                    intra_block_dims[i] = (cur_index == dims - 1 && global_dimensions[i] - cur_index * stride < block_size) ?
+                                          global_dimensions[i] - cur_index * stride : block_size;
+                }
+                intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
+                intra_block_range->set_offsets(block.get_offset());
+                intra_block_range->set_starting_position(block.get_current_index_vector());
+                {
+                    auto intra_begin = intra_block_range->begin();
+                    auto intra_end = intra_block_range->end();
+                    for (auto element = intra_begin; element != intra_end; element++) {
+                        quant_count++;
+                    }
+                }
+            }
+        }
+        return quant_count;
+    }
 }
 #endif

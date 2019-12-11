@@ -26,41 +26,7 @@ unsigned long sz_lossless_compress(unsigned char *data, unsigned long dataLength
     return outSize;
 }
 
-template<typename T, uint N, class... Args>
-size_t get_num_sampling(T *data, uint block_size, uint stride, Args... global_dims) {
-    std::array<size_t, N> global_dimensions{static_cast<size_t>(global_dims)...};
-    auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data,
-                                                                                 std::begin(global_dimensions),
-                                                                                 std::end(global_dimensions), stride, 0);
-    auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data,
-                                                                                 std::begin(global_dimensions),
-                                                                                 std::end(global_dimensions), 1, 0);
-    std::array<size_t, N> intra_block_dims;
-    size_t quant_count = 0;
-    {
-        auto inter_begin = inter_block_range->begin();
-        auto inter_end = inter_block_range->end();
-        for (auto block = inter_begin; block != inter_end; block++) {
-            for (int i = 0; i < intra_block_dims.size(); i++) {
-                size_t cur_index = block.get_current_index(i);
-                size_t dims = inter_block_range->get_dimensions(i);
-                intra_block_dims[i] = (cur_index == dims - 1 && global_dimensions[i] - cur_index * stride < block_size) ?
-                                      global_dimensions[i] - cur_index * stride : block_size;
-            }
-            intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
-            intra_block_range->set_offsets(block.get_offset());
-            intra_block_range->set_starting_position(block.get_current_index_vector());
-            {
-                auto intra_begin = intra_block_range->begin();
-                auto intra_end = intra_block_range->end();
-                for (auto element = intra_begin; element != intra_end; element++) {
-                    quant_count++;
-                }
-            }
-        }
-    }
-    return quant_count;
-}
+
 
 template<typename T, class Predictor>
 void
@@ -93,7 +59,7 @@ compress(std::unique_ptr<T[]> &data, uint block_size, uint stride, Predictor pre
     std::cout << "Compressed size after zstd = " << lossless_size << std::endl;
     auto num_sampling = num;
     if (stride > block_size) {
-        num_sampling = get_num_sampling<T, 3>(&data[0], block_size, stride, r1, r2, r3);
+        num_sampling = SZ::get_num_sampling<T, 3>(&data[0], block_size, stride, r1, r2, r3);
         std::cout << "Number of sampling data  = " << num_sampling << "; Percentage: " << num_sampling*1.0 / num << std::endl;
     }
     std::cout << "********************Compression Ratio******************* = "
