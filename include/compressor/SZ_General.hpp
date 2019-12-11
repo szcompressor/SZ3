@@ -85,7 +85,6 @@ namespace SZ {
                 }
             }
             std::cout << "reg_count = " << reg_count << std::endl;
-            std::cout << "quant_count = " << quant_count << std::endl;
             predictor->postcompress_data(inter_block_range->begin());
             quantizer.postcompress_data();
 
@@ -96,7 +95,7 @@ namespace SZ {
                 std::cout << "quant_inds before " << quant_inds.size() << std::endl;
                 num_elements = quant_count;
                 quant_inds.resize(num_elements);
-                std::cout << "quant_inds after" << quant_inds.size() << std::endl;
+                std::cout << "quant_inds after "<< quant_inds.size() << std::endl;
 
             }
 
