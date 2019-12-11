@@ -3,7 +3,7 @@
 
 #include "HuffmanEncoder.hpp"
 
-namespace SZ{
+namespace SZ {
 
 }
 #endif

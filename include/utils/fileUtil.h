@@ -27,6 +27,7 @@ namespace SZ {
         num = num_elements;
         return data;
     }
+
     template<typename Type>
     void writefile(const char *file, Type *data, size_t num_elements) {
         std::ofstream fout(file, std::ios::binary);

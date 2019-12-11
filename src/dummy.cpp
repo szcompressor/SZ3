@@ -4,6 +4,6 @@
 #include "compressor/Compressor.hpp"
 #include "utils/Iterator.hpp"
 
-namespace SZ{
+namespace SZ {
 
 }
