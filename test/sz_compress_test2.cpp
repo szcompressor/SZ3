@@ -28,19 +28,18 @@ unsigned long sz_lossless_compress(unsigned char *data, unsigned long dataLength
 
 
 template<typename Type, class Predictor>
-void compress(std::unique_ptr<Type[]> &data, Predictor predictor, Type eb, uint r1, uint r2, uint r3, size_t num) {
-    auto sz = SZ::make_sz_general<Type>(
-            // SZ::LorenzoPredictor<float, 3>(),
-            // SZ::RegressionPredictor<float, 3>(0.1*eb),
-            predictor,
-            SZ::LinearQuantizer<float>(eb),
-            SZ::HuffmanEncoder<int>(),
-            r1,
-            r2,
-            r3
-    );
+void
+compress(std::unique_ptr<Type[]> &data, uint block_size, uint stride, Predictor predictor, Type eb, uint r1, uint r2, uint r3,
+         size_t num) {
 
-    //SZ::SZ_General_Compressor<float, 3> sz(lorenzo, linear_quantizer, 100, 500, 500);
+    auto sz = SZ::make_sz_general<Type>(block_size, stride,
+                                        predictor,
+                                        SZ::LinearQuantizer<float>(eb),
+                                        SZ::HuffmanEncoder<int>(),
+                                        r1,
+                                        r2,
+                                        r3
+    );
 
     size_t compressed_size = 0;
     struct timespec start, end;
@@ -57,22 +56,29 @@ void compress(std::unique_ptr<Type[]> &data, Predictor predictor, Type eb, uint 
     auto lossless_size = sz_lossless_compress(compressed.get(), compressed_size * sizeof(float));
 
     std::cout << "Compressed size after zstd = " << lossless_size << std::endl;
-    std::cout << "********************Compression Ratio******************* = " << num * sizeof(float) * 1.0 / lossless_size << std::endl;
-    SZ::writefile("test.dat", compressed.get(), compressed_size);
-
-
-    err = clock_gettime(CLOCK_REALTIME, &start);
-    std::unique_ptr<float[]> dec_data;
-    dec_data.reset(sz.decompress(compressed.get(), compressed_size));
-    err = clock_gettime(CLOCK_REALTIME, &end);
-    std::cout << "Decompression time: "
-              << (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000 << "s"
-              << std::endl;
-    float max_err = 0;
-    for (int i = 0; i < num; i++) {
-        max_err = std::max(max_err, std::abs(data[i] - dec_data[i]));
+    auto num_sampling = num;
+    if (stride > block_size) {
+        num_sampling = (r1 / stride * block_size) * (r2 / stride * block_size) * (r3 / stride * block_size);
+        std::cout << "Number of sampling data  = " << num_sampling << std::endl;
     }
-    std::cout << "Max error = " << max_err << std::endl;
+    std::cout << "********************Compression Ratio******************* = "
+              << num_sampling * sizeof(float) * 1.0 / lossless_size
+              << std::endl;
+//    SZ::writefile("test.dat", compressed.get(), compressed_size);
+//
+//
+//    err = clock_gettime(CLOCK_REALTIME, &start);
+//    std::unique_ptr<float[]> dec_data;
+//    dec_data.reset(sz.decompress(compressed.get(), compressed_size));
+//    err = clock_gettime(CLOCK_REALTIME, &end);
+//    std::cout << "Decompression time: "
+//              << (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000 << "s"
+//              << std::endl;
+//    float max_err = 0;
+//    for (int i = 0; i < num; i++) {
+//        max_err = std::max(max_err, std::abs(data[i] - dec_data[i]));
+//    }
+//    std::cout << "Max error = " << max_err << std::endl;
 
 }
 
@@ -89,9 +95,10 @@ int main(int argc, char **argv) {
     int r3 = atoi(argv[4]);
     float aeb = atof(argv[5]);
     int block_size = atoi(argv[6]);
-    int pred_dim = atoi(argv[7]);
-    int all_lorenzo = atoi(argv[8]);
-    int all_regression = atoi(argv[9]);
+    int stride = atoi(argv[7]);
+    int pred_dim = atoi(argv[8]);
+    int all_lorenzo = atoi(argv[9]);
+    int all_regression = atoi(argv[10]);
     float max = data[0];
     float min = data[0];
     for (int i = 1; i < num; i++) {
@@ -123,20 +130,20 @@ int main(int argc, char **argv) {
 
 
     if (all_regression == 1) {
-        compress<float>(data, P_r, eb, r1, r2, r3, num);
+        compress<float>(data, block_size, stride, P_r, eb, r1, r2, r3, num);
     } else if (all_regression == 2) {
-        compress<float>(data, P_r2, eb, r1, r2, r3, num);
+        compress<float>(data, block_size, stride, P_r2, eb, r1, r2, r3, num);
     } else if (all_regression == 3) {
-        compress<float>(data, P_l_r2, eb, r1, r2, r3, num);
+        compress<float>(data, block_size, stride, P_l_r2, eb, r1, r2, r3, num);
     } else if (all_regression == 0) {
         if (all_lorenzo == 0) {
-            compress<float>(data, P_l_r, eb, r1, r2, r3, num);
+            compress<float>(data, block_size, stride, P_l_r, eb, r1, r2, r3, num);
         } else if (all_lorenzo == 1) {
-            compress<float>(data, P_l, eb, r1, r2, r3, num);
+            compress<float>(data, block_size, stride, P_l, eb, r1, r2, r3, num);
         } else if (all_lorenzo == 2) {
-            compress<float>(data, P_l2, eb, r1, r2, r3, num);
+            compress<float>(data, block_size, stride, P_l2, eb, r1, r2, r3, num);
         } else if (all_lorenzo == 3) {
-            compress<float>(data, P_l2_r, eb, r1, r2, r3, num);
+            compress<float>(data, block_size, stride, P_l2_r, eb, r1, r2, r3, num);
         }
     }
 
