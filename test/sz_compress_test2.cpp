@@ -26,8 +26,6 @@ unsigned long sz_lossless_compress(unsigned char *data, unsigned long dataLength
     return outSize;
 }
 
-
-
 template<typename T, class Predictor>
 void
 compress(std::unique_ptr<T[]> &data, uint block_size, uint stride, Predictor predictor, T eb, uint r1, uint r2, uint r3,
