@@ -132,7 +132,7 @@ int main(int argc, char **argv) {
     int pred_dim = atoi(argv[9]);
     int lorenzo_op = atoi(argv[10]);
     int regression_op = atoi(argv[11]);
-    int lossless_ = atoi(argv[11]);
+    int loseless_ = atoi(argv[12]);
     float max = data[0];
     float min = data[0];
     for (int i = 1; i < num; i++) {
@@ -140,7 +140,7 @@ int main(int argc, char **argv) {
         if (min > data[i]) min = data[i];
     }
     float eb = reb * (max - min);
-    bool lossless = (lossless_ != 0);
+    bool loseless = (loseless_ != 0);
     bool lorenzo_1 = lorenzo_op == 1 || lorenzo_op == 3;
     bool lorenzo_2 = lorenzo_op == 2 || lorenzo_op == 3;
     bool regression_1 = regression_op == 1 || regression_op == 3;
@@ -155,20 +155,20 @@ int main(int argc, char **argv) {
               << ", lorenzo 2layer = " << lorenzo_2
               << ", regression = " << regression_1
               << ", regression poly = " << regression_2
-              << ", lossless= " << lossless
+              << ", loseless= " << loseless
               << std::endl;
 
     std::cout << "value range = " << max - min << std::endl;
     std::cout << "abs error bound = " << eb << std::endl;
 
     if (pred_dim == 3) {
-        choose_compressor_and_compress<float, 3>(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless,
+        choose_compressor_and_compress<float, 3>(lorenzo_1, lorenzo_2, regression_1, regression_2, loseless,
                                                  data, num, block_size, stride, eb, preb, r1, r2, r3);
     } else if (pred_dim == 2) {
-        choose_compressor_and_compress<float, 2>(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless,
+        choose_compressor_and_compress<float, 2>(lorenzo_1, lorenzo_2, regression_1, regression_2, loseless,
                                                  data, num, block_size, stride, eb, preb, r1 * r2, r3);
     } else {
-        choose_compressor_and_compress<float, 1>(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless,
+        choose_compressor_and_compress<float, 1>(lorenzo_1, lorenzo_2, regression_1, regression_2, loseless,
                                                  data, num, block_size, stride, eb, preb, r1 * r2 * r3);
     }
 
