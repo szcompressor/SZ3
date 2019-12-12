@@ -58,8 +58,7 @@ namespace SZ {
                         size_t cur_index = block.get_current_index(i);
                         size_t dims = inter_block_range->get_dimensions(i);
                         intra_block_dims[i] = (cur_index == dims - 1 && global_dimensions[i] - cur_index * stride < block_size) ?
-                                              global_dimensions[i] - cur_index * stride
-                                                                                                                                : block_size;
+                                              global_dimensions[i] - cur_index * stride : block_size;
                     }
 
                     intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
@@ -88,18 +87,20 @@ namespace SZ {
             predictor->postcompress_data(inter_block_range->begin());
             quantizer.postcompress_data();
 
+            std::unique_ptr<uchar[]> compressed_data;
             if (stride > block_size) {
                 std::cout << "Sampling Compress Mode is ON" << std::endl << "Decompress is not supposed in this mode."
                           << std::endl;
                 std::cout << "num_elements " << num_elements << std::endl;
                 std::cout << "quant_inds before " << quant_inds.size() << std::endl;
-                num_elements = quant_count;
-                quant_inds.resize(num_elements);
-                std::cout << "quant_inds after " << quant_inds.size() << std::endl;
+//                num_elements = quant_count;
+                quant_inds.resize(quant_count);
+                compressed_data = compat::make_unique<uchar[]>(3 * quant_count * sizeof(T));
 
+            } else {
+                compressed_data = compat::make_unique<uchar[]>(2 * num_elements * sizeof(T));
             }
 
-            std::unique_ptr<uchar[]> compressed_data = compat::make_unique<uchar[]>(2 * num_elements * sizeof(T));
             uchar *compressed_data_pos = compressed_data.get();
             // TODO: serialize and record predictor, quantizer, and encoder
             // Or do these in a outer loop wrapper?

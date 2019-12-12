@@ -10,10 +10,9 @@
 #include <fstream>
 #include <cmath>
 #include <memory>
-
 #include "zstd.h"
 
-unsigned long sz_lossless_compress(unsigned char *data, unsigned long dataLength) {
+unsigned long sz_lossless_compress(unsigned char *data, size_t dataLength) {
     unsigned long outSize = 0;
     size_t estimatedCompressedSize = 0;
     if (dataLength < 100)
@@ -44,18 +43,20 @@ compress(std::unique_ptr<T[]> &data, size_t num, uint block_size, uint stride, P
     struct timespec start, end;
     int err = 0;
     err = clock_gettime(CLOCK_REALTIME, &start);
+
     std::unique_ptr<unsigned char[]> compressed;
     compressed.reset(sz.compress(data.get(), compressed_size));
-    err = clock_gettime(CLOCK_REALTIME, &end);
-    std::cout << "Compression time: "
-              << (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000 << "s"
-              << std::endl;
-    std::cout << "Compressed size before zstd = " << compressed_size << std::endl;
 
+    std::cout << "Compressed size before zstd = " << compressed_size << std::endl;
     if (lossless) {
         compressed_size = sz_lossless_compress(compressed.get(), compressed_size * sizeof(float));
         std::cout << "Compressed size after zstd = " << compressed_size << std::endl;
     }
+    err = clock_gettime(CLOCK_REALTIME, &end);
+    std::cout << "Compression time: "
+              << (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000 << "s"
+              << std::endl;
+
     auto num_sampling = num;
     if (stride > block_size) {
         num_sampling = SZ::get_num_sampling<T, 3>(&data[0], block_size, stride, args...);
@@ -64,6 +65,7 @@ compress(std::unique_ptr<T[]> &data, size_t num, uint block_size, uint stride, P
     std::cout << "********************Compression Ratio******************* = "
               << num_sampling * sizeof(float) * 1.0 / compressed_size
               << std::endl;
+    std::cerr << num_sampling * sizeof(float) * 1.0 / compressed_size;
 //    SZ::writefile("test.dat", compressed.get(), compressed_size);
 //
 //
