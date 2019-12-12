@@ -17,9 +17,17 @@ namespace SZ {
     public:
         static const uint8_t predictor_id = 0b00000010;
 
-        RegressionPredictor() : quantizer(0), prev_coeffs{0}, current_coeffs{0} {}
+        RegressionPredictor() : quantizer_independent(0), quantizer_liner(0), prev_coeffs{0}, current_coeffs{0} {}
 
-        RegressionPredictor(T eb) : quantizer(eb), prev_coeffs{0}, current_coeffs{0} {}
+        RegressionPredictor(uint block_size, T eb) : quantizer_independent(eb / (N + 1)),
+                                                     quantizer_liner(eb / (N + 1) / block_size),
+                                                     prev_coeffs{0}, current_coeffs{0} {
+        }
+
+        RegressionPredictor(uint block_size, T eb1, T eb2) : quantizer_independent(eb1),
+                                            quantizer_liner(eb2),
+                                            prev_coeffs{0}, current_coeffs{0} {
+        }
 
         using Range = multi_dimensional_range<T, N>;
         using iterator = typename multi_dimensional_range<T, N>::iterator;
@@ -63,11 +71,13 @@ namespace SZ {
             std::cout << "save regression predictor" << std::endl;
             c[0] = 0b00000010;
             c += sizeof(uint8_t);
-            quantizer.save(c);
+            quantizer_independent.save(c);
+            quantizer_liner.save(c);
             *reinterpret_cast<size_t *>(c) = regression_coeff_quant_inds.size();
             c += sizeof(size_t);
             HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
-            encoder.preprocess_encode(regression_coeff_quant_inds, 4 * quantizer.get_radius());
+            encoder.preprocess_encode(regression_coeff_quant_inds,
+                                      4 * std::max(quantizer_liner.get_radius(), quantizer_independent.get_radius()));
             encoder.save(c);
             encoder.encode(regression_coeff_quant_inds, c);
             encoder.postprocess_encode();
@@ -82,7 +92,8 @@ namespace SZ {
             std::cout << "load regression predictor" << std::endl;
             c += sizeof(uint8_t);
             remaining_length -= sizeof(uint8_t);
-            quantizer.load(c, remaining_length);
+            quantizer_independent.load(c, remaining_length);
+            quantizer_liner.load(c, remaining_length);
             size_t coeff_size = *reinterpret_cast<const size_t *>(c);
             c += sizeof(size_t);
             remaining_length -= sizeof(size_t);
@@ -96,7 +107,8 @@ namespace SZ {
         }
 
         void print() const {
-            std::cout << "Regression predictor, eb = " << quantizer.get_eb() << "\n";
+            std::cout << "Regression predictor, indendent term eb = " << quantizer_independent.get_eb() << "\n";
+            std::cout << "Regression predictor, linear term eb = " << quantizer_liner.get_eb() << "\n";
             int count = 0;
             int ind = regression_coeff_index ? regression_coeff_index : regression_coeff_quant_inds.size();
             std::cout << "\nPrev coeffs: ";
@@ -111,7 +123,7 @@ namespace SZ {
         }
 
     private:
-        LinearQuantizer<T> quantizer;
+        LinearQuantizer<T> quantizer_liner, quantizer_independent;
         std::vector<int> regression_coeff_quant_inds;
         size_t regression_coeff_index = 0;
         std::array<T, N + 1> current_coeffs;
@@ -146,15 +158,23 @@ namespace SZ {
         }
 
         void pred_and_quantize_coefficients() {
-            for (int i = 0; i <= N; i++) {
-                regression_coeff_quant_inds.push_back(quantizer.quantize_and_overwrite(current_coeffs[i], prev_coeffs[i]));
+            for (int i = 0; i < N; i++) {
+                regression_coeff_quant_inds.push_back(quantizer_liner.quantize_and_overwrite(current_coeffs[i], prev_coeffs[i]));
             }
+            regression_coeff_quant_inds.push_back(
+                    quantizer_independent.quantize_and_overwrite(current_coeffs[N], prev_coeffs[N]));
         }
 
         void pred_and_recover_coefficients() {
-            for (auto &coeffs : current_coeffs) {
-                coeffs = quantizer.recover(coeffs, regression_coeff_quant_inds[regression_coeff_index++]);
+            for (int i = 0; i < N; i++) {
+                current_coeffs[i] = quantizer_liner.recover(current_coeffs[i],
+                                                            regression_coeff_quant_inds[regression_coeff_index++]);
             }
+            current_coeffs[N] = quantizer_independent.recover(current_coeffs[N],
+                                                              regression_coeff_quant_inds[regression_coeff_index++]);
+//            for (auto &coeffs : current_coeffs) {
+//                coeffs = quantizer.recover(coeffs, regression_coeff_quant_inds[regression_coeff_index++]);
+//            }
         }
     };
 

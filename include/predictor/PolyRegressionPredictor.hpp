@@ -20,11 +20,21 @@ namespace SZ {
     public:
         static const uint8_t predictor_id = 0b00000011;
 
-        PolyRegressionPredictor() : quantizer(0), current_coeffs{0} {
+        PolyRegressionPredictor() : quantizer_independent(0), quantizer_liner(0), quantizer_poly(0), current_coeffs{0} {
             init_poly();
         }
 
-        PolyRegressionPredictor(T eb) : quantizer(eb), current_coeffs{0} {
+        PolyRegressionPredictor(uint block_size, T eb) : quantizer_independent(eb / 2),
+                                                         quantizer_liner(eb / M),
+                                                         quantizer_poly(eb / M / block_size),
+                                                         prev_coeffs{0}, current_coeffs{0} {
+            init_poly();
+        }
+
+        PolyRegressionPredictor(T eb1, T eb2, T eb3) : quantizer_independent(eb1),
+                                                       quantizer_liner(eb2),
+                                                       quantizer_poly(eb3),
+                                                       prev_coeffs{0}, current_coeffs{0} {
             init_poly();
         }
 
@@ -94,11 +104,15 @@ namespace SZ {
             std::cout << "save predictor" << std::endl;
             c[0] = predictor_id;
             c += 1;
-            quantizer.save(c);
+            quantizer_independent.save(c);
+            quantizer_liner.save(c);
+            quantizer_poly.save(c);
             *reinterpret_cast<size_t *>(c) = regression_coeff_quant_inds.size();
             c += sizeof(size_t);
             HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
-            encoder.preprocess_encode(regression_coeff_quant_inds, 4 * quantizer.get_radius());
+            encoder.preprocess_encode(regression_coeff_quant_inds, 4 * std::max({quantizer_independent.get_radius(),
+                                                                                 quantizer_liner.get_radius(),
+                                                                                 quantizer_poly.get_radius()}));
             encoder.save(c);
             encoder.encode(regression_coeff_quant_inds, c);
             encoder.postprocess_encode();
@@ -113,7 +127,9 @@ namespace SZ {
             std::cout << "load predictor" << std::endl;
             c += sizeof(uint8_t);
             remaining_length -= sizeof(uint8_t);
-            quantizer.load(c, remaining_length);
+            quantizer_independent.load(c, remaining_length);
+            quantizer_liner.load(c, remaining_length);
+            quantizer_poly.load(c, remaining_length);
             size_t coeff_size = *reinterpret_cast<const size_t *>(c);
             c += sizeof(size_t);
             remaining_length -= sizeof(size_t);
@@ -127,15 +143,18 @@ namespace SZ {
         }
 
         void print() const {
-            std::cout << "Regression predictor, eb = " << quantizer.get_eb() << "\n";
+            std::cout << "Regression predictor, indendent term eb = " << quantizer_independent.get_eb() << "\n";
+            std::cout << "Regression predictor, linear term eb = " << quantizer_liner.get_eb() << "\n";
+            std::cout << "Regression predictor, poly term eb = " << quantizer_poly.get_eb() << "\n";
         }
 
 
     private:
-        LinearQuantizer<T> quantizer;
+        LinearQuantizer<T> quantizer_independent, quantizer_liner, quantizer_poly;
         std::vector<int> regression_coeff_quant_inds;
         size_t regression_coeff_index = 0;
         std::array<T, M> current_coeffs;
+        std::array<T, N + 1> prev_coeffs;
         std::vector<std::array<T, M * M>> coef_aux_list;
 
         void init_poly() {
@@ -188,14 +207,26 @@ namespace SZ {
         }
 
         void pred_and_quantize_coefficients(std::array<T, M> &coeffs) {
-            for (int i = 0; i <= N; i++) {
-                regression_coeff_quant_inds.push_back(quantizer.quantize_and_overwrite(coeffs[i], current_coeffs[i]));
+            regression_coeff_quant_inds.push_back(
+                    quantizer_independent.quantize_and_overwrite(current_coeffs[0], prev_coeffs[0]));
+            for (int i = 1; i < N + 1; i++) {
+                regression_coeff_quant_inds.push_back(quantizer_liner.quantize_and_overwrite(current_coeffs[0], prev_coeffs[0]));
+            }
+            for (int i = N + 1; i < M; i++) {
+                regression_coeff_quant_inds.push_back(quantizer_poly.quantize_and_overwrite(current_coeffs[0], prev_coeffs[0]));
             }
         }
 
         void pred_and_recover_coefficients() {
-            for (auto &coeffs : current_coeffs) {
-                coeffs = quantizer.recover(coeffs, regression_coeff_quant_inds[regression_coeff_index++]);
+            current_coeffs[0] = quantizer_independent.recover(current_coeffs[0],
+                                                              regression_coeff_quant_inds[regression_coeff_index++]);
+            for (int i = 1; i < N + 1; i++) {
+                current_coeffs[i] = quantizer_liner.recover(current_coeffs[i],
+                                                            regression_coeff_quant_inds[regression_coeff_index++]);
+            }
+            for (int i = N + 1; i < M; i++) {
+                current_coeffs[i] = quantizer_poly.recover(current_coeffs[i],
+                                                           regression_coeff_quant_inds[regression_coeff_index++]);
             }
         }
 

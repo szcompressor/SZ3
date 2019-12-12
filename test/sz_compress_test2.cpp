@@ -103,12 +103,12 @@ choose_compressor_and_compress(bool lorenzo_1, bool lorenzo_2, bool regression_1
     }
     if (regression_1) {
         auto P_r = std::make_shared<SZ::RealPredictor<float, N, SZ::RegressionPredictor<float, N>>>(
-                std::make_shared<SZ::RegressionPredictor<float, N>>(preb * eb));
+                std::make_shared<SZ::RegressionPredictor<float, N>>(block_size, preb * eb));
         predictors.push_back(P_r);
     }
     if (regression_2) {
         auto P_r2 = std::make_shared<SZ::RealPredictor<float, N, SZ::PolyRegressionPredictor<float, N>>>(
-                std::make_shared<SZ::PolyRegressionPredictor<float, N>>(preb * eb));
+                std::make_shared<SZ::PolyRegressionPredictor<float, N>>(block_size, preb * eb));
         predictors.push_back(P_r2);
     }
     if (predictors.size() == 1) {
