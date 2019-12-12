@@ -179,17 +179,6 @@ namespace SZ {
                     coeffs[i] += coef_aux_idx[i * M + j] * sum[j];
                 }
             }
-//            std::cout << "sum ";
-//            for (auto &su:sum) {
-//                std::cout << su << " ";
-//            }
-//            std::cout << std::endl;
-//
-//            std::cout << "coeff ";
-//            for (auto &coef:coeffs) {
-//                std::cout << coef << " ";
-//            }
-//            std::cout << std::endl;
 
             std::array<T, M> coeffsT;
             for (int i = 0; i < M; i++) {

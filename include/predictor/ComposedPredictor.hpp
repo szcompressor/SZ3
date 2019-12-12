@@ -215,25 +215,29 @@ namespace SZ {
             }
         }
 
-        template<typename P1>
-        void instantiate(P1 p1) {
-            predictors.push_back(std::move(p1));
-        }
+//        template<typename P1>
+//        void instantiate(P1 p1) {
+//            predictors.push_back(std::move(p1));
+//        }
+//
+//        template<typename P1>
+//        void unpack(P1 p1) {
+//            instantiate(p1);
+//        }
+//
+//        template<typename P1, typename... Rest>
+//        void unpack(P1 p1, Rest... Rs) {
+//            instantiate<P1>(p1);
+//            unpack(Rs...);
+//        }
+//
+//        template<class... Predictors>
+//        ComposedPredictor(Predictors &&... Ps) {
+//            unpack(Ps...);
+//        }
 
-        template<typename P1>
-        void unpack(P1 p1) {
-            instantiate(p1);
-        }
-
-        template<typename P1, typename... Rest>
-        void unpack(P1 p1, Rest... Rs) {
-            instantiate<P1>(p1);
-            unpack(Rs...);
-        }
-
-        template<class... Predictors>
-        ComposedPredictor(Predictors &&... Ps) {
-            unpack(Ps...);
+        ComposedPredictor(std::vector<std::shared_ptr<VirtualPredictor<T, N>>> predictors_) {
+            predictors = predictors_;
         }
 
         std::vector<std::shared_ptr<VirtualPredictor<T, N>>> predictors;

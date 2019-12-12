@@ -31,7 +31,7 @@ namespace SZ {
         }
 
         // compress given the error bound
-        uchar *compress(const T *data_, double eb, size_t &compressed_size) {
+        uchar *compress(const T *data_, size_t &compressed_size) {
             // TODO: new quantizer if eb does not match
             // make a copy of the data
             std::vector<T> data = std::vector<T>(data_, data_ + num_elements);

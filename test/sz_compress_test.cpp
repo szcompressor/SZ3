@@ -47,7 +47,10 @@ int main(int argc, char **argv) {
             std::make_shared<SZ::LorenzoPredictor<float, 3, 1>>(eb));
     auto P_reg = std::make_shared<SZ::RealPredictor<float, 3, SZ::RegressionPredictor<float, 3>>>(
             std::make_shared<SZ::RegressionPredictor<float, 3>>(0.1 * eb));
-    auto cp = std::make_shared<SZ::ComposedPredictor<float, 3>>(P_l, P_reg);
+    std::vector<std::shared_ptr<SZ::VirtualPredictor<float, 3>>> predictors_;
+    predictors_.push_back(P_l);
+    predictors_.push_back(P_reg);
+    auto cp = std::make_shared<SZ::ComposedPredictor<float, 3>>(predictors_);
     auto sz = SZ::make_sz_general<float>(
             cp,
             SZ::LinearQuantizer<float>(eb),
@@ -62,7 +65,7 @@ int main(int argc, char **argv) {
     int err = 0;
     err = clock_gettime(CLOCK_REALTIME, &start);
     std::unique_ptr<unsigned char[]> compressed;
-    compressed.reset(sz.compress(data.get(), eb, compressed_size));
+    compressed.reset(sz.compress(data.get(), compressed_size));
     err = clock_gettime(CLOCK_REALTIME, &end);
     std::cout << "Compression time: "
               << (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000 << "s"
