@@ -4,6 +4,7 @@
 #include <utils/Iterator.hpp>
 #include <utils/fileUtil.h>
 #include <predictor/Predictor.hpp>
+#include <def.hpp>
 #include <cstdio>
 #include <fstream>
 #include <iostream>

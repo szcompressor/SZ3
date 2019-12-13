@@ -171,7 +171,7 @@ namespace SZ {
             predictors[sid]->predecompress_block(range);
         }
 
-        void save(uchar *&c) const {
+        void save(uchar *&c)  {
             auto tmp = c;
             for (const auto &p:predictors) {
                 // std::cout << "COMPOSED SAVE OFFSET = " << c - tmp << std::endl;
@@ -179,11 +179,19 @@ namespace SZ {
             }
             // std::cout << "COMPOSED SAVE OFFSET = " << c - tmp << std::endl;
             // store selection
-            // TODO: use binary operations to be more efficient?
+
+            // TODO: check correctness
             *reinterpret_cast<size_t *>(c) = (size_t) selection.size();
             c += sizeof(size_t);
-            memcpy(c, selection.data(), selection.size() * sizeof(int));
-            c += selection.size() * sizeof(int);
+            selection_encoder.preprocess_encode(selection, 4 * predictors.size());
+            selection_encoder.save(c);
+            selection_encoder.encode(selection, c);
+            selection_encoder.postprocess_encode();
+
+//            *reinterpret_cast<size_t *>(c) = (size_t) selection.size();
+//            c += sizeof(size_t);
+//            memcpy(c, selection.data(), selection.size() * sizeof(int));
+//            c += selection.size() * sizeof(int);
             // std::cout << "selection size: " << selection.size() << std::endl;
         }
 
@@ -194,13 +202,21 @@ namespace SZ {
                 p->load(c, remaining_length);
             }
             // std::cout << "COMPOSED LOAD OFFSET = " << c - tmp << std::endl;
+
             // load selection
+            // TODO: check correctness
             size_t selection_size = *reinterpret_cast<const size_t *>(c);
             c += sizeof(size_t);
+            selection_encoder.load(c, remaining_length);
+            this->selection = selection_encoder.decode(c, selection_size);
+            selection_encoder.postprocess_decode();
+
+//            size_t selection_size = *reinterpret_cast<const size_t *>(c);
+//            c += sizeof(size_t);
             // std::cout << "selection size = " << selection_size << std::endl;
-            this->selection = std::vector<int>(reinterpret_cast<const int *>(c),
-                                               reinterpret_cast<const int *>(c) + selection_size);
-            c += selection_size * sizeof(int);
+//            this->selection = std::vector<int>(reinterpret_cast<const int *>(c),
+//                                               reinterpret_cast<const int *>(c) + selection_size);
+//            c += selection_size * sizeof(int);
         }
 
         inline T predict(const iterator &iter) const noexcept {
@@ -236,13 +252,14 @@ namespace SZ {
 //            unpack(Ps...);
 //        }
 
-        ComposedPredictor(std::vector<std::shared_ptr<VirtualPredictor<T, N>>> predictors_) {
+        ComposedPredictor(std::vector<std::shared_ptr<VirtualPredictor<T, N>>> predictors_) : selection_encoder() {
             predictors = predictors_;
         }
 
         std::vector<std::shared_ptr<VirtualPredictor<T, N>>> predictors;
     private:
         std::vector<int> selection;
+        HuffmanEncoder<int> selection_encoder;
         int sid;                            // selected index
         size_t current_index = 0;            // for decompression only
         uchar buf[512];
