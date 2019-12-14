@@ -157,6 +157,9 @@ namespace SZ {
                     count++;
                 }
             }
+            for (int i = 0; i < err.size(); i++) {
+                err[i] *= selection_weights[i];
+            }
             sid = std::distance(err.begin(), std::min_element(err.begin(), err.end()));
             selection.push_back(sid);
             // std::cout << sid << std::endl;
@@ -171,7 +174,7 @@ namespace SZ {
             predictors[sid]->predecompress_block(range);
         }
 
-        void save(uchar *&c)  {
+        void save(uchar *&c) {
             auto tmp = c;
             for (const auto &p:predictors) {
                 // std::cout << "COMPOSED SAVE OFFSET = " << c - tmp << std::endl;
@@ -254,11 +257,20 @@ namespace SZ {
 
         ComposedPredictor(std::vector<std::shared_ptr<VirtualPredictor<T, N>>> predictors_) : selection_encoder() {
             predictors = predictors_;
+            selection_weights = std::vector<int>(predictors_.size(), 1);
+        }
+
+        ComposedPredictor(std::vector<std::shared_ptr<VirtualPredictor<T, N>>> predictors_, const std::vector<uint> selection_weights_)
+                : selection_encoder() {
+            assert(predictors_.size() == penalty_.size());
+            predictors = predictors_;
+            selection_weights = selection_weights_;
         }
 
         std::vector<std::shared_ptr<VirtualPredictor<T, N>>> predictors;
     private:
         std::vector<int> selection;
+        std::vector<int> selection_weights;
         HuffmanEncoder<int> selection_encoder;
         int sid;                            // selected index
         size_t current_index = 0;            // for decompression only
