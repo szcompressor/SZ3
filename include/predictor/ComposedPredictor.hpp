@@ -257,12 +257,12 @@ namespace SZ {
 
         ComposedPredictor(std::vector<std::shared_ptr<VirtualPredictor<T, N>>> predictors_) : selection_encoder() {
             predictors = predictors_;
-            selection_weights = std::vector<int>(predictors_.size(), 1);
+            selection_weights = std::vector<double>(predictors_.size(), 1.0);
         }
 
-        ComposedPredictor(std::vector<std::shared_ptr<VirtualPredictor<T, N>>> predictors_, const std::vector<uint> selection_weights_)
+        ComposedPredictor(std::vector<std::shared_ptr<VirtualPredictor<T, N>>> predictors_, std::vector<double> selection_weights_)
                 : selection_encoder() {
-            assert(predictors_.size() == penalty_.size());
+            assert(predictors_.size() == selection_weights_.size());
             predictors = predictors_;
             selection_weights = selection_weights_;
         }
@@ -270,7 +270,7 @@ namespace SZ {
         std::vector<std::shared_ptr<VirtualPredictor<T, N>>> predictors;
     private:
         std::vector<int> selection;
-        std::vector<int> selection_weights;
+        std::vector<double> selection_weights;
         HuffmanEncoder<int> selection_encoder;
         int sid;                            // selected index
         size_t current_index = 0;            // for decompression only
