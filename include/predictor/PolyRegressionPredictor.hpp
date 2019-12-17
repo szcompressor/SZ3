@@ -43,8 +43,6 @@ namespace SZ {
 
         void precompress_data(const iterator &) const noexcept {}
 
-        void precompress_block_commit() noexcept {}
-
         void postcompress_data(const iterator &) const noexcept {}
 
         void predecompress_data(const iterator &) const noexcept {}
@@ -61,9 +59,14 @@ namespace SZ {
             for (int i = 0; i < N; i++) {
                 dims[i] = range->get_dimensions(i);
             }
-            std::array<T, M> coeffs = compute_regression_coefficients(range, dims);
-            pred_and_quantize_coefficients(coeffs);
-            std::copy(coeffs.begin(), coeffs.end(), current_coeffs.begin());
+            current_coeffs = compute_regression_coefficients(range, dims);
+//            pred_and_quantize_coefficients();
+//            std::copy(current_coeffs.begin(), current_coeffs.end(), current_coeffs.begin());
+        }
+
+        void precompress_block_commit() noexcept {
+            pred_and_quantize_coefficients();
+            std::copy(current_coeffs.begin(), current_coeffs.end(), prev_coeffs.begin());
         }
 
         template<uint NN = N>
@@ -154,7 +157,7 @@ namespace SZ {
         std::vector<int> regression_coeff_quant_inds;
         size_t regression_coeff_index = 0;
         std::array<T, M> current_coeffs;
-        std::array<T, N + 1> prev_coeffs;
+        std::array<T, M> prev_coeffs;
         std::vector<std::array<T, M * M>> coef_aux_list;
 
         void init_poly() {
@@ -206,7 +209,7 @@ namespace SZ {
             return coeffsT;
         }
 
-        void pred_and_quantize_coefficients(std::array<T, M> &coeffs) {
+        void pred_and_quantize_coefficients() {
             regression_coeff_quant_inds.push_back(
                     quantizer_independent.quantize_and_overwrite(current_coeffs[0], prev_coeffs[0]));
             for (int i = 1; i < N + 1; i++) {

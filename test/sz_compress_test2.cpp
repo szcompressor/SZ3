@@ -28,7 +28,7 @@ unsigned long sz_lossless_compress(unsigned char *data, size_t dataLength) {
 
 
 template<typename T, class Predictor, class... Args>
-void
+float
 compress(std::unique_ptr<T[]> &data, size_t num, uint block_size, uint stride, Predictor predictor, bool lossless, T eb,
          Args... args
 ) {
@@ -60,13 +60,13 @@ compress(std::unique_ptr<T[]> &data, size_t num, uint block_size, uint stride, P
 
     auto num_sampling = num;
     if (stride > block_size) {
-        num_sampling = SZ::get_num_sampling<T, 3>(&data[0], block_size, stride, args...);
+        num_sampling = SZ::get_num_sampling<T, sizeof...(args)>(&data[0], block_size, stride, args...);
         std::cout << "Number of sampling data  = " << num_sampling << "; Percentage: " << num_sampling * 1.0 / num << std::endl;
     }
     std::cout << "********************Compression Ratio******************* = "
               << num_sampling * sizeof(float) * 1.0 / compressed_size
               << std::endl;
-    std::cerr << num_sampling * sizeof(float) * 1.0 / compressed_size;
+    return num_sampling * sizeof(float) * 1.0 / compressed_size;
 //    SZ::writefile("test.dat", compressed.get(), compressed_size);
 //
 //
@@ -86,7 +86,7 @@ compress(std::unique_ptr<T[]> &data, size_t num, uint block_size, uint stride, P
 }
 
 template<typename T, uint N, class... Args>
-void
+float
 choose_compressor_and_compress(bool lorenzo_1, bool lorenzo_2, bool regression_1, bool regression_2, bool lossless,
                                std::unique_ptr<T[]> &data, size_t num,
                                uint block_size, uint stride, T eb, T preb, Args... args
@@ -118,27 +118,39 @@ choose_compressor_and_compress(bool lorenzo_1, bool lorenzo_2, bool regression_1
         predictor_weights.push_back(1.2);
     }
     if (predictors.size() == 1) {
-        compress<T>(data, num, block_size, stride, predictors[0], lossless, eb, args...);
+        return compress<T>(data, num, block_size, stride, predictors[0], lossless, eb, args...);
     } else {
         auto P_composed = std::make_shared<SZ::ComposedPredictor<T, N>>(predictors, predictor_weights);
-        compress<T>(data, num, block_size, stride, P_composed, lossless, eb, args...);
+        return compress<T>(data, num, block_size, stride, P_composed, lossless, eb, args...);
     }
 }
 
 template<typename T>
-void
+float
 sz(bool lorenzo_1, bool lorenzo_2, bool regression_1, bool regression_2, bool lossless, uint block_size, uint stride,
    uint pred_dim, T eb, T preb, std::unique_ptr<T[]> &data, size_t num, uint r1, uint r2, uint r3) {
+    std::cout << "Options: "
+              << "eb = " << eb
+              << ", param relative error bound = " << preb
+              << ", block_size = " << block_size
+              << ", stride = " << stride
+              << ", dim = " << pred_dim
+              << ", lorenzo = " << lorenzo_1
+              << ", lorenzo 2layer = " << lorenzo_2
+              << ", regression = " << regression_1
+              << ", regression poly = " << regression_2
+              << ", lossless= " << lossless
+              << std::endl;
 
     if (pred_dim == 3) {
-        choose_compressor_and_compress<float, 3>(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless,
-                                                 data, num, block_size, stride, eb, preb, r1, r2, r3);
+        return choose_compressor_and_compress<float, 3>(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless,
+                                                        data, num, block_size, stride, eb, preb, r1, r2, r3);
     } else if (pred_dim == 2) {
-        choose_compressor_and_compress<float, 2>(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless,
-                                                 data, num, block_size, stride, eb, preb, r1 * r2, r3);
+        return choose_compressor_and_compress<float, 2>(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless,
+                                                        data, num, block_size, stride, eb, preb, r1 * r2, r3);
     } else {
-        choose_compressor_and_compress<float, 1>(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless,
-                                                 data, num, block_size, stride, eb, preb, r1 * r2 * r3);
+        return choose_compressor_and_compress<float, 1>(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless,
+                                                        data, num, block_size, stride, eb, preb, r1 * r2 * r3);
     }
 
 }
@@ -155,7 +167,7 @@ int main(int argc, char **argv) {
     float preb = atof(argv[6]);
     int block_size = atoi(argv[7]);
     int stride = atoi(argv[8]);
-    int pred_dim = atoi(argv[9]);
+    int dim = atoi(argv[9]);
     int lorenzo_op = atoi(argv[10]);
     int regression_op = atoi(argv[11]);
     int lossless_ = atoi(argv[12]);
@@ -171,23 +183,31 @@ int main(int argc, char **argv) {
     bool lorenzo_2 = lorenzo_op == 2 || lorenzo_op == 3;
     bool regression_1 = regression_op == 1 || regression_op == 3;
     bool regression_2 = regression_op == 2 || regression_op == 3;
-    std::cout << "Options: "
-              << "relative error bound = " << reb
-              << ", param relative error bound = " << preb
-              << ", block_size = " << block_size
-              << ", stride = " << stride
-              << ", pred_dim = " << pred_dim
-              << ", lorenzo = " << lorenzo_1
-              << ", lorenzo 2layer = " << lorenzo_2
-              << ", regression = " << regression_1
-              << ", regression poly = " << regression_2
-              << ", lossless= " << lossless
-              << std::endl;
 
     std::cout << "value range = " << max - min << std::endl;
     std::cout << "abs error bound = " << eb << std::endl;
 
-    sz(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless, block_size, stride, pred_dim, eb, preb, data, num, r1, r2, r3);
+    auto ratio = sz(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless, block_size, stride, dim, eb, preb, data, num, r1,
+                    r2, r3);
+    std::cerr << ratio;
+
+//    int ipred, best_pred_dim = 0;
+//    float best_ratio = 0;
+//    for (ipred = 0; ipred < dim * 2; ipred++) {
+//        auto ratio = sz(1 - ipred % 2, ipred % 2, 0, 0, 1, block_size, stride, ipred / 2 + 1, eb, preb, data,
+//                        num, r1, r2, r3);
+//        if (ratio > best_ratio) {
+//            best_pred_dim = ipred;
+//            best_ratio = ratio;
+//        }
+//    }
+//
+//    lorenzo_1 = 1 - best_pred_dim % 2;
+//    lorenzo_2 = best_pred_dim % 2;
+//    int pred_dim = best_pred_dim / 2 + 1;
+//
+//    sz(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless, block_size, stride, pred_dim, eb, preb, data, num, r1, r2, r3);
+
 
     return 0;
 }
