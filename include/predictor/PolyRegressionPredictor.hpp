@@ -213,10 +213,10 @@ namespace SZ {
             regression_coeff_quant_inds.push_back(
                     quantizer_independent.quantize_and_overwrite(current_coeffs[0], prev_coeffs[0]));
             for (int i = 1; i < N + 1; i++) {
-                regression_coeff_quant_inds.push_back(quantizer_liner.quantize_and_overwrite(current_coeffs[0], prev_coeffs[0]));
+                regression_coeff_quant_inds.push_back(quantizer_liner.quantize_and_overwrite(current_coeffs[i], prev_coeffs[i]));
             }
             for (int i = N + 1; i < M; i++) {
-                regression_coeff_quant_inds.push_back(quantizer_poly.quantize_and_overwrite(current_coeffs[0], prev_coeffs[0]));
+                regression_coeff_quant_inds.push_back(quantizer_poly.quantize_and_overwrite(current_coeffs[i], prev_coeffs[i]));
             }
         }
 

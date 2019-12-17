@@ -73,11 +73,6 @@ namespace SZ {
                         auto intra_begin = intra_block_range->begin();
                         auto intra_end = intra_block_range->end();
                         for (auto element = intra_begin; element != intra_end; element++) {
-//                            for (auto sss2:element.get_global_index_vector()) {
-//                                std::cout << sss2 << ", ";
-//                            };
-//                            std::cout<<std::endl;
-
                             quant_inds[quant_count++] = quantizer.quantize_and_overwrite(*element, predictor->predict(element));
                         }
                     }

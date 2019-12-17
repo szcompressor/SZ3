@@ -131,14 +131,14 @@ sz(bool lorenzo_1, bool lorenzo_2, bool regression_1, bool regression_2, bool lo
    uint pred_dim, T eb, T preb, std::unique_ptr<T[]> &data, size_t num, uint r1, uint r2, uint r3) {
     std::cout << "Options: "
               << "eb = " << eb
-              << ", param relative error bound = " << preb
+              << ", param reb = " << preb
               << ", block_size = " << block_size
               << ", stride = " << stride
               << ", dim = " << pred_dim
-              << ", lorenzo = " << lorenzo_1
-              << ", lorenzo 2layer = " << lorenzo_2
-              << ", regression = " << regression_1
-              << ", regression poly = " << regression_2
+              << ", lorenzo_1 = " << lorenzo_1
+              << ", lorenzo_2 = " << lorenzo_2
+              << ", regression_1 = " << regression_1
+              << ", regression_2 = " << regression_2
               << ", lossless= " << lossless
               << std::endl;
 
@@ -167,10 +167,10 @@ int main(int argc, char **argv) {
     float preb = atof(argv[6]);
     int block_size = atoi(argv[7]);
     int stride = atoi(argv[8]);
-    int dim = atoi(argv[9]);
+    int pred_dim = atoi(argv[9]);
     int lorenzo_op = atoi(argv[10]);
     int regression_op = atoi(argv[11]);
-    int lossless_ = atoi(argv[12]);
+
     float max = data[0];
     float min = data[0];
     for (int i = 1; i < num; i++) {
@@ -178,7 +178,7 @@ int main(int argc, char **argv) {
         if (min > data[i]) min = data[i];
     }
     float eb = reb * (max - min);
-    bool lossless = (lossless_ != 0);
+    bool lossless = true;
     bool lorenzo_1 = lorenzo_op == 1 || lorenzo_op == 3;
     bool lorenzo_2 = lorenzo_op == 2 || lorenzo_op == 3;
     bool regression_1 = regression_op == 1 || regression_op == 3;
@@ -187,13 +187,13 @@ int main(int argc, char **argv) {
     std::cout << "value range = " << max - min << std::endl;
     std::cout << "abs error bound = " << eb << std::endl;
 
-    auto ratio = sz(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless, block_size, stride, dim, eb, preb, data, num, r1,
+    auto ratio = sz(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless, block_size, stride, pred_dim, eb, preb, data, num, r1,
                     r2, r3);
     std::cerr << ratio;
 
 //    int ipred, best_pred_dim = 0;
 //    float best_ratio = 0;
-//    for (ipred = 0; ipred < dim * 2; ipred++) {
+//    for (ipred = 0; ipred < pred_dim * 2; ipred++) {
 //        auto ratio = sz(1 - ipred % 2, ipred % 2, 0, 0, 1, block_size, stride, ipred / 2 + 1, eb, preb, data,
 //                        num, r1, r2, r3);
 //        if (ratio > best_ratio) {
