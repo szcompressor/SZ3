@@ -162,10 +162,15 @@ namespace SZ {
 
         void init_poly() {
             size_t num = 0;
-            std::string bin_file_path =
-                    SZ::get_cmake_project_source_dir() + "/data/PolyRegressionCoefAux" + std::to_string(N) + "D.f32";
+            char bin_file_path[200];
+#ifdef POLY_REGRESSION_COEF_FOLDER
+            sprintf(bin_file_path, "%s/PolyRegressionCoefAux%dD.f32", POLY_REGRESSION_COEF_FOLDER, N);
 //            std::cout << bin_file_path << std::endl;
-            auto data = SZ::readfile<float>(bin_file_path.data(), num);
+#else
+            printf("cannot find poly regression aux file.");
+            exit(1);
+#endif
+            auto data = SZ::readfile<float>(bin_file_path, num);
 
             auto coef_aux_p = &data[0];
             coef_aux_list = std::vector<std::array<T, M * M>>(

@@ -1,5 +1,3 @@
-configure_file(${PROJECT_SOURCE_DIR}/include/def.hpp.in ${PROJECT_SOURCE_DIR}/include/def.hpp)
-
 add_library(SZ3 SHARED
         dummy.cpp
         )
