@@ -157,9 +157,6 @@ namespace SZ {
                     count++;
                 }
             }
-            for (int i = 0; i < err.size(); i++) {
-                err[i] *= selection_weights[i];
-            }
             sid = std::distance(err.begin(), std::min_element(err.begin(), err.end()));
             selection.push_back(sid);
             // std::cout << sid << std::endl;
@@ -228,9 +225,20 @@ namespace SZ {
 
         int get_sid() const { return sid; }
 
+        void set_sid(int _sid) {
+            sid = _sid;
+        }
+
         void print() const {
-            for (const auto &p:predictors) {
-                p->print();
+            std::vector<size_t> cnt(predictors.size(), 0);
+            size_t cnt_total = 0;
+            for (auto &sel:selection) {
+                cnt[sel]++;
+                cnt_total++;
+            }
+            for (int i = 0; i < predictors.size(); i++) {
+                predictors[i]->print();
+                printf("Blocks:%ld, Percentage:%.2f\n", cnt[i], 1.0 * cnt[i] / cnt_total);
             }
         }
 
@@ -257,20 +265,11 @@ namespace SZ {
 
         ComposedPredictor(std::vector<std::shared_ptr<VirtualPredictor<T, N>>> predictors_) : selection_encoder() {
             predictors = predictors_;
-            selection_weights = std::vector<double>(predictors_.size(), 1.0);
-        }
-
-        ComposedPredictor(std::vector<std::shared_ptr<VirtualPredictor<T, N>>> predictors_, std::vector<double> selection_weights_)
-                : selection_encoder() {
-            assert(predictors_.size() == selection_weights_.size());
-            predictors = predictors_;
-            selection_weights = selection_weights_;
         }
 
         std::vector<std::shared_ptr<VirtualPredictor<T, N>>> predictors;
     private:
         std::vector<int> selection;
-        std::vector<double> selection_weights;
         HuffmanEncoder<int> selection_encoder;
         int sid;                            // selected index
         size_t current_index = 0;            // for decompression only

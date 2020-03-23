@@ -24,9 +24,9 @@ namespace SZ {
             init_poly();
         }
 
-        PolyRegressionPredictor(uint block_size, T eb) : quantizer_independent(eb / 2),
-                                                         quantizer_liner(eb / M),
-                                                         quantizer_poly(eb / M / block_size),
+        PolyRegressionPredictor(uint block_size, T eb) : quantizer_independent(eb / 5 / block_size),
+                                                         quantizer_liner(eb / 20 / block_size),
+                                                         quantizer_poly(eb / 100 / block_size),
                                                          prev_coeffs{0}, current_coeffs{0} {
             init_poly();
         }
@@ -104,7 +104,7 @@ namespace SZ {
         }
 
         void save(uchar *&c) const {
-            std::cout << "save predictor" << std::endl;
+            std::cout << "save 2-Layer Regression Predictor" << std::endl;
             c[0] = predictor_id;
             c += 1;
             quantizer_independent.save(c);
@@ -146,9 +146,9 @@ namespace SZ {
         }
 
         void print() const {
-            std::cout << "Regression predictor, indendent term eb = " << quantizer_independent.get_eb() << "\n";
-            std::cout << "Regression predictor, linear term eb = " << quantizer_liner.get_eb() << "\n";
-            std::cout << "Regression predictor, poly term eb = " << quantizer_poly.get_eb() << "\n";
+            std::cout << "2-Layer Regression predictor, indendent term eb = " << quantizer_independent.get_eb() << "\n";
+            std::cout << "2-Layer Regression predictor, linear term eb = " << quantizer_liner.get_eb() << "\n";
+            std::cout << "2-Layer Regression predictor, poly term eb = " << quantizer_poly.get_eb() << "\n";
         }
 
 

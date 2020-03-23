@@ -82,7 +82,7 @@ namespace SZ {
         }
 
         void print() const {
-            std::cout << "Lorenzo predictor, noise = " << noise << "\n";
+            std::cout << L << "-Layer " << N << "D Lorenzo predictor, noise = " << noise << "\n";
         }
 
         inline T estimate_error(const iterator &iter) const noexcept {

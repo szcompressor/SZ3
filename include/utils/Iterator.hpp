@@ -41,7 +41,7 @@ namespace SZ {
             multi_dimensional_iterator &operator=(multi_dimensional_iterator &&) noexcept = default;
 
             multi_dimensional_iterator(std::shared_ptr<multi_dimensional_range> &&range_, std::size_t current_offset_) noexcept:
-                    range(range_), current_offset(current_offset_), current_index{} {
+                    range(range_), global_offset(current_offset_), current_index{} {
             }
 
             multi_dimensional_iterator &operator--() {
@@ -54,7 +54,7 @@ namespace SZ {
                     offset -= range->dim_strides[i];
                     current_index[i]--;
                 }
-                current_offset += offset;
+                global_offset += offset;
                 return *this;
             }
 
@@ -74,7 +74,7 @@ namespace SZ {
                     offset += range->dim_strides[i];
                     current_index[i]++;
                 }
-                current_offset += offset;
+                global_offset += offset;
                 // std::cout << "offset=" << offset << ", current_offset=" << current_offset << std::endl;
                 return *this;
             }
@@ -86,27 +86,27 @@ namespace SZ {
             }
 
             pointer operator->() {
-                return range->data[current_offset];
+                return range->data[global_offset];
             }
 
             pointer operator->() const {
-                return range->data[current_offset];
+                return range->data[global_offset];
             }
 
             reference operator*() {
-                return range->data[current_offset];
+                return range->data[global_offset];
             }
 
             const_reference operator*() const {
-                return range->data[current_offset];
+                return range->data[global_offset];
             }
 
             bool operator==(multi_dimensional_iterator const &rhs) const {
-                return current_offset == rhs.current_offset;
+                return global_offset == rhs.global_offset;
             }
 
             bool operator!=(multi_dimensional_iterator const &rhs) const {
-                return current_offset != rhs.current_offset;
+                return global_offset != rhs.global_offset;
             }
 
             std::array<size_t, N> get_current_index_vector() const {
@@ -114,7 +114,7 @@ namespace SZ {
             }
 
             std::array<size_t, N> get_global_index_vector() const {
-                auto offset = current_offset;
+                auto offset = global_offset;
                 std::array<size_t, N> global_idx{0};
                 for (int i = N - 1; i >= 0; i--) {
                     global_idx[i] = offset % range->global_dimensions[i];
@@ -128,7 +128,7 @@ namespace SZ {
             }
 
             ptrdiff_t get_offset() const {
-                return current_offset;
+                return global_offset;
             }
 
             // assuming the iterator is at [i0, j0, k0, ...]
@@ -141,7 +141,7 @@ namespace SZ {
                 // TODO: check int type
                 // TODO: change to offset map for efficiency
                 static_assert(sizeof...(Args) == N, "Must have the same number of arguments");
-                auto offset = current_offset;
+                auto offset = global_offset;
                 std::array<int, N> args{std::forward<Args>(pos)...};
                 for (int i = 0; i < N; i++) {
                     if (current_index[i] < args[i] && range->whether_global_start_position(i)) return 0;
@@ -154,7 +154,7 @@ namespace SZ {
             friend multi_dimensional_range;
             std::shared_ptr<multi_dimensional_range> range;
             std::array<size_t, N> current_index;        // index of current_offset position
-            ptrdiff_t current_offset;
+            ptrdiff_t global_offset;
         };
 
         using iterator = multi_dimensional_iterator;

@@ -111,7 +111,7 @@ namespace SZ {
             std::cout << "Regression predictor, linear term eb = " << quantizer_liner.get_eb() << "\n";
             int count = 0;
             int ind = regression_coeff_index ? regression_coeff_index : regression_coeff_quant_inds.size();
-            std::cout << "\nPrev coeffs: ";
+            std::cout << "Prev coeffs: ";
             for (const auto &c:prev_coeffs) {
                 std::cout << c << " ";
             }

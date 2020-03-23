@@ -89,38 +89,33 @@ template<typename T, uint N, class... Args>
 float
 choose_compressor_and_compress(bool lorenzo_1, bool lorenzo_2, bool regression_1, bool regression_2, bool lossless,
                                std::unique_ptr<T[]> &data, size_t num,
-                               uint block_size, uint stride, T eb, T preb, Args... args
+                               uint block_size, uint stride, T eb, Args... args
 ) {
     std::vector<std::shared_ptr<SZ::VirtualPredictor<float, N>>> predictors;
-    std::vector<double> predictor_weights;
     if (lorenzo_1) {
         auto P_l = std::make_shared<SZ::RealPredictor<float, N, SZ::LorenzoPredictor<float, N, 1>>>(
                 std::make_shared<SZ::LorenzoPredictor<float, N, 1>>(eb));
         predictors.push_back(P_l);
-        predictor_weights.push_back(1);
     }
     if (lorenzo_2) {
         auto P_l2 = std::make_shared<SZ::RealPredictor<float, N, SZ::LorenzoPredictor<float, N, 2>>>(
                 std::make_shared<SZ::LorenzoPredictor<float, N, 2>>(eb));
         predictors.push_back(P_l2);
-        predictor_weights.push_back(1);
     }
     if (regression_1) {
         auto P_r = std::make_shared<SZ::RealPredictor<float, N, SZ::RegressionPredictor<float, N>>>(
-                std::make_shared<SZ::RegressionPredictor<float, N>>(block_size, preb * eb));
+                std::make_shared<SZ::RegressionPredictor<float, N>>(block_size, eb));
         predictors.push_back(P_r);
-        predictor_weights.push_back(1);
     }
     if (regression_2) {
         auto P_r2 = std::make_shared<SZ::RealPredictor<float, N, SZ::PolyRegressionPredictor<float, N>>>(
-                std::make_shared<SZ::PolyRegressionPredictor<float, N>>(block_size, preb * eb));
+                std::make_shared<SZ::PolyRegressionPredictor<float, N>>(block_size, eb));
         predictors.push_back(P_r2);
-        predictor_weights.push_back(1.2);
     }
     if (predictors.size() == 1) {
         return compress<T>(data, num, block_size, stride, predictors[0], lossless, eb, args...);
     } else {
-        auto P_composed = std::make_shared<SZ::ComposedPredictor<T, N>>(predictors, predictor_weights);
+        auto P_composed = std::make_shared<SZ::ComposedPredictor<T, N>>(predictors);
         return compress<T>(data, num, block_size, stride, P_composed, lossless, eb, args...);
     }
 }
@@ -128,10 +123,9 @@ choose_compressor_and_compress(bool lorenzo_1, bool lorenzo_2, bool regression_1
 template<typename T>
 float
 sz(bool lorenzo_1, bool lorenzo_2, bool regression_1, bool regression_2, bool lossless, uint block_size, uint stride,
-   uint pred_dim, T eb, T preb, std::unique_ptr<T[]> &data, size_t num, uint r1, uint r2, uint r3) {
+   uint pred_dim, T eb, std::unique_ptr<T[]> &data, size_t num, uint r1, uint r2, uint r3) {
     std::cout << "Options: "
               << "eb = " << eb
-              << ", param reb = " << preb
               << ", block_size = " << block_size
               << ", stride = " << stride
               << ", dim = " << pred_dim
@@ -144,13 +138,13 @@ sz(bool lorenzo_1, bool lorenzo_2, bool regression_1, bool regression_2, bool lo
 
     if (pred_dim == 3) {
         return choose_compressor_and_compress<float, 3>(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless,
-                                                        data, num, block_size, stride, eb, preb, r1, r2, r3);
+                                                        data, num, block_size, stride, eb, r1, r2, r3);
     } else if (pred_dim == 2) {
         return choose_compressor_and_compress<float, 2>(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless,
-                                                        data, num, block_size, stride, eb, preb, r1 * r2, r3);
+                                                        data, num, block_size, stride, eb, r1 * r2, r3);
     } else {
         return choose_compressor_and_compress<float, 1>(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless,
-                                                        data, num, block_size, stride, eb, preb, r1 * r2 * r3);
+                                                        data, num, block_size, stride, eb, r1 * r2 * r3);
     }
 
 }
@@ -164,12 +158,12 @@ int main(int argc, char **argv) {
     int r2 = atoi(argv[3]);
     int r3 = atoi(argv[4]);
     float reb = atof(argv[5]);
-    float preb = atof(argv[6]);
-    int block_size = atoi(argv[7]);
-    int stride = atoi(argv[8]);
-    int pred_dim = atoi(argv[9]);
-    int lorenzo_op = atoi(argv[10]);
-    int regression_op = atoi(argv[11]);
+    int block_size = atoi(argv[6]);
+    int pred_dim = atoi(argv[7]);
+    int lorenzo_op = atoi(argv[8]);
+    int regression_op = atoi(argv[9]);
+
+    int stride = block_size;
 
     float max = data[0];
     float min = data[0];
@@ -187,27 +181,9 @@ int main(int argc, char **argv) {
     std::cout << "value range = " << max - min << std::endl;
     std::cout << "abs error bound = " << eb << std::endl;
 
-    auto ratio = sz(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless, block_size, stride, pred_dim, eb, preb, data, num, r1,
+    auto ratio = sz(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless, block_size, stride, pred_dim, eb, data, num, r1,
                     r2, r3);
-    std::cerr << ratio;
-
-//    int ipred, best_pred_dim = 0;
-//    float best_ratio = 0;
-//    for (ipred = 0; ipred < pred_dim * 2; ipred++) {
-//        auto ratio = sz(1 - ipred % 2, ipred % 2, 0, 0, 1, block_size, stride, ipred / 2 + 1, eb, preb, data,
-//                        num, r1, r2, r3);
-//        if (ratio > best_ratio) {
-//            best_pred_dim = ipred;
-//            best_ratio = ratio;
-//        }
-//    }
-//
-//    lorenzo_1 = 1 - best_pred_dim % 2;
-//    lorenzo_2 = best_pred_dim % 2;
-//    int pred_dim = best_pred_dim / 2 + 1;
-//
-//    sz(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless, block_size, stride, pred_dim, eb, preb, data, num, r1, r2, r3);
-
+//    std::cerr << ratio;
 
     return 0;
 }
