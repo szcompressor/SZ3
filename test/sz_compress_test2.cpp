@@ -1,9 +1,10 @@
 #include <quantizer/IntegerQuantizer.hpp>
 #include <compressor/Compressor.hpp>
 #include <quantizer/Quantizer.hpp>
+#include <predictor/Predictor.hpp>
 #include <utils/Iterator.hpp>
 #include <utils/fileUtil.h>
-#include <predictor/Predictor.hpp>
+#include <utils/Verification.hpp>
 #include <def.hpp>
 #include <cstdio>
 #include <fstream>
@@ -32,6 +33,10 @@ float
 compress(std::unique_ptr<T[]> &data, size_t num, uint block_size, uint stride, Predictor predictor, bool lossless, T eb,
          Args... args
 ) {
+    std::vector<T> data_ = std::vector<T>(data.get(), data.get() + num);
+
+    struct timespec start, end;
+    clock_gettime(CLOCK_REALTIME, &start);
 
     auto sz = SZ::make_sz_general<T>(block_size, stride,
                                      predictor,
@@ -41,48 +46,33 @@ compress(std::unique_ptr<T[]> &data, size_t num, uint block_size, uint stride, P
     );
 
     size_t compressed_size = 0;
-    struct timespec start, end;
-    int err = 0;
-    err = clock_gettime(CLOCK_REALTIME, &start);
-
-    std::unique_ptr<unsigned char[]> compressed;
-    compressed.reset(sz.compress(data.get(), compressed_size));
+    auto compressed = sz.compress(data.get(), compressed_size);
 
     std::cout << "Compressed size before zstd = " << compressed_size << std::endl;
     if (lossless) {
-        compressed_size = sz_lossless_compress(compressed.get(), compressed_size * sizeof(float));
+        compressed_size = sz_lossless_compress(compressed, compressed_size * sizeof(float));
         std::cout << "Compressed size after zstd = " << compressed_size << std::endl;
     }
-    err = clock_gettime(CLOCK_REALTIME, &end);
+
+    clock_gettime(CLOCK_REALTIME, &end);
     std::cout << "Compression time: "
               << (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000 << "s"
               << std::endl;
 
-    auto num_sampling = num;
-    if (stride > block_size) {
-        num_sampling = SZ::get_num_sampling<T, sizeof...(args)>(&data[0], block_size, stride, args...);
-        std::cout << "Number of sampling data  = " << num_sampling << "; Percentage: " << num_sampling * 1.0 / num << std::endl;
-    }
-    std::cout << "********************Compression Ratio******************* = "
-              << num_sampling * sizeof(float) * 1.0 / compressed_size
-              << std::endl;
-    return num_sampling * sizeof(float) * 1.0 / compressed_size;
-//    SZ::writefile("test.dat", compressed.get(), compressed_size);
-//
-//
-//    err = clock_gettime(CLOCK_REALTIME, &start);
-//    std::unique_ptr<float[]> dec_data;
-//    dec_data.reset(sz.decompress(compressed.get(), compressed_size));
-//    err = clock_gettime(CLOCK_REALTIME, &end);
-//    std::cout << "Decompression time: "
-//              << (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000 << "s"
-//              << std::endl;
-//    float max_err = 0;
-//    for (int i = 0; i < num; i++) {
-//        max_err = std::max(max_err, std::abs(data[i] - dec_data[i]));
-//    }
-//    std::cout << "Max error = " << max_err << std::endl;
+    auto ratio = num * sizeof(float) * 1.0 / compressed_size;
+    std::cout << "********************Compression Ratio******************* = " << ratio << std::endl;
 
+    clock_gettime(CLOCK_REALTIME, &start);
+    std::unique_ptr<float[]> dec_data;
+    dec_data.reset(sz.decompress(compressed, compressed_size));
+    clock_gettime(CLOCK_REALTIME, &end);
+    std::cout << "Decompression time: "
+              << (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000 << "s"
+              << std::endl;
+
+    SZ::verify<float>(data_.data(), data.get(), num);
+    delete[] compressed;
+    return ratio;
 }
 
 template<typename T, uint N, class... Args>

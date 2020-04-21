@@ -135,28 +135,68 @@ namespace SZ {
             }
         }
 
+        template<uint NN = N>
+        inline typename std::enable_if<NN == 1, std::vector<double>>::type
+        estimate_error(const iterator &iter, int min_dimension) const {
+            std::vector<double> err(predictors.size(), 0);
+            auto iter1 = iter;
+            iter1.move(min_dimension - 1);
+            for (int p = 0; p < predictors.size(); p++) {
+                err[p] += predictors[p]->estimate_error(iter);
+                err[p] += predictors[p]->estimate_error(iter1);
+            }
+            return err;
+        }
+
+        template<uint NN = N>
+        inline typename std::enable_if<NN == 2, std::vector<double>>::type
+        estimate_error(const iterator &iter, int min_dimension) const {
+            std::vector<double> err(predictors.size(), 0);
+            auto iter1 = iter, iter2 = iter;
+            iter2.move(0, min_dimension - 1);
+            for (int i = 2; i < min_dimension; i++) {
+                for (int p = 0; p < predictors.size(); p++) {
+                    err[p] += predictors[p]->estimate_error(iter1);
+                    err[p] += predictors[p]->estimate_error(iter2);
+                }
+                iter1.move(1, 1);
+                iter2.move(1, -1);
+            }
+            return err;
+        }
+
+        template<uint NN = N>
+        inline typename std::enable_if<NN != 1 && NN != 2, std::vector<double>>::type
+        estimate_error(const iterator &iter, int min_dimension) const {
+            std::vector<double> err(predictors.size(), 0);
+            auto iter1 = iter, iter2 = iter, iter3 = iter, iter4 = iter;
+            iter2.move(0, 0, min_dimension - 1);
+            iter3.move(0, min_dimension - 1, 0);
+            iter4.move(0, min_dimension - 1, min_dimension - 1);
+            for (int i = 2; i < min_dimension; i++) {
+                for (int p = 0; p < predictors.size(); p++) {
+                    err[p] += predictors[p]->estimate_error(iter1);
+                    err[p] += predictors[p]->estimate_error(iter2);
+                    err[p] += predictors[p]->estimate_error(iter3);
+                    err[p] += predictors[p]->estimate_error(iter4);
+                }
+                iter1.move(1, 1, 1);
+                iter2.move(1, 1, -1);
+                iter3.move(1, -1, 1);
+                iter4.move(1, -1, -1);
+            }
+            return err;
+        }
+
         void precompress_block(const std::shared_ptr<Range> &range) {
             for (const auto &p:predictors) {
                 p->precompress_block(range);
             }
-            auto sample_range = range;
-            // change sample range
-            std::vector<double> err(predictors.size(), 0);
-            {
-                auto sample_begin = range->begin();
-                auto sample_end = range->end();
-                // TODO: change to more efficient sample
-                int sample_N = 10;
-                int count = 0;
-                for (auto iter = sample_begin; iter != sample_end; iter++) {
-                    if (count % sample_N == 0) {
-                        for (int i = 0; i < predictors.size(); i++) {
-                            err[i] += predictors[i]->estimate_error(iter);
-                        }
-                    }
-                    count++;
-                }
-            }
+            const auto &dims = range->get_dimensions();
+            int min_dimension = *std::min_element(dims.begin(), dims.end());
+
+            auto err = estimate_error(range->begin(), min_dimension);
+
             sid = std::distance(err.begin(), std::min_element(err.begin(), err.end()));
             selection.push_back(sid);
             // std::cout << sid << std::endl;

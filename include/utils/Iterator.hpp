@@ -47,11 +47,11 @@ namespace SZ {
             multi_dimensional_iterator &operator--() {
                 size_t i = N - 1;
                 current_index[i]--;
-                ptrdiff_t offset = range->dim_strides[i];
+                ptrdiff_t offset = range->global_dim_strides[i];
                 while (i && (current_index[i] < 0)) {
-                    offset += range->dimensions[i] * range->dim_strides[i];
+                    offset += range->dimensions[i] * range->global_dim_strides[i];
                     current_index[i--] = range->dimensions[i];
-                    offset -= range->dim_strides[i];
+                    offset -= range->global_dim_strides[i];
                     current_index[i]--;
                 }
                 global_offset += offset;
@@ -64,14 +64,14 @@ namespace SZ {
                 return cpy;
             }
 
-            multi_dimensional_iterator &operator++() {
+            inline multi_dimensional_iterator &operator++() {
                 size_t i = N - 1;
                 current_index[i]++;
-                ptrdiff_t offset = range->dim_strides[i];
+                ptrdiff_t offset = range->global_dim_strides[i];
                 while (i && (current_index[i] == range->dimensions[i])) {
-                    offset -= range->dimensions[i] * range->dim_strides[i];
+                    offset -= range->dimensions[i] * range->global_dim_strides[i];
                     current_index[i--] = 0;
-                    offset += range->dim_strides[i];
+                    offset += range->global_dim_strides[i];
                     current_index[i]++;
                 }
                 global_offset += offset;
@@ -150,6 +150,20 @@ namespace SZ {
                 return range->data[offset];
             }
 
+            template<class... Args>
+            multi_dimensional_iterator &move(Args &&... pos) {
+                static_assert(sizeof...(Args) == N, "Must have the same number of arguments");
+                std::array<int, N> args{std::forward<Args>(pos)...};
+
+                for (int i = N - 1; i >= 0; i--) {
+                    assert(0 <= current_index[i] + args[i]);
+                    assert(current_index[i] + args[i] < range->dimensions[i]);
+                    current_index[i] += args[i];
+                    global_offset += args[i] * range->global_dim_strides[i];
+                }
+                return *this;
+            }
+
         private:
             friend multi_dimensional_range;
             std::shared_ptr<multi_dimensional_range> range;
@@ -190,11 +204,11 @@ namespace SZ {
             // std::cout << std::endl;
         }
 
-        void set_dim_strides() {
+        void set_global_dim_strides() {
             // std::cout << "strides: ";
             size_t cur_stride = 1;
             for (int i = N - 1; i >= 0; i--) {
-                dim_strides[i] = cur_stride * access_stride;
+                global_dim_strides[i] = cur_stride * access_stride;
                 cur_stride *= global_dimensions[i];
                 // std::cout << dim_strides[i] << " ";
             }
@@ -203,7 +217,7 @@ namespace SZ {
 
         void set_offsets(ptrdiff_t offset_) {
             start_offset = offset_;
-            end_offset = start_offset + dimensions[0] * dim_strides[0];
+            end_offset = start_offset + dimensions[0] * global_dim_strides[0];
         }
 
         void set_access_stride(size_t stride_) {
@@ -242,21 +256,23 @@ namespace SZ {
             for (auto iter = global_dims_begin; iter != global_dims_end; iter++) {
                 global_dimensions[i++] = *iter;
             }
-            size_t cur_stride = stride_;
-            for (int i = N - 1; i >= 0; i--) {
-                global_dim_strides[i] = cur_stride;
-                cur_stride *= global_dimensions[i];
-            }
+//            size_t cur_stride = stride_;
+//            for (int i = N - 1; i >= 0; i--) {
+//                global_dim_strides[i] = cur_stride;
+//                cur_stride *= global_dimensions[i];
+//            }
             // set_dimensions(dims_begin, dims_end);
             set_dimensions_auto();
-            set_dim_strides();
+            set_global_dim_strides();
             set_offsets(offset_);
         }
 
-        size_t num_dims() const { return dimensions.size(); };
-
         size_t get_dimensions(size_t i) const {
             return dimensions[i];
+        }
+
+        std::array<size_t, N> get_dimensions() const {
+            return dimensions;
         }
 
         bool whether_global_start_position(size_t i) const {
@@ -267,7 +283,7 @@ namespace SZ {
         std::array<size_t, N> global_dimensions;
         std::array<size_t, N> global_dim_strides;
         std::array<size_t, N> dimensions;              // the dimensions
-        std::array<size_t, N> dim_strides;              // strides for dimensions
+//        std::array<size_t, N> dim_strides;              // strides for dimensions
         std::array<bool, N> start_position;       // indicator for starting position, used for block-wise lorenzo predictor
         size_t access_stride;                                // stride for access pattern
         ptrdiff_t start_offset;                              // offset for start point

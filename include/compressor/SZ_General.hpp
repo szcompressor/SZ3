@@ -31,27 +31,27 @@ namespace SZ {
         }
 
         // compress given the error bound
-        uchar *compress(const T *data_, size_t &compressed_size) {
+        uchar *compress(T *data, size_t &compressed_size) {
             // TODO: new quantizer if eb does not match
-            // make a copy of the data
-            std::vector<T> data = std::vector<T>(data_, data_ + num_elements);
 
-            auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data.data(),
+            auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data,
                                                                                          std::begin(global_dimensions),
                                                                                          std::end(global_dimensions), stride, 0);
-            auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data.data(),
+            auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data,
                                                                                          std::begin(global_dimensions),
                                                                                          std::end(global_dimensions), 1, 0);
             std::array<size_t, N> intra_block_dims;
-            std::vector<int> quant_inds(num_elements, 0);
+            std::vector<int> quant_inds(num_elements);
             predictor->precompress_data(inter_block_range->begin());
             quantizer.precompress_data();
             size_t quant_count = 0;
             size_t reg_count = 0;
+            struct timespec start, end;
+            clock_gettime(CLOCK_REALTIME, &start);
             {
                 auto inter_begin = inter_block_range->begin();
                 auto inter_end = inter_block_range->end();
-                for (auto block = inter_begin; block != inter_end; block++) {
+                for (auto block = inter_begin; block != inter_end; ++block) {
 
                     // std::cout << *block << " " << lp.predict(block) << std::endl;
                     for (int i = 0; i < intra_block_dims.size(); i++) {
@@ -72,49 +72,43 @@ namespace SZ {
                     {
                         auto intra_begin = intra_block_range->begin();
                         auto intra_end = intra_block_range->end();
-                        for (auto element = intra_begin; element != intra_end; element++) {
+                        for (auto element = intra_begin; element != intra_end; ++element) {
+//                            quantizer.quantize_and_overwrite(*element, predictor->predict(element));
                             quant_inds[quant_count++] = quantizer.quantize_and_overwrite(*element, predictor->predict(element));
                         }
                     }
                 }
             }
+
+            clock_gettime(CLOCK_REALTIME, &end);
+            std::cout << "Predition & Quantization time: "
+                      << (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000
+                      << "s" << std::endl;
+
             std::cout << "reg_count = " << reg_count << std::endl;
             predictor->postcompress_data(inter_block_range->begin());
             quantizer.postcompress_data();
-
-            std::unique_ptr<uchar[]> compressed_data;
+            uchar *compressed_data;
             if (stride > block_size) {
-                std::cout << "Sampling Compress Mode is ON" << std::endl << "Decompress is not supposed in this mode."
-                          << std::endl;
-                std::cout << "num_elements " << num_elements << std::endl;
-                std::cout << "quant_inds before " << quant_inds.size() << std::endl;
-//                num_elements = quant_count;
+                std::cout << "Sampling Compress Mode is ON" << std::endl;
                 quant_inds.resize(quant_count);
-                compressed_data = compat::make_unique<uchar[]>(3 * quant_count * sizeof(T));
-
+                compressed_data = new uchar[3 * quant_count * sizeof(T)];
             } else {
-                compressed_data = compat::make_unique<uchar[]>(2 * num_elements * sizeof(T));
+                compressed_data = new uchar[2 * num_elements * sizeof(T)];
             }
 
-            uchar *compressed_data_pos = compressed_data.get();
-            // TODO: serialize and record predictor, quantizer, and encoder
-            // Or do these in a outer loop wrapper?
+            uchar *compressed_data_pos = compressed_data;
             write(global_dimensions.data(), N, compressed_data_pos);
             write(block_size, compressed_data_pos);
-            // auto serialized_predictor = predictor->save();
-            // write(serialized_predictor->data(), serialized_predictor->size(), compressed_data_pos);
             predictor->save(compressed_data_pos);
             quantizer.save(compressed_data_pos);
-            // write(unpred_data.size(), compressed_data_pos);
-            // write(unpred_data.data(), unpred_data.size(), compressed_data_pos);
-            // write(quant_inds.data(), quant_inds.size(), compressed_data_pos);
 
             encoder.preprocess_encode(quant_inds, 4 * quantizer.get_radius());
             encoder.save(compressed_data_pos);
             encoder.encode(quant_inds, compressed_data_pos);
             encoder.postprocess_encode();
-            compressed_size = compressed_data_pos - compressed_data.get();
-            return compressed_data.release();
+            compressed_size = compressed_data_pos - compressed_data;
+            return compressed_data;
         }
 
         // write array
@@ -275,42 +269,6 @@ namespace SZ {
 
         return make_sz_general<T, Predictor, Quantizer, Encoder, Args...>(block_size, stride, predictor, quantizer, encoder,
                                                                           args...);
-    }
-
-    template<typename T, uint N, class... Args>
-    size_t get_num_sampling(T *data, uint block_size, uint stride, Args... global_dims) {
-        std::array<size_t, N> global_dimensions{static_cast<size_t>(global_dims)...};
-        auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data,
-                                                                                     std::begin(global_dimensions),
-                                                                                     std::end(global_dimensions), stride, 0);
-        auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data,
-                                                                                     std::begin(global_dimensions),
-                                                                                     std::end(global_dimensions), 1, 0);
-        std::array<size_t, N> intra_block_dims;
-        size_t quant_count = 0;
-        {
-            auto inter_begin = inter_block_range->begin();
-            auto inter_end = inter_block_range->end();
-            for (auto block = inter_begin; block != inter_end; block++) {
-                for (int i = 0; i < intra_block_dims.size(); i++) {
-                    size_t cur_index = block.get_current_index(i);
-                    size_t dims = inter_block_range->get_dimensions(i);
-                    intra_block_dims[i] = (cur_index == dims - 1 && global_dimensions[i] - cur_index * stride < block_size) ?
-                                          global_dimensions[i] - cur_index * stride : block_size;
-                }
-                intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
-                intra_block_range->set_offsets(block.get_offset());
-                intra_block_range->set_starting_position(block.get_current_index_vector());
-                {
-                    auto intra_begin = intra_block_range->begin();
-                    auto intra_end = intra_block_range->end();
-                    for (auto element = intra_begin; element != intra_end; element++) {
-                        quant_count++;
-                    }
-                }
-            }
-        }
-        return quant_count;
     }
 }
 #endif
