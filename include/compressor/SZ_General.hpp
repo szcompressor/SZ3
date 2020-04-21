@@ -6,6 +6,8 @@
 #include "encoder/Encoder.hpp"
 #include "utils/Iterator.hpp"
 #include "utils/Compat.hpp"
+#include "utils/Lossless.hpp"
+#include "utils/MemoryOps.hpp"
 #include "def.hpp"
 #include <cstring>
 
@@ -85,7 +87,7 @@ namespace SZ {
                       << (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000
                       << "s" << std::endl;
 
-            std::cout << "reg_count = " << reg_count << std::endl;
+//            std::cout << "reg_count = " << reg_count << std::endl;
             predictor->postcompress_data(inter_block_range->begin());
             quantizer.postcompress_data();
             uchar *compressed_data;
@@ -107,25 +109,18 @@ namespace SZ {
             encoder.save(compressed_data_pos);
             encoder.encode(quant_inds, compressed_data_pos);
             encoder.postprocess_encode();
-            compressed_size = compressed_data_pos - compressed_data;
-            return compressed_data;
+
+            uchar *lossless_data = lossless_compress(compressed_data,
+                                                     compressed_data_pos - compressed_data,
+                                                     compressed_size);
+            delete[] compressed_data;
+            return lossless_data;
         }
 
-        // write array
-        template<class T1>
-        void write(T1 const *array, size_t num_elements, uchar *&compressed_data_pos) {
-            memcpy(compressed_data_pos, array, num_elements * sizeof(T1));
-            compressed_data_pos += num_elements * sizeof(T1);
-        }
 
-        // write variable
-        template<class T1>
-        void write(T1 const var, uchar *&compressed_data_pos) {
-            memcpy(compressed_data_pos, &var, sizeof(T1));
-            compressed_data_pos += sizeof(T1);
-        }
 
-        T *decompress(uchar const *compressed_data, const size_t length) {
+        T *decompress(uchar const *lossless_compressed_data, const size_t length) {
+            auto compressed_data = lossless_decompress(lossless_compressed_data, length);
             uchar const *compressed_data_pos = compressed_data;
             size_t remaining_length = length;
             read(global_dimensions.data(), N, compressed_data_pos, remaining_length);
@@ -148,6 +143,8 @@ namespace SZ {
             // compressed_data_pos += unpred_data_size * sizeof(T);
             auto quant_inds = encoder.decode(compressed_data_pos, num_elements);
             encoder.postprocess_decode();
+            delete[] compressed_data;
+
             // std::cout << "load encoder done\n";fflush(stdout);
 //    	std::cout << quant_inds[157684267] << std::endl;
             int const *quant_inds_pos = (int const *) quant_inds.data();
@@ -201,23 +198,7 @@ namespace SZ {
             return dec_data.release();
         }
 
-        // read array
-        template<class T1>
-        void read(T1 *array, size_t num_elements, uchar const *&compressed_data_pos, size_t &remaining_length) {
-            assert(num_elements * sizeof(T1) < remaining_length);
-            memcpy(array, compressed_data_pos, num_elements * sizeof(T1));
-            remaining_length -= num_elements * sizeof(T1);
-            compressed_data_pos += num_elements * sizeof(T1);
-        }
 
-        // read variable
-        template<class T1>
-        void read(T1 &var, uchar const *&compressed_data_pos, size_t &remaining_length) {
-            assert(sizeof(T1) < remaining_length);
-            memcpy(&var, compressed_data_pos, sizeof(T1));
-            remaining_length -= sizeof(T1);
-            compressed_data_pos += sizeof(T1);
-        }
 
     private:
         Predictor predictor;

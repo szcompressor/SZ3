@@ -1,7 +1,9 @@
 add_library(SZ3 SHARED
         dummy.cpp
         )
-target_include_directories(SZ3 PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(SZ3 ${ZSTD_LIBS})
+
+target_include_directories(SZ3 PUBLIC ${PROJECT_SOURCE_DIR}/include ${ZSTD_INCLUDES})
 # install(FILES ${header_files} DESTINATION ${PROJECT_BINARY_DIR}/include)
 
 install(TARGETS SZ3

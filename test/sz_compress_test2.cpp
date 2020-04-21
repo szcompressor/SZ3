@@ -2,30 +2,12 @@
 #include <compressor/Compressor.hpp>
 #include <quantizer/Quantizer.hpp>
 #include <predictor/Predictor.hpp>
-#include <utils/Iterator.hpp>
 #include <utils/fileUtil.h>
 #include <utils/Verification.hpp>
 #include <def.hpp>
 #include <cstdio>
-#include <fstream>
 #include <iostream>
-#include <fstream>
-#include <cmath>
 #include <memory>
-#include "zstd.h"
-
-unsigned long sz_lossless_compress(unsigned char *data, size_t dataLength) {
-    unsigned long outSize = 0;
-    size_t estimatedCompressedSize = 0;
-    if (dataLength < 100)
-        estimatedCompressedSize = 200;
-    else
-        estimatedCompressedSize = dataLength * 1.2;
-    auto compressBytes = SZ::compat::make_unique<unsigned char[]>(estimatedCompressedSize);
-    outSize = ZSTD_compress(compressBytes.get(), estimatedCompressedSize, data, dataLength,
-                            3); //default setting of level is 3
-    return outSize;
-}
 
 
 template<typename T, class Predictor, class... Args>
@@ -37,6 +19,7 @@ compress(std::unique_ptr<T[]> &data, size_t num, uint block_size, uint stride, P
 
     struct timespec start, end;
     clock_gettime(CLOCK_REALTIME, &start);
+    std::cout << "****************** Compression ******************" << std::endl;
 
     auto sz = SZ::make_sz_general<T>(block_size, stride,
                                      predictor,
@@ -46,32 +29,30 @@ compress(std::unique_ptr<T[]> &data, size_t num, uint block_size, uint stride, P
     );
 
     size_t compressed_size = 0;
-    auto compressed = sz.compress(data.get(), compressed_size);
-
-    std::cout << "Compressed size before zstd = " << compressed_size << std::endl;
-    if (lossless) {
-        compressed_size = sz_lossless_compress(compressed, compressed_size * sizeof(float));
-        std::cout << "Compressed size after zstd = " << compressed_size << std::endl;
-    }
+    std::unique_ptr<SZ::uchar[]> compressed;
+    compressed.reset(sz.compress(data.get(), compressed_size));
 
     clock_gettime(CLOCK_REALTIME, &end);
-    std::cout << "Compression time: "
+    std::cout << "Compression time = "
               << (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000 << "s"
               << std::endl;
 
     auto ratio = num * sizeof(float) * 1.0 / compressed_size;
-    std::cout << "********************Compression Ratio******************* = " << ratio << std::endl;
+    std::cout << "Compression Ratio = " << ratio << std::endl;
+    SZ::writefile("compressed.out", compressed.get(), compressed_size);
+
+    std::cout << "****************** Decompression ******************" << std::endl;
+    compressed = SZ::readfile<SZ::uchar>("compressed.out", compressed_size);
 
     clock_gettime(CLOCK_REALTIME, &start);
     std::unique_ptr<float[]> dec_data;
-    dec_data.reset(sz.decompress(compressed, compressed_size));
+    dec_data.reset(sz.decompress(compressed.get(), compressed_size));
     clock_gettime(CLOCK_REALTIME, &end);
     std::cout << "Decompression time: "
               << (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000 << "s"
               << std::endl;
 
     SZ::verify<float>(data_.data(), data.get(), num);
-    delete[] compressed;
     return ratio;
 }
 
@@ -169,7 +150,7 @@ int main(int argc, char **argv) {
     bool regression_2 = regression_op == 2 || regression_op == 3;
 
     std::cout << "value range = " << max - min << std::endl;
-    std::cout << "abs error bound = " << eb << std::endl;
+//    std::cout << "abs error bound = " << eb << std::endl;
 
     auto ratio = sz(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless, block_size, stride, pred_dim, eb, data, num, r1,
                     r2, r3);
