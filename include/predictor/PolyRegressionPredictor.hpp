@@ -55,13 +55,27 @@ namespace SZ {
 
         void precompress_block(const std::shared_ptr<Range> &range) noexcept {
             // std::cout << "precompress_block" << std::endl;
-            std::array<size_t, N> dims;
-            for (int i = 0; i < N; i++) {
-                dims[i] = range->get_dimensions(i);
+            auto dims = range->get_dimensions();
+            std::array<double, M> sum{0};
+            {
+                for (auto iter = range->begin(); iter != range->end(); ++iter) {
+                    T data = *iter;
+                    auto poly_index = get_poly_index<N>(iter);
+                    for (int i = 0; i < M; i++) {
+                        sum[i] += poly_index[i] * data;
+                    }
+                }
             }
-            current_coeffs = compute_regression_coefficients(range, dims);
-//            pred_and_quantize_coefficients();
-//            std::copy(current_coeffs.begin(), current_coeffs.end(), current_coeffs.begin());
+//            std::array<double, M> current_coeffs{0};
+            std::fill(current_coeffs.begin(), current_coeffs.end(), 0);
+            auto coef_aux_idx = coef_aux_list[get_coef_aux_list_idx(dims)];
+
+            for (int i = 0; i < M; i++) {
+                for (int j = 0; j < M; j++) {
+                    current_coeffs[i] += coef_aux_idx[i * M + j] * sum[j];
+                }
+            }
+
         }
 
         void precompress_block_commit() noexcept {
@@ -186,33 +200,33 @@ namespace SZ {
 //            display_coef_aux(coef_aux_list[get_coef_aux_list_idx( std::array<size_t, N>{6, 6, 6})]);
         }
 
-        std::array<T, M>
-        compute_regression_coefficients(const std::shared_ptr<Range> &range, const std::array<size_t, N> &dims) const {
-            std::array<double, M> sum{0};
-            {
-                for (auto iter = range->begin(); iter != range->end(); ++iter) {
-                    T data = *iter;
-                    auto poly_index = get_poly_index<N>(iter);
-                    for (int i = 0; i < M; i++) {
-                        sum[i] += poly_index[i] * data;
-                    }
-                }
-            }
-            std::array<double, M> coeffs{0};
-            auto coef_aux_idx = coef_aux_list[get_coef_aux_list_idx(dims)];
-
-            for (int i = 0; i < M; i++) {
-                for (int j = 0; j < M; j++) {
-                    coeffs[i] += coef_aux_idx[i * M + j] * sum[j];
-                }
-            }
-
-            std::array<T, M> coeffsT;
-            for (int i = 0; i < M; i++) {
-                coeffsT[i] = coeffs[i];
-            }
-            return coeffsT;
-        }
+//        std::array<T, M>
+//        compute_regression_coefficients(const std::shared_ptr<Range> &range, const std::array<size_t, N> &dims) const {
+//            std::array<double, M> sum{0};
+//            {
+//                for (auto iter = range->begin(); iter != range->end(); ++iter) {
+//                    T data = *iter;
+//                    auto poly_index = get_poly_index<N>(iter);
+//                    for (int i = 0; i < M; i++) {
+//                        sum[i] += poly_index[i] * data;
+//                    }
+//                }
+//            }
+//            std::array<double, M> coeffs{0};
+//            auto coef_aux_idx = coef_aux_list[get_coef_aux_list_idx(dims)];
+//
+//            for (int i = 0; i < M; i++) {
+//                for (int j = 0; j < M; j++) {
+//                    coeffs[i] += coef_aux_idx[i * M + j] * sum[j];
+//                }
+//            }
+//
+//            std::array<T, M> coeffsT;
+//            for (int i = 0; i < M; i++) {
+//                coeffsT[i] = coeffs[i];
+//            }
+//            return coeffsT;
+//        }
 
         void pred_and_quantize_coefficients() {
             regression_coeff_quant_inds.push_back(

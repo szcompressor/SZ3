@@ -150,18 +150,44 @@ namespace SZ {
                 return range->data[offset];
             }
 
+            // No support for carry set.
+            // For example, iterator in position (4,4) and dimension is 6x6, move(1,1) is supported but move (2,0) is not supported.
             template<class... Args>
             multi_dimensional_iterator &move(Args &&... pos) {
                 static_assert(sizeof...(Args) == N, "Must have the same number of arguments");
                 std::array<int, N> args{std::forward<Args>(pos)...};
 
                 for (int i = N - 1; i >= 0; i--) {
-                    assert(0 <= current_index[i] + args[i]);
-                    assert(current_index[i] + args[i] < range->dimensions[i]);
-                    current_index[i] += args[i];
-                    global_offset += args[i] * range->global_dim_strides[i];
+                    if (args[i]) {
+                        assert(0 <= current_index[i] + args[i]);
+                        assert(current_index[i] + args[i] < range->dimensions[i]);
+                        current_index[i] += args[i];
+                        global_offset += args[i] * range->global_dim_strides[i];
+                    }
                 }
                 return *this;
+            }
+
+            // No support for carry set.
+            template<class... Args>
+            multi_dimensional_iterator &move() {
+                if (current_index[N - 1] < range->dimensions[N - 1] - 1) {
+                    current_index[N - 1]++;
+                    global_offset += range->global_dim_strides[N - 1];
+                }
+                return *this;
+            }
+
+            void print() {
+                std::cout << "(";
+                for (auto const &i:current_index) {
+                    std::cout << i << ",";
+                }
+                std::cout << "),[";
+                for (auto const &i:range->dimensions) {
+                    std::cout << i << ",";
+                }
+                std::cout << "]" << std::endl;
             }
 
         private:
@@ -188,7 +214,7 @@ namespace SZ {
         template<class ForwardIt1>
         void set_dimensions(ForwardIt1 begin, ForwardIt1 end) {
             int i = 0;
-            for (auto iter = begin; iter != end; iter++) {
+            for (auto iter = begin; iter != end; ++iter) {
                 dimensions[i++] = *iter;
                 // std::cout << dimensions[i-1] << " ";
             }
@@ -253,7 +279,7 @@ namespace SZ {
             set_access_stride(stride_);
             // set global dimensions
             int i = 0;
-            for (auto iter = global_dims_begin; iter != global_dims_end; iter++) {
+            for (auto iter = global_dims_begin; iter != global_dims_end; ++iter) {
                 global_dimensions[i++] = *iter;
             }
 //            size_t cur_stride = stride_;

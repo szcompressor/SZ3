@@ -83,7 +83,7 @@ namespace SZ {
             }
 
             clock_gettime(CLOCK_REALTIME, &end);
-            std::cout << "Predition & Quantization time: "
+            std::cout << "Predition & Quantization time = "
                       << (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000
                       << "s" << std::endl;
 

@@ -25,8 +25,8 @@ namespace SZ {
         }
 
         RegressionPredictor(uint block_size, T eb1, T eb2) : quantizer_independent(eb1),
-                                            quantizer_liner(eb2),
-                                            prev_coeffs{0}, current_coeffs{0} {
+                                                             quantizer_liner(eb2),
+                                                             prev_coeffs{0}, current_coeffs{0} {
         }
 
         using Range = multi_dimensional_range<T, N>;
@@ -46,11 +46,39 @@ namespace SZ {
 
         void precompress_block(const std::shared_ptr<Range> &range) noexcept {
             // std::cout << "precompress_block" << std::endl;
-            std::array<size_t, N> dims;
-            for (int i = 0; i < N; i++) {
-                dims[i] = range->get_dimensions(i);
+            auto dims = range->get_dimensions();
+            std::array<double, N + 1> sum{0};
+//            auto sum = compute_regression_coefficients(range);
+            size_t num_elements = 1;
+            for (const auto &dim : dims) {
+                num_elements *= dim;
             }
-            current_coeffs = compute_regression_coefficients(range, dims);
+            T num_elements_recip = 1.0 / num_elements;
+
+            {
+                auto range_begin = range->begin();
+                auto range_end = range->end();
+                for (auto iter = range_begin; iter != range_end; ++iter) {
+                    double sum_cumulative = 0;
+                    for (int t = 0; t < dims[N - 1]; t++) {
+                        T data = *iter;
+                        sum_cumulative += data;
+                        sum[N - 1] += iter.get_current_index(N - 1) * data;
+                        iter.move();
+                    }
+                    for (int i = 0; i < N - 1; i++) {
+                        sum[i] += sum_cumulative * iter.get_current_index(i);
+                    }
+                    sum[N] += sum_cumulative;
+                }
+            }
+
+            std::fill(current_coeffs.begin(), current_coeffs.end(), 0);
+            current_coeffs[N] = sum[N] * num_elements_recip;
+            for (int i = 0; i < N; i++) {
+                current_coeffs[i] = (2 * sum[i] / (dims[i] - 1) - sum[N]) * 6 * num_elements_recip / (dims[i] + 1);
+                current_coeffs[N] -= (dims[i] - 1) * current_coeffs[i] / 2;
+            }
         }
 
         void precompress_block_commit() noexcept {
@@ -129,33 +157,35 @@ namespace SZ {
         std::array<T, N + 1> current_coeffs;
         std::array<T, N + 1> prev_coeffs;
 
-        std::array<T, N + 1>
-        compute_regression_coefficients(const std::shared_ptr<Range> &range, const std::array<size_t, N> &dims) const {
-            std::array<double, N + 1> sum{0};
-            size_t num_elements = 1;
-            for (const auto &dim : dims) {
-                num_elements *= dim;
-            }
-            T num_elements_recip = 1.0 / num_elements;
-            {
-                auto range_begin = range->begin();
-                auto range_end = range->end();
-                for (auto iter = range_begin; iter != range_end; ++iter) {
-                    T data = *iter;
-                    for (int i = 0; i < N; i++) {
-                        sum[i] += iter.get_current_index(i) * data;
-                    }
-                    sum[N] += data;
-                }
-            }
-            std::array<T, N + 1> coeffs;
-            coeffs[N] = sum[N] * num_elements_recip;
-            for (int i = 0; i < N; i++) {
-                coeffs[i] = (2 * sum[i] / (dims[i] - 1) - sum[N]) * 6 * num_elements_recip / (dims[i] + 1);
-                coeffs[N] -= (dims[i] - 1) * coeffs[i] / 2;
-            }
-            return coeffs;
-        }
+//        template<uint NN = N>
+//        inline typename std::enable_if<NN == 3, std::array<double, N + 1>>::type
+//        compute_regression_coefficients(const std::shared_ptr<Range> &range) const {
+//            auto dims = range->get_dimensions();
+//            std::array<double, N + 1> sum{0};
+//
+//            auto range_begin = range->begin();
+//            auto range_end = range->end();
+//            auto iter = range_begin;
+//            for (int t0 = 0; t0 < dims[0]; t0++) {
+//                double sum_cumulative_0 = 0;
+//                for (int t1 = 0; t1 < dims[1]; t1++) {
+//                    double sum_cumulative_1 = 0;
+//                    for (int t2 = 0; t2 < dims[2]; t2++) {
+//                        T data = *iter;
+//                        sum_cumulative_1 += data;
+//                        sum[N - 1] += t2 * data;
+//                        iter.move();
+//                    }
+//                    sum[1] += sum_cumulative_1 * t1;
+//                    sum_cumulative_0 += sum_cumulative_1;
+//                    ++iter;
+//                }
+//                sum[0] += sum_cumulative_0 * t0;
+//                sum[N] += sum_cumulative_0;
+//            }
+//            return sum;
+//        }
+
 
         void pred_and_quantize_coefficients() {
             for (int i = 0; i < N; i++) {

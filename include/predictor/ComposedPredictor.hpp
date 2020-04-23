@@ -136,56 +136,54 @@ namespace SZ {
         }
 
         template<uint NN = N>
-        inline typename std::enable_if<NN == 1, std::vector<double>>::type
-        estimate_error(const iterator &iter, int min_dimension) const {
-            std::vector<double> err(predictors.size(), 0);
+        inline typename std::enable_if<NN == 1, void>::type
+        estimate_error(const iterator &iter, int min_dimension) {
+            std::fill(predict_error.begin(), predict_error.end(), 0);
             auto iter1 = iter;
             iter1.move(min_dimension - 1);
             for (int p = 0; p < predictors.size(); p++) {
-                err[p] += predictors[p]->estimate_error(iter);
-                err[p] += predictors[p]->estimate_error(iter1);
+                predict_error[p] += predictors[p]->estimate_error(iter);
+                predict_error[p] += predictors[p]->estimate_error(iter1);
             }
-            return err;
         }
 
         template<uint NN = N>
-        inline typename std::enable_if<NN == 2, std::vector<double>>::type
-        estimate_error(const iterator &iter, int min_dimension) const {
-            std::vector<double> err(predictors.size(), 0);
+        inline typename std::enable_if<NN == 2, void>::type
+        estimate_error(const iterator &iter, int min_dimension) {
+            std::fill(predict_error.begin(), predict_error.end(), 0);
             auto iter1 = iter, iter2 = iter;
             iter2.move(0, min_dimension - 1);
             for (int i = 2; i < min_dimension; i++) {
                 for (int p = 0; p < predictors.size(); p++) {
-                    err[p] += predictors[p]->estimate_error(iter1);
-                    err[p] += predictors[p]->estimate_error(iter2);
+                    predict_error[p] += predictors[p]->estimate_error(iter1);
+                    predict_error[p] += predictors[p]->estimate_error(iter2);
                 }
                 iter1.move(1, 1);
                 iter2.move(1, -1);
             }
-            return err;
         }
 
         template<uint NN = N>
-        inline typename std::enable_if<NN != 1 && NN != 2, std::vector<double>>::type
-        estimate_error(const iterator &iter, int min_dimension) const {
-            std::vector<double> err(predictors.size(), 0);
+        inline typename std::enable_if<NN != 1 && NN != 2, void>::type
+        estimate_error(const iterator &iter, int min_dimension) {
+            std::fill(predict_error.begin(), predict_error.end(), 0);
+//            std::vector<double> err(predictors.size(), 0);
             auto iter1 = iter, iter2 = iter, iter3 = iter, iter4 = iter;
             iter2.move(0, 0, min_dimension - 1);
             iter3.move(0, min_dimension - 1, 0);
             iter4.move(0, min_dimension - 1, min_dimension - 1);
             for (int i = 2; i < min_dimension; i++) {
                 for (int p = 0; p < predictors.size(); p++) {
-                    err[p] += predictors[p]->estimate_error(iter1);
-                    err[p] += predictors[p]->estimate_error(iter2);
-                    err[p] += predictors[p]->estimate_error(iter3);
-                    err[p] += predictors[p]->estimate_error(iter4);
+                    predict_error[p] += predictors[p]->estimate_error(iter1);
+                    predict_error[p] += predictors[p]->estimate_error(iter2);
+                    predict_error[p] += predictors[p]->estimate_error(iter3);
+                    predict_error[p] += predictors[p]->estimate_error(iter4);
                 }
                 iter1.move(1, 1, 1);
                 iter2.move(1, 1, -1);
                 iter3.move(1, -1, 1);
                 iter4.move(1, -1, -1);
             }
-            return err;
         }
 
         void precompress_block(const std::shared_ptr<Range> &range) {
@@ -195,9 +193,9 @@ namespace SZ {
             const auto &dims = range->get_dimensions();
             int min_dimension = *std::min_element(dims.begin(), dims.end());
 
-            auto err = estimate_error(range->begin(), min_dimension);
+            estimate_error(range->begin(), min_dimension);
 
-            sid = std::distance(err.begin(), std::min_element(err.begin(), err.end()));
+            sid = std::distance(predict_error.begin(), std::min_element(predict_error.begin(), predict_error.end()));
             selection.push_back(sid);
             // std::cout << sid << std::endl;
         }
@@ -305,6 +303,7 @@ namespace SZ {
 
         ComposedPredictor(std::vector<std::shared_ptr<VirtualPredictor<T, N>>> predictors_) : selection_encoder() {
             predictors = predictors_;
+            predict_error.resize(predictors.size());
         }
 
         std::vector<std::shared_ptr<VirtualPredictor<T, N>>> predictors;
@@ -313,7 +312,7 @@ namespace SZ {
         HuffmanEncoder<int> selection_encoder;
         int sid;                            // selected index
         size_t current_index = 0;            // for decompression only
-        uchar buf[512];
+        std::vector<double> predict_error;
     };
 
 }
