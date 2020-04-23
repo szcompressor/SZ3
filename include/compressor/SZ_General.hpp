@@ -118,7 +118,6 @@ namespace SZ {
         }
 
 
-
         T *decompress(uchar const *lossless_compressed_data, const size_t length) {
             auto compressed_data = lossless_decompress(lossless_compressed_data, length);
             uchar const *compressed_data_pos = compressed_data;
@@ -186,7 +185,7 @@ namespace SZ {
                     {
                         auto intra_begin = intra_block_range->begin();
                         auto intra_end = intra_block_range->end();
-                        for (auto element = intra_begin; element != intra_end; element++) {
+                        for (auto element = intra_begin; element != intra_end; ++element) {
                             *element = quantizer.recover(predictor->predict(element), *(quant_inds_pos++));
                         }
                     }
@@ -197,7 +196,6 @@ namespace SZ {
             quantizer.postdecompress_data();
             return dec_data.release();
         }
-
 
 
     private:
