@@ -1,112 +1,18 @@
 #ifndef _SZ_COMPOSED_PREDICTOR_HPP
 #define _SZ_COMPOSED_PREDICTOR_HPP
 
-#include <cassert>
 #include "def.hpp"
 #include "utils/Iterator.hpp"
 #include "utils/Compat.hpp"
 #include "predictor/Predictor.hpp"
+#include <cassert>
 #include <iostream>
 #include <memory>
 
 namespace SZ {
-    template<class T, uint N>
-    class VirtualPredictor {
-    public:
-        using Range = multi_dimensional_range<T, N>;
-        using iterator = typename multi_dimensional_range<T, N>::iterator;
-
-        virtual ~VirtualPredictor() = default;
-
-        virtual void precompress_data(const iterator &) = 0;
-
-        virtual void postcompress_data(const iterator &) = 0;
-
-        virtual void predecompress_data(const iterator &) = 0;
-
-        virtual void postdecompress_data(const iterator &) = 0;
-
-        virtual void precompress_block(const std::shared_ptr<Range> &) = 0;
-
-        virtual void precompress_block_commit() = 0;
-
-        virtual void predecompress_block(const std::shared_ptr<Range> &) = 0;
-
-        virtual void save(uchar *&c) const = 0;
-
-        virtual void load(const uchar *&c, size_t &remaining_length) = 0;
-
-        virtual T predict(const iterator &iter) const noexcept = 0;
-
-        virtual T estimate_error(const iterator &iter) const noexcept = 0;
-
-        virtual void print() const = 0;
-    };
-
-    template<class T, uint N, class Base>
-    class RealPredictor : public VirtualPredictor<T, N>, public Base {
-    public:
-        using Range = multi_dimensional_range<T, N>;
-        using iterator = typename multi_dimensional_range<T, N>::iterator;
-
-        RealPredictor(std::shared_ptr<Base> p) {
-            base = p;
-        }
-
-        void precompress_data(const iterator &iter) {
-            base->precompress_data(iter);
-        }
-
-        void postcompress_data(const iterator &iter) {
-            base->postcompress_data(iter);
-        }
-
-        void predecompress_data(const iterator &iter) {
-            base->predecompress_data(iter);
-        }
-
-        void postdecompress_data(const iterator &iter) {
-            base->postdecompress_data(iter);
-        }
-
-        void precompress_block(const std::shared_ptr<Range> &range) {
-            base->precompress_block(range);
-        }
-
-        void precompress_block_commit() {
-            base->precompress_block_commit();
-        }
-
-        void predecompress_block(const std::shared_ptr<Range> &range) {
-            base->predecompress_block(range);
-        }
-
-        void save(uchar *&c) const {
-            base->save(c);
-        }
-
-        void load(const uchar *&c, size_t &remaining_length) {
-            base->load(c, remaining_length);
-        }
-
-        inline T predict(const iterator &iter) const noexcept {
-            return base->predict(iter);
-        }
-
-        inline T estimate_error(const iterator &iter) const noexcept {
-            return base->estimate_error(iter);
-        }
-
-        void print() const {
-            base->print();
-        }
-
-    private:
-        std::shared_ptr<Base> base;
-    };
 
     template<class T, uint N>
-    class ComposedPredictor {
+    class ComposedPredictor{
     public:
         using Range = multi_dimensional_range<T, N>;
         using iterator = typename multi_dimensional_range<T, N>::iterator;
@@ -135,56 +41,7 @@ namespace SZ {
             }
         }
 
-        template<uint NN = N>
-        inline typename std::enable_if<NN == 1, void>::type
-        estimate_error(const iterator &iter, int min_dimension) {
-            std::fill(predict_error.begin(), predict_error.end(), 0);
-            auto iter1 = iter;
-            iter1.move(min_dimension - 1);
-            for (int p = 0; p < predictors.size(); p++) {
-                predict_error[p] += predictors[p]->estimate_error(iter);
-                predict_error[p] += predictors[p]->estimate_error(iter1);
-            }
-        }
 
-        template<uint NN = N>
-        inline typename std::enable_if<NN == 2, void>::type
-        estimate_error(const iterator &iter, int min_dimension) {
-            std::fill(predict_error.begin(), predict_error.end(), 0);
-            auto iter1 = iter, iter2 = iter;
-            iter2.move(0, min_dimension - 1);
-            for (int i = 2; i < min_dimension; i++) {
-                for (int p = 0; p < predictors.size(); p++) {
-                    predict_error[p] += predictors[p]->estimate_error(iter1);
-                    predict_error[p] += predictors[p]->estimate_error(iter2);
-                }
-                iter1.move(1, 1);
-                iter2.move(1, -1);
-            }
-        }
-
-        template<uint NN = N>
-        inline typename std::enable_if<NN != 1 && NN != 2, void>::type
-        estimate_error(const iterator &iter, int min_dimension) {
-            std::fill(predict_error.begin(), predict_error.end(), 0);
-//            std::vector<double> err(predictors.size(), 0);
-            auto iter1 = iter, iter2 = iter, iter3 = iter, iter4 = iter;
-            iter2.move(0, 0, min_dimension - 1);
-            iter3.move(0, min_dimension - 1, 0);
-            iter4.move(0, min_dimension - 1, min_dimension - 1);
-            for (int i = 2; i < min_dimension; i++) {
-                for (int p = 0; p < predictors.size(); p++) {
-                    predict_error[p] += predictors[p]->estimate_error(iter1);
-                    predict_error[p] += predictors[p]->estimate_error(iter2);
-                    predict_error[p] += predictors[p]->estimate_error(iter3);
-                    predict_error[p] += predictors[p]->estimate_error(iter4);
-                }
-                iter1.move(1, 1, 1);
-                iter2.move(1, 1, -1);
-                iter3.move(1, -1, 1);
-                iter4.move(1, -1, -1);
-            }
-        }
 
         void precompress_block(const std::shared_ptr<Range> &range) {
             for (const auto &p:predictors) {
@@ -193,7 +50,7 @@ namespace SZ {
             const auto &dims = range->get_dimensions();
             int min_dimension = *std::min_element(dims.begin(), dims.end());
 
-            estimate_error(range->begin(), min_dimension);
+            do_estimate_error(range->begin(), min_dimension);
 
             sid = std::distance(predict_error.begin(), std::min_element(predict_error.begin(), predict_error.end()));
             selection.push_back(sid);
@@ -209,7 +66,7 @@ namespace SZ {
             predictors[sid]->predecompress_block(range);
         }
 
-        void save(uchar *&c) {
+        void save(uchar *&c) const {
             auto tmp = c;
             for (const auto &p:predictors) {
                 // std::cout << "COMPOSED SAVE OFFSET = " << c - tmp << std::endl;
@@ -221,6 +78,7 @@ namespace SZ {
             // TODO: check correctness
             *reinterpret_cast<size_t *>(c) = (size_t) selection.size();
             c += sizeof(size_t);
+            HuffmanEncoder<int> selection_encoder;
             selection_encoder.preprocess_encode(selection, 4 * predictors.size());
             selection_encoder.save(c);
             selection_encoder.encode(selection, c);
@@ -245,6 +103,7 @@ namespace SZ {
             // TODO: check correctness
             size_t selection_size = *reinterpret_cast<const size_t *>(c);
             c += sizeof(size_t);
+            HuffmanEncoder<int> selection_encoder;
             selection_encoder.load(c, remaining_length);
             this->selection = selection_encoder.decode(c, selection_size);
             selection_encoder.postprocess_decode();
@@ -301,18 +160,75 @@ namespace SZ {
 //            unpack(Ps...);
 //        }
 
-        ComposedPredictor(std::vector<std::shared_ptr<VirtualPredictor<T, N>>> predictors_) : selection_encoder() {
-            predictors = predictors_;
+        ComposedPredictor(std::vector<std::shared_ptr<concepts::VirtualPredictor<T, N>>> predictors) {
+            this->predictors = predictors;
             predict_error.resize(predictors.size());
         }
 
-        std::vector<std::shared_ptr<VirtualPredictor<T, N>>> predictors;
+        void clear() {
+            for (auto &pred:predictors) {
+                pred.clear();
+            }
+            selection.clear();
+        }
+
     private:
+        std::vector<std::shared_ptr<concepts::VirtualPredictor<T, N>>> predictors;
         std::vector<int> selection;
-        HuffmanEncoder<int> selection_encoder;
-        int sid;                            // selected index
+        int sid = 0;                            // selected index
         size_t current_index = 0;            // for decompression only
         std::vector<double> predict_error;
+
+        template<uint NN = N>
+        inline typename std::enable_if<NN == 1, void>::type
+        do_estimate_error(const iterator &iter, int min_dimension) {
+            std::fill(predict_error.begin(), predict_error.end(), 0);
+            auto iter1 = iter;
+            iter1.move(min_dimension - 1);
+            for (int p = 0; p < predictors.size(); p++) {
+                predict_error[p] += predictors[p]->estimate_error(iter);
+                predict_error[p] += predictors[p]->estimate_error(iter1);
+            }
+        }
+
+        template<uint NN = N>
+        inline typename std::enable_if<NN == 2, void>::type
+        do_estimate_error(const iterator &iter, int min_dimension) {
+            std::fill(predict_error.begin(), predict_error.end(), 0);
+            auto iter1 = iter, iter2 = iter;
+            iter2.move(0, min_dimension - 1);
+            for (int i = 2; i < min_dimension; i++) {
+                for (int p = 0; p < predictors.size(); p++) {
+                    predict_error[p] += predictors[p]->estimate_error(iter1);
+                    predict_error[p] += predictors[p]->estimate_error(iter2);
+                }
+                iter1.move(1, 1);
+                iter2.move(1, -1);
+            }
+        }
+
+        template<uint NN = N>
+        inline typename std::enable_if<NN != 1 && NN != 2, void>::type
+        do_estimate_error(const iterator &iter, int min_dimension) {
+            std::fill(predict_error.begin(), predict_error.end(), 0);
+//            std::vector<double> err(predictors.size(), 0);
+            auto iter1 = iter, iter2 = iter, iter3 = iter, iter4 = iter;
+            iter2.move(0, 0, min_dimension - 1);
+            iter3.move(0, min_dimension - 1, 0);
+            iter4.move(0, min_dimension - 1, min_dimension - 1);
+            for (int i = 2; i < min_dimension; i++) {
+                for (int p = 0; p < predictors.size(); p++) {
+                    predict_error[p] += predictors[p]->estimate_error(iter1);
+                    predict_error[p] += predictors[p]->estimate_error(iter2);
+                    predict_error[p] += predictors[p]->estimate_error(iter3);
+                    predict_error[p] += predictors[p]->estimate_error(iter4);
+                }
+                iter1.move(1, 1, 1);
+                iter2.move(1, 1, -1);
+                iter3.move(1, -1, 1);
+                iter4.move(1, -1, -1);
+            }
+        }
     };
 
 }

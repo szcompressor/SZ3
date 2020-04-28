@@ -3,7 +3,7 @@
 
 #include "predictor/Predictor.hpp"
 #include "quantizer/Quantizer.hpp"
-#include "encoder/Encoder.hpp"
+#include "encoder/HuffmanEncoder.hpp"
 #include "utils/Iterator.hpp"
 #include "utils/Compat.hpp"
 #include "utils/Lossless.hpp"
@@ -13,7 +13,7 @@
 
 namespace SZ {
 // type T
-    template<class T, size_t N, class Predictor = LorenzoPredictor<T, N, 1> *,
+    template<class T, size_t N, class Predictor = concepts::VirtualPredictor<T, N>,
             class Quantizer = LinearQuantizer<T>, class Encoder = HuffmanEncoder<int> >
     class SZ_General_Compressor {
     public:
@@ -44,7 +44,7 @@ namespace SZ {
                                                                                          std::end(global_dimensions), 1, 0);
             std::array<size_t, N> intra_block_dims;
             std::vector<int> quant_inds(num_elements);
-            predictor->precompress_data(inter_block_range->begin());
+            predictor.precompress_data(inter_block_range->begin());
             quantizer.precompress_data();
             size_t quant_count = 0;
             size_t reg_count = 0;
@@ -67,16 +67,16 @@ namespace SZ {
                     intra_block_range->set_offsets(block.get_offset());
                     intra_block_range->set_starting_position(block.get_current_index_vector());
                     T dec_data = 0;
-                    predictor->precompress_block(intra_block_range);
-                    predictor->precompress_block_commit();
+                    predictor.precompress_block(intra_block_range);
+                    predictor.precompress_block_commit();
                     quantizer.precompress_block();
-//          	reg_count += predictor->get_sid();
+//          	reg_count += predictor.get_sid();
                     {
                         auto intra_begin = intra_block_range->begin();
                         auto intra_end = intra_block_range->end();
                         for (auto element = intra_begin; element != intra_end; ++element) {
-//                            quantizer.quantize_and_overwrite(*element, predictor->predict(element));
-                            quant_inds[quant_count++] = quantizer.quantize_and_overwrite(*element, predictor->predict(element));
+//                            quantizer.quantize_and_overwrite(*element, predictor.predict(element));
+                            quant_inds[quant_count++] = quantizer.quantize_and_overwrite(*element, predictor.predict(element));
                         }
                     }
                 }
@@ -88,7 +88,7 @@ namespace SZ {
                       << "s" << std::endl;
 
 //            std::cout << "reg_count = " << reg_count << std::endl;
-            predictor->postcompress_data(inter_block_range->begin());
+            predictor.postcompress_data(inter_block_range->begin());
             quantizer.postcompress_data();
             uchar *compressed_data;
             if (stride > block_size) {
@@ -102,7 +102,7 @@ namespace SZ {
             uchar *compressed_data_pos = compressed_data;
             write(global_dimensions.data(), N, compressed_data_pos);
             write(block_size, compressed_data_pos);
-            predictor->save(compressed_data_pos);
+            predictor.save(compressed_data_pos);
             quantizer.save(compressed_data_pos);
 
             encoder.preprocess_encode(quant_inds, 4 * quantizer.get_radius());
@@ -131,7 +131,7 @@ namespace SZ {
             std::cout << std::endl;
             uint block_size = 0;
             read(block_size, compressed_data_pos, remaining_length);
-            predictor->load(compressed_data_pos, remaining_length);
+            predictor.load(compressed_data_pos, remaining_length);
             // std::cout << "load predictor done\n";fflush(stdout);
             quantizer.load(compressed_data_pos, remaining_length);
             // std::cout << "load quantizer done\n";fflush(stdout);
@@ -158,7 +158,7 @@ namespace SZ {
                                                                                          std::begin(global_dimensions),
                                                                                          std::end(global_dimensions), 1, 0);
 
-            predictor->predecompress_data(inter_block_range->begin());
+            predictor.predecompress_data(inter_block_range->begin());
             quantizer.predecompress_data();
 
             std::cout << "start decompression" << std::endl;
@@ -177,22 +177,22 @@ namespace SZ {
                     intra_block_range->set_offsets(block.get_offset());
                     intra_block_range->set_starting_position(block.get_current_index_vector());
 
-                    predictor->predecompress_block(intra_block_range);
+                    predictor.predecompress_block(intra_block_range);
                     quantizer.predecompress_block();
-//	          reg_count += predictor->get_sid();
+//	          reg_count += predictor.get_sid();
                     // std::cout << "dimensions: " << intra_block_range->get_dimensions(0) << " " << intra_block_range->get_dimensions(1) << " " << intra_block_range->get_dimensions(2) << std::endl;
                     // std::cout << "index: " << block.get_current_index(0) << " " << block.get_current_index(1) << " " << block.get_current_index(2) << std::endl;
                     {
                         auto intra_begin = intra_block_range->begin();
                         auto intra_end = intra_block_range->end();
                         for (auto element = intra_begin; element != intra_end; ++element) {
-                            *element = quantizer.recover(predictor->predict(element), *(quant_inds_pos++));
+                            *element = quantizer.recover(predictor.predict(element), *(quant_inds_pos++));
                         }
                     }
                 }
             }
             std::cout << "reg_count = " << reg_count << std::endl;
-            predictor->postdecompress_data(inter_block_range->begin());
+            predictor.postdecompress_data(inter_block_range->begin());
             quantizer.postdecompress_data();
             return dec_data.release();
         }

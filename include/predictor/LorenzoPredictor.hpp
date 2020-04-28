@@ -9,7 +9,7 @@ namespace SZ {
 
     // N-dimension L-layer lorenzo predictor
     template<class T, uint N, uint L>
-    class LorenzoPredictor {
+    class LorenzoPredictor : public concepts::VirtualPredictor<T, N> {
     public:
         static const uint8_t predictor_id = 0b00000001;
         using Range = multi_dimensional_range<T, N>;
@@ -40,13 +40,13 @@ namespace SZ {
             }
         }
 
-        void precompress_data(const iterator &) {}
+        void precompress_data(const iterator &) const {}
 
-        void postcompress_data(const iterator &) {}
+        void postcompress_data(const iterator &) const {}
 
-        void predecompress_data(const iterator &) {}
+        void predecompress_data(const iterator &) const {}
 
-        void postdecompress_data(const iterator &) {}
+        void postdecompress_data(const iterator &) const {}
 
         void precompress_block(const std::shared_ptr<Range> &) {}
 
@@ -89,18 +89,28 @@ namespace SZ {
             return fabs(*iter - predict(iter)) + this->noise;
         }
 
+        inline T predict(const iterator &iter) const noexcept {
+            return do_predict(iter);
+        }
+
+        void clear() {}
+
+    protected:
+        T noise = 0;
+
+    private:
         template<uint NN = N, uint LL = L>
-        inline typename std::enable_if<NN == 1 && LL == 1, T>::type predict(const iterator &iter) const noexcept {
+        inline typename std::enable_if<NN == 1 && LL == 1, T>::type do_predict(const iterator &iter) const noexcept {
             return iter.prev(1);
         }
 
         template<uint NN = N, uint LL = L>
-        inline typename std::enable_if<NN == 2 && LL == 1, T>::type predict(const iterator &iter) const noexcept {
+        inline typename std::enable_if<NN == 2 && LL == 1, T>::type do_predict(const iterator &iter) const noexcept {
             return iter.prev(0, 1) + iter.prev(1, 0) - iter.prev(1, 1);
         }
 
         template<uint NN = N, uint LL = L>
-        inline typename std::enable_if<NN == 3 && LL == 1, T>::type predict(const iterator &iter) const noexcept {
+        inline typename std::enable_if<NN == 3 && LL == 1, T>::type do_predict(const iterator &iter) const noexcept {
             return iter.prev(0, 0, 1) + iter.prev(0, 1, 0) + iter.prev(1, 0, 0)
                    - iter.prev(0, 1, 1) - iter.prev(1, 0, 1) - iter.prev(1, 1, 0)
                    + iter.prev(1, 1, 1);
@@ -108,19 +118,19 @@ namespace SZ {
         }
 
         template<uint NN = N, uint LL = L>
-        inline typename std::enable_if<NN == 1 && LL == 2, T>::type predict(const iterator &iter) const noexcept {
+        inline typename std::enable_if<NN == 1 && LL == 2, T>::type do_predict(const iterator &iter) const noexcept {
             return 2 * iter.prev(1) - iter.prev(2);
         }
 
         template<uint NN = N, uint LL = L>
-        inline typename std::enable_if<NN == 2 && LL == 2, T>::type predict(const iterator &iter) const noexcept {
+        inline typename std::enable_if<NN == 2 && LL == 2, T>::type do_predict(const iterator &iter) const noexcept {
             return 2 * iter.prev(0, 1) - iter.prev(0, 2) + 2 * iter.prev(1, 0)
                    - 4 * iter.prev(1, 1) + 2 * iter.prev(1, 2) - iter.prev(2, 0)
                    + 2 * iter.prev(2, 1) - iter.prev(2, 2);
         }
 
         template<uint NN = N, uint LL = L>
-        inline typename std::enable_if<NN == 3 && LL == 2, T>::type predict(const iterator &iter) const noexcept {
+        inline typename std::enable_if<NN == 3 && LL == 2, T>::type do_predict(const iterator &iter) const noexcept {
             return 2 * iter.prev(0, 0, 1) - iter.prev(0, 0, 2) + 2 * iter.prev(0, 1, 0)
                    - 4 * iter.prev(0, 1, 1) + 2 * iter.prev(0, 1, 2) - iter.prev(0, 2, 0)
                    + 2 * iter.prev(0, 2, 1) - iter.prev(0, 2, 2) + 2 * iter.prev(1, 0, 0)
@@ -131,9 +141,6 @@ namespace SZ {
                    - 4 * iter.prev(2, 1, 1) + 2 * iter.prev(2, 1, 2) - iter.prev(2, 2, 0)
                    + 2 * iter.prev(2, 2, 1) - iter.prev(2, 2, 2);
         };
-
-    protected:
-        T noise = 0;
     };
 }
 #endif

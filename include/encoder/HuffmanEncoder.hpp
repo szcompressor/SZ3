@@ -129,6 +129,11 @@ namespace SZ {
 
         //perform encoding
         size_t encode(const std::vector<T> &bins, uchar *&bytes) {
+            return encode(bins.data(), bins.size(), bytes);
+        }
+
+        //perform encoding
+        size_t encode(const T *bins, size_t num_bin, uchar *&bytes) {
             size_t outSize = 0;
             size_t i = 0;
             unsigned char bitSize = 0, byteSize, byteSizep;
@@ -136,7 +141,7 @@ namespace SZ {
             uchar *p = bytes + sizeof(size_t);
             int lackBits = 0;
             //long totalBitSize = 0, maxBitSize = 0, bitSize21 = 0, bitSize32 = 0;
-            for (i = 0; i < bins.size(); i++) {
+            for (i = 0; i < num_bin; i++) {
                 state = bins[i];
                 bitSize = huffmanTree->cout[state];
 
@@ -271,13 +276,17 @@ namespace SZ {
             huffmanTree = createHuffmanTree(stateNum);
             treeRoot = reconstruct_HuffTree_from_bytes_anyStates(c + sizeof(int) + sizeof(int), nodeCount);
             c += sizeof(int) + sizeof(int) + encodeStartIndex;
+            isLoaded = true;
         }
+
+        void Loaded() { return isLoaded; }
 
     private:
         HuffmanTree *huffmanTree;
         node treeRoot;
         unsigned int nodeCount;
         uchar sysEndianType; //0: little endian, 1: big endian
+        bool isLoaded = false;
 
         inline void symTransform_4bytes(uchar data[4]) {
             unsigned char tmp = data[0];

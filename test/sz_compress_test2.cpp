@@ -1,7 +1,10 @@
 #include <quantizer/IntegerQuantizer.hpp>
 #include <compressor/Compressor.hpp>
-#include <quantizer/Quantizer.hpp>
 #include <predictor/Predictor.hpp>
+#include <predictor/LorenzoPredictor.hpp>
+#include <predictor/RegressionPredictor.hpp>
+#include <predictor/PolyRegressionPredictor.hpp>
+#include <predictor/ComposedPredictor.hpp>
 #include <utils/fileUtil.h>
 #include <utils/Verification.hpp>
 #include <def.hpp>
@@ -62,33 +65,39 @@ choose_compressor_and_compress(bool lorenzo_1, bool lorenzo_2, bool regression_1
                                std::unique_ptr<T[]> &data, size_t num,
                                uint block_size, uint stride, T eb, Args... args
 ) {
-    std::vector<std::shared_ptr<SZ::VirtualPredictor<float, N>>> predictors;
+    std::vector<std::shared_ptr<SZ::concepts::VirtualPredictor<float, N>>> predictors;
+    int use_single_predictor = (lorenzo_1 + lorenzo_2 + regression_1 + regression_2) == 1;
     if (lorenzo_1) {
-        auto P_l = std::make_shared<SZ::RealPredictor<float, N, SZ::LorenzoPredictor<float, N, 1>>>(
-                std::make_shared<SZ::LorenzoPredictor<float, N, 1>>(eb));
-        predictors.push_back(P_l);
+        if (use_single_predictor) {
+            return compress<T>(data, num, block_size, stride, SZ::LorenzoPredictor<float, N, 1>(eb), lossless, eb, args...);
+        } else {
+            predictors.push_back(std::make_shared<SZ::LorenzoPredictor<float, N, 1>>(eb));
+        }
     }
     if (lorenzo_2) {
-        auto P_l2 = std::make_shared<SZ::RealPredictor<float, N, SZ::LorenzoPredictor<float, N, 2>>>(
-                std::make_shared<SZ::LorenzoPredictor<float, N, 2>>(eb));
-        predictors.push_back(P_l2);
+        if (use_single_predictor) {
+            return compress<T>(data, num, block_size, stride, SZ::LorenzoPredictor<float, N, 2>(eb), lossless, eb, args...);
+        } else {
+            predictors.push_back(std::make_shared<SZ::LorenzoPredictor<float, N, 2>>(eb));
+        }
     }
     if (regression_1) {
-        auto P_r = std::make_shared<SZ::RealPredictor<float, N, SZ::RegressionPredictor<float, N>>>(
-                std::make_shared<SZ::RegressionPredictor<float, N>>(block_size, eb));
-        predictors.push_back(P_r);
+        if (use_single_predictor) {
+            return compress<T>(data, num, block_size, stride, SZ::RegressionPredictor<float, N>(block_size, eb), lossless, eb,
+                               args...);
+        } else {
+            predictors.push_back(std::make_shared<SZ::RegressionPredictor<float, N>>(block_size, eb));
+        }
     }
     if (regression_2) {
-        auto P_r2 = std::make_shared<SZ::RealPredictor<float, N, SZ::PolyRegressionPredictor<float, N>>>(
-                std::make_shared<SZ::PolyRegressionPredictor<float, N>>(block_size, eb));
-        predictors.push_back(P_r2);
+        if (use_single_predictor) {
+            return compress<T>(data, num, block_size, stride, SZ::PolyRegressionPredictor<float, N>(block_size, eb), lossless, eb,
+                               args...);
+        } else {
+            predictors.push_back(std::make_shared<SZ::PolyRegressionPredictor<float, N>>(block_size, eb));
+        }
     }
-    if (predictors.size() == 1) {
-        return compress<T>(data, num, block_size, stride, predictors[0], lossless, eb, args...);
-    } else {
-        auto P_composed = std::make_shared<SZ::ComposedPredictor<T, N>>(predictors);
-        return compress<T>(data, num, block_size, stride, P_composed, lossless, eb, args...);
-    }
+    return compress<T>(data, num, block_size, stride, SZ::ComposedPredictor<T, N>(predictors), lossless, eb, args...);
 }
 
 template<typename T>

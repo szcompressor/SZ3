@@ -15,9 +15,7 @@ namespace SZ {
     class PredictionBasedQuantizer {
     protected:
         T error_bound;
-        T error_bound_times_2;
         T error_bound_reciprocal;
-        T error_bound_reciprocal_divided_by_2;
         int radius; // quantization interval radius
     public:
         ~PredictionBasedQuantizer() = default;
@@ -45,14 +43,14 @@ namespace SZ {
         void predecompress_block() {}
 
 
-        PredictionBasedQuantizer(T eb, int r) : error_bound(eb), error_bound_times_2(eb * 2),
+        PredictionBasedQuantizer(T eb, int r) : error_bound(eb),
                                                 error_bound_reciprocal(1.0 / eb),
-                                                error_bound_reciprocal_divided_by_2(1.0 / eb / 2.0),
                                                 radius(r) {}
 
         int get_radius() const { return radius; }
 
         T get_eb() const { return error_bound; }
+
     };
 
     template<class T>
@@ -94,9 +92,7 @@ namespace SZ {
             c += sizeof(uint8_t);
             remaining_length -= sizeof(uint8_t);
             this->error_bound = *reinterpret_cast<const T *>(c);
-            this->error_bound_times_2 = this->error_bound * 2;
             this->error_bound_reciprocal = 1.0 / this->error_bound;
-            this->error_bound_reciprocal_divided_by_2 = 1.0 / this->error_bound / 2.0;
             c += sizeof(T);
             this->radius = *reinterpret_cast<const int *>(c);
             c += sizeof(int);
@@ -107,6 +103,10 @@ namespace SZ {
             // std::cout << "loading: eb = " << this->error_bound << ", unpred_num = "  << unpred.size() << std::endl;
             // reset index
             index = 0;
+        }
+
+        void clear() {
+            unpred.clear();
         }
 
     private:

@@ -14,6 +14,7 @@ namespace SZ {
         typedef std::integral_constant<bool, true> true_type;
         typedef std::integral_constant<bool, false> false_type;
 
+//        int VirtualPredictor;
     }
 }
 

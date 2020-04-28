@@ -13,7 +13,7 @@ namespace SZ {
 
 // N-d regression predictor
     template<class T, uint N>
-    class RegressionPredictor {
+    class RegressionPredictor : public concepts::VirtualPredictor<T, N> {
     public:
         static const uint8_t predictor_id = 0b00000010;
 
@@ -150,8 +150,17 @@ namespace SZ {
             std::cout << std::endl;
         }
 
+        void clear() {
+            quantizer_liner.clear();
+            quantizer_independent.clear();
+            regression_coeff_quant_inds.clear();
+            regression_coeff_index = 0;
+            current_coeffs = {0};
+            prev_coeffs = {0};
+        }
+
     private:
-        LinearQuantizer<T> quantizer_liner, quantizer_independent;
+        LinearQuantizer <T> quantizer_liner, quantizer_independent;
         std::vector<int> regression_coeff_quant_inds;
         size_t regression_coeff_index = 0;
         std::array<T, N + 1> current_coeffs;

@@ -2,7 +2,6 @@
 #define _SZ_QUANTIZER_HPP
 
 #include "utils/Concepts.hpp"
-#include "IntegerQuantizer.hpp"
 
 namespace SZ {
     namespace concepts {

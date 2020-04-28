@@ -16,7 +16,7 @@ namespace SZ {
 
     // N-d regression predictor
     template<class T, uint N, uint M = (N + 1) * (N + 2) / 2>
-    class PolyRegressionPredictor {
+    class PolyRegressionPredictor : public concepts::VirtualPredictor<T, N> {
     public:
         static const uint8_t predictor_id = 0b00000011;
 
@@ -165,6 +165,15 @@ namespace SZ {
             std::cout << "2-Layer Regression predictor, poly term eb = " << quantizer_poly.get_eb() << "\n";
         }
 
+        void clear() {
+            quantizer_independent.clear();
+            quantizer_liner.clear();
+            quantizer_poly.clear();
+            regression_coeff_quant_inds.clear();
+            regression_coeff_index = 0;
+            current_coeffs = {0};
+            prev_coeffs = {0};
+        }
 
     private:
         LinearQuantizer<T> quantizer_independent, quantizer_liner, quantizer_poly;

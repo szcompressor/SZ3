@@ -2,14 +2,48 @@
 #define _SZ_PREDICTOR_HPP
 
 #include "utils/Concepts.hpp"
-#include "LorenzoPredictor.hpp"
-#include "RegressionPredictor.hpp"
-#include "PolyRegressionPredictor.hpp"
-#include "ComposedPredictor.hpp"
+#include "utils/Iterator.hpp"
+#include "def.hpp"
 
 namespace SZ {
 
+
     namespace concepts {
+
+        template<class T, uint N>
+        class VirtualPredictor {
+        public:
+            using Range = multi_dimensional_range<T, N>;
+            using iterator = typename multi_dimensional_range<T, N>::iterator;
+
+            virtual ~VirtualPredictor() = default;
+
+            virtual void precompress_data(const iterator &) const = 0;
+
+            virtual void postcompress_data(const iterator &) const = 0;
+
+            virtual void predecompress_data(const iterator &) const = 0;
+
+            virtual void postdecompress_data(const iterator &) const = 0;
+
+            virtual void precompress_block(const std::shared_ptr<Range> &) = 0;
+
+            virtual void precompress_block_commit() = 0;
+
+            virtual void predecompress_block(const std::shared_ptr<Range> &) = 0;
+
+            virtual void save(uchar *&c) const = 0;
+
+            virtual void load(const uchar *&c, size_t &remaining_length) = 0;
+
+            virtual T predict(const iterator &iter) const noexcept = 0;
+
+            virtual T estimate_error(const iterator &iter) const noexcept = 0;
+
+            virtual void print() const = 0;
+
+            virtual void clear() = 0;
+        };
 
         /**
          * Concept for the predictor class.

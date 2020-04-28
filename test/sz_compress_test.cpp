@@ -1,13 +1,12 @@
 #include <quantizer/IntegerQuantizer.hpp>
 #include <compressor/Compressor.hpp>
-#include <quantizer/Quantizer.hpp>
 #include <utils/Iterator.hpp>
-#include <predictor/Predictor.hpp>
+#include <predictor/ComposedPredictor.hpp>
+#include <predictor/LorenzoPredictor.hpp>
+#include <predictor/RegressionPredictor.hpp>
 #include <utils/Compat.hpp>
 #include <cstdio>
-#include <fstream>
 #include <iostream>
-#include <fstream>
 #include <cmath>
 #include <memory>
 #include <type_traits>
@@ -43,16 +42,14 @@ int main(int argc, char **argv) {
     std::cout << "Read " << num << " elements\n";
     float eb = 10;
 
-    auto P_l = std::make_shared<SZ::RealPredictor<float, 3, SZ::LorenzoPredictor<float, 3, 1>>>(
-            std::make_shared<SZ::LorenzoPredictor<float, 3, 1>>(eb));
-    auto P_reg = std::make_shared<SZ::RealPredictor<float, 3, SZ::RegressionPredictor<float, 3>>>(
-            std::make_shared<SZ::RegressionPredictor<float, 3>>(6, 0.1 * eb));
-    std::vector<std::shared_ptr<SZ::VirtualPredictor<float, 3>>> predictors_;
+    auto P_l = std::make_shared<SZ::LorenzoPredictor<float, 3, 1>>(eb);
+    auto P_reg = std::make_shared<SZ::RegressionPredictor<float, 3>>(6, 0.1 * eb);
+    std::vector<std::shared_ptr<SZ::concepts::VirtualPredictor<float, 3>>> predictors_;
     predictors_.push_back(P_l);
     predictors_.push_back(P_reg);
-    auto cp = std::make_shared<SZ::ComposedPredictor<float, 3>>(predictors_);
+//    auto cp = std::make_shared<SZ::ComposedPredictor<float, 3>>(predictors_);
     auto sz = SZ::make_sz_general<float>(
-            cp,
+            SZ::ComposedPredictor<float, 3>(predictors_),
             SZ::LinearQuantizer<float>(eb),
             SZ::HuffmanEncoder<int>(),
             100,
