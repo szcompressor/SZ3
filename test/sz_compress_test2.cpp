@@ -1,133 +1,8 @@
-#include <quantizer/IntegerQuantizer.hpp>
-#include <compressor/Compressor.hpp>
-#include <predictor/Predictor.hpp>
-#include <predictor/LorenzoPredictor.hpp>
-#include <predictor/RegressionPredictor.hpp>
-#include <predictor/PolyRegressionPredictor.hpp>
-#include <predictor/ComposedPredictor.hpp>
-#include <utils/fileUtil.h>
-#include <utils/Verification.hpp>
+#include <SZ.hpp>
 #include <def.hpp>
 #include <cstdio>
 #include <iostream>
 #include <memory>
-
-
-template<typename T, class Predictor, class... Args>
-float
-compress(std::unique_ptr<T[]> &data, size_t num, uint block_size, uint stride, Predictor predictor, bool lossless, T eb,
-         Args... args
-) {
-    std::vector<T> data_ = std::vector<T>(data.get(), data.get() + num);
-
-    struct timespec start, end;
-    clock_gettime(CLOCK_REALTIME, &start);
-    std::cout << "****************** Compression ******************" << std::endl;
-
-    auto sz = SZ::make_sz_general<T>(block_size, stride,
-                                     predictor,
-                                     SZ::LinearQuantizer<float>(eb),
-                                     SZ::HuffmanEncoder<int>(),
-                                     args...
-    );
-
-    size_t compressed_size = 0;
-    std::unique_ptr<SZ::uchar[]> compressed;
-    compressed.reset(sz.compress(data.get(), compressed_size));
-
-    clock_gettime(CLOCK_REALTIME, &end);
-    std::cout << "Compression time = "
-              << (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000 << "s"
-              << std::endl;
-
-    auto ratio = num * sizeof(float) * 1.0 / compressed_size;
-    std::cout << "Compression Ratio = " << ratio << std::endl;
-    SZ::writefile("compressed.out", compressed.get(), compressed_size);
-
-    std::cout << "****************** Decompression ******************" << std::endl;
-    compressed = SZ::readfile<SZ::uchar>("compressed.out", compressed_size);
-
-    clock_gettime(CLOCK_REALTIME, &start);
-    std::unique_ptr<float[]> dec_data;
-    dec_data.reset(sz.decompress(compressed.get(), compressed_size));
-    clock_gettime(CLOCK_REALTIME, &end);
-    std::cout << "Decompression time: "
-              << (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000 << "s"
-              << std::endl;
-
-    SZ::verify<float>(data_.data(), data.get(), num);
-    return ratio;
-}
-
-template<typename T, uint N, class... Args>
-float
-choose_compressor_and_compress(bool lorenzo_1, bool lorenzo_2, bool regression_1, bool regression_2, bool lossless,
-                               std::unique_ptr<T[]> &data, size_t num,
-                               uint block_size, uint stride, T eb, Args... args
-) {
-    std::vector<std::shared_ptr<SZ::concepts::VirtualPredictor<float, N>>> predictors;
-    int use_single_predictor = (lorenzo_1 + lorenzo_2 + regression_1 + regression_2) == 1;
-    if (lorenzo_1) {
-        if (use_single_predictor) {
-            return compress<T>(data, num, block_size, stride, SZ::LorenzoPredictor<float, N, 1>(eb), lossless, eb, args...);
-        } else {
-            predictors.push_back(std::make_shared<SZ::LorenzoPredictor<float, N, 1>>(eb));
-        }
-    }
-    if (lorenzo_2) {
-        if (use_single_predictor) {
-            return compress<T>(data, num, block_size, stride, SZ::LorenzoPredictor<float, N, 2>(eb), lossless, eb, args...);
-        } else {
-            predictors.push_back(std::make_shared<SZ::LorenzoPredictor<float, N, 2>>(eb));
-        }
-    }
-    if (regression_1) {
-        if (use_single_predictor) {
-            return compress<T>(data, num, block_size, stride, SZ::RegressionPredictor<float, N>(block_size, eb), lossless, eb,
-                               args...);
-        } else {
-            predictors.push_back(std::make_shared<SZ::RegressionPredictor<float, N>>(block_size, eb));
-        }
-    }
-    if (regression_2) {
-        if (use_single_predictor) {
-            return compress<T>(data, num, block_size, stride, SZ::PolyRegressionPredictor<float, N>(block_size, eb), lossless, eb,
-                               args...);
-        } else {
-            predictors.push_back(std::make_shared<SZ::PolyRegressionPredictor<float, N>>(block_size, eb));
-        }
-    }
-    return compress<T>(data, num, block_size, stride, SZ::ComposedPredictor<T, N>(predictors), lossless, eb, args...);
-}
-
-template<typename T>
-float
-sz(bool lorenzo_1, bool lorenzo_2, bool regression_1, bool regression_2, bool lossless, uint block_size, uint stride,
-   uint pred_dim, T eb, std::unique_ptr<T[]> &data, size_t num, uint r1, uint r2, uint r3) {
-    std::cout << "Options: "
-              << "eb = " << eb
-              << ", block_size = " << block_size
-              << ", stride = " << stride
-              << ", dim = " << pred_dim
-              << ", lorenzo_1 = " << lorenzo_1
-              << ", lorenzo_2 = " << lorenzo_2
-              << ", regression_1 = " << regression_1
-              << ", regression_2 = " << regression_2
-              << ", lossless= " << lossless
-              << std::endl;
-
-    if (pred_dim == 3) {
-        return choose_compressor_and_compress<float, 3>(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless,
-                                                        data, num, block_size, stride, eb, r1, r2, r3);
-    } else if (pred_dim == 2) {
-        return choose_compressor_and_compress<float, 2>(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless,
-                                                        data, num, block_size, stride, eb, r1 * r2, r3);
-    } else {
-        return choose_compressor_and_compress<float, 1>(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless,
-                                                        data, num, block_size, stride, eb, r1 * r2 * r3);
-    }
-
-}
 
 int main(int argc, char **argv) {
     size_t num = 0;
@@ -161,8 +36,7 @@ int main(int argc, char **argv) {
     std::cout << "value range = " << max - min << std::endl;
 //    std::cout << "abs error bound = " << eb << std::endl;
 
-    auto ratio = sz(lorenzo_1, lorenzo_2, regression_1, regression_2, lossless, block_size, stride, pred_dim, eb, data, num, r1,
-                    r2, r3);
+    auto ratio = SZ_Compress(data, eb, r1, r2, r3);
 //    std::cerr << ratio;
 
     return 0;

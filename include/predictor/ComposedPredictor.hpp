@@ -3,7 +3,6 @@
 
 #include "def.hpp"
 #include "utils/Iterator.hpp"
-#include "utils/Compat.hpp"
 #include "predictor/Predictor.hpp"
 #include <cassert>
 #include <iostream>

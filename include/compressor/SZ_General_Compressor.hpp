@@ -5,9 +5,9 @@
 #include "quantizer/Quantizer.hpp"
 #include "encoder/HuffmanEncoder.hpp"
 #include "utils/Iterator.hpp"
-#include "utils/Compat.hpp"
 #include "utils/Lossless.hpp"
 #include "utils/MemoryOps.hpp"
+#include "utils/Config.hpp"
 #include "def.hpp"
 #include <cstring>
 
@@ -20,16 +20,10 @@ namespace SZ {
         // static_assert(concepts::is_predictor<Predictor>::value, "must implement the predictor interface");
         static_assert(concepts::is_quantizer<Quantizer>::value, "must implement the quatizer interface");
 
-        template<class ... Args>
-        SZ_General_Compressor(uint block_size_, uint stride_, Predictor predictor, Quantizer quantizer, Encoder encoder,
-                              Args &&... dims) : predictor(predictor), quantizer(quantizer), encoder(encoder),
-                                                 block_size(block_size_), stride(stride_),
-                                                 global_dimensions{static_cast<size_t>(dims)...} {
-            static_assert(sizeof...(Args) == N, "Number of arguments must be the same as N");
-            num_elements = 1;
-            for (const auto &d:global_dimensions) {
-                num_elements *= d;
-            }
+        SZ_General_Compressor(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer, Encoder encoder) :
+                predictor(predictor), quantizer(quantizer), encoder(encoder), block_size(conf.block_size), stride(conf.stride),
+                global_dimensions(conf.dims), num_elements(conf.num) {
+//            static_assert(sizeof...(Args) == N, "Number of arguments must be the same as N");
         }
 
         // compress given the error bound
@@ -148,7 +142,7 @@ namespace SZ {
 //    	std::cout << quant_inds[157684267] << std::endl;
             int const *quant_inds_pos = (int const *) quant_inds.data();
             std::array<size_t, N> intra_block_dims;
-            auto dec_data = compat::make_unique<T[]>(num_elements);
+            auto dec_data = std::make_unique<T[]>(num_elements);
             auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.get(),
                                                                                          std::begin(global_dimensions),
                                                                                          std::end(global_dimensions), block_size,
@@ -207,47 +201,5 @@ namespace SZ {
         size_t num_elements;
         std::array<size_t, N> global_dimensions;
     };
-
-
-    template<class T, class Predictor, class Quantizer, class Encoder, class... Args>
-    SZ_General_Compressor<T, sizeof...(Args), Predictor, Quantizer, Encoder>
-    make_sz_general(
-            uint block_size_,
-            uint stride_,
-            Predictor predictor,
-            Quantizer quantizer,
-            Encoder encoder,
-            Args... args
-    ) {
-        return SZ_General_Compressor<T, sizeof...(Args), Predictor, Quantizer, Encoder>(block_size_, stride_, predictor,
-                                                                                        quantizer, encoder, args...);
-    }
-
-    template<class T, class Predictor, class Quantizer, class Encoder, class... Args>
-    SZ_General_Compressor<T, sizeof...(Args), Predictor, Quantizer, Encoder>
-    make_sz_general(
-            Predictor predictor,
-            Quantizer quantizer,
-            Encoder encoder,
-            Args... args
-    ) {
-        uint block_size = 0;
-        switch (sizeof...(Args)) {
-            case 1:
-                block_size = 128;
-                break;
-            case 2:
-                block_size = 16;
-                break;
-            default:
-                // >= 3D
-                block_size = 6;
-                break;
-        }
-        uint stride = block_size;
-
-        return make_sz_general<T, Predictor, Quantizer, Encoder, Args...>(block_size, stride, predictor, quantizer, encoder,
-                                                                          args...);
-    }
 }
 #endif

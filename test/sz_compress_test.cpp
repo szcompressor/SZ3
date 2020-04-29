@@ -4,7 +4,6 @@
 #include <predictor/ComposedPredictor.hpp>
 #include <predictor/LorenzoPredictor.hpp>
 #include <predictor/RegressionPredictor.hpp>
-#include <utils/Compat.hpp>
 #include <cstdio>
 #include <iostream>
 #include <cmath>
@@ -21,7 +20,7 @@ std::unique_ptr<Type[]> readfile(const char *file, size_t &num) {
     fin.seekg(0, std::ios::end);
     const size_t num_elements = fin.tellg() / sizeof(Type);
     fin.seekg(0, std::ios::beg);
-    auto data = SZ::compat::make_unique<Type[]>(num_elements);
+    auto data = std::make_unique<Type[]>(num_elements);
     fin.read(reinterpret_cast<char *>(&data[0]), num_elements * sizeof(Type));
     fin.close();
     num = num_elements;
@@ -48,13 +47,12 @@ int main(int argc, char **argv) {
     predictors_.push_back(P_l);
     predictors_.push_back(P_reg);
 //    auto cp = std::make_shared<SZ::ComposedPredictor<float, 3>>(predictors_);
-    auto sz = SZ::make_sz_general<float>(
+    SZ::Config<float, 3> conf(eb, std::array<size_t, 3>{100, 500, 500});
+    auto sz = SZ::SZ_General_Compressor<float, 3, SZ::ComposedPredictor<float, 3>, SZ::LinearQuantizer<float>, SZ::HuffmanEncoder<int> >(
+            conf,
             SZ::ComposedPredictor<float, 3>(predictors_),
             SZ::LinearQuantizer<float>(eb),
-            SZ::HuffmanEncoder<int>(),
-            100,
-            500,
-            500
+            SZ::HuffmanEncoder<int>()
     );
 
     size_t compressed_size = 0;

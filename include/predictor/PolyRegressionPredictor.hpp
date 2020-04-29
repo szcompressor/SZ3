@@ -3,7 +3,6 @@
 
 #include "def.hpp"
 #include "utils/Iterator.hpp"
-#include "utils/Compat.hpp"
 #include "utils/fileUtil.h"
 #include "quantizer/Quantizer.hpp"
 #include "encoder/Encoder.hpp"
