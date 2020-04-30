@@ -31,22 +31,22 @@ float SZ_Compress(std::unique_ptr<T[]> const &data, const SZ::Config<T, N> &conf
 }
 
 template<typename T>
-float SZ_Compress(std::unique_ptr<T[]> const &data, T eb, uint r1, uint r2, uint r3, uint r4) {
+float SZ_Compress(std::unique_ptr<T[]> const &data, T eb, size_t r1, size_t r2, size_t r3, size_t r4) {
     return SZ_Compress(data, SZ::Config<T, 3>(eb, std::array<size_t, 3>{r1 * r2, r3, r4}));
 }
 
 template<typename T>
-float SZ_Compress(std::unique_ptr<T[]> const &data, T eb, uint r1, uint r2, uint r3) {
+float SZ_Compress(std::unique_ptr<T[]> const &data, T eb, size_t r1, size_t r2, size_t r3) {
     return SZ_Compress(data, SZ::Config<T, 3>(eb, std::array<size_t, 3>{r1, r2, r3}));
 }
 
 template<typename T>
-float SZ_Compress(std::unique_ptr<T[]> const &data, T eb, uint r1, uint r2) {
+float SZ_Compress(std::unique_ptr<T[]> const &data, T eb, size_t r1, size_t r2) {
     return SZ_Compress(data, SZ::Config<T, 2>(eb, std::array<size_t, 2>{r1, r2}));
 }
 
 template<typename T>
-float SZ_Compress(std::unique_ptr<T[]> const &data, T eb, uint r1) {
+float SZ_Compress(std::unique_ptr<T[]> const &data, T eb, size_t r1) {
     return SZ_Compress(data, SZ::Config<T, 1>(eb, std::array<size_t, 1>{r1}));
 }
 
