@@ -4,6 +4,7 @@
 #include "def.hpp"
 #include "utils/Iterator.hpp"
 #include "predictor/Predictor.hpp"
+#include "encoder/HuffmanEncoder.hpp"
 #include <cassert>
 #include <iostream>
 #include <memory>

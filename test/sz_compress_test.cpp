@@ -1,9 +1,9 @@
 #include <quantizer/IntegerQuantizer.hpp>
-#include <compressor/Compressor.hpp>
-#include <utils/Iterator.hpp>
+#include <compressor/SZ_General_Compressor.hpp>
 #include <predictor/ComposedPredictor.hpp>
 #include <predictor/LorenzoPredictor.hpp>
 #include <predictor/RegressionPredictor.hpp>
+#include <utils/Iterator.hpp>
 #include <cstdio>
 #include <iostream>
 #include <cmath>

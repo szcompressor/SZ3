@@ -7,7 +7,7 @@
 
 
 #include "quantizer/IntegerQuantizer.hpp"
-#include "compressor/Compressor.hpp"
+#include "compressor/SZ_General_Compressor.hpp"
 #include "predictor/Predictor.hpp"
 #include "predictor/LorenzoPredictor.hpp"
 #include "predictor/RegressionPredictor.hpp"
