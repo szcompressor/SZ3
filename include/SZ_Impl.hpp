@@ -33,9 +33,7 @@ namespace SZ {
         clock_gettime(CLOCK_REALTIME, &start);
         std::cout << "****************** Compression ******************" << std::endl;
 
-        auto sz(SZ::SZ_General_Compressor<T, N, Predictor, SZ::LinearQuantizer<T>, SZ::HuffmanEncoder<int>>
-                        (conf, predictor, SZ::LinearQuantizer<T>(conf.eb),
-                         SZ::HuffmanEncoder<int>()));
+        auto sz = SZ::make_sz_general_compressor(conf, predictor, SZ::LinearQuantizer<T>(conf.eb), SZ::HuffmanEncoder<int>());
 
         size_t compressed_size = 0;
         std::unique_ptr<SZ::uchar[]> compressed;

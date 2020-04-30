@@ -20,6 +20,7 @@ namespace SZ {
         // static_assert(concepts::is_predictor<Predictor>::value, "must implement the predictor interface");
         static_assert(concepts::is_quantizer<Quantizer>::value, "must implement the quatizer interface");
 
+
         SZ_General_Compressor(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer, Encoder encoder) :
                 predictor(predictor), quantizer(quantizer), encoder(encoder), block_size(conf.block_size), stride(conf.stride),
                 global_dimensions(conf.dims), num_elements(conf.num) {
@@ -201,5 +202,11 @@ namespace SZ {
         size_t num_elements;
         std::array<size_t, N> global_dimensions;
     };
+
+    template<class T, uint N, class Predictor, class Quantizer, class Encoder>
+    SZ_General_Compressor<T, N, Predictor, Quantizer, Encoder>
+    make_sz_general_compressor(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer, Encoder encoder) {
+        return SZ_General_Compressor<T, N, Predictor, Quantizer, Encoder>(conf, predictor, quantizer, encoder);
+    }
 }
 #endif
