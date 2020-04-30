@@ -16,15 +16,16 @@
 template<typename T, uint N>
 float SZ_Compress(std::unique_ptr<T[]> const &data, const SZ::Config<T, N> &conf) {
     std::cout << "Options: "
-              << "eb = " << conf.eb
+              << "dimension = " << N
+              << ", error bound = " << conf.eb
               << ", block_size = " << conf.block_size
               << ", stride = " << conf.stride
-              //                  << ", dim = " << conf.pred_dim
-              << ", lorenzo_1 = " << conf.enable_lorenzo
-              << ", lorenzo_2 = " << conf.enable_2ndlorenzo
-              << ", regression_1 = " << conf.enable_regression
-              << ", regression_2 = " << conf.enable_2ndregression
-              << ", lossless= " << conf.enable_lossless
+              << std::endl
+              << "  use_lorenzo = " << conf.enable_lorenzo
+              << ", use_2ndlorenzo = " << conf.enable_2ndlorenzo
+              << ", use_regression = " << conf.enable_regression
+              << ", use_2ndregression = " << conf.enable_2ndregression
+              << ", use_lossless= " << conf.enable_lossless
               << std::endl;
 
     return SZ::SZ_Compress_step1<T, N>(data, conf);
