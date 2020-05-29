@@ -256,7 +256,7 @@ namespace SZ {
 
         //empty function
         void postprocess_decode() {
-            SZ_FreeHuffman();
+//            SZ_FreeHuffman();
         }
 
         //load Huffman tree

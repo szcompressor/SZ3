@@ -151,6 +151,8 @@ private:
     PersistentLocalStore huffmanStore;
     std::map<std::pair<unsigned int, uint64_t>, Label> huffmanIndexStore;
     Label treeIndex = 0;
+    std::map<Label, std::unique_ptr<SZ::SZ_Zone_Compressor<double, 1, SZ::LorenzoPredictor<double, 1, 1>,
+            SZ::LinearQuantizer<double>, SZ::HuffmanEncoder<int>>>> szmap;
 
 };
 

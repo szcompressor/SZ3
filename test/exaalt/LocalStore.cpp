@@ -361,23 +361,30 @@ int CompressedPersistentLocalStore::get_compressible(unsigned int dbKey, uint64_
     if (buffer.count(k) > 0) {
         data = buffer[k];
     } else {
-        auto conf = SZ::Config<double, 1>(realPrecision, std::array<size_t, 1>{block_size});
-        auto sz = SZ::make_sz_zone_compressor(conf, SZ::LorenzoPredictor<double, 1, 1>(realPrecision),
-                                              SZ::LinearQuantizer<double>(realPrecision), SZ::HuffmanEncoder<int>());
 
+        if (szmap.count(huffmanIndexStore[k]) == 0) {
+            auto conf = SZ::Config<double, 1>(realPrecision, std::array<size_t, 1>{block_size});
+//            auto sz = SZ::make_sz_zone_compressor(conf, SZ::LorenzoPredictor<double, 1, 1>(realPrecision),
+//                                                  SZ::LinearQuantizer<double>(realPrecision), SZ::HuffmanEncoder<int>());
 
-        RawDataVector tdata;
-        huffmanStore.get(0, huffmanIndexStore[k], tdata);
-        //std::cout<<"GET T: "<<treeLabel<<" "<<tdata.size()<<std::endl;
-        sz.decompress_encoder((unsigned char *) &(tdata[0]), tdata.size());
+            auto sz = new SZ::SZ_Zone_Compressor<double, 1, SZ::LorenzoPredictor<double, 1, 1>,
+                    SZ::LinearQuantizer<double>, SZ::HuffmanEncoder<int>>
+                    (conf, SZ::LorenzoPredictor<double, 1, 1>(realPrecision),
+                     SZ::LinearQuantizer<double>(realPrecision), SZ::HuffmanEncoder<int>());
 
-        //decompress
+            RawDataVector tdata;
+            huffmanStore.get(0, huffmanIndexStore[k], tdata);
+            //std::cout<<"GET T: "<<treeLabel<<" "<<tdata.size()<<std::endl;
+            sz->decompress_encoder((unsigned char *) &(tdata[0]), tdata.size());
+            szmap[huffmanIndexStore[k]].reset(sz);
+        }
         RawDataVector ddata;
         compressedStore.get(dbKey, key, ddata);
+        szmap[huffmanIndexStore[k]]->decompress_zone((unsigned char *) &(ddata[0]), ddata.size(), data);
+
 
 //        struct timespec start, end;
 //        clock_gettime(CLOCK_REALTIME, &start);
-        sz.decompress_zone((unsigned char *) &(ddata[0]), ddata.size(), data);
 //        clock_gettime(CLOCK_REALTIME, &end);
 //        std::cout << "get2 time = "
 //                  << (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000
