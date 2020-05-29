@@ -475,7 +475,7 @@ int main(int argc, char **argv) {
     double eb = 0.0001;
     if (argc > 3) {
         buffersize = atoi(argv[3]);
-        eb = atoi(argv[4]);
+        eb = atof(argv[4]);
     }
 
     std::filesystem::remove_all(dbdir);
@@ -498,7 +498,9 @@ int main(int argc, char **argv) {
 
     std::cout << "data size: " << input_num << ", block size: " << block_size
               << ", number of blocks: " << testcase
-              << ", error bound: " << eb << ", buffer size: " << buffersize << std::endl;
+              << ", buffer size: " << buffersize
+              << ", error bound: " << eb
+              << std::endl;
 
     std::cout << "raw_double vector size: " << raw_double[0].size() << std::endl;
     std::cout << "raw_char vector size: " << raw_char[0].size() << std::endl;
