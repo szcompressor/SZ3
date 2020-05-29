@@ -362,7 +362,7 @@ int CompressedPersistentLocalStore::get_compressible(unsigned int dbKey, uint64_
         data = buffer[k];
     } else {
 
-        if (szmap.count(huffmanIndexStore[k]) == 0) {
+//        if (szmap.count(huffmanIndexStore[k]) == 0) {
             auto conf = SZ::Config<double, 1>(realPrecision, std::array<size_t, 1>{block_size});
 //            auto sz = SZ::make_sz_zone_compressor(conf, SZ::LorenzoPredictor<double, 1, 1>(realPrecision),
 //                                                  SZ::LinearQuantizer<double>(realPrecision), SZ::HuffmanEncoder<int>());
@@ -377,7 +377,7 @@ int CompressedPersistentLocalStore::get_compressible(unsigned int dbKey, uint64_
             //std::cout<<"GET T: "<<treeLabel<<" "<<tdata.size()<<std::endl;
             sz->decompress_encoder((unsigned char *) &(tdata[0]), tdata.size());
             szmap[huffmanIndexStore[k]].reset(sz);
-        }
+//        }
         RawDataVector ddata;
         compressedStore.get(dbKey, key, ddata);
         szmap[huffmanIndexStore[k]]->decompress_zone((unsigned char *) &(ddata[0]), ddata.size(), data);
