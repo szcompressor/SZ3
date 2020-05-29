@@ -61,7 +61,7 @@ namespace SZ {
         //   return std::string(1, predictor_id);
         // }
         void save(uchar *&c) const {
-            std::cout << "save Lorenzo predictor" << std::endl;
+//            std::cout << "save Lorenzo predictor" << std::endl;
             c[0] = predictor_id;
             c += sizeof(uint8_t);
         }
@@ -76,7 +76,7 @@ namespace SZ {
         //   return LorenzoPredictor<T,N>{};
         // }
         void load(const uchar *&c, size_t &remaining_length) {
-            std::cout << "load Lorenzo predictor" << std::endl;
+//            std::cout << "load Lorenzo predictor" << std::endl;
             c += sizeof(uint8_t);
             remaining_length -= sizeof(uint8_t);
         }
@@ -115,6 +115,14 @@ namespace SZ {
                    - iter.prev(0, 1, 1) - iter.prev(1, 0, 1) - iter.prev(1, 1, 0)
                    + iter.prev(1, 1, 1);
 
+        }
+
+        template<uint NN = N, uint LL = L>
+        inline typename std::enable_if<NN == 4, T>::type do_predict(const iterator &iter) const noexcept {
+            return iter.prev(0, 0, 0, 1) + iter.prev(0, 0, 1, 0) - iter.prev(0, 0, 1, 1) + iter.prev(0, 1, 0, 0)
+                   - iter.prev(0, 1, 0, 1) - iter.prev(0, 1, 1, 0) + iter.prev(0, 1, 1, 1) + iter.prev(1, 0, 0, 0)
+                   - iter.prev(1, 0, 0, 1) - iter.prev(1, 0, 1, 0) + iter.prev(1, 0, 1, 1) - iter.prev(1, 1, 0, 0)
+                   + iter.prev(1, 1, 0, 1) + iter.prev(1, 1, 1, 0) - iter.prev(1, 1, 1, 1);
         }
 
         template<uint NN = N, uint LL = L>

@@ -12,7 +12,7 @@
 namespace SZ {
 
     template<class T, uint N>
-    class ComposedPredictor{
+    class ComposedPredictor {
     public:
         using Range = multi_dimensional_range<T, N>;
         using iterator = typename multi_dimensional_range<T, N>::iterator;
@@ -40,7 +40,6 @@ namespace SZ {
                 p->postdecompress_data(iter);
             }
         }
-
 
 
         void precompress_block(const std::shared_ptr<Range> &range) {
@@ -160,20 +159,23 @@ namespace SZ {
 //            unpack(Ps...);
 //        }
 
-        ComposedPredictor(std::vector<std::shared_ptr<concepts::VirtualPredictor<T, N>>> predictors) {
+        ComposedPredictor(std::vector<std::shared_ptr<concepts::VirtualPredictor < T, N>>
+
+        > predictors) {
             this->predictors = predictors;
             predict_error.resize(predictors.size());
         }
 
         void clear() {
             for (auto &pred:predictors) {
-                pred.clear();
+                pred->clear();
             }
             selection.clear();
         }
 
     private:
-        std::vector<std::shared_ptr<concepts::VirtualPredictor<T, N>>> predictors;
+        std::vector<std::shared_ptr<concepts::VirtualPredictor < T, N>>>
+        predictors;
         std::vector<int> selection;
         int sid = 0;                            // selected index
         size_t current_index = 0;            // for decompression only
@@ -208,7 +210,7 @@ namespace SZ {
         }
 
         template<uint NN = N>
-        inline typename std::enable_if<NN != 1 && NN != 2, void>::type
+        inline typename std::enable_if<NN == 3, void>::type
         do_estimate_error(const iterator &iter, int min_dimension) {
             std::fill(predict_error.begin(), predict_error.end(), 0);
 //            std::vector<double> err(predictors.size(), 0);
@@ -227,6 +229,42 @@ namespace SZ {
                 iter2.move(1, 1, -1);
                 iter3.move(1, -1, 1);
                 iter4.move(1, -1, -1);
+            }
+        }
+
+        template<uint NN = N>
+        inline typename std::enable_if<NN >= 4, void>::type
+        do_estimate_error(const iterator &iter, int min_dimension) {
+            std::fill(predict_error.begin(), predict_error.end(), 0);
+//            std::vector<double> err(predictors.size(), 0);
+            auto iter1 = iter, iter2 = iter, iter3 = iter, iter4 = iter,
+                    iter5 = iter, iter6 = iter, iter7 = iter, iter8 = iter;;
+            iter2.move(0, 0, 0, min_dimension - 1);
+            iter3.move(0, 0, min_dimension - 1, 0);
+            iter4.move(0, 0, min_dimension - 1, min_dimension - 1);
+            iter5.move(0, min_dimension - 1, 0, 0);
+            iter6.move(0, min_dimension - 1, 0, min_dimension - 1);
+            iter7.move(0, min_dimension - 1, min_dimension - 1, 0);
+            iter8.move(0, min_dimension - 1, min_dimension - 1, min_dimension - 1);
+            for (int i = 2; i < min_dimension; i++) {
+                for (int p = 0; p < predictors.size(); p++) {
+                    predict_error[p] += predictors[p]->estimate_error(iter1);
+                    predict_error[p] += predictors[p]->estimate_error(iter2);
+                    predict_error[p] += predictors[p]->estimate_error(iter3);
+                    predict_error[p] += predictors[p]->estimate_error(iter4);
+                    predict_error[p] += predictors[p]->estimate_error(iter5);
+                    predict_error[p] += predictors[p]->estimate_error(iter6);
+                    predict_error[p] += predictors[p]->estimate_error(iter7);
+                    predict_error[p] += predictors[p]->estimate_error(iter8);
+                }
+                iter1.move(1, 1, 1, 1);
+                iter2.move(1, 1, 1, -1);
+                iter3.move(1, 1, -1, 1);
+                iter4.move(1, 1, -1, -1);
+                iter5.move(1, -1, 1, 1);
+                iter6.move(1, -1, 1, -1);
+                iter7.move(1, -1, -1, 1);
+                iter8.move(1, -1, -1, -1);
             }
         }
     };

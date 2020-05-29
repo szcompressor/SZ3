@@ -13,10 +13,11 @@
 #include "predictor/RegressionPredictor.hpp"
 #include "predictor/PolyRegressionPredictor.hpp"
 #include "predictor/ComposedPredictor.hpp"
+#include "SZ_Impl_zone.hpp"
 #include "utils/fileUtil.h"
 #include "utils/Config.hpp"
 #include "utils/Verification.hpp"
-#include <def.hpp>
+#include "def.hpp"
 #include <cstdio>
 #include <iostream>
 #include <memory>
@@ -25,15 +26,19 @@ namespace SZ {
 
     template<typename T, class Predictor, uint N>
     float SZ_Compress_Impl(std::unique_ptr<T[]> const &data,
-                            const Config<T, N> &conf,
-                            Predictor predictor) {
+                           const Config<T, N> &conf,
+                           Predictor predictor) {
+        if (conf.zone != 1) {
+            return SZ_Compress_Impl_zone(data, conf, predictor);
+        }
+
         std::vector<T> data_ = std::vector<T>(data.get(), data.get() + conf.num);
 
         struct timespec start, end;
         clock_gettime(CLOCK_REALTIME, &start);
         std::cout << "****************** Compression ******************" << std::endl;
 
-        auto sz = SZ::make_sz_general_compressor(conf, predictor, SZ::LinearQuantizer<T>(conf.eb), SZ::HuffmanEncoder<int>());
+        auto sz = SZ::make_sz_general_compressor(conf, predictor, SZ::LinearQuantizer<T>(conf.eb, conf.quant_bin), SZ::HuffmanEncoder<int>());
 
         size_t compressed_size = 0;
         std::unique_ptr<SZ::uchar[]> compressed;

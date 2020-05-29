@@ -276,17 +276,17 @@ namespace SZ {
             huffmanTree = createHuffmanTree(stateNum);
             treeRoot = reconstruct_HuffTree_from_bytes_anyStates(c + sizeof(int) + sizeof(int), nodeCount);
             c += sizeof(int) + sizeof(int) + encodeStartIndex;
-            isLoaded = true;
+            loaded = true;
         }
 
-        void Loaded() { return isLoaded; }
+        bool isLoaded() { return loaded; }
 
     private:
         HuffmanTree *huffmanTree;
         node treeRoot;
         unsigned int nodeCount;
         uchar sysEndianType; //0: little endian, 1: big endian
-        bool isLoaded = false;
+        bool loaded = false;
 
         inline void symTransform_4bytes(uchar data[4]) {
             unsigned char tmp = data[0];

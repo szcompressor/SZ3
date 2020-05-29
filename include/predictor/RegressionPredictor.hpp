@@ -99,16 +99,18 @@ namespace SZ {
             std::cout << "save regression predictor" << std::endl;
             c[0] = 0b00000010;
             c += sizeof(uint8_t);
-            quantizer_independent.save(c);
-            quantizer_liner.save(c);
             *reinterpret_cast<size_t *>(c) = regression_coeff_quant_inds.size();
             c += sizeof(size_t);
-            HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
-            encoder.preprocess_encode(regression_coeff_quant_inds,
-                                      4 * std::max(quantizer_liner.get_radius(), quantizer_independent.get_radius()));
-            encoder.save(c);
-            encoder.encode(regression_coeff_quant_inds, c);
-            encoder.postprocess_encode();
+            if (!regression_coeff_quant_inds.empty()) {
+                quantizer_independent.save(c);
+                quantizer_liner.save(c);
+                HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
+                encoder.preprocess_encode(regression_coeff_quant_inds,
+                                          4 * std::max(quantizer_liner.get_radius(), quantizer_independent.get_radius()));
+                encoder.save(c);
+                encoder.encode(regression_coeff_quant_inds, c);
+                encoder.postprocess_encode();
+            }
         }
 
         void predecompress_block(const std::shared_ptr<Range> &range) noexcept {
@@ -120,18 +122,22 @@ namespace SZ {
             std::cout << "load regression predictor" << std::endl;
             c += sizeof(uint8_t);
             remaining_length -= sizeof(uint8_t);
-            quantizer_independent.load(c, remaining_length);
-            quantizer_liner.load(c, remaining_length);
+
             size_t coeff_size = *reinterpret_cast<const size_t *>(c);
             c += sizeof(size_t);
             remaining_length -= sizeof(size_t);
-            HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
-            encoder.load(c, remaining_length);
-            regression_coeff_quant_inds = encoder.decode(c, coeff_size);
-            encoder.postprocess_decode();
-            remaining_length -= coeff_size * sizeof(int);
-            std::fill(current_coeffs.begin(), current_coeffs.end(), 0);
-            regression_coeff_index = 0;
+            if (coeff_size != 0) {
+
+                quantizer_independent.load(c, remaining_length);
+                quantizer_liner.load(c, remaining_length);
+                HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
+                encoder.load(c, remaining_length);
+                regression_coeff_quant_inds = encoder.decode(c, coeff_size);
+                encoder.postprocess_decode();
+                remaining_length -= coeff_size * sizeof(int);
+                std::fill(current_coeffs.begin(), current_coeffs.end(), 0);
+                regression_coeff_index = 0;
+            }
         }
 
         void print() const {
@@ -160,7 +166,7 @@ namespace SZ {
         }
 
     private:
-        LinearQuantizer <T> quantizer_liner, quantizer_independent;
+        LinearQuantizer<T> quantizer_liner, quantizer_independent;
         std::vector<int> regression_coeff_quant_inds;
         size_t regression_coeff_index = 0;
         std::array<T, N + 1> current_coeffs;

@@ -7,15 +7,30 @@
 template<class T, uint N>
 float SZ_Compress_by_config(int argc, char **argv, int argp, std::unique_ptr<T[]> &data, float eb, std::array<size_t, N> dims) {
     SZ::Config<float, N> conf(eb, dims);
-    int block_size = atoi(argv[argp++]);
-    int lorenzo_op = atoi(argv[argp++]);
-    int regression_op = atoi(argv[argp++]);
-    conf.block_size = block_size;
-    conf.stride = block_size;
-    conf.enable_lorenzo = lorenzo_op == 1 || lorenzo_op == 3;
-    conf.enable_2ndlorenzo = lorenzo_op == 2 || lorenzo_op == 3;
-    conf.enable_regression = regression_op == 1 || regression_op == 3;
-    conf.enable_2ndregression = regression_op == 2 || regression_op == 3;
+    if (argp < argc) {
+        int block_size = atoi(argv[argp++]);
+        conf.block_size = block_size;
+        conf.stride = block_size;
+    }
+
+    if (argp + 1 < argc) {
+        int lorenzo_op = atoi(argv[argp++]);
+        int regression_op = atoi(argv[argp++]);
+        conf.enable_lorenzo = lorenzo_op == 1 || lorenzo_op == 3;
+        conf.enable_2ndlorenzo = lorenzo_op == 2 || lorenzo_op == 3;
+        conf.enable_regression = regression_op == 1 || regression_op == 3;
+        conf.enable_2ndregression = regression_op == 2 || regression_op == 3;
+    }
+
+    if (argp < argc) {
+        conf.quant_bin = atoi(argv[argp++]);
+    }
+
+    if (argp < argc) {
+        conf.zone = atoi(argv[argp++]);
+        conf.decompress_zone_idx = atoi(argv[argp++]);
+    }
+
     return SZ_Compress(data, conf);
 }
 
@@ -59,7 +74,7 @@ int main(int argc, char **argv) {
     } else if (dim == 3) {
         SZ_Compress_by_config<float, 3>(argc, argv, argp, data, eb, std::array<size_t, 3>{dims[0], dims[1], dims[2]});
     } else if (dim == 4) {
-        SZ_Compress_by_config<float, 3>(argc, argv, argp, data, eb, std::array<size_t, 3>{dims[0] * dims[1], dims[2], dims[3]});
+        SZ_Compress_by_config<float, 4>(argc, argv, argp, data, eb, std::array<size_t, 4>{dims[0], dims[1], dims[2], dims[3]});
     }
 
     return 0;

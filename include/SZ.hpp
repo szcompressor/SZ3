@@ -20,12 +20,15 @@ float SZ_Compress(std::unique_ptr<T[]> const &data, const SZ::Config<T, N> &conf
               << ", error bound = " << conf.eb
               << ", block_size = " << conf.block_size
               << ", stride = " << conf.stride
-              << std::endl
               << "  use_lorenzo = " << conf.enable_lorenzo
               << ", use_2ndlorenzo = " << conf.enable_2ndlorenzo
               << ", use_regression = " << conf.enable_regression
               << ", use_2ndregression = " << conf.enable_2ndregression
-              << ", use_lossless= " << conf.enable_lossless
+              << std::endl
+              << "  use_lossless= " << conf.enable_lossless
+              << ", quan_bin= " << conf.quant_bin
+              << ", zone = " << conf.zone
+              << ", decompress_zone_idx = " << conf.decompress_zone_idx
               << std::endl;
 
     std::vector<std::shared_ptr<SZ::concepts::VirtualPredictor<T, N>>> predictors;
@@ -64,7 +67,7 @@ float SZ_Compress(std::unique_ptr<T[]> const &data, const SZ::Config<T, N> &conf
 
 template<typename T>
 float SZ_Compress(std::unique_ptr<T[]> const &data, T eb, size_t r1, size_t r2, size_t r3, size_t r4) {
-    return SZ_Compress(data, SZ::Config<T, 3>(eb, std::array<size_t, 3>{r1 * r2, r3, r4}));
+    return SZ_Compress(data, SZ::Config<T, 4>(eb, std::array<size_t, 4>{r1, r2, r3, r4}));
 }
 
 template<typename T>
