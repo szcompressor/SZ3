@@ -496,9 +496,12 @@ int main(int argc, char **argv) {
         keys[i] = rand() % testcase;
     }
 
-    std::cout << "total datasize: " << input_num << std::endl;
-    std::cout << "raw_double size: " << raw_double[0].size() << std::endl;
-    std::cout << "raw_char size: " << raw_char[0].size() << std::endl;
+    std::cout << "data size: " << input_num << ", block size: " << block_size
+              << ", number of blocks: " << testcase
+              << ", error bound: " << eb << ", buffer size: " << buffersize << std::endl;
+
+    std::cout << "raw_double vector size: " << raw_double[0].size() << std::endl;
+    std::cout << "raw_char vector size: " << raw_char[0].size() << std::endl;
 //    std::cout << input[0] << "," << input[1] << std::endl;
 //    std::cout << raw_double[0][0] << "," << raw_double[0][1] << std::endl;
 
