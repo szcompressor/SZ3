@@ -12,7 +12,6 @@
 #include <cstring>
 
 namespace SZ {
-// type T
     template<class T, size_t N, class Predictor = concepts::VirtualPredictor<T, N>,
             class Quantizer = LinearQuantizer<T>, class Encoder = HuffmanEncoder<int> >
     class SZ_General_Compressor {
@@ -207,3 +206,4 @@ namespace SZ {
     }
 }
 #endif
+
