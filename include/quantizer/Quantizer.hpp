@@ -5,6 +5,33 @@
 
 namespace SZ {
     namespace concepts {
+
+        template<class T>
+        class QuantizerInterface {
+        public:
+
+            virtual ~QuantizerInterface() = default;
+
+            virtual void precompress_data() const = 0;
+
+            virtual void postcompress_data() const = 0;
+
+            virtual void predecompress_data() const = 0;
+
+            virtual void postdecompress_data() const = 0;
+
+            virtual void save(uchar *&c) const = 0;
+
+            virtual void load(const uchar *&c, size_t &remaining_length) = 0;
+
+            virtual int quantize(T data, T pred) = 0;
+
+            virtual int quantize_and_overwrite(T &data, T pred) = 0;
+
+            virtual T recover(T pred, int quant_index) = 0;
+
+        };
+
         /**
          * Concept for the predictor class.
          *
@@ -49,8 +76,8 @@ namespace SZ {
         struct is_quantizer : false_type {
         };
         template<typename T>
-        struct is_quantizer<T, void_t <
-                               typename T::value_type,
+        struct is_quantizer<T, void_t<
+                typename T::value_type,
                 typename T::reference,
                 decltype(std::declval<T>().quantize(
                         std::declval<typename T::value_type>(),
@@ -83,43 +110,43 @@ namespace SZ {
                 decltype(std::declval<T>().postdecompress_data()),
                 decltype(std::declval<T>().predecompress_block())//,
         >> : true_type {
-        // static_assert(
-        //     std::is_same<
-        //       decltype(std::declval<T>().save()),
-        //       std::string
-        //     >::value, "save must return a string");
-        // static_assert(
-        //     std::is_same<
-        //     decltype(std::declval<T>().quantize(
-        //           std::declval<typename T::value_type>(),
-        //           std::declval<typename T::value_type>(),
-        //           std::declval<typename T::reference>())),
-        //     int
-        //     >::value, "quantize must return an int");
-        static_assert(
-                std::is_same<
-                        decltype(std::declval<T>().quantize_and_overwrite(
-                                std::declval<typename T::reference>(),
-                                std::declval<typename T::value_type>())),
-                        int
-                >::value, "quantize must return an int");
-        static_assert(
-                std::is_same<
-                        decltype(std::declval<T>().quantize(
-                                std::declval<typename T::value_type>(),
-                                std::declval<typename T::value_type>())),
-                        int
-                >::value, "quantize must return an int");
-        static_assert(
-                std::is_same<
-                        decltype(std::declval<T>().recover(
-                                std::declval<typename T::value_type>(),
-                                std::declval<int>())),
-                        typename T::value_type
-                >::value, "recover must return an T::value_type");
-    };
+            // static_assert(
+            //     std::is_same<
+            //       decltype(std::declval<T>().save()),
+            //       std::string
+            //     >::value, "save must return a string");
+            // static_assert(
+            //     std::is_same<
+            //     decltype(std::declval<T>().quantize(
+            //           std::declval<typename T::value_type>(),
+            //           std::declval<typename T::value_type>(),
+            //           std::declval<typename T::reference>())),
+            //     int
+            //     >::value, "quantize must return an int");
+            static_assert(
+                    std::is_same<
+                            decltype(std::declval<T>().quantize_and_overwrite(
+                                    std::declval<typename T::reference>(),
+                                    std::declval<typename T::value_type>())),
+                            int
+                    >::value, "quantize must return an int");
+            static_assert(
+                    std::is_same<
+                            decltype(std::declval<T>().quantize(
+                                    std::declval<typename T::value_type>(),
+                                    std::declval<typename T::value_type>())),
+                            int
+                    >::value, "quantize must return an int");
+            static_assert(
+                    std::is_same<
+                            decltype(std::declval<T>().recover(
+                                    std::declval<typename T::value_type>(),
+                                    std::declval<int>())),
+                            typename T::value_type
+                    >::value, "recover must return an T::value_type");
+        };
 
-}
+    }
 }
 
 #endif

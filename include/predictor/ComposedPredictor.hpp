@@ -12,7 +12,7 @@
 namespace SZ {
 
     template<class T, uint N>
-    class ComposedPredictor {
+    class ComposedPredictor : public concepts::PredictorInterface<T, N> {
     public:
         using Range = multi_dimensional_range<T, N>;
         using iterator = typename multi_dimensional_range<T, N>::iterator;
@@ -125,6 +125,10 @@ namespace SZ {
             sid = _sid;
         }
 
+        T estimate_error(const iterator &iter) const noexcept {
+            return 0;
+        }
+
         void print() const {
             std::vector<size_t> cnt(predictors.size(), 0);
             size_t cnt_total = 0;
@@ -159,7 +163,7 @@ namespace SZ {
 //            unpack(Ps...);
 //        }
 
-        ComposedPredictor(std::vector<std::shared_ptr<concepts::VirtualPredictor < T, N>>
+        ComposedPredictor(std::vector<std::shared_ptr<concepts::PredictorInterface < T, N>>
 
         > predictors) {
             this->predictors = predictors;
@@ -174,7 +178,7 @@ namespace SZ {
         }
 
     private:
-        std::vector<std::shared_ptr<concepts::VirtualPredictor < T, N>>>
+        std::vector<std::shared_ptr<concepts::PredictorInterface < T, N>>>
         predictors;
         std::vector<int> selection;
         int sid = 0;                            // selected index

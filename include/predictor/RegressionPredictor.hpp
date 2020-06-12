@@ -13,7 +13,7 @@ namespace SZ {
 
 // N-d regression predictor
     template<class T, uint N>
-    class RegressionPredictor : public concepts::VirtualPredictor<T, N> {
+    class RegressionPredictor : public concepts::PredictorInterface<T, N> {
     public:
         static const uint8_t predictor_id = 0b00000010;
 

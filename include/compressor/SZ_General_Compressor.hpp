@@ -9,19 +9,24 @@
 #include "utils/MemoryOps.hpp"
 #include "utils/Config.hpp"
 #include "def.hpp"
+#include "utils/fileUtil.h"
 #include <cstring>
 
 namespace SZ {
-    template<class T, size_t N, class Predictor = concepts::VirtualPredictor<T, N>,
-            class Quantizer = LinearQuantizer<T>, class Encoder = HuffmanEncoder<int> >
+    template<class T, size_t N, class Predictor = concepts::PredictorInterface<T, N>,
+            class Quantizer = concepts::QuantizerInterface<T>, class Encoder = HuffmanEncoder<int> >
     class SZ_General_Compressor {
     public:
-        // static_assert(concepts::is_predictor<Predictor>::value, "must implement the predictor interface");
-        static_assert(concepts::is_quantizer<Quantizer>::value, "must implement the quatizer interface");
+
 
         SZ_General_Compressor(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer, Encoder encoder) :
                 predictor(predictor), quantizer(quantizer), encoder(encoder), block_size(conf.block_size), stride(conf.stride),
-                global_dimensions(conf.dims), num_elements(conf.num) {}
+                global_dimensions(conf.dims), num_elements(conf.num) {
+            static_assert(std::is_base_of_v<concepts::PredictorInterface<T, N>, Predictor>, "must implement the predictor interface");
+            static_assert(std::is_base_of_v<concepts::QuantizerInterface<T>, Quantizer>, "must implement the quatizer interface");
+//            static_assert(std::is_base_of_v<Quantizer>::value, "must implement the quatizer interface");
+
+        }
 
         // compress given the error bound
         uchar *compress(T *data, size_t &compressed_size) {
@@ -60,7 +65,7 @@ namespace SZ {
                     T dec_data = 0;
                     predictor.precompress_block(intra_block_range);
                     predictor.precompress_block_commit();
-                    quantizer.precompress_block();
+//                    quantizer.precompress_block();
 //          	reg_count += predictor.get_sid();
                     {
                         auto intra_begin = intra_block_range->begin();
@@ -101,6 +106,7 @@ namespace SZ {
             encoder.encode(quant_inds, compressed_data_pos);
             encoder.postprocess_encode();
 
+            writefile("no_lossless.dat", compressed_data, compressed_data_pos - compressed_data);
             uchar *lossless_data = lossless_compress(compressed_data,
                                                      compressed_data_pos - compressed_data,
                                                      compressed_size);
@@ -169,7 +175,7 @@ namespace SZ {
                     intra_block_range->set_starting_position(block.get_current_index_vector());
 
                     predictor.predecompress_block(intra_block_range);
-                    quantizer.predecompress_block();
+//                    quantizer.predecompress_block();
 //	          reg_count += predictor.get_sid();
                     // std::cout << "dimensions: " << intra_block_range->get_dimensions(0) << " " << intra_block_range->get_dimensions(1) << " " << intra_block_range->get_dimensions(2) << std::endl;
                     // std::cout << "index: " << block.get_current_index(0) << " " << block.get_current_index(1) << " " << block.get_current_index(2) << std::endl;

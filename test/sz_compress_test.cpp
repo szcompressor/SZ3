@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
 
     auto P_l = std::make_shared<SZ::LorenzoPredictor<float, 3, 1>>(eb);
     auto P_reg = std::make_shared<SZ::RegressionPredictor<float, 3>>(6, 0.1 * eb);
-    std::vector<std::shared_ptr<SZ::concepts::VirtualPredictor<float, 3>>> predictors_;
+    std::vector<std::shared_ptr<SZ::concepts::PredictorInterface<float, 3>>> predictors_;
     predictors_.push_back(P_l);
     predictors_.push_back(P_reg);
 //    auto cp = std::make_shared<SZ::ComposedPredictor<float, 3>>(predictors_);

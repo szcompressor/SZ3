@@ -11,12 +11,12 @@ namespace SZ {
     namespace concepts {
 
         template<class T, uint N>
-        class VirtualPredictor {
+        class PredictorInterface {
         public:
             using Range = multi_dimensional_range<T, N>;
             using iterator = typename multi_dimensional_range<T, N>::iterator;
 
-            virtual ~VirtualPredictor() = default;
+            virtual ~PredictorInterface() = default;
 
             virtual void precompress_data(const iterator &) const = 0;
 

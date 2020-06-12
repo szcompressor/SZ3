@@ -31,7 +31,7 @@ float SZ_Compress(std::unique_ptr<T[]> const &data, const SZ::Config<T, N> &conf
               << ", decompress_zone_idx = " << conf.decompress_zone_idx
               << std::endl;
 
-    std::vector<std::shared_ptr<SZ::concepts::VirtualPredictor<T, N>>> predictors;
+    std::vector<std::shared_ptr<SZ::concepts::PredictorInterface<T, N>>> predictors;
     int use_single_predictor =
             (conf.enable_lorenzo + conf.enable_2ndlorenzo + conf.enable_regression + conf.enable_2ndregression) == 1;
     if (conf.enable_lorenzo) {

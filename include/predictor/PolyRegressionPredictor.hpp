@@ -15,7 +15,7 @@ namespace SZ {
 
     // N-d regression predictor
     template<class T, uint N, uint M = (N + 1) * (N + 2) / 2>
-    class PolyRegressionPredictor : public concepts::VirtualPredictor<T, N> {
+    class PolyRegressionPredictor : public concepts::PredictorInterface<T, N> {
     public:
         static const uint8_t predictor_id = 0b00000011;
 

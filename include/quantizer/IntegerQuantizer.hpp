@@ -6,13 +6,14 @@
 #include <iostream>
 #include <vector>
 #include "def.hpp"
+#include "Quantizer.hpp"
 
 namespace SZ {
 
 // data with T type
 // return int
     template<class T>
-    class PredictionBasedQuantizer {
+    class PredictionBasedQuantizer : public concepts::QuantizerInterface<T> {
     protected:
         T error_bound;
         T error_bound_reciprocal;
@@ -30,17 +31,17 @@ namespace SZ {
 
         PredictionBasedQuantizer &operator=(PredictionBasedQuantizer &&) = default;
 
-        void precompress_data() {}
+        void precompress_data() const {}
 
-        void postcompress_data() {}
+        void postcompress_data() const {}
 
-        void precompress_block() {}
+        void predecompress_data() const {}
 
-        void predecompress_data() {}
+        void postdecompress_data() const {}
 
-        void postdecompress_data() {}
-
-        void predecompress_block() {}
+//        void predecompress_block() {}
+//
+//        void precompress_block() {}
 
 
         PredictionBasedQuantizer(T eb, int r) : error_bound(eb),

@@ -9,7 +9,7 @@ namespace SZ {
 
     // N-dimension L-layer lorenzo predictor
     template<class T, uint N, uint L>
-    class LorenzoPredictor : public concepts::VirtualPredictor<T, N> {
+    class LorenzoPredictor : public concepts::PredictorInterface<T, N> {
     public:
         static const uint8_t predictor_id = 0b00000001;
         using Range = multi_dimensional_range<T, N>;
