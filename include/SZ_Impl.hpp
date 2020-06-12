@@ -13,7 +13,6 @@
 #include "predictor/RegressionPredictor.hpp"
 #include "predictor/PolyRegressionPredictor.hpp"
 #include "predictor/ComposedPredictor.hpp"
-#include "SZ_Impl_zone.hpp"
 #include "utils/fileUtil.h"
 #include "utils/Config.hpp"
 #include "utils/Verification.hpp"
@@ -28,9 +27,6 @@ namespace SZ {
     float SZ_Compress_Impl(std::unique_ptr<T[]> const &data,
                            const Config<T, N> &conf,
                            Predictor predictor) {
-        if (conf.zone != 1) {
-            return SZ_Compress_Impl_zone(data, conf, predictor);
-        }
 
         std::vector<T> data_ = std::vector<T>(data.get(), data.get() + conf.num);
 
