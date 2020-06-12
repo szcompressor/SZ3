@@ -3,7 +3,7 @@
 
 #include "predictor/Predictor.hpp"
 #include "quantizer/Quantizer.hpp"
-#include "encoder/HuffmanEncoder.hpp"
+#include "encoder/Encoder.hpp"
 #include "lossless/Lossless.hpp"
 #include "utils/Iterator.hpp"
 #include "utils/MemoryOps.hpp"
@@ -26,8 +26,8 @@ namespace SZ {
             static_assert(std::is_base_of_v<concepts::PredictorInterface<T, N>, Predictor>,
                           "must implement the predictor interface");
             static_assert(std::is_base_of_v<concepts::QuantizerInterface<T>, Quantizer>, "must implement the quatizer interface");
-            static_assert(std::is_base_of_v<concepts::LosslessInterface, Lossless>, "must implement the quatizer interface");
-//            static_assert(std::is_base_of_v<Quantizer>::value, "must implement the quatizer interface");
+            static_assert(std::is_base_of_v<concepts::EncoderInterface<int>, Encoder>, "must implement the encoder interface");
+            static_assert(std::is_base_of_v<concepts::LosslessInterface, Lossless>, "must implement the lossless interface");
 
         }
 

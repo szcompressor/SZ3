@@ -4,7 +4,7 @@
 #include "def.hpp"
 #include "utils/Iterator.hpp"
 #include "quantizer/IntegerQuantizer.hpp"
-#include "encoder/Encoder.hpp"
+#include "encoder/HuffmanEncoder.hpp"
 #include <cstring>
 #include <iostream>
 #include <fstream>

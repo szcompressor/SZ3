@@ -2,6 +2,7 @@
 #define _SZ_HUFFMAN_ENCODER_HPP
 
 #include "def.hpp"
+#include "Encoder.hpp"
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
@@ -41,7 +42,7 @@ namespace SZ {
     } lfloat;
 
     template<class T>
-    class HuffmanEncoder {
+    class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
     public:
 
@@ -216,11 +217,10 @@ namespace SZ {
             SZ_FreeHuffman();
         }
 
-        //empty function
-        void preprocess_decode();
+        void preprocess_decode() {};
 
         //perform decoding
-        std::vector<T> decode(const uchar *&bytes, size_t targetLength) const {
+        std::vector<T> decode(const uchar *&bytes, size_t targetLength) {
             node t = treeRoot;
             std::vector<T> out(targetLength);
             size_t i = 0, byteIndex = 0, count = 0;
