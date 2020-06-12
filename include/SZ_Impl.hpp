@@ -6,13 +6,16 @@
 #define SZ_SZ_IMPL_HPP
 
 
-#include "quantizer/IntegerQuantizer.hpp"
 #include "compressor/SZ_General_Compressor.hpp"
 #include "predictor/Predictor.hpp"
 #include "predictor/LorenzoPredictor.hpp"
 #include "predictor/RegressionPredictor.hpp"
 #include "predictor/PolyRegressionPredictor.hpp"
 #include "predictor/ComposedPredictor.hpp"
+#include "quantizer/IntegerQuantizer.hpp"
+#include "encoder/HuffmanEncoder.hpp"
+#include "lossless/Lossless_zstd.hpp"
+#include "lossless/Lossless_bypass.hpp"
 #include "utils/fileUtil.h"
 #include "utils/Config.hpp"
 #include "utils/Verification.hpp"
@@ -34,7 +37,8 @@ namespace SZ {
         clock_gettime(CLOCK_REALTIME, &start);
         std::cout << "****************** Compression ******************" << std::endl;
 
-        auto sz = SZ::make_sz_general_compressor(conf, predictor, SZ::LinearQuantizer<T>(conf.eb, conf.quant_bin), SZ::HuffmanEncoder<int>());
+        auto sz = SZ::make_sz_general_compressor(conf, predictor, SZ::LinearQuantizer<T>(conf.eb, conf.quant_bin),
+                                                 SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd());
 
         size_t compressed_size = 0;
         std::unique_ptr<SZ::uchar[]> compressed;

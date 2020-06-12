@@ -4,26 +4,29 @@
 #include "predictor/Predictor.hpp"
 #include "quantizer/Quantizer.hpp"
 #include "encoder/HuffmanEncoder.hpp"
+#include "lossless/Lossless.hpp"
 #include "utils/Iterator.hpp"
-#include "utils/Lossless.hpp"
 #include "utils/MemoryOps.hpp"
 #include "utils/Config.hpp"
-#include "def.hpp"
 #include "utils/fileUtil.h"
+#include "def.hpp"
 #include <cstring>
 
 namespace SZ {
-    template<class T, size_t N, class Predictor = concepts::PredictorInterface<T, N>,
-            class Quantizer = concepts::QuantizerInterface<T>, class Encoder = HuffmanEncoder<int> >
+    template<class T, size_t N, class Predictor, class Quantizer, class Encoder, class Lossless>
     class SZ_General_Compressor {
     public:
 
 
-        SZ_General_Compressor(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer, Encoder encoder) :
-                predictor(predictor), quantizer(quantizer), encoder(encoder), block_size(conf.block_size), stride(conf.stride),
+        SZ_General_Compressor(const Config<T, N> &conf,
+                              Predictor predictor, Quantizer quantizer, Encoder encoder, Lossless lossless) :
+                predictor(predictor), quantizer(quantizer), encoder(encoder), lossless(lossless),
+                block_size(conf.block_size), stride(conf.stride),
                 global_dimensions(conf.dims), num_elements(conf.num) {
-            static_assert(std::is_base_of_v<concepts::PredictorInterface<T, N>, Predictor>, "must implement the predictor interface");
+            static_assert(std::is_base_of_v<concepts::PredictorInterface<T, N>, Predictor>,
+                          "must implement the predictor interface");
             static_assert(std::is_base_of_v<concepts::QuantizerInterface<T>, Quantizer>, "must implement the quatizer interface");
+            static_assert(std::is_base_of_v<concepts::LosslessInterface, Lossless>, "must implement the quatizer interface");
 //            static_assert(std::is_base_of_v<Quantizer>::value, "must implement the quatizer interface");
 
         }
@@ -107,16 +110,16 @@ namespace SZ {
             encoder.postprocess_encode();
 
             writefile("no_lossless.dat", compressed_data, compressed_data_pos - compressed_data);
-            uchar *lossless_data = lossless_compress(compressed_data,
+            uchar *lossless_data = lossless.compress(compressed_data,
                                                      compressed_data_pos - compressed_data,
                                                      compressed_size);
-            delete[] compressed_data;
+            lossless.postcompress_data(compressed_data);
             return lossless_data;
         }
 
 
         T *decompress(uchar const *lossless_compressed_data, const size_t length) {
-            auto compressed_data = lossless_decompress(lossless_compressed_data, length);
+            auto compressed_data = lossless.decompress(lossless_compressed_data, length);
             uchar const *compressed_data_pos = compressed_data;
             size_t remaining_length = length;
             read(global_dimensions.data(), N, compressed_data_pos, remaining_length);
@@ -139,7 +142,7 @@ namespace SZ {
             // compressed_data_pos += unpred_data_size * sizeof(T);
             auto quant_inds = encoder.decode(compressed_data_pos, num_elements);
             encoder.postprocess_decode();
-            delete[] compressed_data;
+            lossless.postdecompress_data(compressed_data);
 
             // std::cout << "load encoder done\n";fflush(stdout);
 //    	std::cout << quant_inds[157684267] << std::endl;
@@ -199,16 +202,19 @@ namespace SZ {
         Predictor predictor;
         Quantizer quantizer;
         Encoder encoder;
+        Lossless lossless;
         uint block_size;
         uint stride;
         size_t num_elements;
         std::array<size_t, N> global_dimensions;
     };
 
-    template<class T, uint N, class Predictor, class Quantizer, class Encoder>
-    SZ_General_Compressor<T, N, Predictor, Quantizer, Encoder>
-    make_sz_general_compressor(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer, Encoder encoder) {
-        return SZ_General_Compressor<T, N, Predictor, Quantizer, Encoder>(conf, predictor, quantizer, encoder);
+    template<class T, uint N, class Predictor, class Quantizer, class Encoder, class Lossless>
+    SZ_General_Compressor<T, N, Predictor, Quantizer, Encoder, Lossless>
+    make_sz_general_compressor(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer, Encoder encoder,
+                               Lossless lossless) {
+        return SZ_General_Compressor<T, N, Predictor, Quantizer, Encoder, Lossless>(conf, predictor, quantizer, encoder,
+                                                                                    lossless);
     }
 }
 #endif

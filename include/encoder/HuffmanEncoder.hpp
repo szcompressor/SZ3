@@ -1,8 +1,8 @@
 #ifndef _SZ_HUFFMAN_ENCODER_HPP
 #define _SZ_HUFFMAN_ENCODER_HPP
 
-#include <cassert>
 #include "def.hpp"
+#include <cassert>
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>

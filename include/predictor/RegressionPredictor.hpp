@@ -3,7 +3,7 @@
 
 #include "def.hpp"
 #include "utils/Iterator.hpp"
-#include "quantizer/Quantizer.hpp"
+#include "quantizer/IntegerQuantizer.hpp"
 #include "encoder/Encoder.hpp"
 #include <cstring>
 #include <iostream>

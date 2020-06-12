@@ -3,6 +3,7 @@
 #include <predictor/ComposedPredictor.hpp>
 #include <predictor/LorenzoPredictor.hpp>
 #include <predictor/RegressionPredictor.hpp>
+#include <lossless/Lossless_zstd.hpp>
 #include <utils/Iterator.hpp>
 #include <cstdio>
 #include <iostream>
@@ -48,13 +49,13 @@ int main(int argc, char **argv) {
     predictors_.push_back(P_reg);
 //    auto cp = std::make_shared<SZ::ComposedPredictor<float, 3>>(predictors_);
     SZ::Config<float, 3> conf(eb, std::array<size_t, 3>{100, 500, 500});
-    auto sz = SZ::SZ_General_Compressor<float, 3, SZ::ComposedPredictor<float, 3>, SZ::LinearQuantizer<float>, SZ::HuffmanEncoder<int> >(
+    auto sz = SZ::SZ_General_Compressor<float, 3, SZ::ComposedPredictor<float, 3>, SZ::LinearQuantizer<float>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
             conf,
             SZ::ComposedPredictor<float, 3>(predictors_),
             SZ::LinearQuantizer<float>(eb),
-            SZ::HuffmanEncoder<int>()
+            SZ::HuffmanEncoder<int>(),
+            SZ::Lossless_zstd()
     );
-
     size_t compressed_size = 0;
     struct timespec start, end;
     int err = 0;
