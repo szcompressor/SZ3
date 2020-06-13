@@ -9,6 +9,13 @@ add_definitions(-DPOLY_REGRESSION_COEF_FOLDER="${CMAKE_CURRENT_SOURCE_DIR}/data/
 find_library(ZSTD_LIBS zstd HINTS "$ENV{HOME}/tools/zstd-1.4.4/install/lib")
 set(ZSTD_INCLUDES "$ENV{HOME}/tools/zstd-1.4.4/install/include")
 
+#download lzbench from https://github.com/ayzk/lzbench
+find_library(lzbench_LIBS lzbench HINTS "$ENV{HOME}/code/lzbench/")
+set(lzbench_INCLUDES "$ENV{HOME}/code/lzbench/")
+if (lzbench_LIBS)
+    add_definitions(-DLZBENCH="TRUE")
+endif ()
+
 add_subdirectory(src)
 add_subdirectory(test)
 
