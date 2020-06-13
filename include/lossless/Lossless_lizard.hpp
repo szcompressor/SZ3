@@ -5,7 +5,7 @@
 #ifndef SZ_LOSSLESS_LIZARD_HPP
 #define SZ_LOSSLESS_LIZARD_HPP
 
-#ifdef LZBENCH
+#ifdef ENABLE_LZBENCH
 #include "lizard/lizard_compress.h"
 #include "lizard/lizard_decompress.h"
 #include "def.hpp"
@@ -50,5 +50,5 @@ namespace SZ {
 
     };
 }
-#endif //LZBENCH
+#endif //ENABLE_LZBENCH
 #endif //SZ_LOSSLESS_LIZARD_HPP

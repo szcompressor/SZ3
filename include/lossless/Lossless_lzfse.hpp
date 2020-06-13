@@ -4,7 +4,7 @@
 
 #ifndef SZ_LOSSLESS_LZFSE_HPP
 #define SZ_LOSSLESS_LZFSE_HPP
-#ifdef LZBENCH
+#ifdef ENABLE_LZBENCH
 
 #include "lzfse/lzfse.h"
 
@@ -49,5 +49,5 @@ namespace SZ {
 
     };
 }
-#endif //LZBENCH
+#endif //ENABLE_LZBENCH
 #endif //SZ_LOSSLESS_LZFSE_HPP

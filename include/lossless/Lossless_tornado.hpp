@@ -5,7 +5,7 @@
 #ifndef SZ_LOSSLESS_TORNADO_HPP
 #define SZ_LOSSLESS_TORNADO_HPP
 
-#ifdef LZBENCH
+#ifdef ENABLE_LZBENCH
 
 #include "tornado/tor_test.h"
 
@@ -50,5 +50,5 @@ namespace SZ {
 
     };
 }
-#endif //LZBENCH
+#endif //ENABLE_LZBENCH
 #endif //SZ_LOSSLESS_TORNADO_HPP

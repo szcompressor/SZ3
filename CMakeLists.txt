@@ -13,7 +13,7 @@ set(ZSTD_INCLUDES "$ENV{HOME}/tools/zstd-1.4.4/install/include")
 find_library(lzbench_LIBS lzbench HINTS "$ENV{HOME}/code/lzbench/")
 set(lzbench_INCLUDES "$ENV{HOME}/code/lzbench/")
 if (lzbench_LIBS)
-    add_definitions(-DLZBENCH="TRUE")
+    add_definitions(-DENABLE_LZBENCH="TRUE")
 endif ()
 
 add_subdirectory(src)
