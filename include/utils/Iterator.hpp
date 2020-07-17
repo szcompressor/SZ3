@@ -156,7 +156,10 @@ namespace SZ {
             multi_dimensional_iterator &move(Args &&... pos) {
                 static_assert(sizeof...(Args) == N, "Must have the same number of arguments");
                 std::array<int, N> args{std::forward<Args>(pos)...};
+                return move2(args);
+            }
 
+            multi_dimensional_iterator &move2(std::array<int, N> args) {
                 for (int i = N - 1; i >= 0; i--) {
                     if (args[i]) {
                         assert(0 <= current_index[i] + args[i]);
@@ -167,6 +170,7 @@ namespace SZ {
                 }
                 return *this;
             }
+
 
             // No support for carry set.
             template<class... Args>
@@ -301,8 +305,16 @@ namespace SZ {
             return dimensions;
         }
 
+        std::array<size_t, N> get_global_dimensions() const {
+            return global_dimensions;
+        }
+
         bool whether_global_start_position(size_t i) const {
             return start_position[i];
+        }
+
+        T *get_data() {
+            return data;
         }
 
     private:

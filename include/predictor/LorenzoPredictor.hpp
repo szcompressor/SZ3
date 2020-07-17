@@ -28,6 +28,8 @@ namespace SZ {
                     this->noise = 0.81 * eb;
                 } else if (N == 3) {
                     this->noise = 1.22 * eb;
+                } else if (N == 4) {
+                    this->noise = 1.79 * eb;
                 }
             } else if (L == 2) {
                 if (N == 1) {
