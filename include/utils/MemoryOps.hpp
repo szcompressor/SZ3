@@ -4,6 +4,8 @@
 
 #ifndef SZ_MEMORYOPS_HPP
 #define SZ_MEMORYOPS_HPP
+#include <cassert>
+#include <cstring>
 namespace SZ {
     // read array
     template<class T1>

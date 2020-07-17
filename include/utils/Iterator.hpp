@@ -1,6 +1,7 @@
 #ifndef _SZ_ITERATOR_HPP
 #define _SZ_ITERATOR_HPP
 
+#include <cassert>
 #include <cstddef>
 #include <memory>
 #include <iterator>
