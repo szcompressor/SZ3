@@ -50,11 +50,11 @@ namespace SZ {
 
         void postdecompress_data(const iterator &) const {}
 
-        void precompress_block(const std::shared_ptr<Range> &) {}
+        bool precompress_block(const std::shared_ptr<Range> &) { return true; }
 
         void precompress_block_commit() noexcept {}
 
-        void predecompress_block(const std::shared_ptr<Range> &) {}
+        bool predecompress_block(const std::shared_ptr<Range> &) { return true; }
 
         /*
          * save doesn't need to store anything except the id

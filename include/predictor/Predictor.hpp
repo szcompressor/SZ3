@@ -26,11 +26,11 @@ namespace SZ {
 
             virtual void postdecompress_data(const iterator &) const = 0;
 
-            virtual void precompress_block(const std::shared_ptr<Range> &) = 0;
+            virtual bool precompress_block(const std::shared_ptr<Range> &) = 0;
 
             virtual void precompress_block_commit() = 0;
 
-            virtual void predecompress_block(const std::shared_ptr<Range> &) = 0;
+            virtual bool predecompress_block(const std::shared_ptr<Range> &) = 0;
 
             virtual void save(uchar *&c) const = 0;
 

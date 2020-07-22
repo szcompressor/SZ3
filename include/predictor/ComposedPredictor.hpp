@@ -42,9 +42,10 @@ namespace SZ {
         }
 
 
-        void precompress_block(const std::shared_ptr<Range> &range) {
+        bool precompress_block(const std::shared_ptr<Range> &range) {
+            std::vector<bool> precompress_block_result;
             for (const auto &p:predictors) {
-                p->precompress_block(range);
+                precompress_block_result.push_back(p->precompress_block(range));
             }
             const auto &dims = range->get_dimensions();
             int min_dimension = *std::min_element(dims.begin(), dims.end());
@@ -54,15 +55,16 @@ namespace SZ {
             sid = std::distance(predict_error.begin(), std::min_element(predict_error.begin(), predict_error.end()));
             selection.push_back(sid);
             // std::cout << sid << std::endl;
+            return precompress_block_result[sid];
         }
 
         void precompress_block_commit() {
             predictors[sid]->precompress_block_commit();
         }
 
-        void predecompress_block(const std::shared_ptr<Range> &range) {
+        bool predecompress_block(const std::shared_ptr<Range> &range) {
             sid = selection[current_index++];
-            predictors[sid]->predecompress_block(range);
+            return predictors[sid]->predecompress_block(range);
         }
 
         void save(uchar *&c) const {

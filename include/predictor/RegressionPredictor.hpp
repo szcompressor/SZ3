@@ -44,16 +44,19 @@ namespace SZ {
             return fabs(*iter - predict(iter));
         }
 
-        void precompress_block(const std::shared_ptr<Range> &range) noexcept {
+        bool precompress_block(const std::shared_ptr<Range> &range) noexcept {
             // std::cout << "precompress_block" << std::endl;
             auto dims = range->get_dimensions();
-            std::array<double, N + 1> sum{0};
-//            auto sum = compute_regression_coefficients(range);
             size_t num_elements = 1;
             for (const auto &dim : dims) {
                 num_elements *= dim;
+                if (dim <= 1) {
+                    return false;
+                }
             }
+
             T num_elements_recip = 1.0 / num_elements;
+            std::array<double, N + 1> sum{0};
 
             {
                 auto range_begin = range->begin();
@@ -79,6 +82,7 @@ namespace SZ {
                 current_coeffs[i] = (2 * sum[i] / (dims[i] - 1) - sum[N]) * 6 * num_elements_recip / (dims[i] + 1);
                 current_coeffs[N] -= (dims[i] - 1) * current_coeffs[i] / 2;
             }
+            return true;
         }
 
         void precompress_block_commit() noexcept {
@@ -113,8 +117,14 @@ namespace SZ {
             }
         }
 
-        void predecompress_block(const std::shared_ptr<Range> &range) noexcept {
+        bool predecompress_block(const std::shared_ptr<Range> &range) noexcept {
+            for (const auto &dim :  range->get_dimensions()) {
+                if (dim <= 1) {
+                    return false;
+                }
+            }
             pred_and_recover_coefficients();
+            return true;
         }
 
         void load(const uchar *&c, size_t &remaining_length) {

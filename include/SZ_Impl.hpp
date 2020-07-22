@@ -55,10 +55,10 @@ namespace SZ {
 
         auto ratio = conf.num * sizeof(T) * 1.0 / compressed_size;
         std::cout << "Compression Ratio = " << ratio << std::endl;
-        SZ::writefile("compressed.out", compressed.get(), compressed_size);
+        SZ::writefile("compressed.dat", compressed.get(), compressed_size);
 
         std::cout << "****************** Decompression ******************" << std::endl;
-        compressed = SZ::readfile<SZ::uchar>("compressed.out", compressed_size);
+        compressed = SZ::readfile<SZ::uchar>("compressed.dat", compressed_size);
 
         clock_gettime(CLOCK_REALTIME, &start);
         std::unique_ptr<T[]> dec_data;

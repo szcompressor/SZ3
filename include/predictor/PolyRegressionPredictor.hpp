@@ -52,9 +52,14 @@ namespace SZ {
             return fabs(*iter - predict(iter));
         }
 
-        void precompress_block(const std::shared_ptr<Range> &range) noexcept {
+        bool precompress_block(const std::shared_ptr<Range> &range) noexcept {
             // std::cout << "precompress_block" << std::endl;
             auto dims = range->get_dimensions();
+            for (const auto &dim : dims) {
+                if (dim <= 2) {
+                    return false;
+                }
+            }
             std::array<double, M> sum{0};
             {
                 for (auto iter = range->begin(); iter != range->end(); ++iter) {
@@ -74,7 +79,7 @@ namespace SZ {
                     current_coeffs[i] += coef_aux_idx[i * M + j] * sum[j];
                 }
             }
-
+            return true;
         }
 
         void precompress_block_commit() noexcept {
@@ -134,8 +139,14 @@ namespace SZ {
             encoder.postprocess_encode();
         }
 
-        void predecompress_block(const std::shared_ptr<Range> &range) noexcept {
+        bool predecompress_block(const std::shared_ptr<Range> &range) noexcept {
+            for (const auto &dim :  range->get_dimensions()) {
+                if (dim <= 2) {
+                    return false;
+                }
+            }
             pred_and_recover_coefficients();
+            return true;
         }
 
         void load(const uchar *&c, size_t &remaining_length) {
@@ -175,7 +186,7 @@ namespace SZ {
         }
 
     private:
-        LinearQuantizer<T> quantizer_independent, quantizer_liner, quantizer_poly;
+        LinearQuantizer <T> quantizer_independent, quantizer_liner, quantizer_poly;
         std::vector<int> regression_coeff_quant_inds;
         size_t regression_coeff_index = 0;
         std::array<T, M> current_coeffs;

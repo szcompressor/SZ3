@@ -2,6 +2,7 @@
 #define _SZ_SZ_GENERAL_HPP
 
 #include "predictor/Predictor.hpp"
+#include "predictor/LorenzoPredictor.hpp"
 #include "quantizer/Quantizer.hpp"
 #include "encoder/Encoder.hpp"
 #include "lossless/Lossless.hpp"
@@ -20,6 +21,7 @@ namespace SZ {
 
         SZ_General_Compressor(const Config<T, N> &conf,
                               Predictor predictor, Quantizer quantizer, Encoder encoder, Lossless lossless) :
+                fallback_predictor(LorenzoPredictor<T, N, 1>(conf.eb)),
                 predictor(predictor), quantizer(quantizer), encoder(encoder), lossless(lossless),
                 block_size(conf.block_size), stride(conf.stride),
                 global_dimensions(conf.dims), num_elements(conf.num) {
@@ -28,7 +30,6 @@ namespace SZ {
             static_assert(std::is_base_of_v<concepts::QuantizerInterface<T>, Quantizer>, "must implement the quatizer interface");
             static_assert(std::is_base_of_v<concepts::EncoderInterface<int>, Encoder>, "must implement the encoder interface");
             static_assert(std::is_base_of_v<concepts::LosslessInterface, Lossless>, "must implement the lossless interface");
-
         }
 
         // compress given the error bound
@@ -46,7 +47,6 @@ namespace SZ {
             predictor.precompress_data(inter_block_range->begin());
             quantizer.precompress_data();
             size_t quant_count = 0;
-            size_t reg_count = 0;
             struct timespec start, end;
             clock_gettime(CLOCK_REALTIME, &start);
             {
@@ -65,17 +65,18 @@ namespace SZ {
                     intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
                     intra_block_range->set_offsets(block.get_offset());
                     intra_block_range->set_starting_position(block.get_current_index_vector());
-                    T dec_data = 0;
-                    predictor.precompress_block(intra_block_range);
-                    predictor.precompress_block_commit();
+                    concepts::PredictorInterface<T, N> *predictor_withfallback = &predictor;
+                    if (!predictor.precompress_block(intra_block_range)) {
+                        predictor_withfallback = &fallback_predictor;
+                    }
+                    predictor_withfallback->precompress_block_commit();
 //                    quantizer.precompress_block();
-//          	reg_count += predictor.get_sid();
                     {
                         auto intra_begin = intra_block_range->begin();
                         auto intra_end = intra_block_range->end();
                         for (auto element = intra_begin; element != intra_end; ++element) {
-//                            quantizer.quantize_and_overwrite(*element, predictor.predict(element));
-                            quant_inds[quant_count++] = quantizer.quantize_and_overwrite(*element, predictor.predict(element));
+                            quant_inds[quant_count++] = quantizer.quantize_and_overwrite(
+                                    *element, predictor_withfallback->predict(element));
                         }
                     }
                 }
@@ -86,7 +87,6 @@ namespace SZ {
                       << (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000
                       << "s" << std::endl;
 
-//            std::cout << "reg_count = " << reg_count << std::endl;
             predictor.postcompress_data(inter_block_range->begin());
             quantizer.postcompress_data();
             uchar *compressed_data;
@@ -109,7 +109,6 @@ namespace SZ {
             encoder.encode(quant_inds, compressed_data_pos);
             encoder.postprocess_encode();
 
-            writefile("no_lossless.dat", compressed_data, compressed_data_pos - compressed_data);
             uchar *lossless_data = lossless.compress(compressed_data,
                                                      compressed_data_pos - compressed_data,
                                                      compressed_size);
@@ -162,7 +161,6 @@ namespace SZ {
             quantizer.predecompress_data();
 
             std::cout << "start decompression" << std::endl;
-            size_t reg_count = 0;
             {
                 auto inter_begin = inter_block_range->begin();
                 auto inter_end = inter_block_range->end();
@@ -177,21 +175,24 @@ namespace SZ {
                     intra_block_range->set_offsets(block.get_offset());
                     intra_block_range->set_starting_position(block.get_current_index_vector());
 
-                    predictor.predecompress_block(intra_block_range);
+                    concepts::PredictorInterface<T, N> *predictor_withfallback = &predictor;
+                    if (!predictor.predecompress_block(intra_block_range)) {
+                        predictor_withfallback = &fallback_predictor;
+                    }
+
+
 //                    quantizer.predecompress_block();
-//	          reg_count += predictor.get_sid();
                     // std::cout << "dimensions: " << intra_block_range->get_dimensions(0) << " " << intra_block_range->get_dimensions(1) << " " << intra_block_range->get_dimensions(2) << std::endl;
                     // std::cout << "index: " << block.get_current_index(0) << " " << block.get_current_index(1) << " " << block.get_current_index(2) << std::endl;
                     {
                         auto intra_begin = intra_block_range->begin();
                         auto intra_end = intra_block_range->end();
                         for (auto element = intra_begin; element != intra_end; ++element) {
-                            *element = quantizer.recover(predictor.predict(element), *(quant_inds_pos++));
+                            *element = quantizer.recover(predictor_withfallback->predict(element), *(quant_inds_pos++));
                         }
                     }
                 }
             }
-            std::cout << "reg_count = " << reg_count << std::endl;
             predictor.postdecompress_data(inter_block_range->begin());
             quantizer.postdecompress_data();
             return dec_data.release();
@@ -200,6 +201,7 @@ namespace SZ {
 
     private:
         Predictor predictor;
+        LorenzoPredictor<T, N, 1> fallback_predictor;
         Quantizer quantizer;
         Encoder encoder;
         Lossless lossless;
