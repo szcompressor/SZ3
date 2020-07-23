@@ -12,7 +12,7 @@
 #include "def.hpp"
 #include "utils/MemoryOps.hpp"
 #include "utils/fileUtil.h"
-#include "Lossless.hpp"
+#include "lossless/Lossless.hpp"
 
 namespace SZ {
     class Lossless_TORNADO : public concepts::LosslessInterface {

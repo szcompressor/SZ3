@@ -1,9 +1,10 @@
 #ifndef _SZ_LORENZO_PREDICTOR_HPP
 #define _SZ_LORENZO_PREDICTOR_HPP
 
-#include <cassert>
 #include "def.hpp"
+#include "predictor/Predictor.hpp"
 #include "utils/Iterator.hpp"
+#include <cassert>
 
 namespace SZ {
 

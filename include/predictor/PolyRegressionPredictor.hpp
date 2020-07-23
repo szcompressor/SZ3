@@ -4,6 +4,7 @@
 #include "def.hpp"
 #include "utils/Iterator.hpp"
 #include "utils/fileUtil.h"
+#include "predictor/Predictor.hpp"
 #include "quantizer/Quantizer.hpp"
 #include "encoder/Encoder.hpp"
 #include <cstring>
@@ -89,15 +90,15 @@ namespace SZ {
 
         template<uint NN = N>
         inline typename std::enable_if<NN == 1, std::array<T, M>>::type get_poly_index(const iterator &iter) const {
-            T i = iter.get_current_index(0);
+            T i = iter.get_local_index(0);
 
             return std::array<T, M>{1.0, i, i * i};
         }
 
         template<uint NN = N>
         inline typename std::enable_if<NN == 2, std::array<T, M>>::type get_poly_index(const iterator &iter) const {
-            T i = iter.get_current_index(0);
-            T j = iter.get_current_index(1);
+            T i = iter.get_local_index(0);
+            T j = iter.get_local_index(1);
 
             return std::array<T, M>{1.0, i, j, i * i, i * j, j * j};
         }
@@ -105,9 +106,9 @@ namespace SZ {
         template<uint NN = N>
         inline typename std::enable_if<NN != 1 && NN != 2, std::array<T, M>>::type
         get_poly_index(const iterator &iter) const {
-            T i = iter.get_current_index(0);
-            T j = iter.get_current_index(1);
-            T k = iter.get_current_index(2);
+            T i = iter.get_local_index(0);
+            T j = iter.get_local_index(1);
+            T k = iter.get_local_index(2);
 
             return std::array<T, M>{1.0, i, j, k, i * i, i * j, i * k, j * j, j * k, k * k};
         }

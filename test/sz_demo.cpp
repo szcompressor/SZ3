@@ -26,11 +26,6 @@ float SZ_Compress_by_config(int argc, char **argv, int argp, std::unique_ptr<T[]
         conf.quant_bin = atoi(argv[argp++]);
     }
 
-    if (argp < argc) {
-        conf.zone = atoi(argv[argp++]);
-        conf.decompress_zone_idx = atoi(argv[argp++]);
-    }
-
     return SZ_Compress(data, conf);
 }
 
@@ -56,13 +51,13 @@ int main(int argc, char **argv) {
     float eb = reb * (max - min);
     if (argp == argc) {
         if (dim == 1) {
-            SZ_Compress(data, eb, dims[0]);
+            SZ::SZ_Compress(data, eb, dims[0]);
         } else if (dim == 2) {
-            SZ_Compress(data, eb, dims[0], dims[1]);
+            SZ::SZ_Compress(data, eb, dims[0], dims[1]);
         } else if (dim == 3) {
-            SZ_Compress(data, eb, dims[0], dims[1], dims[2]);
+            SZ::SZ_Compress(data, eb, dims[0], dims[1], dims[2]);
         } else if (dim == 4) {
-            SZ_Compress(data, eb, dims[0], dims[1], dims[2], dims[3]);
+            SZ::SZ_Compress(data, eb, dims[0], dims[1], dims[2], dims[3]);
         }
         return 0;
     }

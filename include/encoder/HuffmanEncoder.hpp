@@ -2,7 +2,7 @@
 #define _SZ_HUFFMAN_ENCODER_HPP
 
 #include "def.hpp"
-#include "Encoder.hpp"
+#include "encoder/Encoder.hpp"
 #include <cassert>
 #include <cstdlib>
 #include <cstring>

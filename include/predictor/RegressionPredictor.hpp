@@ -3,6 +3,7 @@
 
 #include "def.hpp"
 #include "utils/Iterator.hpp"
+#include "predictor/Predictor.hpp"
 #include "quantizer/IntegerQuantizer.hpp"
 #include "encoder/HuffmanEncoder.hpp"
 #include <cstring>
@@ -66,11 +67,11 @@ namespace SZ {
                     for (int t = 0; t < dims[N - 1]; t++) {
                         T data = *iter;
                         sum_cumulative += data;
-                        sum[N - 1] += iter.get_current_index(N - 1) * data;
+                        sum[N - 1] += iter.get_local_index(N - 1) * data;
                         iter.move();
                     }
                     for (int i = 0; i < N - 1; i++) {
-                        sum[i] += sum_cumulative * iter.get_current_index(i);
+                        sum[i] += sum_cumulative * iter.get_local_index(i);
                     }
                     sum[N] += sum_cumulative;
                 }
@@ -93,7 +94,7 @@ namespace SZ {
         inline T predict(const iterator &iter) const noexcept {
             T pred = 0;
             for (int i = 0; i < N; i++) {
-                pred += iter.get_current_index(i) * current_coeffs[i];
+                pred += iter.get_local_index(i) * current_coeffs[i];
             }
             pred += current_coeffs[N];
             return pred;

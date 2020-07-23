@@ -6,7 +6,7 @@
 #include <iostream>
 #include <vector>
 #include "def.hpp"
-#include "Quantizer.hpp"
+#include "quantizer/Quantizer.hpp"
 
 namespace SZ {
 
