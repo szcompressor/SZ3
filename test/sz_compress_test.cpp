@@ -5,40 +5,17 @@
 #include <predictor/RegressionPredictor.hpp>
 #include <lossless/Lossless_zstd.hpp>
 #include <utils/Iterator.hpp>
+#include <utils/FileUtil.h>
 #include <cstdio>
 #include <iostream>
 #include <cmath>
 #include <memory>
 #include <type_traits>
 
-template<typename Type>
-std::unique_ptr<Type[]> readfile(const char *file, size_t &num) {
-    std::ifstream fin(file, std::ios::binary);
-    if (!fin) {
-        std::cout << " Error, Couldn't find the file" << "\n";
-        return 0;
-    }
-    fin.seekg(0, std::ios::end);
-    const size_t num_elements = fin.tellg() / sizeof(Type);
-    fin.seekg(0, std::ios::beg);
-    auto data = std::make_unique<Type[]>(num_elements);
-    fin.read(reinterpret_cast<char *>(&data[0]), num_elements * sizeof(Type));
-    fin.close();
-    num = num_elements;
-    return data;
-}
-
-template<typename Type>
-void writefile(const char *file, Type *data, size_t num_elements) {
-    std::ofstream fout(file, std::ios::binary);
-    fout.write(reinterpret_cast<const char *>(&data[0]), num_elements * sizeof(Type));
-    fout.close();
-}
-
 int main(int argc, char **argv) {
     size_t num = 0;
     // use Hurricane for testing
-    auto data = readfile<float>(argv[1], num);
+    auto data = SZ::readfile<float>(argv[1], num);
     std::cout << "Read " << num << " elements\n";
     float eb = 10;
 
@@ -67,7 +44,7 @@ int main(int argc, char **argv) {
               << (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000 << "s"
               << std::endl;
     std::cout << "Compressed size = " << compressed_size << std::endl;
-    writefile("test.dat", compressed.get(), compressed_size);
+    SZ::writefile("test.dat", compressed.get(), compressed_size);
     err = clock_gettime(CLOCK_REALTIME, &start);
     std::unique_ptr<float[]> dec_data;
     dec_data.reset(sz.decompress(compressed.get(), compressed_size));

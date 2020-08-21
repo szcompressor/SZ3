@@ -18,7 +18,7 @@
 #include "lossless/Lossless_lzfse.hpp"
 #include "lossless/Lossless_lizard.hpp"
 #include "lossless/Lossless_tornado.hpp"
-#include "utils/fileUtil.h"
+#include "utils/FileUtil.h"
 #include "utils/Config.hpp"
 #include "utils/Verification.hpp"
 #include "def.hpp"
@@ -82,7 +82,7 @@ namespace SZ {
                   << "s"
                   << std::endl;
 
-        SZ::verify<T>(data_.data(), data.get(), conf.num);
+        SZ::verify<T>(data_.data(), dec_data.get(), conf.num);
         return ratio;
     }
 

@@ -9,7 +9,7 @@
 #include "utils/Iterator.hpp"
 #include "utils/MemoryOps.hpp"
 #include "utils/Config.hpp"
-#include "utils/fileUtil.h"
+#include "utils/FileUtil.h"
 #include "def.hpp"
 #include <cstring>
 
@@ -32,9 +32,7 @@ namespace SZ {
             static_assert(std::is_base_of_v<concepts::LosslessInterface, Lossless>, "must implement the lossless interface");
         }
 
-        // compress given the error bound
         uchar *compress(T *data, size_t &compressed_size) {
-            // TODO: new quantizer if eb does not match
 
             auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data,
                                                                                          std::begin(global_dimensions),
@@ -71,13 +69,11 @@ namespace SZ {
                     }
                     predictor_withfallback->precompress_block_commit();
 //                    quantizer.precompress_block();
-                    {
-                        auto intra_begin = intra_block_range->begin();
-                        auto intra_end = intra_block_range->end();
-                        for (auto element = intra_begin; element != intra_end; ++element) {
-                            quant_inds[quant_count++] = quantizer.quantize_and_overwrite(
-                                    *element, predictor_withfallback->predict(element));
-                        }
+                    auto intra_begin = intra_block_range->begin();
+                    auto intra_end = intra_block_range->end();
+                    for (auto element = intra_begin; element != intra_end; ++element) {
+                        quant_inds[quant_count++] = quantizer.quantize_and_overwrite(
+                                *element, predictor_withfallback->predict(element));
                     }
                 }
             }
@@ -89,16 +85,10 @@ namespace SZ {
 
             predictor.postcompress_data(inter_block_range->begin());
             quantizer.postcompress_data();
-            uchar *compressed_data;
-            if (stride > block_size) {
-                std::cout << "Sampling Compress Mode is ON" << std::endl;
-                quant_inds.resize(quant_count);
-                compressed_data = new uchar[3 * quant_count * sizeof(T)];
-            } else {
-                compressed_data = new uchar[2 * num_elements * sizeof(T)];
-            }
 
+            uchar *compressed_data = new uchar[2 * num_elements * sizeof(T)];
             uchar *compressed_data_pos = compressed_data;
+
             write(global_dimensions.data(), N, compressed_data_pos);
             write(block_size, compressed_data_pos);
             predictor.save(compressed_data_pos);
@@ -128,23 +118,16 @@ namespace SZ {
                 std::cout << d << " ";
             }
             std::cout << std::endl;
-            uint block_size = 0;
             read(block_size, compressed_data_pos, remaining_length);
+            stride = block_size;
             predictor.load(compressed_data_pos, remaining_length);
-            // std::cout << "load predictor done\n";fflush(stdout);
             quantizer.load(compressed_data_pos, remaining_length);
-            // std::cout << "load quantizer done\n";fflush(stdout);
             encoder.load(compressed_data_pos, remaining_length);
-            // size_t unpred_data_size = 0;
-            // read(unpred_data_size, compressed_data_pos, remaining_length);
-            // T const * unpred_data_pos = (T const *) compressed_data_pos;
-            // compressed_data_pos += unpred_data_size * sizeof(T);
+
             auto quant_inds = encoder.decode(compressed_data_pos, num_elements);
             encoder.postprocess_decode();
             lossless.postdecompress_data(compressed_data);
 
-            // std::cout << "load encoder done\n";fflush(stdout);
-//    	std::cout << quant_inds[157684267] << std::endl;
             int const *quant_inds_pos = (int const *) quant_inds.data();
             std::array<size_t, N> intra_block_dims;
             auto dec_data = std::make_unique<T[]>(num_elements);
@@ -179,17 +162,10 @@ namespace SZ {
                     if (!predictor.predecompress_block(intra_block_range)) {
                         predictor_withfallback = &fallback_predictor;
                     }
-
-
-//                    quantizer.predecompress_block();
-                    // std::cout << "dimensions: " << intra_block_range->get_dimensions(0) << " " << intra_block_range->get_dimensions(1) << " " << intra_block_range->get_dimensions(2) << std::endl;
-                    // std::cout << "index: " << block.get_local_index(0) << " " << block.get_local_index(1) << " " << block.get_local_index(2) << std::endl;
-                    {
-                        auto intra_begin = intra_block_range->begin();
-                        auto intra_end = intra_block_range->end();
-                        for (auto element = intra_begin; element != intra_end; ++element) {
-                            *element = quantizer.recover(predictor_withfallback->predict(element), *(quant_inds_pos++));
-                        }
+                    auto intra_begin = intra_block_range->begin();
+                    auto intra_end = intra_block_range->end();
+                    for (auto element = intra_begin; element != intra_end; ++element) {
+                        *element = quantizer.recover(predictor_withfallback->predict(element), *(quant_inds_pos++));
                     }
                 }
             }

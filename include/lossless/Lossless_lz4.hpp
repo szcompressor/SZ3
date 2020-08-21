@@ -8,7 +8,7 @@
 #include "lz4/lz4.h"
 #include "def.hpp"
 #include "utils/MemoryOps.hpp"
-#include "utils/fileUtil.h"
+#include "utils/FileUtil.h"
 #include "lossless/Lossless.hpp"
 
 namespace SZ {
