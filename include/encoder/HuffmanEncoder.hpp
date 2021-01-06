@@ -544,15 +544,22 @@ namespace SZ {
         node qremove() {
             int i, l;
             node n = huffmanTree->qq[i = 1];
-
+            node p;
             if (huffmanTree->qend < 2) return 0;
             huffmanTree->qend--;
-            while ((l = (i << 1)) < huffmanTree->qend)  //l=(i*2)
-            {
-                if (l + 1 < huffmanTree->qend && huffmanTree->qq[l + 1]->freq < huffmanTree->qq[l]->freq) l++;
-                huffmanTree->qq[i] = huffmanTree->qq[l], i = l;
-            }
             huffmanTree->qq[i] = huffmanTree->qq[huffmanTree->qend];
+
+            while ((l = (i << 1)) < huffmanTree->qend) {  //l=(i*2)
+                if (l + 1 < huffmanTree->qend && huffmanTree->qq[l + 1]->freq < huffmanTree->qq[l]->freq) l++;
+                if (huffmanTree->qq[i]->freq > huffmanTree->qq[l]->freq) {
+                    p = huffmanTree->qq[i];
+                    huffmanTree->qq[i] = huffmanTree->qq[l];
+                    huffmanTree->qq[l] = p;
+                    i = l;
+                } else {
+                    break;
+                }
+            }
             return n;
         }
 
