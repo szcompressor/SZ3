@@ -10,65 +10,79 @@
 
 namespace SZ {
 
-// data with T type
-// return int
     template<class T>
-    class PredictionBasedQuantizer : public concepts::QuantizerInterface<T> {
-    protected:
-        T error_bound;
-        T error_bound_reciprocal;
-        int radius; // quantization interval radius
+    class LinearQuantizer : public concepts::QuantizerInterface<T> {
     public:
-        ~PredictionBasedQuantizer() = default;
+        LinearQuantizer() : error_bound(1), error_bound_reciprocal(1), radius(32768) {}
 
-        PredictionBasedQuantizer() = default;
-
-        PredictionBasedQuantizer(PredictionBasedQuantizer const &) = default;
-
-        PredictionBasedQuantizer(PredictionBasedQuantizer &&) = default;
-
-        PredictionBasedQuantizer &operator=(PredictionBasedQuantizer const &) = default;
-
-        PredictionBasedQuantizer &operator=(PredictionBasedQuantizer &&) = default;
-
-        void precompress_data() const {}
-
-        void postcompress_data() const {}
-
-        void predecompress_data() const {}
-
-        void postdecompress_data() const {}
-
-//        void predecompress_block() {}
-//
-//        void precompress_block() {}
-
-
-        PredictionBasedQuantizer(T eb, int r) : error_bound(eb),
-                                                error_bound_reciprocal(1.0 / eb),
-                                                radius(r) {}
+        LinearQuantizer(T eb, int r = 32768) : error_bound(eb),
+                                               error_bound_reciprocal(1.0 / eb),
+                                               radius(r) {}
 
         int get_radius() const { return radius; }
 
         T get_eb() const { return error_bound; }
 
-    };
-
-    template<class T>
-    class LinearQuantizer : public PredictionBasedQuantizer<T> {
-    public:
-        LinearQuantizer(T eb, int r = 32768) : PredictionBasedQuantizer<T>(eb, r) {
+        void set_eb(T eb) {
+            error_bound = eb;
+            error_bound_reciprocal = 1.0 / eb;
         }
 
-        using value_type = T;
-        using reference = T &;
-
         // quantize the data with a prediction value, and returns the quantization index
-        int quantize(T data, T pred);
+        int quantize(T data, T pred) {
+            T diff = data - pred;
+            int quant_index = (int) (fabs(diff) * this->error_bound_reciprocal) + 1;
+            if (quant_index < this->radius * 2) {
+                quant_index >>= 1;
+                int half_index = quant_index;
+                quant_index <<= 1;
+                int quant_index_shifted;
+                if (diff < 0) {
+                    quant_index = -quant_index;
+                    quant_index_shifted = this->radius - half_index;
+                } else {
+                    quant_index_shifted = this->radius + half_index;
+                }
+                T decompressed_data = pred + quant_index * this->error_bound;
+                if (fabs(decompressed_data - data) > this->error_bound) {
+                    return 0;
+                } else {
+                    return quant_index_shifted;
+                }
+            } else {
+                return 0;
+            }
+        }
 
         // quantize the data with a prediction value, and returns the quantization index and the decompressed data
         // int quantize(T data, T pred, T& dec_data);
-        int quantize_and_overwrite(T &data, T pred);
+        int quantize_and_overwrite(T &data, T pred) {
+            T diff = data - pred;
+            int quant_index = (int) (fabs(diff) * this->error_bound_reciprocal) + 1;
+            if (quant_index < this->radius * 2) {
+                quant_index >>= 1;
+                int half_index = quant_index;
+                quant_index <<= 1;
+                int quant_index_shifted;
+                if (diff < 0) {
+                    quant_index = -quant_index;
+                    quant_index_shifted = this->radius - half_index;
+                } else {
+                    quant_index_shifted = this->radius + half_index;
+                }
+                T decompressed_data = pred + quant_index * this->error_bound;
+                if (fabs(decompressed_data - data) > this->error_bound) {
+                    unpred.push_back(data);
+                    return 0;
+                } else {
+                    data = decompressed_data;
+                    return quant_index_shifted;
+                }
+            } else {
+                unpred.push_back(data);
+                return 0;
+            }
+        }
 
         // recover the data using the quantization index
         T recover(T pred, int quant_index);
@@ -108,71 +122,28 @@ namespace SZ {
 
         void clear() {
             unpred.clear();
+            index = 0;
         }
+
+        virtual void postcompress_data() {
+        }
+
+        virtual void postdecompress_data() {
+        }
+
+        virtual void precompress_data() {};
+
+        virtual void predecompress_data() {};
+
 
     private:
         std::vector<T> unpred;
         size_t index = 0; // used in decompression only
+
+        T error_bound;
+        T error_bound_reciprocal;
+        int radius; // quantization interval radius
     };
-
-    template<class T>
-    int LinearQuantizer<T>::quantize(T data, T pred) {
-        int radius = this->radius;
-        // compute quantization index
-        int quant_index = (int) ((data - pred) * this->error_bound_reciprocal);
-        quant_index = (quant_index > 0) ? (quant_index + 1) / 2 : (quant_index - 1) / 2;
-        // shift quantization index, set overbound to 0
-        return (quant_index > 0) ? (quant_index < radius ? quant_index + radius : 0) : (quant_index > -radius ? quant_index +
-                                                                                                                radius : 0);
-    }
-
-//    template<class T>
-//    inline int LinearQuantizer<T>::quantize_and_overwrite(T &data, T pred) {
-//
-//        int quant_index = floor((data - pred) * this->error_bound_reciprocal_divided_by_2 + 0.5);
-//        int quant = 0;
-//        if (abs(quant_index) < this->radius) {
-//            T decom = pred + quant_index * this->error_bound_times_2;
-//            if (fabs(decom - data) < this->error_bound) {
-//                data = decom;
-//                quant = quant_index + this->radius;
-//            }
-//        }
-//        if (quant == 0) {
-//            unpred.push_back(data);
-//        }
-//        return quant;
-//    }
-
-    template<class T>
-    inline int LinearQuantizer<T>::quantize_and_overwrite(T &data, T pred) {
-
-        T diff = data - pred;
-        int quant_index = (int) (fabs(diff) * this->error_bound_reciprocal) + 1;
-        if (quant_index < this->radius * 2) {
-            quant_index >>= 1;
-            int half_index = quant_index;
-            quant_index <<= 1;
-            int quant_index_shifted;
-            if (diff < 0) {
-                quant_index = -quant_index;
-                quant_index_shifted = this->radius - half_index;
-            } else {
-                quant_index_shifted = this->radius + half_index;
-            }
-            T decompressed_data = pred + quant_index * this->error_bound;
-            if (fabs(decompressed_data - data) > this->error_bound) {
-                unpred.push_back(data);
-                return 0;
-            } else {
-                data = decompressed_data;
-                return quant_index_shifted;
-            }
-        } else {
-            unpred.push_back(data);
-            return 0;
-        }
-    }
 
     template<class T>
     T LinearQuantizer<T>::recover(T pred, int quant_index) {
