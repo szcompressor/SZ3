@@ -9,7 +9,6 @@
 #include "predictor/Predictor.hpp"
 #include "predictor/LorenzoPredictor.hpp"
 #include "predictor/RegressionPredictor.hpp"
-#include "predictor/PolyRegressionPredictor.hpp"
 #include "predictor/ComposedPredictor.hpp"
 #include "quantizer/IntegerQuantizer.hpp"
 #include "encoder/HuffmanEncoder.hpp"
@@ -40,7 +39,7 @@ namespace SZ {
                   << "lorenzo = " << conf.enable_lorenzo
                   << ", 2ndlorenzo = " << conf.enable_2ndlorenzo
                   << ", regression = " << conf.enable_regression
-                  << ", 2ndregression = " << conf.enable_2ndregression
+//                  << ", 2ndregression = " << conf.enable_2ndregression
                   << ", lossless = " << conf.enable_lossless
                   << std::endl;
 
@@ -89,7 +88,7 @@ namespace SZ {
 
         std::vector<std::shared_ptr<SZ::concepts::PredictorInterface<T, N>>> predictors;
         int use_single_predictor =
-                (conf.enable_lorenzo + conf.enable_2ndlorenzo + conf.enable_regression + conf.enable_2ndregression) == 1;
+                (conf.enable_lorenzo + conf.enable_2ndlorenzo + conf.enable_regression) == 1;
         if (conf.enable_lorenzo) {
             if (use_single_predictor) {
                 return SZ::SZ_Compress<T>(data, conf, SZ::LorenzoPredictor<T, N, 1>(conf.eb));
@@ -111,13 +110,13 @@ namespace SZ {
                 predictors.push_back(std::make_shared<SZ::RegressionPredictor<T, N>>(conf.block_size, conf.eb));
             }
         }
-        if (conf.enable_2ndregression) {
-            if (use_single_predictor) {
-                return SZ::SZ_Compress<T>(data, conf, SZ::PolyRegressionPredictor<T, N>(conf.block_size, conf.eb));
-            } else {
-                predictors.push_back(std::make_shared<SZ::PolyRegressionPredictor<T, N>>(conf.block_size, conf.eb));
-            }
-        }
+//        if (conf.enable_2ndregression) {
+//            if (use_single_predictor) {
+//                return SZ::SZ_Compress<T>(data, conf, SZ::PolyRegressionPredictor<T, N>(conf.block_size, conf.eb));
+//            } else {
+//                predictors.push_back(std::make_shared<SZ::PolyRegressionPredictor<T, N>>(conf.block_size, conf.eb));
+//            }
+//        }
         return SZ::SZ_Compress<T>(data, conf, SZ::ComposedPredictor<T, N>(predictors));
     }
 

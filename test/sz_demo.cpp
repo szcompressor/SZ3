@@ -18,8 +18,7 @@ float SZ_Compress_by_config(int argc, char **argv, int argp, std::unique_ptr<T[]
         int regression_op = atoi(argv[argp++]);
         conf.enable_lorenzo = lorenzo_op == 1 || lorenzo_op == 3;
         conf.enable_2ndlorenzo = lorenzo_op == 2 || lorenzo_op == 3;
-        conf.enable_regression = regression_op == 1 || regression_op == 3;
-        conf.enable_2ndregression = regression_op == 2 || regression_op == 3;
+        conf.enable_regression = regression_op == 1;
     }
 
     if (argp < argc) {
