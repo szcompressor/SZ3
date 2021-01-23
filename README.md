@@ -8,7 +8,7 @@ See COPYRIGHT in top-level directory.
 * Other Contributors: Robert Underwood, Sihuan Li, Ali M. Gok
 
 ## Citations
-**Kindly note**: If you mention SZ in your paper, the most appropriate citation is including these four references (***HPDC20, Bigdata2018, IPDPS2017 and IPDPS2016***), because they cover the whole design and implementation of the latest version of SZ.**
+**Kindly note**: If you mention SZ in your paper, the most appropriate citation is including these four references (***HPDC2020, Bigdata2018, IPDPS2017 and IPDPS2016***), because they cover the whole design and implementation of the latest version of SZ.**
 
 * SZ 3.0+: Kai Zhao, Sheng Di, Xin Liang, Sihuan Li, Dingwen Tao, Zizhong Chen, and Franck Cappello. "[Significantly Improving Lossy Compression for HPC Datasets with Second-Order Prediction and Parameter Optimization](https://dl.acm.org/doi/10.1145/3369583.3392688)", Proceedings of the 29th International Symposium on High-Performance Parallel and Distributed Computing (HPDC 20), Stockholm, Sweden, 2020.
 
