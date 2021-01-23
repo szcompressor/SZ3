@@ -1,5 +1,4 @@
 SZ3: A Modular Error-bounded Lossy Compression Framework for Scientific Datasets
-
 =====
 (C) 2016 by Mathematics and Computer Science (MCS), Argonne National Laboratory.
 See COPYRIGHT in top-level directory.
@@ -39,6 +38,6 @@ You can use the executable 'sz_demo' command to do the compression/decompression
 
 ## Version history
 
-version		New features
+Version		New features
 
 * SZ 3.0.0  SZ3 is the C++ version of SZ with modular and composable design.
