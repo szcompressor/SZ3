@@ -3,11 +3,6 @@ target_include_directories(sz_huffman_test PRIVATE ${PROJECT_SOURCE_DIR}/include
 target_link_libraries(sz_huffman_test SZ3 ${ZSTD_LIBS})
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/sz_demo TYPE BIN)
 
-add_executable(sz_test sz_compress_test.cpp)
-target_include_directories(sz_test PRIVATE ${PROJECT_SOURCE_DIR}/include)
-target_link_libraries(sz_test SZ3 ${ZSTD_LIBS})
-install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/sz_test TYPE BIN)
-
 add_executable(sz_demo sz_demo.cpp)
 target_include_directories(sz_demo PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(sz_demo SZ3 ${ZSTD_LIBS})
