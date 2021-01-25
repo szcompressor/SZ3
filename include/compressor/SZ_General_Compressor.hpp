@@ -14,7 +14,7 @@
 #include <cstring>
 
 namespace SZ {
-    template<class T, size_t N, class Predictor, class Quantizer, class Encoder, class Lossless>
+    template<class T, uint N, class Predictor, class Quantizer, class Encoder, class Lossless>
     class SZ_General_Compressor {
     public:
 
@@ -25,11 +25,13 @@ namespace SZ {
                 predictor(predictor), quantizer(quantizer), encoder(encoder), lossless(lossless),
                 block_size(conf.block_size), stride(conf.stride),
                 global_dimensions(conf.dims), num_elements(conf.num) {
-            static_assert(std::is_base_of_v<concepts::PredictorInterface<T, N>, Predictor>,
+            static_assert(std::is_base_of<concepts::PredictorInterface<T, N>, Predictor>::value,
                           "must implement the predictor interface");
-            static_assert(std::is_base_of_v<concepts::QuantizerInterface<T>, Quantizer>, "must implement the quatizer interface");
-            static_assert(std::is_base_of_v<concepts::EncoderInterface<int>, Encoder>, "must implement the encoder interface");
-            static_assert(std::is_base_of_v<concepts::LosslessInterface, Lossless>, "must implement the lossless interface");
+            static_assert(std::is_base_of<concepts::QuantizerInterface<T>, Quantizer>::value,
+                          "must implement the quatizer interface");
+            static_assert(std::is_base_of<concepts::EncoderInterface<int>, Encoder>::value,
+                          "must implement the encoder interface");
+            static_assert(std::is_base_of<concepts::LosslessInterface, Lossless>::value, "must implement the lossless interface");
         }
 
         uchar *compress(T *data, size_t &compressed_size) {
@@ -69,14 +71,14 @@ namespace SZ {
                     }
                     predictor_withfallback->precompress_block_commit();
 //                    quantizer.precompress_block();
-                    auto intra_begin = intra_block_range->begin();
-                    auto intra_end = intra_block_range->end();
-                    for (auto element = intra_begin; element != intra_end; ++element) {
-                        quant_inds[quant_count++] = quantizer.quantize_and_overwrite(
+                        auto intra_begin = intra_block_range->begin();
+                        auto intra_end = intra_block_range->end();
+                        for (auto element = intra_begin; element != intra_end; ++element) {
+                            quant_inds[quant_count++] = quantizer.quantize_and_overwrite(
                                 *element, predictor_withfallback->predict(element));
+                        }
                     }
                 }
-            }
 
             clock_gettime(CLOCK_REALTIME, &end);
             std::cout << "Predition & Quantization time = "
@@ -88,7 +90,6 @@ namespace SZ {
 
             uchar *compressed_data = new uchar[2 * num_elements * sizeof(T)];
             uchar *compressed_data_pos = compressed_data;
-
             write(global_dimensions.data(), N, compressed_data_pos);
             write(block_size, compressed_data_pos);
             predictor.save(compressed_data_pos);
@@ -108,9 +109,9 @@ namespace SZ {
 
 
         T *decompress(uchar const *lossless_compressed_data, const size_t length) {
-            auto compressed_data = lossless.decompress(lossless_compressed_data, length);
-            uchar const *compressed_data_pos = compressed_data;
             size_t remaining_length = length;
+            auto compressed_data = lossless.decompress(lossless_compressed_data, remaining_length);
+            uchar const *compressed_data_pos = compressed_data;
             read(global_dimensions.data(), N, compressed_data_pos, remaining_length);
             num_elements = 1;
             for (const auto &d : global_dimensions) {
@@ -162,10 +163,10 @@ namespace SZ {
                     if (!predictor.predecompress_block(intra_block_range)) {
                         predictor_withfallback = &fallback_predictor;
                     }
-                    auto intra_begin = intra_block_range->begin();
-                    auto intra_end = intra_block_range->end();
-                    for (auto element = intra_begin; element != intra_end; ++element) {
-                        *element = quantizer.recover(predictor_withfallback->predict(element), *(quant_inds_pos++));
+                        auto intra_begin = intra_block_range->begin();
+                        auto intra_end = intra_block_range->end();
+                        for (auto element = intra_begin; element != intra_end; ++element) {
+                            *element = quantizer.recover(predictor_withfallback->predict(element), *(quant_inds_pos++));
                     }
                 }
             }
@@ -196,4 +197,3 @@ namespace SZ {
     }
 }
 #endif
-

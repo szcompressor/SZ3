@@ -31,13 +31,14 @@ namespace SZ {
             delete[] data;
         }
 
-        uchar *decompress(const uchar *data, size_t compressedSize) {
+        uchar *decompress(const uchar *data, size_t &compressedSize) {
             const uchar *dataPos = data;
             size_t dataLength = 0;
             read(dataLength, dataPos, compressedSize);
 
             uchar *oriData = new uchar[dataLength];
             ZSTD_decompress(oriData, dataLength, dataPos, compressedSize);
+            compressedSize = dataLength;
             return oriData;
         }
 

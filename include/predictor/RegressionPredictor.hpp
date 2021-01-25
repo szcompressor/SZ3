@@ -101,12 +101,14 @@ namespace SZ {
         }
 
         void save(uchar *&c) const {
-            std::cout << "save regression predictor" << std::endl;
+//            std::cout << "save regression predictor" << std::endl;
+
             c[0] = 0b00000010;
             c += sizeof(uint8_t);
             *reinterpret_cast<size_t *>(c) = regression_coeff_quant_inds.size();
             c += sizeof(size_t);
             if (!regression_coeff_quant_inds.empty()) {
+//                std::cout << "reg coeff = " << regression_coeff_quant_inds.size() << std::endl;
                 quantizer_independent.save(c);
                 quantizer_liner.save(c);
                 HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
@@ -174,6 +176,14 @@ namespace SZ {
             regression_coeff_index = 0;
             current_coeffs = {0};
             prev_coeffs = {0};
+        }
+
+        std::array<T, N + 1> get_current_coeffs() {
+            return current_coeffs;
+        }
+
+        void set_current_coeffs(std::array<T, N + 1> coeff) {
+            current_coeffs = coeff;
         }
 
     private:

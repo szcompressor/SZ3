@@ -53,12 +53,12 @@ namespace SZ {
             do_estimate_error(range->begin(), min_dimension);
 
             sid = std::distance(predict_error.begin(), std::min_element(predict_error.begin(), predict_error.end()));
-            selection.push_back(sid);
             // std::cout << sid << std::endl;
             return precompress_block_result[sid];
         }
 
         void precompress_block_commit() {
+            selection.push_back(sid);
             predictors[sid]->precompress_block_commit();
         }
 
@@ -76,15 +76,15 @@ namespace SZ {
             // std::cout << "COMPOSED SAVE OFFSET = " << c - tmp << std::endl;
             // store selection
 
-            // TODO: check correctness
             *reinterpret_cast<size_t *>(c) = (size_t) selection.size();
             c += sizeof(size_t);
-            HuffmanEncoder<int> selection_encoder;
-            selection_encoder.preprocess_encode(selection, 4 * predictors.size());
-            selection_encoder.save(c);
-            selection_encoder.encode(selection, c);
-            selection_encoder.postprocess_encode();
-
+            if (selection.size()) {
+                HuffmanEncoder<int> selection_encoder;
+                selection_encoder.preprocess_encode(selection, 4 * predictors.size());
+                selection_encoder.save(c);
+                selection_encoder.encode(selection, c);
+                selection_encoder.postprocess_encode();
+            }
 //            *reinterpret_cast<size_t *>(c) = (size_t) selection.size();
 //            c += sizeof(size_t);
 //            memcpy(c, selection.data(), selection.size() * sizeof(int));
@@ -104,11 +104,13 @@ namespace SZ {
             // TODO: check correctness
             size_t selection_size = *reinterpret_cast<const size_t *>(c);
             c += sizeof(size_t);
-            HuffmanEncoder<int> selection_encoder;
-            selection_encoder.load(c, remaining_length);
-            this->selection = selection_encoder.decode(c, selection_size);
-            selection_encoder.postprocess_decode();
-
+            if (selection_size > 0) {
+                remaining_length -= sizeof(size_t);
+                HuffmanEncoder<int> selection_encoder;
+                selection_encoder.load(c, remaining_length);
+                this->selection = selection_encoder.decode(c, selection_size);
+                selection_encoder.postprocess_decode();
+            }
 //            size_t selection_size = *reinterpret_cast<const size_t *>(c);
 //            c += sizeof(size_t);
             // std::cout << "selection size = " << selection_size << std::endl;
@@ -128,7 +130,7 @@ namespace SZ {
         }
 
         T estimate_error(const iterator &iter) const noexcept {
-            return 0;
+            return predictors[sid]->estimate_error(iter);
         }
 
         void print() const {
@@ -139,7 +141,7 @@ namespace SZ {
                 cnt_total++;
             }
             for (int i = 0; i < predictors.size(); i++) {
-                predictors[i]->print();
+//                predictors[i]->print();
                 printf("Blocks:%ld, Percentage:%.2f\n", cnt[i], 1.0 * cnt[i] / cnt_total);
             }
         }

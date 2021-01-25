@@ -76,6 +76,10 @@ namespace SZ {
                 sysEndianType = 1;
         }
 
+        ~HuffmanEncoder() {
+            SZ_FreeHuffman();
+        }
+
         //build huffman tree
         HuffmanTree *createHuffmanTree(int stateNum) {
             HuffmanTree *huffmanTree = (HuffmanTree *) malloc(sizeof(HuffmanTree));
@@ -256,7 +260,7 @@ namespace SZ {
 
         //empty function
         void postprocess_decode() {
-//            SZ_FreeHuffman();
+            SZ_FreeHuffman();
         }
 
         //load Huffman tree
@@ -268,10 +272,12 @@ namespace SZ {
                 encodeStartIndex = 1 + 3 * nodeCount * sizeof(unsigned char) + nodeCount * sizeof(T);
             else if (nodeCount <= 65536)
                 encodeStartIndex =
-                        1 + 2 * nodeCount * sizeof(unsigned short) + nodeCount * sizeof(unsigned char) + nodeCount * sizeof(T);
+                        1 + 2 * nodeCount * sizeof(unsigned short) + nodeCount * sizeof(unsigned char) +
+                        nodeCount * sizeof(T);
             else
                 encodeStartIndex =
-                        1 + 2 * nodeCount * sizeof(unsigned int) + nodeCount * sizeof(unsigned char) + nodeCount * sizeof(T);
+                        1 + 2 * nodeCount * sizeof(unsigned int) + nodeCount * sizeof(unsigned char) +
+                        nodeCount * sizeof(T);
 
             huffmanTree = createHuffmanTree(stateNum);
             treeRoot = reconstruct_HuffTree_from_bytes_anyStates(c + sizeof(int) + sizeof(int), nodeCount);
@@ -282,7 +288,7 @@ namespace SZ {
         bool isLoaded() { return loaded; }
 
     private:
-        HuffmanTree *huffmanTree;
+        HuffmanTree *huffmanTree = NULL;
         node treeRoot;
         unsigned int nodeCount;
         uchar sysEndianType; //0: little endian, 1: big endian
@@ -678,7 +684,8 @@ namespace SZ {
 
             pad_tree(L, R, C, t, 0, huffmanTree->qq[1]);
 
-            unsigned int totalSize = 1 + 2 * nodeCount * sizeof(T1) + nodeCount * sizeof(unsigned char) + nodeCount * sizeof(T);
+            unsigned int totalSize =
+                    1 + 2 * nodeCount * sizeof(T1) + nodeCount * sizeof(unsigned char) + nodeCount * sizeof(T);
             //*out = (unsigned char*)malloc(totalSize);
             out[0] = (unsigned char) sysEndianType;
             memcpy(out + 1, L, nodeCount * sizeof(T1));
@@ -694,21 +701,23 @@ namespace SZ {
         }
 
         void SZ_FreeHuffman() {
-            size_t i;
-            free(huffmanTree->pool);
-            huffmanTree->pool = NULL;
-            free(huffmanTree->qqq);
-            huffmanTree->qqq = NULL;
-            for (i = 0; i < huffmanTree->stateNum; i++) {
-                if (huffmanTree->code[i] != NULL)
-                    free(huffmanTree->code[i]);
+            if (huffmanTree != NULL) {
+                size_t i;
+                free(huffmanTree->pool);
+                huffmanTree->pool = NULL;
+                free(huffmanTree->qqq);
+                huffmanTree->qqq = NULL;
+                for (i = 0; i < huffmanTree->stateNum; i++) {
+                    if (huffmanTree->code[i] != NULL)
+                        free(huffmanTree->code[i]);
+                }
+                free(huffmanTree->code);
+                huffmanTree->code = NULL;
+                free(huffmanTree->cout);
+                huffmanTree->cout = NULL;
+                free(huffmanTree);
+                huffmanTree = NULL;
             }
-            free(huffmanTree->code);
-            huffmanTree->code = NULL;
-            free(huffmanTree->cout);
-            huffmanTree->cout = NULL;
-            free(huffmanTree);
-            huffmanTree = NULL;
         }
 
     };

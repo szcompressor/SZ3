@@ -17,7 +17,7 @@ namespace SZ {
 
             virtual uchar *compress(uchar *data, size_t dataLength, size_t &outSize) = 0;
 
-            virtual uchar *decompress(const uchar *data, size_t compressedSize) = 0;
+            virtual uchar *decompress(const uchar *data, size_t& compressedSize) = 0;
         };
     }
 }
