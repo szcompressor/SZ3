@@ -34,7 +34,6 @@ namespace SZ {
         bool enable_lorenzo = true;
         bool enable_2ndlorenzo = false;
         bool enable_regression = true;
-        bool enable_2ndregression = false;
         bool enable_lossless = true;
         size_t quant_bin = 32768;
         uint block_size, stride, pred_dim = 0;

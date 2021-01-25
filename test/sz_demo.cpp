@@ -34,7 +34,6 @@ float SZ_Compress(std::unique_ptr<T[]> const &data,
               << "lorenzo = " << conf.enable_lorenzo
               << ", 2ndlorenzo = " << conf.enable_2ndlorenzo
               << ", regression = " << conf.enable_regression
-              << ", 2ndregression = " << conf.enable_2ndregression
               << ", lossless = " << conf.enable_lossless
               << std::endl;
 
@@ -85,8 +84,8 @@ float SZ_Compress(std::unique_ptr<T[]> const &data, const SZ::Config<T, N> &conf
 
 
     std::vector<std::shared_ptr<SZ::concepts::PredictorInterface<T, N>>> predictors;
-    int use_single_predictor =
-            (conf.enable_lorenzo + conf.enable_2ndlorenzo + conf.enable_regression + conf.enable_2ndregression) == 1;
+    int use_single_predictor =false;
+//            (conf.enable_lorenzo + conf.enable_2ndlorenzo + conf.enable_regression) == 1;
     if (conf.enable_lorenzo) {
         if (use_single_predictor) {
             return SZ_Compress<T>(data, conf, SZ::LorenzoPredictor<T, N, 1>(conf.eb));
@@ -148,7 +147,6 @@ float SZ_Compress_by_config(int argc, char **argv, int argp, std::unique_ptr<T[]
         conf.enable_lorenzo = lorenzo_op == 1 || lorenzo_op == 3;
         conf.enable_2ndlorenzo = lorenzo_op == 2 || lorenzo_op == 3;
         conf.enable_regression = regression_op == 1 || regression_op == 3;
-        conf.enable_2ndregression = regression_op == 2 || regression_op == 3;
     }
 
     if (argp < argc) {
