@@ -84,8 +84,8 @@ float SZ_Compress(std::unique_ptr<T[]> const &data, const SZ::Config<T, N> &conf
 
 
     std::vector<std::shared_ptr<SZ::concepts::PredictorInterface<T, N>>> predictors;
-    int use_single_predictor =false;
-//            (conf.enable_lorenzo + conf.enable_2ndlorenzo + conf.enable_regression) == 1;
+    int use_single_predictor =
+            (conf.enable_lorenzo + conf.enable_2ndlorenzo + conf.enable_regression) == 1;
     if (conf.enable_lorenzo) {
         if (use_single_predictor) {
             return SZ_Compress<T>(data, conf, SZ::LorenzoPredictor<T, N, 1>(conf.eb));
