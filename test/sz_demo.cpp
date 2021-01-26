@@ -1,4 +1,4 @@
-#include "compressor/SZ_General_Compressor.hpp"
+#include "compressor/SZGeneralCompressor.hpp"
 #include "predictor/Predictor.hpp"
 #include "predictor/LorenzoPredictor.hpp"
 #include "predictor/RegressionPredictor.hpp"

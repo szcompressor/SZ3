@@ -1,13 +1,14 @@
-#ifndef _SZ_SZ_GENERAL_HPP
-#define _SZ_SZ_GENERAL_HPP
+#ifndef SZ_GENERAL_COMPRESSOR_HPP
+#define SZ_GENERAL_COMPRESSOR_HPP
 
+#include "compressor/Compressor.hpp"
 #include "predictor/Predictor.hpp"
 #include "predictor/LorenzoPredictor.hpp"
 #include "quantizer/Quantizer.hpp"
 #include "encoder/Encoder.hpp"
 #include "lossless/Lossless.hpp"
 #include "utils/Iterator.hpp"
-#include "utils/MemoryOps.hpp"
+#include "utils/MemoryUtil.hpp"
 #include "utils/Config.hpp"
 #include "utils/FileUtil.h"
 #include "def.hpp"
@@ -15,12 +16,12 @@
 
 namespace SZ {
     template<class T, uint N, class Predictor, class Quantizer, class Encoder, class Lossless>
-    class SZ_General_Compressor {
+    class SZGeneralCompressor : public concepts::CompressorInterface<T> {
     public:
 
 
-        SZ_General_Compressor(const Config<T, N> &conf,
-                              Predictor predictor, Quantizer quantizer, Encoder encoder, Lossless lossless) :
+        SZGeneralCompressor(const Config<T, N> &conf,
+                            Predictor predictor, Quantizer quantizer, Encoder encoder, Lossless lossless) :
                 fallback_predictor(LorenzoPredictor<T, N, 1>(conf.eb)),
                 predictor(predictor), quantizer(quantizer), encoder(encoder), lossless(lossless),
                 block_size(conf.block_size), stride(conf.stride),
@@ -31,17 +32,20 @@ namespace SZ {
                           "must implement the quatizer interface");
             static_assert(std::is_base_of<concepts::EncoderInterface<int>, Encoder>::value,
                           "must implement the encoder interface");
-            static_assert(std::is_base_of<concepts::LosslessInterface, Lossless>::value, "must implement the lossless interface");
+            static_assert(std::is_base_of<concepts::LosslessInterface, Lossless>::value,
+                          "must implement the lossless interface");
         }
 
         uchar *compress(T *data, size_t &compressed_size) {
 
             auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data,
                                                                                          std::begin(global_dimensions),
-                                                                                         std::end(global_dimensions), stride, 0);
+                                                                                         std::end(global_dimensions),
+                                                                                         stride, 0);
             auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data,
                                                                                          std::begin(global_dimensions),
-                                                                                         std::end(global_dimensions), 1, 0);
+                                                                                         std::end(global_dimensions), 1,
+                                                                                         0);
             std::array<size_t, N> intra_block_dims;
             std::vector<int> quant_inds(num_elements);
             predictor.precompress_data(inter_block_range->begin());
@@ -58,7 +62,8 @@ namespace SZ {
                     for (int i = 0; i < intra_block_dims.size(); i++) {
                         size_t cur_index = block.get_local_index(i);
                         size_t dims = inter_block_range->get_dimensions(i);
-                        intra_block_dims[i] = (cur_index == dims - 1 && global_dimensions[i] - cur_index * stride < block_size) ?
+                        intra_block_dims[i] = (cur_index == dims - 1 &&
+                                               global_dimensions[i] - cur_index * stride < block_size) ?
                                               global_dimensions[i] - cur_index * stride : block_size;
                     }
 
@@ -71,18 +76,19 @@ namespace SZ {
                     }
                     predictor_withfallback->precompress_block_commit();
 //                    quantizer.precompress_block();
-                        auto intra_begin = intra_block_range->begin();
-                        auto intra_end = intra_block_range->end();
-                        for (auto element = intra_begin; element != intra_end; ++element) {
-                            quant_inds[quant_count++] = quantizer.quantize_and_overwrite(
+                    auto intra_begin = intra_block_range->begin();
+                    auto intra_end = intra_block_range->end();
+                    for (auto element = intra_begin; element != intra_end; ++element) {
+                        quant_inds[quant_count++] = quantizer.quantize_and_overwrite(
                                 *element, predictor_withfallback->predict(element));
-                        }
                     }
                 }
+            }
 
             clock_gettime(CLOCK_REALTIME, &end);
             std::cout << "Predition & Quantization time = "
-                      << (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000
+                      << (double) (end.tv_sec - start.tv_sec) +
+                         (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000
                       << "s" << std::endl;
 
             predictor.postcompress_data(inter_block_range->begin());
@@ -106,7 +112,6 @@ namespace SZ {
             lossless.postcompress_data(compressed_data);
             return lossless_data;
         }
-
 
         T *decompress(uchar const *lossless_compressed_data, const size_t length) {
             size_t remaining_length = length;
@@ -134,12 +139,14 @@ namespace SZ {
             auto dec_data = std::make_unique<T[]>(num_elements);
             auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.get(),
                                                                                          std::begin(global_dimensions),
-                                                                                         std::end(global_dimensions), block_size,
+                                                                                         std::end(global_dimensions),
+                                                                                         block_size,
                                                                                          0);
 
             auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.get(),
                                                                                          std::begin(global_dimensions),
-                                                                                         std::end(global_dimensions), 1, 0);
+                                                                                         std::end(global_dimensions), 1,
+                                                                                         0);
 
             predictor.predecompress_data(inter_block_range->begin());
             quantizer.predecompress_data();
@@ -163,10 +170,10 @@ namespace SZ {
                     if (!predictor.predecompress_block(intra_block_range)) {
                         predictor_withfallback = &fallback_predictor;
                     }
-                        auto intra_begin = intra_block_range->begin();
-                        auto intra_end = intra_block_range->end();
-                        for (auto element = intra_begin; element != intra_end; ++element) {
-                            *element = quantizer.recover(predictor_withfallback->predict(element), *(quant_inds_pos++));
+                    auto intra_begin = intra_block_range->begin();
+                    auto intra_end = intra_block_range->end();
+                    for (auto element = intra_begin; element != intra_end; ++element) {
+                        *element = quantizer.recover(predictor_withfallback->predict(element), *(quant_inds_pos++));
                     }
                 }
             }
@@ -189,11 +196,11 @@ namespace SZ {
     };
 
     template<class T, uint N, class Predictor, class Quantizer, class Encoder, class Lossless>
-    SZ_General_Compressor<T, N, Predictor, Quantizer, Encoder, Lossless>
+    SZGeneralCompressor<T, N, Predictor, Quantizer, Encoder, Lossless>
     make_sz_general_compressor(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer, Encoder encoder,
                                Lossless lossless) {
-        return SZ_General_Compressor<T, N, Predictor, Quantizer, Encoder, Lossless>(conf, predictor, quantizer, encoder,
-                                                                                    lossless);
+        return SZGeneralCompressor<T, N, Predictor, Quantizer, Encoder, Lossless>(conf, predictor, quantizer, encoder,
+                                                                                  lossless);
     }
 }
 #endif

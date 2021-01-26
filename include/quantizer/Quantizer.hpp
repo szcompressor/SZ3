@@ -1,7 +1,6 @@
 #ifndef _SZ_QUANTIZER_HPP
 #define _SZ_QUANTIZER_HPP
 
-#include "utils/Concepts.hpp"
 
 namespace SZ {
     namespace concepts {

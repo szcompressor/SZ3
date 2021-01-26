@@ -1,7 +1,6 @@
 #ifndef _SZ_PREDICTOR_HPP
 #define _SZ_PREDICTOR_HPP
 
-#include "utils/Concepts.hpp"
 #include "utils/Iterator.hpp"
 #include "def.hpp"
 
@@ -85,47 +84,47 @@ namespace SZ {
          * };
          */
 
-        template<typename T, typename = void>
-        struct is_predictor : false_type {
-        };
-        template<typename T>
-        struct is_predictor<T, void_t<
-                typename T::iterator,
-                decltype(std::declval<T>().predict(std::declval<typename T::iterator const>())),
-                decltype(std::declval<T>().precompress_data(std::declval<typename T::iterator const>())),
-                decltype(std::declval<T>().postcompress_data(std::declval<typename T::iterator const>())),
-                decltype(std::declval<T>().predecompress_data(std::declval<typename T::iterator const>())),
-                decltype(std::declval<T>().postdecompress_data(std::declval<typename T::iterator const>())),
-                // TODO: make the interface for precompress_block
-                // decltype(std::declval<T>().precompress_block(std::declval<typename T::std::shared_ptr<Range> const>())),
-                // decltype(std::declval<T>().predecompress_block(std::declval<typename T::std::shared_ptr<Range> const>())),
-                // decltype(std::declval<T>().save()),
-                // decltype(T::load(std::declval<const unsigned char*&>(), std::declval<size_t&>()))
-                decltype(std::declval<T>().save(
-                        std::declval<unsigned char *&>())
-                ),
-                decltype(std::declval<T>().load(
-                        std::declval<const unsigned char *&>(), std::declval<size_t &>())
-                )
-        >> : true_type {
-            //we must remove_reference otherwise we get the const-ness of the reference not the underlying type
-            // static_assert(
-            //   std::is_const<typename std::remove_reference<
-            //       decltype(*std::declval<typename T::iterator const>())
-            //     >::type
-            //   >::value, "const iterators must not be writable");
-            static_assert(
-                    std::is_same<
-                            typename std::iterator_traits<typename T::iterator>::value_type,
-                            decltype(std::declval<T>().predict(std::declval<typename T::iterator const>()))
-                    >::value, "predict must return iterator's value type"
-            );
-            // static_assert(
-            //     std::is_same<
-            //       decltype(std::declval<T>().save()),
-            //       std::string
-            //     >::value, "save must return a string");
-        };
+//        template<typename T, typename = void>
+//        struct is_predictor : false_type {
+//        };
+//        template<typename T>
+//        struct is_predictor<T, void_t<
+//                typename T::iterator,
+//                decltype(std::declval<T>().predict(std::declval<typename T::iterator const>())),
+//                decltype(std::declval<T>().precompress_data(std::declval<typename T::iterator const>())),
+//                decltype(std::declval<T>().postcompress_data(std::declval<typename T::iterator const>())),
+//                decltype(std::declval<T>().predecompress_data(std::declval<typename T::iterator const>())),
+//                decltype(std::declval<T>().postdecompress_data(std::declval<typename T::iterator const>())),
+//                // TODO: make the interface for precompress_block
+//                // decltype(std::declval<T>().precompress_block(std::declval<typename T::std::shared_ptr<Range> const>())),
+//                // decltype(std::declval<T>().predecompress_block(std::declval<typename T::std::shared_ptr<Range> const>())),
+//                // decltype(std::declval<T>().save()),
+//                // decltype(T::load(std::declval<const unsigned char*&>(), std::declval<size_t&>()))
+//                decltype(std::declval<T>().save(
+//                        std::declval<unsigned char *&>())
+//                ),
+//                decltype(std::declval<T>().load(
+//                        std::declval<const unsigned char *&>(), std::declval<size_t &>())
+//                )
+//        >> : true_type {
+//            //we must remove_reference otherwise we get the const-ness of the reference not the underlying type
+//            // static_assert(
+//            //   std::is_const<typename std::remove_reference<
+//            //       decltype(*std::declval<typename T::iterator const>())
+//            //     >::type
+//            //   >::value, "const iterators must not be writable");
+//            static_assert(
+//                    std::is_same<
+//                            typename std::iterator_traits<typename T::iterator>::value_type,
+//                            decltype(std::declval<T>().predict(std::declval<typename T::iterator const>()))
+//                    >::value, "predict must return iterator's value type"
+//            );
+//            // static_assert(
+//            //     std::is_same<
+//            //       decltype(std::declval<T>().save()),
+//            //       std::string
+//            //     >::value, "save must return a string");
+//        };
 
     }
 
