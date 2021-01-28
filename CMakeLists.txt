@@ -20,4 +20,5 @@ target_include_directories(
 install(DIRECTORY ${${PROJECT_NAME}_SOURCE_DIR}/include/  DESTINATION ${CMAKE_INSTALL_FULL_INCLUDEDIR})
 
 add_subdirectory(test)
+add_subdirectory(exaalt)
 
