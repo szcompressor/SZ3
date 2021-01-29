@@ -3,6 +3,7 @@
 
 #include "def.hpp"
 #include "encoder/Encoder.hpp"
+#include "utils/ByteUtil.h"
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
@@ -11,35 +12,7 @@
 
 namespace SZ {
 
-    typedef union lint16 {
-        unsigned short usvalue;
-        short svalue;
-        unsigned char byte[2];
-    } lint16;
 
-    typedef union lint32 {
-        int ivalue;
-        unsigned int uivalue;
-        unsigned char byte[4];
-    } lint32;
-
-    typedef union lint64 {
-        long lvalue;
-        unsigned long ulvalue;
-        unsigned char byte[8];
-    } lint64;
-
-    typedef union ldouble {
-        double value;
-        unsigned long lvalue;
-        unsigned char byte[8];
-    } ldouble;
-
-    typedef union lfloat {
-        float value;
-        unsigned int ivalue;
-        unsigned char byte[4];
-    } lfloat;
 
     template<class T>
     class HuffmanEncoder : public concepts::EncoderInterface<T> {
@@ -294,101 +267,8 @@ namespace SZ {
         uchar sysEndianType; //0: little endian, 1: big endian
         bool loaded = false;
 
-        inline void symTransform_4bytes(uchar data[4]) {
-            unsigned char tmp = data[0];
-            data[0] = data[3];
-            data[3] = tmp;
 
-            tmp = data[1];
-            data[1] = data[2];
-            data[2] = tmp;
-        }
 
-        inline int bytesToInt_bigEndian(const unsigned char *bytes) const {
-            int temp = 0;
-            int res = 0;
-
-            res <<= 8;
-            temp = bytes[0] & 0xff;
-            res |= temp;
-
-            res <<= 8;
-            temp = bytes[1] & 0xff;
-            res |= temp;
-
-            res <<= 8;
-            temp = bytes[2] & 0xff;
-            res |= temp;
-
-            res <<= 8;
-            temp = bytes[3] & 0xff;
-            res |= temp;
-
-            return res;
-        }
-
-        inline long bytesToLong_bigEndian(const uchar *b) const {
-            long temp = 0;
-            long res = 0;
-
-            res <<= 8;
-            temp = b[0] & 0xff;
-            res |= temp;
-
-            res <<= 8;
-            temp = b[1] & 0xff;
-            res |= temp;
-
-            res <<= 8;
-            temp = b[2] & 0xff;
-            res |= temp;
-
-            res <<= 8;
-            temp = b[3] & 0xff;
-            res |= temp;
-
-            res <<= 8;
-            temp = b[4] & 0xff;
-            res |= temp;
-
-            res <<= 8;
-            temp = b[5] & 0xff;
-            res |= temp;
-
-            res <<= 8;
-            temp = b[6] & 0xff;
-            res |= temp;
-
-            res <<= 8;
-            temp = b[7] & 0xff;
-            res |= temp;
-
-            return res;
-        }
-
-        inline void longToBytes_bigEndian(unsigned char *b, unsigned long num) const {
-            b[0] = (unsigned char) (num >> 56);
-            b[1] = (unsigned char) (num >> 48);
-            b[2] = (unsigned char) (num >> 40);
-            b[3] = (unsigned char) (num >> 32);
-            b[4] = (unsigned char) (num >> 24);
-            b[5] = (unsigned char) (num >> 16);
-            b[6] = (unsigned char) (num >> 8);
-            b[7] = (unsigned char) (num);
-        }
-
-        inline void intToBytes_bigEndian(unsigned char *b, unsigned int num) const {
-            b[0] = (unsigned char) (num >> 24);
-            b[1] = (unsigned char) (num >> 16);
-            b[2] = (unsigned char) (num >> 8);
-            b[3] = (unsigned char) (num);
-        }
-
-        int bytesToInt(const unsigned char *bytes) {
-            lfloat buf;
-            memcpy(buf.byte, bytes, 4);
-            return buf.ivalue;
-        }
 
 
         node reconstruct_HuffTree_from_bytes_anyStates(const unsigned char *bytes, uint nodeCount) {
