@@ -50,6 +50,7 @@ void writeByteData(unsigned char *bytes, size_t byteLength, char *tgtFilePath, i
 }
 
 using namespace SZ;
+
 int main(int argc, char *argv[]) {
     int status = 0;
     char inputFile[100];
@@ -83,7 +84,8 @@ int main(int argc, char *argv[]) {
     printf("compression ratio is: %f\n", 1.0 * byteLen / totalCmprSize);
 //    printf("compression time: %f\n", totalCost);
 
-    uchar const *cmprData2 = cmprData;
+    uchar const *cmprData2 = readByteData(cmprFile, &totalCmprSize, &status);
+//    uchar const *cmprData2 = cmprData;
 
 
     //decompression
