@@ -21,7 +21,7 @@ namespace SZ {
             int state;
         };
 
-         struct AriCoder {
+        struct AriCoder {
             int numOfRealStates; //the # real states menas the number of states after the optimization of # intervals
             int numOfValidStates; //the # valid states means the number of non-zero frequency cells (some states/codes actually didn't appear)
             size_t total_frequency;
@@ -42,6 +42,7 @@ namespace SZ {
 
 
         void preprocess_encode(const std::vector<T> &bins, int stateNum) {
+            assert(stateNum <= 4096 && "StateNum of Arithmetic Encoder should be <= 4096");
             ariCoder.numOfRealStates = stateNum;
             const T *s = bins.data();
             size_t length = bins.size();
@@ -278,7 +279,7 @@ namespace SZ {
             p += sizeof(uint64_t);
 
             ariCoder.cumulative_frequency = (Prob *) malloc(ariCoder.numOfRealStates * sizeof(Prob));
-            memset(ariCoder.cumulative_frequency, 0, ariCoder.numOfRealStates*sizeof(Prob));
+            memset(ariCoder.cumulative_frequency, 0, ariCoder.numOfRealStates * sizeof(Prob));
 
             size_t i = 0;
             const uchar *low_p = NULL, *high_p = NULL, *state_p = NULL;
@@ -483,6 +484,7 @@ namespace SZ {
                 buf = output_bit_1_plus_pending(pending_bits);
                 put_codes_to_output(buf, pending_bits + 1, &bytes, &lackBits, &outSize);
             }
+            bytes += 1;
             return outSize;
         }
 
