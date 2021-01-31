@@ -51,7 +51,7 @@ namespace SZ {
             int *quant_inds = static_cast<int *>(malloc(sizeof(int) * num_elements));
             predictor.precompress_data(inter_block_range->begin());
             quantizer.precompress_data();
-            size_t quant_count = 0;
+//            size_t quant_count = 0;
             struct timespec start, end;
             clock_gettime(CLOCK_REALTIME, &start);
             {
@@ -80,8 +80,9 @@ namespace SZ {
                     auto intra_begin = intra_block_range->begin();
                     auto intra_end = intra_block_range->end();
                     for (auto element = intra_begin; element != intra_end; ++element) {
-                        quant_inds[quant_count++] = quantizer.quantize_and_overwrite(
+                        *quant_inds = quantizer.quantize_and_overwrite(
                                 *element, predictor_withfallback->predict(element));
+                        ++quant_inds;
                     }
                 }
             }
