@@ -13,7 +13,6 @@
 namespace SZ {
 
 
-
     template<class T>
     class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
@@ -199,7 +198,9 @@ namespace SZ {
         //perform decoding
         std::vector<T> decode(const uchar *&bytes, size_t targetLength) {
             node t = treeRoot;
-            std::vector<T> out(targetLength);
+            std::vector<T> out(0);
+            out.reserve(targetLength);
+//            auto out = std::make_unique<T[]>(targetLength);
             size_t i = 0, byteIndex = 0, count = 0;
             int r;
             node n = treeRoot;
@@ -208,7 +209,8 @@ namespace SZ {
             if (n->t) //root->t==1 means that all state values are the same (constant)
             {
                 for (count = 0; count < targetLength; count++)
-                    out[count] = n->c;
+//                    out[count] = n->c;
+                    out.push_back(n->c);
                 return out;
             }
 
@@ -221,7 +223,7 @@ namespace SZ {
                     n = n->right;
 
                 if (n->t) {
-                    out[count] = n->c;
+                    out.push_back(n->c);
                     n = t;
                     count++;
                 }
@@ -266,9 +268,6 @@ namespace SZ {
         unsigned int nodeCount;
         uchar sysEndianType; //0: little endian, 1: big endian
         bool loaded = false;
-
-
-
 
 
         node reconstruct_HuffTree_from_bytes_anyStates(const unsigned char *bytes, uint nodeCount) {
