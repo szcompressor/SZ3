@@ -77,9 +77,13 @@ namespace SZ {
         }
 
         void preprocess_encode(const std::vector<T> &bins, int stateNum) {
+            preprocess_encode(bins.data(), bins.size(), stateNum);
+        }
+
+        void preprocess_encode(const T *bins, size_t num_bin, int stateNum) {
             nodeCount = 0;
             huffmanTree = createHuffmanTree(stateNum);
-            init(bins.data(), bins.size());
+            init(bins, num_bin);
             for (int i = 0; i < huffmanTree->stateNum; i++)
                 if (huffmanTree->code[i]) nodeCount++;
             nodeCount = nodeCount * 2 - 1;
@@ -198,9 +202,7 @@ namespace SZ {
         //perform decoding
         std::vector<T> decode(const uchar *&bytes, size_t targetLength) {
             node t = treeRoot;
-            std::vector<T> out(0);
-            out.reserve(targetLength);
-//            auto out = std::make_unique<T[]>(targetLength);
+            std::vector<T> out(targetLength);
             size_t i = 0, byteIndex = 0, count = 0;
             int r;
             node n = treeRoot;
@@ -209,8 +211,7 @@ namespace SZ {
             if (n->t) //root->t==1 means that all state values are the same (constant)
             {
                 for (count = 0; count < targetLength; count++)
-//                    out[count] = n->c;
-                    out.push_back(n->c);
+                    out[count] = n->c;
                 return out;
             }
 
@@ -223,7 +224,7 @@ namespace SZ {
                     n = n->right;
 
                 if (n->t) {
-                    out.push_back(n->c);
+                    out[count] = n->c;
                     n = t;
                     count++;
                 }
