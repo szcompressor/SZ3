@@ -6,7 +6,7 @@
 #define SZ3_BYTEUTIL_H
 
 #include "def.hpp"
-
+#include <cstring>
 namespace SZ {
 
     typedef union lint16 {

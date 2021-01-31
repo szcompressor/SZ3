@@ -1,8 +1,9 @@
 #ifndef SZ_ArithmeticEncoder_HPP
 #define SZ_ArithmeticEncoder_HPP
 
-#include <utils/ByteUtil.h>
-#include <encoder/Encoder.hpp>
+#include "utils/ByteUtil.h"
+#include "encoder/Encoder.hpp"
+#include <cassert>
 
 namespace SZ {
 #define ONE_FOURTH (0x40000000000) //44 bits are absolutely enough to deal with a large dataset (support at most 16TB per process)
