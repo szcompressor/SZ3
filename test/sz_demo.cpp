@@ -66,16 +66,15 @@ float SZ_Compress(std::unique_ptr<T[]> const &data,
     compressed = SZ::readfile<SZ::uchar>(compressed_file_name.c_str(), compressed_size);
 
     timer.start();
-    std::unique_ptr<T[]> dec_data;
-    dec_data.reset(sz.decompress(compressed.get(), compressed_size));
+    T *dec_data = sz.decompress(compressed.get(), compressed_size);
     timer.stop("Decompression");
 
-    SZ::verify<T>(data_.data(), dec_data.get(), conf.num);
+    SZ::verify<T>(data_.data(), dec_data, conf.num);
 
     auto decompressed_file_name = compressed_file_name + ".out";
-    SZ::writefile(decompressed_file_name.c_str(), dec_data.get(), conf.num);
+    SZ::writefile(decompressed_file_name.c_str(), dec_data, conf.num);
     std::cout << "Decompressed file = " << decompressed_file_name << std::endl;
-
+    delete[] dec_data;
     return ratio;
 }
 

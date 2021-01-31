@@ -136,14 +136,14 @@ namespace SZ {
 
             int const *quant_inds_pos = (int const *) quant_inds.data();
             std::array<size_t, N> intra_block_dims;
-            auto dec_data = std::make_unique<T[]>(num_elements);
-            auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.get(),
+            auto dec_data = new T[num_elements];
+            auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data,
                                                                                          std::begin(global_dimensions),
                                                                                          std::end(global_dimensions),
                                                                                          block_size,
                                                                                          0);
 
-            auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.get(),
+            auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data,
                                                                                          std::begin(global_dimensions),
                                                                                          std::end(global_dimensions), 1,
                                                                                          0);
@@ -179,7 +179,7 @@ namespace SZ {
             }
             predictor.postdecompress_data(inter_block_range->begin());
             quantizer.postdecompress_data();
-            return dec_data.release();
+            return dec_data;
         }
 
 
