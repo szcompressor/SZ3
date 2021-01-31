@@ -49,6 +49,7 @@ namespace SZ {
             std::array<size_t, N> intra_block_dims;
 //            std::vector<int> quant_inds(num_elements);
             int *quant_inds = static_cast<int *>(malloc(sizeof(int) * num_elements));
+            int *quant_inds_pos = quant_inds;
             predictor.precompress_data(inter_block_range->begin());
             quantizer.precompress_data();
 //            size_t quant_count = 0;
@@ -80,9 +81,9 @@ namespace SZ {
                     auto intra_begin = intra_block_range->begin();
                     auto intra_end = intra_block_range->end();
                     for (auto element = intra_begin; element != intra_end; ++element) {
-                        *quant_inds = quantizer.quantize_and_overwrite(
+                        *quant_inds_pos = quantizer.quantize_and_overwrite(
                                 *element, predictor_withfallback->predict(element));
-                        ++quant_inds;
+                        ++quant_inds_pos;
                     }
                 }
             }
