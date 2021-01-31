@@ -47,12 +47,10 @@ namespace SZ {
                                                                                          std::end(global_dimensions), 1,
                                                                                          0);
             std::array<size_t, N> intra_block_dims;
-//            std::vector<int> quant_inds(num_elements);
-            int *quant_inds = static_cast<int *>(malloc(sizeof(int) * num_elements));
-            int *quant_inds_pos = quant_inds;
+            std::vector<int> quant_inds(num_elements);
             predictor.precompress_data(inter_block_range->begin());
             quantizer.precompress_data();
-//            size_t quant_count = 0;
+            size_t quant_count = 0;
             struct timespec start, end;
             clock_gettime(CLOCK_REALTIME, &start);
             {
@@ -81,9 +79,8 @@ namespace SZ {
                     auto intra_begin = intra_block_range->begin();
                     auto intra_end = intra_block_range->end();
                     for (auto element = intra_begin; element != intra_end; ++element) {
-                        *quant_inds_pos = quantizer.quantize_and_overwrite(
+                        quant_inds[quant_count++] = quantizer.quantize_and_overwrite(
                                 *element, predictor_withfallback->predict(element));
-                        ++quant_inds_pos;
                     }
                 }
             }
@@ -104,11 +101,10 @@ namespace SZ {
             predictor.save(compressed_data_pos);
             quantizer.save(compressed_data_pos);
 
-            encoder.preprocess_encode(quant_inds, num_elements, 4 * quantizer.get_radius());
+            encoder.preprocess_encode(quant_inds, 4 * quantizer.get_radius());
             encoder.save(compressed_data_pos);
-            encoder.encode(quant_inds, num_elements, compressed_data_pos);
+            encoder.encode(quant_inds, compressed_data_pos);
             encoder.postprocess_encode();
-            free(quant_inds);
 
             uchar *lossless_data = lossless.compress(compressed_data,
                                                      compressed_data_pos - compressed_data,
