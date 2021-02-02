@@ -130,11 +130,13 @@ namespace SZ {
             quantizer.load(compressed_data_pos, remaining_length);
             encoder.load(compressed_data_pos, remaining_length);
 
-            auto quant_inds = encoder.decode(compressed_data_pos, num_elements);
+//            auto quant_inds = encoder.decode(compressed_data_pos, num_elements);
+            int* quant_inds = encoder.decode_fast(compressed_data_pos, num_elements);
             encoder.postprocess_decode();
             lossless.postdecompress_data(compressed_data);
 
-            int const *quant_inds_pos = (int const *) quant_inds.data();
+//            int const *quant_inds_pos = (int const *) quant_inds.data();
+            int const *quant_inds_pos = (int const *) quant_inds;
             std::array<size_t, N> intra_block_dims;
             auto dec_data = new T[num_elements];
             auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data,
@@ -179,6 +181,7 @@ namespace SZ {
             }
             predictor.postdecompress_data(inter_block_range->begin());
             quantizer.postdecompress_data();
+            free(quant_inds);
             return dec_data;
         }
 

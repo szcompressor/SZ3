@@ -200,6 +200,42 @@ namespace SZ {
         void preprocess_decode() {};
 
         //perform decoding
+        T* decode_fast(const uchar *&bytes, size_t targetLength) {
+            node t = treeRoot;
+            T* out = (T *) malloc(targetLength * sizeof(T));
+//            std::vector<T> out(targetLength);
+            size_t i = 0, byteIndex = 0, count = 0;
+            int r;
+            node n = treeRoot;
+            size_t encodedLength = *reinterpret_cast<const size_t *>(bytes);
+            bytes += sizeof(size_t);
+            if (n->t) //root->t==1 means that all state values are the same (constant)
+            {
+                for (count = 0; count < targetLength; count++)
+                    out[count] = n->c;
+                return out;
+            }
+
+            for (i = 0; count < targetLength; i++) {
+                byteIndex = i >> 3; //i/8
+                r = i % 8;
+                if (((bytes[byteIndex] >> (7 - r)) & 0x01) == 0)
+                    n = n->left;
+                else
+                    n = n->right;
+
+                if (n->t) {
+                    out[count] = n->c;
+                    n = t;
+                    count++;
+                }
+            }
+            if (t != n) printf("garbage input\n");
+            bytes += encodedLength;
+            return out;
+        }
+
+        //perform decoding
         std::vector<T> decode(const uchar *&bytes, size_t targetLength) {
             node t = treeRoot;
             std::vector<T> out(targetLength);
