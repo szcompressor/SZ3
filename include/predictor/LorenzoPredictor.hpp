@@ -115,13 +115,13 @@ namespace SZ {
         template<uint NN = N, uint LL = L>
         inline typename std::enable_if<NN == 3 && LL == 1, T>::type do_predict(const iterator &iter) const noexcept {
             if (iter.inBoundary()) {
+                return iter.prev(0, 0, 1) + iter.prev(0, 1, 0) + iter.prev(1, 0, 0)
+                       - iter.prev(0, 1, 1) - iter.prev(1, 0, 1) - iter.prev(1, 1, 0)
+                       + iter.prev(1, 1, 1);
+            } else {
                 return iter.prev3d(0, 0, 1) + iter.prev3d(0, 1, 0) + iter.prev3d(1, 0, 0)
                        - iter.prev3d(0, 1, 1) - iter.prev3d(1, 0, 1) - iter.prev3d(1, 1, 0)
                        + iter.prev3d(1, 1, 1);
-            } else {
-                return iter.prev3df(0, 0, 1) + iter.prev3df(0, 1, 0) + iter.prev3df(1, 0, 0)
-                       - iter.prev3df(0, 1, 1) - iter.prev3df(1, 0, 1) - iter.prev3df(1, 1, 0)
-                       + iter.prev3df(1, 1, 1);
             }
         }
 

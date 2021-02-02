@@ -157,15 +157,7 @@ namespace SZ {
                 return range->data[offset];
             }
 
-            inline T prev3df(int arg1, int arg2, int arg3) const {
-                return range->data[global_offset - range->offset_map[arg1][arg2][arg3]];
-            }
-
             inline T prev3d(int arg1, int arg2, int arg3) const {
-                if ((local_index[0] < arg1 && range->whether_global_start_position(0))
-                    || (local_index[1] < arg2 && range->whether_global_start_position(1))
-                    || (local_index[2] < arg3 && range->whether_global_start_position(2)))
-                    return 0;
                 return range->data[global_offset - range->offset_map[arg1][arg2][arg3]];
             }
 
