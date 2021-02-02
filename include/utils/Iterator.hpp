@@ -41,7 +41,8 @@ namespace SZ {
 
             multi_dimensional_iterator &operator=(multi_dimensional_iterator &&) noexcept = default;
 
-            multi_dimensional_iterator(std::shared_ptr<multi_dimensional_range> &&range_, std::size_t current_offset_) noexcept:
+            multi_dimensional_iterator(std::shared_ptr<multi_dimensional_range> &&range_,
+                                       std::size_t current_offset_) noexcept:
                     range(range_), global_offset(current_offset_), local_index{} {
             }
 
@@ -111,7 +112,6 @@ namespace SZ {
             }
 
 
-
             std::array<size_t, N> get_global_index() const {
                 auto offset = global_offset;
                 std::array<size_t, N> global_idx{0};
@@ -125,6 +125,7 @@ namespace SZ {
             std::array<size_t, N> get_local_index() const {
                 return local_index;
             }
+
             size_t get_local_index(size_t i) const {
                 return local_index[i];
             }
@@ -143,7 +144,7 @@ namespace SZ {
             // [input] offset for all the dimensions
             // [output] value of data at the target position
             template<class... Args>
-            T prev(Args &&... pos) const {
+            inline T prev(Args &&... pos) const {
                 // TODO: check int type
                 // TODO: change to offset map for efficiency
                 static_assert(sizeof...(Args) == N, "Must have the same number of arguments");
@@ -154,6 +155,17 @@ namespace SZ {
                     offset -= args[i] ? args[i] * range->global_dim_strides[i] : 0;
                 }
                 return range->data[offset];
+            }
+
+            template<class... Args>
+            inline T prev3d(Args &&... pos) const {
+                std::array<int, N> args = {std::forward<Args>(pos)...};
+                for (auto &i:range->boundray_dims) {
+                    if (local_index[i] < args[i]) {
+                        return 0;
+                    }
+                }
+                return range->data[global_offset - range->offset_map[args[0]][args[1]][args[2]]];
             }
 
             // No support for carry set.
@@ -199,7 +211,6 @@ namespace SZ {
                 }
                 std::cout << "]" << std::endl;
             }
-
 
 
         private:
@@ -264,8 +275,12 @@ namespace SZ {
 
         // NOTE: did not consider the real offset for simplicity
         void set_starting_position(const std::array<size_t, N> &dims) {
+            boundray_dims.clear();
             for (int i = 0; i < N; i++) {
                 start_position[i] = (dims[i] == 0);
+                if (dims[i] == 0) {
+                    boundray_dims.push_back(i);
+                }
             }
         }
 
@@ -291,8 +306,10 @@ namespace SZ {
             set_access_stride(stride_);
             // set global dimensions
             int i = 0;
+            global_num_elements = 1;
             for (auto iter = global_dims_begin; iter != global_dims_end; ++iter) {
                 global_dimensions[i++] = *iter;
+                global_num_elements *= *iter;
             }
 //            size_t cur_stride = stride_;
 //            for (int i = N - 1; i >= 0; i--) {
@@ -303,6 +320,15 @@ namespace SZ {
             set_dimensions_auto();
             set_global_dim_strides();
             set_offsets(offset_);
+            if (N == 3) {
+                for (int i1 = 0; i1 < 3; i1++) {
+                    for (int i2 = 0; i2 < 3; i2++) {
+                        for (int i3 = 0; i3 < 3; i3++) {
+                            offset_map[i1][i2][i3] = i1 * global_dim_strides[0] + i2 * global_dim_strides[1] + i3;
+                        }
+                    }
+                }
+            }
         }
 
         size_t get_dimensions(size_t i) const {
@@ -324,6 +350,12 @@ namespace SZ {
         T *get_data() {
             return data;
         }
+
+        size_t offset_map[4][4][4];
+
+        size_t global_num_elements;
+
+        std::vector<int> boundray_dims;
 
     private:
         std::array<size_t, N> global_dimensions;
