@@ -157,6 +157,10 @@ namespace SZ {
                 return range->data[offset];
             }
 
+            inline T prev3df(int arg1, int arg2, int arg3) const {
+                return range->data[global_offset - range->offset_map[arg1][arg2][arg3]];
+            }
+
             inline T prev3d(int arg1, int arg2, int arg3) const {
                 if ((local_index[0] < arg1 && range->whether_global_start_position(0))
                     || (local_index[1] < arg2 && range->whether_global_start_position(1))
@@ -209,6 +213,9 @@ namespace SZ {
                 std::cout << "]" << std::endl;
             }
 
+            bool inBoundary() const{
+                return !range->boundary_dims.empty();
+            };
 
         private:
             friend multi_dimensional_range;
@@ -272,11 +279,11 @@ namespace SZ {
 
         // NOTE: did not consider the real offset for simplicity
         void set_starting_position(const std::array<size_t, N> &dims) {
-            boundray_dims.clear();
+            boundary_dims.clear();
             for (int i = 0; i < N; i++) {
                 start_position[i] = (dims[i] == 0);
                 if (dims[i] == 0) {
-                    boundray_dims.push_back(i);
+                    boundary_dims.push_back(i);
                 }
             }
         }
@@ -352,7 +359,7 @@ namespace SZ {
 
         size_t global_num_elements;
 
-        std::vector<int> boundray_dims;
+        std::vector<int> boundary_dims;
 
     private:
         std::array<size_t, N> global_dimensions;
