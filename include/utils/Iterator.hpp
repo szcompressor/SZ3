@@ -157,15 +157,12 @@ namespace SZ {
                 return range->data[offset];
             }
 
-            template<class... Args>
-            inline T prev3d(Args &&... pos) const {
-                std::array<int, N> args = {std::forward<Args>(pos)...};
-                for (auto &i:range->boundray_dims) {
-                    if (local_index[i] < args[i]) {
-                        return 0;
-                    }
-                }
-                return range->data[global_offset - range->offset_map[args[0]][args[1]][args[2]]];
+            inline T prev3d(int arg1, int arg2, int arg3) const {
+                if ((local_index[0] < arg1 && range->whether_global_start_position(0))
+                    || (local_index[1] < arg2 && range->whether_global_start_position(1))
+                    || (local_index[2] < arg3 && range->whether_global_start_position(2)))
+                    return 0;
+                return range->data[global_offset - range->offset_map[arg1][arg2][arg3]];
             }
 
             // No support for carry set.
