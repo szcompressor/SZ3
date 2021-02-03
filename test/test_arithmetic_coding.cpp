@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
 
     //compression
 //    cost_start();
-    ArithmeticEncoder<int> encoder;
+    ArithmeticEncoder<int> encoder(4096);
 
     encoder.preprocess_encode(codes, 4096);
     encoder.save(ariCoderBytes);
@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
     encoder.postprocess_encode();
 //    cost_end();
 
-    size_t totalCmprSize = ariCoderBytes - cmprData ;
+    size_t totalCmprSize = ariCoderBytes - cmprData;
 
     char cmprFile[100];
     sprintf(cmprFile, "%s.ari", inputFile);

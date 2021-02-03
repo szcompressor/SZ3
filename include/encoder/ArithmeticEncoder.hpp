@@ -4,6 +4,7 @@
 #include "utils/ByteUtil.h"
 #include "encoder/Encoder.hpp"
 #include <cassert>
+#include <iostream>
 
 namespace SZ {
 #define ONE_FOURTH (0x40000000000) //44 bits are absolutely enough to deal with a large dataset (support at most 16TB per process)
@@ -29,13 +30,26 @@ namespace SZ {
             Prob *cumulative_frequency; //used to encode data more efficiencly
         };
 
-        ArithmeticEncoder() = default;
-
-        ~ArithmeticEncoder() {
-            free(ariCoder.cumulative_frequency);
+        ArithmeticEncoder(int stateNum, bool transform = false) {
+            assert(stateNum <= 4096 && "StateNum of Arithmetic Encoder should be <= 4096");
+            ariCoder.numOfRealStates = stateNum;
+            ariCoder.numOfValidStates = 0;
+            ariCoder.total_frequency = 0;
+            ariCoder.cumulative_frequency = NULL;
+            this->transform = transform;
         }
 
-        void postprocess_encode() {};
+        ~ArithmeticEncoder() {
+            if (ariCoder.cumulative_frequency != NULL) {
+                free(ariCoder.cumulative_frequency);
+            }
+        }
+
+        void postprocess_encode() {
+            if (transform) {
+                bins_transform.clear();
+            }
+        };
 
         void preprocess_decode() {};
 
@@ -43,10 +57,22 @@ namespace SZ {
 
 
         void preprocess_encode(const std::vector<T> &bins, int stateNum) {
-            assert(stateNum <= 4096 && "StateNum of Arithmetic Encoder should be <= 4096");
-            ariCoder.numOfRealStates = stateNum;
             const T *s = bins.data();
             size_t length = bins.size();
+            if (transform) {
+                bins_transform = bins;
+                for (size_t i = 0; i < bins_transform.size(); i++) {
+                    T x = bins_transform[i];
+                    bins_transform[i] = fabs(x - ariCoder.numOfRealStates / 2) * 2;
+                    if (x - ariCoder.numOfRealStates / 2 < 0) {
+                        bins_transform[i] -= 1;
+                    }
+//                    printf("%d %d\n", bins[i], bins_transform[i]);
+                }
+
+                s = bins_transform.data();
+            }
+
 
             size_t i; //# states is in the range of integer.
             int index = 0;
@@ -73,6 +99,12 @@ namespace SZ {
                         _sum = sum;
                         counter++;
                     }
+                }
+                if (ariCoder.numOfValidStates > ariCoder.numOfRealStates) {
+                    std::cout << "The stateNum should be changed from "
+                              << ariCoder.numOfRealStates << " to "
+                              << ariCoder.numOfValidStates
+                              << std::endl;
                 }
                 ariCoder.numOfValidStates = counter;
                 ariCoder.total_frequency = sum;
@@ -430,11 +462,10 @@ namespace SZ {
  * @param size_t *outSize (output)
  *
  * */
+        //        void ari_encode(AriCoder *ariCoder, int *s, size_t length, unsigned char *out, size_t *outSize) {
         size_t encode(const std::vector<T> &bins, uchar *&bytes) {
-
-//        void ari_encode(AriCoder *ariCoder, int *s, size_t length, unsigned char *out, size_t *outSize) {
-            const T *s = bins.data();
-            size_t length = bins.size();
+            const T *s = transform ? bins_transform.data() : bins.data();
+            size_t length = transform ? bins_transform.size() : bins.size();
 //            unsigned char *bytes = out;
             size_t outSize = 0;
 
@@ -515,7 +546,18 @@ namespace SZ {
                 range = high - low + 1;
                 scaled_value = ((value - low + 1) * ariCoder.total_frequency - 1) / range;
                 Prob *p = getCode(scaled_value);
-                out[i] = p->state;  //output the state to the 'out' array
+//                out[i] = p->state;  //output the state to the 'out' array
+                if (transform) {
+                    T x = p->state;  //output the state to the 'out' array
+                    if (x % 2 == 0) {
+                        out[i] = ariCoder.numOfRealStates / 2 + std::ceil(x / 2.0);
+                    } else {
+                        out[i] = ariCoder.numOfRealStates / 2 - std::ceil(x / 2.0);
+                    }
+                } else {
+                    out[i] = p->state;  //output the state to the 'out' array
+                }
+
                 if (i == targetLength - 1) {
                     break;
                 }
@@ -557,6 +599,8 @@ namespace SZ {
         AriCoder ariCoder;
 
     private:
+        bool transform;
+        std::vector<T> bins_transform;
 
         inline void output_bit_1(unsigned int *buf) {
             (*buf) = (*buf) << 1;

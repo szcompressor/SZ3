@@ -33,7 +33,7 @@ float SZ_Compress(std::unique_ptr<T[]> const &data,
               << ", error bound = " << conf.eb
               << ", block_size = " << conf.block_size
               << ", stride = " << conf.stride
-              << ", quan_bin = " << conf.quant_bin
+              << ", quan_state_num = " << conf.quant_state_num
               << std::endl
               << "lorenzo = " << conf.enable_lorenzo
               << ", 2ndlorenzo = " << conf.enable_2ndlorenzo
@@ -45,12 +45,13 @@ float SZ_Compress(std::unique_ptr<T[]> const &data,
     std::vector<T> data_ = std::vector<T>(data.get(), data.get() + conf.num);
 
     auto sz_huffman = make_sz_general_compressor(conf, predictor,
-                                                 SZ::LinearQuantizer<T>(conf.eb, conf.quant_bin),
+                                                 SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2),
                                                  SZ::HuffmanEncoder<int>(), lossless);
     auto sz_arithmetic = make_sz_general_compressor(conf, predictor,
-                                                    SZ::LinearQuantizer<T>(conf.eb, 1024),
-                                                    SZ::ArithmeticEncoder<int>(), lossless);
-    auto sz_noencoder = make_pql_compressor(conf, predictor, SZ::LinearQuantizer<T>(conf.eb, conf.quant_bin), lossless);
+                                                    SZ::LinearQuantizer<T>(conf.eb, 2048 / 2),
+                                                    SZ::ArithmeticEncoder<int>(2048, true), lossless);
+    auto sz_noencoder = make_pql_compressor(conf, predictor, SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2),
+                                            lossless);
     SZ::Timer timer;
     timer.start();
     std::cout << "****************** Compression ******************" << std::endl;
@@ -186,7 +187,7 @@ float SZ_Compress_by_config(int argc, char **argv, int argp, std::unique_ptr<T[]
     }
 
     if (argp < argc) {
-        conf.quant_bin = atoi(argv[argp++]);
+        conf.quant_state_num = atoi(argv[argp++]);
     }
 
     return SZ_Compress(data, conf);
@@ -195,7 +196,7 @@ float SZ_Compress_by_config(int argc, char **argv, int argp, std::unique_ptr<T[]
 int main(int argc, char **argv) {
     if (argc < 2) {
         std::cout << "usage: " << argv[0] <<
-                  " data_file -num_dim dim0 .. dimn relative_eb [blocksize lorenzo_op regression_op encoder_op lossless_op quant_bin]"
+                  " data_file -num_dim dim0 .. dimn relative_eb [blocksize lorenzo_op regression_op encoder_op lossless_op quant_state_num]"
                   << std::endl;
         std::cout << "example: " << argv[0] <<
                   " qmcpack.dat -3 33120 69 69 1e-3 [6 1 1 1 1 32768]" << std::endl;
