@@ -30,9 +30,12 @@ namespace SZ {
             Prob *cumulative_frequency; //used to encode data more efficiencly
         };
 
-        ArithmeticEncoder(int stateNum, bool transform = false) {
-            assert(stateNum <= 4096 && "StateNum of Arithmetic Encoder should be <= 4096");
-            ariCoder.numOfRealStates = stateNum;
+
+//        ArithmeticEncoder(int stateNum, bool transform = false) {
+        ArithmeticEncoder(bool transform = false) {
+//            assert(stateNum <= 4096 && "StateNum of Arithmetic Encoder should be <= 4096");
+//            ariCoder.numOfRealStates = stateNum;
+            ariCoder.numOfRealStates = 0;
             ariCoder.numOfValidStates = 0;
             ariCoder.total_frequency = 0;
             ariCoder.cumulative_frequency = NULL;
@@ -57,6 +60,8 @@ namespace SZ {
 
 
         void preprocess_encode(const std::vector<T> &bins, int stateNum) {
+            assert(stateNum <= 4096 && "StateNum of Arithmetic Encoder should be <= 4096");
+            ariCoder.numOfRealStates = stateNum;
             const T *s = bins.data();
             size_t length = bins.size();
             if (transform) {

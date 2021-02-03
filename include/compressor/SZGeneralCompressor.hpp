@@ -101,7 +101,7 @@ namespace SZ {
             predictor.save(compressed_data_pos);
             quantizer.save(compressed_data_pos);
 
-            encoder.preprocess_encode(quant_inds, 4 * quantizer.get_radius());
+            encoder.preprocess_encode(quant_inds, 2 * quantizer.get_radius());
             encoder.save(compressed_data_pos);
             encoder.encode(quant_inds, compressed_data_pos);
             encoder.postprocess_encode();

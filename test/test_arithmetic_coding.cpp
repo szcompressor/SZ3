@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
 
     //compression
 //    cost_start();
-    ArithmeticEncoder<int> encoder(4096);
+    ArithmeticEncoder<int> encoder;
 
     encoder.preprocess_encode(codes, 4096);
     encoder.save(ariCoderBytes);
