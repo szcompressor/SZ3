@@ -180,6 +180,9 @@ float SZ_Compress_by_config(int argc, char **argv, int argp, std::unique_ptr<T[]
 
     if (argp < argc) {
         conf.encoder_op = atoi(argv[argp++]);
+        if (conf.encoder_op == 2) {
+            conf.quant_state_num = 1024;
+        }
     }
 
     if (argp < argc) {
