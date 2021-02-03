@@ -1,11 +1,14 @@
 #include "compressor/SZGeneralCompressor.hpp"
+#include "compressor/PQLCompressor.hpp"
 #include "predictor/Predictor.hpp"
 #include "predictor/LorenzoPredictor.hpp"
 #include "predictor/RegressionPredictor.hpp"
 #include "predictor/ComposedPredictor.hpp"
 #include "quantizer/IntegerQuantizer.hpp"
 #include "encoder/HuffmanEncoder.hpp"
+#include "encoder/ArithmeticEncoder.hpp"
 #include "lossless/Lossless_zstd.hpp"
+#include "lossless/Lossless_bypass.hpp"
 #include "utils/FileUtil.h"
 #include "utils/Config.hpp"
 #include "utils/Verification.hpp"
@@ -19,10 +22,11 @@
 std::string src_file_name;
 float relative_error_bound = 0;
 
-template<typename T, class Predictor, uint N>
+
+template<typename T, class Predictor, class Lossless, uint N>
 float SZ_Compress(std::unique_ptr<T[]> const &data,
                   const SZ::Config<T, N> &conf,
-                  Predictor predictor) {
+                  Predictor predictor, Lossless lossless) {
 
     std::cout << "****************** Options ********************" << std::endl;
     std::cout << "dimension = " << N
@@ -34,21 +38,35 @@ float SZ_Compress(std::unique_ptr<T[]> const &data,
               << "lorenzo = " << conf.enable_lorenzo
               << ", 2ndlorenzo = " << conf.enable_2ndlorenzo
               << ", regression = " << conf.enable_regression
-              << ", lossless = " << conf.enable_lossless
+              << ", encoder = " << conf.encoder_op
+              << ", lossless = " << conf.lossless_op
               << std::endl;
 
     std::vector<T> data_ = std::vector<T>(data.get(), data.get() + conf.num);
 
+    auto sz_huffman = make_sz_general_compressor(conf, predictor,
+                                                 SZ::LinearQuantizer<T>(conf.eb, conf.quant_bin),
+                                                 SZ::HuffmanEncoder<int>(), lossless);
+    auto sz_arithmetic = make_sz_general_compressor(conf, predictor,
+                                                    SZ::LinearQuantizer<T>(conf.eb, 1024),
+                                                    SZ::ArithmeticEncoder<int>(), lossless);
+    auto sz_noencoder = make_pql_compressor(conf, predictor, SZ::LinearQuantizer<T>(conf.eb, conf.quant_bin), lossless);
     SZ::Timer timer;
     timer.start();
     std::cout << "****************** Compression ******************" << std::endl;
 
-    auto sz = SZ::make_sz_general_compressor(conf, predictor, SZ::LinearQuantizer<T>(conf.eb, conf.quant_bin),
-                                             SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd());
+    SZ::concepts::CompressorInterface<T> *sz;
+    if (conf.encoder_op == 0) {
+        sz = &sz_noencoder;
+    } else if (conf.encoder_op == 1) {
+        sz = &sz_huffman;
+    } else {
+        sz = &sz_arithmetic;
+    }
 
     size_t compressed_size = 0;
     std::unique_ptr<SZ::uchar[]> compressed;
-    compressed.reset(sz.compress(data.get(), compressed_size));
+    compressed.reset(sz->compress(data.get(), compressed_size));
 
     timer.stop("Compression");
 
@@ -66,7 +84,7 @@ float SZ_Compress(std::unique_ptr<T[]> const &data,
     compressed = SZ::readfile<SZ::uchar>(compressed_file_name.c_str(), compressed_size);
 
     timer.start();
-    T *dec_data = sz.decompress(compressed.get(), compressed_size);
+    T *dec_data = sz->decompress(compressed.get(), compressed_size);
     timer.stop("Decompression");
 
     SZ::verify<T>(data_.data(), dec_data, conf.num);
@@ -76,6 +94,17 @@ float SZ_Compress(std::unique_ptr<T[]> const &data,
     std::cout << "Decompressed file = " << decompressed_file_name << std::endl;
     delete[] dec_data;
     return ratio;
+}
+
+template<typename T, class Predictor, uint N>
+float SZ_Compress(std::unique_ptr<T[]> const &data,
+                  const SZ::Config<T, N> &conf,
+                  Predictor predictor) {
+    if (conf.lossless_op == 0) {
+        return SZ_Compress<T>(data, conf, predictor, SZ::Lossless_bypass());
+    } else {
+        return SZ_Compress<T>(data, conf, predictor, SZ::Lossless_zstd());
+    }
 }
 
 template<typename T, uint N>
@@ -145,7 +174,15 @@ float SZ_Compress_by_config(int argc, char **argv, int argp, std::unique_ptr<T[]
         int regression_op = atoi(argv[argp++]);
         conf.enable_lorenzo = lorenzo_op == 1 || lorenzo_op == 3;
         conf.enable_2ndlorenzo = lorenzo_op == 2 || lorenzo_op == 3;
-        conf.enable_regression = regression_op == 1 || regression_op == 3;
+        conf.enable_regression = regression_op == 1;
+    }
+
+    if (argp < argc) {
+        conf.encoder_op = atoi(argv[argp++]);
+    }
+
+    if (argp < argc) {
+        conf.lossless_op = atoi(argv[argp++]);
     }
 
     if (argp < argc) {
@@ -156,6 +193,15 @@ float SZ_Compress_by_config(int argc, char **argv, int argp, std::unique_ptr<T[]
 }
 
 int main(int argc, char **argv) {
+    if (argc < 2) {
+        std::cout << "usage: " << argv[0] <<
+                  " data_file -num_dim dim0 .. dimn relative_eb [blocksize lorenzo_op regression_op encoder_op lossless_op quant_bin]"
+                  << std::endl;
+        std::cout << "example: " << argv[0] <<
+                  " qmcpack.dat -3 33120 69 69 1e-3 [6 1 1 1 1 32768]" << std::endl;
+        return 0;
+    }
+
     size_t num = 0;
     auto data = SZ::readfile<float>(argv[1], num);
     src_file_name = argv[1];

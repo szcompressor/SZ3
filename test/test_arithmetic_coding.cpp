@@ -12,6 +12,7 @@
 #include <cstring>
 #include <sys/time.h>
 #include <encoder/ArithmeticEncoder.hpp>
+#include "utils/FileUtil.h"
 
 unsigned char *readByteData(char *srcFilePath, size_t *byteLength, int *status) {
     FILE *pFile = fopen(srcFilePath, "rb");
@@ -56,11 +57,17 @@ int main(int argc, char *argv[]) {
     char inputFile[100];
     size_t byteLen = 0;
     sprintf(inputFile, "%s", argv[1]);
-    unsigned char *bytes = readByteData(inputFile, &byteLen, &status);
-    std::vector<int> codes(byteLen);
+//    unsigned char *bytes = readByteData(inputFile, &byteLen, &status);
+//    std::vector<int> codes(byteLen);
     size_t i = 0;
-    for (i = 0; i < byteLen; i++)
-        codes[i] = bytes[i];
+//    for (i = 0; i < byteLen; i++)
+//        codes[i] = bytes[i];
+
+    auto read = readfile<int>(argv[1], byteLen);
+//    read[0] = 251;
+//    byteLen = 4;
+    std::vector<int> codes(read.get(), read.get() + byteLen);
+
     unsigned char *cmprData = (unsigned char *) malloc(sizeof(unsigned char) * byteLen * 1.2);
     unsigned char *ariCoderBytes = cmprData;
 
@@ -68,42 +75,39 @@ int main(int argc, char *argv[]) {
 //    cost_start();
     ArithmeticEncoder<int> encoder;
 
-    encoder.preprocess_encode(codes, 256);
+    encoder.preprocess_encode(codes, 4096);
     encoder.save(ariCoderBytes);
     encoder.encode(codes, ariCoderBytes);
     encoder.postprocess_encode();
 //    cost_end();
 
-    size_t totalCmprSize = ariCoderBytes - cmprData;
+    size_t totalCmprSize = ariCoderBytes - cmprData ;
 
     char cmprFile[100];
     sprintf(cmprFile, "%s.ari", inputFile);
-    writeByteData(cmprData, totalCmprSize, cmprFile, &status);
+    writefile(cmprFile, cmprData, totalCmprSize);
 
     printf("compressed data size is: %zu\n", totalCmprSize);
     printf("compression ratio is: %f\n", 1.0 * byteLen / totalCmprSize);
 //    printf("compression time: %f\n", totalCost);
-
-    uchar const *cmprData2 = readByteData(cmprFile, &totalCmprSize, &status);
-//    uchar const *cmprData2 = cmprData;
-
+    const uchar *cmprData2;
+    cmprData2 = readfile<uchar>(cmprFile, totalCmprSize).get();
 
     //decompression
-    ArithmeticEncoder<int> decoder;
-    decoder.load(cmprData2, totalCmprSize);
-//    exit(0);
+//    ArithmeticEncoder<int> decoder;
+    encoder.load(cmprData2, totalCmprSize);
 
-    for (i = 0; i < encoder.ariCoder.numOfRealStates; i++) {
-        if (encoder.ariCoder.cumulative_frequency[i].high != decoder.ariCoder.cumulative_frequency[i].high) {
-            printf("i=%zu, %ld vs. %ld\n", i, encoder.ariCoder.cumulative_frequency[i].high,
-                   decoder.ariCoder.cumulative_frequency[i].high);
-            break;
-        }
-    }
+//    for (i = 0; i < encoder.ariCoder.numOfRealStates; i++) {
+//        if (encoder.ariCoder.cumulative_frequency[i].high != decoder.ariCoder.cumulative_frequency[i].high) {
+//            printf("i=%zu, %ld vs. %ld\n", i, encoder.ariCoder.cumulative_frequency[i].high,
+//                   decoder.ariCoder.cumulative_frequency[i].high);
+//            break;
+//        }
+//    }
     printf("done checking\n");
 //    cost_start();
-    auto decData = decoder.decode(cmprData2, byteLen);
-    decoder.postprocess_decode();
+    auto decData = encoder.decode(cmprData2, byteLen);
+    encoder.postprocess_decode();
 //    cost_end();
 
     int same = 1;
@@ -111,7 +115,7 @@ int main(int argc, char *argv[]) {
         if (codes[i] != decData[i]) {
             printf("Error: i = %zu, codes[i] = %d, decData[i] = %d\n", i, codes[i], decData[i]);
             same = 0;
-            break;
+//            break;
         }
     }
 
@@ -124,7 +128,7 @@ int main(int argc, char *argv[]) {
 //    printf("decompression time: %f\n", totalCost);
 
     free(cmprData);
-    free(bytes);
+//    free(bytes);
 }
 
 

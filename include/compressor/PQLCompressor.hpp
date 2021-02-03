@@ -13,25 +13,24 @@
 #include "utils/FileUtil.h"
 #include "def.hpp"
 #include <cstring>
+#include "utils/Timer.hpp"
 
 namespace SZ {
-    template<class T, uint N, class Predictor, class Quantizer, class Encoder, class Lossless>
+    template<class T, uint N, class Predictor, class Quantizer, class Lossless>
     class PQLCompressor : public concepts::CompressorInterface<T> {
     public:
 
 
-        PQLCompressor(const Config <T, N> &conf,
-                      Predictor predictor, Quantizer quantizer, Encoder encoder, Lossless lossless) :
+        PQLCompressor(const Config<T, N> &conf,
+                      Predictor predictor, Quantizer quantizer, Lossless lossless) :
                 fallback_predictor(LorenzoPredictor<T, N, 1>(conf.eb)),
-                predictor(predictor), quantizer(quantizer), encoder(encoder), lossless(lossless),
+                predictor(predictor), quantizer(quantizer), lossless(lossless),
                 block_size(conf.block_size), stride(conf.stride),
                 global_dimensions(conf.dims), num_elements(conf.num) {
             static_assert(std::is_base_of<concepts::PredictorInterface<T, N>, Predictor>::value,
                           "must implement the predictor interface");
             static_assert(std::is_base_of<concepts::QuantizerInterface<T>, Quantizer>::value,
                           "must implement the quatizer interface");
-            static_assert(std::is_base_of<concepts::EncoderInterface<int>, Encoder>::value,
-                          "must implement the encoder interface");
             static_assert(std::is_base_of<concepts::LosslessInterface, Lossless>::value,
                           "must implement the lossless interface");
         }
@@ -47,12 +46,12 @@ namespace SZ {
                                                                                          std::end(global_dimensions), 1,
                                                                                          0);
             std::array<size_t, N> intra_block_dims;
-            std::vector<int> quant_inds((num_elements * 1.2));
+            int *quant_inds = new int[num_elements * 1.2];
             predictor.precompress_data(inter_block_range->begin());
             quantizer.precompress_data();
             size_t quant_count = 0;
-            struct timespec start, end;
-            clock_gettime(CLOCK_REALTIME, &start);
+            Timer timer;
+            timer.start();
             {
                 auto inter_begin = inter_block_range->begin();
                 auto inter_end = inter_block_range->end();
@@ -85,19 +84,14 @@ namespace SZ {
                 }
             }
 
-            clock_gettime(CLOCK_REALTIME, &end);
-            std::cout << "Predition & Quantization time = "
-                      << (double) (end.tv_sec - start.tv_sec) +
-                         (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000
-                      << "s" << std::endl;
+            timer.stop("Predition & Quantization");
 
             predictor.postcompress_data(inter_block_range->begin());
             quantizer.postcompress_data();
 
 
-            uchar *compressed_data = reinterpret_cast<uchar *>(quant_inds.data());
+            uchar *compressed_data = reinterpret_cast<uchar *>(quant_inds);
             uchar *compressed_data_pos = compressed_data + num_elements * sizeof(int);
-            write(global_dimensions.data(), N, compressed_data_pos);
             write(block_size, compressed_data_pos);
             predictor.save(compressed_data_pos);
             quantizer.save(compressed_data_pos);
@@ -114,13 +108,6 @@ namespace SZ {
             auto compressed_data = lossless.decompress(lossless_compressed_data, remaining_length);
             uchar const *compressed_data_pos = compressed_data;
             compressed_data_pos += num_elements * sizeof(int);
-            read(global_dimensions.data(), N, compressed_data_pos, remaining_length);
-            num_elements = 1;
-            for (const auto &d : global_dimensions) {
-                num_elements *= d;
-                std::cout << d << " ";
-            }
-            std::cout << std::endl;
             read(block_size, compressed_data_pos, remaining_length);
             stride = block_size;
             predictor.load(compressed_data_pos, remaining_length);
@@ -128,14 +115,14 @@ namespace SZ {
 
             int const *quant_inds_pos = reinterpret_cast<const int *> (compressed_data);
             std::array<size_t, N> intra_block_dims;
-            auto dec_data = std::make_unique<T[]>(num_elements);
-            auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.get(),
+            auto dec_data = new T[num_elements];
+            auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data,
                                                                                          std::begin(global_dimensions),
                                                                                          std::end(global_dimensions),
                                                                                          block_size,
                                                                                          0);
 
-            auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.get(),
+            auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data,
                                                                                          std::begin(global_dimensions),
                                                                                          std::end(global_dimensions), 1,
                                                                                          0);
@@ -144,6 +131,8 @@ namespace SZ {
             quantizer.predecompress_data();
 
             std::cout << "start decompression" << std::endl;
+            Timer timer;
+            timer.start();
             {
                 auto inter_begin = inter_block_range->begin();
                 auto inter_end = inter_block_range->end();
@@ -169,10 +158,11 @@ namespace SZ {
                     }
                 }
             }
+            timer.stop("Predition & Quantization");
             lossless.postdecompress_data(compressed_data);
             predictor.postdecompress_data(inter_block_range->begin());
             quantizer.postdecompress_data();
-            return dec_data.release();
+            return dec_data;
         }
 
 
@@ -180,7 +170,6 @@ namespace SZ {
         Predictor predictor;
         LorenzoPredictor<T, N, 1> fallback_predictor;
         Quantizer quantizer;
-        Encoder encoder;
         Lossless lossless;
         uint block_size;
         uint stride;
@@ -188,12 +177,11 @@ namespace SZ {
         std::array<size_t, N> global_dimensions;
     };
 
-    template<class T, uint N, class Predictor, class Quantizer, class Encoder, class Lossless>
-    PQLCompressor<T, N, Predictor, Quantizer, Encoder, Lossless>
-    make_pql_compressor(const Config <T, N> &conf, Predictor predictor, Quantizer quantizer, Encoder encoder,
+    template<class T, uint N, class Predictor, class Quantizer, class Lossless>
+    PQLCompressor<T, N, Predictor, Quantizer, Lossless>
+    make_pql_compressor(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer,
                         Lossless lossless) {
-        return PQLCompressor<T, N, Predictor, Quantizer, Encoder, Lossless>(conf, predictor, quantizer, encoder,
-                                                                            lossless);
+        return PQLCompressor<T, N, Predictor, Quantizer, Lossless>(conf, predictor, quantizer, lossless);
     }
 }
 #endif
