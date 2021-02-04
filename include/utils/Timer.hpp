@@ -18,12 +18,13 @@ namespace SZ {
             clock_gettime(CLOCK_REALTIME, &begin);
         }
 
-        void stop(const std::string &msg) {
+        double stop(const std::string &msg) {
             clock_gettime(CLOCK_REALTIME, &end);
-            std::cout << msg << " time = "
-                      << (double) (end.tv_sec - begin.tv_sec) + (double) (end.tv_nsec - begin.tv_nsec) / (double) 1000000000
-                      << "s" << std::endl;
+            double seconds =
+                    (double) (end.tv_sec - begin.tv_sec) + (double) (end.tv_nsec - begin.tv_nsec) / (double) 1000000000;
+            std::cout << msg << " time = " << seconds << "s" << std::endl;
             fflush(stdout);
+            return seconds;
         }
 
     private:
