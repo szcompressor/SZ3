@@ -46,7 +46,7 @@ namespace SZ {
                                                                                          std::end(global_dimensions), 1,
                                                                                          0);
             std::array<size_t, N> intra_block_dims;
-            int *quant_inds = new int[num_elements * 1.2];
+            int *quant_inds = new int[num_elements * 2];
             predictor.precompress_data(inter_block_range->begin());
             quantizer.precompress_data();
             size_t quant_count = 0;
