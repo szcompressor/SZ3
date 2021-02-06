@@ -51,7 +51,7 @@ float SZ_compress_final(std::unique_ptr<T[]> const &data,
     auto sz_arithmetic = make_sz_general_compressor(conf, predictor,
                                                     SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2),
                                                     SZ::ArithmeticEncoder<int>(true), lossless);
-    auto sz_noencoder = make_pql_compressor(conf, predictor, SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2),
+    auto sz_noencoder = make_pql_compressor(conf, predictor, SZ::LinearQuantizer<T>(conf.eb, 64),
                                             lossless);
     SZ::Timer timer;
     timer.start();

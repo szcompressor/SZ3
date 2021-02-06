@@ -46,7 +46,7 @@ namespace SZ {
                                                                                          std::end(global_dimensions), 1,
                                                                                          0);
             std::array<size_t, N> intra_block_dims;
-            int *quant_inds = new int[num_elements * 2];
+            char *quant_inds = new char[num_elements * 2];
             predictor.precompress_data(inter_block_range->begin());
             quantizer.precompress_data();
             size_t quant_count = 0;
@@ -91,7 +91,8 @@ namespace SZ {
 
 
             uchar *compressed_data = reinterpret_cast<uchar *>(quant_inds);
-            uchar *compressed_data_pos = compressed_data + num_elements * sizeof(int);
+//            uchar *compressed_data_pos = compressed_data + num_elements * sizeof(int);
+            uchar *compressed_data_pos = compressed_data + num_elements;
             write(block_size, compressed_data_pos);
             predictor.save(compressed_data_pos);
             quantizer.save(compressed_data_pos);
@@ -107,13 +108,15 @@ namespace SZ {
             size_t remaining_length = length;
             auto compressed_data = lossless.decompress(lossless_compressed_data, remaining_length);
             uchar const *compressed_data_pos = compressed_data;
-            compressed_data_pos += num_elements * sizeof(int);
+//            compressed_data_pos += num_elements * sizeof(int);
+            compressed_data_pos += num_elements;
             read(block_size, compressed_data_pos, remaining_length);
             stride = block_size;
             predictor.load(compressed_data_pos, remaining_length);
             quantizer.load(compressed_data_pos, remaining_length);
 
-            int const *quant_inds_pos = reinterpret_cast<const int *> (compressed_data);
+//            int const *quant_inds_pos = reinterpret_cast<const int *> (compressed_data);
+            char const *quant_inds_pos = reinterpret_cast<const char *>(compressed_data);
             std::array<size_t, N> intra_block_dims;
             auto dec_data = new T[num_elements];
             auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data,
