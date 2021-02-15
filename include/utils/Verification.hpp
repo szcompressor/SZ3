@@ -5,7 +5,7 @@
 #ifndef SZ_VERIFICATION_HPP
 #define SZ_VERIFICATION_HPP
 
-
+#include <cmath>
 namespace SZ {
 
     template<typename Type>
