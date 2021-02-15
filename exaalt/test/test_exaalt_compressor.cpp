@@ -328,16 +328,17 @@ float SZ_Compress(std::vector<T> data, const SZ::Config<T, N> &conf, float level
 }
 
 int main(int argc, char **argv) {
-    size_t num;
 
     SZ::Timer timer;
     timer.start();
 
-//    auto input_raw = SZ::readfile<float>("/Users/kzhao/data/exaalt-83x1077290/x.dat", num);
-    auto input_raw = SZ::readfile<float>("/Users/kzhao/data/exaalt-5423x3137/xx.dat", num);
-//    auto input_raw = SZ::readfile<float>("/Users/kzhao/data/exaalt/exaalt_nano-230434x146/y.f32.dat", num);
-//    auto input_raw = SZ::readfile<float>("/Users/kzhao/data/exaalt/exaalt_trinity111-208745427/y.f32.dat", num);
-//    auto input_raw = SZ::readfile<float>("/Users/kzhao/data/exaalt/exaalt_2v18he100n1-5759x1040/y.f32.dat", num);
+    size_t num;
+    std::string homedir = getenv("HOME");
+//    auto input_raw = SZ::readfile<float>((homedir +"/data/exaalt-83x1077290/x.dat").c_str(), num);
+    auto input_raw = SZ::readfile<float>((homedir + "/data/exaalt-5423x3137/xx.dat").c_str(), num);
+//    auto input_raw = SZ::readfile<float>((homedir+"/data/exaalt/exaalt_nano-230434x146/y.f32.dat").c_str(), num);
+//    auto input_raw = SZ::readfile<float>((homedir +"/data/exaalt/exaalt_trinity111-208745427/y.f32.dat").c_str(), num);
+//    auto input_raw = SZ::readfile<float>((homedir +"/data/exaalt/exaalt_2v18he100n1-5759x1040/y.f32.dat").c_str(), num);
     std::vector<float> input{input_raw.get(), input_raw.get() + num};
     timer.stop("read file");
 //    int y = 5423 / 200, x = 3137 * 200;
@@ -346,29 +347,29 @@ int main(int argc, char **argv) {
 //        input = std::vector<float>{input_raw.get() + yy * x, input_raw.get() + (yy + 1) * x};
 //        num = x;
 
-        timer.start();
-        std::vector<float> sample;
-        int sample_rate = 2000;
-        sample.reserve(num / sample_rate);
-        std::random_device rd;  //Will be used to obtain a seed for the random number engine
-        std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-        std::uniform_int_distribution<> dis(0, 2 * sample_rate);
-        size_t input_idx = 0;
+    timer.start();
+    std::vector<float> sample;
+    int sample_rate = 2000;
+    sample.reserve(num / sample_rate);
+    std::random_device rd;  //Will be used to obtain a seed for the random number engine
+    std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+    std::uniform_int_distribution<> dis(0, 2 * sample_rate);
+    size_t input_idx = 0;
 //        for (int i = 0; i < num / sample_rate; i++) {
 //            input_idx = (input_idx + dis(gen)) % num;
 //            std::cout << input_idx << " ";
 //            sample[i] = input[input_idx];
 //        }
 //        std::cout << std::endl;
-        std::uniform_int_distribution<> dis2(0, num);
-        std::unordered_set<size_t> sampledkeys;
-        for (int i = 0; i < num / sample_rate; i++) {
-            do {
-                input_idx = dis2(gen);
-            } while (sampledkeys.find(input_idx) != sampledkeys.end());
+    std::uniform_int_distribution<> dis2(0, num);
+    std::unordered_set<size_t> sampledkeys;
+    for (int i = 0; i < num / sample_rate; i++) {
+        do {
+            input_idx = dis2(gen);
+        } while (sampledkeys.find(input_idx) != sampledkeys.end());
 //            std::cout << input_idx << " ";
-            sample[i] = input[input_idx];
-        }
+        sample[i] = input[input_idx];
+    }
 //        std::cout << std::endl;
 
 //    std::sample(input.begin(), input.end(),
@@ -376,53 +377,53 @@ int main(int argc, char **argv) {
 //                num / sample_rate,
 //                std::mt19937{std::random_device{}()});
 
-        timer.stop("random sample");
+    timer.stop("random sample");
 //    sample = input;
 
-        timer.start();
-        int k = 150;
-        std::vector<size_t> idx(num);
-        std::vector<float> cents(k);
-        cluster(sample.data(), num / sample_rate, k, idx.data(), cents.data());
+    timer.start();
+    int k = 150;
+    std::vector<size_t> idx(num);
+    std::vector<float> cents(k);
+    cluster(sample.data(), num / sample_rate, k, idx.data(), cents.data());
 //    cluster(input.get(), num, 16, idx.data(), cents.data());
-        timer.stop("kmeans1d");
-        if (k == 150) {
-            std::cout << "No clusters are found." << std::endl;
-            exit(0);
-        }
+    timer.stop("kmeans1d");
+    if (k == 150) {
+        std::cout << "No clusters are found." << std::endl;
+        exit(0);
+    }
 
-        std::cout << "centers : ";
-        for (size_t i = 0; i < k; i++) {
-            std::cout << cents[i] << " ";
-        }
-        std::cout << std::endl;
+    std::cout << "centers : ";
+    for (size_t i = 0; i < k; i++) {
+        std::cout << cents[i] << " ";
+    }
+    std::cout << std::endl;
 
-        std::cout << "center diff : ";
-        for (size_t i = 1; i < k; i++) {
-            std::cout << cents[i] - cents[i - 1] << " ";
-        }
-        std::cout << std::endl;
+    std::cout << "center diff : ";
+    for (size_t i = 1; i < k; i++) {
+        std::cout << cents[i] - cents[i - 1] << " ";
+    }
+    std::cout << std::endl;
 
-        std::vector<float> boundary(k);
-        boundary[0] = std::numeric_limits<float>::min();
-        for (size_t i = 1; i < k; i++) {
-            boundary[i] = (cents[i - 1] + cents[i]) / 2;
-        }
+    std::vector<float> boundary(k);
+    boundary[0] = std::numeric_limits<float>::min();
+    for (size_t i = 1; i < k; i++) {
+        boundary[i] = (cents[i - 1] + cents[i]) / 2;
+    }
 
-        float level_offset = (cents[4] - cents[0]) / 4;
-        float level_start = cents[0];
-        printf("start = %.3f , level_offset = %.3f\n", level_start, level_offset);
-        if (level_start > 1.1 || level_start < 0.9 || level_offset > 1.9 || level_offset < 1.7) {
-            printf("Error start = %.3f , level_offset = %.3f\n", level_start, level_offset);
-        }
-        timer.start();
-        for (size_t i = 0; i < num; i++) {
+    float level_offset = (cents[4] - cents[0]) / 4;
+    float level_start = cents[0];
+    printf("start = %.3f , level_offset = %.3f\n", level_start, level_offset);
+    if (level_start > 1.1 || level_start < 0.9 || level_offset > 1.9 || level_offset < 1.7) {
+        printf("Error start = %.3f , level_offset = %.3f\n", level_start, level_offset);
+    }
+    timer.start();
+    for (size_t i = 0; i < num; i++) {
 //        auto iter = std::lower_bound(boundary.begin(), boundary.end(), input[i]);
 //        idx[i] = iter - boundary.begin();
-            idx[i] = f(input[i], boundary.data(), k, level_start, level_offset);
-        }
-        timer.stop("id");
+        idx[i] = f(input[i], boundary.data(), k, level_start, level_offset);
+    }
+    timer.stop("id");
 
-        SZ_Compress(input, SZ::Config<float, 1>(1e-1, {input.size()}), level_start, level_offset);
+    SZ_Compress(input, SZ::Config<float, 1>(1e-1, {input.size()}), level_start, level_offset);
 //    }
 }
