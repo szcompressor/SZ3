@@ -14,32 +14,36 @@
 #include <cstring>
 
 namespace SZ {
-    template<class T, uint N, class Predictor, class Quantizer, class Encoder, class Lossless>
+    template<class T, uint N, class Quantizer, class Encoder, class Lossless>
     class SZ_Exaalt_Compressor {
     public:
 
 
         SZ_Exaalt_Compressor(const Config<T, N> &conf,
-                             Predictor predictor, Quantizer quantizer, Encoder encoder, Lossless lossless) :
+                             Quantizer quantizer, Encoder encoder, Lossless lossless) :
                 fallback_predictor(LorenzoPredictor<T, N, 1>(conf.eb)),
-                predictor(predictor), quantizer(quantizer), encoder(encoder), lossless(lossless),
+                quantizer(quantizer), encoder(encoder), lossless(lossless),
                 block_size(conf.block_size), stride(conf.stride),
                 global_dimensions(conf.dims), num_elements(conf.num) {
-            static_assert(std::is_base_of<concepts::PredictorInterface<T, N>, Predictor>::value,
-                          "must implement the predictor interface");
             static_assert(std::is_base_of<concepts::QuantizerInterface<T>, Quantizer>::value,
                           "must implement the quatizer interface");
             static_assert(std::is_base_of<concepts::EncoderInterface<int>, Encoder>::value,
                           "must implement the encoder interface");
-            static_assert(std::is_base_of<concepts::LosslessInterface, Lossless>::value, "must implement the lossless interface");
+            static_assert(std::is_base_of<concepts::LosslessInterface, Lossless>::value,
+                          "must implement the lossless interface");
+        }
+
+        void set_level(float level_start_, float level_offset_) {
+            this->level_start = level_start_;
+            this->level_offset = level_offset_;
         }
 
         inline int quantize_to_level(T data) {
-            return round((data - 1) / 1.8075);
+            return round((data - level_start) / level_offset);
         }
 
         inline T level(int l) {
-            return 1 + l * 1.8075;
+            return level_start + l * level_offset;
         }
 
         // compress given the error bound
@@ -47,6 +51,8 @@ namespace SZ {
 
             std::vector<int> quant_inds;
             std::vector<int> pred_inds;
+            quant_inds.reserve(num_elements);
+            pred_inds.reserve(num_elements);
             quantizer.precompress_data();
             struct timespec start, end;
 
@@ -72,7 +78,7 @@ namespace SZ {
 //                }
             }
 
-            writefile("pred_int.dat", pred_inds.data(), num_elements);
+//            writefile("pred_int.dat", pred_inds.data(), num_elements);
 
 //            std::cout << *std::min_element(pred_inds.begin(), pred_inds.end()) << ", "
 //                      << *std::max_element(pred_inds.begin(), pred_inds.end()) << std::endl;
@@ -90,7 +96,7 @@ namespace SZ {
             uchar *compressed_data_pos = compressed_data;
             write(global_dimensions.data(), N, compressed_data_pos);
             write(block_size, compressed_data_pos);
-            predictor.save(compressed_data_pos);
+//            predictor.save(compressed_data_pos);
             quantizer.save(compressed_data_pos);
 
             encoder.preprocess_encode(quant_inds, 4 * quantizer.get_radius());
@@ -124,7 +130,7 @@ namespace SZ {
             std::cout << std::endl;
             uint block_size = 0;
             read(block_size, compressed_data_pos, remaining_length);
-            predictor.load(compressed_data_pos, remaining_length);
+//            predictor.load(compressed_data_pos, remaining_length);
             // std::cout << "load predictor done\n";fflush(stdout);
             quantizer.load(compressed_data_pos, remaining_length);
             // std::cout << "load quantizer done\n";fflush(stdout);
@@ -161,7 +167,6 @@ namespace SZ {
 
     private:
         int pred_offset = 26;
-        Predictor predictor;
         LorenzoPredictor<T, N, 1> fallback_predictor;
         Quantizer quantizer;
         Encoder encoder;
@@ -170,14 +175,16 @@ namespace SZ {
         uint stride;
         size_t num_elements;
         std::array<size_t, N> global_dimensions;
+        float level_start = 1;
+        float level_offset = 1.8075;
     };
 
-    template<class T, uint N, class Predictor, class Quantizer, class Encoder, class Lossless>
-    SZ_Exaalt_Compressor<T, N, Predictor, Quantizer, Encoder, Lossless>
-    make_sz_exaalt_compressor(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer, Encoder encoder,
+    template<class T, uint N, class Quantizer, class Encoder, class Lossless>
+    SZ_Exaalt_Compressor<T, N, Quantizer, Encoder, Lossless>
+    make_sz_exaalt_compressor(const Config<T, N> &conf, Quantizer quantizer, Encoder encoder,
                               Lossless lossless) {
-        return SZ_Exaalt_Compressor<T, N, Predictor, Quantizer, Encoder, Lossless>(conf, predictor, quantizer, encoder,
-                                                                                   lossless);
+        return SZ_Exaalt_Compressor<T, N, Quantizer, Encoder, Lossless>(conf, quantizer, encoder,
+                                                                        lossless);
     }
 
 }
