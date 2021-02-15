@@ -379,10 +379,10 @@ int main(int argc, char **argv) {
 
     timer.stop("random sample");
 //    sample = input;
+    std::vector<size_t> idx(num);
 
     timer.start();
     int k = 150;
-    std::vector<size_t> idx(num);
     std::vector<float> cents(k);
     cluster(sample.data(), num / sample_rate, k, idx.data(), cents.data());
 //    cluster(input.get(), num, 16, idx.data(), cents.data());

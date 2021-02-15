@@ -49,29 +49,27 @@ namespace SZ {
         // compress given the error bound
         uchar *compress(T *data, size_t &compressed_size) {
 
-            std::vector<int> quant_inds;
-            std::vector<int> pred_inds;
-            quant_inds.reserve(num_elements);
-            pred_inds.reserve(num_elements);
+            std::vector<int> quant_inds(num_elements);
+            std::vector<int> pred_inds(num_elements);
             quantizer.precompress_data();
             struct timespec start, end;
 
             clock_gettime(CLOCK_REALTIME, &start);
 
             auto l0 = quantize_to_level(data[0]);
-            pred_inds.push_back(l0);
-            quant_inds.push_back(quantizer.quantize_and_overwrite(data[0], level(l0)));
+            pred_inds[0] = l0;
+            quant_inds[0] = quantizer.quantize_and_overwrite(data[0], level(l0));
 
             for (size_t i = 1; i < num_elements; i++) {
-                auto d = data[i];
+//                auto d = data[i];
                 auto l = quantize_to_level(data[i]);
-                pred_inds.push_back(l - l0 + pred_offset);
+                pred_inds[i] = l - l0 + pred_offset;
 //                if (i % 2 == 0) {
 //                    quant_inds.push_back(quantizer.quantize_and_overwrite(data[i], level(1 + quantize_to_level(data[i - 1]))));
 //                } else {
 //                    quant_inds.push_back(quantizer.quantize_and_overwrite(data[i], data[i - 1]));
 //                }
-                quant_inds.push_back(quantizer.quantize_and_overwrite(data[i], level(l)));
+                quant_inds[i] = quantizer.quantize_and_overwrite(data[i], level(l));
                 l0 = l;
 //                if (i > 10000000 && i < 10000400) {
 //                    std::cout << d << " , " << quant_inds[i] - 32768 << std::endl;
