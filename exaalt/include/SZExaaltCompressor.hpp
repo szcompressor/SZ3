@@ -21,9 +21,7 @@ namespace SZ {
 
         SZ_Exaalt_Compressor(const Config<T, N> &conf,
                              Quantizer quantizer, Encoder encoder, Lossless lossless) :
-                fallback_predictor(LorenzoPredictor<T, N, 1>(conf.eb)),
                 quantizer(quantizer), encoder(encoder), lossless(lossless),
-                block_size(conf.block_size), stride(conf.stride),
                 global_dimensions(conf.dims), num_elements(conf.num) {
             static_assert(std::is_base_of<concepts::QuantizerInterface<T>, Quantizer>::value,
                           "must implement the quatizer interface");
@@ -93,7 +91,6 @@ namespace SZ {
             compressed_data = new uchar[2 * num_elements * sizeof(T)];
             uchar *compressed_data_pos = compressed_data;
             write(global_dimensions.data(), N, compressed_data_pos);
-            write(block_size, compressed_data_pos);
 //            predictor.save(compressed_data_pos);
             quantizer.save(compressed_data_pos);
 
@@ -126,8 +123,6 @@ namespace SZ {
                 std::cout << d << " ";
             }
             std::cout << std::endl;
-            uint block_size = 0;
-            read(block_size, compressed_data_pos, remaining_length);
 //            predictor.load(compressed_data_pos, remaining_length);
             // std::cout << "load predictor done\n";fflush(stdout);
             quantizer.load(compressed_data_pos, remaining_length);
@@ -165,25 +160,15 @@ namespace SZ {
 
     private:
         int pred_offset = 26;
-        LorenzoPredictor<T, N, 1> fallback_predictor;
         Quantizer quantizer;
         Encoder encoder;
         Lossless lossless;
-        uint block_size;
-        uint stride;
         size_t num_elements;
         std::array<size_t, N> global_dimensions;
         float level_start = 1;
         float level_offset = 1.8075;
     };
 
-    template<class T, uint N, class Quantizer, class Encoder, class Lossless>
-    SZ_Exaalt_Compressor<T, N, Quantizer, Encoder, Lossless>
-    make_sz_exaalt_compressor(const Config<T, N> &conf, Quantizer quantizer, Encoder encoder,
-                              Lossless lossless) {
-        return SZ_Exaalt_Compressor<T, N, Quantizer, Encoder, Lossless>(conf, quantizer, encoder,
-                                                                        lossless);
-    }
 
 }
 #endif
