@@ -294,7 +294,8 @@ int f3(T data, T *boundary, int n, double start_position, double offset) {
 }
 
 template<typename T, uint N>
-float SZ_Compress(std::vector<T> data, const SZ::Config<T, N> &conf, float level_start, float level_offset) {
+float
+SZ_Compress(std::vector<T> data, const SZ::Config<T, N> &conf, float level_start, float level_offset, int level_num) {
 
     std::vector<T> data_ = data;
 
@@ -304,7 +305,7 @@ float SZ_Compress(std::vector<T> data, const SZ::Config<T, N> &conf, float level
     timer.start();
     auto sz = SZ::SZ_Exaalt_Compressor(conf, SZ::LinearQuantizer<T>(conf.eb, conf.quant_bin),
                                        SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd());
-    sz.set_level(level_start, level_offset);
+    sz.set_level(level_start, level_offset, level_num);
 
     size_t compressed_size = 0;
     std::unique_ptr<SZ::uchar[]> compressed;
@@ -335,12 +336,19 @@ int main(int argc, char **argv) {
     size_t num;
     std::string homedir = getenv("HOME");
 //    auto input_raw = SZ::readfile<float>((homedir +"/data/exaalt-83x1077290/x.dat").c_str(), num);
-    auto input_raw = SZ::readfile<float>((homedir + "/data/exaalt-5423x3137/xx.dat").c_str(), num);
-//    auto input_raw = SZ::readfile<float>((homedir+"/data/exaalt/exaalt_nano-230434x146/y.f32.dat").c_str(), num);
+//    auto input_raw = SZ::readfile<float>((homedir + "/data/exaalt-5423x3137/xx.dat").c_str(), num);
+//    auto input_raw = SZ::readfile<float>((homedir+"/data/exaalt/exaalt_nano-230434x146/x.f32.dat").c_str(), num);
+//    auto input_raw = SZ::readfile<float>((homedir + "/data/exaalt/exaalt_trinity100-348843582/y.f32.dat").c_str(), num);
+//    auto input_raw = SZ::readfile<float>((homedir +"/data/exaalt/exaalt_trinity111-208745427/z.f32.dat").c_str(), num);
 //    auto input_raw = SZ::readfile<float>((homedir +"/data/exaalt/exaalt_trinity111-208745427/y.f32.dat").c_str(), num);
-//    auto input_raw = SZ::readfile<float>((homedir +"/data/exaalt/exaalt_2v18he100n1-5759x1040/y.f32.dat").c_str(), num);
+//    auto input_raw = SZ::readfile<float>((homedir +"/data/exaalt/exaalt_18he100n1-8779x1041/x.f32.dat").c_str(), num);
+//    auto input_raw = SZ::readfile<float>((homedir + "/data/exaalt/exaalt_10he200n2-7852x1037/x.f32.dat").c_str(), num);
+    auto input_raw = SZ::readfile<float>((homedir +"/data/exaalt/exaalt_2v18he100n1-5759x1040/y.f32.dat").c_str(), num);
     std::vector<float> input{input_raw.get(), input_raw.get() + num};
+    std::cout << "num = " << num << std::endl;
     timer.stop("read file");
+    float min = *std::min_element(input.begin(), input.end());
+    float max = *std::max_element(input.begin(), input.end());
 //    int y = 5423 / 200, x = 3137 * 200;
 
 //    for (int yy = 0; yy < y; yy++) {
@@ -349,7 +357,11 @@ int main(int argc, char **argv) {
 
     timer.start();
     std::vector<float> sample;
-    int sample_rate = 2000;
+    int sample_rate = 200000;
+    while (num / sample_rate < 500) {
+        sample_rate /= 2;
+    }
+    std::cout << "Sample Rate = " << sample_rate << std::endl;
     sample.reserve(num / sample_rate);
     std::random_device rd;  //Will be used to obtain a seed for the random number engine
     std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
@@ -413,9 +425,9 @@ int main(int argc, char **argv) {
     float level_offset = (cents[4] - cents[0]) / 4;
     float level_start = cents[0];
     printf("start = %.3f , level_offset = %.3f\n", level_start, level_offset);
-    if (level_start > 1.1 || level_start < 0.9 || level_offset > 1.9 || level_offset < 1.7) {
-        printf("Error start = %.3f , level_offset = %.3f\n", level_start, level_offset);
-    }
+//    if (level_start > 1.1 || level_start < 0.9 || level_offset > 1.9 || level_offset < 1.7) {
+//        printf("Error start = %.3f , level_offset = %.3f\n", level_start, level_offset);
+//    }
     timer.start();
     for (size_t i = 0; i < num; i++) {
 //        auto iter = std::lower_bound(boundary.begin(), boundary.end(), input[i]);
@@ -424,6 +436,10 @@ int main(int argc, char **argv) {
     }
     timer.stop("id");
 
-    SZ_Compress(input, SZ::Config<float, 1>(1e-1, {input.size()}), level_start, level_offset);
+    int max_level_diff = f(max, boundary.data(), k, level_start, level_offset) -
+                         f(min, boundary.data(), k, level_start, level_offset);
+    printf("level = %d\n", max_level_diff);
+
+    SZ_Compress(input, SZ::Config<float, 1>(1e-1, {input.size()}), level_start, level_offset, max_level_diff);
 //    }
 }

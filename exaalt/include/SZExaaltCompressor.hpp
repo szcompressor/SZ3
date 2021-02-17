@@ -31,9 +31,10 @@ namespace SZ {
                           "must implement the lossless interface");
         }
 
-        void set_level(float level_start_, float level_offset_) {
+        void set_level(float level_start_, float level_offset_, int level_num_) {
             this->level_start = level_start_;
             this->level_offset = level_offset_;
+            this->level_num = level_num_;
         }
 
         inline int quantize_to_level(T data) {
@@ -61,7 +62,7 @@ namespace SZ {
             for (size_t i = 1; i < num_elements; i++) {
 //                auto d = data[i];
                 auto l = quantize_to_level(data[i]);
-                pred_inds[i] = l - l0 + pred_offset;
+                pred_inds[i] = l - l0 + level_num;
 //                if (i % 2 == 0) {
 //                    quant_inds.push_back(quantizer.quantize_and_overwrite(data[i], level(1 + quantize_to_level(data[i - 1]))));
 //                } else {
@@ -99,7 +100,10 @@ namespace SZ {
             encoder.encode(quant_inds, compressed_data_pos);
             encoder.postprocess_encode();
 
-            encoder.preprocess_encode(pred_inds, 100);
+//            std::cout << *std::min_element(pred_inds.begin(), pred_inds.end()) << std::endl;
+//            std::cout << *std::max_element(pred_inds.begin(), pred_inds.end()) << std::endl;
+
+            encoder.preprocess_encode(pred_inds, level_num * 2 + 1);
             encoder.save(compressed_data_pos);
             encoder.encode(pred_inds, compressed_data_pos);
             encoder.postprocess_encode();
@@ -149,7 +153,7 @@ namespace SZ {
             auto l = pred_inds[0];
             dec_data[0] = quantizer.recover(level(l), quant_inds[0]);
             for (size_t i = 1; i < num_elements; i++) {
-                l += pred_inds[i] - pred_offset;
+                l += pred_inds[i] - level_num;
                 dec_data[i] = quantizer.recover(level(l), quant_inds[i]);
             }
 
@@ -159,7 +163,6 @@ namespace SZ {
 
 
     private:
-        int pred_offset = 26;
         Quantizer quantizer;
         Encoder encoder;
         Lossless lossless;
@@ -167,6 +170,7 @@ namespace SZ {
         std::array<size_t, N> global_dimensions;
         float level_start = 1;
         float level_offset = 1.8075;
+        int level_num = 26;
     };
 
 
