@@ -2,6 +2,7 @@ set(exes test_exaalt_compressor
         test_persist
         test_instant
         test_multilevel
+        test_multilevel2
         )
 
 foreach (EXE IN LISTS exes)
