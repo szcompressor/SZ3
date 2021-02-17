@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
 
         timer.stop("no compress");
         persistStore.print();
-        printf("get = %.2f , put = %.2f", gettime, puttime);
+        printf("get = %.2f , put = %.2f\n", gettime, puttime);
     }
     {
 
@@ -151,7 +151,7 @@ int main(int argc, char **argv) {
 
         timer.stop("compress");
         cPersistStore.print();
-        printf("get = %.2f , put = %.2f", gettime, puttime);
+        printf("get = %.2f , put = %.2f\n", gettime, puttime);
 
     }
     if (verify) {
