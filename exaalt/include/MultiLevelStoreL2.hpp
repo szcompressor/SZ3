@@ -13,6 +13,7 @@
 #include "InstantStore.hpp"
 #include "PersistentStore.hpp"
 #include "CompressedStore.hpp"
+#include "utils/Timer.hpp"
 
 template<class T>
 class MultiLevelStoreL2 {
@@ -45,6 +46,8 @@ public:
         instantStore.print();
         compressedStore.print();
         persistentDataStore.print();
+        printf("Get Count: instant = %lu , compressed = %lu , persistent = %lu\n", l1_count, l2_count, l3_count);
+        printf("Get Time: Compressed = %.2f , persistent = %.2f\n", l2_time, l3_time);
     }
 
     int put(Entry &entry) {
@@ -70,13 +73,20 @@ public:
         auto l1_code = instantStore.get(dbKey, key, data);
         if (l1_code == KEY_NOTFOUND) {
             Entry entry;
+            SZ::Timer timer;
+            timer.start();
             auto l2_code = compressedStore.get(dbKey, key, entry);
+            l2_time += timer.stop();
             if (l2_code == KEY_NOTFOUND) {
+                l3_count++;
+                timer.start();
                 Entry compressedEntry;
                 auto disk_code = persistentDataStore.get(dbKey, key, compressedEntry);
+                l3_time += timer.stop();
                 if (disk_code == KEY_NOTFOUND) {
                     return KEY_NOTFOUND;
                 } else {
+                    timer.start();
                     std::pair<Entry, Entry> l2_out;
                     if (!compressedStore.containsHuffman(compressedEntry.getHuffmanIndex())) {
                         Entry huffmanEntry;
@@ -95,10 +105,14 @@ public:
                     }
 
                     compressedStore.get(dbKey, key, entry);
+                    l2_time += timer.stop();
                 }
             }
+            l2_count++;
             data = *entry.getData();
             put(entry);
+        } else {
+            l1_count++;
         };
         return 0;
     }
@@ -115,7 +129,11 @@ private:
     CompressedStore<T, InstantStore> compressedStore;
     PersistentStore persistentDataStore;
     PersistentStore persistentHuffmanStore;
-
+    size_t l1_count = 0;
+    size_t l2_count = 0;
+    size_t l3_count = 0;
+    double l2_time = 0;
+    double l3_time = 0;
 };
 
 

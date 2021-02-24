@@ -95,8 +95,6 @@ int main(int argc, char **argv) {
                                 l2_batch_size);
 
         timer.start();
-        SZ::Timer timer2;
-        double gettime = 0, puttime = 0;
 
         int64 idx;
         std::string op;
@@ -106,19 +104,14 @@ int main(int argc, char **argv) {
                 continue;
             }
             if (op == "get") {
-                timer2.start();
                 persistStore.get(1, idx, data[idx]);
-                gettime += timer2.stop();
             } else {
-                timer2.start();
                 persistStore.put(1, idx, data[idx]);
-                puttime = timer2.stop();
             }
         }
 
         timer.stop("no compress");
         persistStore.print();
-        printf("get = %.2f , put = %.2f\n", gettime, puttime);
     }
     {
 
@@ -128,8 +121,6 @@ int main(int argc, char **argv) {
         cPersistStore.initialize(dbdir, l1_capacity, l2_capacity - l2_batch_size, block_size, error_bound,
                                  l2_batch_size);
 
-        SZ::Timer timer2;
-        double gettime = 0, puttime = 0;
 
         timer.start();
         int64 idx;
@@ -140,19 +131,14 @@ int main(int argc, char **argv) {
                 continue;
             }
             if (op == "get") {
-                timer2.start();
                 cPersistStore.get(1, idx, data[idx]);
-                gettime += timer2.stop();
             } else {
-                timer2.start();
                 cPersistStore.put(1, idx, data[idx]);
-                puttime = timer2.stop();
             }
         }
 
         timer.stop("compress");
         cPersistStore.print();
-        printf("get = %.2f , put = %.2f\n", gettime, puttime);
 
     }
     if (verify) {

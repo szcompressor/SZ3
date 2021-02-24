@@ -13,6 +13,7 @@
 #include "InstantStore.hpp"
 #include "PersistentStore.hpp"
 #include "CompressedStore.hpp"
+#include "utils/Timer.hpp"
 
 template<class T>
 class MultiLevelStoreL1 {
@@ -35,6 +36,9 @@ public:
     void print() {
         instantStore.print();
         persistentStore.print();
+        printf("Get Count: instant = %lu , persistent = %lu\n", l1_count, l2_count);
+        printf("Get Time: persistent = %.2f\n", l2_time);
+
     }
 
 
@@ -54,14 +58,20 @@ public:
     int get(unsigned int dbKey, int64 &key, RawDataVector &data) {
         auto l1_code = instantStore.get(dbKey, key, data);
         if (l1_code == KEY_NOTFOUND) {
+            SZ::Timer timer;
+            timer.start();
             Entry entry;
             auto disk_code = persistentStore.get(dbKey, key, entry);
+            l2_time += timer.stop();
             if (disk_code == KEY_NOTFOUND) {
                 return KEY_NOTFOUND;
             } else {
+                l2_count++;
                 data = *entry.getData();
                 put(entry);
             }
+        } else {
+            l1_count++;
         };
         return 0;
     }
@@ -76,7 +86,9 @@ private:
 
     InstantStore instantStore;
     PersistentStore persistentStore;
-
+    size_t l1_count = 0;
+    size_t l2_count = 0;
+    double l2_time = 0;
 };
 
 
