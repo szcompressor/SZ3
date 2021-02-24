@@ -16,17 +16,18 @@ int main(int argc, char **argv) {
 
     if (argc <= 1) {
         std::cout << "Usage : " << argv[0]
-                  << " dbdir datafile [error_bound block_size l1_capacity l2_capacity l2_batch_size]"
+                  << " dbdir datafile tracefile [error_bound block_size l1_capacity l2_capacity l2_batch_size]"
                   << std::endl;
-        std::cout << "Example: " << argv[0] << " tmp  ../../exaalt_data_5423x3137/xx.dat 1E-4 3137 10000 20000 400"
+        std::cout << "Example: " << argv[0] << " tmp  exaalt_data_5423x3137/xx.dat trace.txt 1E-4 3137 10000 20000 400"
                   << std::endl;
         std::exit(0);
     }
 
     std::string dbdir(argv[1]);
     std::string datafile(argv[2]);
+    std::string tracefile(argv[3]);
 
-    int argp = 3;
+    int argp = 4;
     double error_bound = ERROR_BOUND;
     if (argp < argc) {
         error_bound = atof(argv[argp++]);
@@ -99,7 +100,7 @@ int main(int argc, char **argv) {
 
         int64 idx;
         std::string op;
-        std::ifstream infile((homedir + "/code/sz-kai/exaalt/memory_trace.txt").c_str());
+        std::ifstream infile(tracefile);
         while (infile >> op >> idx) {
             if (idx >= testcase) {
                 continue;
@@ -133,7 +134,7 @@ int main(int argc, char **argv) {
         timer.start();
         int64 idx;
         std::string op;
-        std::ifstream infile((homedir + "/code/sz-kai/exaalt/memory_trace.txt").c_str());
+        std::ifstream infile(tracefile);
         while (infile >> op >> idx) {
             if (idx >= testcase) {
                 continue;
