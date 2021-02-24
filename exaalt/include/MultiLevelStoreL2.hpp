@@ -107,8 +107,9 @@ public:
                     compressedStore.get(dbKey, key, entry);
                     l2_time += timer.stop();
                 }
+            } else {
+                l2_count++;
             }
-            l2_count++;
             data = *entry.getData();
             put(entry);
         } else {
