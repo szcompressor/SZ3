@@ -69,6 +69,7 @@ public:
         return put(entry);
     }
 
+
     int get(unsigned int dbKey, int64 &key, RawDataVector &data) {
         auto l1_code = instantStore.get(dbKey, key, data);
         if (l1_code == KEY_NOTFOUND) {
@@ -110,6 +111,8 @@ public:
             } else {
                 l2_count++;
             }
+            entry.setKeys(std::make_pair(dbKey, key));
+//            printf("%llu ", entry.getKeys().second);
             data = *entry.getData();
             put(entry);
         } else {

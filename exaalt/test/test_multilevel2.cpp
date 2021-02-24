@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
     {
         std::cout << "==============buffer without compression===============" << std::endl;
         MultiLevelStoreL1<datatype> persistStore;
-        persistStore.initialize(dbdir, l1_capacity, 0, block_size, error_bound,
+        persistStore.initialize(dbdir, l1_capacity + l2_capacity / 10, 0, block_size, error_bound,
                                 l2_batch_size);
 
         timer.start();
@@ -118,7 +118,8 @@ int main(int argc, char **argv) {
         std::cout << "==============buffer with compression===============" << std::endl;
 
         MultiLevelStoreL2<datatype> cPersistStore;
-        cPersistStore.initialize(dbdir, l1_capacity, l2_capacity - l2_batch_size, block_size, error_bound,
+        cPersistStore.initialize(dbdir, l1_capacity, l2_capacity - l2_batch_size, block_size,
+                                 error_bound,
                                  l2_batch_size);
 
 
