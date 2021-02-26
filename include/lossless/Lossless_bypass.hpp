@@ -25,7 +25,7 @@ namespace SZ {
             return data;
         }
 
-        uchar *decompress(const uchar *data, size_t compressedSize) {
+        uchar *decompress(const uchar *data, size_t& compressedSize) {
             return (uchar *) data;
         }
     };

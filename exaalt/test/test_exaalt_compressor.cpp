@@ -11,6 +11,7 @@
 #include "def.hpp"
 #include "quantizer/IntegerQuantizer.hpp"
 #include "lossless/Lossless_zstd.hpp"
+#include "lossless/Lossless_bypass.hpp"
 #include "encoder/HuffmanEncoder.hpp"
 #include "SZExaaltCompressor.hpp"
 
@@ -343,7 +344,8 @@ int main(int argc, char **argv) {
 //    auto input_raw = SZ::readfile<float>((homedir +"/data/exaalt/exaalt_trinity111-208745427/y.f32.dat").c_str(), num);
 //    auto input_raw = SZ::readfile<float>((homedir +"/data/exaalt/exaalt_18he100n1-8779x1041/x.f32.dat").c_str(), num);
 //    auto input_raw = SZ::readfile<float>((homedir + "/data/exaalt/exaalt_10he200n2-7852x1037/x.f32.dat").c_str(), num);
-    auto input_raw = SZ::readfile<float>((homedir +"/data/exaalt/exaalt_2v18he100n1-5759x1040/y.f32.dat").c_str(), num);
+    auto input_raw = SZ::readfile<float>((homedir + "/data/exaalt/exaalt_2v18he100n1-5759x1040/y.f32.dat").c_str(),
+                                         num);
     std::vector<float> input{input_raw.get(), input_raw.get() + num};
     std::cout << "num = " << num << std::endl;
     timer.stop("read file");
@@ -435,11 +437,38 @@ int main(int argc, char **argv) {
         idx[i] = f(input[i], boundary.data(), k, level_start, level_offset);
     }
     timer.stop("id");
+    for (size_t i = 1000000; i < 1001000; i++) {
+        std::cout << input[i] << " ";
+    }
+    std::cout << std::endl;
+    for (size_t i = 1000000; i < 1001000; i++) {
+        std::cout << int(idx[i]) - int(idx[i - 1]) << " ";
+    }
+
+    size_t cnt = 0;
+    std::vector<size_t> cnts(5);
+    std::cout << std::endl;
+    for (size_t i = 2; i < num; i++) {
+//        std::cout << int(idx[i]) - int(idx[i - 1]) << " ";
+        int prev = int(idx[i - 1]) - int(idx[i - 2]);
+        int current = int(idx[i]) - int(idx[i - 1]);
+        if (prev == -1 && current == 1 || prev == 1 && current == -1) {
+            cnt++;
+        }
+        if (fabs(current) <= 2) {
+            cnts[current + 2]++;
+        }
+    }
+    std::cout << num << " " << cnt << std::endl;
+    for (auto cnt1:cnts) {
+        std::cout << (float) cnt1 / num * 100.0 << " ";
+    }
+    std::cout << std::endl;
 
     int max_level_diff = f(max, boundary.data(), k, level_start, level_offset) -
                          f(min, boundary.data(), k, level_start, level_offset);
     printf("level = %d\n", max_level_diff);
 
-    SZ_Compress(input, SZ::Config<float, 1>(1e-1, {input.size()}), level_start, level_offset, max_level_diff);
+    SZ_Compress(input, SZ::Config<float, 1>(1, {input.size()}), level_start, level_offset, max_level_diff);
 //    }
 }
