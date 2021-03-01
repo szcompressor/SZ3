@@ -2,9 +2,64 @@
 #define _meta_compress_block_processing_hpp
 
 #include "meta_def.hpp"
+#include "encoder/HuffmanEncoder.hpp"
+#include "utils/MemoryUtil.hpp"
 
 namespace SZMETA {
 
+    template<typename T>
+    float *
+    decode_regression_coefficients(const unsigned char *&compressed_pos, size_t reg_count, int block_size, T precision,
+                                   const meta_params &params) {
+        size_t reg_unpredictable_count = 0;
+        size_t remaining_length = RegCoeffNum3d * reg_count;//fake, has no meaning
+        SZ::read(reg_unpredictable_count, compressed_pos, remaining_length);
+        const float *reg_unpredictable_data_pos = (const float *) compressed_pos;
+        compressed_pos += reg_unpredictable_count * sizeof(float);
+
+//        int *reg_type = Huffman_decode_tree_and_data(2 * RegCoeffCapacity, RegCoeffNum3d * reg_count, compressed_pos);
+        SZ::HuffmanEncoder<int> selector_encoder = SZ::HuffmanEncoder<int>();
+        selector_encoder.load(compressed_pos, remaining_length);
+        auto reg_vector = selector_encoder.decode(compressed_pos, RegCoeffNum3d * reg_count);
+        selector_encoder.postprocess_decode();
+        int *reg_type = reg_vector.data();
+
+        float *reg_params = (float *) malloc(RegCoeffNum3d * (reg_count + 1) * sizeof(float));
+        for (int i = 0; i < RegCoeffNum3d; i++)
+            reg_params[i] = 0;
+        T reg_precisions[RegCoeffNum3d];
+        for (int i = 0; i < RegCoeffNum3d - 1; i++) {
+            reg_precisions[i] = params.regression_param_eb_linear;
+        }
+        reg_precisions[RegCoeffNum3d - 1] = params.regression_param_eb_independent;
+        float *prev_reg_params = reg_params;
+        float *reg_params_pos = reg_params + RegCoeffNum3d;
+        const int *type_pos = (const int *) reg_type;
+        for (int i = 0; i < reg_count; i++) {
+            for (int j = 0; j < RegCoeffNum3d; j++) {
+                *reg_params_pos = recover(*prev_reg_params, reg_precisions[j], *(type_pos++), RegCoeffRadius,
+                                          reg_unpredictable_data_pos);
+                prev_reg_params++, reg_params_pos++;
+            }
+        }
+//        free(reg_type);
+        return reg_params;
+    }
+
+    void
+    encode_regression_coefficients(const int *reg_params_type, const float *reg_unpredictable_data, size_t reg_count,
+                                   size_t reg_unpredictable_count, unsigned char *&compressed_pos) {
+        SZ::write(reg_unpredictable_count, compressed_pos);
+        SZ::write(reg_unpredictable_data, reg_unpredictable_count, compressed_pos);
+
+        SZ::HuffmanEncoder<int> selector_encoder = SZ::HuffmanEncoder<int>();
+        selector_encoder.preprocess_encode(reg_params_type, reg_count, 2 * RegCoeffCapacity);
+        selector_encoder.save(compressed_pos);
+        selector_encoder.encode(reg_params_type, reg_count, compressed_pos);
+        selector_encoder.postprocess_encode();
+
+//        Huffman_encode_tree_and_data(2 * RegCoeffCapacity, reg_params_type, reg_count, compressed_pos);
+    }
 
     template<typename T>
     inline void
@@ -135,11 +190,13 @@ namespace SZMETA {
 //        const T *cur_data_pos = data_pos + i * dim0_offset;
             // T * buffer_pos = buffer + (i+1)*buffer_dim0_offset + buffer_dim1_offset + 1;
             T *buffer_pos =
-                    buffer + (i + lorenzo_layer) * buffer_dim0_offset + lorenzo_layer * buffer_dim1_offset + lorenzo_layer;
+                    buffer + (i + lorenzo_layer) * buffer_dim0_offset + lorenzo_layer * buffer_dim1_offset +
+                    lorenzo_layer;
             for (int j = 0; j < size_y; j++) {
                 for (int k = 0; k < size_z; k++) {
                     T cur_data = data_pos[i * dim0_offset + j * dim1_offset + k];
-                    T pred = (T) (reg_params_pos[0] * (float) i + reg_params_pos[1] * (float) j + reg_params_pos[2] * (float) k +
+                    T pred = (T) (reg_params_pos[0] * (float) i + reg_params_pos[1] * (float) j +
+                                  reg_params_pos[2] * (float) k +
                                   reg_params_pos[3]);
 
                     T diff = cur_data - pred;
@@ -156,8 +213,9 @@ namespace SZMETA {
                         if (fabs(cur_data - decompressed_data) > precision) {
                             int index = j * size_z + k;
                             type_pos[index] = 0;
-                            unpred_buffer[index * offset + unpred_count_buffer[index]] = buffer_pos[j * buffer_dim1_offset +
-                                                                                                    k] = cur_data;
+                            unpred_buffer[index * offset + unpred_count_buffer[index]] = buffer_pos[
+                                    j * buffer_dim1_offset +
+                                    k] = cur_data;
                             unpred_count_buffer[index]++;
                         } else buffer_pos[j * buffer_dim1_offset + k] = decompressed_data;
                     } else {
@@ -178,7 +236,7 @@ namespace SZMETA {
 
     template<typename T>
     inline void
-    compress_lorenzo_3d_as1d_predict(const meanInfo<T> &mean_info, const T *data_pos, T *buffer, T precision,
+    compress_lorenzo_3d_as1d_predict(const meanInfo <T> &mean_info, const T *data_pos, T *buffer, T precision,
                                      T recip_precision, int capacity, int intv_radius,
                                      int size_x, int size_y, int size_z, size_t buffer_dim0_offset,
                                      size_t buffer_dim1_offset,
@@ -240,7 +298,7 @@ namespace SZMETA {
 
     template<typename T>
     inline void
-    compress_lorenzo_3d_as2d_predict(const meanInfo<T> &mean_info, const T *data_pos, T *buffer, T precision,
+    compress_lorenzo_3d_as2d_predict(const meanInfo <T> &mean_info, const T *data_pos, T *buffer, T precision,
                                      T recip_precision, int capacity, int intv_radius,
                                      int size_x, int size_y, int size_z, size_t buffer_dim0_offset,
                                      size_t buffer_dim1_offset,
@@ -315,7 +373,7 @@ namespace SZMETA {
 
     template<typename T>
     inline void
-    compress_lorenzo_3d_predict(const meanInfo<T> &mean_info, const T *data_pos, T *buffer, T precision,
+    compress_lorenzo_3d_predict(const meanInfo <T> &mean_info, const T *data_pos, T *buffer, T precision,
                                 T recip_precision, int capacity, int intv_radius,
                                 int size_x, int size_y, int size_z, size_t buffer_dim0_offset,
                                 size_t buffer_dim1_offset,
@@ -362,7 +420,8 @@ namespace SZMETA {
                                    + 2 * cur_buffer_pos[-2 * buffer_dim0_offset - 2 * buffer_dim1_offset - 1]
                                    - cur_buffer_pos[-2 * buffer_dim0_offset - 2 * buffer_dim1_offset - 2];
                         } else {
-                            pred = cur_buffer_pos[-1] + cur_buffer_pos[-buffer_dim1_offset] + cur_buffer_pos[-buffer_dim0_offset]
+                            pred = cur_buffer_pos[-1] + cur_buffer_pos[-buffer_dim1_offset] +
+                                   cur_buffer_pos[-buffer_dim0_offset]
                                    - cur_buffer_pos[-buffer_dim1_offset - 1] - cur_buffer_pos[-buffer_dim0_offset - 1]
                                    - cur_buffer_pos[-buffer_dim0_offset - buffer_dim1_offset] +
                                    cur_buffer_pos[-buffer_dim0_offset - buffer_dim1_offset - 1];
@@ -410,9 +469,12 @@ namespace SZMETA {
     template<typename T>
     inline void
     decompress_regression_3d_prediction(const float *reg_params_pos, T *buffer, T precision, int intv_radius,
-                                        int size_x, int size_y, int size_z, size_t buffer_dim0_offset, size_t buffer_dim1_offset,
-                                        size_t dim0_offset, size_t dim1_offset, const int *&type_pos, int *unpred_count_buffer,
-                                        const T *unpred_data_buffer, const int offset, T *dec_data_pos, int lorenzo_layer) {
+                                        int size_x, int size_y, int size_z, size_t buffer_dim0_offset,
+                                        size_t buffer_dim1_offset,
+                                        size_t dim0_offset, size_t dim1_offset, const int *&type_pos,
+                                        int *unpred_count_buffer,
+                                        const T *unpred_data_buffer, const int offset, T *dec_data_pos,
+                                        int lorenzo_layer) {
         T *cur_data_pos = dec_data_pos;
         T *buffer_pos = buffer + lorenzo_layer * (buffer_dim0_offset + buffer_dim1_offset + 1);
         for (int i = 0; i < size_x; i++) {
@@ -443,7 +505,7 @@ namespace SZMETA {
 // block-independant use_lorenzo pred & decompress
     template<typename T>
     inline void
-    decompress_lorenzo_3d_as1d_prediction(const meanInfo<T> &mean_info, T *buffer, T precision, int intv_radius,
+    decompress_lorenzo_3d_as1d_prediction(const meanInfo <T> &mean_info, T *buffer, T precision, int intv_radius,
                                           int size_x, int size_y, int size_z, size_t buffer_dim0_offset,
                                           size_t buffer_dim1_offset,
                                           size_t dim0_offset, size_t dim1_offset,
@@ -463,7 +525,8 @@ namespace SZMETA {
                     else {
                         T *cur_buffer_pos = buffer_pos + k;
                         if (type_val == 0) {
-                            cur_data_pos[k] = *cur_buffer_pos = unpred_data_buffer[index * offset + unpred_count_buffer[index]];
+                            cur_data_pos[k] = *cur_buffer_pos = unpred_data_buffer[index * offset +
+                                                                                   unpred_count_buffer[index]];
                             unpred_count_buffer[index]++;
                         } else {
                             T pred;
@@ -487,7 +550,7 @@ namespace SZMETA {
 
     template<typename T>
     inline void
-    decompress_lorenzo_3d_as2d_prediction(const meanInfo<T> &mean_info, T *buffer, T precision, int intv_radius,
+    decompress_lorenzo_3d_as2d_prediction(const meanInfo <T> &mean_info, T *buffer, T precision, int intv_radius,
                                           int size_x, int size_y, int size_z, size_t buffer_dim0_offset,
                                           size_t buffer_dim1_offset,
                                           size_t dim0_offset, size_t dim1_offset,
@@ -507,7 +570,8 @@ namespace SZMETA {
                     else {
                         T *cur_buffer_pos = buffer_pos + k;
                         if (type_val == 0) {
-                            cur_data_pos[k] = *cur_buffer_pos = unpred_data_buffer[index * offset + unpred_count_buffer[index]];
+                            cur_data_pos[k] = *cur_buffer_pos = unpred_data_buffer[index * offset +
+                                                                                   unpred_count_buffer[index]];
                             unpred_count_buffer[index]++;
                         } else {
                             T pred;
@@ -543,8 +607,9 @@ namespace SZMETA {
 
     template<typename T>
     inline void
-    decompress_lorenzo_3d_prediction(const meanInfo<T> &mean_info, T *buffer, T precision, int intv_radius,
-                                     int size_x, int size_y, int size_z, size_t buffer_dim0_offset, size_t buffer_dim1_offset,
+    decompress_lorenzo_3d_prediction(const meanInfo <T> &mean_info, T *buffer, T precision, int intv_radius,
+                                     int size_x, int size_y, int size_z, size_t buffer_dim0_offset,
+                                     size_t buffer_dim1_offset,
                                      size_t dim0_offset, size_t dim1_offset,
                                      const int *&type_pos, int *unpred_count_buffer, const T *unpred_data_buffer,
                                      const int offset,
@@ -561,7 +626,8 @@ namespace SZMETA {
                     else {
                         T *cur_buffer_pos = buffer_pos + k;
                         if (type_val == 0) {
-                            cur_data_pos[k] = *cur_buffer_pos = unpred_data_buffer[index * offset + unpred_count_buffer[index]];
+                            cur_data_pos[k] = *cur_buffer_pos = unpred_data_buffer[index * offset +
+                                                                                   unpred_count_buffer[index]];
                             unpred_count_buffer[index]++;
                         } else {
                             T pred;
@@ -595,7 +661,8 @@ namespace SZMETA {
                             } else {
                                 pred = cur_buffer_pos[-1] + cur_buffer_pos[-buffer_dim1_offset] +
                                        cur_buffer_pos[-buffer_dim0_offset]
-                                       - cur_buffer_pos[-buffer_dim1_offset - 1] - cur_buffer_pos[-buffer_dim0_offset - 1]
+                                       - cur_buffer_pos[-buffer_dim1_offset - 1] -
+                                       cur_buffer_pos[-buffer_dim0_offset - 1]
                                        - cur_buffer_pos[-buffer_dim0_offset - buffer_dim1_offset] +
                                        cur_buffer_pos[-buffer_dim0_offset - buffer_dim1_offset - 1];
                             }

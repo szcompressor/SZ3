@@ -31,20 +31,6 @@ namespace SZMETA {
 #define Lorenze2LayerNoise2d 2.76
 #define Lorenze2LayerNoise3d 6.8
 
-    struct meta_compress_info {
-        float compress_time;
-        float decompress_time;
-        double psnr;
-        double nrmse;
-        size_t ori_bytes;
-        size_t compress_bytes;
-        size_t lorenzo_count;
-        size_t lorenzo2_count;
-        size_t regression_count;
-        size_t block_count;
-        float ratio;
-    };
-
     struct meta_params {
         int block_size;
         int prediction_dim;

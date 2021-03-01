@@ -119,7 +119,7 @@ float SZ_compress_step2(std::unique_ptr<T[]> const &data, const SZ::Config<T, N>
 
 
     auto quantizer = SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2);
-//    return SZ_compress_step3<T>(data, conf, make_sz_meta_frontend(conf, quantizer));
+    return SZ_compress_step3<T>(data, conf, make_sz_meta_frontend(conf, quantizer));
     std::vector<std::shared_ptr<SZ::concepts::PredictorInterface<T, N>>> predictors;
     int use_single_predictor =
             (conf.enable_lorenzo + conf.enable_2ndlorenzo + conf.enable_regression) == 1;
