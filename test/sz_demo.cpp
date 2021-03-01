@@ -1,5 +1,8 @@
 #include "compressor/SZGeneralCompressor.hpp"
 #include "compressor/PQLCompressor.hpp"
+#include "frontend/Frontend.hpp"
+#include "frontend/SZ3Frontend.hpp"
+#include "frontend/SZMetaFrontend.hpp"
 #include "predictor/Predictor.hpp"
 #include "predictor/LorenzoPredictor.hpp"
 #include "predictor/RegressionPredictor.hpp"
@@ -24,10 +27,10 @@ std::string src_file_name;
 float relative_error_bound = 0;
 float compression_time = 0;
 
-template<typename T, class Predictor, class Lossless, uint N>
+template<typename T, class Frontend, class Lossless, uint N>
 float SZ_compress_final(std::unique_ptr<T[]> const &data,
                         const SZ::Config<T, N> &conf,
-                        Predictor predictor, Lossless lossless) {
+                        Frontend frontend, Lossless lossless) {
 
     std::cout << "****************** Options ********************" << std::endl;
     std::cout << "dimension = " << N
@@ -45,21 +48,19 @@ float SZ_compress_final(std::unique_ptr<T[]> const &data,
 
     std::vector<T> data_ = std::vector<T>(data.get(), data.get() + conf.num);
 
-    auto sz_huffman = make_sz_general_compressor(conf, predictor,
-                                                 SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2),
-                                                 SZ::HuffmanEncoder<int>(), lossless);
-    auto sz_arithmetic = make_sz_general_compressor(conf, predictor,
-                                                    SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2),
-                                                    SZ::ArithmeticEncoder<int>(true), lossless);
-    auto sz_noencoder = make_pql_compressor(conf, predictor, SZ::LinearQuantizer<T>(conf.eb, 64),
-                                            lossless);
+    auto sz_huffman = make_sz_general_compressor(conf, frontend, SZ::HuffmanEncoder<int>(), lossless);
+    auto sz_arithmetic = make_sz_general_compressor(conf, frontend, SZ::ArithmeticEncoder<int>(true), lossless);
+//    auto sz_noencoder = make_pql_compressor(conf, predictor, SZ::LinearQuantizer<T>(conf.eb, 64),
+//                                            lossless);
     SZ::Timer timer;
     timer.start();
     std::cout << "****************** Compression ******************" << std::endl;
 
     SZ::concepts::CompressorInterface<T> *sz;
     if (conf.encoder_op == 0) {
-        sz = &sz_noencoder;
+        std::cout << "encoder_op == 0 not support yet." << std::endl;
+        return 0;
+//        sz = &sz_noencoder;
     } else if (conf.encoder_op == 1) {
         sz = &sz_huffman;
     } else {
@@ -102,14 +103,14 @@ float SZ_compress_final(std::unique_ptr<T[]> const &data,
     return ratio;
 }
 
-template<typename T, class Predictor, uint N>
+template<typename T, class Frontend, uint N>
 float SZ_compress_step3(std::unique_ptr<T[]> const &data,
                         const SZ::Config<T, N> &conf,
-                        Predictor predictor) {
+                        Frontend frontend) {
     if (conf.lossless_op == 0) {
-        return SZ_compress_final<T>(data, conf, predictor, SZ::Lossless_bypass());
+        return SZ_compress_final<T>(data, conf, frontend, SZ::Lossless_bypass());
     } else {
-        return SZ_compress_final<T>(data, conf, predictor, SZ::Lossless_zstd());
+        return SZ_compress_final<T>(data, conf, frontend, SZ::Lossless_zstd());
     }
 }
 
@@ -117,32 +118,39 @@ template<typename T, uint N>
 float SZ_compress_step2(std::unique_ptr<T[]> const &data, const SZ::Config<T, N> &conf) {
 
 
+    auto quantizer = SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2);
+//    return SZ_compress_step3<T>(data, conf, make_sz_meta_frontend(conf, quantizer));
     std::vector<std::shared_ptr<SZ::concepts::PredictorInterface<T, N>>> predictors;
     int use_single_predictor =
             (conf.enable_lorenzo + conf.enable_2ndlorenzo + conf.enable_regression) == 1;
     if (conf.enable_lorenzo) {
         if (use_single_predictor) {
-            return SZ_compress_step3<T>(data, conf, SZ::LorenzoPredictor<T, N, 1>(conf.eb));
+            return SZ_compress_step3<T>(data, conf,
+                                        make_sz3_frontend(conf, SZ::LorenzoPredictor<T, N, 1>(conf.eb), quantizer));
         } else {
             predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 1>>(conf.eb));
         }
     }
     if (conf.enable_2ndlorenzo) {
         if (use_single_predictor) {
-            return SZ_compress_step3<T>(data, conf, SZ::LorenzoPredictor<T, N, 2>(conf.eb));
+            return SZ_compress_step3<T>(data, conf,
+                                        make_sz3_frontend(conf, SZ::LorenzoPredictor<T, N, 2>(conf.eb), quantizer));
         } else {
             predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 2>>(conf.eb));
         }
     }
     if (conf.enable_regression) {
         if (use_single_predictor) {
-            return SZ_compress_step3<T>(data, conf, SZ::RegressionPredictor<T, N>(conf.block_size, conf.eb));
+            return SZ_compress_step3<T>(data, conf,
+                                        make_sz3_frontend(conf, SZ::RegressionPredictor<T, N>(conf.block_size, conf.eb),
+                                                          quantizer));
         } else {
             predictors.push_back(std::make_shared<SZ::RegressionPredictor<T, N>>(conf.block_size, conf.eb));
         }
     }
 
-    return SZ_compress_step3<T>(data, conf, SZ::ComposedPredictor<T, N>(predictors));
+    return SZ_compress_step3<T>(data, conf,
+                                make_sz3_frontend(conf, SZ::ComposedPredictor<T, N>(predictors), quantizer));
 }
 
 
