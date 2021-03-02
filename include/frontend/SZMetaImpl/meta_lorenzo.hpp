@@ -79,7 +79,7 @@ namespace SZMETA {
 
     template<typename T, class Quantizer>
     inline void
-    lorenzo_predict_quantize_3d(const meanInfo <T> &mean_info, const T *data_pos, T *buffer, T precision,
+    lorenzo_predict_quantize_3d(const meanInfo<T> &mean_info, const T *data_pos, T *buffer, T precision,
                                 T recip_precision, int capacity, int intv_radius,
                                 int size_x, int size_y, int size_z, size_t buffer_dim0_offset,
                                 size_t buffer_dim1_offset,
@@ -113,8 +113,9 @@ namespace SZMETA {
                             pred = lorenzo_predict_1d(cur_buffer_pos, buffer_dim0_offset);
                         }
                     }
-                    *cur_buffer_pos = cur_data;
-                    type_pos[k] = quantizer.quantize_and_overwrite(*cur_buffer_pos, pred);
+//                    *cur_buffer_pos = cur_data;
+//                    type_pos[k] = quantizer.quantize_and_overwrite(*cur_buffer_pos, pred);
+                    type_pos[k] = quantizer.quantize_and_overwrite(cur_data, pred, *cur_buffer_pos);
 
                 }
                 type_pos += size_z;
@@ -128,7 +129,7 @@ namespace SZMETA {
 
     template<typename T, class Quantizer>
     inline void
-    lorenzo_predict_recover_3d(const meanInfo <T> &mean_info, T *buffer, T precision, int intv_radius,
+    lorenzo_predict_recover_3d(const meanInfo<T> &mean_info, T *buffer, T precision, int intv_radius,
                                int size_x, int size_y, int size_z, size_t buffer_dim0_offset,
                                size_t buffer_dim1_offset,
                                size_t dim0_offset, size_t dim1_offset,

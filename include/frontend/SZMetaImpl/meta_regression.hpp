@@ -10,7 +10,7 @@ namespace SZMETA {
     template<typename T>
     inline int
     quantize_reg_coeff(float pred, T cur_data, double precision, double recip_precision, int capacity, int intv_radius,
-             T *&unpredictable_data_pos, T *decompressed) {
+                       T *&unpredictable_data_pos, T *decompressed) {
         double diff = cur_data - pred;
         double quant_diff = fabs(diff) * recip_precision + 1;
         if (quant_diff < capacity) {
@@ -24,6 +24,7 @@ namespace SZMETA {
         *(unpredictable_data_pos++) = cur_data;
         return 0;
     }
+
     template<typename T>
     inline T
     recover_reg_coeff(float pred, double precision, int type_val, int intv_radius, const T *&unpredictable_data_pos) {
@@ -41,9 +42,10 @@ namespace SZMETA {
                                        int *reg_params_type_pos, float *&reg_unpredictable_data_pos) {
         float *prev_reg_params = reg_params_pos - coeff_num;
         for (int i = 0; i < coeff_num; i++) {
-            *(reg_params_type_pos++) = quantize_reg_coeff(*prev_reg_params, *reg_params_pos, precisions[i], recip_precisions[i],
-                                                RegCoeffCapacity, RegCoeffRadius, reg_unpredictable_data_pos,
-                                                reg_params_pos);
+            *(reg_params_type_pos++) = quantize_reg_coeff(*prev_reg_params, *reg_params_pos, precisions[i],
+                                                          recip_precisions[i],
+                                                          RegCoeffCapacity, RegCoeffRadius, reg_unpredictable_data_pos,
+                                                          reg_params_pos);
             prev_reg_params++, reg_params_pos++;
         }
     }
@@ -79,7 +81,7 @@ namespace SZMETA {
         for (int i = 0; i < reg_count; i++) {
             for (int j = 0; j < RegCoeffNum3d; j++) {
                 *reg_params_pos = recover_reg_coeff(*prev_reg_params, reg_precisions[j], *(type_pos++), RegCoeffRadius,
-                                          reg_unpredictable_data_pos);
+                                                    reg_unpredictable_data_pos);
                 prev_reg_params++, reg_params_pos++;
             }
         }
@@ -147,14 +149,15 @@ namespace SZMETA {
         return reg_params_pos[0] * x + reg_params_pos[1] * y + reg_params_pos[2] * z + reg_params_pos[3];
     }
 
-    template<typename T>
+    template<typename T, class Quantizer>
     inline void
-    compress_regression_3d_predict(const T *data_pos, const float *reg_params_pos, T *buffer, T precision,
+    regression_predict_quantize_3d(const T *data_pos, const float *reg_params_pos, T *buffer, T precision,
                                    T recip_precision, int capacity,
                                    int intv_radius, int size_x, int size_y, int size_z, size_t buffer_dim0_offset,
                                    size_t buffer_dim1_offset,
                                    size_t dim0_offset, size_t dim1_offset, int *&type_pos,
-                                   int *unpred_count_buffer, T *unpred_buffer, size_t offset, int lorenzo_layer) {
+                                   int *unpred_count_buffer, T *unpred_buffer, size_t offset, int lorenzo_layer,
+                                   Quantizer &quantizer) {
         for (int i = 0; i < size_x; i++) {
 //        const T *cur_data_pos = data_pos + i * dim0_offset;
             // T * buffer_pos = buffer + (i+1)*buffer_dim0_offset + buffer_dim1_offset + 1;
@@ -168,32 +171,39 @@ namespace SZMETA {
                                   reg_params_pos[2] * (float) k +
                                   reg_params_pos[3]);
 
-                    T diff = cur_data - pred;
-                    int quant_index = (int) (fabs(diff) * recip_precision) + 1;
-                    if (quant_index < capacity) {
-                        quant_index >>= 1;
-                        int half_index = quant_index;
-                        quant_index <<= 1;
-                        if (diff < 0) {
-                            quant_index = -quant_index;
-                            type_pos[j * size_z + k] = intv_radius - half_index;
-                        } else type_pos[j * size_z + k] = intv_radius + half_index;
-                        T decompressed_data = pred + (T) quant_index * precision;
-                        if (fabs(cur_data - decompressed_data) > precision) {
-                            int index = j * size_z + k;
-                            type_pos[index] = 0;
-                            unpred_buffer[index * offset + unpred_count_buffer[index]] = buffer_pos[
-                                    j * buffer_dim1_offset +
-                                    k] = cur_data;
-                            unpred_count_buffer[index]++;
-                        } else buffer_pos[j * buffer_dim1_offset + k] = decompressed_data;
-                    } else {
-                        int index = j * size_z + k;
-                        type_pos[index] = 0;
-                        unpred_buffer[index * offset + unpred_count_buffer[index]] = buffer_pos[j * buffer_dim1_offset +
-                                                                                                k] = cur_data;
-                        unpred_count_buffer[index]++;
-                    }
+//                    buffer_pos[j * buffer_dim1_offset + k] = cur_data;
+//                    type_pos[j * size_z + k] = quantizer.quantize_and_overwrite(buffer_pos[j * buffer_dim1_offset + k], pred);
+
+                    type_pos[j * size_z + k] = quantizer.quantize_and_overwrite(cur_data, pred,
+                                                                                buffer_pos[j * buffer_dim1_offset +
+                                                                                           k]);
+
+//                    T diff = cur_data - pred;
+//                    int quant_index = (int) (fabs(diff) * recip_precision) + 1;
+//                    if (quant_index < capacity) {
+//                        quant_index >>= 1;
+//                        int half_index = quant_index;
+//                        quant_index <<= 1;
+//                        if (diff < 0) {
+//                            quant_index = -quant_index;
+//                            type_pos[j * size_z + k] = intv_radius - half_index;
+//                        } else type_pos[j * size_z + k] = intv_radius + half_index;
+//                        T decompressed_data = pred + (T) quant_index * precision;
+//                        if (fabs(cur_data - decompressed_data) > precision) {
+//                            int index = j * size_z + k;
+//                            type_pos[index] = 0;
+//                            unpred_buffer[index * offset + unpred_count_buffer[index]] = buffer_pos[
+//                                    j * buffer_dim1_offset +
+//                                    k] = cur_data;
+//                            unpred_count_buffer[index]++;
+//                        } else buffer_pos[j * buffer_dim1_offset + k] = decompressed_data;
+//                    } else {
+//                        int index = j * size_z + k;
+//                        type_pos[index] = 0;
+//                        unpred_buffer[index * offset + unpred_count_buffer[index]] = buffer_pos[j * buffer_dim1_offset +
+//                                                                                                k] = cur_data;
+//                        unpred_count_buffer[index]++;
+//                    }
 //			 	printf("element %.3f, predicted %.3f, quant %d\n", cur_data, pred, type_pos[j*size_z+k]);
                 }
             }
@@ -203,15 +213,15 @@ namespace SZMETA {
 
     }
 
-    template<typename T>
+    template<typename T, class Quantizer>
     inline void
-    decompress_regression_3d_prediction(const float *reg_params_pos, T *buffer, T precision, int intv_radius,
-                                        int size_x, int size_y, int size_z, size_t buffer_dim0_offset,
-                                        size_t buffer_dim1_offset,
-                                        size_t dim0_offset, size_t dim1_offset, const int *&type_pos,
-                                        int *unpred_count_buffer,
-                                        const T *unpred_data_buffer, const int offset, T *dec_data_pos,
-                                        int lorenzo_layer) {
+    regression_predict_recover_3d(const float *reg_params_pos, T *buffer, T precision, int intv_radius,
+                                  int size_x, int size_y, int size_z, size_t buffer_dim0_offset,
+                                  size_t buffer_dim1_offset,
+                                  size_t dim0_offset, size_t dim1_offset, const int *&type_pos,
+                                  int *unpred_count_buffer,
+                                  const T *unpred_data_buffer, const int offset, T *dec_data_pos,
+                                  int lorenzo_layer, Quantizer &quantizer) {
         T *cur_data_pos = dec_data_pos;
         T *buffer_pos = buffer + lorenzo_layer * (buffer_dim0_offset + buffer_dim1_offset + 1);
         for (int i = 0; i < size_x; i++) {
@@ -220,16 +230,20 @@ namespace SZMETA {
                     int index = j * size_z + k;
                     int type_val = type_pos[index];
                     if (type_val == 0) {
-                        cur_data_pos[j * dim1_offset + k] = buffer_pos[j * buffer_dim1_offset + k] = unpred_data_buffer[
-                                index * offset + unpred_count_buffer[index]];
-                        unpred_count_buffer[index]++;
+                        cur_data_pos[j * dim1_offset + k] = buffer_pos[j * buffer_dim1_offset + k]
+                                = quantizer.recover_unpred();
+//                        cur_data_pos[j * dim1_offset + k] = buffer_pos[j * buffer_dim1_offset + k] = unpred_data_buffer[
+//                                index * offset + unpred_count_buffer[index]];
+//                        unpred_count_buffer[index]++;
                     } else {
 
                         T pred = (T) (reg_params_pos[0] * (float) i + reg_params_pos[1] * (float) j +
                                       reg_params_pos[2] * (float) k +
                                       reg_params_pos[3]);
-                        cur_data_pos[j * dim1_offset + k] = buffer_pos[j * buffer_dim1_offset + k] =
-                                pred + (T) (2 * (type_val - intv_radius)) * precision;
+                        cur_data_pos[j * dim1_offset + k] = buffer_pos[j * buffer_dim1_offset +
+                                                                       k] = quantizer.recover_pred(pred, type_val);
+//                        cur_data_pos[j * dim1_offset + k] = buffer_pos[j * buffer_dim1_offset + k] =
+//                                pred + (T) (2 * (type_val - intv_radius)) * precision;
                     }
                 }
             }

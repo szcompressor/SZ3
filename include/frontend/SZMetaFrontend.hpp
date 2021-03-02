@@ -266,13 +266,13 @@ namespace SZ {
                                                                reg_params_pos,
                                                                reg_params_type_pos,
                                                                reg_unpredictable_data_pos);
-                            compress_regression_3d_predict<T>(z_data_pos, reg_params_pos, pred_buffer_pos, precision,
+                            regression_predict_quantize_3d<T>(z_data_pos, reg_params_pos, pred_buffer_pos, precision,
                                                               recip_precision, capacity, intv_radius,
                                                               size_x, size_y, size_z, buffer_dim0_offset,
                                                               buffer_dim1_offset, size.dim0_offset, size.dim1_offset,
                                                               type_pos, unpred_count_buffer, unpred_data_buffer,
                                                               est_unpred_count_per_index,
-                                                              params.lorenzo_padding_layer);
+                                                              params.lorenzo_padding_layer, quantizer);
                             reg_count++;
                             reg_params_pos += RegCoeffNum3d;
                             reg_params_type_pos += RegCoeffNum3d;
@@ -356,15 +356,15 @@ namespace SZ {
                                                                                                k * size.block_size;
                         if (*indicator_pos == SELECTOR_REGRESSION) {
                             // regression
-                            decompress_regression_3d_prediction<T>(reg_params_pos, pred_buffer_pos, precision,
-                                                                   intv_radius,
-                                                                   size_x, size_y, size_z, buffer_dim0_offset,
-                                                                   buffer_dim1_offset,
-                                                                   size.dim0_offset, size.dim1_offset, type_pos,
-                                                                   unpred_count_buffer,
-                                                                   unpred_data_buffer, est_unpred_count_per_index,
-                                                                   z_data_pos,
-                                                                   params.lorenzo_padding_layer);
+                            regression_predict_recover_3d<T>(reg_params_pos, pred_buffer_pos, precision,
+                                                             intv_radius,
+                                                             size_x, size_y, size_z, buffer_dim0_offset,
+                                                             buffer_dim1_offset,
+                                                             size.dim0_offset, size.dim1_offset, type_pos,
+                                                             unpred_count_buffer,
+                                                             unpred_data_buffer, est_unpred_count_per_index,
+                                                             z_data_pos,
+                                                             params.lorenzo_padding_layer, quantizer);
                             reg_params_pos += RegCoeffNum3d;
                         } else {
                             // Lorenzo
