@@ -5,6 +5,8 @@
 #ifndef SZ_CONFIG_HPP
 #define SZ_CONFIG_HPP
 
+#include <array>
+
 namespace SZ {
     template<class T, uint N>
     class Config {
