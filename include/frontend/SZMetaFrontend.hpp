@@ -3,7 +3,6 @@
 
 #include "predictor/MetaLorenzoPredictor.hpp"
 #include "predictor/MetaRegressionPredictor.hpp"
-#include "utils/meta_optimize_quant_intervals.hpp"
 #include "utils/MetaDef.hpp"
 #include "encoder/HuffmanEncoder.hpp"
 #include "utils/MemoryUtil.hpp"
@@ -44,7 +43,7 @@ namespace SZ {
 
             write(params, c);
             write(precision, c);
-            write(intv_radius, c);
+//            write(intv_radius, c);
             write(mean_info, c);
             write(reg_count, c);
 //            write(unpred_count_buffer, size.block_size * size.block_size, c);
@@ -82,7 +81,7 @@ namespace SZ {
 
             read(params, c, remaining_length);
             read(precision, c, remaining_length);
-            read(intv_radius, c, remaining_length);
+//            read(intv_radius, c, remaining_length);
             read(mean_info, c, remaining_length);
             read(reg_count, c, remaining_length);
 
@@ -148,8 +147,8 @@ namespace SZ {
 
 
         int get_radius() const {
-            return capacity;
-//            return quantizer.get_radius();
+//            return capacity;
+            return quantizer.get_radius();
         }
 
         size_t get_num_elements() const { return size.num_elements; };
@@ -166,12 +165,12 @@ namespace SZ {
             size_t r3 = conf.dims[2];
             size = SZMETA::DSize_3d(r1, r2, r3, conf.block_size);
 
-            capacity = 0; // num of quant intervals
-            mean_info = optimize_quant_invl_3d(data, r1, r2, r3, conf.eb, capacity);
-            if (conf.quant_state_num > 0) {
-                capacity = conf.quant_state_num;
-            }
-            intv_radius = (capacity >> 1);
+//            capacity = 0; // num of quant intervals
+//            mean_info = optimize_quant_invl_3d(data, r1, r2, r3, conf.eb, capacity);
+//            if (conf.quant_state_num > 0) {
+//                capacity = conf.quant_state_num;
+//            }
+//            intv_radius = (capacity >> 1);
             std::vector<int> type(size.num_elements);
 //            int *type = (int *) malloc(size.num_elements * sizeof(int));
 //            indicator = (int *) malloc(size.num_blocks * sizeof(int));
@@ -505,20 +504,21 @@ namespace SZ {
 
         meta_params params;
         SZMETA::DSize_3d size;
-        SZMETA::meanInfo<T> mean_info;
         double precision;
-        int intv_radius;
         size_t reg_count = 0;
-        int est_unpred_count_per_index = 0;
-        int capacity = 0; // num of quant intervals
-
-        int *unpred_count_buffer = nullptr;
-        T *unpred_data_buffer = nullptr;
         std::vector<int> indicator;
         int *reg_params_type = nullptr;
         float *reg_unpredictable_data = nullptr;
         float *reg_params = nullptr;
         float *reg_unpredictable_data_pos;
+
+        SZMETA::meanInfo<T> mean_info;  // not used
+        int capacity = 0; // not used, capacity is controlled by quantizer
+        int intv_radius = 0; //not used, capacity is controlled by quantizer
+        int est_unpred_count_per_index = 0; // not used, unpredictable data is controlled by quantizer
+        int *unpred_count_buffer = nullptr; // not used, unpredictable data is controlled by quantizer
+        T *unpred_data_buffer = nullptr; // not used, unpredictable data is controlled by quantizer
+
         Quantizer quantizer;
         Config<T, N> conf;
 

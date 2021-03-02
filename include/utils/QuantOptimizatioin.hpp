@@ -1,9 +1,9 @@
-#ifndef _meta_optimize_quant_intervals_hpp
-#define _meta_optimize_quant_intervals_hpp
+#ifndef SZ_optimize_quant_intervals_hpp
+#define SZ_optimize_quant_intervals_hpp
 
 #include <vector>
 
-namespace SZMETA {
+namespace SZ {
 
 #define QuantIntvMeanCapacity 8192
 #define QuantIntvSampleDistance 100
@@ -39,8 +39,9 @@ namespace SZMETA {
     }
 
     float
-    static estimate_mean_freq_and_position(const std::vector<size_t> &freq_intervals, double precision, size_t sample_count,
-                                           float &mean_guess) {
+    static
+    estimate_mean_freq_and_position(const std::vector<size_t> &freq_intervals, double precision, size_t sample_count,
+                                    float &mean_guess) {
         size_t max_sum = 0;
         size_t max_index = 0;
         size_t tmp_sum = 0;
@@ -84,8 +85,8 @@ namespace SZMETA {
     }
 
     template<typename T>
-    meanInfo <T>
-    optimize_quant_invl_3d(const T *data, size_t r1, size_t r2, size_t r3, double precision, int &capacity) {
+    void optimize_quant_invl_3d(const T *data, size_t r1, size_t r2, size_t r3, double precision,
+                                int &capacity, bool &use_mean, T &mean) {
         float mean_rough = sample_rough_mean_3d(data, r1, r2, r3, sqrt(r1 * r2 * r3));
         std::vector<size_t> intervals = std::vector<size_t>(QuantIntvSampleCapacity, 0);
         std::vector<size_t> freq_intervals = std::vector<size_t>(QuantIntvMeanCapacity, 0);
@@ -143,6 +144,8 @@ namespace SZMETA {
         float mean_guess = mean_rough;
         float mean_freq = estimate_mean_freq_and_position(freq_intervals, precision, sample_count, mean_guess);
         capacity = estimate_quantization_intervals(intervals, sample_count);
+        mean = 0;
+        use_mean = false;
         if (mean_freq > 0.5 || mean_freq > pred_freq) {
             double sum = 0.0;
             size_t mean_count = 0;
@@ -152,11 +155,10 @@ namespace SZMETA {
                     mean_count++;
                 }
             }
-            double mean = 0;
             if (mean_count > 0) mean = sum / mean_count;
-            return meanInfo<T>(true, mean);
+            use_mean = true;
+            return;
         }
-        return meanInfo<T>(false, 0);
     }
 }
 
