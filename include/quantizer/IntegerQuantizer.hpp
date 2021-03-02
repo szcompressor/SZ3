@@ -85,7 +85,22 @@ namespace SZ {
         }
 
         // recover the data using the quantization index
-        T recover(T pred, int quant_index);
+        T recover(T pred, int quant_index) {
+            if (quant_index) {
+                return recover_pred(pred, quant_index);
+            } else {
+                return recover_unpred();
+            }
+        }
+
+
+        T recover_pred(T pred, int quant_index) {
+            return pred + 2 * (quant_index - this->radius) * this->error_bound;
+        }
+
+        T recover_unpred() {
+            return unpred[index++];
+        }
 
         void save(unsigned char *&c) const {
             // std::string serialized(sizeof(uint8_t) + sizeof(T) + sizeof(int),0);
@@ -144,15 +159,6 @@ namespace SZ {
         T error_bound_reciprocal;
         int radius; // quantization interval radius
     };
-
-    template<class T>
-    T LinearQuantizer<T>::recover(T pred, int quant_index) {
-        if (quant_index) {
-            return pred + 2 * (quant_index - this->radius) * this->error_bound;
-        } else {
-            return unpred[index++];
-        }
-    }
 
 }
 #endif

@@ -14,6 +14,12 @@ namespace SZ {
     public:
         Timer() = default;
 
+        Timer(bool initstart) {
+            if (initstart) {
+                start();
+            }
+        }
+
         void start() {
             clock_gettime(CLOCK_REALTIME, &begin);
         }

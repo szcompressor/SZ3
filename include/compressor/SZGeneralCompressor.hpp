@@ -7,6 +7,7 @@
 #include "lossless/Lossless.hpp"
 #include "utils/FileUtil.h"
 #include "utils/Config.hpp"
+#include "utils/Timer.hpp"
 #include "def.hpp"
 #include <cstring>
 
@@ -29,7 +30,9 @@ namespace SZ {
 
         uchar *compress(T *data, size_t &compressed_size) {
 
+            Timer timer(true);
             std::vector<int> quant_inds = frontend.compress(data);
+            timer.stop("Prediction & Quantization");
 
             uchar *compressed_data = new uchar[2 * quant_inds.size() * sizeof(T)];
             uchar *compressed_data_pos = compressed_data;
@@ -50,6 +53,7 @@ namespace SZ {
 
         T *decompress(uchar const *lossless_compressed_data, const size_t length) {
             size_t remaining_length = length;
+
             auto compressed_data = lossless.decompress(lossless_compressed_data, remaining_length);
             uchar const *compressed_data_pos = compressed_data;
 
@@ -62,7 +66,10 @@ namespace SZ {
 
             lossless.postdecompress_data(compressed_data);
 
-            return frontend.decompress(quant_inds);
+            Timer timer(true);
+            auto decom = frontend.decompress(quant_inds);
+            timer.stop("Prediction & Recover");
+            return decom;
         }
 
 

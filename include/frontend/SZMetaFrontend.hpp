@@ -1,11 +1,10 @@
 #ifndef SZ2_FRONT_END
 #define SZ2_FRONT_END
 
-#include "SZMetaImpl/meta_quantization.hpp"
-#include "SZMetaImpl/meta_prediction.hpp"
+#include "SZMetaImpl/meta_lorenzo.hpp"
+#include "SZMetaImpl/meta_regression.hpp"
 #include "SZMetaImpl/meta_optimize_quant_intervals.hpp"
 #include "SZMetaImpl/meta_def.hpp"
-//#include "SZMetaImpl/meta_utils.hpp"
 #include "encoder/HuffmanEncoder.hpp"
 #include "utils/MemoryUtil.hpp"
 #include <list>
@@ -74,6 +73,7 @@ namespace SZ {
                                                reg_unpredictable_data_pos - reg_unpredictable_data, c);
             }
 
+            quantizer.save(c);
         }
 
         void load(const uchar *&c, size_t &remaining_length) {
@@ -118,6 +118,7 @@ namespace SZ {
                 reg_params = decode_regression_coefficients(c, reg_count, size.block_size, precision,
                                                             params);
             }
+            quantizer.load(c, remaining_length);
             remaining_length -= c_pos - c;
         }
 
@@ -224,9 +225,6 @@ namespace SZ {
                    (size.block_size + params.lorenzo_padding_layer) * (size.d2 + params.lorenzo_padding_layer) *
                    (size.d3 + params.lorenzo_padding_layer) * sizeof(T));
             int capacity_lorenzo = mean_info.use_mean ? capacity - 2 : capacity;
-            auto *lorenzo_pred_and_quant = compress_lorenzo_3d_predict<T>;
-            if (params.prediction_dim == 2) lorenzo_pred_and_quant = compress_lorenzo_3d_as2d_predict<T>;
-            else if (params.prediction_dim == 1) lorenzo_pred_and_quant = compress_lorenzo_3d_as1d_predict<T>;
             T recip_precision = (T) 1.0 / conf.eb;
 
             const T *x_data_pos = data;
@@ -280,15 +278,20 @@ namespace SZ {
                             reg_params_type_pos += RegCoeffNum3d;
                         } else {
                             // Lorenzo
-                            lorenzo_pred_and_quant(mean_info, z_data_pos, pred_buffer_pos, precision, recip_precision,
-                                                   capacity_lorenzo,
-                                                   intv_radius,
-                                                   size_x, size_y, size_z, buffer_dim0_offset, buffer_dim1_offset,
-                                                   size.dim0_offset,
-                                                   size.dim1_offset, type_pos, unpred_count_buffer, unpred_data_buffer,
-                                                   est_unpred_count_per_index,
-                                                   params.lorenzo_padding_layer,
-                                                   (selection_result == SELECTOR_LORENZO_2LAYER));
+                            lorenzo_predict_quantize_3d<T>(mean_info, z_data_pos, pred_buffer_pos, precision,
+                                                           recip_precision,
+                                                           capacity_lorenzo,
+                                                           intv_radius,
+                                                           size_x, size_y, size_z, buffer_dim0_offset,
+                                                           buffer_dim1_offset,
+                                                           size.dim0_offset,
+                                                           size.dim1_offset, type_pos, unpred_count_buffer,
+                                                           unpred_data_buffer,
+                                                           est_unpred_count_per_index,
+                                                           params.lorenzo_padding_layer,
+                                                           (selection_result == SELECTOR_LORENZO_2LAYER), quantizer,
+                                                           params.prediction_dim);
+//
                             if (selection_result == SELECTOR_LORENZO_2LAYER) {
                                 lorenzo_2layer_count++;
                             } else {
@@ -338,9 +341,6 @@ namespace SZ {
             memset(pred_buffer, 0,
                    (size.block_size + params.lorenzo_padding_layer) * (size.d2 + params.lorenzo_padding_layer) *
                    (size.d3 + params.lorenzo_padding_layer) * sizeof(T));
-            auto *lorenzo_pred_and_decomp = decompress_lorenzo_3d_prediction<T>;
-            if (params.prediction_dim == 2) lorenzo_pred_and_decomp = decompress_lorenzo_3d_as2d_prediction<T>;
-            else if (params.prediction_dim == 1) lorenzo_pred_and_decomp = decompress_lorenzo_3d_as1d_prediction<T>;
             T *x_data_pos = dec_data;
             for (size_t i = 0; i < size.num_x; i++) {
                 T *y_data_pos = x_data_pos;
@@ -368,15 +368,18 @@ namespace SZ {
                             reg_params_pos += RegCoeffNum3d;
                         } else {
                             // Lorenzo
-                            lorenzo_pred_and_decomp(mean_info, pred_buffer_pos, precision, intv_radius, size_x, size_y,
-                                                    size_z,
-                                                    buffer_dim0_offset, buffer_dim1_offset, size.dim0_offset,
-                                                    size.dim1_offset,
-                                                    type_pos,
-                                                    unpred_count_buffer, unpred_data_buffer, est_unpred_count_per_index,
-                                                    z_data_pos,
-                                                    params.lorenzo_padding_layer,
-                                                    *indicator_pos == SELECTOR_LORENZO_2LAYER);
+                            lorenzo_predict_recover_3d<T>(mean_info, pred_buffer_pos, precision, intv_radius, size_x,
+                                                          size_y,
+                                                          size_z,
+                                                          buffer_dim0_offset, buffer_dim1_offset, size.dim0_offset,
+                                                          size.dim1_offset,
+                                                          type_pos,
+                                                          unpred_count_buffer, unpred_data_buffer,
+                                                          est_unpred_count_per_index,
+                                                          z_data_pos,
+                                                          params.lorenzo_padding_layer,
+                                                          *indicator_pos == SELECTOR_LORENZO_2LAYER, quantizer,
+                                                          params.prediction_dim);
                         }
                         pred_buffer_pos += size.block_size;
                         indicator_pos++;
