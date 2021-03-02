@@ -47,17 +47,17 @@ namespace SZ {
             write(intv_radius, c);
             write(mean_info, c);
             write(reg_count, c);
-            write(unpred_count_buffer, size.block_size * size.block_size, c);
-            T *unpred_data_buffer_pos = unpred_data_buffer;
-            for (int i = 0; i < size.block_size; i++) {
-                for (int j = 0; j < size.block_size; j++) {
-                    write(unpred_data_buffer_pos,
-                          unpred_count_buffer[i * size.block_size + j], c);
-//                    write_array_to_dst(c, unpred_data_buffer_pos,
-//                                       unpred_count_buffer[i * size.block_size + j]);
-                    unpred_data_buffer_pos += est_unpred_count_per_index;
-                }
-            }
+//            write(unpred_count_buffer, size.block_size * size.block_size, c);
+//            T *unpred_data_buffer_pos = unpred_data_buffer;
+//            for (int i = 0; i < size.block_size; i++) {
+//                for (int j = 0; j < size.block_size; j++) {
+//                    write(unpred_data_buffer_pos,
+//                          unpred_count_buffer[i * size.block_size + j], c);
+////                    write_array_to_dst(c, unpred_data_buffer_pos,
+////                                       unpred_count_buffer[i * size.block_size + j]);
+//                    unpred_data_buffer_pos += est_unpred_count_per_index;
+//                }
+//            }
 
 //            Huffman_encode_tree_and_data(SELECTOR_RADIUS, indicator, size.num_blocks, c);
             HuffmanEncoder<int> selector_encoder = HuffmanEncoder<int>();
@@ -93,20 +93,20 @@ namespace SZ {
             // prepare unpred buffer for vectorization
             est_unpred_count_per_index = size.num_blocks * size.block_size * 1;
             // if(!params.block_independant) est_unpred_count_per_index /= 20;
-            unpred_count_buffer = (int *) malloc(size.block_size * size.block_size * sizeof(T));
-            read(unpred_count_buffer, size.block_size * size.block_size, c, remaining_length);
-            unpred_data_buffer = (T *) malloc(
-                    size.block_size * size.block_size * est_unpred_count_per_index * sizeof(T));
-            T *unpred_data_buffer_pos = unpred_data_buffer;
-            for (int i = 0; i < size.block_size; i++) {
-                for (int j = 0; j < size.block_size; j++) {
-                    memcpy(unpred_data_buffer_pos, c,
-                           unpred_count_buffer[i * size.block_size + j] * sizeof(T));
-                    c += unpred_count_buffer[i * size.block_size + j] * sizeof(T);
-                    unpred_data_buffer_pos += est_unpred_count_per_index;
-                }
-            }
-            memset(unpred_count_buffer, 0, size.block_size * size.block_size * sizeof(int));
+//            unpred_count_buffer = (int *) malloc(size.block_size * size.block_size * sizeof(T));
+//            read(unpred_count_buffer, size.block_size * size.block_size, c, remaining_length);
+//            unpred_data_buffer = (T *) malloc(
+//                    size.block_size * size.block_size * est_unpred_count_per_index * sizeof(T));
+//            T *unpred_data_buffer_pos = unpred_data_buffer;
+//            for (int i = 0; i < size.block_size; i++) {
+//                for (int j = 0; j < size.block_size; j++) {
+//                    memcpy(unpred_data_buffer_pos, c,
+//                           unpred_count_buffer[i * size.block_size + j] * sizeof(T));
+//                    c += unpred_count_buffer[i * size.block_size + j] * sizeof(T);
+//                    unpred_data_buffer_pos += est_unpred_count_per_index;
+//                }
+//            }
+//            memset(unpred_count_buffer, 0, size.block_size * size.block_size * sizeof(int));
 //	unsigned char * indicator = convertByteArray2IntArray_fast_1b_sz(size.num_blocks, c, (size.num_blocks - 1)/8 + 1);
             HuffmanEncoder<int> selector_encoder = HuffmanEncoder<int>();
             selector_encoder.load(c, remaining_length);
@@ -132,14 +132,14 @@ namespace SZ {
                 free(reg_unpredictable_data);
                 reg_unpredictable_data = nullptr;
             }
-            if (unpred_data_buffer != nullptr) {
-                free(unpred_data_buffer);
-                unpred_data_buffer = nullptr;
-            }
-            if (unpred_count_buffer != nullptr) {
-                free(unpred_count_buffer);
-                unpred_count_buffer = nullptr;
-            }
+//            if (unpred_data_buffer != nullptr) {
+//                free(unpred_data_buffer);
+//                unpred_data_buffer = nullptr;
+//            }
+//            if (unpred_count_buffer != nullptr) {
+//                free(unpred_count_buffer);
+//                unpred_count_buffer = nullptr;
+//            }
             if (reg_params != nullptr) {
                 free(reg_params);
                 reg_params = nullptr;
@@ -184,10 +184,10 @@ namespace SZ {
             // prepare unpred buffer for vectorization
             est_unpred_count_per_index = size.num_blocks * size.block_size * 1;
             // if(!params.block_independant) est_unpred_count_per_index /= 20;
-            unpred_data_buffer = (T *) malloc(
-                    size.block_size * size.block_size * est_unpred_count_per_index * sizeof(T));
-            unpred_count_buffer = (int *) malloc(size.block_size * size.block_size * sizeof(int));
-            memset(unpred_count_buffer, 0, size.block_size * size.block_size * sizeof(int));
+//            unpred_data_buffer = (T *) malloc(
+//                    size.block_size * size.block_size * est_unpred_count_per_index * sizeof(T));
+//            unpred_count_buffer = (int *) malloc(size.block_size * size.block_size * sizeof(int));
+//            memset(unpred_count_buffer, 0, size.block_size * size.block_size * sizeof(int));
 //        T precision_t = (T) precision;
             reg_count = 0;
             size_t lorenzo_count = 0;
