@@ -64,20 +64,8 @@ namespace SZMETA {
             regression_param_eb_independent = reg_eb_1 * regression_param_eb_linear;
 
         }
-
-        void print() {
-            std::cout << "Options: block_size = " << block_size << ", pred_dim = " << prediction_dim
-                      << ", lorenzo = " << use_lorenzo
-                      << ", lorenzo2 = " << use_lorenzo_2layer
-                      << ", regression = " << use_regression_linear
-                      << endl
-                      << " reg_eb_base=" << reg_eb_base
-                      << ", reg_eb_1=" << reg_eb_1
-                      << endl;
-        }
     };
 
-    const meta_params default_params(false, false, false, 6, 3, 0);
 
     struct DSize_3d {
         size_t d1;

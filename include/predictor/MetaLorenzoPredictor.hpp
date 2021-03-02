@@ -1,7 +1,7 @@
 #ifndef _meta_lorenzo_hpp
 #define _meta_lorenzo_hpp
 
-#include "meta_def.hpp"
+#include "utils/MetaDef.hpp"
 
 namespace SZMETA {
 

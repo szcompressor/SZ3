@@ -1,10 +1,10 @@
 #ifndef SZ2_FRONT_END
 #define SZ2_FRONT_END
 
-#include "SZMetaImpl/meta_lorenzo.hpp"
-#include "SZMetaImpl/meta_regression.hpp"
-#include "SZMetaImpl/meta_optimize_quant_intervals.hpp"
-#include "SZMetaImpl/meta_def.hpp"
+#include "predictor/MetaLorenzoPredictor.hpp"
+#include "predictor/MetaRegressionPredictor.hpp"
+#include "utils/meta_optimize_quant_intervals.hpp"
+#include "utils/MetaDef.hpp"
 #include "encoder/HuffmanEncoder.hpp"
 #include "utils/MemoryUtil.hpp"
 #include <list>

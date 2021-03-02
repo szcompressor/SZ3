@@ -1,7 +1,7 @@
 #ifndef _meta_regression_hpp
 #define _meta_regression_hpp
 
-#include "meta_def.hpp"
+#include "utils/MetaDef.hpp"
 #include "encoder/HuffmanEncoder.hpp"
 #include "utils/MemoryUtil.hpp"
 
