@@ -1,4 +1,5 @@
 set(exes sz_demo
+        sz_fast
         test_huffman_coding
         test_arithmetic_coding)
 

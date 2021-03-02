@@ -1,11 +1,13 @@
 #ifndef SZ2_FRONT_END
 #define SZ2_FRONT_END
 
+#include "Frontend.hpp"
 #include "predictor/MetaLorenzoPredictor.hpp"
 #include "predictor/MetaRegressionPredictor.hpp"
 #include "utils/MetaDef.hpp"
 #include "encoder/HuffmanEncoder.hpp"
 #include "utils/MemoryUtil.hpp"
+#include "utils/Config.hpp"
 #include <list>
 
 namespace SZ {
