@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "-O3")
 include(GNUInstallDirs)
 
+include(CheckCXXCompilerFlag)
+include(CTest)
+
 find_package(PkgConfig)
 pkg_search_module(ZSTD IMPORTED_TARGET libzstd)
 
