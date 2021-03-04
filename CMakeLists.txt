@@ -6,8 +6,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "-O3")
 include(GNUInstallDirs)
 
-find_library(ZSTD_LIBS zstd HINTS "$ENV{HOME}/tools/zstd-1.4.4/install/lib")
-set(ZSTD_INCLUDES "$ENV{HOME}/tools/zstd-1.4.4/install/include")
+find_package(PkgConfig)
+pkg_search_module(ZSTD IMPORTED_TARGET libzstd)
 
 add_library(${PROJECT_NAME} INTERFACE)
 target_include_directories(
