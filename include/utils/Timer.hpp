@@ -24,19 +24,14 @@ namespace SZ {
             clock_gettime(CLOCK_REALTIME, &begin);
         }
 
-
         double stop() {
             clock_gettime(CLOCK_REALTIME, &end);
-            return (double) (end.tv_sec - begin.tv_sec) +
-                   (double) (end.tv_nsec - begin.tv_nsec) / (double) 1000000000;
+            return (double) (end.tv_sec - begin.tv_sec) + (double) (end.tv_nsec - begin.tv_nsec) / (double) 1000000000;
         }
 
-        void stop(const std::string &msg) {
-            clock_gettime(CLOCK_REALTIME, &end);
-            std::cout << msg << " time = "
-                      << (double) (end.tv_sec - begin.tv_sec) +
-                         (double) (end.tv_nsec - begin.tv_nsec) / (double) 1000000000
-                      << "s" << std::endl;
+        double stop(const std::string &msg) {
+            double seconds = stop();
+            std::cout << msg << " time = " << seconds << "s" << std::endl;
             fflush(stdout);
             return seconds;
         }
