@@ -39,34 +39,44 @@ namespace SZ {
 
             frontend.save(compressed_data_pos);
 
+            timer.start();
             encoder.preprocess_encode(quant_inds, 2 * frontend.get_radius());
             encoder.save(compressed_data_pos);
             encoder.encode(quant_inds, compressed_data_pos);
             encoder.postprocess_encode();
+            timer.stop("Encoder");
 
+            timer.start();
             uchar *lossless_data = lossless.compress(compressed_data,
                                                      compressed_data_pos - compressed_data,
                                                      compressed_size);
             lossless.postcompress_data(compressed_data);
+            timer.stop("Lossless");
+
             return lossless_data;
         }
 
         T *decompress(uchar const *lossless_compressed_data, const size_t length) {
             size_t remaining_length = length;
 
+            Timer timer(true);
             auto compressed_data = lossless.decompress(lossless_compressed_data, remaining_length);
             uchar const *compressed_data_pos = compressed_data;
+            timer.stop("Lossless");
+
 
             frontend.load(compressed_data_pos, remaining_length);
 
             encoder.load(compressed_data_pos, remaining_length);
 
+            timer.start();
             auto quant_inds = encoder.decode(compressed_data_pos, frontend.get_num_elements());
             encoder.postprocess_decode();
+            timer.stop("Decoder");
 
             lossless.postdecompress_data(compressed_data);
 
-            Timer timer(true);
+            timer.start();
             auto decom = frontend.decompress(quant_inds);
             timer.stop("Prediction & Recover");
             return decom;
