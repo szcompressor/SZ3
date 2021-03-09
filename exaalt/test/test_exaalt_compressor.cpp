@@ -304,7 +304,7 @@ SZ_Compress(std::vector<T> data, const SZ::Config<T, N> &conf, float level_start
     std::cout << "****************** Compression ******************" << std::endl;
 
     timer.start();
-    auto sz = SZ::SZ_Exaalt_Compressor(conf, SZ::LinearQuantizer<T>(conf.eb, conf.quant_bin),
+    auto sz = SZ::SZ_Exaalt_Compressor(conf, SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2),
                                        SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd());
     sz.set_level(level_start, level_offset, level_num);
 
