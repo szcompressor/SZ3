@@ -84,8 +84,53 @@ namespace SZ {
             }
         }
 
+        int quantize_and_overwrite(T ori, T pred, T& dest) {
+            T diff = ori - pred;
+            int quant_index = (int) (fabs(diff) * this->error_bound_reciprocal) + 1;
+            if (quant_index < this->radius * 2) {
+                quant_index >>= 1;
+                int half_index = quant_index;
+                quant_index <<= 1;
+                int quant_index_shifted;
+                if (diff < 0) {
+                    quant_index = -quant_index;
+                    quant_index_shifted = this->radius - half_index;
+                } else {
+                    quant_index_shifted = this->radius + half_index;
+                }
+                T decompressed_data = pred + quant_index * this->error_bound;
+                if (fabs(decompressed_data - ori) > this->error_bound) {
+                    unpred.push_back(ori);
+                    dest = ori;
+                    return 0;
+                } else {
+                    dest = decompressed_data;
+                    return quant_index_shifted;
+                }
+            } else {
+                unpred.push_back(ori);
+                dest = ori;
+                return 0;
+            }
+        }
+
         // recover the data using the quantization index
-        T recover(T pred, int quant_index);
+        T recover(T pred, int quant_index) {
+            if (quant_index) {
+                return recover_pred(pred, quant_index);
+            } else {
+                return recover_unpred();
+            }
+        }
+
+
+        T recover_pred(T pred, int quant_index) {
+            return pred + 2 * (quant_index - this->radius) * this->error_bound;
+        }
+
+        T recover_unpred() {
+            return unpred[index++];
+        }
 
         void save(unsigned char *&c) const {
             // std::string serialized(sizeof(uint8_t) + sizeof(T) + sizeof(int),0);
@@ -144,15 +189,6 @@ namespace SZ {
         T error_bound_reciprocal;
         int radius; // quantization interval radius
     };
-
-    template<class T>
-    T LinearQuantizer<T>::recover(T pred, int quant_index) {
-        if (quant_index) {
-            return pred + 2 * (quant_index - this->radius) * this->error_bound;
-        } else {
-            return unpred[index++];
-        }
-    }
 
 }
 #endif
