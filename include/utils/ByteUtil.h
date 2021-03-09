@@ -7,6 +7,7 @@
 
 #include "def.hpp"
 #include <cstring>
+
 namespace SZ {
 
     typedef union lint16 {
@@ -37,6 +38,7 @@ namespace SZ {
         float value;
         unsigned int ivalue;
         unsigned char byte[4];
+        uint16_t int16[2];
     } lfloat;
 
     inline void symTransform_4bytes(uchar data[4]) {
@@ -310,6 +312,16 @@ namespace SZ {
         return buf.ivalue;
     }
 
+    std::string floatToBinary(float f) {
+        lfloat u;
+        u.value = f;
+        std::string str(32, '0');
+        for (int i = 0; i < 32; i++) {
+            str[31 - i] = (u.ivalue % 2) ? '1' : '0';
+            u.ivalue >>= 1;
+        }
+        return str;
+    }
 
 };
 #endif //SZ3_BYTEUTIL_H

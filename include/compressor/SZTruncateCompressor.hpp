@@ -8,6 +8,7 @@
 #include "utils/FileUtil.h"
 #include "utils/Config.hpp"
 #include "utils/Timer.hpp"
+#include "utils/ByteUtil.h"
 #include "def.hpp"
 #include <cstring>
 
@@ -17,7 +18,7 @@ namespace SZ {
     public:
 
 
-        SZTruncateCompressor(const Config <T, N> &conf, Lossless lossless) :
+        SZTruncateCompressor(const Config<T, N> &conf, Lossless lossless) :
                 lossless(lossless), conf(conf) {
             static_assert(std::is_base_of<concepts::LosslessInterface, Lossless>::value,
                           "must implement the lossless interface");
@@ -25,40 +26,41 @@ namespace SZ {
 
         uchar *compress(T *data, size_t &compressed_size) {
 
-            uchar *compressed_data = new uchar[conf.num * sizeof(T)];
-            uchar *compressed_data_pos = compressed_data;
+            auto compressed_data = new uchar[conf.num * sizeof(T)];
+            auto compressed_data_pos = (uint16_t *) compressed_data;
             Timer timer(true);
-            uchar *data_bytes = (uchar *) data;
-            uchar *data_bytes_end = data_bytes + conf.num * sizeof(T);
-            while (data_bytes < data_bytes_end) {
-                *compressed_data_pos++ = *data_bytes++;
-                *compressed_data_pos++ = *data_bytes++;
-                data_bytes += 2;
+            lfloat bytes;
+            for (size_t i = 0; i < conf.num; i++) {
+                bytes.value = data[i];
+                *compressed_data_pos = bytes.int16[1];
+//                std::cout << std::bitset<32>(data[i]) << " " << std::bitset<16>(*compressed_data_pos) << '\n';
+                compressed_data_pos++;
             }
             timer.stop("Prediction & Quantization");
 
 
             uchar *lossless_data = lossless.compress(compressed_data,
-                                                     compressed_data_pos - compressed_data,
+                                                     (uchar *) compressed_data_pos - compressed_data,
                                                      compressed_size);
             lossless.postcompress_data(compressed_data);
             return lossless_data;
         }
 
+
         T *decompress(uchar const *lossless_compressed_data, const size_t length) {
             size_t remaining_length = length;
 
             auto compressed_data = lossless.decompress(lossless_compressed_data, remaining_length);
-            uchar const *compressed_data_pos = compressed_data;
+            auto compressed_data_pos = (uint16_t *) compressed_data;
 
             Timer timer(true);
             auto dec_data = new T[conf.num];
-            uchar *data_bytes = (uchar *) dec_data;
-            uchar *data_bytes_end = data_bytes + conf.num * sizeof(T);
-            while (data_bytes < data_bytes_end) {
-                *data_bytes++ = *compressed_data_pos++;
-                *data_bytes++ = *compressed_data_pos++;
-                data_bytes += 2;
+            lfloat bytes;
+            bytes.ivalue = 0;
+            for (size_t i = 0; i < conf.num; i++) {
+                bytes.int16[1] = *compressed_data_pos;
+                compressed_data_pos++;
+                dec_data[i] = bytes.value;
             }
             lossless.postdecompress_data(compressed_data);
             timer.stop("Prediction & Recover");
@@ -68,12 +70,12 @@ namespace SZ {
 
     private:
         Lossless lossless;
-        Config <T, N> conf;
+        Config<T, N> conf;
     };
 
     template<class T, uint N, class Lossless>
     SZTruncateCompressor<T, N, Lossless>
-    make_sz_truncate_compressor(const Config <T, N> &conf, Lossless lossless) {
+    make_sz_truncate_compressor(const Config<T, N> &conf, Lossless lossless) {
         return SZTruncateCompressor<T, N, Lossless>(conf, lossless);
     }
 }
