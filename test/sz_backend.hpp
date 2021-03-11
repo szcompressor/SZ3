@@ -78,9 +78,9 @@ float SZ_compress(std::unique_ptr<T[]> const &data,
     SZ::verify<T>(data_.data(), dec_data, conf.num);
 
     remove(compressed_file_name.c_str());
-//    auto decompressed_file_name = compressed_file_name + ".out";
-//    SZ::writefile(decompressed_file_name.c_str(), dec_data, conf.num);
-//    std::cout << "Decompressed file = " << decompressed_file_name << std::endl;
+    auto decompressed_file_name = compressed_file_name + ".out";
+    SZ::writefile(decompressed_file_name.c_str(), dec_data, conf.num);
+    std::cout << "Decompressed file = " << decompressed_file_name << std::endl;
 
     delete[] dec_data;
     return ratio;
