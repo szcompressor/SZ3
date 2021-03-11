@@ -2,7 +2,7 @@ add_library(SZ3_EXAALT
         dummy.cpp
         )
 
-target_link_libraries(SZ3_EXAALT PkgConfig::ZSTD)
+target_link_libraries(SZ3_EXAALT ${ZSTD_dep})
 target_include_directories(SZ3_EXAALT PUBLIC
         ${PROJECT_SOURCE_DIR}/exaalt/include
         ${PROJECT_SOURCE_DIR}/include
