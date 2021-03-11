@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.9)
 project(SZ3)
 #project(First VERSION 3.0.0.0)
 set(CMAKE_CXX_STANDARD 17)
@@ -8,9 +8,20 @@ include(GNUInstallDirs)
 
 include(CheckCXXCompilerFlag)
 include(CTest)
+#by default pass no 3rd party exports
+set(thirdparty_export "")
 
 find_package(PkgConfig)
+
+
 pkg_search_module(ZSTD IMPORTED_TARGET libzstd)
+if(ZSTD_FOUND)
+    set(ZSTD_dep PkgConfig::ZSTD)
+else()
+    add_subdirectory(zstd)
+    set(ZSTD_dep zstd)
+    list(APPEND thirdparty_export "zstd")
+endif()
 
 add_library(${PROJECT_NAME} INTERFACE)
 target_include_directories(
