@@ -84,7 +84,7 @@ namespace SZ {
             }
         }
 
-        int quantize_and_overwrite(T ori, T pred, T& dest) {
+        int quantize_and_overwrite(T ori, T pred, T &dest) {
             T diff = ori - pred;
             int quant_index = (int) (fabs(diff) * this->error_bound_reciprocal) + 1;
             if (quant_index < this->radius * 2) {
@@ -180,6 +180,11 @@ namespace SZ {
 
         virtual void predecompress_data() {};
 
+        void print() {
+            std::cout << "IntegerQuantizer, radius = " << radius
+                      << " , unpred = " << unpred.size()
+                      << std::endl;
+        }
 
     private:
         std::vector<T> unpred;
