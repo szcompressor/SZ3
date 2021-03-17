@@ -126,20 +126,21 @@ int main(int argc, char **argv) {
         dims[i] = atoi(argv[argp++]);
     }
 
-//    char *eb_op = argv[argp++] + 1;
-    float eb = 0;
-//    if (*eb_op == 'a') {
-//        eb = atof(argv[argp++]);
-//    } else {
-    relative_error_bound = atof(argv[argp++]);
     float max = data[0];
     float min = data[0];
     for (int i = 1; i < num; i++) {
         if (max < data[i]) max = data[i];
         if (min > data[i]) min = data[i];
     }
-    eb = relative_error_bound * (max - min);
-//    }
+    char *eb_op = argv[argp++] + 1;
+    float eb = 0;
+    if (*eb_op == 'a') {
+        eb = atof(argv[argp++]);
+        relative_error_bound = eb / (max - min);
+    } else {
+        relative_error_bound = atof(argv[argp++]);
+        eb = relative_error_bound * (max - min);
+    }
 
     if (dim == 1) {
         SZ_compress_parse_args<float, 1>(argc, argv, argp, data, eb, std::array<size_t, 1>{dims[0]});
