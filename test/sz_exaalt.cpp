@@ -13,7 +13,13 @@
 #include "lossless/Lossless_zstd.hpp"
 #include "lossless/Lossless_bypass.hpp"
 #include "encoder/HuffmanEncoder.hpp"
-#include "SZExaaltCompressor.hpp"
+#include "encoder/BypassEncoder.hpp"
+#include "compressor/SZExaaltCompressor.hpp"
+#include <random>
+#include <sstream>
+
+std::string src_file_name;
+float relative_error_bound = 0;
 
 /*
  *  Internal implementation of the SMAWK algorithm.
@@ -294,38 +300,112 @@ int f3(T data, T *boundary, int n, double start_position, double offset) {
     return n - 1;
 }
 
+unsigned int roundUpToPowerOf2(unsigned int base) {
+    base -= 1;
+
+    base = base | (base >> 1);
+    base = base | (base >> 2);
+    base = base | (base >> 4);
+    base = base | (base >> 8);
+    base = base | (base >> 16);
+
+    return base + 1;
+}
+
+unsigned int optimize_intervals_float_1D_opt(float *oriData, size_t dataLength, uint maxRadius, double realPrecision) {
+    int sampleDistance = 100;
+    double predThreshold = 0.99;
+    size_t i = 0, radiusIndex;
+    float pred_value = 0, pred_err;
+    size_t *intervals = (size_t *) malloc(maxRadius * sizeof(size_t));
+    memset(intervals, 0, maxRadius * sizeof(size_t));
+    size_t totalSampleSize = 0;//dataLength/confparams_cpr->sampleDistance;
+
+    float *data_pos = oriData + 2;
+    while (data_pos - oriData < dataLength) {
+        totalSampleSize++;
+        pred_value = data_pos[-1];
+        pred_err = fabs(pred_value - *data_pos);
+        radiusIndex = (unsigned long) ((pred_err / realPrecision + 1) / 2);
+        if (radiusIndex >= maxRadius)
+            radiusIndex = maxRadius - 1;
+        intervals[radiusIndex]++;
+
+        data_pos += sampleDistance;
+    }
+    //compute the appropriate number
+    size_t targetCount = totalSampleSize * predThreshold;
+    size_t sum = 0;
+    for (i = 0; i < maxRadius; i++) {
+        sum += intervals[i];
+        if (sum > targetCount)
+            break;
+    }
+    if (i >= maxRadius)
+        i = maxRadius - 1;
+
+    unsigned int accIntervals = 2 * (i + 1);
+    unsigned int powerOf2 = roundUpToPowerOf2(accIntervals);
+
+    if (powerOf2 < 32)
+        powerOf2 = 32;
+
+    free(intervals);
+    return powerOf2;
+}
+
+
 template<typename T, uint N>
 float
-SZ_Compress(std::vector<T> data, const SZ::Config<T, N> &conf, float level_start, float level_offset, int level_num) {
+SZ_Compress(std::unique_ptr<T[]> const &data, SZ::Config<T, N> conf, float level_start, float level_offset,
+            int level_num) {
 
-    std::vector<T> data_ = data;
+    std::vector<T> data_(data.get(), data.get() + conf.num);
 
     SZ::Timer timer;
     std::cout << "****************** Compression ******************" << std::endl;
 
     timer.start();
+    if (N == 1) {
+//        conf.quant_state_num = optimize_intervals_float_1D_opt(data.data(), data.size(), conf.quant_state_num, conf.eb);
+    }
+    conf.quant_state_num = 1024;
     auto sz = SZ::SZ_Exaalt_Compressor(conf, SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2),
                                        SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd());
     sz.set_level(level_start, level_offset, level_num);
 
     size_t compressed_size = 0;
     std::unique_ptr<SZ::uchar[]> compressed;
-    compressed.reset(sz.compress(data.data(), compressed_size));
+    compressed.reset(sz.compress(data.get(), compressed_size));
     timer.stop("Compression");
 
     auto ratio = conf.num * sizeof(T) * 1.0 / compressed_size;
     std::cout << "Compression Ratio = " << ratio << std::endl;
     std::cout << "Compressed size = " << compressed_size << std::endl;
-    SZ::writefile("compressed.dat.sz3", compressed.get(), compressed_size);
+
+    std::random_device rd;  //Will be used to obtain a seed for the random number engine
+    std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+    std::uniform_int_distribution<> dis(0, 10000);
+    std::stringstream ss;
+    ss << src_file_name.substr(src_file_name.rfind('/') + 1)
+       << "." << relative_error_bound << "." << dis(gen) << ".sz3";
+    auto compressed_file_name = ss.str();
+    SZ::writefile(compressed_file_name.c_str(), compressed.get(), compressed_size);
+    std::cout << "Compressed file = " << compressed_file_name << std::endl;
 
     std::cout << "****************** Decompression ****************" << std::endl;
-    compressed = SZ::readfile<SZ::uchar>("compressed.dat.sz3", compressed_size);
+    compressed = SZ::readfile<SZ::uchar>(compressed_file_name.c_str(), compressed_size);
 
     timer.start();
     std::unique_ptr<T[]> dec_data;
     dec_data.reset(sz.decompress(compressed.get(), compressed_size));
     timer.stop("Decompression");
     SZ::verify<T>(data_.data(), dec_data.get(), conf.num);
+
+    auto decompressed_file_name = compressed_file_name + ".out";
+//    SZ::writefile(decompressed_file_name.c_str(), dec_data.get(), conf.num);
+//    std::cout << "Decompressed file = " << decompressed_file_name << std::endl;
+
     return ratio;
 }
 
@@ -334,33 +414,41 @@ int main(int argc, char **argv) {
     SZ::Timer timer;
     timer.start();
 
-    size_t num;
-    std::string homedir = getenv("HOME");
-//    auto input_raw = SZ::readfile<float>((homedir +"/data/exaalt-83x1077290/x.dat").c_str(), num);
-//    auto input_raw = SZ::readfile<float>((homedir + "/data/exaalt-5423x3137/xx.dat").c_str(), num);
-//    auto input_raw = SZ::readfile<float>((homedir+"/data/exaalt/exaalt_nano-230434x146/x.f32.dat").c_str(), num);
-//    auto input_raw = SZ::readfile<float>((homedir + "/data/exaalt/exaalt_trinity100-348843582/y.f32.dat").c_str(), num);
-//    auto input_raw = SZ::readfile<float>((homedir +"/data/exaalt/exaalt_trinity111-208745427/z.f32.dat").c_str(), num);
-//    auto input_raw = SZ::readfile<float>((homedir +"/data/exaalt/exaalt_trinity111-208745427/y.f32.dat").c_str(), num);
-//    auto input_raw = SZ::readfile<float>((homedir +"/data/exaalt/exaalt_18he100n1-8779x1041/x.f32.dat").c_str(), num);
-//    auto input_raw = SZ::readfile<float>((homedir + "/data/exaalt/exaalt_10he200n2-7852x1037/x.f32.dat").c_str(), num);
-    auto input_raw = SZ::readfile<float>((homedir + "/data/exaalt/exaalt_2v18he100n1-5759x1040/y.f32.dat").c_str(),
-                                         num);
-    std::vector<float> input{input_raw.get(), input_raw.get() + num};
-    std::cout << "num = " << num << std::endl;
-    timer.stop("read file");
-    float min = *std::min_element(input.begin(), input.end());
-    float max = *std::max_element(input.begin(), input.end());
-//    int y = 5423 / 200, x = 3137 * 200;
+    size_t num = 0;
+    auto data = SZ::readfile<float>(argv[1], num);
+    auto input = data.get();
+    src_file_name = argv[1];
+    std::cout << "Read " << num << " elements\n";
 
-//    for (int yy = 0; yy < y; yy++) {
-//        input = std::vector<float>{input_raw.get() + yy * x, input_raw.get() + (yy + 1) * x};
-//        num = x;
+    int dim = atoi(argv[2] + 1);
+    assert(1 <= dim && dim <= 1);
+    int argp = 3;
+    std::vector<size_t> dims(dim);
+    for (int i = 0; i < dim; i++) {
+        dims[i] = atoi(argv[argp++]);
+    }
+
+    float max = data[0];
+    float min = data[0];
+    for (int i = 1; i < num; i++) {
+        if (max < data[i]) max = data[i];
+        if (min > data[i]) min = data[i];
+    }
+    char *eb_op = argv[argp++] + 1;
+    float eb = 0;
+    if (*eb_op == 'a') {
+        eb = atof(argv[argp++]);
+        relative_error_bound = eb / (max - min);
+    } else {
+        relative_error_bound = atof(argv[argp++]);
+        eb = relative_error_bound * (max - min);
+    }
+
 
     timer.start();
     std::vector<float> sample;
     int sample_rate = 200000;
-    while (num / sample_rate < 500) {
+    while (num / sample_rate < 1000) {
         sample_rate /= 2;
     }
     std::cout << "Sample Rate = " << sample_rate << std::endl;
@@ -437,13 +525,13 @@ int main(int argc, char **argv) {
         idx[i] = f(input[i], boundary.data(), k, level_start, level_offset);
     }
     timer.stop("id");
-    for (size_t i = 1000000; i < 1001000; i++) {
-        std::cout << input[i] << " ";
-    }
-    std::cout << std::endl;
-    for (size_t i = 1000000; i < 1001000; i++) {
-        std::cout << int(idx[i]) - int(idx[i - 1]) << " ";
-    }
+//    for (size_t i = 1000000; i < 1001000; i++) {
+//        std::cout << input[i] << " ";
+//    }
+//    std::cout << std::endl;
+//    for (size_t i = 1000000; i < 1001000; i++) {
+//        std::cout << int(idx[i]) - int(idx[i - 1]) << " ";
+//    }
 
     size_t cnt = 0;
     std::vector<size_t> cnts(5);
@@ -469,6 +557,12 @@ int main(int argc, char **argv) {
                          f(min, boundary.data(), k, level_start, level_offset);
     printf("level = %d\n", max_level_diff);
 
-    SZ_Compress(input, SZ::Config<float, 1>(1, {input.size()}), level_start, level_offset, max_level_diff);
+
+//    level_start = -58.291; //trinity-110x
+//    level_offset = 2.241; //trinity-110x
+    level_start = 0;
+    level_offset = 1.961;
+    SZ_Compress(data, SZ::Config<float, 1>(eb, {dims[0]}), level_start, level_offset,
+                max_level_diff);
 //    }
 }

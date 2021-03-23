@@ -1,4 +1,4 @@
-set(exes test_exaalt_compressor
+set(exes
         test_persist
         test_instant
         test_multilevel
