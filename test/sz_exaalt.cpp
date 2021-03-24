@@ -371,7 +371,7 @@ SZ_Compress(std::unique_ptr<T[]> const &data, SZ::Config<T, N> conf, float level
     }
     conf.quant_state_num = 1024;
     auto sz = SZ::SZ_Exaalt_Compressor(conf, SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2),
-                                       SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd());
+                                       SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd(), 0);
     sz.set_level(level_start, level_offset, level_num);
 
     size_t compressed_size = 0;
@@ -421,7 +421,7 @@ int main(int argc, char **argv) {
     std::cout << "Read " << num << " elements\n";
 
     int dim = atoi(argv[2] + 1);
-    assert(1 <= dim && dim <= 1);
+    assert(1 <= dim && dim <= 2);
     int argp = 3;
     std::vector<size_t> dims(dim);
     for (int i = 0; i < dim; i++) {
@@ -448,10 +448,10 @@ int main(int argc, char **argv) {
     timer.start();
     std::vector<float> sample;
     int sample_rate = 200000;
-    while (num / sample_rate < 1000) {
+    while (num / sample_rate < 10000) {
         sample_rate /= 2;
     }
-    std::cout << "Sample Rate = " << sample_rate << std::endl;
+    std::cout << "Sample Elements = " << num / sample_rate << std::endl;
     sample.reserve(num / sample_rate);
     std::random_device rd;  //Will be used to obtain a seed for the random number engine
     std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
@@ -560,9 +560,15 @@ int main(int argc, char **argv) {
 
 //    level_start = -58.291; //trinity-110x
 //    level_offset = 2.241; //trinity-110x
-    level_start = 0;
-    level_offset = 1.961;
-    SZ_Compress(data, SZ::Config<float, 1>(eb, {dims[0]}), level_start, level_offset,
-                max_level_diff);
+//    level_start = 0;
+//    level_offset = 1.961;
+    if (dim == 1) {
+        SZ_Compress(data, SZ::Config<float, 1>(eb, {dims[0]}), level_start, level_offset,
+                    max_level_diff);
+    } else {
+        SZ_Compress(data, SZ::Config<float, 2>(eb, {dims[0], dims[1]}), level_start, level_offset,
+                    max_level_diff);
+    }
+
 //    }
 }
