@@ -12,67 +12,102 @@
 #include "compressor/SZExaaltCompressor.hpp"
 #include "utils/KmeansUtil.h"
 #include "utils/QuantOptimizatioin.hpp"
-
-std::string src_file_name;
-float relative_error_bound = 0;
+#include <cstdio>
 
 
+/**
+ *
+ * @tparam T
+ * @tparam N
+ * @param data
+ * @param conf
+ * @param level_start
+ * @param level_offset
+ * @param level_num
+ * @param timestep_op 0:no timestep, 1:timestep, 2: timestep+levels
+ * @return
+ */
 template<typename T, uint N>
-float
-SZ_Compress(std::unique_ptr<T[]> const &data, SZ::Config<T, N> conf) {
+float SZ_Compress(std::unique_ptr<T[]> const &data, SZ::Config<T, N> conf, int timestep_op, size_t timestep_batch) {
+    assert(N == 2);
+    conf.quant_state_num = 1024;
+    std::cout << "****************** Options ********************" << std::endl;
+    std::cout << "dimension = " << N
+              << ", error bound = " << conf.eb
+              << ", timestep_op = " << timestep_op
+              << ", timestep_batch = " << timestep_batch
+              << ", quan_state_num = " << conf.quant_state_num
+              << ", encoder = " << conf.encoder_op
+              << ", lossless = " << conf.lossless_op
+              << std::endl;
+
+    std::vector<T> data_(data.get(), data.get() + conf.num);
+    std::vector<T> dec_data(conf.num);
 
     float level_start, level_offset;
     int level_num;
     SZ::get_cluster(data.get(), conf.num, level_start, level_offset, level_num, 0.001);
-    printf("start = %.3f , level_offset = %.3f, nlevel=%d\n", level_start, level_offset, level_num);
-
     //    level_start = -58.291; //trinity-110x
 //    level_offset = 2.241; //trinity-110x
 //    level_start = 0;
 //    level_offset = 1.961;
-    std::vector<T> data_(data.get(), data.get() + conf.num);
 
-    SZ::Timer timer;
-    std::cout << "****************** Compression ******************" << std::endl;
+    printf("start = %.3f , level_offset = %.3f, nlevel=%d\n", level_start, level_offset, level_num);
+    double total_compressed_size = 0;
+    auto dims = conf.dims;
+    auto num = conf.num;
+    if (timestep_batch == 0) {
+        timestep_batch = dims[0];
+    }
+    for (size_t ts = 0; ts < dims[0]; ts += timestep_batch) {
+        conf.dims[0] = (ts + timestep_batch - 1 > dims[0] ? dims[0] - ts + 1 : timestep_batch);
+        conf.num = conf.dims[0] * conf.dims[1];
 
-    timer.start();
-    conf.quant_state_num = 1024;
-    auto sz = SZ::SZ_Exaalt_Compressor(conf, SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2),
-                                       SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd(), 0);
-    sz.set_level(level_start, level_offset, level_num);
+        std::cout << "****************** Compression ******************" << std::endl;
+        SZ::Timer timer(true);
+        auto sz = SZ::SZ_Exaalt_Compressor(conf, SZ::LinearQuantizer<float>(conf.eb, conf.quant_state_num / 2),
+                                           SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd(), timestep_op);
+        sz.set_level(level_start, level_offset, level_num);
 
-    size_t compressed_size = 0;
-    std::unique_ptr<SZ::uchar[]> compressed;
-    compressed.reset(sz.compress(data.get(), compressed_size));
-    timer.stop("Compression");
+        size_t compressed_size = 0;
+        std::unique_ptr<SZ::uchar[]> compressed;
+        auto ts_data = data.get() + ts * dims[1];
+        compressed.reset(sz.compress(ts_data, compressed_size));
+        timer.stop("Compression");
 
-    auto ratio = conf.num * sizeof(T) * 1.0 / compressed_size;
-    std::cout << "Compression Ratio = " << ratio << std::endl;
-    std::cout << "Compressed size = " << compressed_size << std::endl;
+        auto ratio = conf.num * sizeof(T) * 1.0 / compressed_size;
+        std::cout << "Compression Ratio = " << ratio << std::endl;
+        std::cout << "Compressed size = " << compressed_size << std::endl;
 
-    std::random_device rd;  //Will be used to obtain a seed for the random number engine
-    std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-    std::uniform_int_distribution<> dis(0, 10000);
-    std::stringstream ss;
-    ss << src_file_name.substr(src_file_name.rfind('/') + 1)
-       << "." << relative_error_bound << "." << dis(gen) << ".sz3";
-    auto compressed_file_name = ss.str();
-    SZ::writefile(compressed_file_name.c_str(), compressed.get(), compressed_size);
-    std::cout << "Compressed file = " << compressed_file_name << std::endl;
+        std::random_device rd;  //Will be used to obtain a seed for the random number engine
+        std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+        std::uniform_int_distribution<> dis(0, 10000);
+        std::stringstream ss;
+        ss << conf.src_file_name.substr(conf.src_file_name.rfind('/') + 1)
+           << "." << conf.relative_eb << "." << dis(gen) << ".sz3";
+        auto compressed_file_name = ss.str();
+        SZ::writefile(compressed_file_name.c_str(), compressed.get(), compressed_size);
+        std::cout << "Compressed file = " << compressed_file_name << std::endl;
 
-    std::cout << "****************** Decompression ****************" << std::endl;
-    compressed = SZ::readfile<SZ::uchar>(compressed_file_name.c_str(), compressed_size);
+        std::cout << "****************** Decompression ****************" << std::endl;
+        compressed = SZ::readfile<SZ::uchar>(compressed_file_name.c_str(), compressed_size);
 
-    timer.start();
-    std::unique_ptr<T[]> dec_data;
-    dec_data.reset(sz.decompress(compressed.get(), compressed_size));
-    timer.stop("Decompression");
-    SZ::verify<T>(data_.data(), dec_data.get(), conf.num);
+        timer.start();
+        auto ts_dec_data = sz.decompress(compressed.get(), compressed_size);
+        timer.stop("Decompression");
+        std::copy(ts_dec_data, ts_dec_data + conf.num, dec_data.begin() + ts * dims[1]);
 
-    auto decompressed_file_name = compressed_file_name + ".out";
+        auto decompressed_file_name = compressed_file_name + ".out";
 //    SZ::writefile(decompressed_file_name.c_str(), dec_data.get(), conf.num);
 //    std::cout << "Decompressed file = " << decompressed_file_name << std::endl;
+        remove(compressed_file_name.c_str());
+        total_compressed_size += compressed_size;
+    }
+    SZ::verify<T>(data_.data(), dec_data.data(), num);
 
+    float ratio = num * sizeof(T) / total_compressed_size;
+    std::cout << "Total Compression Size = " << total_compressed_size << std::endl;
+    std::cout << "Total Compression Ratio = " << ratio << std::endl;
     return ratio;
 }
 
@@ -81,7 +116,6 @@ int main(int argc, char **argv) {
 
     size_t num = 0;
     auto data = SZ::readfile<float>(argv[1], num);
-    src_file_name = argv[1];
     std::cout << "Read " << num << " elements\n";
 
     int dim = atoi(argv[2] + 1);
@@ -99,19 +133,32 @@ int main(int argc, char **argv) {
         if (min > data[i]) min = data[i];
     }
     char *eb_op = argv[argp++] + 1;
-    float eb = 0;
+    float eb = 0, relative_eb = 0;
     if (*eb_op == 'a') {
         eb = atof(argv[argp++]);
-        relative_error_bound = eb / (max - min);
+        relative_eb = eb / (max - min);
     } else {
-        relative_error_bound = atof(argv[argp++]);
-        eb = relative_error_bound * (max - min);
+        relative_eb = atof(argv[argp++]);
+        eb = relative_eb * (max - min);
     }
-
+    int timestep_op = 0;
+    if (argp < argc) {
+        timestep_op = atoi(argv[argp++]);
+    }
+    size_t timestep_batch = 0;
+    if (argp < argc) {
+        timestep_batch = atoi(argv[argp++]);
+    }
     if (dim == 1) {
-        SZ_Compress(data, SZ::Config<float, 1>(eb, {dims[0]}));
+        auto conf = SZ::Config<float, 2>(eb, {1, dims[0]});
+        conf.relative_eb = relative_eb;
+        conf.src_file_name = argv[1];
+        SZ_Compress(data, conf, timestep_op, timestep_batch);
     } else {
-        SZ_Compress(data, SZ::Config<float, 2>(eb, {dims[0], dims[1]}));
+        auto conf = SZ::Config<float, 2>(eb, {dims[0], dims[1]});
+        conf.relative_eb = relative_eb;
+        conf.src_file_name = argv[1];
+        SZ_Compress(data, conf, timestep_op, timestep_batch);
     }
 
 }

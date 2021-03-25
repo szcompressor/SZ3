@@ -41,6 +41,8 @@ namespace SZ {
         size_t quant_state_num = 65536;
         uint block_size, stride, pred_dim = 0;
         T eb;
+        T relative_eb;
+        std::string src_file_name;
     };
 }
 

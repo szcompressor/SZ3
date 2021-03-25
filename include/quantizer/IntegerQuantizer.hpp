@@ -174,6 +174,7 @@ namespace SZ {
         }
 
         virtual void postdecompress_data() {
+            clear();
         }
 
         virtual void precompress_data() {};

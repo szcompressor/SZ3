@@ -202,6 +202,7 @@ namespace SZ {
 
 
             quantizer.postdecompress_data();
+            encoder.postprocess_decode();
             return dec_data.release();
         }
 

@@ -18,70 +18,71 @@ namespace SZ {
     class SZ3TimeBasedFrontend : public concepts::FrontendInterface<T, N> {
     public:
 
-        SZ3TimeBasedFrontend(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer) :
+        SZ3TimeBasedFrontend(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer, T *data_ts0) :
                 fallback_predictor(LorenzoPredictor<T, N - 1, 1>(conf.eb)),
                 predictor(predictor),
                 quantizer(quantizer),
                 block_size(conf.block_size),
                 stride(conf.stride),
                 global_dimensions(conf.dims),
-                num_elements(conf.num) {
+                num_elements(conf.num),
+                data_ts0(data_ts0) {
         }
 
         ~SZ3TimeBasedFrontend() = default;
 
         std::vector<int> compress(T *data) {
             std::vector<int> quant_inds(num_elements);
-            std::array<size_t, N - 1> global_dims;
-            for (int i = 0; i < N - 1; i++) {
-                global_dims[i] = global_dimensions[i + 1];
-            };
-
-            auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N - 1>>(data,
-                                                                                             std::begin(global_dims),
-                                                                                             std::end(global_dims),
-                                                                                             stride, 0);
-            auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N - 1>>(data,
-                                                                                             std::begin(global_dims),
-                                                                                             std::end(global_dims), 1,
-                                                                                             0);
-            std::array<size_t, N - 1> intra_block_dims;
-            predictor.precompress_data(inter_block_range->begin());
-            quantizer.precompress_data();
             size_t quant_count = 0;
-            auto inter_begin = inter_block_range->begin();
-            auto inter_end = inter_block_range->end();
-            for (auto block = inter_begin; block != inter_end; ++block) {
-
-                // std::cout << *block << " " << lp.predict(block) << std::endl;
-                for (int i = 0; i < intra_block_dims.size(); i++) {
-                    size_t cur_index = block.get_local_index(i);
-                    size_t dims = inter_block_range->get_dimensions(i);
-                    intra_block_dims[i] = (cur_index == dims - 1 &&
-                                           global_dims[i] - cur_index * stride < block_size) ?
-                                          global_dims[i] - cur_index * stride : block_size;
+            if (data_ts0 != nullptr) {
+                for (size_t j = 0; j < global_dimensions[1]; j++) {
+                    quant_inds[quant_count++] = quantizer.quantize_and_overwrite(data[j], data_ts0[j]);
                 }
+            } else {
+                std::array<size_t, N - 1> global_dims;
+                for (int i = 0; i < N - 1; i++) {
+                    global_dims[i] = global_dimensions[i + 1];
+                };
 
-                intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
-                intra_block_range->set_offsets(block.get_offset());
-                intra_block_range->set_starting_position(block.get_local_index());
-                concepts::PredictorInterface<T, N - 1> *predictor_withfallback = &predictor;
-                if (!predictor.precompress_block(intra_block_range)) {
-                    predictor_withfallback = &fallback_predictor;
-                }
-                predictor_withfallback->precompress_block_commit();
+                auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N - 1>>(
+                        data, std::begin(global_dims), std::end(global_dims), stride, 0);
+                auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N - 1>>(
+                        data, std::begin(global_dims), std::end(global_dims), stride, 0);
+
+                std::array<size_t, N - 1> intra_block_dims;
+                predictor.precompress_data(inter_block_range->begin());
+                quantizer.precompress_data();
+                auto inter_begin = inter_block_range->begin();
+                auto inter_end = inter_block_range->end();
+                for (auto block = inter_begin; block != inter_end; ++block) {
+
+                    // std::cout << *block << " " << lp.predict(block) << std::endl;
+                    for (int i = 0; i < intra_block_dims.size(); i++) {
+                        size_t cur_index = block.get_local_index(i);
+                        size_t dims = inter_block_range->get_dimensions(i);
+                        intra_block_dims[i] = (cur_index == dims - 1 &&
+                                               global_dims[i] - cur_index * stride < block_size) ?
+                                              global_dims[i] - cur_index * stride : block_size;
+                    }
+
+                    intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
+                    intra_block_range->set_offsets(block.get_offset());
+                    intra_block_range->set_starting_position(block.get_local_index());
+                    concepts::PredictorInterface<T, N - 1> *predictor_withfallback = &predictor;
+                    if (!predictor.precompress_block(intra_block_range)) {
+                        predictor_withfallback = &fallback_predictor;
+                    }
+                    predictor_withfallback->precompress_block_commit();
 //                    quantizer.precompress_block();
-                auto intra_begin = intra_block_range->begin();
-                auto intra_end = intra_block_range->end();
-                for (auto element = intra_begin; element != intra_end; ++element) {
-                    quant_inds[quant_count++] = quantizer.quantize_and_overwrite(
-                            *element, predictor_withfallback->predict(element));
+                    auto intra_begin = intra_block_range->begin();
+                    auto intra_end = intra_block_range->end();
+                    for (auto element = intra_begin; element != intra_end; ++element) {
+                        quant_inds[quant_count++] = quantizer.quantize_and_overwrite(
+                                *element, predictor_withfallback->predict(element));
+                    }
                 }
+                predictor.postcompress_data(inter_block_range->begin());
             }
-//            writefile("x.time0.decompressed", data, global_dimensions[1]);
-
-            predictor.postcompress_data(inter_block_range->begin());
-
             for (size_t j = 0; j < global_dimensions[1]; j++) {
                 for (int i = 1; i < global_dimensions[0]; i++) {
                     size_t idx = i * global_dimensions[1] + j;
@@ -100,43 +101,50 @@ namespace SZ {
             int const *quant_inds_pos = (int const *) quant_inds.data();
             std::array<size_t, N - 1> intra_block_dims;
             auto dec_data = new T[num_elements];
-            std::array<size_t, N - 1> global_dims;
-            for (int i = 0; i < N - 1; i++) {
-                global_dims[i] = global_dimensions[i + 1];
-            };
-            auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N - 1>>(
-                    dec_data, std::begin(global_dims), std::end(global_dims), block_size, 0);
 
-            auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N - 1>>(
-                    dec_data, std::begin(global_dims), std::end(global_dims), 1, 0);
-
-            predictor.predecompress_data(inter_block_range->begin());
-            quantizer.predecompress_data();
-
-            auto inter_begin = inter_block_range->begin();
-            auto inter_end = inter_block_range->end();
-            for (auto block = inter_begin; block != inter_end; block++) {
-                for (int i = 0; i < intra_block_dims.size(); i++) {
-                    size_t cur_index = block.get_local_index(i);
-                    size_t dims = inter_block_range->get_dimensions(i);
-                    intra_block_dims[i] = (cur_index == dims - 1) ? global_dims[i] - cur_index * block_size
-                                                                  : block_size;
+            if (data_ts0 != nullptr) {
+                for (size_t j = 0; j < global_dimensions[1]; j++) {
+                    dec_data[j] = quantizer.recover(data_ts0[j], *(quant_inds_pos++));
                 }
-                intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
-                intra_block_range->set_offsets(block.get_offset());
-                intra_block_range->set_starting_position(block.get_local_index());
+            } else {
+                std::array<size_t, N - 1> global_dims;
+                for (int i = 0; i < N - 1; i++) {
+                    global_dims[i] = global_dimensions[i + 1];
+                };
+                auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N - 1>>(
+                        dec_data, std::begin(global_dims), std::end(global_dims), block_size, 0);
 
-                concepts::PredictorInterface<T, N - 1> *predictor_withfallback = &predictor;
-                if (!predictor.predecompress_block(intra_block_range)) {
-                    predictor_withfallback = &fallback_predictor;
+                auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N - 1>>(
+                        dec_data, std::begin(global_dims), std::end(global_dims), 1, 0);
+
+                predictor.predecompress_data(inter_block_range->begin());
+                quantizer.predecompress_data();
+
+                auto inter_begin = inter_block_range->begin();
+                auto inter_end = inter_block_range->end();
+                for (auto block = inter_begin; block != inter_end; block++) {
+                    for (int i = 0; i < intra_block_dims.size(); i++) {
+                        size_t cur_index = block.get_local_index(i);
+                        size_t dims = inter_block_range->get_dimensions(i);
+                        intra_block_dims[i] = (cur_index == dims - 1) ? global_dims[i] - cur_index * block_size
+                                                                      : block_size;
+                    }
+                    intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
+                    intra_block_range->set_offsets(block.get_offset());
+                    intra_block_range->set_starting_position(block.get_local_index());
+
+                    concepts::PredictorInterface<T, N - 1> *predictor_withfallback = &predictor;
+                    if (!predictor.predecompress_block(intra_block_range)) {
+                        predictor_withfallback = &fallback_predictor;
+                    }
+                    auto intra_begin = intra_block_range->begin();
+                    auto intra_end = intra_block_range->end();
+                    for (auto element = intra_begin; element != intra_end; ++element) {
+                        *element = quantizer.recover(predictor_withfallback->predict(element), *(quant_inds_pos++));
+                    }
                 }
-                auto intra_begin = intra_block_range->begin();
-                auto intra_end = intra_block_range->end();
-                for (auto element = intra_begin; element != intra_end; ++element) {
-                    *element = quantizer.recover(predictor_withfallback->predict(element), *(quant_inds_pos++));
-                }
+                predictor.postdecompress_data(inter_block_range->begin());
             }
-            predictor.postdecompress_data(inter_block_range->begin());
 
             for (size_t j = 0; j < global_dimensions[1]; j++) {
                 for (int i = 1; i < global_dimensions[0]; i++) {
@@ -195,13 +203,13 @@ namespace SZ {
         uint stride;
         size_t num_elements;
         std::array<size_t, N> global_dimensions;
-
+        T *data_ts0 = nullptr;
     };
 
     template<class T, uint N, class Predictor, class Quantizer>
     SZ3TimeBasedFrontend<T, N, Predictor, Quantizer>
     make_sz3_timebased_frontend(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer) {
-        return SZ3TimeBasedFrontend<T, N, Predictor, Quantizer>(conf, predictor, quantizer);
+        return SZ3TimeBasedFrontend<T, N, Predictor, Quantizer>(conf, predictor, quantizer, nullptr);
     }
 }
 

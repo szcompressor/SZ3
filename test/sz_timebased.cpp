@@ -1,4 +1,4 @@
-#include "frontend/SZ3TimeBasedFrontend2.hpp"
+#include "frontend/SZ3TimeBasedFrontend.hpp"
 #include "predictor/Predictor.hpp"
 #include "predictor/LorenzoPredictor.hpp"
 #include "predictor/RegressionPredictor.hpp"
