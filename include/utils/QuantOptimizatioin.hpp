@@ -10,6 +10,7 @@ namespace SZ {
 #define QuantIntvSampleCapacity 32768
 #define QuantIntvAccThreshold 0.999
 
+
 // copied from conf.c
     unsigned int
     round_up_power_of_2(unsigned int base) {
@@ -160,6 +161,48 @@ namespace SZ {
             return;
         }
     }
+    unsigned int optimize_intervals_float_1D_opt(float *oriData, size_t dataLength, uint maxRadius, double realPrecision) {
+        int sampleDistance = 100;
+        double predThreshold = 0.99;
+        size_t i = 0, radiusIndex;
+        float pred_value = 0, pred_err;
+        size_t *intervals = (size_t *) malloc(maxRadius * sizeof(size_t));
+        memset(intervals, 0, maxRadius * sizeof(size_t));
+        size_t totalSampleSize = 0;//dataLength/confparams_cpr->sampleDistance;
+
+        float *data_pos = oriData + 2;
+        while (data_pos - oriData < dataLength) {
+            totalSampleSize++;
+            pred_value = data_pos[-1];
+            pred_err = fabs(pred_value - *data_pos);
+            radiusIndex = (unsigned long) ((pred_err / realPrecision + 1) / 2);
+            if (radiusIndex >= maxRadius)
+                radiusIndex = maxRadius - 1;
+            intervals[radiusIndex]++;
+
+            data_pos += sampleDistance;
+        }
+        //compute the appropriate number
+        size_t targetCount = totalSampleSize * predThreshold;
+        size_t sum = 0;
+        for (i = 0; i < maxRadius; i++) {
+            sum += intervals[i];
+            if (sum > targetCount)
+                break;
+        }
+        if (i >= maxRadius)
+            i = maxRadius - 1;
+
+        unsigned int accIntervals = 2 * (i + 1);
+        unsigned int powerOf2 = round_up_power_of_2(accIntervals);
+
+        if (powerOf2 < 32)
+            powerOf2 = 32;
+
+        free(intervals);
+        return powerOf2;
+    }
+
 }
 
 #endif
