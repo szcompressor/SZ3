@@ -152,7 +152,8 @@ namespace SZ {
             encoder.postprocess_decode();
 
             encoder.load(compressed_data_pos, remaining_length);
-            auto pred_inds = encoder.decode(compressed_data_pos, num_elements);
+            auto pred_inds_num = (timestep_op == 1) ? global_dimensions[1] : num_elements;
+            auto pred_inds = encoder.decode(compressed_data_pos, pred_inds_num);
             encoder.postprocess_decode();
 
             lossless.postdecompress_data(compressed_data);
