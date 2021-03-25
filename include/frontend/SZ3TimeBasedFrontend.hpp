@@ -47,7 +47,7 @@ namespace SZ {
                 auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N - 1>>(
                         data, std::begin(global_dims), std::end(global_dims), stride, 0);
                 auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N - 1>>(
-                        data, std::begin(global_dims), std::end(global_dims), stride, 0);
+                        data, std::begin(global_dims), std::end(global_dims), 1, 0);
 
                 std::array<size_t, N - 1> intra_block_dims;
                 predictor.precompress_data(inter_block_range->begin());
@@ -112,7 +112,7 @@ namespace SZ {
                     global_dims[i] = global_dimensions[i + 1];
                 };
                 auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N - 1>>(
-                        dec_data, std::begin(global_dims), std::end(global_dims), block_size, 0);
+                        dec_data, std::begin(global_dims), std::end(global_dims), stride, 0);
 
                 auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N - 1>>(
                         dec_data, std::begin(global_dims), std::end(global_dims), 1, 0);

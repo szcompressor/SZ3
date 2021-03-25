@@ -11,7 +11,33 @@ namespace SZ {
     template<class T, uint N>
     class Config {
     public:
-        Config(T _eb, std::array<size_t, N> _dims) : eb(_eb), dims(_dims) {
+
+        Config(std::array<size_t, N> _dims) {
+            init(_dims);
+        }
+
+        Config(T _eb, std::array<size_t, N> _dims) : eb(_eb) {
+            init(_dims);
+        }
+
+        std::array<size_t, N> dims = {0};
+        size_t num;
+        bool enable_lorenzo = true;
+        bool enable_2ndlorenzo = false;
+        bool enable_regression = true;
+        int lossless_op = 1; // 0-> skip lossless(use lossless_bypass); 1-> zstd
+        int encoder_op = 1;// 0-> skip encoder(use PQLCompressor); 1->HuffmanEncoder; 2->ArithmeticEncoder
+        size_t quant_state_num = 65536;
+        uint block_size, stride, pred_dim = 0;
+        T eb;
+        T relative_eb;
+        std::string src_file_name;
+        size_t timestep_batch = 0;
+
+    private:
+
+        void init(std::array<size_t, N> _dims) {
+            dims = _dims;
             switch (N) {
                 case 1:
                     block_size = 128;
@@ -30,19 +56,6 @@ namespace SZ {
                 num *= d;
             }
         }
-
-        std::array<size_t, N> dims = {0};
-        size_t num;
-        bool enable_lorenzo = true;
-        bool enable_2ndlorenzo = false;
-        bool enable_regression = true;
-        int lossless_op = 1; // 0-> skip lossless(use lossless_bypass); 1-> zstd
-        int encoder_op = 1;// 0-> skip encoder(use PQLCompressor); 1->HuffmanEncoder; 2->ArithmeticEncoder
-        size_t quant_state_num = 65536;
-        uint block_size, stride, pred_dim = 0;
-        T eb;
-        T relative_eb;
-        std::string src_file_name;
     };
 }
 

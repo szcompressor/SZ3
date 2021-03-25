@@ -31,6 +31,9 @@ template<typename T, uint N>
 float SZ_Compress(std::unique_ptr<T[]> const &data, SZ::Config<T, N> conf, int timestep_op, size_t timestep_batch) {
     assert(N == 2);
     conf.quant_state_num = 1024;
+    if (timestep_batch == 0) {
+        timestep_batch = conf.dims[0];
+    }
     std::cout << "****************** Options ********************" << std::endl;
     std::cout << "dimension = " << N
               << ", error bound = " << conf.eb
@@ -46,7 +49,9 @@ float SZ_Compress(std::unique_ptr<T[]> const &data, SZ::Config<T, N> conf, int t
 
     float level_start, level_offset;
     int level_num;
-    SZ::get_cluster(data.get(), conf.num, level_start, level_offset, level_num, 0.001);
+//    SZ::get_cluster(data.get(), conf.num, level_start, level_offset, level_num, 0.001);
+    auto sample_rate = (timestep_batch == conf.dims[0]) ? 0.001 : 1;
+    SZ::get_cluster(data.get(), conf.dims[1] * timestep_batch, level_start, level_offset, level_num, sample_rate);
     //    level_start = -58.291; //trinity-110x
 //    level_offset = 2.241; //trinity-110x
 //    level_start = 0;
@@ -56,14 +61,13 @@ float SZ_Compress(std::unique_ptr<T[]> const &data, SZ::Config<T, N> conf, int t
     double total_compressed_size = 0;
     auto dims = conf.dims;
     auto num = conf.num;
-    if (timestep_batch == 0) {
-        timestep_batch = dims[0];
-    }
+
     for (size_t ts = 0; ts < dims[0]; ts += timestep_batch) {
         conf.dims[0] = (ts + timestep_batch - 1 > dims[0] ? dims[0] - ts + 1 : timestep_batch);
         conf.num = conf.dims[0] * conf.dims[1];
 
-        std::cout << "****************** Compression ******************" << std::endl;
+        std::cout << "****************** Compression From " << ts << " to " << ts + conf.dims[0] - 1
+                  << " ******************" << std::endl;
         SZ::Timer timer(true);
         auto sz = SZ::SZ_Exaalt_Compressor(conf, SZ::LinearQuantizer<float>(conf.eb, conf.quant_state_num / 2),
                                            SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd(), timestep_op);
