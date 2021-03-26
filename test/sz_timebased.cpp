@@ -103,7 +103,7 @@ float Compress(SZ::Config<T, N> conf) {
         conf.dims[0] = (ts + conf.timestep_batch - 1 > dims[0] ? dims[0] - ts : conf.timestep_batch);
         conf.num = conf.dims[0] * conf.dims[1];
 
-        auto data = SZ::readfile<T>(conf.src_file_name.data(), ts, conf.num);
+        auto data = SZ::readfile<T>(conf.src_file_name.data(), ts*conf.dims[1], conf.num);
         T max = *std::max_element(data.get(), data.get() + conf.num);
         T min = *std::min_element(data.get(), data.get() + conf.num);
         if (conf.eb_mode == 0) {
@@ -113,7 +113,6 @@ float Compress(SZ::Config<T, N> conf) {
         }
 
         std::vector<T> data_(data.get(), data.get() + conf.num);
-
         std::cout << "****************** Compression From " << ts << " to " << ts + conf.dims[0] - 1
                   << " ******************" << std::endl;
         SZ::Timer timer(true);
