@@ -63,7 +63,7 @@ float SZ_Compress(std::unique_ptr<T[]> const &data, SZ::Config<T, N> conf, int t
     auto num = conf.num;
 
     for (size_t ts = 0; ts < dims[0]; ts += timestep_batch) {
-        conf.dims[0] = (ts + timestep_batch - 1 > dims[0] ? dims[0] - ts + 1 : timestep_batch);
+        conf.dims[0] = (ts + timestep_batch - 1 > dims[0] ? dims[0] - ts : timestep_batch);
         conf.num = conf.dims[0] * conf.dims[1];
 
         std::cout << "****************** Compression From " << ts << " to " << ts + conf.dims[0] - 1

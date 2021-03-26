@@ -33,13 +33,13 @@ namespace SZ {
         using Range = multi_dimensional_range<T, N>;
         using iterator = typename multi_dimensional_range<T, N>::iterator;
 
-        void precompress_data(const iterator &) const noexcept {}
+        void precompress_data(const iterator &) noexcept {}
 
-        void postcompress_data(const iterator &) const noexcept {}
+        void postcompress_data(const iterator &) noexcept {}
 
-        void predecompress_data(const iterator &) const noexcept {}
+        void predecompress_data(const iterator &) noexcept {}
 
-        void postdecompress_data(const iterator &) const noexcept {}
+        void postdecompress_data(const iterator &) noexcept { clear(); }
 
         inline T estimate_error(const iterator &iter) const noexcept {
             return fabs(*iter - predict(iter));
@@ -113,7 +113,8 @@ namespace SZ {
                 quantizer_liner.save(c);
                 HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
                 encoder.preprocess_encode(regression_coeff_quant_inds,
-                                          4 * std::max(quantizer_liner.get_radius(), quantizer_independent.get_radius()));
+                                          4 *
+                                          std::max(quantizer_liner.get_radius(), quantizer_independent.get_radius()));
                 encoder.save(c);
                 encoder.encode(regression_coeff_quant_inds, c);
                 encoder.postprocess_encode();
@@ -225,7 +226,8 @@ namespace SZ {
 
         void pred_and_quantize_coefficients() {
             for (int i = 0; i < N; i++) {
-                regression_coeff_quant_inds.push_back(quantizer_liner.quantize_and_overwrite(current_coeffs[i], prev_coeffs[i]));
+                regression_coeff_quant_inds.push_back(
+                        quantizer_liner.quantize_and_overwrite(current_coeffs[i], prev_coeffs[i]));
             }
             regression_coeff_quant_inds.push_back(
                     quantizer_independent.quantize_and_overwrite(current_coeffs[N], prev_coeffs[N]));

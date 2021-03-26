@@ -29,20 +29,25 @@ float SZ_Compress(std::unique_ptr<T[]> const &data, SZ::Config<T, N> conf, Predi
     std::cout << "dimension = " << N
               << ", error bound = " << conf.eb
               << ", timestep_batch = " << conf.timestep_batch
+              << ", block_size = " << conf.block_size
+              << ", stride = " << conf.stride
               << ", quan_state_num = " << conf.quant_state_num
+              << std::endl
+              << "lorenzo = " << conf.enable_lorenzo
+              << ", 2ndlorenzo = " << conf.enable_2ndlorenzo
+              << ", regression = " << conf.enable_regression
               << ", encoder = " << conf.encoder_op
               << ", lossless = " << conf.lossless_op
               << std::endl;
 
     std::vector<T> data_(data.get(), data.get() + conf.num);
     std::vector<T> dec_data(conf.num);
-
     double total_compressed_size = 0;
     auto dims = conf.dims;
     auto num = conf.num;
 
     for (size_t ts = 0; ts < dims[0]; ts += conf.timestep_batch) {
-        conf.dims[0] = (ts + conf.timestep_batch - 1 > dims[0] ? dims[0] - ts + 1 : conf.timestep_batch);
+        conf.dims[0] = (ts + conf.timestep_batch - 1 > dims[0] ? dims[0] - ts : conf.timestep_batch);
         conf.num = conf.dims[0] * conf.dims[1];
 
         std::cout << "****************** Compression From " << ts << " to " << ts + conf.dims[0] - 1
@@ -201,7 +206,7 @@ float SZ_compress_parse_args(int argc, char **argv, int argp, std::array<size_t,
 
 int main(int argc, char **argv) {
     if (argc < 2) {
-        std::cout << "SZ v" << SZ_versionString() << std::endl;
+        std::cout << "SZ" << SZ_versionString() << std::endl;
         std::cout << "usage: " << argv[0] <<
                   " data_file -num_dim dim0 .. dimn relative_eb [blocksize lorenzo_op regression_op encoder_op lossless_op quant_state_num]"
                   << std::endl;

@@ -17,25 +17,25 @@ namespace SZ {
         using Range = multi_dimensional_range<T, N>;
         using iterator = typename multi_dimensional_range<T, N>::iterator;
 
-        void precompress_data(const iterator &iter) const noexcept {
+        void precompress_data(const iterator &iter)  noexcept {
             for (const auto &p:predictors) {
                 p->precompress_data(iter);
             }
         }
 
-        void postcompress_data(const iterator &iter) const noexcept {
+        void postcompress_data(const iterator &iter)  noexcept {
             for (const auto &p:predictors) {
                 p->postcompress_data(iter);
             }
         }
 
-        void predecompress_data(const iterator &iter) const noexcept {
+        void predecompress_data(const iterator &iter) noexcept {
             for (const auto &p:predictors) {
                 p->predecompress_data(iter);
             }
         }
 
-        void postdecompress_data(const iterator &iter) const noexcept {
+        void postdecompress_data(const iterator &iter)  noexcept {
             for (const auto &p:predictors) {
                 p->postdecompress_data(iter);
             }
@@ -167,9 +167,7 @@ namespace SZ {
 //            unpack(Ps...);
 //        }
 
-        ComposedPredictor(std::vector<std::shared_ptr<concepts::PredictorInterface < T, N>>
-
-        > predictors) {
+        ComposedPredictor(std::vector<std::shared_ptr<concepts::PredictorInterface < T, N>>> predictors) {
             this->predictors = predictors;
             predict_error.resize(predictors.size());
         }

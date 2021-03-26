@@ -84,13 +84,12 @@ namespace SZ {
                 predictor.postcompress_data(inter_block_range->begin());
             }
             for (size_t j = 0; j < global_dimensions[1]; j++) {
-                for (int i = 1; i < global_dimensions[0]; i++) {
+                for (size_t i = 1; i < global_dimensions[0]; i++) {
                     size_t idx = i * global_dimensions[1] + j;
                     size_t idx_prev = (i - 1) * global_dimensions[1] + j;
                     quant_inds[quant_count++] = quantizer.quantize_and_overwrite(data[idx], data[idx_prev]);
                 }
             }
-
             assert(quant_count == num_elements);
             quantizer.postcompress_data();
             return quant_inds;
@@ -147,7 +146,7 @@ namespace SZ {
             }
 
             for (size_t j = 0; j < global_dimensions[1]; j++) {
-                for (int i = 1; i < global_dimensions[0]; i++) {
+                for (size_t i = 1; i < global_dimensions[0]; i++) {
                     size_t idx = i * global_dimensions[1] + j;
                     size_t idx_prev = (i - 1) * global_dimensions[1] + j;
                     dec_data[idx] = quantizer.recover(dec_data[idx_prev], *(quant_inds_pos++));

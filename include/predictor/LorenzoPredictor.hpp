@@ -43,13 +43,13 @@ namespace SZ {
             }
         }
 
-        void precompress_data(const iterator &) const {}
+        void precompress_data(const iterator &)  {}
 
-        void postcompress_data(const iterator &) const {}
+        void postcompress_data(const iterator &)  {}
 
-        void predecompress_data(const iterator &) const {}
+        void predecompress_data(const iterator &)  {}
 
-        void postdecompress_data(const iterator &) const {}
+        void postdecompress_data(const iterator &)  {}
 
         bool precompress_block(const std::shared_ptr<Range> &) { return true; }
 

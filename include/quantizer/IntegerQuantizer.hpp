@@ -183,6 +183,7 @@ namespace SZ {
 
         void print() {
             std::cout << "IntegerQuantizer, radius = " << radius
+                      << " , eb = " << error_bound
                       << " , unpred = " << unpred.size()
                       << std::endl;
         }

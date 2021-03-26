@@ -17,13 +17,13 @@ namespace SZ {
 
             virtual ~PredictorInterface() = default;
 
-            virtual void precompress_data(const iterator &) const = 0;
+            virtual void precompress_data(const iterator &) = 0;
 
-            virtual void postcompress_data(const iterator &) const = 0;
+            virtual void postcompress_data(const iterator &)  = 0;
 
-            virtual void predecompress_data(const iterator &) const = 0;
+            virtual void predecompress_data(const iterator &)  = 0;
 
-            virtual void postdecompress_data(const iterator &) const = 0;
+            virtual void postdecompress_data(const iterator &)  = 0;
 
             virtual bool precompress_block(const std::shared_ptr<Range> &) = 0;
 
