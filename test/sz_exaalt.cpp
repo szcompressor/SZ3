@@ -62,7 +62,7 @@ float SZ_Compress(SZ::Config<T, N> conf) {
     auto total_num = conf.num;
 
     for (size_t ts = 0; ts < dims[0]; ts += conf.timestep_batch) {
-        conf.dims[0] = (ts + conf.timestep_batch - 1 > dims[0] ? dims[0] - ts : conf.timestep_batch);
+        conf.dims[0] = (ts + conf.timestep_batch  > dims[0] ? dims[0] - ts : conf.timestep_batch);
         conf.num = conf.dims[0] * conf.dims[1];
 
         auto data = SZ::readfile<T>(conf.src_file_name.data(), ts, conf.num);

@@ -20,13 +20,14 @@
 template<typename T, uint N, class Predictor>
 SZ::concepts::CompressorInterface<T> *
 make_sz_timebased2(const SZ::Config<T, N> &conf, Predictor predictor, T *data_ts0) {
-    return new SZ::SZGeneralCompressor<T, N, SZ::SZ3TimeBasedFrontend<T, N, Predictor, SZ::LinearQuantizer<T>>,
-            SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
-            conf,
-            make_sz3_timebased_frontend(
-                    conf, predictor, SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2), data_ts0),
-            SZ::HuffmanEncoder<int>(),
-            SZ::Lossless_zstd());
+
+        return new SZ::SZGeneralCompressor<T, N, SZ::SZ3TimeBasedFrontend<T, N, Predictor, SZ::LinearQuantizer<T>>,
+                SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
+                conf,
+                make_sz3_timebased_frontend(
+                        conf, predictor, SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2), data_ts0),
+                SZ::HuffmanEncoder<int>(),
+                SZ::Lossless_zstd());
 }
 
 template<typename T, uint N>
@@ -100,10 +101,10 @@ float Compress(SZ::Config<T, N> conf) {
 
 
     for (size_t ts = 0; ts < dims[0]; ts += conf.timestep_batch) {
-        conf.dims[0] = (ts + conf.timestep_batch - 1 > dims[0] ? dims[0] - ts : conf.timestep_batch);
+        conf.dims[0] = (ts + conf.timestep_batch  > dims[0] ? dims[0] - ts : conf.timestep_batch);
         conf.num = conf.dims[0] * conf.dims[1];
 
-        auto data = SZ::readfile<T>(conf.src_file_name.data(), ts*conf.dims[1], conf.num);
+        auto data = SZ::readfile<T>(conf.src_file_name.data(), ts * conf.dims[1], conf.num);
         T max = *std::max_element(data.get(), data.get() + conf.num);
         T min = *std::min_element(data.get(), data.get() + conf.num);
         if (conf.eb_mode == 0) {
@@ -160,8 +161,6 @@ float Compress(SZ::Config<T, N> conf) {
     std::cout << "Total Compression Ratio = " << ratio << std::endl;
     return ratio;
 }
-
-
 
 
 template<class T, uint N>
