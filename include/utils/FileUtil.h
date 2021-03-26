@@ -10,6 +10,11 @@
 #include <iomanip>
 
 namespace SZ {
+    bool file_exist(const char *file){
+        std::ifstream infile(file);
+        return infile.good();
+    }
+
     template<typename Type>
     std::unique_ptr<Type[]> readfile(const char *file, size_t &num) {
         std::ifstream fin(file, std::ios::binary);

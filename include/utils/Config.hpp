@@ -33,6 +33,7 @@ namespace SZ {
         T relative_eb;
         std::string src_file_name;
         size_t timestep_batch = 0;
+        size_t timestep_op = 0;
 
     private:
 

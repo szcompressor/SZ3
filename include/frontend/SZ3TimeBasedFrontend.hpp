@@ -207,8 +207,8 @@ namespace SZ {
 
     template<class T, uint N, class Predictor, class Quantizer>
     SZ3TimeBasedFrontend<T, N, Predictor, Quantizer>
-    make_sz3_timebased_frontend(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer) {
-        return SZ3TimeBasedFrontend<T, N, Predictor, Quantizer>(conf, predictor, quantizer, nullptr);
+    make_sz3_timebased_frontend(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer, T* data_ts0) {
+        return SZ3TimeBasedFrontend<T, N, Predictor, Quantizer>(conf, predictor, quantizer, data_ts0);
     }
 }
 

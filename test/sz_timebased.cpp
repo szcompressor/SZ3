@@ -24,11 +24,22 @@ float SZ_Compress(std::unique_ptr<T[]> const &data, SZ::Config<T, N> conf, Predi
     if (conf.timestep_batch == 0) {
         conf.timestep_batch = conf.dims[0];
     }
-
+    std::unique_ptr<T[]> data_ts0;
+    if (conf.timestep_op == 1) {
+        auto ts0_name_str = conf.src_file_name + ".ts0";
+        auto ts0_name = ts0_name_str.data();
+        if (SZ::file_exist(ts0_name)) {
+            size_t num_ts0;
+            data_ts0 = SZ::readfile<T>(ts0_name, num_ts0);
+        } else {
+            conf.timestep_op = 0;
+        }
+    }
     std::cout << "****************** Options ********************" << std::endl;
     std::cout << "dimension = " << N
               << ", error bound = " << conf.eb
               << ", timestep_batch = " << conf.timestep_batch
+              << ", timestep_op = " << conf.timestep_op
               << ", block_size = " << conf.block_size
               << ", stride = " << conf.stride
               << ", quan_state_num = " << conf.quant_state_num
@@ -46,6 +57,7 @@ float SZ_Compress(std::unique_ptr<T[]> const &data, SZ::Config<T, N> conf, Predi
     auto dims = conf.dims;
     auto num = conf.num;
 
+
     for (size_t ts = 0; ts < dims[0]; ts += conf.timestep_batch) {
         conf.dims[0] = (ts + conf.timestep_batch - 1 > dims[0] ? dims[0] - ts : conf.timestep_batch);
         conf.num = conf.dims[0] * conf.dims[1];
@@ -55,7 +67,8 @@ float SZ_Compress(std::unique_ptr<T[]> const &data, SZ::Config<T, N> conf, Predi
         SZ::Timer timer(true);
         auto sz = SZ::make_sz_general_compressor(
                 conf,
-                make_sz3_timebased_frontend(conf, predictor, SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2)),
+                make_sz3_timebased_frontend(conf, predictor, SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2),
+                                            data_ts0.get()),
                 SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd());
 
         size_t compressed_size = 0;
@@ -161,7 +174,9 @@ float SZ_compress_parse_args(int argc, char **argv, int argp, std::array<size_t,
     if (argp < argc) {
         conf.timestep_batch = atoi(argv[argp++]);
     }
-
+    if (argp < argc) {
+        conf.timestep_op = atoi(argv[argp++]);
+    }
     conf.block_size = 128;
     conf.stride = 128;
     if (argp < argc) {

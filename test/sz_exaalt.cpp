@@ -145,13 +145,13 @@ int main(int argc, char **argv) {
         relative_eb = atof(argv[argp++]);
         eb = relative_eb * (max - min);
     }
-    int timestep_op = 0;
-    if (argp < argc) {
-        timestep_op = atoi(argv[argp++]);
-    }
     size_t timestep_batch = 0;
     if (argp < argc) {
         timestep_batch = atoi(argv[argp++]);
+    }
+    int timestep_op = 0;
+    if (argp < argc) {
+        timestep_op = atoi(argv[argp++]);
     }
     if (dim == 1) {
         auto conf = SZ::Config<float, 2>(eb, {1, dims[0]});
