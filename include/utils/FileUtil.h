@@ -10,7 +10,7 @@
 #include <iomanip>
 
 namespace SZ {
-    bool file_exist(const char *file){
+    bool file_exist(const char *file) {
         std::ifstream infile(file);
         return infile.good();
     }
@@ -32,6 +32,24 @@ namespace SZ {
         num = num_elements;
         return data;
     }
+
+    template<typename Type>
+    std::unique_ptr<Type[]> readfile(const char *file, size_t start, size_t num) {
+        std::ifstream fin(file, std::ios::binary);
+        if (!fin) {
+            std::cout << " Error, Couldn't find the file" << "\n";
+            return 0;
+        }
+        fin.seekg(0, std::ios::end);
+        const size_t total_num_elements = fin.tellg() / sizeof(Type);
+        assert(start + num <= total_num_elements);
+        fin.seekg(start * sizeof(Type), std::ios::beg);
+        auto data = std::make_unique<Type[]>(num);
+        fin.read(reinterpret_cast<char *>(&data[0]), num * sizeof(Type));
+        fin.close();
+        return data;
+    }
+
 
     template<typename Type>
     void writefile(const char *file, Type *data, size_t num_elements) {

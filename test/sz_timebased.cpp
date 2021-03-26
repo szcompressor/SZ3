@@ -17,9 +17,52 @@
 #include <random>
 #include <sstream>
 
+template<typename T, uint N, class Predictor>
+SZ::concepts::CompressorInterface<T> *
+make_sz_timebased2(const SZ::Config<T, N> &conf, Predictor predictor, T *data_ts0) {
+    return new SZ::SZGeneralCompressor<T, N, SZ::SZ3TimeBasedFrontend<T, N, Predictor, SZ::LinearQuantizer<T>>,
+            SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
+            conf,
+            make_sz3_timebased_frontend(
+                    conf, predictor, SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2), data_ts0),
+            SZ::HuffmanEncoder<int>(),
+            SZ::Lossless_zstd());
+}
 
-template<typename T, class Predictor, uint N>
-float SZ_Compress(std::unique_ptr<T[]> const &data, SZ::Config<T, N> conf, Predictor predictor) {
+template<typename T, uint N>
+SZ::concepts::CompressorInterface<T> *
+make_sz_timebased(const SZ::Config<T, N> &conf, T *data_ts0) {
+    std::vector<std::shared_ptr<SZ::concepts::PredictorInterface<T, N - 1>>> predictors;
+
+    int use_single_predictor =
+            (conf.enable_lorenzo + conf.enable_2ndlorenzo + conf.enable_regression) == 1;
+    if (conf.enable_lorenzo) {
+        if (use_single_predictor) {
+            return make_sz_timebased2(conf, SZ::LorenzoPredictor<T, N - 1, 1>(conf.eb), data_ts0);
+        } else {
+            predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N - 1, 1>>(conf.eb));
+        }
+    }
+    if (conf.enable_2ndlorenzo) {
+        if (use_single_predictor) {
+            return make_sz_timebased2(conf, SZ::LorenzoPredictor<T, N - 1, 2>(conf.eb), data_ts0);
+        } else {
+            predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N - 1, 2>>(conf.eb));
+        }
+    }
+    if (conf.enable_regression) {
+        if (use_single_predictor) {
+            return make_sz_timebased2(conf, SZ::RegressionPredictor<T, N - 1>(conf.block_size, conf.eb), data_ts0);
+        } else {
+            predictors.push_back(std::make_shared<SZ::RegressionPredictor<T, N - 1>>(conf.block_size, conf.eb));
+        }
+    }
+
+    return make_sz_timebased2(conf, SZ::ComposedPredictor<T, N - 1>(predictors), data_ts0);
+}
+
+template<typename T, uint N>
+float Compress(SZ::Config<T, N> conf) {
     assert(N == 2);
     if (conf.timestep_batch == 0) {
         conf.timestep_batch = conf.dims[0];
@@ -37,7 +80,7 @@ float SZ_Compress(std::unique_ptr<T[]> const &data, SZ::Config<T, N> conf, Predi
     }
     std::cout << "****************** Options ********************" << std::endl;
     std::cout << "dimension = " << N
-              << ", error bound = " << conf.eb
+              << ", error bound = " << (conf.eb_mode == 0 ? conf.eb : conf.relative_eb)
               << ", timestep_batch = " << conf.timestep_batch
               << ", timestep_op = " << conf.timestep_op
               << ", block_size = " << conf.block_size
@@ -51,30 +94,34 @@ float SZ_Compress(std::unique_ptr<T[]> const &data, SZ::Config<T, N> conf, Predi
               << ", lossless = " << conf.lossless_op
               << std::endl;
 
-    std::vector<T> data_(data.get(), data.get() + conf.num);
-    std::vector<T> dec_data(conf.num);
     double total_compressed_size = 0;
     auto dims = conf.dims;
-    auto num = conf.num;
+    auto total_num = conf.num;
 
 
     for (size_t ts = 0; ts < dims[0]; ts += conf.timestep_batch) {
         conf.dims[0] = (ts + conf.timestep_batch - 1 > dims[0] ? dims[0] - ts : conf.timestep_batch);
         conf.num = conf.dims[0] * conf.dims[1];
 
+        auto data = SZ::readfile<T>(conf.src_file_name.data(), ts, conf.num);
+        T max = *std::max_element(data.get(), data.get() + conf.num);
+        T min = *std::min_element(data.get(), data.get() + conf.num);
+        if (conf.eb_mode == 0) {
+            conf.relative_eb = conf.eb / (max - min);
+        } else if (conf.eb_mode == 1) {
+            conf.eb = conf.relative_eb * (max - min);
+        }
+
+        std::vector<T> data_(data.get(), data.get() + conf.num);
+
         std::cout << "****************** Compression From " << ts << " to " << ts + conf.dims[0] - 1
                   << " ******************" << std::endl;
         SZ::Timer timer(true);
-        auto sz = SZ::make_sz_general_compressor(
-                conf,
-                make_sz3_timebased_frontend(conf, predictor, SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2),
-                                            data_ts0.get()),
-                SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd());
+        auto sz = make_sz_timebased(conf, data_ts0.get());
 
         size_t compressed_size = 0;
         std::unique_ptr<SZ::uchar[]> compressed;
-        auto ts_data = data.get() + ts * dims[1];
-        compressed.reset(sz.compress(ts_data, compressed_size));
+        compressed.reset(sz->compress(data.get(), compressed_size));
         timer.stop("Compression");
 
         auto ratio = conf.num * sizeof(T) * 1.0 / compressed_size;
@@ -95,55 +142,27 @@ float SZ_Compress(std::unique_ptr<T[]> const &data, SZ::Config<T, N> conf, Predi
         compressed = SZ::readfile<SZ::uchar>(compressed_file_name.c_str(), compressed_size);
 
         timer.start();
-        auto ts_dec_data = sz.decompress(compressed.get(), compressed_size);
+        auto ts_dec_data = sz->decompress(compressed.get(), compressed_size);
         timer.stop("Decompression");
-        std::copy(ts_dec_data, ts_dec_data + conf.num, dec_data.begin() + ts * dims[1]);
 
         auto decompressed_file_name = compressed_file_name + ".out";
 //    SZ::writefile(decompressed_file_name.c_str(), dec_data.get(), conf.num);
 //    std::cout << "Decompressed file = " << decompressed_file_name << std::endl;
         remove(compressed_file_name.c_str());
         total_compressed_size += compressed_size;
+        delete sz;
+
+        SZ::verify<T>(data_.data(), ts_dec_data, conf.num);
     }
-    SZ::verify<T>(data_.data(), dec_data.data(), num);
 
     std::cout << "****************** Final ****************" << std::endl;
-    float ratio = num * sizeof(T) / total_compressed_size;
+    float ratio = total_num * sizeof(T) / total_compressed_size;
     std::cout << "Total Compression Size = " << total_compressed_size << std::endl;
     std::cout << "Total Compression Ratio = " << ratio << std::endl;
     return ratio;
 }
 
-template<typename T, uint N>
-float SZ_compress_build_frontend(std::unique_ptr<T[]> const &data, const SZ::Config<T, N> &conf) {
-    std::vector<std::shared_ptr<SZ::concepts::PredictorInterface<T, N - 1>>> predictors;
 
-    int use_single_predictor =
-            (conf.enable_lorenzo + conf.enable_2ndlorenzo + conf.enable_regression) == 1;
-    if (conf.enable_lorenzo) {
-        if (use_single_predictor) {
-            return SZ_Compress<T>(data, conf, SZ::LorenzoPredictor<T, N - 1, 1>(conf.eb));
-        } else {
-            predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N - 1, 1>>(conf.eb));
-        }
-    }
-    if (conf.enable_2ndlorenzo) {
-        if (use_single_predictor) {
-            return SZ_Compress<T>(data, conf, SZ::LorenzoPredictor<T, N - 1, 2>(conf.eb));
-        } else {
-            predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N - 1, 2>>(conf.eb));
-        }
-    }
-    if (conf.enable_regression) {
-        if (use_single_predictor) {
-            return SZ_Compress<T>(data, conf, SZ::RegressionPredictor<T, N - 1>(conf.block_size, conf.eb));
-        } else {
-            predictors.push_back(std::make_shared<SZ::RegressionPredictor<T, N - 1>>(conf.block_size, conf.eb));
-        }
-    }
-
-    return SZ_Compress<T>(data, conf, SZ::ComposedPredictor<T, N - 1>(predictors));
-}
 
 
 template<class T, uint N>
@@ -151,24 +170,14 @@ float SZ_compress_parse_args(int argc, char **argv, int argp, std::array<size_t,
     SZ::Config<float, N> conf(dims);
 
     conf.src_file_name = argv[1];
-    size_t num = 0;
-    auto data = SZ::readfile<float>(argv[1], num);
-    std::cout << "Read " << num << " elements\n";
-    assert(conf.num == num);
 
-    float max = data[0];
-    float min = data[0];
-    for (int i = 1; i < num; i++) {
-        if (max < data[i]) max = data[i];
-        if (min > data[i]) min = data[i];
-    }
     char *eb_op = argv[argp++] + 1;
     if (*eb_op == 'a') {
+        conf.eb_mode = 0;
         conf.eb = atof(argv[argp++]);
-        conf.relative_eb = conf.eb / (max - min);
     } else {
+        conf.eb_mode = 1;
         conf.relative_eb = atof(argv[argp++]);
-        conf.eb = conf.relative_eb * (max - min);
     }
 
     if (argp < argc) {
@@ -215,7 +224,7 @@ float SZ_compress_parse_args(int argc, char **argv, int argp, std::array<size_t,
         conf.quant_state_num = atoi(argv[argp++]);
     }
 
-    auto ratio = SZ_compress_build_frontend(data, conf);
+    auto ratio = Compress(conf);
     return ratio;
 }
 

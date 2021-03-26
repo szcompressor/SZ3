@@ -29,8 +29,9 @@ namespace SZ {
         int encoder_op = 1;// 0-> skip encoder(use PQLCompressor); 1->HuffmanEncoder; 2->ArithmeticEncoder
         size_t quant_state_num = 65536;
         uint block_size, stride, pred_dim = 0;
-        T eb;
-        T relative_eb;
+        T eb = 0;
+        T relative_eb = 0;
+        int eb_mode = 0;
         std::string src_file_name;
         size_t timestep_batch = 0;
         size_t timestep_op = 0;

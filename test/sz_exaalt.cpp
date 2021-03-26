@@ -28,30 +28,29 @@
  * @return
  */
 template<typename T, uint N>
-float SZ_Compress(std::unique_ptr<T[]> const &data, SZ::Config<T, N> conf, int timestep_op, size_t timestep_batch) {
+float SZ_Compress(SZ::Config<T, N> conf) {
     assert(N == 2);
     conf.quant_state_num = 1024;
-    if (timestep_batch == 0) {
-        timestep_batch = conf.dims[0];
+    if (conf.timestep_batch == 0) {
+        conf.timestep_batch = conf.dims[0];
     }
     std::cout << "****************** Options ********************" << std::endl;
     std::cout << "dimension = " << N
               << ", error bound = " << conf.eb
-              << ", timestep_op = " << timestep_op
-              << ", timestep_batch = " << timestep_batch
+              << ", timestep_op = " << conf.timestep_op
+              << ", timestep_batch = " << conf.timestep_batch
               << ", quan_state_num = " << conf.quant_state_num
               << ", encoder = " << conf.encoder_op
               << ", lossless = " << conf.lossless_op
               << std::endl;
 
-    std::vector<T> data_(data.get(), data.get() + conf.num);
-    std::vector<T> dec_data(conf.num);
 
     float level_start, level_offset;
     int level_num;
 //    SZ::get_cluster(data.get(), conf.num, level_start, level_offset, level_num, 0.001);
-    auto sample_rate = (timestep_batch == conf.dims[0]) ? 0.001 : 1;
-    SZ::get_cluster(data.get(), conf.dims[1] * timestep_batch, level_start, level_offset, level_num, sample_rate);
+    auto sample_rate = (conf.timestep_batch == conf.dims[0]) ? 0.001 : 1;
+    auto data_all = SZ::readfile<T>(conf.src_file_name.data(), 0, conf.num);
+    SZ::get_cluster(data_all.get(), conf.dims[1] * conf.timestep_batch, level_start, level_offset, level_num, sample_rate);
     //    level_start = -58.291; //trinity-110x
 //    level_offset = 2.241; //trinity-110x
 //    level_start = 0;
@@ -60,23 +59,33 @@ float SZ_Compress(std::unique_ptr<T[]> const &data, SZ::Config<T, N> conf, int t
     printf("start = %.3f , level_offset = %.3f, nlevel=%d\n", level_start, level_offset, level_num);
     double total_compressed_size = 0;
     auto dims = conf.dims;
-    auto num = conf.num;
+    auto total_num = conf.num;
 
-    for (size_t ts = 0; ts < dims[0]; ts += timestep_batch) {
-        conf.dims[0] = (ts + timestep_batch - 1 > dims[0] ? dims[0] - ts : timestep_batch);
+    for (size_t ts = 0; ts < dims[0]; ts += conf.timestep_batch) {
+        conf.dims[0] = (ts + conf.timestep_batch - 1 > dims[0] ? dims[0] - ts : conf.timestep_batch);
         conf.num = conf.dims[0] * conf.dims[1];
+
+        auto data = SZ::readfile<T>(conf.src_file_name.data(), ts, conf.num);
+        T max = *std::max_element(data.get(), data.get() + conf.num);
+        T min = *std::min_element(data.get(), data.get() + conf.num);
+        if (conf.eb_mode == 0) {
+            conf.relative_eb = conf.eb / (max - min);
+        } else if (conf.eb_mode == 1) {
+            conf.eb = conf.relative_eb * (max - min);
+        }
+
+        std::vector<T> data_(data.get(), data.get() + conf.num);
 
         std::cout << "****************** Compression From " << ts << " to " << ts + conf.dims[0] - 1
                   << " ******************" << std::endl;
         SZ::Timer timer(true);
         auto sz = SZ::SZ_Exaalt_Compressor(conf, SZ::LinearQuantizer<float>(conf.eb, conf.quant_state_num / 2),
-                                           SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd(), timestep_op);
+                                           SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd(), conf.timestep_op);
         sz.set_level(level_start, level_offset, level_num);
 
         size_t compressed_size = 0;
         std::unique_ptr<SZ::uchar[]> compressed;
-        auto ts_data = data.get() + ts * dims[1];
-        compressed.reset(sz.compress(ts_data, compressed_size));
+        compressed.reset(sz.compress(data.get(), compressed_size));
         timer.stop("Compression");
 
         auto ratio = conf.num * sizeof(T) * 1.0 / compressed_size;
@@ -99,17 +108,16 @@ float SZ_Compress(std::unique_ptr<T[]> const &data, SZ::Config<T, N> conf, int t
         timer.start();
         auto ts_dec_data = sz.decompress(compressed.get(), compressed_size);
         timer.stop("Decompression");
-        std::copy(ts_dec_data, ts_dec_data + conf.num, dec_data.begin() + ts * dims[1]);
 
         auto decompressed_file_name = compressed_file_name + ".out";
 //    SZ::writefile(decompressed_file_name.c_str(), dec_data.get(), conf.num);
 //    std::cout << "Decompressed file = " << decompressed_file_name << std::endl;
         remove(compressed_file_name.c_str());
         total_compressed_size += compressed_size;
+        SZ::verify<T>(data_.data(), ts_dec_data, conf.num);
     }
-    SZ::verify<T>(data_.data(), dec_data.data(), num);
 
-    float ratio = num * sizeof(T) / total_compressed_size;
+    float ratio = total_num * sizeof(T) / total_compressed_size;
     std::cout << "Total Compression Size = " << total_compressed_size << std::endl;
     std::cout << "Total Compression Ratio = " << ratio << std::endl;
     return ratio;
@@ -117,10 +125,6 @@ float SZ_Compress(std::unique_ptr<T[]> const &data, SZ::Config<T, N> conf, int t
 
 int main(int argc, char **argv) {
 
-
-    size_t num = 0;
-    auto data = SZ::readfile<float>(argv[1], num);
-    std::cout << "Read " << num << " elements\n";
 
     int dim = atoi(argv[2] + 1);
     assert(1 <= dim && dim <= 2);
@@ -130,39 +134,27 @@ int main(int argc, char **argv) {
         dims[i] = atoi(argv[argp++]);
     }
 
-    float max = data[0];
-    float min = data[0];
-    for (int i = 1; i < num; i++) {
-        if (max < data[i]) max = data[i];
-        if (min > data[i]) min = data[i];
+    SZ::Config<float, 2> conf({1, dims[0]});
+    if (dim == 2) {
+        conf = SZ::Config<float, 2>({dims[0], dims[1]});
     }
+    conf.src_file_name = argv[1];
+
     char *eb_op = argv[argp++] + 1;
-    float eb = 0, relative_eb = 0;
     if (*eb_op == 'a') {
-        eb = atof(argv[argp++]);
-        relative_eb = eb / (max - min);
+        conf.eb_mode = 0;
+        conf.eb = atof(argv[argp++]);
     } else {
-        relative_eb = atof(argv[argp++]);
-        eb = relative_eb * (max - min);
+        conf.eb_mode = 1;
+        conf.relative_eb = atof(argv[argp++]);
     }
-    size_t timestep_batch = 0;
+
     if (argp < argc) {
-        timestep_batch = atoi(argv[argp++]);
+        conf.timestep_batch = atoi(argv[argp++]);
     }
-    int timestep_op = 0;
     if (argp < argc) {
-        timestep_op = atoi(argv[argp++]);
+        conf.timestep_op = atoi(argv[argp++]);
     }
-    if (dim == 1) {
-        auto conf = SZ::Config<float, 2>(eb, {1, dims[0]});
-        conf.relative_eb = relative_eb;
-        conf.src_file_name = argv[1];
-        SZ_Compress(data, conf, timestep_op, timestep_batch);
-    } else {
-        auto conf = SZ::Config<float, 2>(eb, {dims[0], dims[1]});
-        conf.relative_eb = relative_eb;
-        conf.src_file_name = argv[1];
-        SZ_Compress(data, conf, timestep_op, timestep_batch);
-    }
+    SZ_Compress(conf);
 
 }
