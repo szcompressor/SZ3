@@ -8,6 +8,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <cassert>
 
 namespace SZ {
     bool file_exist(const char *file) {
