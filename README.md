@@ -36,6 +36,8 @@ You can use the executable 'sz_demo' command to do the compression/decompression
 
 * ./sz_demo testfloat_8_8_128.dat -3 8 8 128 1e-3
 
+The order of the dimensions is the same as the c array. For example, use '-3 r1 r2 r3' for data[r1][r2][r3]
+
 ## Version history
 
 Version		New features
