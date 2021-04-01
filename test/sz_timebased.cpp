@@ -21,13 +21,13 @@ template<typename T, uint N, class Predictor>
 SZ::concepts::CompressorInterface<T> *
 make_sz_timebased2(const SZ::Config<T, N> &conf, Predictor predictor, T *data_ts0) {
 
-        return new SZ::SZGeneralCompressor<T, N, SZ::SZ3TimeBasedFrontend<T, N, Predictor, SZ::LinearQuantizer<T>>,
-                SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
-                conf,
-                make_sz3_timebased_frontend(
-                        conf, predictor, SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2), data_ts0),
-                SZ::HuffmanEncoder<int>(),
-                SZ::Lossless_zstd());
+    return new SZ::SZGeneralCompressor<T, N, SZ::SZ3TimeBasedFrontend<T, N, Predictor, SZ::LinearQuantizer<T>>,
+            SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
+            conf,
+            make_sz3_timebased_frontend(
+                    conf, predictor, SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2), data_ts0),
+            SZ::HuffmanEncoder<int>(),
+            SZ::Lossless_zstd());
 }
 
 template<typename T, uint N>
@@ -96,12 +96,14 @@ float Compress(SZ::Config<T, N> conf) {
               << std::endl;
 
     double total_compressed_size = 0;
+    double total_compress_time = 0;
+    double total_decompress_time = 0;
     auto dims = conf.dims;
     auto total_num = conf.num;
-
+    std::vector<T> dec_data(total_num);
 
     for (size_t ts = 0; ts < dims[0]; ts += conf.timestep_batch) {
-        conf.dims[0] = (ts + conf.timestep_batch  > dims[0] ? dims[0] - ts : conf.timestep_batch);
+        conf.dims[0] = (ts + conf.timestep_batch > dims[0] ? dims[0] - ts : conf.timestep_batch);
         conf.num = conf.dims[0] * conf.dims[1];
 
         auto data = SZ::readfile<T>(conf.src_file_name.data(), ts * conf.dims[1], conf.num);
@@ -113,7 +115,6 @@ float Compress(SZ::Config<T, N> conf) {
             conf.eb = conf.relative_eb * (max - min);
         }
 
-        std::vector<T> data_(data.get(), data.get() + conf.num);
         std::cout << "****************** Compression From " << ts << " to " << ts + conf.dims[0] - 1
                   << " ******************" << std::endl;
         SZ::Timer timer(true);
@@ -122,7 +123,7 @@ float Compress(SZ::Config<T, N> conf) {
         size_t compressed_size = 0;
         std::unique_ptr<SZ::uchar[]> compressed;
         compressed.reset(sz->compress(data.get(), compressed_size));
-        timer.stop("Compression");
+        total_compress_time += timer.stop("Compression");
 
         auto ratio = conf.num * sizeof(T) * 1.0 / compressed_size;
         std::cout << "Compression Ratio = " << ratio << std::endl;
@@ -143,22 +144,26 @@ float Compress(SZ::Config<T, N> conf) {
 
         timer.start();
         auto ts_dec_data = sz->decompress(compressed.get(), compressed_size);
-        timer.stop("Decompression");
+        total_decompress_time += timer.stop("Decompression");
 
         auto decompressed_file_name = compressed_file_name + ".out";
 //    SZ::writefile(decompressed_file_name.c_str(), dec_data.get(), conf.num);
 //    std::cout << "Decompressed file = " << decompressed_file_name << std::endl;
         remove(compressed_file_name.c_str());
+        memcpy(&dec_data[ts * conf.dims[1]], ts_dec_data, conf.num * sizeof(T));
         total_compressed_size += compressed_size;
         delete sz;
 
-        SZ::verify<T>(data_.data(), ts_dec_data, conf.num);
     }
 
     std::cout << "****************** Final ****************" << std::endl;
     float ratio = total_num * sizeof(T) / total_compressed_size;
-    std::cout << "Total Compression Size = " << total_compressed_size << std::endl;
     std::cout << "Total Compression Ratio = " << ratio << std::endl;
+    std::cout << "Total Compression Time = " << total_compress_time << std::endl;
+    std::cout << "Total Decompression Time = " << total_decompress_time << std::endl;
+    std::cout << "Total Compression Size = " << total_compressed_size << std::endl;
+    auto data = SZ::readfile<T>(conf.src_file_name.data(), 0, total_num);
+    SZ::verify<T>(data.get(), dec_data.data(), conf.num);
     return ratio;
 }
 
