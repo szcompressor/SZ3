@@ -158,12 +158,18 @@ float Compress(SZ::Config<T, N> conf) {
 
     std::cout << "****************** Final ****************" << std::endl;
     float ratio = total_num * sizeof(T) / total_compressed_size;
-    std::cout << "Total Compression Ratio = " << ratio << std::endl;
-    std::cout << "Total Compression Time = " << total_compress_time << std::endl;
-    std::cout << "Total Decompression Time = " << total_decompress_time << std::endl;
-    std::cout << "Total Compression Size = " << total_compressed_size << std::endl;
     auto data = SZ::readfile<T>(conf.src_file_name.data(), 0, total_num);
-    SZ::verify<T>(data.get(), dec_data.data(), conf.num);
+
+    double max_diff, psnr, nrmse;
+    SZ::verify<T>(data.get(), dec_data.data(), conf.num, max_diff, psnr, nrmse);
+
+    printf("file=%s, block=%lu, compression_ratio=%.3f, reb=%.1e, eb=%.6f, psnr=%.3f, nsmse=%e, compress_time=%.3f, decompress_time=%.3f\n",
+           conf.src_file_name.data(), conf.timestep_batch,
+           ratio,
+           conf.relative_eb,
+           max_diff, psnr, nrmse,
+           total_compress_time, total_decompress_time);
+
     return ratio;
 }
 

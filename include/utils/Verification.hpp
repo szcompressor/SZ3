@@ -6,6 +6,7 @@
 #define SZ_VERIFICATION_HPP
 
 #include <cmath>
+
 namespace SZ {
 
     template<typename Type>
@@ -30,11 +31,11 @@ namespace SZ {
     }
 
     template<typename Type>
-    void verify(Type *ori_data, Type *data, size_t num_elements, double &psnr, double &nrmse) {
+    void verify(Type *ori_data, Type *data, size_t num_elements, double& diffMax, double &psnr, double &nrmse) {
         size_t i = 0;
         double Max = ori_data[0];
         double Min = ori_data[0];
-        double diffMax = fabs(data[0] - ori_data[0]);
+        diffMax = fabs(data[0] - ori_data[0]);
         double diff_sum = 0;
         double maxpw_relerr = fabs((data[0] - ori_data[0]) / ori_data[0]);
         double sum1 = 0, sum2 = 0;
@@ -91,8 +92,8 @@ namespace SZ {
 
     template<typename Type>
     void verify(Type *ori_data, Type *data, size_t num_elements) {
-        double psnr, nrmse;
-        verify(ori_data, data, num_elements, psnr, nrmse);
+        double psnr, nrmse, max_diff;
+        verify(ori_data, data, num_elements, max_diff, psnr, nrmse);
     }
 };
 
