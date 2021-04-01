@@ -180,7 +180,7 @@ float Compress(SZ::Config<T, N> conf) {
     double max_diff, psnr, nrmse;
     SZ::verify<T>(data.get(), dec_data.data(), total_num, max_diff, psnr, nrmse);
 
-    printf("file=%s, block=%lu, compression_ratio=%.3f, reb=%.1e, eb=%.6f, psnr=%.3f, nsmse=%e, compress_time=%.3f, decompress_time=%.3f, timestep_op=%d\n",
+    printf("method=time, file=%s, block=%lu, compression_ratio=%.3f, reb=%.1e, eb=%.6f, psnr=%.3f, nsmse=%e, compress_time=%.3f, decompress_time=%.3f, timestep_op=%d\n",
            conf.src_file_name.data(), conf.timestep_batch,
            ratio,
            conf.relative_eb,
