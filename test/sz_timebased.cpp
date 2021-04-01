@@ -16,6 +16,9 @@
 #include <memory>
 #include <random>
 #include <sstream>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <libgen.h>
 
 template<typename T, uint N, class Predictor>
 SZ::concepts::CompressorInterface<T> *
@@ -147,8 +150,9 @@ float Compress(SZ::Config<T, N> conf) {
         total_decompress_time += timer.stop("Decompression");
 
         auto decompressed_file_name = compressed_file_name + ".out";
-//    SZ::writefile(decompressed_file_name.c_str(), dec_data.get(), conf.num);
-//    std::cout << "Decompressed file = " << decompressed_file_name << std::endl;
+//        SZ::writefile(decompressed_file_name.c_str(), dec_data.get(), conf.num);
+//        std::cout << "Decompressed file = " << decompressed_file_name << std::endl;
+
         remove(compressed_file_name.c_str());
         memcpy(&dec_data[ts * conf.dims[1]], ts_dec_data, conf.num * sizeof(T));
         total_compressed_size += compressed_size;
@@ -160,8 +164,21 @@ float Compress(SZ::Config<T, N> conf) {
     float ratio = total_num * sizeof(T) / total_compressed_size;
     auto data = SZ::readfile<T>(conf.src_file_name.data(), 0, total_num);
 
+    std::stringstream ss;
+    ss << dirname(strdup(conf.src_file_name.c_str()))
+       << "/time/";
+    struct stat st = {0};
+    if (stat(ss.str().c_str(), &st) == -1) {
+        mkdir(ss.str().c_str(), 0700);
+    }
+    ss << basename(strdup(conf.src_file_name.c_str()))
+       << ".b" << conf.timestep_batch
+       << "." << conf.relative_eb << ".out";
+    std::cout << "Decompressed file = " << ss.str() << std::endl;
+    SZ::writefile(ss.str().data(), dec_data.data(), total_num);
+
     double max_diff, psnr, nrmse;
-    SZ::verify<T>(data.get(), dec_data.data(), conf.num, max_diff, psnr, nrmse);
+    SZ::verify<T>(data.get(), dec_data.data(), total_num, max_diff, psnr, nrmse);
 
     printf("file=%s, block=%lu, compression_ratio=%.3f, reb=%.1e, eb=%.6f, psnr=%.3f, nsmse=%e, compress_time=%.3f, decompress_time=%.3f, timestep_op=%d\n",
            conf.src_file_name.data(), conf.timestep_batch,

@@ -13,7 +13,9 @@
 #include "utils/KmeansUtil.h"
 #include "utils/QuantOptimizatioin.hpp"
 #include <cstdio>
-
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <libgen.h>
 
 /**
  *
@@ -123,8 +125,22 @@ float SZ_Compress(SZ::Config<T, N> conf) {
     std::cout << "****************** Final ****************" << std::endl;
     float ratio = total_num * sizeof(T) / total_compressed_size;
     auto data = SZ::readfile<T>(conf.src_file_name.data(), 0, total_num);
+
+    std::stringstream ss;
+    ss << dirname(strdup(conf.src_file_name.c_str()))
+       << "/exaalt/";
+    struct stat st = {0};
+    if (stat(ss.str().c_str(), &st) == -1) {
+        mkdir(ss.str().c_str(), 0700);
+    }
+    ss << basename(strdup(conf.src_file_name.c_str()))
+       << ".b" << conf.timestep_batch
+       << "." << conf.relative_eb << ".out";
+    std::cout << "Decompressed file = " << ss.str() << std::endl;
+    SZ::writefile(ss.str().data(), dec_data.data(), total_num);
+
     double max_diff, psnr, nrmse;
-    SZ::verify<T>(data.get(), dec_data.data(), conf.num, max_diff, psnr, nrmse);
+    SZ::verify<T>(data.get(), dec_data.data(), total_num, max_diff, psnr, nrmse);
 
     printf("file=%s, block=%lu, compression_ratio=%.3f, reb=%.1e, eb=%.6f, psnr=%.3f, nsmse=%e, compress_time=%.3f, decompress_time=%.3f, timestep_op=%d\n",
            conf.src_file_name.data(), conf.timestep_batch,
