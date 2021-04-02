@@ -39,7 +39,7 @@ namespace SZ {
         void set_level(float level_start_, float level_offset_, int level_num_) {
             this->level_start = level_start_;
             this->level_offset = level_offset_;
-            this->level_num = level_num_ + 10;
+            this->level_num = level_num_ + 100;
         }
 
         inline int quantize_to_level(T data) {
@@ -110,7 +110,7 @@ namespace SZ {
             quantizer.postcompress_data();
 
             uchar *compressed_data;
-            compressed_data = new uchar[2 * num_elements * sizeof(T)];
+            compressed_data = new uchar[4 * num_elements * sizeof(T)];
             uchar *compressed_data_pos = compressed_data;
             write(global_dimensions.data(), N, compressed_data_pos);
             quantizer.save(compressed_data_pos);
