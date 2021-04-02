@@ -34,7 +34,7 @@ namespace SZ {
             std::vector<int> quant_inds = frontend.compress(data);
             timer.stop("Prediction & Quantization");
 
-            uchar *compressed_data = new uchar[2 * quant_inds.size() * sizeof(T)];
+            uchar *compressed_data = new uchar[4 * quant_inds.size() * sizeof(T)];
             uchar *compressed_data_pos = compressed_data;
 
             frontend.save(compressed_data_pos);
