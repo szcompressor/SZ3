@@ -352,7 +352,7 @@ namespace SZ {
         if (k == 150) {
             std::cout << "No clusters are found." << std::endl;
             level_num = 0;
-            return;
+            exit(0);
         }
 
         std::cout << "centers : ";
