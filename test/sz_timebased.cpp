@@ -104,14 +104,16 @@ float Compress(SZ::Config<T, N> conf) {
     auto dims = conf.dims;
     auto total_num = conf.num;
     std::vector<T> dec_data(total_num);
+    auto data_all = SZ::readfile<T>(conf.src_file_name.data(), 0, total_num);
 
     for (size_t ts = 0; ts < dims[0]; ts += conf.timestep_batch) {
         conf.dims[0] = (ts + conf.timestep_batch > dims[0] ? dims[0] - ts : conf.timestep_batch);
         conf.num = conf.dims[0] * conf.dims[1];
 
-        auto data = SZ::readfile<T>(conf.src_file_name.data(), ts * conf.dims[1], conf.num);
-        T max = *std::max_element(data.get(), data.get() + conf.num);
-        T min = *std::min_element(data.get(), data.get() + conf.num);
+//        auto data = SZ::readfile<T>(conf.src_file_name.data(), ts * conf.dims[1], conf.num);
+        T *data = &data_all[ts * conf.dims[1]];
+        T max = *std::max_element(data, data + conf.num);
+        T min = *std::min_element(data, data + conf.num);
         if (conf.eb_mode == 0) {
             conf.relative_eb = conf.eb / (max - min);
         } else if (conf.eb_mode == 1) {
@@ -125,7 +127,7 @@ float Compress(SZ::Config<T, N> conf) {
 
         size_t compressed_size = 0;
         std::unique_ptr<SZ::uchar[]> compressed;
-        compressed.reset(sz->compress(data.get(), compressed_size));
+        compressed.reset(sz->compress(data, compressed_size));
         total_compress_time += timer.stop("Compression");
 
         auto ratio = conf.num * sizeof(T) * 1.0 / compressed_size;
