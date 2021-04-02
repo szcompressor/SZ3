@@ -50,10 +50,12 @@ float SZ_Compress(SZ::Config<T, N> conf) {
     float level_start, level_offset;
     int level_num;
 //    SZ::get_cluster(data.get(), conf.num, level_start, level_offset, level_num, 0.001);
-    auto sample_rate = (conf.timestep_batch == conf.dims[0]) ? 0.001 : 1;
+    size_t sample_num = 0.1 * conf.dims[1];
+    sample_num = std::min(sample_num, (size_t) 20000);
+    sample_num = std::max(sample_num, (size_t) 2000);
     auto data_all = SZ::readfile<T>(conf.src_file_name.data(), 0, conf.num);
     SZ::get_cluster(data_all.get(), conf.dims[1] * conf.timestep_batch, level_start, level_offset, level_num,
-                    sample_rate);
+                    sample_num);
     //    level_start = -58.291; //trinity-110x
 //    level_offset = 2.241; //trinity-110x
 //    level_start = 0;

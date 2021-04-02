@@ -305,16 +305,16 @@ namespace SZ {
 
     template<class T>
     void get_cluster(T *data, size_t num, float &level_start, float &level_offset, int &level_num,
-                     float sample_rate = 0.05) {
+                     size_t sample_num) {
         T max = *std::max_element(data, data + num);
         T min = *std::min_element(data, data + num);
         SZ::Timer timer;
         timer.start();
         std::vector<float> sample;
-        sample.reserve(num * sample_rate);
+        sample.reserve(sample_num);
         std::random_device rd;  //Will be used to obtain a seed for the random number engine
         std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-        std::uniform_int_distribution<> dis(0, 2 * sample_rate);
+//        std::uniform_int_distribution<> dis(0, 2 * sample_rate);
         size_t input_idx = 0;
 //        for (int i = 0; i < num / sample_rate; i++) {
 //            input_idx = (input_idx + dis(gen)) % num;
@@ -324,7 +324,8 @@ namespace SZ {
 //        std::cout << std::endl;
         std::uniform_int_distribution<> dis2(0, num);
         std::unordered_set<size_t> sampledkeys;
-        for (int i = 0; i < num * sample_rate; i++) {
+        printf("sample_num=%lu\n", sample_num);
+        for (size_t i = 0; i < sample_num; i++) {
             do {
                 input_idx = dis2(gen);
             } while (sampledkeys.find(input_idx) != sampledkeys.end());
@@ -345,7 +346,7 @@ namespace SZ {
         timer.start();
         int k = 150;
         std::vector<float> cents(k);
-        cluster(sample.data(), num * sample_rate, k, idx.data(), cents.data());
+        cluster(sample.data(), sample_num, k, idx.data(), cents.data());
 //    cluster(input.get(), num, 16, idx.data(), cents.data());
         timer.stop("kmeans1d");
         if (k == 150) {
@@ -374,7 +375,7 @@ namespace SZ {
 
         level_offset = (cents[4] - cents[0]) / 4;
         level_start = cents[0];
-        level_num = f(max, level_start, level_offset) - f(min, level_start, level_offset) + 1;
+        level_num = f(max, level_start, level_offset) + 1;
     }
 }
 

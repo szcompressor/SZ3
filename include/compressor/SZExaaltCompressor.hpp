@@ -39,7 +39,7 @@ namespace SZ {
         void set_level(float level_start_, float level_offset_, int level_num_) {
             this->level_start = level_start_;
             this->level_offset = level_offset_;
-            this->level_num = level_num_;
+            this->level_num = level_num_ + 10;
         }
 
         inline int quantize_to_level(T data) {
@@ -60,7 +60,7 @@ namespace SZ {
             Timer timer(true);
 
             auto l0 = quantize_to_level(data[0]);
-            pred_inds[0] = l0;
+            pred_inds[0] = l0 + level_num;
             quant_inds[0] = quantizer.quantize_and_overwrite(data[0], level(l0));
 
             if (timestep_op == 0) {
@@ -162,7 +162,7 @@ namespace SZ {
 
             quantizer.predecompress_data();
 
-            auto l = pred_inds[0];
+            auto l = pred_inds[0] - level_num;
             dec_data[0] = quantizer.recover(level(l), quant_inds[0]);
 
             if (timestep_op == 0) {
