@@ -141,7 +141,7 @@ float SZ_Compress(SZ::Config<T, N> conf) {
        << ".b" << conf.timestep_batch
        << "." << conf.relative_eb << ".out";
     std::cout << "Decompressed file = " << ss.str() << std::endl;
-    SZ::writefile(ss.str().data(), dec_data.data(), total_num);
+//    SZ::writefile(ss.str().data(), dec_data.data(), total_num);
 
     double max_diff, psnr, nrmse;
     SZ::verify<T>(data.get(), dec_data.data(), total_num, max_diff, psnr, nrmse);
