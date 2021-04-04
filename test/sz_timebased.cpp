@@ -105,6 +105,7 @@ float Compress(SZ::Config<T, N> conf) {
     auto total_num = conf.num;
     std::vector<T> dec_data(total_num);
     auto data_all = SZ::readfile<T>(conf.src_file_name.data(), 0, total_num);
+    conf.quant_state_num = 1024;
 
     for (size_t ts = 0; ts < dims[0]; ts += conf.timestep_batch) {
         conf.dims[0] = (ts + conf.timestep_batch > dims[0] ? dims[0] - ts : conf.timestep_batch);
