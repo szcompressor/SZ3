@@ -13,9 +13,6 @@
 #include "utils/KmeansUtil.h"
 #include "utils/QuantOptimizatioin.hpp"
 #include <cstdio>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <libgen.h>
 
 /**
  *
@@ -101,12 +98,12 @@ float SZ_Compress(SZ::Config<T, N> conf) {
         std::cout << "Compression Ratio = " << ratio << std::endl;
         std::cout << "Compressed size = " << compressed_size << std::endl;
 
-        std::random_device rd;  //Will be used to obtain a seed for the random number engine
-        std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-        std::uniform_int_distribution<> dis(0, 10000);
         std::stringstream ss;
         ss << conf.src_file_name.substr(conf.src_file_name.rfind('/') + 1)
-           << "." << conf.relative_eb << "." << dis(gen) << ".sz3";
+           << ".b" << conf.timestep_batch
+           << "." << conf.relative_eb
+           << ".exaalt-" << conf.timestep_op
+           << ".t" << ts;
         auto compressed_file_name = ss.str();
         SZ::writefile(compressed_file_name.c_str(), compressed.get(), compressed_size);
         std::cout << "Compressed file = " << compressed_file_name << std::endl;
@@ -119,8 +116,8 @@ float SZ_Compress(SZ::Config<T, N> conf) {
         total_decompress_time += timer.stop("Decompression");
 
         auto decompressed_file_name = compressed_file_name + ".out";
-//    SZ::writefile(decompressed_file_name.c_str(), dec_data.get(), conf.num);
-//    std::cout << "Decompressed file = " << decompressed_file_name << std::endl;
+//        SZ::writefile(decompressed_file_name.c_str(), dec_data.get(), conf.num);
+//        std::cout << "Decompressed file = " << decompressed_file_name << std::endl;
         remove(compressed_file_name.c_str());
         memcpy(&dec_data[ts * conf.dims[1]], ts_dec_data, conf.num * sizeof(T));
         total_compressed_size += compressed_size;
@@ -131,17 +128,11 @@ float SZ_Compress(SZ::Config<T, N> conf) {
     auto data = SZ::readfile<T>(conf.src_file_name.data(), 0, total_num);
 
     std::stringstream ss;
-    ss << dirname(strdup(conf.src_file_name.c_str()))
-       << "/exaalt/";
-    struct stat st = {0};
-    if (stat(ss.str().c_str(), &st) == -1) {
-        mkdir(ss.str().c_str(), 0700);
-    }
-    ss << basename(strdup(conf.src_file_name.c_str()))
+    ss << conf.src_file_name.substr(conf.src_file_name.rfind('/') + 1)
        << ".b" << conf.timestep_batch
-       << "." << conf.relative_eb << ".out";
+       << "." << conf.relative_eb << ".exaalt-" << conf.timestep_op << ".out";
     std::cout << "Decompressed file = " << ss.str() << std::endl;
-//    SZ::writefile(ss.str().data(), dec_data.data(), total_num);
+    SZ::writefile(ss.str().data(), dec_data.data(), total_num);
 
     double max_diff, psnr, nrmse;
     SZ::verify<T>(data.get(), dec_data.data(), total_num, max_diff, psnr, nrmse);

@@ -16,9 +16,6 @@
 #include <memory>
 #include <random>
 #include <sstream>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <libgen.h>
 
 template<typename T, uint N, class Predictor>
 SZ::concepts::CompressorInterface<T> *
@@ -135,12 +132,12 @@ float Compress(SZ::Config<T, N> conf) {
         std::cout << "Compression Ratio = " << ratio << std::endl;
         std::cout << "Compressed size = " << compressed_size << std::endl;
 
-        std::random_device rd;  //Will be used to obtain a seed for the random number engine
-        std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-        std::uniform_int_distribution<> dis(0, 10000);
         std::stringstream ss;
         ss << conf.src_file_name.substr(conf.src_file_name.rfind('/') + 1)
-           << "." << conf.relative_eb << "." << dis(gen) << ".sz3";
+           << ".b" << conf.timestep_batch
+           << "." << conf.relative_eb
+           << ".time-" << conf.timestep_op
+           << ".t" << ts;
         auto compressed_file_name = ss.str();
         SZ::writefile(compressed_file_name.c_str(), compressed.get(), compressed_size);
         std::cout << "Compressed file = " << compressed_file_name << std::endl;
@@ -168,17 +165,11 @@ float Compress(SZ::Config<T, N> conf) {
     auto data = SZ::readfile<T>(conf.src_file_name.data(), 0, total_num);
 
     std::stringstream ss;
-    ss << dirname(strdup(conf.src_file_name.c_str()))
-       << "/time/";
-    struct stat st = {0};
-    if (stat(ss.str().c_str(), &st) == -1) {
-        mkdir(ss.str().c_str(), 0700);
-    }
-    ss << basename(strdup(conf.src_file_name.c_str()))
+    ss << conf.src_file_name.substr(conf.src_file_name.rfind('/') + 1)
        << ".b" << conf.timestep_batch
-       << "." << conf.relative_eb << ".out";
+       << "." << conf.relative_eb << ".time-" << conf.timestep_op << ".out";
     std::cout << "Decompressed file = " << ss.str() << std::endl;
-//    SZ::writefile(ss.str().data(), dec_data.data(), total_num);
+    SZ::writefile(ss.str().data(), dec_data.data(), total_num);
 
     double max_diff, psnr, nrmse;
     SZ::verify<T>(data.get(), dec_data.data(), total_num, max_diff, psnr, nrmse);
