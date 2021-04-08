@@ -310,34 +310,38 @@ namespace SZ {
         T min = *std::min_element(data, data + num);
         SZ::Timer timer;
         timer.start();
-        std::vector<float> sample;
-        sample.reserve(sample_num);
-        std::random_device rd;  //Will be used to obtain a seed for the random number engine
-        std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+        std::vector<T> sample;
+        if (num == sample_num) {
+            sample = std::vector<T>(data, data + num);
+        } else {
+            sample.reserve(sample_num);
+            std::random_device rd;  //Will be used to obtain a seed for the random number engine
+            std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
 //        std::uniform_int_distribution<> dis(0, 2 * sample_rate);
-        size_t input_idx = 0;
+            size_t input_idx = 0;
 //        for (int i = 0; i < num / sample_rate; i++) {
 //            input_idx = (input_idx + dis(gen)) % num;
 //            std::cout << input_idx << " ";
 //            sample[i] = input[input_idx];
 //        }
 //        std::cout << std::endl;
-        std::uniform_int_distribution<> dis2(0, num);
-        std::unordered_set<size_t> sampledkeys;
-        printf("sample_num=%lu\n", sample_num);
-        for (size_t i = 0; i < sample_num; i++) {
-            do {
-                input_idx = dis2(gen);
-            } while (sampledkeys.find(input_idx) != sampledkeys.end());
+            std::uniform_int_distribution<> dis2(0, num);
+            std::unordered_set<size_t> sampledkeys;
+            printf("total_num=%lu, sample_num=%lu\n", num, sample_num);
+            for (size_t i = 0; i < sample_num; i++) {
+                do {
+                    input_idx = dis2(gen);
+                } while (sampledkeys.find(input_idx) != sampledkeys.end());
 //            std::cout << input_idx << " ";
-            sample[i] = data[input_idx];
-        }
+                sample[i] = data[input_idx];
+            }
 //        std::cout << std::endl;
 
 //    std::sample(input.begin(), input.end(),
 //                sample.begin(),
 //                num / sample_rate,
 //                std::mt19937{std::random_device{}()});
+        }
 
         timer.stop("random sample");
 //    sample = input;
@@ -367,14 +371,18 @@ namespace SZ {
         }
         std::cout << std::endl;
 
-        std::vector<float> boundary(k);
-        boundary[0] = std::numeric_limits<float>::min();
-        for (size_t i = 1; i < k; i++) {
-            boundary[i] = (cents[i - 1] + cents[i]) / 2;
-        }
+//        std::vector<float> boundary(k);
+//        boundary[0] = std::numeric_limits<float>::min();
+//        for (size_t i = 1; i < k; i++) {
+//            boundary[i] = (cents[i - 1] + cents[i]) / 2;
+//        }
 
-        level_offset = (cents[4] - cents[0]) / 4;
+        level_offset = (cents[k - 1] - cents[0]) / (k - 1);
         level_start = cents[0];
+        for (size_t i = 1; i < k; i++) {
+            level_start += cents[i] - i * level_offset;
+        }
+        level_start /= k;
         level_num = f(max, level_start, level_offset) + 1;
     }
 }
