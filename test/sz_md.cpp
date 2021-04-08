@@ -72,11 +72,12 @@ template<typename T, uint N>
 float *
 VQ(SZ::Config<T, N> conf, size_t ts, T *data, size_t &compressed_size, bool decom,
    int timestep_op, float level_start, float level_offset, int level_num) {
+    SZ::Timer timer(true);
+
     auto sz = SZ::SZ_Exaalt_Compressor(conf, SZ::LinearQuantizer<float>(conf.eb, conf.quant_state_num / 2),
                                        SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd(), timestep_op);
     sz.set_level(level_start, level_offset, level_num);
 
-    SZ::Timer timer(true);
     std::unique_ptr<SZ::uchar[]> compressed;
     compressed.reset(sz.compress(data, compressed_size));
     total_compress_time += timer.stop("Compression");
@@ -118,10 +119,11 @@ template<typename T, uint N>
 float *
 MT(SZ::Config<T, N> conf, size_t ts, T *data, size_t &compressed_size, bool decom,
    int timestep_op, T *data_ts0) {
+    SZ::Timer timer(true);
+
     T *ts0 = timestep_op == 0 ? nullptr : data_ts0;
     auto sz = make_sz_timebased(conf, ts0);
 
-    SZ::Timer timer(true);
     std::unique_ptr<SZ::uchar[]> compressed;
     compressed.reset(sz->compress(data, compressed_size));
     total_compress_time += timer.stop("Compression");
