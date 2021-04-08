@@ -76,8 +76,8 @@ VQ(SZ::Config<T, N> conf, size_t ts, T *data, size_t &compressed_size, bool deco
                                        SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd(), timestep_op);
     sz.set_level(level_start, level_offset, level_num);
 
-    std::unique_ptr<SZ::uchar[]> compressed;
     SZ::Timer timer(true);
+    std::unique_ptr<SZ::uchar[]> compressed;
     compressed.reset(sz.compress(data, compressed_size));
     total_compress_time += timer.stop("Compression");
     if (!decom) {
