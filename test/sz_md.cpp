@@ -194,7 +194,6 @@ void select(SZ::Config<T, N> conf, int &method_op, size_t ts, T *data_all,
 template<typename T, uint N>
 float SZ_Compress(SZ::Config<T, N> conf, int method_op) {
     assert(N == 2);
-    conf.quant_state_num = 1024;
     if (conf.timestep_batch == 0) {
         conf.timestep_batch = conf.dims[0];
     }
@@ -340,6 +339,11 @@ int main(int argc, char **argv) {
     }
     conf.block_size = 128;
     conf.stride = 128;
+
+    conf.quant_state_num = 1024;
+    if (argp < argc) {
+        conf.quant_state_num = atoi(argv[argp++]);
+    }
     SZ_Compress(conf, method_op);
 
 }
