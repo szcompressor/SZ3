@@ -162,8 +162,37 @@ MT(SZ::Config<T, N> conf, size_t ts, T *data, size_t &compressed_size, bool deco
     return ts_dec_data;
 }
 
+int ts_last_select = -1;
+int method_batch = 0;
+std::vector<std::string> compressor_names = {"VQ", "VQT", "MT"};
+
 template<typename T, uint N>
-float SZ_Compress(SZ::Config<T, N> conf, int method_op, int method_block) {
+void select(SZ::Config<T, N> conf, int &method_op, size_t ts, T *data_all,
+            float level_start, float level_offset, int level_num, T *data_ts0) {
+    if (level_num > 0 && method_batch > 0
+        && (ts_last_select == -1 || ts - ts_last_select >= conf.timestep_batch * 10)
+        && conf.dims[0] == conf.timestep_batch) {
+        std::cout << "****************** BEGIN Selection ****************" << std::endl;
+        ts_last_select = ts;
+        std::vector<size_t> compressed_size = {0, 0, 0};
+        std::vector<T> data1(&data_all[ts * conf.dims[1]], &data_all[ts * conf.dims[1]] + conf.num);
+        VQ(conf, ts, data1.data(), compressed_size[0], false, 0, level_start, level_offset, level_num);
+
+        data1 = std::vector(&data_all[ts * conf.dims[1]], &data_all[ts * conf.dims[1]] + conf.num);
+        VQ(conf, ts, data1.data(), compressed_size[1], false, 1, level_start, level_offset, level_num);
+
+        data1 = std::vector(&data_all[ts * conf.dims[1]], &data_all[ts * conf.dims[1]] + conf.num);
+        MT(conf, ts, data1.data(), compressed_size[2], false, 1, data_ts0);
+        method_op = std::distance(compressed_size.begin(),
+                                  std::min_element(compressed_size.begin(), compressed_size.end()));
+        printf("Select %s as Compressor, timestep=%lu, %d %lu %lu %lu\n", compressor_names[method_op].data(),
+               ts, method_op, compressed_size[0], compressed_size[1], compressed_size[2]);
+        std::cout << "****************** END Selection ****************" << std::endl;
+    }
+}
+
+template<typename T, uint N>
+float SZ_Compress(SZ::Config<T, N> conf, int method_op) {
     assert(N == 2);
     conf.quant_state_num = 1024;
     if (conf.timestep_batch == 0) {
@@ -207,7 +236,7 @@ float SZ_Compress(SZ::Config<T, N> conf, int method_op, int method_block) {
     auto total_num = conf.num;
     std::vector<T> dec_data(total_num);
     double total_compressed_size = 0;
-    std::vector<std::string> compressor_names = {"VQ", "VQT", "MT"};
+    double compressed_size_pre = total_num * sizeof(T);
 
     for (size_t ts = 0; ts < dims[0]; ts += conf.timestep_batch) {
         conf.dims[0] = (ts + conf.timestep_batch > dims[0] ? dims[0] - ts : conf.timestep_batch);
@@ -226,22 +255,10 @@ float SZ_Compress(SZ::Config<T, N> conf, int method_op, int method_block) {
 
         std::cout << "****************** Compression From " << ts << " to " << ts + conf.dims[0] - 1
                   << " ******************" << std::endl;
-        if (level_num > 0 && method_block > 0 && ts / conf.timestep_batch % method_block == 0) {
-            std::vector<size_t> compressed_size = {0, 0, 0};
-            std::vector<T> data1(&data_all[ts * conf.dims[1]], &data_all[ts * conf.dims[1]] + conf.num);
-            VQ(conf, ts, data1.data(), compressed_size[0], false, 0, level_start, level_offset, level_num);
-
-            data1 = std::vector(&data_all[ts * conf.dims[1]], &data_all[ts * conf.dims[1]] + conf.num);
-            VQ(conf, ts, data1.data(), compressed_size[1], false, 1, level_start, level_offset, level_num);
-
-            data1 = std::vector(&data_all[ts * conf.dims[1]], &data_all[ts * conf.dims[1]] + conf.num);
-            MT(conf, ts, data1.data(), compressed_size[2], false, 1, data_ts0.get());
-            method_op = std::distance(compressed_size.begin(),
-                                      std::min_element(compressed_size.begin(), compressed_size.end()));
-            printf("Select %s as Compressor, timestep=%lu, %d %lu %lu %lu\n", compressor_names[method_op].data(),
-                   ts, method_op, compressed_size[0], compressed_size[1], compressed_size[2]);
-            std::cout << "****************** END Selection ****************" << std::endl;
+        if (ts / conf.timestep_batch % method_batch == 0) {
+            select(conf, method_op, ts, data_all.get(), level_start, level_offset, level_num, data_ts0.get());
         }
+
         T *ts_dec_data;
         size_t compressed_size;
         if (method_op == 0) {
@@ -252,6 +269,10 @@ float SZ_Compress(SZ::Config<T, N> conf, int method_op, int method_block) {
             ts_dec_data = MT(conf, ts, data, compressed_size, true, 1, data_ts0.get());
         }
         total_compressed_size += compressed_size;
+//        if (compressed_size > 4.0 * compressed_size_pre) {
+//            select(conf, method_op, ts, data_all.get(), level_start, level_offset, level_num, data_ts0.get());
+//        }
+        compressed_size_pre = compressed_size;
         memcpy(&dec_data[ts * conf.dims[1]], ts_dec_data, conf.num * sizeof(T));
     }
 
@@ -313,12 +334,12 @@ int main(int argc, char **argv) {
     if (argp < argc) {
         method_op = atoi(argv[argp++]);
     }
-    int method_batch = 50;
+    method_batch = 50;
     if (argp < argc) {
         method_batch = atoi(argv[argp++]);
     }
     conf.block_size = 128;
     conf.stride = 128;
-    SZ_Compress(conf, method_op, method_batch);
+    SZ_Compress(conf, method_op);
 
 }
