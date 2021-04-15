@@ -43,3 +43,4 @@ The order of the dimensions is the same as the c array. For example, use '-3 r1 
 Version		New features
 
 * SZ 3.0.0  SZ3 is the C++ version of SZ with modular and composable design.
+* SZ 3.0.1  Improve the build process.
