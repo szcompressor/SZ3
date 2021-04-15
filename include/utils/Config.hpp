@@ -34,7 +34,6 @@ namespace SZ {
         int eb_mode = 0;
         std::string src_file_name;
         size_t timestep_batch = 0;
-        int timestep_op = 0;
 
     private:
 

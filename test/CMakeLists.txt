@@ -1,8 +1,6 @@
 set(exes sz_demo
         sz_fast
-        sz_timebased
         sz_truncate
-        sz_exaalt
         sz_md
         test_huffman_coding
         test_arithmetic_coding

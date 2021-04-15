@@ -200,7 +200,7 @@ float SZ_Compress(SZ::Config<T, N> conf, int method_op) {
     std::cout << "****************** Options ********************" << std::endl;
     std::cout << "dimension = " << N
               << ", error bound = " << conf.eb
-              << ", timestep_op = " << conf.timestep_op
+              << ", method_op = " << method_op
               << ", timestep_batch = " << conf.timestep_batch
               << ", quan_state_num = " << conf.quant_state_num
               << ", encoder = " << conf.encoder_op
@@ -276,13 +276,16 @@ float SZ_Compress(SZ::Config<T, N> conf, int method_op) {
     }
 
     std::cout << "****************** Final ****************" << std::endl;
+    if (method_batch > 0) {
+        method_op = 9;
+    }
     float ratio = total_num * sizeof(T) / total_compressed_size;
     auto data = SZ::readfile<T>(conf.src_file_name.data(), 0, total_num);
 
     std::stringstream ss;
     ss << conf.src_file_name.substr(conf.src_file_name.rfind('/') + 1)
        << ".b" << conf.timestep_batch
-       << "." << conf.relative_eb << ".md-" << conf.timestep_op << ".out";
+       << "." << conf.relative_eb << ".md-" << method_op << ".out";
     std::cout << "Decompressed file = " << ss.str() << std::endl;
     SZ::writefile(ss.str().data(), dec_data.data(), total_num);
 
@@ -295,7 +298,7 @@ float SZ_Compress(SZ::Config<T, N> conf, int method_op) {
            conf.relative_eb,
            max_diff, psnr, nrmse,
            total_compress_time, total_decompress_time,
-           conf.timestep_op);
+           method_op);
 
     return ratio;
 }
