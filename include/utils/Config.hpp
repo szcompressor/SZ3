@@ -5,6 +5,8 @@
 #ifndef SZ_CONFIG_HPP
 #define SZ_CONFIG_HPP
 
+#include <array>
+
 namespace SZ {
     template<class T, uint N>
     class Config {
@@ -34,8 +36,9 @@ namespace SZ {
         bool enable_lorenzo = true;
         bool enable_2ndlorenzo = false;
         bool enable_regression = true;
-        bool enable_lossless = true;
-        size_t quant_bin = 32768;
+        int lossless_op = 1; // 0-> skip lossless(use lossless_bypass); 1-> zstd
+        int encoder_op = 1;// 0-> skip encoder(use PQLCompressor); 1->HuffmanEncoder; 2->ArithmeticEncoder
+        size_t quant_state_num = 65536;
         uint block_size, stride, pred_dim = 0;
         T eb;
     };

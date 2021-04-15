@@ -20,7 +20,7 @@ See COPYRIGHT in top-level directory.
 
 * Point-wise relative error bound mode (i.e., PW_REL): Xin Liang, Sheng Di, Dingwen Tao, Zizhong Chen, Franck Cappello, "[An Efficient Transformation Scheme for Lossy Data Compression with Point-wise Relative Error Bound](https://ieeexplore.ieee.org/document/8514879)", in IEEE International Conference on Clustering Computing (CLUSTER 2018), Belfast, UK, 2018. (Best Paper)
 ## 3rd party libraries/tools
-* Zstandard (https://facebook.github.io/zstd/). Please change ZSTD_LIBS and ZSTD_INCLUDES settings in CMakeLists.txt
+* Zstandard (https://facebook.github.io/zstd/). Zstandard v1.3.5 is included and will be used if libzstd can be found by pkg-config.
 ## Installation
 
 * mkdir build && cd build
@@ -32,7 +32,7 @@ Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [
 
 ## Testing Examples
 
-You can use the executable 'sz_demo' command to do the compression/decompression. 
+You can use the executable 'sz_demo' command to do the compression/decompression.
 
 * ./sz_demo testfloat_8_8_128.dat -3 8 8 128 1e-3
 

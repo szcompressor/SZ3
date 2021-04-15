@@ -14,16 +14,26 @@ namespace SZ {
     public:
         Timer() = default;
 
+        Timer(bool initstart) {
+            if (initstart) {
+                start();
+            }
+        }
+
         void start() {
             clock_gettime(CLOCK_REALTIME, &begin);
         }
 
-        void stop(const std::string &msg) {
+        double stop() {
             clock_gettime(CLOCK_REALTIME, &end);
-            std::cout << msg << " time = "
-                      << (double) (end.tv_sec - begin.tv_sec) + (double) (end.tv_nsec - begin.tv_nsec) / (double) 1000000000
-                      << "s" << std::endl;
+            return (double) (end.tv_sec - begin.tv_sec) + (double) (end.tv_nsec - begin.tv_nsec) / (double) 1000000000;
+        }
+
+        double stop(const std::string &msg) {
+            double seconds = stop();
+            std::cout << msg << " time = " << seconds << "s" << std::endl;
             fflush(stdout);
+            return seconds;
         }
 
     private:
