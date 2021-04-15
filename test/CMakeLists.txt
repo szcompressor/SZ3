@@ -2,7 +2,10 @@ set(exes sz_demo
         sz_fast
         sz_truncate
         test_huffman_coding
-        test_arithmetic_coding)
+        test_arithmetic_coding
+        sz_interp
+        sz_interp_double
+        )
 
 foreach (EXE IN LISTS exes)
     message(STATUS "Target = ${EXE}")
