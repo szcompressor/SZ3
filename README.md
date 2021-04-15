@@ -10,7 +10,7 @@ See COPYRIGHT in top-level directory.
 ## Citations
 **Kindly note**: If you mention SZ in your paper, the most appropriate citation is including these four references (***HPDC2020, Bigdata2018, IPDPS2017 and IPDPS2016***), because they cover the whole design and implementation of the latest version of SZ.**
 
-* SZ 3.0+: Kai Zhao, Sheng Di, Xin Liang, Sihuan Li, Dingwen Tao, Zizhong Chen, and Franck Cappello. "[Significantly Improving Lossy Compression for HPC Datasets with Second-Order Prediction and Parameter Optimization](https://dl.acm.org/doi/10.1145/3369583.3392688)", Proceedings of the 29th International Symposium on High-Performance Parallel and Distributed Computing (HPDC 20), Stockholm, Sweden, 2020.
+* SZauto: Kai Zhao, Sheng Di, Xin Liang, Sihuan Li, Dingwen Tao, Zizhong Chen, and Franck Cappello. "[Significantly Improving Lossy Compression for HPC Datasets with Second-Order Prediction and Parameter Optimization](https://dl.acm.org/doi/10.1145/3369583.3392688)", Proceedings of the 29th International Symposium on High-Performance Parallel and Distributed Computing (HPDC 20), Stockholm, Sweden, 2020. (code: https://github.com/szcompressor/SZauto/)
 
 * SZ 2.0+: Xin Liang, Sheng Di, Dingwen Tao, Zizhong Chen, Franck Cappello, "[Error-Controlled Lossy Compression Optimized for High Compression Ratios of Scientific Datasets](https://ieeexplore.ieee.org/document/8622520)", in IEEE International Conference on Big Data (Bigdata 2018), Seattle, WA, USA, 2018.
 
@@ -32,12 +32,15 @@ Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [
 
 ## Testing Examples
 
-You can use the executable 'sz_demo' command to do the compression/decompression. 
+You can use the executable 'sz_demo' command to do the compression/decompression.
 
 * ./sz_demo testfloat_8_8_128.dat -3 8 8 128 1e-3
+
+The order of the dimensions is the same as the c array. For example, use '-3 r1 r2 r3' for data[r1][r2][r3]
 
 ## Version history
 
 Version		New features
 
 * SZ 3.0.0  SZ3 is the C++ version of SZ with modular and composable design.
+* SZ 3.0.1  Improve the build process.
