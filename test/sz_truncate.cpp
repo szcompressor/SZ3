@@ -80,8 +80,8 @@ float SZ_compress_parse_args(int argc, char **argv, int argp, std::unique_ptr<T[
     if (argp < argc) {
         conf.lossless_op = atoi(argv[argp++]);
     }
-    if (conf.lossless_op == 1) {
-        return SZ_compress<T>(data, conf, SZ::Lossless_zstd());
+    if (conf.lossless_op > 0) {
+        return SZ_compress<T>(data, conf, SZ::Lossless_zstd(conf.lossless_op));
     } else {
         return SZ_compress<T>(data, conf, SZ::Lossless_bypass());
     }
@@ -111,20 +111,8 @@ int main(int argc, char **argv) {
         dims[i] = atoi(argv[argp++]);
     }
 
-//    char *eb_op = argv[argp++] + 1;
-//    if (*eb_op == 'a') {
-//        eb = atof(argv[argp++]);
-//    } else {
-    relative_error_bound = atof(argv[argp++]);
-//    relative_error_bound = 0;
-    float max = data[0];
-    float min = data[0];
-    for (int i = 1; i < num; i++) {
-        if (max < data[i]) max = data[i];
-        if (min > data[i]) min = data[i];
-    }
-    float eb = relative_error_bound * (max - min);
-//    }
+    float eb = 0;
+
 
     if (dim == 1) {
         SZ_compress_parse_args<float, 1>(argc, argv, argp, data, eb, std::array<size_t, 1>{dims[0]});
