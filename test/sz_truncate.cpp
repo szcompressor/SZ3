@@ -11,6 +11,7 @@
 #include <memory>
 #include <sstream>
 #include <random>
+#include <cassert>
 
 std::string src_file_name;
 float relative_error_bound = 0;
