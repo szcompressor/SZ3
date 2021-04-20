@@ -56,9 +56,6 @@ float SZ_compress_parse_args(int argc, char **argv, int argp, std::unique_ptr<T[
     }
 
     auto ratio = SZ_compress_build_frontend(data, conf);
-    printf("%s %.0E CR=%.2f Time=%.2f L=%d R=%d E=%d Lo=%d\n",
-           argv[1], relative_error_bound, ratio, compression_time,
-           lorenzo_op, regression_op, conf.encoder_op, conf.lossless_op);
     return ratio;
 }
 
