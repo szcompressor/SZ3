@@ -16,6 +16,22 @@ namespace SZ {
         return infile.good();
     }
 
+
+    template<typename Type>
+    void readfile(const char *file, const size_t num, Type *data) {
+        std::ifstream fin(file, std::ios::binary);
+        if (!fin) {
+            std::cout << " Error, Couldn't find the file" << "\n";
+            return;
+        }
+        fin.seekg(0, std::ios::end);
+        const size_t num_elements = fin.tellg() / sizeof(Type);
+        assert(num_elements == num && "File size is not equals to the input setting");
+        fin.seekg(0, std::ios::beg);
+        fin.read(reinterpret_cast<char *>(data), num_elements * sizeof(Type));
+        fin.close();
+    }
+
     template<typename Type>
     std::unique_ptr<Type[]> readfile(const char *file, size_t &num) {
         std::ifstream fin(file, std::ios::binary);
