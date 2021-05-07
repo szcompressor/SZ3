@@ -18,8 +18,8 @@ namespace SZ {
     public:
 
 
-        SZTruncateCompressor(const Config<T, N> &conf, Lossless lossless) :
-                lossless(lossless), conf(conf) {
+        SZTruncateCompressor(const Config<T, N> &conf, Lossless lossless, int byteLens) :
+                lossless(lossless), conf(conf), byteLen(byteLens) {
             static_assert(std::is_base_of<concepts::LosslessInterface, Lossless>::value,
                           "must implement the lossless interface");
         }
@@ -27,14 +27,18 @@ namespace SZ {
         uchar *compress(T *data, size_t &compressed_size) {
 
             auto compressed_data = new uchar[conf.num * sizeof(T)];
-            auto compressed_data_pos = (uint16_t *) compressed_data;
+            auto compressed_data_pos = (uchar *) compressed_data;
             Timer timer(true);
             lfloat bytes;
+            int b;
             for (size_t i = 0; i < conf.num; i++) {
                 bytes.value = data[i];
-                *compressed_data_pos = bytes.int16[1];
+                for (b = 4 - byteLen; b < 4; b++) {
+                    *compressed_data_pos++ = bytes.byte[b];
+                }
+
 //                std::cout << std::bitset<32>(data[i]) << " " << std::bitset<16>(*compressed_data_pos) << '\n';
-                compressed_data_pos++;
+//                compressed_data_pos++;
             }
             timer.stop("Prediction & Quantization");
 
@@ -51,15 +55,19 @@ namespace SZ {
             size_t remaining_length = length;
 
             auto compressed_data = lossless.decompress(lossless_compressed_data, remaining_length);
-            auto compressed_data_pos = (uint16_t *) compressed_data;
+            auto compressed_data_pos = (uchar *) compressed_data;
 
             Timer timer(true);
             auto dec_data = new T[conf.num];
             lfloat bytes;
             bytes.ivalue = 0;
+            int b;
             for (size_t i = 0; i < conf.num; i++) {
-                bytes.int16[1] = *compressed_data_pos;
-                compressed_data_pos++;
+                for (b = 4 - byteLen; b < 4; b++) {
+                    bytes.byte[b] = *compressed_data_pos++;
+                }
+//                bytes.int16[1] = *compressed_data_pos;
+//                compressed_data_pos++;
                 dec_data[i] = bytes.value;
             }
             lossless.postdecompress_data(compressed_data);
@@ -71,12 +79,13 @@ namespace SZ {
     private:
         Lossless lossless;
         Config<T, N> conf;
+        int byteLen = 2;
     };
 
     template<class T, uint N, class Lossless>
     SZTruncateCompressor<T, N, Lossless>
-    make_sz_truncate_compressor(const Config<T, N> &conf, Lossless lossless) {
-        return SZTruncateCompressor<T, N, Lossless>(conf, lossless);
+    make_sz_truncate_compressor(const Config<T, N> &conf, Lossless lossless, int byteLens) {
+        return SZTruncateCompressor<T, N, Lossless>(conf, lossless, byteLens);
     }
 }
 #endif

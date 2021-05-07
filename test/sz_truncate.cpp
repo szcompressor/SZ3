@@ -15,6 +15,7 @@
 std::string src_file_name;
 float relative_error_bound = 0;
 float compression_time = 0;
+int byteLen = 2;
 
 template<typename T, class Lossless, uint N>
 float SZ_compress(std::unique_ptr<T[]> const &data,
@@ -23,12 +24,13 @@ float SZ_compress(std::unique_ptr<T[]> const &data,
     std::cout << "****************** Options ********************" << std::endl;
     std::cout << "dimension = " << N
               << ", error bound = " << conf.eb
+              << ", byteLen = " << byteLen
               << ", lossless = " << conf.lossless_op
               << std::endl;
 
     std::vector<T> data_ = std::vector<T>(data.get(), data.get() + conf.num);
 
-    auto sz = make_sz_truncate_compressor(conf, lossless);
+    auto sz = make_sz_truncate_compressor(conf, lossless, byteLen);
 
     SZ::Timer timer;
     timer.start();
@@ -89,12 +91,9 @@ float SZ_compress_parse_args(int argc, char **argv, int argp, std::unique_ptr<T[
 
 
 int main(int argc, char **argv) {
-    if (argc < 2) {
-        std::cout << "usage: " << argv[0] <<
-                  " data_file -num_dim dim0 .. dimn relative_eb "
-                  << std::endl;
-        std::cout << "example: " << argv[0] <<
-                  " qmcpack.dat -3 33120 69 69 1e-3" << std::endl;
+    if (argc < 4) {
+        std::cout << "usage: " << argv[0] << " data_file -num_dim dim0 .. dimn byteLens " << std::endl;
+        std::cout << "example: " << argv[0] << " qmcpack.dat -3 33120 69 69 2" << std::endl;
         return 0;
     }
 
@@ -109,6 +108,9 @@ int main(int argc, char **argv) {
     std::vector<size_t> dims(dim);
     for (int i = 0; i < dim; i++) {
         dims[i] = atoi(argv[argp++]);
+    }
+    if (argp < argc) {
+        byteLen = atoi(argv[argp++]);
     }
 
     float eb = 0;
