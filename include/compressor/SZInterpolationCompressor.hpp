@@ -158,6 +158,7 @@ namespace SZ {
 //            quantizer.set_eb(eb * eb_ratio);
 
 //            quant_inds[0] = quantizer.quantize_and_overwrite(*data, 0);
+            preds[0] = 0;
             quant_inds.push_back(quantizer.quantize_and_overwrite(*data, 0));
 
             Timer timer;
