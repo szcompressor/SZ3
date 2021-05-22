@@ -333,13 +333,15 @@ int main(int argc, char **argv) {
         conf.timestep_batch = atoi(argv[argp++]);
     }
     int method_op = 2; //default compressor: MT
-    if (argp < argc) {
-        method_op = atoi(argv[argp++]);
-    }
     method_batch = 50;
     if (argp < argc) {
-        method_batch = atoi(argv[argp++]);
+        method_op = atoi(argv[argp++]);
+        method_batch = -1;
+        if (argp < argc) {
+            method_batch = atoi(argv[argp++]);
+        }
     }
+
     conf.block_size = 128;
     conf.stride = 128;
 

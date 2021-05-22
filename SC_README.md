@@ -29,10 +29,10 @@ selection_iteration: 50 for ADP and -1 for others
 
 examples:
 VQ
-build/test/sz_md helium-mode-b-7852x1037/x.f32.dat -2 7852 1037 -r 1E-3 10 0 -1
+build/test/sz_md helium-mode-b-7852x1037/x.f32.dat -2 7852 1037 -r 1E-3 10 0
 VQT
-build/test/sz_md helium-mode-b-7852x1037/x.f32.dat -2 7852 1037 -r 1E-3 10 1 -1
+build/test/sz_md helium-mode-b-7852x1037/x.f32.dat -2 7852 1037 -r 1E-3 10 1
 MT
-build/test/sz_md helium-mode-b-7852x1037/x.f32.dat -2 7852 1037 -r 1E-3 10 2 -1
+build/test/sz_md helium-mode-b-7852x1037/x.f32.dat -2 7852 1037 -r 1E-3 10 2
 ADP
-build/test/sz_md helium-mode-b-7852x1037/x.f32.dat -2 7852 1037 -r 1E-3 10 2 50
+build/test/sz_md helium-mode-b-7852x1037/x.f32.dat -2 7852 1037 -r 1E-3 10
