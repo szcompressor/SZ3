@@ -151,14 +151,14 @@ namespace SZ {
 //            quant_inds.resize(num_elements);
             size_t interp_compressed_size = 0;
 //            debug.resize(num_elements, 0);
-            preds.resize(num_elements, 0);
+//            preds.resize(num_elements, 0);
 
             T eb = quantizer.get_eb();
             std::cout << "Absolute error bound = " << eb << std::endl;
 //            quantizer.set_eb(eb * eb_ratio);
 
 //            quant_inds[0] = quantizer.quantize_and_overwrite(*data, 0);
-            preds[0] = 0;
+//            preds[0] = 0;
             quant_inds.push_back(quantizer.quantize_and_overwrite(*data, 0));
 
             Timer timer;
@@ -201,7 +201,7 @@ namespace SZ {
             assert(quant_inds.size() == num_elements);
             timer.stop("Predition & Quantization");
 
-            writefile("preds.dat", preds.data(), num_elements);
+//            writefile("preds.dat", preds.data(), num_elements);
             //TODO find a better estimation method
             uchar *compressed_data = (num_elements < 1000000) ?
                                      new uchar[4 * num_elements * sizeof(T)] :
@@ -245,7 +245,7 @@ namespace SZ {
         }
 
         inline void quantize(size_t idx, T &d, T pred) {
-            preds[idx] = pred;
+//            preds[idx] = pred;
             quant_inds.push_back(quantizer.quantize_and_overwrite(d, pred));
         }
 
