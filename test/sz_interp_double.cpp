@@ -593,7 +593,7 @@ void interp_meta_tuning(char *path, double reb, Dims ... args) {
         printf("LEVEL2 TUNING meta PSNR = %f, NRMSE = %.10G, Compression Ratio = %.2f\n", result.psnr, result.nrmse,
                result.ratio);
         std::cout << "LEVEL2 total compress time = " << tuning_time + result.compress_time << std::endl;
-        std::cout << "LEVEL2 total decompress time = " << tuning_time + result.decompress_time << std::endl;
+        std::cout << "LEVEL2 total decompress time = " << result.decompress_time << std::endl;
 
     } else {
         clock_gettime(CLOCK_REALTIME, &end);
@@ -609,7 +609,7 @@ void interp_meta_tuning(char *path, double reb, Dims ... args) {
         printf("LEVEL2 TUNING interp PSNR = %f, NRMSE = %.10G, Compression Ratio = %.2f\n", result.psnr, result.nrmse,
                result.ratio);
         std::cout << "LEVEL2 total compress time = " << tuning_time + result.compress_time << std::endl;
-        std::cout << "LEVEL2 total decompress time = " << tuning_time + result.decompress_time << std::endl;
+        std::cout << "LEVEL2 total decompress time = " << result.decompress_time << std::endl;
     }
 }
 

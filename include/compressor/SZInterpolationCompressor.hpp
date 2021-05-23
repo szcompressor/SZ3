@@ -502,7 +502,7 @@ namespace SZ {
         std::vector<int> quant_inds;
         size_t quant_index = 0; // for decompress
 //        std::vector<int> debug;
-        std::vector<T> preds;
+//        std::vector<T> preds;
         double max_error;
         Quantizer quantizer;
         Encoder encoder;
