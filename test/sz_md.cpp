@@ -188,6 +188,8 @@ void select(SZ::Config<T, N> conf, int &method_op, size_t ts, T *data_all,
         printf("Select %s as Compressor, timestep=%lu, %d %lu %lu %lu\n", compressor_names[method_op].data(),
                ts, method_op, compressed_size[0], compressed_size[1], compressed_size[2]);
         std::cout << "****************** END Selection ****************" << std::endl;
+    } else if (level_num == 0) {
+        method_op = 2;
     }
 }
 
@@ -227,7 +229,11 @@ float SZ_Compress(SZ::Config<T, N> conf, int method_op) {
 //    level_offset = 2.241; //trinity-110x
 //    level_start = 0;
 //    level_offset = 1.961;
-
+    if (level_num > conf.dims[1] * 0.25) {
+        level_num = 0;
+        level_offset = 0;
+        level_start = 0;
+    }
     printf("start = %.3f , level_offset = %.3f, nlevel=%d\n", level_start, level_offset, level_num);
 
 
