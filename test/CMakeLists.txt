@@ -1,6 +1,7 @@
 set(exes sz_demo
         sz_fast
         sz_truncate
+        sz_pw
         test_huffman_coding
         test_arithmetic_coding)
 
