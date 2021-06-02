@@ -201,7 +201,8 @@ namespace SZ {
             assert(quant_inds.size() == num_elements);
             timer.stop("Predition & Quantization");
 
-//            writefile("preds.dat", preds.data(), num_elements);
+//            writefile("pred.dat", preds.data(), num_elements);
+//            writefile("quant.dat", quant_inds.data(), num_elements);
             //TODO find a better estimation method
             uchar *compressed_data = (num_elements < 1000000) ?
                                      new uchar[4 * num_elements * sizeof(T)] :
