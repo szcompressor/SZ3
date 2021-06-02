@@ -247,6 +247,7 @@ namespace SZ {
 
         inline void quantize(size_t idx, T &d, T pred) {
 //            preds[idx] = pred;
+//            quant_inds[idx] = quantizer.quantize_and_overwrite(d, pred);
             quant_inds.push_back(quantizer.quantize_and_overwrite(d, pred));
         }
 
