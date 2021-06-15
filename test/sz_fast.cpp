@@ -1,7 +1,7 @@
 #include "frontend/SZMetaFrontend.hpp"
 #include "predictor/Predictor.hpp"
 #include "quantizer/IntegerQuantizer.hpp"
-#include "utils/FileUtil.h"
+#include "utils/FileUtil.hpp"
 #include "utils/Config.hpp"
 #include "def.hpp"
 #include <cstdio>

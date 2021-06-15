@@ -1,7 +1,7 @@
 #include "compressor/SZTruncateCompressor.hpp"
 #include "lossless/Lossless_zstd.hpp"
 #include "lossless/Lossless_bypass.hpp"
-#include "utils/FileUtil.h"
+#include "utils/FileUtil.hpp"
 #include "utils/Config.hpp"
 #include "utils/Verification.hpp"
 #include "utils/Timer.hpp"

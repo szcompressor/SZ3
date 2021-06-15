@@ -8,7 +8,7 @@
 #include "zstd.h"
 #include "def.hpp"
 #include "utils/MemoryUtil.hpp"
-#include "utils/FileUtil.h"
+#include "utils/FileUtil.hpp"
 #include "lossless/Lossless.hpp"
 
 namespace SZ {

@@ -4,7 +4,7 @@
 #include "predictor/RegressionPredictor.hpp"
 #include "predictor/ComposedPredictor.hpp"
 #include "quantizer/IntegerQuantizer.hpp"
-#include "utils/FileUtil.h"
+#include "utils/FileUtil.hpp"
 #include "utils/Config.hpp"
 #include "def.hpp"
 #include "compressor/SZGeneralCompressor.hpp"
