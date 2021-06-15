@@ -323,5 +323,72 @@ namespace SZ {
         return str;
     }
 
+    template<class T>
+    void truncateArray(T data, size_t n, int byteLen, uchar *&binary) {
+        lfloat bytes;
+        int b;
+        for (size_t i = 0; i < n; i++) {
+            bytes.value = data[i];
+            for (b = 4 - byteLen; b < 4; b++) {
+                *binary++ = bytes.byte[b];
+            }
+//            std::cout << std::bitset<32>(data[i]) << " " << std::bitset<16>(*binary) << '\n';
+        }
+    }
+
+    template<class T>
+    void truncateArrayRecover(uchar *binary, size_t n, int byteLen, T *data) {
+        lfloat bytes;
+        bytes.ivalue = 0;
+        int b;
+        for (size_t i = 0; i < n; i++) {
+            for (b = 4 - byteLen; b < 4; b++) {
+                bytes.byte[b] = *binary++;
+            }
+            data[i] = bytes.value;
+        }
+    }
+
+    std::vector<uchar> XORForward(float pre, float data) {
+        lfloat lfBuf_pre;
+        lfloat lfBuf_cur;
+
+        lfBuf_pre.value = pre;
+        lfBuf_cur.value = data;
+        lfBuf_pre.ivalue = lfBuf_cur.ivalue ^ lfBuf_pre.ivalue;
+
+        std::vector<uchar> bytes;
+        int n = 0;
+        if (lfBuf_pre.ivalue == 0) {
+            n = 0;
+        } else if (lfBuf_pre.ivalue >> 8 == 0) {
+            n = 1;
+        } else if (lfBuf_pre.ivalue >> 16 == 0) {
+            n = 2;
+        } else if (lfBuf_pre.ivalue >> 24 == 0) {
+            n = 3;
+        } else {
+            n = 4;
+        }
+
+        for (int i = 0; i < n; i++) {
+            bytes.push_back(lfBuf_cur.byte[i]);
+        }
+        return bytes;
+    }
+
+    float XORBackward(float pre, std::vector<uchar> bytes) {
+        lfloat lfBuf_pre;
+        lfloat lfBuf_cur;
+
+        lfBuf_pre.value = pre;
+        lfBuf_cur = lfBuf_pre;
+
+        for (int i = 0; i < bytes.size(); i++) {
+            lfBuf_cur.byte[i] = bytes[i];
+        }
+        return lfBuf_cur.value;
+    }
+
 };
 #endif //SZ3_BYTEUTIL_HPP

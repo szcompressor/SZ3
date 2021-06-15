@@ -28,20 +28,10 @@ namespace SZ {
 
             auto compressed_data = new uchar[conf.num * sizeof(T)];
             auto compressed_data_pos = (uchar *) compressed_data;
+
             Timer timer(true);
-            lfloat bytes;
-            int b;
-            for (size_t i = 0; i < conf.num; i++) {
-                bytes.value = data[i];
-                for (b = 4 - byteLen; b < 4; b++) {
-                    *compressed_data_pos++ = bytes.byte[b];
-                }
-
-//                std::cout << std::bitset<32>(data[i]) << " " << std::bitset<16>(*compressed_data_pos) << '\n';
-//                compressed_data_pos++;
-            }
+            truncateArray(data, conf.num, byteLen, compressed_data_pos);
             timer.stop("Prediction & Quantization");
-
 
             uchar *lossless_data = lossless.compress(compressed_data,
                                                      (uchar *) compressed_data_pos - compressed_data,
@@ -59,17 +49,8 @@ namespace SZ {
 
             Timer timer(true);
             auto dec_data = new T[conf.num];
-            lfloat bytes;
-            bytes.ivalue = 0;
-            int b;
-            for (size_t i = 0; i < conf.num; i++) {
-                for (b = 4 - byteLen; b < 4; b++) {
-                    bytes.byte[b] = *compressed_data_pos++;
-                }
-//                bytes.int16[1] = *compressed_data_pos;
-//                compressed_data_pos++;
-                dec_data[i] = bytes.value;
-            }
+            truncateArrayRecover(compressed_data_pos, conf.num, byteLen, dec_data);
+
             lossless.postdecompress_data(compressed_data);
             timer.stop("Prediction & Recover");
             return dec_data;
