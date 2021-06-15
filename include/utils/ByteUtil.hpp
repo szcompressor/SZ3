@@ -349,7 +349,7 @@ namespace SZ {
         }
     }
 
-    std::vector<uchar> XORForward(float pre, float data) {
+    std::vector<uchar> LeadingBitsEncode(float pre, float data) {
         lfloat lfBuf_pre;
         lfloat lfBuf_cur;
 
@@ -377,7 +377,7 @@ namespace SZ {
         return bytes;
     }
 
-    float XORBackward(float pre, std::vector<uchar> bytes) {
+    float LeadingBitsDecode(float pre, std::vector<uchar> bytes) {
         lfloat lfBuf_pre;
         lfloat lfBuf_cur;
 
