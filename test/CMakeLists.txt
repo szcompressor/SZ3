@@ -1,9 +1,5 @@
-set(exes sz_demo
-        sz_fast
-        sz_truncate
-        sz_md
-        test_huffman_coding
-        test_arithmetic_coding
+set(exes sz_md
+        sz_demo
         )
 
 foreach (EXE IN LISTS exes)

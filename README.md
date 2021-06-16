@@ -1,11 +1,10 @@
-SZ3: A Modular Error-bounded Lossy Compression Framework for Scientific Datasets
+MMD-SZ: A Modular Error-bounded Lossy Compressor Optimized for Material Molecular Dynamics
 =====
 (C) 2016 by Mathematics and Computer Science (MCS), Argonne National Laboratory.
 See COPYRIGHT in top-level directory.
 
-* Major Authors: Sheng Di, Kai Zhao, Xin Liang
+* Major Authors: Sheng Di, Kai Zhao, Danny Perez 
 * Supervisor: Franck Cappello
-* Other Contributors: Robert Underwood, Sihuan Li, Ali M. Gok
 
 ## Citations
 **Kindly note**: If you mention SZ in your paper, the most appropriate citation is including these four references (***HPDC2020, Bigdata2018, IPDPS2017 and IPDPS2016***), because they cover the whole design and implementation of the latest version of SZ.**
@@ -31,16 +30,17 @@ See COPYRIGHT in top-level directory.
 Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [INSTALL_DIR]/include
 
 ## Testing Examples
+build/test/sz_md datafile -2 dim1 dim2 -r reb buffer_size compressor
+#### options:
+* datafile: FP32 binary format. Contains single axis (X or Y or Z) only.
+* dim1: number of timesteps
+* dim2: number of atoms 
+* reb: relative error bound, for example, 1E-3
+* buffer_size: default 10
+* compressor: 0: VQ, 1:VQT, 2:MT, default is ADP
 
-You can use the executable 'sz_demo' command to do the compression/decompression.
-
-* ./sz_demo testfloat_8_8_128.dat -3 8 8 128 1e-3
-
-The order of the dimensions is the same as the c array. For example, use '-3 r1 r2 r3' for data[r1][r2][r3]
-
-## Version history
-
-Version		New features
-
-* SZ 3.0.0  SZ3 is the C++ version of SZ with modular and composable design.
-* SZ 3.0.1  Improve the build process.
+#### examples:
+* build/test/sz_md helium-mode-b-7852x1037/x.f32.dat -2 7852 1037 -r 1E-3 10
+* build/test/sz_md helium-mode-b-7852x1037/x.f32.dat -2 7852 1037 -r 1E-3 10 0
+* build/test/sz_md helium-mode-b-7852x1037/x.f32.dat -2 7852 1037 -r 1E-3 10 1
+* build/test/sz_md helium-mode-b-7852x1037/x.f32.dat -2 7852 1037 -r 1E-3 10 2
