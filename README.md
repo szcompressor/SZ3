@@ -3,7 +3,7 @@ MMD-SZ: A Modular Error-bounded Lossy Compressor Optimized for Material Molecula
 (C) 2016 by Mathematics and Computer Science (MCS), Argonne National Laboratory.
 See COPYRIGHT in top-level directory.
 
-* Major Authors: Sheng Di, Kai Zhao, Danny Perez 
+* Major Authors: Kai Zhao, Sheng Di, Danny Perez 
 * Supervisor: Franck Cappello
 
 ## Citations
