@@ -65,16 +65,16 @@ interp_compress_decompress(char *path, float *data, size_t num, double eb, int i
         std::cout << "Compressed size = " << compressed_size << std::endl;
         std::cout << "Compression ratio = " << compression_ratio << std::endl;
 
-//        std::random_device rd;  //Will be used to obtain a seed for the random number engine
-//        std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-//        std::uniform_real_distribution<> dis(0, 100000000);
-//        std::stringstream ss;
-//        ss << compressed_file_name.substr(compressed_file_name.rfind('/') + 1)
-//           << "_" << eb << "_" << dis(gen) << ".sz";
-//        compressed_file_name = ss.str();
-//        std::cout << "CompressFileName = " << compressed_file_name << std::endl;
-//        fflush(stdout);
-//        SZ::writefile(compressed_file_name.c_str(), compressed.get(), compressed_size);
+        std::random_device rd;  //Will be used to obtain a seed for the random number engine
+        std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+        std::uniform_real_distribution<> dis(0, 100000000);
+        std::stringstream ss;
+        ss << compressed_file_name.substr(compressed_file_name.rfind('/') + 1)
+           << "_" << eb << "_" << dis(gen) << ".sz";
+        compressed_file_name = ss.str();
+        std::cout << "CompressFileName = " << compressed_file_name << std::endl;
+        fflush(stdout);
+        SZ::writefile(compressed_file_name.c_str(), compressed.get(), compressed_size);
     }
     {
         std::cout << "***************** Decompression ****************" << std::endl;
