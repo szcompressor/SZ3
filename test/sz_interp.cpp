@@ -116,7 +116,8 @@ interp_compress_decompress_nowritefile(char *path, float *data, size_t num, doub
 
 template<uint N, class ... Dims>
 META::meta_compress_info
-interp_compress_decompress(char *path, float *data, size_t num, double eb, int interp_level, int interp_op, int direction_op,
+interp_compress_decompress(char *path, float *data, size_t num, double eb, int interp_level, int interp_op,
+                           int direction_op,
                            int block_size, int interp_block_size, SZ_Option sz_op, Dims ... args) {
     std::string compressed_file_name(path);
     META::meta_compress_info compressInfo;
@@ -241,7 +242,8 @@ interp_compress_decompress(char *path, float *data, size_t num, double eb, int i
 
 template<uint N, class ... Dims>
 double
-interp_compress_test_block(float *data, size_t num, double eb, int interp_level, int interp_op, int direction_op, int block_size,
+interp_compress_test_block(float *data, size_t num, double eb, int interp_level, int interp_op, int direction_op,
+                           int block_size,
                            int interp_block_size, SZ_Option sz_op, Dims ... args) {
 
     std::cout << "****************** compression ****************" << std::endl;
@@ -285,7 +287,8 @@ interp_compress_test_block(float *data, size_t num, double eb, int interp_level,
 
     sz.compress(data1.data(), compressed_size);
     clock_gettime(CLOCK_REALTIME, &end);
-    double compression_time = (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000;
+    double compression_time =
+            (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000;
     auto compression_ratio = num * sizeof(float) * 1.0 / compressed_size;
     std::cout << "Compressed size = " << compressed_size << std::endl;
     std::cout << "Compression ratio = " << compression_ratio << std::endl;
@@ -305,7 +308,8 @@ interp_compress_test_block(float *data, size_t num, double eb, int interp_level,
 
 
 template<uint N, class ... Dims>
-double interp_compress_test(float *data, size_t num, double eb, int interp_level, int interp_op, int direction_op, int block_size,
+double interp_compress_test(float *data, size_t num, double eb, int interp_level, int interp_op, int direction_op,
+                            int block_size,
                             int interp_block_size, SZ_Option sz_op, Dims ... args) {
 
     std::cout << "****************** compression ****************" << std::endl;
@@ -337,7 +341,8 @@ double interp_compress_test(float *data, size_t num, double eb, int interp_level
     compressed.reset(sz.compress(data1.data(), compressed_size));
 
     clock_gettime(CLOCK_REALTIME, &end);
-    double compression_time = (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000;
+    double compression_time =
+            (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000;
     auto compression_ratio = num * sizeof(float) * 1.0 / compressed_size;
     std::cout << "Compressed size = " << compressed_size << std::endl;
     std::cout << "Compression ratio = " << compression_ratio << std::endl;
@@ -374,7 +379,8 @@ META::meta_compress_info interp_tuning(char *path, double reb, Dims ... args) {
 
     double best_ratio = 0, ratio;
     for (int i = 0; i < 2; i++) {
-        ratio = interp_compress_test<N>(data.get(), num, eb, interp_level, i, direction_op, block_size, interp_block_size, sz_op,
+        ratio = interp_compress_test<N>(data.get(), num, eb, interp_level, i, direction_op, block_size,
+                                        interp_block_size, sz_op,
                                         args...);
         if (ratio > best_ratio) {
             best_ratio = ratio;
@@ -383,11 +389,13 @@ META::meta_compress_info interp_tuning(char *path, double reb, Dims ... args) {
     }
     std::cout << "LEVEL1 best interp_op = " << interp_op << " , best ratio = " << best_ratio << std::endl;
 
-    ratio = interp_compress_test<N>(data.get(), num, eb, interp_level, interp_op, 5, block_size, interp_block_size, sz_op,
+    int direction_op_reverse = std::tgamma(N + 1) - 1;
+    ratio = interp_compress_test<N>(data.get(), num, eb, interp_level, interp_op, direction_op_reverse, block_size, interp_block_size,
+                                    sz_op,
                                     args...);
     if (ratio > best_ratio * 1.0) {
         best_ratio = ratio;
-        direction_op = 5;
+        direction_op = direction_op_reverse;
     }
     std::cout << "LEVEL1 best direction_op = " << direction_op << " , best ratio = " << best_ratio << std::endl;
 
@@ -407,12 +415,14 @@ META::meta_compress_info meta_compress_3d(T *data, size_t num_elements, int r1, 
 
     unsigned char *result = meta_compress_3d<T>(data, r1, r2, r3, precision, result_size, params, compressInfo);
     unsigned char *result_after_lossless = NULL;
-    size_t lossless_outsize = META::meta_lossless_compress(ZSTD_COMPRESSOR, 3, result, result_size, &result_after_lossless);
+    size_t lossless_outsize = META::meta_lossless_compress(ZSTD_COMPRESSOR, 3, result, result_size,
+                                                           &result_after_lossless);
     free(result);
     free(result_after_lossless);
 
     clock_gettime(CLOCK_REALTIME, &end);
-    compressInfo.compress_time = (float) (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / (double) 1000000000;
+    compressInfo.compress_time =
+            (float) (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / (double) 1000000000;
 
     float ratio = (num_elements * sizeof(T)) * 1.0 / lossless_outsize;
     compressInfo.ori_bytes = num_elements * sizeof(T);
@@ -478,7 +488,8 @@ void interp_meta_tuning(char *path, double reb, Dims ... args) {
                             di = i < sampling_block ? i + sampling_block : dmin - 3 * sampling_block + i;
                             dj = j < sampling_block ? j + sampling_block : dmin - 3 * sampling_block + j;
                             dk = k < sampling_block ? k + sampling_block : dmin - 3 * sampling_block + k;
-                            auto d = data[(bi * dmin + di) * dims[1] * dims[2] + (bj * dmin + dj) * dims[2] + bk * dmin + dk];
+                            auto d = data[(bi * dmin + di) * dims[1] * dims[2] + (bj * dmin + dj) * dims[2] +
+                                          bk * dmin + dk];
                             sampling_data[(bi * 2 * sampling_block + i) * r2 * r3
                                           + (bj * 2 * sampling_block + j) * r3
                                           + bk * 2 * sampling_block + k] = d;
@@ -492,7 +503,8 @@ void interp_meta_tuning(char *path, double reb, Dims ... args) {
         }
     }
     clock_gettime(CLOCK_REALTIME, &end1);
-    auto sampling_time = (double) (end1.tv_sec - start1.tv_sec) + (double) (end1.tv_nsec - start1.tv_nsec) / (double) 1000000000;
+    auto sampling_time =
+            (double) (end1.tv_sec - start1.tv_sec) + (double) (end1.tv_nsec - start1.tv_nsec) / (double) 1000000000;
     printf("LEVEL1 sampling block = %d percent = %.3f%% Time = %.3f \n", sampling_block, sampling_num * 100.0 / num,
            sampling_time);
 //        for (size_t i = 0; i < sampling_num; i++) {
@@ -524,13 +536,15 @@ void interp_meta_tuning(char *path, double reb, Dims ... args) {
     }
     std::cout << "LEVEL1 interp best interp_op = " << interp_op << " , best ratio = " << best_interp_ratio << std::endl;
 
-    ratio = interp_compress_test_block<N>(sampling_data.data(), sampling_num, eb, interp_level, interp_op, 5, block_size,
+    ratio = interp_compress_test_block<N>(sampling_data.data(), sampling_num, eb, interp_level, interp_op, 5,
+                                          block_size,
                                           interp_block_size, sz_op, r1, r2, r3);
     if (ratio > best_interp_ratio * 1.02) {
         best_interp_ratio = ratio;
         direction_op = 5;
     }
-    std::cout << "LEVEL1 interp best direction_op = " << direction_op << " , best ratio = " << best_interp_ratio << std::endl;
+    std::cout << "LEVEL1 interp best direction_op = " << direction_op << " , best ratio = " << best_interp_ratio
+              << std::endl;
 
     meta = result_meta.ratio > best_interp_ratio && result_meta.ratio < 80 && best_interp_ratio < 80;
     printf("LEVEL2 meta Compression Ratio = %.2f\n", result_meta.ratio);
@@ -559,7 +573,8 @@ void interp_meta_tuning(char *path, double reb, Dims ... args) {
             meta_params.capacity = 16384;
             result_meta = meta_compress_3d(sampling_data.data(), sampling_num, r1, r2, r3, eb, meta_params);
             printf("LEVEL1 meta ratio = %.2f, lorenzo:%d, lorenzo2:%d, pred_dim:%d compress_time:%.3f\n",
-                   result_meta.ratio, meta_params.use_lorenzo, meta_params.use_lorenzo_2layer, meta_params.prediction_dim,
+                   result_meta.ratio, meta_params.use_lorenzo, meta_params.use_lorenzo_2layer,
+                   meta_params.prediction_dim,
                    result_meta.compress_time);
             if (result_meta.ratio > best_meta_ratio * 1.02) {
                 best_meta_ratio = result_meta.ratio;
@@ -570,7 +585,8 @@ void interp_meta_tuning(char *path, double reb, Dims ... args) {
 
 
         clock_gettime(CLOCK_REALTIME, &end);
-        auto tuning_time = (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000;
+        auto tuning_time =
+                (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000;
         std::cout << "LEVEL2 Tuning time = " << tuning_time << "s" << std::endl;
 
         meta_params.print();
@@ -578,21 +594,23 @@ void interp_meta_tuning(char *path, double reb, Dims ... args) {
         printf("LEVEL2 TUNING meta PSNR = %f, NRMSE = %.10G, Compression Ratio = %.2f\n", result.psnr, result.nrmse,
                result.ratio);
         std::cout << "LEVEL2 total compress time = " << tuning_time + result.compress_time << std::endl;
-        std::cout << "LEVEL2 total decompress time = " <<  result.decompress_time << std::endl;
+        std::cout << "LEVEL2 total decompress time = " << result.decompress_time << std::endl;
 
     } else {
         clock_gettime(CLOCK_REALTIME, &end);
-        auto tuning_time = (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000;
+        auto tuning_time =
+                (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000;
         std::cout << "LEVEL2 Tuning time = " << tuning_time << "s" << std::endl;
 
         block_size = 6;
         interp_block_size = 32;
-        auto result = interp_compress_decompress<N>(path, data.get(), num, eb, interp_level, interp_op, direction_op, block_size,
+        auto result = interp_compress_decompress<N>(path, data.get(), num, eb, interp_level, interp_op, direction_op,
+                                                    block_size,
                                                     interp_block_size, sz_op, args...);
         printf("LEVEL2 TUNING interp PSNR = %f, NRMSE = %.10G, Compression Ratio = %.2f\n", result.psnr, result.nrmse,
                result.ratio);
         std::cout << "LEVEL2 total compress time = " << tuning_time + result.compress_time << std::endl;
-        std::cout << "LEVEL2 total decompress time = " <<  result.decompress_time << std::endl;
+        std::cout << "LEVEL2 total decompress time = " << result.decompress_time << std::endl;
     }
 }
 
@@ -667,7 +685,8 @@ int main(int argc, char **argv) {
         interp_compress_decompress<3>(argv[1], data.get(), num, eb, interp_level, interp_op, direction_op, block_size,
                                       interp_block_size, sz_op, dims[0], dims[1], dims[2]);
     } else if (dim == 4) {
-        interp_compress_decompress_nowritefile<4>(argv[1], data.release(), num, eb, interp_level, interp_op, direction_op,
+        interp_compress_decompress_nowritefile<4>(argv[1], data.release(), num, eb, interp_level, interp_op,
+                                                  direction_op,
                                                   block_size,
                                                   interp_block_size, sz_op, dims[0], dims[1], dims[2], dims[3]);
     }
