@@ -257,40 +257,55 @@ SZ2(SZ::Config<T, N> conf, size_t ts, T *data, size_t &compressed_size, bool dec
 
 int ts_last_select = -1;
 int method_batch = 0;
-std::vector<std::string> compressor_names = {"VQ", "VQT", "MT", "LR"};
+std::vector<std::string> compressor_names = {"VQ", "VQT", "MT", "LR", "TS"};
 
 template<typename T, uint N>
 void select(SZ::Config<T, N> conf, int &method, size_t ts, T *data_all,
             float level_start, float level_offset, int level_num, T *data_ts0) {
-    if (method_batch > 0 && conf.dims[0] == conf.timestep_batch) {
+    if (method_batch <= 0) {
+        return;
+    }
 //        && (ts_last_select == -1 || t - ts_last_select >= conf.timestep_batch * 10)) {
-        std::cout << "****************** BEGIN Selection ****************" << std::endl;
+    std::cout << "****************** BEGIN Selection ****************" << std::endl;
 //        ts_last_select = ts;
-        std::vector<size_t> compressed_size(4, std::numeric_limits<size_t>::max());
-        std::vector<T> data1;
-        size_t t = ((ts == 0) ? conf.timestep_batch / 2 : ts);
-        if (level_num > 0) {
-            data1 = std::vector(&data_all[t * conf.dims[1]], &data_all[t * conf.dims[1]] + conf.num);
-            VQ(conf, t, data1.data(), compressed_size[0], false, 0, level_start, level_offset, level_num);
+    std::vector<size_t> compressed_size(10, std::numeric_limits<size_t>::max());
+    std::vector<T> data1;
+    if (conf.timestep_batch > 10) {
+        conf.dims[0] = 10;
+        conf.num = conf.dims[0] * conf.dims[1];
+    }
+    size_t t = ts;
+    if (ts == 0) {
+        t = conf.dims[0] / 2;
+        conf.dims[0] /= 2;
+        conf.num = conf.dims[0] * conf.dims[1];
+    }
+    std::cout << conf.dims[0] << " " << conf.dims[1] << " " << t << std::endl;
 
-            data1 = std::vector(&data_all[t * conf.dims[1]], &data_all[t * conf.dims[1]] + conf.num);
-            VQ(conf, t, data1.data(), compressed_size[1], false, 1, level_start, level_offset, level_num);
-        } else {
-            data1 = std::vector(&data_all[t * conf.dims[1]], &data_all[t * conf.dims[1]] + conf.num);
-            SZ2(conf, t, data1.data(), compressed_size[3], false);
-        }
+    if (level_num > 0) {
+        data1 = std::vector(&data_all[t * conf.dims[1]], &data_all[t * conf.dims[1]] + conf.num);
+        VQ(conf, t, data1.data(), compressed_size[0], false, 0, level_start, level_offset, level_num);
 
         data1 = std::vector(&data_all[t * conf.dims[1]], &data_all[t * conf.dims[1]] + conf.num);
-        MT(conf, t, data1.data(), compressed_size[2], false, data_ts0);
-
-
-        method = std::distance(compressed_size.begin(),
-                               std::min_element(compressed_size.begin(), compressed_size.end()));
-        printf("Select %s as Compressor, timestep=%lu, method=%d, %lu %lu %lu %lu\n",
-               compressor_names[method].data(),
-               ts, method, compressed_size[0], compressed_size[1], compressed_size[2], compressed_size[3]);
-        std::cout << "****************** END Selection ****************" << std::endl;
+        VQ(conf, t, data1.data(), compressed_size[1], false, 1, level_start, level_offset, level_num);
+    } else {
+        data1 = std::vector(&data_all[t * conf.dims[1]], &data_all[t * conf.dims[1]] + conf.num);
+        SZ2(conf, t, data1.data(), compressed_size[3], false);
     }
+
+    data1 = std::vector(&data_all[t * conf.dims[1]], &data_all[t * conf.dims[1]] + conf.num);
+    MT(conf, t, data1.data(), compressed_size[2], false, data_ts0);
+
+//    data1 = std::vector(&data_all[t * conf.dims[1]], &data_all[t * conf.dims[1]] + conf.num);
+//    MT(conf, t, data1.data(), compressed_size[4], false, (T *) nullptr);
+
+    method = std::distance(compressed_size.begin(),
+                           std::min_element(compressed_size.begin(), compressed_size.end()));
+    printf("Select %s as Compressor, timestep=%lu, method=%d, %lu %lu %lu %lu %lu\n",
+           compressor_names[method].data(),
+           ts, method, compressed_size[0], compressed_size[1], compressed_size[2], compressed_size[3],
+           compressed_size[4]);
+    std::cout << "****************** END Selection ****************" << std::endl;
 }
 
 template<typename T, uint N>
@@ -355,6 +370,7 @@ float SZ_Compress(SZ::Config<T, N> conf, int method) {
 
         std::cout << "****************** Compression From " << ts << " to " << ts + conf.dims[0] - 1
                   << " ******************" << std::endl;
+//        std::cout<<method_batch<<" "<<ts<<" "<<conf.timestep_batch<<" "<<method_batch<<std::endl;
         if (method_batch > 0 && ts / conf.timestep_batch % method_batch == 0) {
             select(conf, method, ts, data_all.get(), level_start, level_offset, level_num, data_ts0.data());
         }
@@ -368,6 +384,8 @@ float SZ_Compress(SZ::Config<T, N> conf, int method) {
             ts_dec_data = VQ(conf, ts, data, compressed_size, true, method, level_start, level_offset, level_num);
         } else if (method == 2) {
             ts_dec_data = MT(conf, ts, data, compressed_size, true, data_ts0.data());
+        } else if (method == 4) {
+            ts_dec_data = MT(conf, ts, data, compressed_size, true, (T *) nullptr);
         } else {
             ts_dec_data = SZ2(conf, ts, data, compressed_size, true);
         }
