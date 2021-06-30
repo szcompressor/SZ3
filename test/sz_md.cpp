@@ -137,18 +137,18 @@ VQ(SZ::Config<T, N> conf, size_t ts, T *data, size_t &compressed_size, bool deco
     std::cout << "Compressed size = " << compressed_size << std::endl;
 
 
-    std::stringstream ss;
-    ss << conf.src_file_name.substr(conf.src_file_name.rfind('/') + 1)
-       << ".b" << conf.timestep_batch
-       << "." << conf.relative_eb
-       << ".md-" << method
-       << ".t" << ts;
-    auto compressed_file_name = ss.str();
-    SZ::writefile(compressed_file_name.c_str(), compressed.get(), compressed_size);
-    std::cout << "Compressed file = " << compressed_file_name << std::endl;
-
-    std::cout << "****************** Decompression ****************" << std::endl;
-    compressed = SZ::readfile<SZ::uchar>(compressed_file_name.c_str(), compressed_size);
+//    std::stringstream ss;
+//    ss << conf.src_file_name.substr(conf.src_file_name.rfind('/') + 1)
+//       << ".b" << conf.timestep_batch
+//       << "." << conf.relative_eb
+//       << ".md-" << method
+//       << ".t" << ts;
+//    auto compressed_file_name = ss.str();
+//    SZ::writefile(compressed_file_name.c_str(), compressed.get(), compressed_size);
+//    std::cout << "Compressed file = " << compressed_file_name << std::endl;
+//
+//    std::cout << "****************** Decompression ****************" << std::endl;
+//    compressed = SZ::readfile<SZ::uchar>(compressed_file_name.c_str(), compressed_size);
 
     timer.start();
     auto ts_dec_data = sz.decompress(compressed.get(), compressed_size);
@@ -157,7 +157,7 @@ VQ(SZ::Config<T, N> conf, size_t ts, T *data, size_t &compressed_size, bool deco
 //    auto decompressed_file_name = compressed_file_name + ".out";
 //        SZ::writefile(decompressed_file_name.c_str(), dec_data.get(), conf.num);
 //        std::cout << "Decompressed file = " << decompressed_file_name << std::endl;
-    remove(compressed_file_name.c_str());
+//    remove(compressed_file_name.c_str());
 
     return ts_dec_data;
 }
@@ -182,18 +182,18 @@ MT(SZ::Config<T, N> conf, size_t ts, T *data, size_t &compressed_size, bool deco
     std::cout << "Compressed size = " << compressed_size << std::endl;
 
 
-    std::stringstream ss;
-    ss << conf.src_file_name.substr(conf.src_file_name.rfind('/') + 1)
-       << ".b" << conf.timestep_batch
-       << "." << conf.relative_eb
-       << ".md-2"
-       << ".t" << ts;
-    auto compressed_file_name = ss.str();
-    SZ::writefile(compressed_file_name.c_str(), compressed.get(), compressed_size);
-    std::cout << "Compressed file = " << compressed_file_name << std::endl;
-
-    std::cout << "****************** Decompression ****************" << std::endl;
-    compressed = SZ::readfile<SZ::uchar>(compressed_file_name.c_str(), compressed_size);
+//    std::stringstream ss;
+//    ss << conf.src_file_name.substr(conf.src_file_name.rfind('/') + 1)
+//       << ".b" << conf.timestep_batch
+//       << "." << conf.relative_eb
+//       << ".md-2"
+//       << ".t" << ts;
+//    auto compressed_file_name = ss.str();
+//    SZ::writefile(compressed_file_name.c_str(), compressed.get(), compressed_size);
+//    std::cout << "Compressed file = " << compressed_file_name << std::endl;
+//
+//    std::cout << "****************** Decompression ****************" << std::endl;
+//    compressed = SZ::readfile<SZ::uchar>(compressed_file_name.c_str(), compressed_size);
 
     timer.start();
     auto ts_dec_data = sz->decompress(compressed.get(), compressed_size);
@@ -203,7 +203,7 @@ MT(SZ::Config<T, N> conf, size_t ts, T *data, size_t &compressed_size, bool deco
 //        SZ::writefile(decompressed_file_name.c_str(), dec_data.get(), conf.num);
 //        std::cout << "Decompressed file = " << decompressed_file_name << std::endl;
 
-    remove(compressed_file_name.c_str());
+//    remove(compressed_file_name.c_str());
     delete sz;
     return ts_dec_data;
 }
@@ -229,18 +229,18 @@ SZ2(SZ::Config<T, N> conf, size_t ts, T *data, size_t &compressed_size, bool dec
     std::cout << "Compressed size = " << compressed_size << std::endl;
 
 
-    std::stringstream ss;
-    ss << conf.src_file_name.substr(conf.src_file_name.rfind('/') + 1)
-       << ".b" << conf.timestep_batch
-       << "." << conf.relative_eb
-       << ".md-3"
-       << ".t" << ts;
-    auto compressed_file_name = ss.str();
-    SZ::writefile(compressed_file_name.c_str(), compressed.get(), compressed_size);
-    std::cout << "Compressed file = " << compressed_file_name << std::endl;
-
-    std::cout << "****************** Decompression ****************" << std::endl;
-    compressed = SZ::readfile<SZ::uchar>(compressed_file_name.c_str(), compressed_size);
+//    std::stringstream ss;
+//    ss << conf.src_file_name.substr(conf.src_file_name.rfind('/') + 1)
+//       << ".b" << conf.timestep_batch
+//       << "." << conf.relative_eb
+//       << ".md-3"
+//       << ".t" << ts;
+//    auto compressed_file_name = ss.str();
+//    SZ::writefile(compressed_file_name.c_str(), compressed.get(), compressed_size);
+//    std::cout << "Compressed file = " << compressed_file_name << std::endl;
+//
+//    std::cout << "****************** Decompression ****************" << std::endl;
+//    compressed = SZ::readfile<SZ::uchar>(compressed_file_name.c_str(), compressed_size);
 
     timer.start();
     auto ts_dec_data = sz->decompress(compressed.get(), compressed_size);
@@ -250,7 +250,7 @@ SZ2(SZ::Config<T, N> conf, size_t ts, T *data, size_t &compressed_size, bool dec
 //        SZ::writefile(decompressed_file_name.c_str(), dec_data.get(), conf.num);
 //        std::cout << "Decompressed file = " << decompressed_file_name << std::endl;
 
-    remove(compressed_file_name.c_str());
+//    remove(compressed_file_name.c_str());
     delete sz;
     return ts_dec_data;
 }
@@ -352,6 +352,7 @@ float SZ_Compress(SZ::Config<T, N> conf, int method) {
     std::vector<T> dec_data(total_num);
     double total_compressed_size = 0;
     double compressed_size_pre = total_num * sizeof(T);
+    int current_method = method;
 
     for (size_t ts = 0; ts < dims[0]; ts += conf.timestep_batch) {
         conf.dims[0] = (ts + conf.timestep_batch > dims[0] ? dims[0] - ts : conf.timestep_batch);
@@ -372,35 +373,35 @@ float SZ_Compress(SZ::Config<T, N> conf, int method) {
                   << " ******************" << std::endl;
 //        std::cout<<method_batch<<" "<<ts<<" "<<conf.timestep_batch<<" "<<method_batch<<std::endl;
         if (method_batch > 0 && ts / conf.timestep_batch % method_batch == 0) {
-            select(conf, method, ts, data_all.get(), level_start, level_offset, level_num, data_ts0.data());
+            select(conf, current_method, ts, data_all.get(), level_start, level_offset, level_num, data_ts0.data());
         }
-        printf("Compressor = %s\n", compressor_names[method].data());
+        printf("Compressor = %s\n", compressor_names[current_method].data());
 
         T *ts_dec_data;
         size_t compressed_size;
-        if (method == 0) {
-            ts_dec_data = VQ(conf, ts, data, compressed_size, true, method, level_start, level_offset, level_num);
-        } else if (method == 1) {
-            ts_dec_data = VQ(conf, ts, data, compressed_size, true, method, level_start, level_offset, level_num);
-        } else if (method == 2) {
+        if (current_method == 0) {
+            ts_dec_data = VQ(conf, ts, data, compressed_size, true, current_method, level_start, level_offset,
+                             level_num);
+        } else if (current_method == 1) {
+            ts_dec_data = VQ(conf, ts, data, compressed_size, true, current_method, level_start, level_offset,
+                             level_num);
+        } else if (current_method == 2) {
             ts_dec_data = MT(conf, ts, data, compressed_size, true, data_ts0.data());
-        } else if (method == 4) {
+        } else if (current_method == 4) {
             ts_dec_data = MT(conf, ts, data, compressed_size, true, (T *) nullptr);
         } else {
             ts_dec_data = SZ2(conf, ts, data, compressed_size, true);
         }
         total_compressed_size += compressed_size;
 //        if (compressed_size > 4.0 * compressed_size_pre) {
-//            select(conf, method, ts, data_all.get(), level_start, level_offset, level_num, data_ts0.get());
+//            select(conf, current_method, ts, data_all.get(), level_start, level_offset, level_num, data_ts0.get());
 //        }
         compressed_size_pre = compressed_size;
         memcpy(&dec_data[ts * conf.dims[1]], ts_dec_data, conf.num * sizeof(T));
     }
 
     std::cout << "****************** Final ****************" << std::endl;
-    if (method_batch > 0) {
-        method = 9;
-    }
+
     float ratio = total_num * sizeof(T) / total_compressed_size;
     auto data = SZ::readfile<T>(conf.src_file_name.data(), 0, total_num);
 
@@ -454,8 +455,8 @@ int main(int argc, char **argv) {
     if (argp < argc) {
         conf.timestep_batch = atoi(argv[argp++]);
     }
-    int method = 9; //default compressor: ADP
-    method_batch = 50;
+    int method = 9;
+    method_batch = 50; //method_batch >0 indicates ADP
     if (argp < argc) {
         int tmp = atoi(argv[argp++]);
         if (tmp <= 0) {
