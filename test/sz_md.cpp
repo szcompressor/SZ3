@@ -175,16 +175,16 @@ void select(SZ::Config<T, N> conf, int &method, size_t ts, T *data_all,
 //        ts_last_select = ts;
     std::vector<size_t> compressed_size(10, std::numeric_limits<size_t>::max());
     std::vector<T> data1;
-    if (conf.timestep_batch > 10) {
-        conf.dims[0] = 10;
-        conf.num = conf.dims[0] * conf.dims[1];
-    }
     size_t t = ts;
     if (ts == 0) {
         t = conf.dims[0] / 2;
         conf.dims[0] /= 2;
-        conf.num = conf.dims[0] * conf.dims[1];
     }
+    if (conf.timestep_batch > 10) {
+        conf.dims[0] = 10;
+    }
+    conf.num = conf.dims[0] * conf.dims[1];
+
     std::cout << conf.dims[0] << " " << conf.dims[1] << " " << t << std::endl;
 
     if (level_num > 0) {
