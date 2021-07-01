@@ -147,6 +147,8 @@ SZ::uchar *compress(SZ::Config<T, N> conf, T *data, int method, size_t &compress
 template<typename T, uint N>
 int select_compressor(SZ::Config<T, N> conf, T *data, bool firsttime,
                       float level_start, float level_offset, int level_num, T *data_ts0) {
+    std::cout << "****************** BEGIN Selection ****************" << std::endl;
+
     std::vector<size_t> compressed_size(10, std::numeric_limits<size_t>::max());
     if (conf.dims[0] > 10) {
         conf.dims[0] = 10;

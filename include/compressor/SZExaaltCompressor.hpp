@@ -56,7 +56,7 @@ namespace SZ {
             std::vector<int> pred_inds(num_elements);
             quantizer.precompress_data();
 
-            Timer timer(true);
+//            Timer timer(true);
 
             auto l0 = quantize_to_level(data[0]);
             pred_inds[0] = l0 + level_num;
@@ -104,7 +104,7 @@ namespace SZ {
                 assert(pred_idx == num_elements);
             }
 
-            timer.stop("Predition & Quantization time");
+//            timer.stop("Predition & Quantization");
 
             quantizer.postcompress_data();
 
@@ -113,7 +113,7 @@ namespace SZ {
             uchar *compressed_data_pos = compressed_data;
             write(global_dimensions.data(), N, compressed_data_pos);
             quantizer.save(compressed_data_pos);
-            quantizer.print();
+//            quantizer.print();
 
             encoder.preprocess_encode(quant_inds, 4 * quantizer.get_radius());
             encoder.save(compressed_data_pos);

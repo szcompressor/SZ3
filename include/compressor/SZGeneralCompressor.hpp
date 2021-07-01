@@ -29,28 +29,28 @@ namespace SZ {
 
         uchar *compress(T *data, size_t &compressed_size) {
 
-            Timer timer(true);
+//            Timer timer(true);
             std::vector<int> quant_inds = frontend.compress(data);
-            timer.stop("Prediction & Quantization");
+//            timer.stop("Prediction & Quantization");
 
             uchar *compressed_data = new uchar[4 * quant_inds.size() * sizeof(T)];
             uchar *compressed_data_pos = compressed_data;
 
             frontend.save(compressed_data_pos);
 
-            timer.start();
+//            timer.start();
             encoder.preprocess_encode(quant_inds, 2 * frontend.get_radius());
             encoder.save(compressed_data_pos);
             encoder.encode(quant_inds, compressed_data_pos);
             encoder.postprocess_encode();
-            timer.stop("Encoder");
+//            timer.stop("Encoder");
 
-            timer.start();
+//            timer.start();
             uchar *lossless_data = lossless.compress(compressed_data,
                                                      compressed_data_pos - compressed_data,
                                                      compressed_size);
             lossless.postcompress_data(compressed_data);
-            timer.stop("Lossless");
+//            timer.stop("Lossless");
 
             return lossless_data;
         }
