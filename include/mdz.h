@@ -150,15 +150,17 @@ int select_compressor(SZ::Config<T, N> conf, T *data, bool firsttime,
     std::cout << "****************** BEGIN Selection ****************" << std::endl;
 
     std::vector<size_t> compressed_size(10, std::numeric_limits<size_t>::max());
-    if (conf.dims[0] > 10) {
-        conf.dims[0] = 10;
-        conf.num = conf.dims[0] * conf.dims[1];
-    }
+
     if (firsttime) {
         conf.dims[0] /= 2;
         conf.num = conf.dims[0] * conf.dims[1];
         data += conf.num;
     }
+    if (conf.dims[0] > 10) {
+        conf.dims[0] = 10;
+        conf.num = conf.dims[0] * conf.dims[1];
+    }
+
     std::vector<T> data1;
     SZ::uchar *cmpr;
     if (level_num > 0) {
