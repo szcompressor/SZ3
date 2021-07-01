@@ -5,7 +5,6 @@
 #include "frontend/Frontend.hpp"
 #include "encoder/Encoder.hpp"
 #include "lossless/Lossless.hpp"
-#include "utils/FileUtil.h"
 #include "utils/Config.hpp"
 #include "utils/Timer.hpp"
 #include "def.hpp"

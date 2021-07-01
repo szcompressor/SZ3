@@ -7,6 +7,7 @@
 #include "utils/FileUtil.h"
 #include "utils/Config.hpp"
 #include "def.hpp"
+#include "version.hpp"
 #include <cstdio>
 #include <iostream>
 #include <memory>

@@ -2,6 +2,7 @@
 #define SZ3_FRONTEND_INTERFACE
 
 #include "def.hpp"
+#include <vector>
 
 namespace SZ {
 

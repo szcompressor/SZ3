@@ -1,7 +1,6 @@
 #ifndef SZ3_TIMEBASED_FRONTEND
 #define SZ3_TIMEBASED_FRONTEND
 
-#include <utils/FileUtil.h>
 #include "Frontend.hpp"
 #include "def.hpp"
 #include "predictor/Predictor.hpp"

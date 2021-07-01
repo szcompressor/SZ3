@@ -1,22 +1,14 @@
 #include <vector>
 #include <sstream>
+#include "mdz.h"
 #include "utils/FileUtil.h"
 #include "utils/Timer.hpp"
 #include "utils/Verification.hpp"
 #include "def.hpp"
 #include "quantizer/IntegerQuantizer.hpp"
 #include "lossless/Lossless_zstd.hpp"
-#include "lossless/Lossless_bypass.hpp"
 #include "encoder/HuffmanEncoder.hpp"
-#include "encoder/BypassEncoder.hpp"
-#include "compressor/SZExaaltCompressor.hpp"
-#include "compressor/SZGeneralCompressor.hpp"
-#include "frontend/SZ3TimeBasedFrontend.hpp"
 #include "frontend/SZ3Frontend.hpp"
-#include "predictor/Predictor.hpp"
-#include "predictor/LorenzoPredictor.hpp"
-#include "predictor/RegressionPredictor.hpp"
-#include "predictor/ComposedPredictor.hpp"
 #include "utils/KmeansUtil.h"
 #include "utils/QuantOptimizatioin.hpp"
 #include <cstdio>
@@ -24,93 +16,7 @@
 double total_compress_time = 0;
 double total_decompress_time = 0;
 
-template<typename T, uint N, class Predictor>
-SZ::concepts::CompressorInterface<T> *
-make_sz_timebased2(const SZ::Config<T, N> &conf, Predictor predictor, T *data_ts0) {
-
-    return new SZ::SZGeneralCompressor<T, N, SZ::SZ3TimeBasedFrontend<T, N, Predictor, SZ::LinearQuantizer<T>>,
-            SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
-            conf,
-            make_sz3_timebased_frontend(
-                    conf, predictor, SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2), data_ts0),
-            SZ::HuffmanEncoder<int>(),
-            SZ::Lossless_zstd());
-}
-
-template<typename T, uint N>
-SZ::concepts::CompressorInterface<T> *
-make_sz_timebased(const SZ::Config<T, N> &conf, T *data_ts0) {
-    std::vector<std::shared_ptr<SZ::concepts::PredictorInterface<T, N - 1>>> predictors;
-
-    int use_single_predictor =
-            (conf.enable_lorenzo + conf.enable_2ndlorenzo + conf.enable_regression) == 1;
-    if (conf.enable_lorenzo) {
-        if (use_single_predictor) {
-            return make_sz_timebased2(conf, SZ::LorenzoPredictor<T, N - 1, 1>(conf.eb), data_ts0);
-        } else {
-            predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N - 1, 1>>(conf.eb));
-        }
-    }
-    if (conf.enable_2ndlorenzo) {
-        if (use_single_predictor) {
-            return make_sz_timebased2(conf, SZ::LorenzoPredictor<T, N - 1, 2>(conf.eb), data_ts0);
-        } else {
-            predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N - 1, 2>>(conf.eb));
-        }
-    }
-    if (conf.enable_regression) {
-        if (use_single_predictor) {
-            return make_sz_timebased2(conf, SZ::RegressionPredictor<T, N - 1>(conf.block_size, conf.eb), data_ts0);
-        } else {
-            predictors.push_back(std::make_shared<SZ::RegressionPredictor<T, N - 1>>(conf.block_size, conf.eb));
-        }
-    }
-
-    return make_sz_timebased2(conf, SZ::ComposedPredictor<T, N - 1>(predictors), data_ts0);
-}
-
-template<typename T, uint N, class Predictor>
-SZ::concepts::CompressorInterface<T> *
-make_sz2(const SZ::Config<T, N> &conf, Predictor predictor) {
-
-    return new SZ::SZGeneralCompressor<T, N, SZ::SZ3Frontend<T, N, Predictor, SZ::LinearQuantizer<T>>,
-            SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
-            conf, make_sz3_frontend(conf, predictor, SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2)),
-            SZ::HuffmanEncoder<int>(),
-            SZ::Lossless_zstd());
-}
-
-template<typename T, uint N>
-SZ::concepts::CompressorInterface<T> *
-make_sz(const SZ::Config<T, N> &conf) {
-    std::vector<std::shared_ptr<SZ::concepts::PredictorInterface<T, N>>> predictors;
-
-    int use_single_predictor =
-            (conf.enable_lorenzo + conf.enable_2ndlorenzo + conf.enable_regression) == 1;
-    if (conf.enable_lorenzo) {
-        if (use_single_predictor) {
-            return make_sz2(conf, SZ::LorenzoPredictor<T, N, 1>(conf.eb));
-        } else {
-            predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 1>>(conf.eb));
-        }
-    }
-    if (conf.enable_2ndlorenzo) {
-        if (use_single_predictor) {
-            return make_sz2(conf, SZ::LorenzoPredictor<T, N, 2>(conf.eb));
-        } else {
-            predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 2>>(conf.eb));
-        }
-    }
-    if (conf.enable_regression) {
-        if (use_single_predictor) {
-            return make_sz2(conf, SZ::RegressionPredictor<T, N>(conf.block_size, conf.eb));
-        } else {
-            predictors.push_back(std::make_shared<SZ::RegressionPredictor<T, N >>(conf.block_size, conf.eb));
-        }
-    }
-
-    return make_sz2(conf, SZ::ComposedPredictor<T, N>(predictors));
-}
+const char *compressor_names[] = {"VQ", "VQT", "MT", "LR", "TS"};
 
 template<typename T, uint N>
 float *
@@ -257,7 +163,6 @@ SZ2(SZ::Config<T, N> conf, size_t ts, T *data, size_t &compressed_size, bool dec
 
 int ts_last_select = -1;
 int method_batch = 0;
-std::vector<std::string> compressor_names = {"VQ", "VQT", "MT", "LR", "TS"};
 
 template<typename T, uint N>
 void select(SZ::Config<T, N> conf, int &method, size_t ts, T *data_all,
@@ -302,7 +207,7 @@ void select(SZ::Config<T, N> conf, int &method, size_t ts, T *data_all,
     method = std::distance(compressed_size.begin(),
                            std::min_element(compressed_size.begin(), compressed_size.end()));
     printf("Select %s as Compressor, timestep=%lu, method=%d, %lu %lu %lu %lu %lu\n",
-           compressor_names[method].data(),
+           compressor_names[method],
            ts, method, compressed_size[0], compressed_size[1], compressed_size[2], compressed_size[3],
            compressed_size[4]);
     std::cout << "****************** END Selection ****************" << std::endl;
@@ -375,7 +280,7 @@ float SZ_Compress(SZ::Config<T, N> conf, int method) {
         if (method_batch > 0 && ts / conf.timestep_batch % method_batch == 0) {
             select(conf, current_method, ts, data_all.get(), level_start, level_offset, level_num, data_ts0.data());
         }
-        printf("Compressor = %s\n", compressor_names[current_method].data());
+        printf("Compressor = %s\n", compressor_names[current_method]);
 
         T *ts_dec_data;
         size_t compressed_size;

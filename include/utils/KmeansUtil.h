@@ -184,7 +184,7 @@ namespace SZ {
 
         // Algorithm as presented in section 2.2 of (Gronlund et al., 2017).
 
-        CostCalculator cost_calculator(sorted_array, n);
+        CostCalculator<DT> cost_calculator(sorted_array, n);
         Matrix<DT> D(k, n);
         Matrix<size_t> T(k, n);
 

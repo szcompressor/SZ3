@@ -306,13 +306,13 @@ namespace SZ {
         b[7] = (unsigned char) (num);
     }
 
-    int bytesToInt(const unsigned char *bytes) {
+    inline int bytesToInt(const unsigned char *bytes) {
         lfloat buf;
         memcpy(buf.byte, bytes, 4);
         return buf.ivalue;
     }
 
-    std::string floatToBinary(float f) {
+    inline std::string floatToBinary(float f) {
         lfloat u;
         u.value = f;
         std::string str(32, '0');

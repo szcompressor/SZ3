@@ -9,7 +9,6 @@
 #include "utils/Iterator.hpp"
 #include "utils/MemoryUtil.hpp"
 #include "utils/Config.hpp"
-#include "utils/FileUtil.h"
 #include "def.hpp"
 #include <cstring>
 
@@ -158,7 +157,7 @@ namespace SZ {
 
             lossless.postdecompress_data(compressed_data);
 
-            auto dec_data = std::make_unique<T[]>(num_elements);
+            auto dec_data = new T[num_elements];
 
             quantizer.predecompress_data();
 
@@ -204,7 +203,7 @@ namespace SZ {
 
             quantizer.postdecompress_data();
             encoder.postprocess_decode();
-            return dec_data.release();
+            return dec_data;
         }
 
 
