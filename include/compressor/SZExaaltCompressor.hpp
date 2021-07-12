@@ -38,7 +38,7 @@ namespace SZ {
         void set_level(float level_start_, float level_offset_, int level_num_) {
             this->level_start = level_start_;
             this->level_offset = level_offset_;
-            this->level_num = level_num_ + 100;
+            this->level_num = level_num_ + 200;
         }
 
         inline int quantize_to_level(T data) {
