@@ -1,4 +1,4 @@
-MMD-SZ: A Modular Error-bounded Lossy Compressor Optimized for Molecular Dynamics
+MMD-SZ(MDZ): A Modular Error-bounded Lossy Compressor Optimized for Molecular Dynamics
 =====
 (C) 2021 by Mathematics and Computer Science (MCS), Argonne National Laboratory.
 See COPYRIGHT in top-level directory.
