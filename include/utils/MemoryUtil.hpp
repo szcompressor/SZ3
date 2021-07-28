@@ -10,7 +10,7 @@ namespace SZ {
     // read array
     template<class T1>
     void read(T1 *array, size_t num_elements, uchar const *&compressed_data_pos, size_t &remaining_length) {
-        assert(num_elements * sizeof(T1) < remaining_length);
+        assert(num_elements * sizeof(T1) <= remaining_length);
         memcpy(array, compressed_data_pos, num_elements * sizeof(T1));
         remaining_length -= num_elements * sizeof(T1);
         compressed_data_pos += num_elements * sizeof(T1);
@@ -19,7 +19,7 @@ namespace SZ {
     // read variable
     template<class T1>
     void read(T1 &var, uchar const *&compressed_data_pos, size_t &remaining_length) {
-        assert(sizeof(T1) < remaining_length);
+        assert(sizeof(T1) <= remaining_length);
         memcpy(&var, compressed_data_pos, sizeof(T1));
         remaining_length -= sizeof(T1);
         compressed_data_pos += sizeof(T1);
