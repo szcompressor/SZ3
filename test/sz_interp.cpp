@@ -224,7 +224,7 @@ interp_compress_decompress(char *path, float *data, size_t num, double eb, int i
 //        SZ::writefile(error_file.c_str(), error.data(), num);
         auto compression_ratio = num * sizeof(float) * 1.0 / compressed_size;
         printf("PSNR = %f, NRMSE = %.10G, Compression Ratio = %.2f\n", psnr, nrmse, compression_ratio);
-        std::cout << "FINAL " << compression_ratio
+        std::cout << "Options " << compression_ratio
                   << " " << interp_level
                   << " " << interp_op
                   << " " << direction_op
@@ -615,8 +615,8 @@ void interp_meta_tuning(char *path, double reb, Dims ... args) {
         auto result = interp_compress_decompress<N>(path, data.get(), num, eb, interp_level, interp_op, direction_op,
                                                     block_size,
                                                     interp_block_size, sz_op, args...);
-        printf("PSNR = %f, NRMSE = %.10G, Compression Ratio = %.2f\n", result.psnr, result.nrmse,
-               result.ratio);
+//        printf("PSNR = %f, NRMSE = %.10G, Compression Ratio = %.2f\n", result.psnr, result.nrmse,
+//               result.ratio);
         std::cout << "Total compress time = " << tuning_time + result.compress_time << std::endl;
         std::cout << "Total decompress time = " << result.decompress_time << std::endl;
         std::cout << "==================================== END SZ-Interp ===================================" << std::endl;
