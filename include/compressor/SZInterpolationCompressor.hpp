@@ -104,8 +104,8 @@ namespace SZ {
             T *dec_data = new T[num_elements];
 
 //            quantizer.set_eb(eb);
-            Timer timer;
-            timer.start();
+//            Timer timer;
+//            timer.start();
 
             *dec_data = quantizer.recover(0, quant_inds[quant_index++]);
 
@@ -136,7 +136,7 @@ namespace SZ {
             }
             std::cout << "Total quant element = " << quant_inds.size() << std::endl;
             quantizer.postdecompress_data();
-            timer.stop("Interpolation Decompress");
+//            timer.stop("Interpolation Decompress");
 
             return dec_data;
         }
