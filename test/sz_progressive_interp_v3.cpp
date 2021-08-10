@@ -67,7 +67,7 @@ interp_compress_decompress(char *path, float *data, size_t num, double eb, int i
         std::cout << "Compression time = " << compress_time << "s" << std::endl;
         std::cout << "Compressed size = " << total_compressed_size << std::endl;
         std::cout << "Compression ratio = " << compression_ratio << std::endl;
-        exit(0);
+//        exit(0);
     }
     {
         struct timespec start, end;

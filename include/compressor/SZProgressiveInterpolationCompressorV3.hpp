@@ -79,97 +79,134 @@ namespace SZ {
             uchar const *data_header = lossless_data;
 
             read(global_dimensions.data(), N, data_header, remaining_length);
-            size_t num_elements = std::accumulate(global_dimensions.begin(), global_dimensions.end(), 1, std::multiplies<T>());
-
+            read(core_dimensions.data(), N, data_header, remaining_length);
             read(interp_block_limit, data_header, remaining_length);
-            lossless_data += lossless_size[lossless_id];
-            lossless_id++;
+            size_t num_elements = std::accumulate(global_dimensions.begin(), global_dimensions.end(), 1, std::multiplies<T>());
+            size_t core_num_elements = std::accumulate(core_dimensions.begin(), core_dimensions.end(), 1, std::multiplies<>());
+            size_t block_num_elements = round(pow(block_size + 1, N));
 
             T *dec_data = new T[num_elements];
-            size_t quant_inds_count = 0;
+            std::vector<T> core_data(core_num_elements);
 
-            for (uint level = levels; level > level_fill; level--) {
-                Timer timer(true);
-                size_t stride = 1U << (level - 1);
+            read(core_data[0], data_header, remaining_length);
+            lossless_data += lossless_size[lossless_id++];
 
-                if (level > level_independent) {
-                    lossless_decode(lossless_data, lossless_size, lossless_id++);
+            size_t quant_inds_count = 1;
 
-                    if (level == levels) {
-                        *dec_data = quantizer.recover(0, quant_inds[quant_index++]);
+            {
+                dimension_offsets[N - 1] = 1;
+                for (int i = N - 2; i >= 0; i--) {
+                    dimension_offsets[i] = dimension_offsets[i + 1] * core_dimensions[i + 1];
+                }
+                for (uint level = levels; level > level_independent; level--) {
+                    uint stride = 1U << ((level - level_independent) - 1);
+
+                    if (level > level_fill) {
+                        lossless_decode(lossless_data, lossless_size, lossless_id++);
                     }
 
-                    auto block_range = std::make_shared<
-                            SZ::multi_dimensional_range<T, N>>(dec_data,
-                                                               std::begin(global_dimensions), std::end(global_dimensions),
-                                                               stride * interp_block_limit, 0);
+                    auto block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
+                            core_data.data(), std::begin(core_dimensions), std::end(core_dimensions), stride * interp_block_limit, 0);
                     for (auto block = block_range->begin(); block != block_range->end(); ++block) {
                         auto end_idx = block.get_global_index();
                         for (int i = 0; i < N; i++) {
                             end_idx[i] += stride * interp_block_limit;
-                            if (end_idx[i] > global_dimensions[i] - 1) {
-                                end_idx[i] = global_dimensions[i] - 1;
+                            if (end_idx[i] > core_dimensions[i] - 1) {
+                                end_idx[i] = core_dimensions[i] - 1;
                             }
                         }
-                        block_interpolation(dec_data, block.get_global_index(), end_idx, PB_recover,
+                        block_interpolation(core_data.data(), block.get_global_index(), end_idx,
+                                            (level > level_fill ? PB_recover : PB_fill),
                                             interpolators[interpolator_id], direction_sequence_id, stride, true);
                     }
                     quantizer.postdecompress_data();
                     std::cout << "Level = " << level << " , quant size = " << quant_inds.size() << std::endl;
                     quant_inds_count += quant_index;
-                } else {
-                    auto block_range = std::make_shared<
-                            SZ::multi_dimensional_range<T, N>>(dec_data, std::begin(global_dimensions),
-                                                               std::end(global_dimensions),
-                                                               block_size, 0);
-                    size_t nBlock = 0;
-                    for (auto block = block_range->begin(); block != block_range->end(); ++block, nBlock++) {
+                }
+            }
+
+            {
+                std::vector<T> block_data(block_num_elements);
+                auto global_range_inter = std::make_shared<SZ::multi_dimensional_range<T, N>>(
+                        dec_data, std::begin(global_dimensions), std::end(global_dimensions), block_size, 0);
+                auto global_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
+                        dec_data, std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
+
+                auto core_range_inter = std::make_shared<SZ::multi_dimensional_range<T, N>>(
+                        core_data.data(), std::begin(core_dimensions), std::end(core_dimensions), core_blocksize, 0);
+                auto core_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
+                        core_data.data(), std::begin(core_dimensions), std::end(core_dimensions), 1, 0);
+
+                std::vector<size_t> quant_size(level_independent + 1, 0);
+                std::vector<double> comp_time(level_independent + 1, 0);
+
+                size_t nBlock = 0;
+                std::array<size_t, N> block_dims, core_block_dims, block_start_idx, block_end_idx;
+                block_start_idx.fill(0);
+                auto block = global_range_inter->begin();
+                auto core_block = core_range_inter->begin();
+                for (; block != global_range_inter->end(); ++block, nBlock++, ++core_block) {
+                    for (int i = 0; i < N; i++) {
+                        block_dims[i] = std::min(global_dimensions[i] - block.get_local_index(i) * block_size, block_size + 1);
+                        core_block_dims[i] = std::min(core_dimensions[i] - core_block.get_local_index(i) * core_blocksize, core_blocksize + 1);
+                        block_end_idx[i] = block_dims[i] - 1;
+                    }
+                    dimension_offsets[N - 1] = 1;
+                    for (int i = N - 2; i >= 0; i--) {
+                        dimension_offsets[i] = dimension_offsets[i + 1] * block_dims[i + 1];
+                    }
+
+                    {
+                        auto block_range_inter = std::make_shared<SZ::multi_dimensional_range<T, N>>(
+                                block_data.data(), std::begin(block_dims), std::end(block_dims), core_stride, 0);
+                        core_range->set_dimensions(core_block_dims.begin(), core_block_dims.end());
+                        core_range->set_offsets(core_block.get_offset());
+                        core_range->set_starting_position(core_block.get_local_index());
+
+                        auto block_iter = block_range_inter->begin();
+                        auto core_iter = core_range->begin();
+                        for (; core_iter != core_range->end(); ++core_iter, ++block_iter) {
+                            *block_iter = *core_iter;
+                        }
+
+                    }
+
+                    for (uint level = level_independent; level > level_fill; level--) {
+                        Timer timer(true);
+                        size_t stride = 1U << (level - 1);
                         lossless_decode(lossless_data, lossless_size, lossless_id++);
 
-                        auto end_idx = block.get_global_index();
-                        for (int i = 0; i < N; i++) {
-                            end_idx[i] += block_size - 1;
-                            if (end_idx[i] > global_dimensions[i] - 1) {
-                                end_idx[i] = global_dimensions[i] - 1;
-                            }
-                        }
-                        auto first = block_range->begin();
-                        *first = quantizer.recover(0, quant_inds[quant_index++]);
-
-                        block_interpolation(dec_data, block.get_global_index(), end_idx, PB_recover,
+                        block_interpolation(block_data.data(), block_start_idx, block_end_idx, PB_recover,
                                             interpolators[interpolator_id], direction_sequence_id, stride, false);
 
                         quantizer.postdecompress_data();
                         quant_inds_count += quant_index;
+
+//                        timer.stop("Level Decompress");
+
                     }
-                    std::cout << "Level = " << level << " , #blocks = " << nBlock << std::endl;
-                }
-                timer.stop("Level Decompress");
+                    for (uint level = level_fill; level > 0; level--) {
+                        lossless_data += lossless_size[lossless_id++];
+                        size_t stride = 1U << (level - 1);
+                        block_interpolation(block_data.data(), block_start_idx, block_end_idx, PB_fill,
+                                            interpolators[interpolator_id], direction_sequence_id, stride, false);
+                    }
 
-            }
-
-            for (uint level = level_fill; level > 0; level--) {
-                Timer timer(true);
-                size_t stride = 1U << (level - 1);
-
-                auto block_range = std::make_shared<
-                        SZ::multi_dimensional_range<T, N>>(dec_data,
-                                                           std::begin(global_dimensions), std::end(global_dimensions),
-                                                           stride * interp_block_limit, 0);
-                for (auto block = block_range->begin(); block != block_range->end(); ++block) {
-                    auto end_idx = block.get_global_index();
-                    for (int i = 0; i < N; i++) {
-                        end_idx[i] += stride * interp_block_limit;
-                        if (end_idx[i] > global_dimensions[i] - 1) {
-                            end_idx[i] = global_dimensions[i] - 1;
+                    {
+                        auto block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
+                                block_data.data(), std::begin(block_dims), std::end(block_dims), 1, 0);
+                        global_range->set_dimensions(block_dims.begin(), block_dims.end());
+                        global_range->set_offsets(block.get_offset());
+                        global_range->set_starting_position(block.get_local_index());
+                        auto block_iter = block_range->begin();
+                        auto global_iter = global_range->begin();
+                        for (; global_iter != global_range->end(); ++global_iter, ++block_iter) {
+                            *global_iter = *block_iter;
                         }
                     }
-                    block_interpolation(dec_data, block.get_global_index(), end_idx, PB_fill,
-                                        interpolators[interpolator_id], direction_sequence_id, stride, true);
                 }
-                std::cout << "Fill Level = " << level << " " << std::endl;
             }
-//            assert(num_elements == quant_inds_count);
+
             return dec_data;
         }
 
@@ -191,6 +228,11 @@ namespace SZ {
                                    new uchar[4 * num_elements * sizeof(T)] :
                                    new uchar[size_t(1.2 * num_elements) * sizeof(T)];
             uchar *lossless_data_pos = lossless_data;
+            write(global_dimensions.data(), N, lossless_data_pos);
+            write(core_dimensions.data(), N, lossless_data_pos);
+            write(interp_block_limit, lossless_data_pos);
+            write(data[0], lossless_data_pos);
+            lossless_size.push_back(lossless_data_pos - lossless_data);
 
             {
                 auto core_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
@@ -207,15 +249,7 @@ namespace SZ {
             {
                 quant_inds.reserve(core_num_elements);
                 //            quantizer.set_eb(eb * eb_ratio);
-
-
                 Timer timer(true);
-
-
-                write(global_dimensions.data(), N, lossless_data_pos);
-                write(interp_block_limit, lossless_data_pos);
-                write(data[0], lossless_data_pos);
-                lossless_size.push_back(lossless_data_pos - lossless_data);
 
                 dimension_offsets[N - 1] = 1;
                 for (int i = N - 2; i >= 0; i--) {
