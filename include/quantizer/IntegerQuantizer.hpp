@@ -182,6 +182,13 @@ namespace SZ {
 
         virtual void predecompress_data() {};
 
+        std::vector<T> get_unpred() {
+            return unpred;
+        }
+
+        void set_unpred(std::vector<T> &u) {
+            unpred = u;
+        }
 
     private:
         std::vector<T> unpred;

@@ -111,7 +111,6 @@ namespace SZ {
             }
 
 
-
             std::array<size_t, N> get_global_index() const {
                 auto offset = global_offset;
                 std::array<size_t, N> global_idx{0};
@@ -125,6 +124,7 @@ namespace SZ {
             std::array<size_t, N> get_local_index() const {
                 return local_index;
             }
+
             size_t get_local_index(size_t i) const {
                 return local_index[i];
             }
@@ -189,17 +189,25 @@ namespace SZ {
             }
 
             void print() {
-                std::cout << "(";
+                std::cout << "local_index=(";
                 for (auto const &i:local_index) {
                     std::cout << i << ",";
                 }
-                std::cout << "),[";
+                std::cout << "),local_dim=[";
                 for (auto const &i:range->dimensions) {
+                    std::cout << i << ",";
+                }
+                std::cout << "]" << " ";
+                std::cout << "global_index=(";
+                for (auto const &i:get_global_index()) {
+                    std::cout << i << ",";
+                }
+                std::cout << "),global_dim=[";
+                for (auto const &i:range->global_dimensions) {
                     std::cout << i << ",";
                 }
                 std::cout << "]" << std::endl;
             }
-
 
 
         private:

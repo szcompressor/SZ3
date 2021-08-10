@@ -5,6 +5,8 @@ set(exes sz_demo
         test_arithmetic_coding
         sz_interp
         sz_progressive_interp
+        sz_progressive_interp_v2
+        sz_progressive_interp_v3
         sz_rtm
         sz_interp_double
         )
