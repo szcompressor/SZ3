@@ -61,7 +61,7 @@ interp_compress_decompress_nowritefile(char *path, float *data, size_t num, doub
             (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000;
     auto compression_ratio = num * sizeof(float) * 1.0 / compressed_size;
     compressInfo.compress_time = compress_time;
-    std::cout << "LEVEL2 Interp compression time = " << compress_time << "s" << std::endl;
+    std::cout << "Interp compression time = " << compress_time << "s" << std::endl;
     std::cout << "Compressed size = " << compressed_size << std::endl;
     std::cout << "Compression ratio = " << compression_ratio << std::endl;
 
@@ -89,7 +89,7 @@ interp_compress_decompress_nowritefile(char *path, float *data, size_t num, doub
     double decompress_time =
             (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000;
     compressInfo.decompress_time = decompress_time;
-    std::cout << "LEVEL2 Interp decompression time = " << decompress_time << "s" << std::endl;
+    std::cout << "Interp decompression time = " << decompress_time << "s" << std::endl;
 
     size_t num1 = 0;
     auto ori_data = SZ::readfile<float>(path, num1);
@@ -99,7 +99,7 @@ interp_compress_decompress_nowritefile(char *path, float *data, size_t num, doub
 
     compression_ratio = num * sizeof(float) * 1.0 / compressed_size;
     printf("PSNR = %f, NRMSE = %.10G, Compression Ratio = %.2f\n", psnr, nrmse, compression_ratio);
-    std::cout << "LEVEL2 " << compression_ratio
+    std::cout << "FINAL " << compression_ratio
               << " " << interp_level
               << " " << interp_op
               << " " << direction_op
@@ -156,7 +156,7 @@ interp_compress_decompress(char *path, float *data, size_t num, double eb, int i
                 (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000;
         auto compression_ratio = num * sizeof(float) * 1.0 / compressed_size;
         compressInfo.compress_time = compress_time;
-        std::cout << "LEVEL2 Interp compression time = " << compress_time << "s" << std::endl;
+        std::cout << "Compression time = " << compress_time << "s" << std::endl;
         std::cout << "Compressed size = " << compressed_size << std::endl;
         std::cout << "Compression ratio = " << compression_ratio << std::endl;
 
@@ -199,7 +199,7 @@ interp_compress_decompress(char *path, float *data, size_t num, double eb, int i
         double decompress_time =
                 (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000;
         compressInfo.decompress_time = decompress_time;
-        std::cout << "LEVEL2 Interp decompression time = " << decompress_time << "s" << std::endl;
+        std::cout << "Decompression time = " << decompress_time << "s" << std::endl;
 
 //        std::string decompressed_file_name(path);
 //        std::stringstream ss;
@@ -224,7 +224,7 @@ interp_compress_decompress(char *path, float *data, size_t num, double eb, int i
 //        SZ::writefile(error_file.c_str(), error.data(), num);
         auto compression_ratio = num * sizeof(float) * 1.0 / compressed_size;
         printf("PSNR = %f, NRMSE = %.10G, Compression Ratio = %.2f\n", psnr, nrmse, compression_ratio);
-        std::cout << "LEVEL2 " << compression_ratio
+        std::cout << "Options " << compression_ratio
                   << " " << interp_level
                   << " " << interp_op
                   << " " << direction_op
@@ -292,7 +292,7 @@ interp_compress_test_block(float *data, size_t num, double eb, int interp_level,
     auto compression_ratio = num * sizeof(float) * 1.0 / compressed_size;
     std::cout << "Compressed size = " << compressed_size << std::endl;
     std::cout << "Compression ratio = " << compression_ratio << std::endl;
-    std::cout << "LEVEL1 Interp Compression time = " << compression_time
+    std::cout << "Tuning Interp Compression time = " << compression_time
               << " Ratio = " << compression_ratio
               << " Params = " << interp_level
               << " " << interp_op
@@ -346,7 +346,7 @@ double interp_compress_test(float *data, size_t num, double eb, int interp_level
     auto compression_ratio = num * sizeof(float) * 1.0 / compressed_size;
     std::cout << "Compressed size = " << compressed_size << std::endl;
     std::cout << "Compression ratio = " << compression_ratio << std::endl;
-    std::cout << "LEVEL1 Interp Compression time = " << compression_time
+    std::cout << "Tuning Interp Compression time = " << compression_time
               << " Ratio = " << compression_ratio
               << " Params = " << interp_level
               << " " << interp_op
@@ -387,7 +387,7 @@ META::meta_compress_info interp_tuning(char *path, double reb, Dims ... args) {
             interp_op = i;
         }
     }
-    std::cout << "LEVEL1 best interp_op = " << interp_op << " , best ratio = " << best_ratio << std::endl;
+    std::cout << "Tuning best interp_op = " << interp_op << " , best ratio = " << best_ratio << std::endl;
 
     int direction_op_reverse = std::tgamma(N + 1) - 1;
     ratio = interp_compress_test<N>(data.get(), num, eb, interp_level, interp_op, direction_op_reverse, block_size, interp_block_size,
@@ -397,7 +397,7 @@ META::meta_compress_info interp_tuning(char *path, double reb, Dims ... args) {
         best_ratio = ratio;
         direction_op = direction_op_reverse;
     }
-    std::cout << "LEVEL1 best direction_op = " << direction_op << " , best ratio = " << best_ratio << std::endl;
+    std::cout << "Tuning best direction_op = " << direction_op << " , best ratio = " << best_ratio << std::endl;
 
     return interp_compress_decompress<N>(path, data.get(), num, eb, interp_level, interp_op, direction_op, block_size,
                                          interp_block_size, sz_op,
@@ -443,6 +443,9 @@ float cal_sampling_ratio(size_t block, size_t n, size_t dmin, std::array<size_t,
 
 template<uint N, class ... Dims>
 void interp_meta_tuning(char *path, double reb, Dims ... args) {
+    std::cout << "================================ BEGIN TUNING ================================" << std::endl;
+
+
     size_t num = 0;
     auto data = SZ::readfile<float>(path, num);
     std::cout << "Read " << num << " elements\n";
@@ -505,7 +508,7 @@ void interp_meta_tuning(char *path, double reb, Dims ... args) {
     clock_gettime(CLOCK_REALTIME, &end1);
     auto sampling_time =
             (double) (end1.tv_sec - start1.tv_sec) + (double) (end1.tv_nsec - start1.tv_nsec) / (double) 1000000000;
-    printf("LEVEL1 sampling block = %d percent = %.3f%% Time = %.3f \n", sampling_block, sampling_num * 100.0 / num,
+    printf("Tuning sampling block = %d percent = %.3f%% Time = %.3f \n", sampling_block, sampling_num * 100.0 / num,
            sampling_time);
 //        for (size_t i = 0; i < sampling_num; i++) {
 //            if (debug[i] != 1) {
@@ -521,7 +524,7 @@ void interp_meta_tuning(char *path, double reb, Dims ... args) {
     SZ_Option sz_op = SZ_LR;
 
     auto result_meta = meta_compress_3d(sampling_data.data(), sampling_num, r1, r2, r3, eb, meta_params);
-    printf("LEVEL1 meta ratio = %.2f, lorenzo:%d, lorenzo2:%d, pred_dim:%d compress_time:%.3f\n",
+    printf("Tuning meta ratio = %.2f, lorenzo:%d, lorenzo2:%d, pred_dim:%d compress_time:%.3f\n",
            result_meta.ratio, meta_params.use_lorenzo, meta_params.use_lorenzo_2layer, meta_params.prediction_dim,
            result_meta.compress_time);
 
@@ -534,7 +537,7 @@ void interp_meta_tuning(char *path, double reb, Dims ... args) {
             interp_op = i;
         }
     }
-    std::cout << "LEVEL1 interp best interp_op = " << interp_op << " , best ratio = " << best_interp_ratio << std::endl;
+    std::cout << "Tuning interp best interp_op = " << interp_op << " , best ratio = " << best_interp_ratio << std::endl;
 
     ratio = interp_compress_test_block<N>(sampling_data.data(), sampling_num, eb, interp_level, interp_op, 5,
                                           block_size,
@@ -543,13 +546,13 @@ void interp_meta_tuning(char *path, double reb, Dims ... args) {
         best_interp_ratio = ratio;
         direction_op = 5;
     }
-    std::cout << "LEVEL1 interp best direction_op = " << direction_op << " , best ratio = " << best_interp_ratio
+    std::cout << "Tuning interp best direction_op = " << direction_op << " , best ratio = " << best_interp_ratio
               << std::endl;
 
     meta = result_meta.ratio > best_interp_ratio && result_meta.ratio < 80 && best_interp_ratio < 80;
-    printf("LEVEL2 meta Compression Ratio = %.2f\n", result_meta.ratio);
-    printf("LEVEL2 interp Compression Ratio = %.2f\n", best_interp_ratio);
-    printf("LEVEL2 tuning choose %s\n", meta ? "meta" : "interp");
+    printf("Meta Compression Ratio = %.2f\n", result_meta.ratio);
+    printf("Interp Compression Ratio = %.2f\n", best_interp_ratio);
+    printf("choose %s\n", meta ? "meta" : "interp");
 
     if (meta) {
         int capacity = 65536 * 2;
@@ -560,7 +563,7 @@ void interp_meta_tuning(char *path, double reb, Dims ... args) {
 
         meta_params.prediction_dim = 2;
         result_meta = meta_compress_3d(sampling_data.data(), sampling_num, r1, r2, r3, eb, meta_params);
-        printf("LEVEL1 meta ratio = %.2f, lorenzo:%d, lorenzo2:%d, pred_dim:%d compress_time:%.3f\n",
+        printf("Tuning meta ratio = %.2f, lorenzo:%d, lorenzo2:%d, pred_dim:%d compress_time:%.3f\n",
                result_meta.ratio, meta_params.use_lorenzo, meta_params.use_lorenzo_2layer, meta_params.prediction_dim,
                result_meta.compress_time);
         if (result_meta.ratio > best_meta_ratio * 1.02) {
@@ -572,7 +575,7 @@ void interp_meta_tuning(char *path, double reb, Dims ... args) {
         if (reb < 1.01e-6 && best_interp_ratio > 5) {
             meta_params.capacity = 16384;
             result_meta = meta_compress_3d(sampling_data.data(), sampling_num, r1, r2, r3, eb, meta_params);
-            printf("LEVEL1 meta ratio = %.2f, lorenzo:%d, lorenzo2:%d, pred_dim:%d compress_time:%.3f\n",
+            printf("Tuning meta ratio = %.2f, lorenzo:%d, lorenzo2:%d, pred_dim:%d compress_time:%.3f\n",
                    result_meta.ratio, meta_params.use_lorenzo, meta_params.use_lorenzo_2layer,
                    meta_params.prediction_dim,
                    result_meta.compress_time);
@@ -587,30 +590,36 @@ void interp_meta_tuning(char *path, double reb, Dims ... args) {
         clock_gettime(CLOCK_REALTIME, &end);
         auto tuning_time =
                 (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000;
-        std::cout << "LEVEL2 Tuning time = " << tuning_time << "s" << std::endl;
+        std::cout << "Tuning time = " << tuning_time << "s" << std::endl;
+        std::cout << "================================ END TUNING ================================" << std::endl << std::endl;
+        std::cout << "================================ BEGIN SZ-META================================" << std::endl;
 
         meta_params.print();
         auto result = meta_compress_decompress_3d(data.get(), num, dims[0], dims[1], dims[2], eb, meta_params, true);
-        printf("LEVEL2 TUNING meta PSNR = %f, NRMSE = %.10G, Compression Ratio = %.2f\n", result.psnr, result.nrmse,
+        printf("PSNR = %f, NRMSE = %.10G, Compression Ratio = %.2f\n", result.psnr, result.nrmse,
                result.ratio);
-        std::cout << "LEVEL2 total compress time = " << tuning_time + result.compress_time << std::endl;
-        std::cout << "LEVEL2 total decompress time = " << result.decompress_time << std::endl;
+        std::cout << "Total compress time = " << tuning_time + result.compress_time << std::endl;
+        std::cout << "Total decompress time = " << result.decompress_time << std::endl;
+        std::cout << "==================================== END SZ-META ===================================" << std::endl;
 
     } else {
         clock_gettime(CLOCK_REALTIME, &end);
         auto tuning_time =
                 (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000;
-        std::cout << "LEVEL2 Tuning time = " << tuning_time << "s" << std::endl;
+        std::cout << "Tuning time = " << tuning_time << "s" << std::endl;
+        std::cout << "====================================== END TUNING ======================================" << std::endl << std::endl;
+        std::cout << "==================================== BEGIN SZ-Interp ===================================" << std::endl;
 
         block_size = 6;
         interp_block_size = 32;
         auto result = interp_compress_decompress<N>(path, data.get(), num, eb, interp_level, interp_op, direction_op,
                                                     block_size,
                                                     interp_block_size, sz_op, args...);
-        printf("LEVEL2 TUNING interp PSNR = %f, NRMSE = %.10G, Compression Ratio = %.2f\n", result.psnr, result.nrmse,
-               result.ratio);
-        std::cout << "LEVEL2 total compress time = " << tuning_time + result.compress_time << std::endl;
-        std::cout << "LEVEL2 total decompress time = " << result.decompress_time << std::endl;
+//        printf("PSNR = %f, NRMSE = %.10G, Compression Ratio = %.2f\n", result.psnr, result.nrmse,
+//               result.ratio);
+        std::cout << "Total compress time = " << tuning_time + result.compress_time << std::endl;
+        std::cout << "Total decompress time = " << result.decompress_time << std::endl;
+        std::cout << "==================================== END SZ-Interp ===================================" << std::endl;
     }
 }
 
