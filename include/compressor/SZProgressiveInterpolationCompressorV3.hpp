@@ -428,13 +428,13 @@ namespace SZ {
                 quant_inds.resize(quant_size);
                 read(quant_inds.data(), quant_size, compressed_data_pos, remaining_length);
             } else {
-//                int min;
-//                read(min, compressed_data_pos, remaining_length);
+                int min;
+                read(min, compressed_data_pos, remaining_length);
                 encoder.load(compressed_data_pos, remaining_length);
                 quant_inds = encoder.decode(compressed_data_pos, quant_size);
-//                for (auto &q:quant_inds) {
-//                    q += min;
-//                }
+                for (auto &q:quant_inds) {
+                    q += min;
+                }
                 encoder.postprocess_decode();
             }
             quant_index = 0;
@@ -456,16 +456,16 @@ namespace SZ {
             if (quant_inds.size() < 128) {
                 write(quant_inds.data(), quant_inds.size(), compressed_data_pos);
             } else {
-//                auto mm = std::minmax_element(quant_inds.begin(), quant_inds.end());
-//                int max = *mm.second, min = *mm.first;
-////                printf("quant_max=%d, quant_min=%d\n", max, min);
-//                for (auto &q:quant_inds) {
-//                    q -= min;
-//                }
-                encoder.preprocess_encode(quant_inds, 4 * quantizer.get_radius());
-//                encoder.preprocess_encode(quant_inds, max - min + 1);
+                auto mm = std::minmax_element(quant_inds.begin(), quant_inds.end());
+                int max = *mm.second, min = *mm.first;
+//                printf("quant_max=%d, quant_min=%d\n", max, min);
+                for (auto &q:quant_inds) {
+                    q -= min;
+                }
+//                encoder.preprocess_encode(quant_inds, 4 * quantizer.get_radius());
+                encoder.preprocess_encode(quant_inds, max - min + 10);
 
-//                write(min, compressed_data_pos);
+                write(min, compressed_data_pos);
                 encoder.save(compressed_data_pos);
 
                 encoder.encode(quant_inds, compressed_data_pos);
