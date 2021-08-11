@@ -482,6 +482,7 @@ namespace SZ {
             memcpy(lossless_data_pos, lossless_data_cur_level, size);
             lossless_data_pos += size;
             lossless_size.push_back(size);
+            delete[]lossless_data_cur_level;
 
             quant_inds.clear();
 

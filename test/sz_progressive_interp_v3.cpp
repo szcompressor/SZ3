@@ -110,7 +110,8 @@ interp_compress_decompress(char *path, float *data, size_t num, double eb, int i
         assert(num1 == num);
         double psnr, nrmse;
         SZ::verify<float>(ori_data.get(), dec_data, num, psnr, nrmse);
-
+        delete[]dec_data;
+        delete[]compressed;
 //        std::vector<float> error(num);
 //        for (size_t i = 0; i < num; i++) {
 //            error[i] = ori_data[i] - dec_data[i];
