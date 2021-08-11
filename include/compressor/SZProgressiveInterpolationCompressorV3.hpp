@@ -44,7 +44,7 @@ namespace SZ {
 
             assert(interp_dim_limit % 2 == 0 &&
                    "Interpolation dimension should be even numbers to avoid extrapolation");
-            level_independent = 0;
+            level_independent = 1;
             core_stride = round(pow(2, level_independent));
             core_blocksize = interp_block_size / core_stride;
             block_size = core_blocksize * core_stride;
