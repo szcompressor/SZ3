@@ -10,7 +10,7 @@
 #include <cstring>
 #include <cstdio>
 #include <iostream>
-#include <unordered_map>
+#include <map>
 
 namespace SZ {
 
@@ -499,7 +499,7 @@ namespace SZ {
             if (length == 0) {
                 return;
             }
-            std::unordered_map<T, size_t> frequency;
+            std::map<T, size_t> frequency;
             T max = s[0];
             offset = s[0]; //offset is min
             for (size_t i = 0; i < length; i++) {
@@ -515,8 +515,8 @@ namespace SZ {
             int stateNum = max - offset + 2;
             huffmanTree = createHuffmanTree(stateNum);
 
-            for (const auto &[value, freq]:frequency) {
-                qinsert(new_node(freq, value - offset, 0, 0));
+            for (const auto& f:frequency) {
+                qinsert(new_node(f.second, f.first - offset, 0, 0));
             }
 
             while (huffmanTree->qend > 2)
