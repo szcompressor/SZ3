@@ -30,6 +30,58 @@ namespace SZ {
     }
 
     template<typename Type>
+    void verify(const char *ori_datafile, const char *dec_datafile, size_t num_elements, double &psnr, double &nrmse) {
+        std::ifstream fori(ori_datafile, std::ios::binary);
+        std::ifstream fdec(dec_datafile, std::ios::binary);
+        if (!fori || !fdec) {
+            std::cout << " Error, Couldn't find the file" << "\n";
+            exit(0);
+        }
+
+        size_t buffer_size = 1000 * 1000, start = 0;
+        std::vector<Type> data(buffer_size), ori_data(buffer_size);
+
+        double max = std::numeric_limits<Type>::min();
+        double min = std::numeric_limits<Type>::max();
+        double max_err = 0;
+        double maxpw_relerr = 0;
+        double l2_err = 0;
+
+        while (start < num_elements) {
+            size_t size = num_elements - start > buffer_size ? buffer_size : num_elements - start;
+            fori.read(reinterpret_cast<char *>(&ori_data[0]), size * sizeof(Type));
+            fdec.read(reinterpret_cast<char *>(&data[0]), size * sizeof(Type));
+
+            for (size_t i = 0; i < size; i++) {
+                if (max < ori_data[i]) max = ori_data[i];
+                if (min > ori_data[i]) min = ori_data[i];
+                double err = fabs(data[i] - ori_data[i]);
+                if (ori_data[i] != 0) {
+                    double relerr = err / fabs(ori_data[i]);
+                    if (maxpw_relerr < relerr)
+                        maxpw_relerr = relerr;
+                }
+
+                if (max_err < err)
+                    max_err = err;
+                l2_err += err * err;
+            }
+            start += size;
+        }
+
+        double mse = l2_err / num_elements;
+        double range = max - min;
+        psnr = 20 * log10(range) - 10 * log10(mse);
+        nrmse = sqrt(mse) / range;
+
+        printf("min=%.20G, max=%.20G, range=%.20G\n", min, max, range);
+        printf("max absolute error = %.2G\n", max_err);
+        printf("max relative error = %.2G\n", max_err / (max - min));
+        printf("max pw relative error = %.2G\n", maxpw_relerr);
+        printf("PSNR = %f, NRMSE= %.10G\n", psnr, nrmse);
+    }
+
+    template<typename Type>
     void verify(Type *ori_data, Type *data, size_t num_elements, double &psnr, double &nrmse) {
         size_t i = 0;
         double Max = ori_data[0];

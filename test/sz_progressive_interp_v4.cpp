@@ -15,16 +15,15 @@
 #include <sstream>
 
 template<uint N, class ... Dims>
-META::meta_compress_info
-interp_compress_decompress(const char *path, size_t num, double eb, int interp_level, int interp_op,
-                           int direction_op, int block_size, int interp_block_size, Dims ... args) {
+void interp_compress_decompress(const char *path, double eb, int interp_level, int interp_op,
+                                int direction_op, int block_size, int interp_block_size, Dims ... args) {
 //    std::string ori_datafile(path);
-    META::meta_compress_info compressInfo;
 
     std::vector<size_t> compressed_size;
-    size_t total_compressed_size = 0;
     SZ::uchar *compressed;
-
+    double compression_ratio;
+    auto dims = std::array<size_t, N>{static_cast<size_t>(std::forward<Dims>(args))...};
+    size_t num = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>());
     {
 
         std::cout << "****************** compression ****************" << std::endl;
@@ -37,7 +36,6 @@ interp_compress_decompress(const char *path, size_t num, double eb, int interp_l
         clock_gettime(CLOCK_REALTIME, &start);
 
 
-        auto dims = std::array<size_t, N>{static_cast<size_t>(std::forward<Dims>(args))...};
         auto sz = SZ::SZProgressiveInterpolationCompressorV4<float, N, SZ::LinearQuantizer<float>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
                 SZ::LinearQuantizer<float>(eb),
                 SZ::HuffmanEncoder<int>(),
@@ -50,31 +48,27 @@ interp_compress_decompress(const char *path, size_t num, double eb, int interp_l
                 interp_level
         );
         compressed = sz.compress(path, compressed_size);
-        total_compressed_size = std::accumulate(compressed_size.begin(), compressed_size.end(), (size_t) 0);
+        size_t total_compressed_size = std::accumulate(compressed_size.begin(), compressed_size.end(), (size_t) 0);
 
         clock_gettime(CLOCK_REALTIME, &end);
         double compress_time =
                 (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000;
-        auto compression_ratio = num * sizeof(float) * 1.0 / total_compressed_size;
-        compressInfo.compress_time = compress_time;
+        compression_ratio = num * sizeof(float) * 1.0 / total_compressed_size;
         std::cout << "Compression time = " << compress_time << "s" << std::endl;
         std::cout << "Compressed size = " << total_compressed_size << std::endl;
         std::cout << "Compression ratio = " << compression_ratio << std::endl << std::endl;
 //        exit(0);
     }
+    std::string decompressed_file_name(path);
+    std::stringstream ss;
+    ss << decompressed_file_name.substr(decompressed_file_name.rfind('/') + 1) << ".sz3.out";
+    decompressed_file_name = ss.str();
+    std::cout << "decompressed file = " << decompressed_file_name << std::endl;
     {
         std::cout << "****************** Decompression ****************" << std::endl;
 
         struct timespec start, end;
         clock_gettime(CLOCK_REALTIME, &start);
-
-
-        std::string decompressed_file_name(path);
-        std::stringstream ss;
-        ss << decompressed_file_name.substr(decompressed_file_name.rfind('/') + 1)
-           << ".sz3.out";
-        decompressed_file_name = ss.str();
-        std::cout << "decompressed file = " << decompressed_file_name << std::endl;
 
         auto dims = std::array<size_t, N>{static_cast<size_t>(std::forward<Dims>(args))...};
         auto sz = SZ::SZProgressiveInterpolationCompressorV4<float, N, SZ::LinearQuantizer<float>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
@@ -90,45 +84,19 @@ interp_compress_decompress(const char *path, size_t num, double eb, int interp_l
         );
         sz.decompress(compressed, compressed_size, decompressed_file_name.c_str());
 
-
         clock_gettime(CLOCK_REALTIME, &end);
         double decompress_time =
                 (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000;
-        compressInfo.decompress_time = decompress_time;
         std::cout << "Decompression time = " << decompress_time << "s" << std::endl;
-
-
-        size_t num1 = 0;
-        auto ori_data = SZ::readfile<float>(path, num1);
-        auto dec_data = SZ::readfile<float>(decompressed_file_name.c_str(), num1);
-        remove(decompressed_file_name.c_str());
-        assert(num1 == num);
-        double psnr, nrmse;
-        SZ::verify<float>(ori_data.get(), dec_data.get(), num, psnr, nrmse);
-//        delete[]dec_data;
         delete[]compressed;
-//        std::vector<float> error(num);
-//        for (size_t i = 0; i < num; i++) {
-//            error[i] = ori_data[i] - dec_data[i];
-//        }
-//        std::string error_file(path);
-//        error_file += ".error";
-//        SZ::writefile(error_file.c_str(), error.data(), num);
-        auto compression_ratio = num * sizeof(float) * 1.0 / total_compressed_size;
-        printf("PSNR = %f, NRMSE = %.10G, Compression Ratio = %.2f\n", psnr, nrmse, compression_ratio);
-//        std::cout << "FINAL " << compression_ratio
-//                  << " " << interp_level
-//                  << " " << interp_op
-//                  << " " << direction_op
-//                  << " " << block_size
-//                  << " " << interp_block_size;
-//
-        compressInfo.psnr = psnr;
-        compressInfo.nrmse = nrmse;
-        compressInfo.ratio = compression_ratio;
-        return compressInfo;
 
     }
+
+    double psnr, nrmse;
+    SZ::verify<float>(path, decompressed_file_name.c_str(), num, psnr, nrmse);
+
+    printf("PSNR = %f, NRMSE = %.10G, Compression Ratio = %.2f\n", psnr, nrmse, compression_ratio);
+    remove(decompressed_file_name.c_str());
 
 }
 
@@ -143,7 +111,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < dim; i++) {
         dims[i] = atoi(argv[argp++]);
     }
-    float reb = atof(argv[argp++]);
+    float eb = atof(argv[argp++]);
 
     int interp_level = 1;
     int interp_op = 0; // linear
@@ -166,29 +134,18 @@ int main(int argc, char **argv) {
     if (argp < argc) {
         interp_block_size = atoi(argv[argp++]);
     }
-    size_t num = 0;
-
-    auto data = SZ::readfile<float>(argv[1], num);
-    float max = data[0];
-    float min = data[0];
-    for (int i = 1; i < num; i++) {
-        if (max < data[i]) max = data[i];
-        if (min > data[i]) min = data[i];
-    }
-    float eb = reb * (max - min);
-
 
     if (dim == 1) {
-        interp_compress_decompress<1>(argv[1], num, eb, interp_level, interp_op, direction_op, block_size,
+        interp_compress_decompress<1>(argv[1], eb, interp_level, interp_op, direction_op, block_size,
                                       interp_block_size, dims[0]);
     } else if (dim == 2) {
-        interp_compress_decompress<2>(argv[1], num, eb, interp_level, interp_op, direction_op, block_size,
+        interp_compress_decompress<2>(argv[1], eb, interp_level, interp_op, direction_op, block_size,
                                       interp_block_size, dims[0], dims[1]);
     } else if (dim == 3) {
-        interp_compress_decompress<3>(argv[1], num, eb, interp_level, interp_op, direction_op, block_size,
+        interp_compress_decompress<3>(argv[1], eb, interp_level, interp_op, direction_op, block_size,
                                       interp_block_size, dims[0], dims[1], dims[2]);
     } else if (dim == 4) {
-        interp_compress_decompress<4>(argv[1], num, eb, interp_level, interp_op, direction_op,
+        interp_compress_decompress<4>(argv[1], eb, interp_level, interp_op, direction_op,
                                       block_size, interp_block_size, dims[0], dims[1], dims[2], dims[3]);
     }
 
