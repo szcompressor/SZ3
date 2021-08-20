@@ -110,10 +110,6 @@ namespace SZ {
                 return global_offset != rhs.global_offset;
             }
 
-            bool operator<(multi_dimensional_iterator const &rhs) const {
-                return global_offset < rhs.global_offset;
-            }
-
             std::array<size_t, N> get_global_index() const {
                 auto offset = global_offset;
                 std::array<size_t, N> global_idx{0};
