@@ -110,6 +110,9 @@ namespace SZ {
                 return global_offset != rhs.global_offset;
             }
 
+            bool operator<(multi_dimensional_iterator const &rhs) const {
+                return global_offset < rhs.global_offset;
+            }
 
             std::array<size_t, N> get_global_index() const {
                 auto offset = global_offset;
@@ -157,28 +160,6 @@ namespace SZ {
             }
 
             // No support for carry set.
-            // For example, iterator in position (4,4) and dimension is 6x6, move(1,1) is supported but move (2,0) is not supported.
-            template<class... Args>
-            multi_dimensional_iterator &move(Args &&... pos) {
-                static_assert(sizeof...(Args) == N, "Must have the same number of arguments");
-                std::array<int, N> args{std::forward<Args>(pos)...};
-                return move2(args);
-            }
-
-            multi_dimensional_iterator &move2(std::array<int, N> args) {
-                for (int i = N - 1; i >= 0; i--) {
-                    if (args[i]) {
-                        assert(0 <= local_index[i] + args[i]);
-                        assert(local_index[i] + args[i] < range->dimensions[i]);
-                        local_index[i] += args[i];
-                        global_offset += args[i] * range->global_dim_strides[i];
-                    }
-                }
-                return *this;
-            }
-
-
-            // No support for carry set.
             template<class... Args>
             multi_dimensional_iterator &move() {
                 if (local_index[N - 1] < range->dimensions[N - 1] - 1) {
@@ -188,8 +169,53 @@ namespace SZ {
                 return *this;
             }
 
+            // No support for carry set.
+            // For example, when dimension is 6x6, moving from (4,4) to (5,5) is supported but moving from (4,4) to (5,0) is not supported
+            template<class... Args>
+            bool move(Args &&... pos) {
+                static_assert(sizeof...(Args) == N, "Must have the same number of arguments");
+                std::array<int, N> args{std::forward<Args>(pos)...};
+                for (int i = N - 1; i >= 0; i--) {
+                    if (args[i]) {
+                        if (0 > local_index[i] + args[i] || local_index[i] + args[i] >= range->dimensions[i]) {
+                            return false;
+                        }
+                        local_index[i] += args[i];
+                        global_offset += args[i] * range->global_dim_strides[i];
+                    }
+                }
+                return true;
+            }
+
+            bool move2(std::array<int, N> args) {
+                std::array<size_t, N> local_index_backup;
+                ptrdiff_t global_offset_backup = global_offset;
+                for (int i = N - 1; i > 0; i--) {
+                    local_index[i] += args[i];
+                    if (local_index[i] >= range->dimensions[i]) {
+                        local_index[i] -= range->dimensions[i];
+                        local_index[i - 1] += 1;
+                        global_offset += range->global_dim_strides[i - 1] - range->dimensions[i] * range->global_dim_strides[i];
+                    } else if (0 > local_index[i]) {
+                        local_index[i] += range->dimensions[i];
+                        local_index[i - 1] -= 1;
+                        global_offset -= range->global_dim_strides[i - 1] + range->dimensions[i] * range->global_dim_strides[i];
+                    }
+                    global_offset += args[i] * range->global_dim_strides[i];
+                }
+                local_index[0] += args[0];
+                if (local_index[0] >= range->dimensions[0] || 0 > local_index[0]) {
+                    local_index = local_index_backup;
+                    global_offset = global_offset_backup;
+                    return false;
+                }
+                global_offset += args[0] * range->global_dim_strides[0];
+                return true;
+            }
+
+
             void print() {
-                std::cout << "local_index=(";
+                std::cout << "global_offset=" << global_offset << ", local_index=(";
                 for (auto const &i:local_index) {
                     std::cout << i << ",";
                 }

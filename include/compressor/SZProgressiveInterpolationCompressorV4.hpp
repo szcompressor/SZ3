@@ -74,7 +74,7 @@ namespace SZ {
         }
 
 
-        T *decompress(uchar const *lossless_data, const std::vector<size_t> &lossless_size) {
+        void decompress(uchar const *lossless_data, const std::vector<size_t> &lossless_size, const char *dec_datafile) {
             int lossless_id = 0;
             size_t remaining_length = lossless_size[lossless_id];
             uchar const *data_header = lossless_data;
@@ -128,15 +128,16 @@ namespace SZ {
             }
 
             if (level_independent == 0) {
-                return core_data;
+                writefile(dec_datafile, core_data, num_elements);
             } else {
-                T *dec_data = new T[num_elements];
+                std::ofstream fout(dec_datafile, std::ios::binary|std::ios::out);
+//                T *dec_data = new T[num_elements];
 
                 std::vector<T> block_data(block_num_elements);
                 auto global_range_inter = std::make_shared<SZ::multi_dimensional_range<T, N>>(
-                        dec_data, std::begin(global_dimensions), std::end(global_dimensions), block_size, 0);
+                        nullptr, std::begin(global_dimensions), std::end(global_dimensions), block_size, 0);
                 auto global_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
-                        dec_data, std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
+                        nullptr, std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
 
                 auto core_range_inter = std::make_shared<SZ::multi_dimensional_range<T, N>>(
                         core_data, std::begin(core_dimensions), std::end(core_dimensions), core_blocksize, 0);
@@ -207,9 +208,14 @@ namespace SZ {
                         global_range->set_starting_position(block.get_local_index());
                         auto block_iter = block_range->begin();
                         auto global_iter = global_range->begin();
-                        for (; global_iter != global_range->end(); ++global_iter, ++block_iter) {
-                            *global_iter = *block_iter;
-                        }
+                        std::array<int, N> move_pos{0};
+                        move_pos[N - 2] = 1;
+                        do {
+                            fout.seekp(global_iter.get_offset() * sizeof(T), std::ios::beg);
+                            fout.write(reinterpret_cast<const char *>(&block_data[block_iter.get_offset()]), block_dims[N - 1] * sizeof(T));
+//                            memcpy(&dec_data[global_iter.get_offset()], &block_data[block_iter.get_offset()], block_dims[N - 1] * sizeof(T));
+                            block_iter.move2(move_pos);
+                        } while (global_iter.move2(move_pos));
                         copytime2 += timer.stop();
                     }
                 }
@@ -219,7 +225,7 @@ namespace SZ {
                 printf("level %d to 1, comptime = %.3f, copytime = %.3f %.3f\n", level_independent, comptime, copytime1, copytime2);
 
                 delete[]core_data;
-                return dec_data;
+//                return dec_data;
             }
 
         }
@@ -233,6 +239,15 @@ namespace SZ {
             size_t quant_inds_total = 1;
             T eb = quantizer.get_eb();
             std::cout << "Absolute error bound = " << eb << std::endl;
+
+//            std::ifstream fin(ori_datafile, std::ios::binary);
+//            if (!fin) {
+//                std::cout << " Error, Couldn't find the file" << "\n";
+//                exit(0);
+//            }
+//            fin.seekg(0, std::ios::end);
+//            assert(num_elements <= fin.tellg() / sizeof(T));
+
 
             Timer timer;
 
@@ -316,8 +331,8 @@ namespace SZ {
                 double comptime = 0, copytime1 = 0, copytime2 = 0;
 
                 std::vector<T> block_data(block_num_elements);
-                auto global_range_inter = std::make_shared<SZ::file_multi_dimensional_range<T, N>>(
-                        ori_datafile, std::begin(global_dimensions), std::end(global_dimensions), block_size, 0);
+                auto global_range_inter = std::make_shared<SZ::multi_dimensional_range<T, N>>(
+                        nullptr, std::begin(global_dimensions), std::end(global_dimensions), block_size, 0);
                 auto global_range = std::make_shared<SZ::file_multi_dimensional_range<T, N>>(
                         ori_datafile, std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
 
@@ -357,8 +372,14 @@ namespace SZ {
                         auto global_iter = global_range->begin();
                         for (; global_iter != global_range->end(); ++global_iter, ++block_iter) {
                             *block_iter = *global_iter;
-//                            global_iter.print();
                         }
+//                        std::array<int, N> move_pos{0};
+//                        move_pos[N - 2] = 1;
+//                        do {
+//                            fin.seekg(global_iter.get_offset() * sizeof(T), std::ios::beg);
+//                            fin.read(reinterpret_cast<char *>(&block_data[block_iter.get_offset()]), block_dims[N - 1] * sizeof(T));
+//                            block_iter.move2(move_pos);
+//                        } while (global_iter.move2(move_pos));
                         copytime1 += timer.stop();
                     }
                     {
