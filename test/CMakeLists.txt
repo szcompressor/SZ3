@@ -7,6 +7,7 @@ set(exes sz_demo
         sz_progressive_interp
         sz_progressive_interp_v2
         sz_progressive_interp_v3
+        sz_progressive_interp_v4
         sz_rtm
         sz_interp_double
         )
