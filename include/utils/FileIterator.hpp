@@ -258,7 +258,7 @@ namespace SZ {
             set_global_dim_strides();
             set_offsets(offset_);
 
-            data_size = std::accumulate(global_dimensions.begin(), global_dimensions.end(), 1, std::multiplies<size_t>());
+            data_size = std::accumulate(global_dimensions.begin(), global_dimensions.end(), (size_t)1, std::multiplies<size_t>());
             buffer.resize(buffer_size);
             fin = std::ifstream(file, std::ios::binary);
             if (!fin) {

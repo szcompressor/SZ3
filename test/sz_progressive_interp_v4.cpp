@@ -29,7 +29,7 @@ void interp_compress_decompress(const char *path, double eb, int interp_level, i
     std::vector<size_t> compressed_size;
     double compression_ratio;
     auto dims = std::array<size_t, N>{static_cast<size_t>(std::forward<Dims>(args))...};
-    size_t num = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>());
+    size_t num = std::accumulate(dims.begin(), dims.end(), (size_t)1, std::multiplies<size_t>());
     {
 
         std::cout << "****************** compression ****************" << std::endl;

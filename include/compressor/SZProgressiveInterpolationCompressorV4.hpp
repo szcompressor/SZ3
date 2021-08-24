@@ -87,8 +87,8 @@ namespace SZ {
             read(global_dimensions.data(), N, header_pos, remaining_length);
             read(core_dimensions.data(), N, header_pos, remaining_length);
             read(interp_block_limit, header_pos, remaining_length);
-            size_t num_elements = std::accumulate(global_dimensions.begin(), global_dimensions.end(), 1, std::multiplies<T>());
-            size_t core_num_elements = std::accumulate(core_dimensions.begin(), core_dimensions.end(), 1, std::multiplies<>());
+            size_t num_elements = std::accumulate(global_dimensions.begin(), global_dimensions.end(), (size_t)1, std::multiplies<>());
+            size_t core_num_elements = std::accumulate(core_dimensions.begin(), core_dimensions.end(), (size_t)1, std::multiplies<>());
             size_t block_num_elements = round(pow(block_size + 1, N));
 
             T *core_data = new T[core_num_elements];
@@ -237,8 +237,8 @@ namespace SZ {
 
         // compress given the error bound
         uchar *compress(const char *ori_datafile, const char *cmpr_datafile, std::vector<size_t> &lossless_size) {
-            size_t num_elements = std::accumulate(global_dimensions.begin(), global_dimensions.end(), 1, std::multiplies<>());
-            size_t core_num_elements = std::accumulate(core_dimensions.begin(), core_dimensions.end(), 1, std::multiplies<>());
+            size_t num_elements = std::accumulate(global_dimensions.begin(), global_dimensions.end(), (size_t) 1, std::multiplies<>());
+            size_t core_num_elements = std::accumulate(core_dimensions.begin(), core_dimensions.end(), (size_t) 1, std::multiplies<>());
             size_t block_num_elements = round(pow(block_size + 1, N));
             size_t quant_inds_total = 1;
             T eb = quantizer.get_eb();
