@@ -21,7 +21,7 @@ void interp_compress_decompress(const char *path, double eb, int interp_level, i
     std::stringstream ss;
     ss << ori_datafile.substr(ori_datafile.rfind('/') + 1) << ".sz3.out";
     std::string decompressed_file_name = ss.str();
-    ss.clear();
+    ss.str(std::string());
     ss << ori_datafile.substr(ori_datafile.rfind('/') + 1) << ".sz3";
     std::string compress_file_name = ss.str();
     std::cout << "decompressed file = " << decompressed_file_name << std::endl;
@@ -96,6 +96,7 @@ void interp_compress_decompress(const char *path, double eb, int interp_level, i
 
     printf("PSNR = %f, NRMSE = %.10G, Compression Ratio = %.2f\n", psnr, nrmse, compression_ratio);
     remove(decompressed_file_name.c_str());
+    remove(compress_file_name.c_str());
 
 }
 
