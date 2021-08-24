@@ -15,8 +15,8 @@
 #include <sstream>
 
 template<uint N, class ... Dims>
-void interp_compress_decompress(const char *path, double eb, int interp_level, int interp_op,
-                                int direction_op, int block_size, int interp_block_size, Dims ... args) {
+void interp_compress_decompress(const char *path, double eb, int interp_op, int direction_op,
+                                int level_independent, int block_size, int level_fill, Dims ... args) {
     std::string ori_datafile(path);
     std::stringstream ss;
     ss << ori_datafile.substr(ori_datafile.rfind('/') + 1) << ".sz3.out";
@@ -29,15 +29,15 @@ void interp_compress_decompress(const char *path, double eb, int interp_level, i
     std::vector<size_t> compressed_size;
     double compression_ratio;
     auto dims = std::array<size_t, N>{static_cast<size_t>(std::forward<Dims>(args))...};
-    size_t num = std::accumulate(dims.begin(), dims.end(), (size_t)1, std::multiplies<size_t>());
+    size_t num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<size_t>());
     {
 
         std::cout << "****************** compression ****************" << std::endl;
-        std::cout << "Interp Level       = " << interp_level << std::endl
-                  << "Interp Op          = " << interp_op << std::endl
+        std::cout << "Interp op          = " << interp_op << std::endl
                   << "Direction          = " << direction_op << std::endl
-                  << "SZ block size      = " << block_size << std::endl
-                  << "Interp block size  = " << interp_block_size << std::endl;
+                  << "Level independent  = " << level_independent << std::endl
+                  << "Block size         = " << block_size << std::endl
+                  << "Level fill         = " << level_fill << std::endl;
         struct timespec start, end;
         clock_gettime(CLOCK_REALTIME, &start);
 
@@ -46,12 +46,8 @@ void interp_compress_decompress(const char *path, double eb, int interp_level, i
                 SZ::LinearQuantizer<float>(eb),
                 SZ::HuffmanEncoder<int>(),
                 SZ::Lossless_zstd(),
-                dims,
-                interp_op,
-                direction_op,
-                32,
-                interp_block_size,
-                interp_level
+                dims, interp_op, direction_op, 32,
+                level_independent, block_size, level_fill
         );
         sz.compress(path, compress_file_name.data(), compressed_size);
         size_t total_compressed_size = std::accumulate(compressed_size.begin(), compressed_size.end(), (size_t) 0);
@@ -75,12 +71,8 @@ void interp_compress_decompress(const char *path, double eb, int interp_level, i
                 SZ::LinearQuantizer<float>(eb),
                 SZ::HuffmanEncoder<int>(),
                 SZ::Lossless_zstd(),
-                dims,
-                interp_op,
-                direction_op,
-                32,
-                interp_block_size,
-                interp_level
+                dims, interp_op, direction_op, 32,
+                level_independent, block_size, level_fill
         );
         sz.decompress(compress_file_name.data(), compressed_size, decompressed_file_name.c_str());
 
@@ -113,14 +105,8 @@ int main(int argc, char **argv) {
     }
     float eb = atof(argv[argp++]);
 
-    int interp_level = 1;
     int interp_op = 0; // linear
     int direction_op = 0; // dimension high -> low
-    int block_size = 6;
-    int interp_block_size = 32;
-    if (argp < argc) {
-        interp_level = atoi(argv[argp++]);
-    }
     if (argp < argc) {
         interp_op = atoi(argv[argp++]);
     }
@@ -128,25 +114,33 @@ int main(int argc, char **argv) {
         direction_op = atoi(argv[argp++]);
     }
 
+    int level_fill = 0, level_independent = 0;
+    int block_size = 128;
+    if (argp < argc) {
+        level_independent = atoi(argv[argp++]);
+    }
+
     if (argp < argc) {
         block_size = atoi(argv[argp++]);
     }
+
     if (argp < argc) {
-        interp_block_size = atoi(argv[argp++]);
+        level_fill = atoi(argv[argp++]);
     }
 
+
     if (dim == 1) {
-        interp_compress_decompress<1>(argv[1], eb, interp_level, interp_op, direction_op, block_size,
-                                      interp_block_size, dims[0]);
+        interp_compress_decompress<1>(argv[1], eb, interp_op, direction_op, level_independent,
+                                      block_size, level_fill, dims[0]);
     } else if (dim == 2) {
-        interp_compress_decompress<2>(argv[1], eb, interp_level, interp_op, direction_op, block_size,
-                                      interp_block_size, dims[0], dims[1]);
+        interp_compress_decompress<2>(argv[1], eb, interp_op, direction_op, level_independent,
+                                      block_size, level_fill, dims[0], dims[1]);
     } else if (dim == 3) {
-        interp_compress_decompress<3>(argv[1], eb, interp_level, interp_op, direction_op, block_size,
-                                      interp_block_size, dims[0], dims[1], dims[2]);
+        interp_compress_decompress<3>(argv[1], eb, interp_op, direction_op, level_independent,
+                                      block_size, level_fill, dims[0], dims[1], dims[2]);
     } else if (dim == 4) {
-        interp_compress_decompress<4>(argv[1], eb, interp_level, interp_op, direction_op,
-                                      block_size, interp_block_size, dims[0], dims[1], dims[2], dims[3]);
+        interp_compress_decompress<4>(argv[1], eb, interp_op, direction_op, level_independent,
+                                      block_size, level_fill, dims[0], dims[1], dims[2], dims[3]);
     }
 
 

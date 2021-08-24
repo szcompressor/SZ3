@@ -261,6 +261,7 @@ namespace SZ {
             data_size = std::accumulate(global_dimensions.begin(), global_dimensions.end(), (size_t) 1, std::multiplies<size_t>());
             buffer_size = std::min<size_t>(std::max<size_t>(data_size / 100, 1000 * 1000), 1000 * 1000 * 1000);
             buffer.resize(buffer_size);
+            printf("[Memory] file iterator buffer = %.2f MB\n", sizeof(T) * buffer.capacity() / 1000.0 / 1000.0);
             fin = std::ifstream(file, std::ios::binary);
             if (!fin) {
                 std::cout << " Error, Couldn't find the file" << "\n";

@@ -28,6 +28,7 @@ namespace SZ {
                                                int interpolator,
                                                int direction,
                                                size_t interp_dim_limit,
+                                               int level_independent_,
                                                size_t interp_block_size,
                                                int level_fill_) :
                 quantizer(quantizer), encoder(encoder), lossless(lossless),
@@ -35,7 +36,8 @@ namespace SZ {
                 interpolators({"linear", "cubic"}),
                 interpolator_id(interpolator), direction_sequence_id(direction),
                 interp_block_limit(interp_dim_limit),
-                level_fill(level_fill_) {
+                level_fill(level_fill_), level_independent(level_independent_),
+                core_data(0) {
             static_assert(std::is_base_of<concepts::QuantizerInterface<T>, Quantizer>::value,
                           "must implement the quatizer interface");
             static_assert(std::is_base_of<concepts::EncoderInterface<int>, Encoder>::value,
@@ -45,7 +47,7 @@ namespace SZ {
 
             assert(interp_dim_limit % 2 == 0 &&
                    "Interpolation dimension should be even numbers to avoid extrapolation");
-            level_independent = 1;
+//            level_independent = 1;
             core_stride = round(pow(2, level_independent));
             core_blocksize = interp_block_size / core_stride;
             block_size = core_blocksize * core_stride;
@@ -87,11 +89,11 @@ namespace SZ {
             read(global_dimensions.data(), N, header_pos, remaining_length);
             read(core_dimensions.data(), N, header_pos, remaining_length);
             read(interp_block_limit, header_pos, remaining_length);
-            size_t num_elements = std::accumulate(global_dimensions.begin(), global_dimensions.end(), (size_t)1, std::multiplies<>());
-            size_t core_num_elements = std::accumulate(core_dimensions.begin(), core_dimensions.end(), (size_t)1, std::multiplies<>());
+            size_t num_elements = std::accumulate(global_dimensions.begin(), global_dimensions.end(), (size_t) 1, std::multiplies<>());
+            size_t core_num_elements = std::accumulate(core_dimensions.begin(), core_dimensions.end(), (size_t) 1, std::multiplies<>());
             size_t block_num_elements = round(pow(block_size + 1, N));
-
-            T *core_data = new T[core_num_elements];
+            printf("total num = %lu\ncore num = %lu\nblock num = %lu \n", num_elements, core_num_elements, block_num_elements);
+            core_data.resize(core_num_elements);
 
             read(core_data[0], header_pos, remaining_length);
 //            lossless_data += lossless_size[lossless_id++];
@@ -112,7 +114,7 @@ namespace SZ {
                     }
 
                     auto block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
-                            core_data, std::begin(core_dimensions), std::end(core_dimensions), stride * interp_block_limit, 0);
+                            core_data.data(), std::begin(core_dimensions), std::end(core_dimensions), stride * interp_block_limit, 0);
                     for (auto block = block_range->begin(); block != block_range->end(); ++block) {
                         auto end_idx = block.get_global_index();
                         for (int i = 0; i < N; i++) {
@@ -121,7 +123,7 @@ namespace SZ {
                                 end_idx[i] = core_dimensions[i] - 1;
                             }
                         }
-                        block_interpolation(core_data, block.get_global_index(), end_idx,
+                        block_interpolation(core_data.data(), block.get_global_index(), end_idx,
                                             (level > level_fill ? PB_recover : PB_fill),
                                             interpolators[interpolator_id], direction_sequence_id, stride, true);
                     }
@@ -133,7 +135,7 @@ namespace SZ {
             }
 
             if (level_independent == 0) {
-                writefile(dec_datafile, core_data, num_elements);
+                writefile(dec_datafile, core_data.data(), num_elements);
             } else {
                 std::ofstream fout(dec_datafile, std::ios::binary | std::ios::out);
 //                T *dec_data = new T[num_elements];
@@ -145,9 +147,9 @@ namespace SZ {
                         nullptr, std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
 
                 auto core_range_inter = std::make_shared<SZ::multi_dimensional_range<T, N>>(
-                        core_data, std::begin(core_dimensions), std::end(core_dimensions), core_blocksize, 0);
+                        core_data.data(), std::begin(core_dimensions), std::end(core_dimensions), core_blocksize, 0);
                 auto core_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
-                        core_data, std::begin(core_dimensions), std::end(core_dimensions), 1, 0);
+                        core_data.data(), std::begin(core_dimensions), std::end(core_dimensions), 1, 0);
 
                 std::vector<size_t> quant_size(level_independent + 1, 0);
                 double comptime = 0, copytime1 = 0, copytime2 = 0;
@@ -197,7 +199,9 @@ namespace SZ {
                         quant_size[level] += quant_index;
                     }
                     for (uint level = level_fill; level > 0; level--) {
-                        lossless_data += lossless_size[lossless_id++];
+                        size_t size = lossless_size[lossless_id++];
+                        cmpr_ifs.seekg(size, std::ios::cur);
+//                        lossless_data += lossless_size[lossless_id++];
                         size_t stride = 1U << (level - 1);
                         block_interpolation(block_data.data(), block_start_idx, block_end_idx, PB_fill,
                                             interpolators[interpolator_id], direction_sequence_id, stride, false);
@@ -229,7 +233,7 @@ namespace SZ {
                 }
                 printf("level %d to 1, comptime = %.3f, copytime = %.3f %.3f\n", level_independent, comptime, copytime1, copytime2);
 
-                delete[]core_data;
+//                delete[]core_data;
 //                return dec_data;
             }
 
@@ -245,16 +249,20 @@ namespace SZ {
             std::cout << "Absolute error bound = " << eb << std::endl;
 
             Timer timer;
-            lossless_buffer.resize(core_num_elements);
+            size_t buffer_size = std::max(core_num_elements, block_num_elements);
+            lossless_buffer.reserve(1.2 * sizeof(T) * buffer_size);
+            quant_inds.reserve(buffer_size);
+            core_data.resize(core_num_elements);
+            printf("[Memory] core_data = %.2f MB\n", sizeof(T) * core_data.capacity() / 1000.0 / 1000.0);
+            printf("[Memory] quant buffer = %.2f MB\n", sizeof(int) * quant_inds.capacity() / 1000.0 / 1000.0);
+            printf("[Memory] lossless buffer = %.2f MB\n", sizeof(uchar) * lossless_buffer.capacity() / 1000.0 / 1000.0);
 
-            T *core_data = new T[core_num_elements];
             if (level_independent == 0) {
                 assert(core_num_elements == num_elements);
-                SZ::readfile<T>(ori_datafile, num_elements, core_data);
+                SZ::readfile<T>(ori_datafile, num_elements, core_data.data());
             } else {
-                core_data = new T[core_num_elements];
                 auto core_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
-                        core_data, std::begin(core_dimensions), std::end(core_dimensions), 1, 0);
+                        core_data.data(), std::begin(core_dimensions), std::end(core_dimensions), 1, 0);
                 auto global_range_inter = std::make_shared<SZ::file_multi_dimensional_range<T, N>>(
                         ori_datafile, std::begin(global_dimensions), std::end(global_dimensions), core_stride, 0);
 
@@ -280,7 +288,6 @@ namespace SZ {
             uchar *lossless_pos = nullptr;
 
             {
-                quant_inds.reserve(core_num_elements);
                 //quantizer.set_eb(eb * eb_ratio);
 
                 dimension_offsets[N - 1] = 1;
@@ -298,7 +305,7 @@ namespace SZ {
                     //                    quant_inds.push_back(quantizer.quantize_and_overwrite(*core_data, 0));
                     //                }
                     auto block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
-                            core_data, std::begin(core_dimensions), std::end(core_dimensions), interp_block_limit * stride, 0);
+                            core_data.data(), std::begin(core_dimensions), std::end(core_dimensions), interp_block_limit * stride, 0);
 
                     for (auto block = block_range->begin(); block != block_range->end(); ++block) {
                         auto end_idx = block.get_global_index();
@@ -309,7 +316,7 @@ namespace SZ {
                             }
                         }
 
-                        block_interpolation(core_data, block.get_global_index(), end_idx, PB_predict_overwrite,
+                        block_interpolation(core_data.data(), block.get_global_index(), end_idx, PB_predict_overwrite,
                                             interpolators[interpolator_id], direction_sequence_id, stride, true);
 
                     }
@@ -324,7 +331,6 @@ namespace SZ {
             if (level_independent > 0) {
 
                 quant_inds.clear();
-                quant_inds.reserve(block_num_elements);
 
                 double comptime = 0, copytime1 = 0, copytime2 = 0;
 
@@ -335,9 +341,9 @@ namespace SZ {
                         ori_datafile, std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
 
                 auto core_range_inter = std::make_shared<SZ::multi_dimensional_range<T, N>>(
-                        core_data, std::begin(core_dimensions), std::end(core_dimensions), core_blocksize, 0);
+                        core_data.data(), std::begin(core_dimensions), std::end(core_dimensions), core_blocksize, 0);
                 auto core_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
-                        core_data, std::begin(core_dimensions), std::end(core_dimensions), 1, 0);
+                        core_data.data(), std::begin(core_dimensions), std::end(core_dimensions), 1, 0);
 
                 std::vector<size_t> quant_size(level_independent + 1, 0);
 
@@ -417,7 +423,7 @@ namespace SZ {
                     printf("level = %d , quant size = %lu\n", level, quant_size[level]);
                 }
                 printf("level %d to 1, comptime = %.3f, copytime = %.3f %.3f\n", level_independent, comptime, copytime1, copytime2);
-                delete[] core_data;
+//                delete[] core_data;
             }
 
 
@@ -429,6 +435,27 @@ namespace SZ {
         }
 
     private:
+        std::vector<uchar> lossless_buffer;
+        std::vector<int> quant_inds;
+        std::vector<T> core_data;
+
+        std::ofstream cmpr_ofs;
+        std::ifstream cmpr_ifs;
+        int levels = -1, level_independent = -1, level_fill = 0;
+        size_t interp_block_limit, block_size, core_blocksize, core_stride;
+        int interpolator_id;
+        double eb_ratio = 0.5;
+        std::vector<std::string> interpolators;
+        size_t quant_index = 0; // for decompress
+        double max_error;
+        Quantizer quantizer;
+        Encoder encoder;
+        Lossless lossless;
+        std::array<size_t, N> global_dimensions, core_dimensions;
+        std::array<size_t, N> dimension_offsets;
+        std::vector<std::array<int, N>> dimension_sequences;
+        int direction_sequence_id;
+
         void lossless_decode(uchar const *&lossless_data_pos, const std::vector<size_t> &lossless_size, int lossless_id) {
 
             size_t remaining_length = lossless_size[lossless_id];
@@ -788,26 +815,7 @@ namespace SZ {
             return predict_error;
         }
 
-        std::vector<uchar> lossless_buffer;
-        std::ofstream cmpr_ofs;
-        std::ifstream cmpr_ifs;
-        int levels = -1, level_independent = -1, level_fill = 0;
-        size_t interp_block_limit, block_size, core_blocksize, core_stride;
-        int interpolator_id;
-        double eb_ratio = 0.5;
-        std::vector<std::string> interpolators;
-        std::vector<int> quant_inds;
-        size_t quant_index = 0; // for decompress
-//        std::vector<int> debug;
-//        std::vector<T> preds;
-        double max_error;
-        Quantizer quantizer;
-        Encoder encoder;
-        Lossless lossless;
-        std::array<size_t, N> global_dimensions, core_dimensions;
-        std::array<size_t, N> dimension_offsets;
-        std::vector<std::array<int, N>> dimension_sequences;
-        int direction_sequence_id;
+
     };
 
 
