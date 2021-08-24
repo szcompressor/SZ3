@@ -258,7 +258,8 @@ namespace SZ {
             set_global_dim_strides();
             set_offsets(offset_);
 
-            data_size = std::accumulate(global_dimensions.begin(), global_dimensions.end(), (size_t)1, std::multiplies<size_t>());
+            data_size = std::accumulate(global_dimensions.begin(), global_dimensions.end(), (size_t) 1, std::multiplies<size_t>());
+            buffer_size = std::min<size_t>(std::max<size_t>(data_size / 100, 1000 * 1000), 1000 * 1000 * 1000);
             buffer.resize(buffer_size);
             fin = std::ifstream(file, std::ios::binary);
             if (!fin) {
@@ -305,7 +306,7 @@ namespace SZ {
         ptrdiff_t start_offset;                              // offset for start point
         ptrdiff_t end_offset;                                  // offset for end point
         std::ifstream fin;                                     // file pointer
-        size_t buffer_offset = 0, buffer_size = 1000 * 1000, data_size;
+        size_t buffer_offset = 0, buffer_size, data_size;
         std::vector<T> buffer;
 
     };
