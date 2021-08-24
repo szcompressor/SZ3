@@ -74,23 +74,28 @@ namespace SZ {
         }
 
 
-        void decompress(uchar const *lossless_data, const std::vector<size_t> &lossless_size, const char *dec_datafile) {
+        void decompress(const char *cmpr_datafile, const std::vector<size_t> &lossless_size, const char *dec_datafile) {
+            cmpr_ifs = std::ifstream(cmpr_datafile, std::ios::binary);
             int lossless_id = 0;
-            size_t remaining_length = lossless_size[lossless_id];
-            uchar const *data_header = lossless_data;
+            const uchar *lossless_data = nullptr;
 
-            read(global_dimensions.data(), N, data_header, remaining_length);
-            read(core_dimensions.data(), N, data_header, remaining_length);
-            read(interp_block_limit, data_header, remaining_length);
+            size_t remaining_length = lossless_size[lossless_id];
+            std::vector<uchar> header(remaining_length);
+            cmpr_ifs.read(reinterpret_cast<char *>(header.data()), remaining_length);
+
+            const uchar *header_pos = header.data();
+            read(global_dimensions.data(), N, header_pos, remaining_length);
+            read(core_dimensions.data(), N, header_pos, remaining_length);
+            read(interp_block_limit, header_pos, remaining_length);
             size_t num_elements = std::accumulate(global_dimensions.begin(), global_dimensions.end(), 1, std::multiplies<T>());
             size_t core_num_elements = std::accumulate(core_dimensions.begin(), core_dimensions.end(), 1, std::multiplies<>());
             size_t block_num_elements = round(pow(block_size + 1, N));
 
             T *core_data = new T[core_num_elements];
 
-            read(core_data[0], data_header, remaining_length);
-            lossless_data += lossless_size[lossless_id++];
-
+            read(core_data[0], header_pos, remaining_length);
+//            lossless_data += lossless_size[lossless_id++];
+            lossless_id++;
             size_t quant_inds_count = 1;
             Timer timer;
             {
@@ -130,7 +135,7 @@ namespace SZ {
             if (level_independent == 0) {
                 writefile(dec_datafile, core_data, num_elements);
             } else {
-                std::ofstream fout(dec_datafile, std::ios::binary|std::ios::out);
+                std::ofstream fout(dec_datafile, std::ios::binary | std::ios::out);
 //                T *dec_data = new T[num_elements];
 
                 std::vector<T> block_data(block_num_elements);
@@ -231,8 +236,7 @@ namespace SZ {
         }
 
         // compress given the error bound
-        uchar *compress(const char *ori_datafile, std::vector<size_t> &lossless_size) {
-
+        uchar *compress(const char *ori_datafile, const char *cmpr_datafile, std::vector<size_t> &lossless_size) {
             size_t num_elements = std::accumulate(global_dimensions.begin(), global_dimensions.end(), 1, std::multiplies<>());
             size_t core_num_elements = std::accumulate(core_dimensions.begin(), core_dimensions.end(), 1, std::multiplies<>());
             size_t block_num_elements = round(pow(block_size + 1, N));
@@ -240,16 +244,8 @@ namespace SZ {
             T eb = quantizer.get_eb();
             std::cout << "Absolute error bound = " << eb << std::endl;
 
-//            std::ifstream fin(ori_datafile, std::ios::binary);
-//            if (!fin) {
-//                std::cout << " Error, Couldn't find the file" << "\n";
-//                exit(0);
-//            }
-//            fin.seekg(0, std::ios::end);
-//            assert(num_elements <= fin.tellg() / sizeof(T));
-
-
             Timer timer;
+            lossless_buffer.resize(core_num_elements);
 
             T *core_data = new T[core_num_elements];
             if (level_independent == 0) {
@@ -270,16 +266,18 @@ namespace SZ {
 //                timer.stop("prepare core");
             }
 
-
-            uchar *lossless_data = (num_elements < 1000000) ?
-                                   new uchar[4 * num_elements * sizeof(T)] :
-                                   new uchar[size_t(1.2 * num_elements) * sizeof(T)];
-            uchar *lossless_data_pos = lossless_data;
-            write(global_dimensions.data(), N, lossless_data_pos);
-            write(core_dimensions.data(), N, lossless_data_pos);
-            write(interp_block_limit, lossless_data_pos);
-            write(core_data[0], lossless_data_pos);
-            lossless_size.push_back(lossless_data_pos - lossless_data);
+            cmpr_ofs = std::ofstream(cmpr_datafile, std::ios::binary);
+            {
+                std::vector<uchar> header(N * 2 * sizeof(size_t) + 100);
+                uchar *header_pos = header.data();
+                write(global_dimensions.data(), N, header_pos);
+                write(core_dimensions.data(), N, header_pos);
+                write(interp_block_limit, header_pos);
+                write(core_data[0], header_pos);
+                cmpr_ofs.write(reinterpret_cast<const char *>(header.data()), header_pos - header.data());
+                lossless_size.push_back(header_pos - header.data());
+            }
+            uchar *lossless_pos = nullptr;
 
             {
                 quant_inds.reserve(core_num_elements);
@@ -317,7 +315,7 @@ namespace SZ {
                     }
                     size_t quantsize = quant_inds.size();
                     quant_inds_total += quantsize;
-                    encode_lossless(lossless_data_pos, lossless_size);
+                    encode_lossless(lossless_pos, lossless_size);
                     printf("level = %d , quant size = %lu , time=%.3f\n", level, quantsize, timer.stop());
                 }
             }
@@ -407,7 +405,7 @@ namespace SZ {
                         quant_inds_total += quant_inds.size();
                         quant_size[level] += quant_inds.size();
 
-                        encode_lossless(lossless_data_pos, lossless_size);
+                        encode_lossless(lossless_pos, lossless_size);
 
 //                        printf("level = %d , #block = %lu, quant_bins=%lu, time=%.3f, encode_time=%.3f lossless_time=%.3f\n",
 //                               level, nBlock, tmp, timer.stop(), encode_time, lossless_time);
@@ -426,17 +424,21 @@ namespace SZ {
             std::cout << "total element = " << num_elements << ", quantization element = " << quant_inds_total << std::endl;
             assert(quant_inds_total >= num_elements);
 //            timer.stop("Predition & Quantization");
+            return nullptr;
 
-
-            return lossless_data;
         }
 
     private:
         void lossless_decode(uchar const *&lossless_data_pos, const std::vector<size_t> &lossless_size, int lossless_id) {
 
             size_t remaining_length = lossless_size[lossless_id];
+            if (lossless_buffer.size() < remaining_length) {
+                lossless_buffer.resize(remaining_length);
+            }
+            uchar *lossless_buffer_pos = lossless_buffer.data();
+            cmpr_ifs.read(reinterpret_cast<char *>(lossless_buffer_pos), remaining_length);
 
-            uchar *compressed_data = lossless.decompress(lossless_data_pos, remaining_length);
+            uchar *compressed_data = lossless.decompress(lossless_buffer_pos, remaining_length);
             uchar const *compressed_data_pos = compressed_data;
 
             quantizer.load(compressed_data_pos, remaining_length);
@@ -449,62 +451,50 @@ namespace SZ {
                 quant_inds.resize(quant_size);
                 read(quant_inds.data(), quant_size, compressed_data_pos, remaining_length);
             } else {
-//                int min;
-//                read(min, compressed_data_pos, remaining_length);
                 encoder.load(compressed_data_pos, remaining_length);
                 quant_inds = encoder.decode(compressed_data_pos, quant_size);
-//                for (auto &q:quant_inds) {
-//                    q += min;
-//                }
                 encoder.postprocess_decode();
             }
             quant_index = 0;
 
             lossless.postdecompress_data(compressed_data);
-            lossless_data_pos += lossless_size[lossless_id];
+//            lossless_data_pos += lossless_size[lossless_id];
         }
 
         void encode_lossless(uchar *&lossless_data_pos, std::vector<size_t> &lossless_size) {
+            size_t buffer_size = (quant_inds.size() < 10000 ? 4 : 1.2) * quant_inds.size() * sizeof(T);
+            if (lossless_buffer.size() < buffer_size) {
+                lossless_buffer.resize(buffer_size);
+//                printf("resize\n");
+            }
+            uchar *lossless_buffer_pos = lossless_buffer.data();
 
-            uchar *compressed_data = (quant_inds.size() < 1000000) ?
-                                     new uchar[10 * quant_inds.size() * sizeof(T)] :
-                                     new uchar[size_t(1.2 * quant_inds.size()) * sizeof(T)];
-            uchar *compressed_data_pos = compressed_data;
-
-            quantizer.save(compressed_data_pos);
+            quantizer.save(lossless_buffer_pos);
             quantizer.postcompress_data();
-            write((size_t) quant_inds.size(), compressed_data_pos);
+            write((size_t) quant_inds.size(), lossless_buffer_pos);
             if (quant_inds.size() < 128) {
-                write(quant_inds.data(), quant_inds.size(), compressed_data_pos);
+                write(quant_inds.data(), quant_inds.size(), lossless_buffer_pos);
             } else {
-//                auto mm = std::minmax_element(quant_inds.begin(), quant_inds.end());
-//                int max = *mm.second, min = *mm.first;
-////                printf("quant_max=%d, quant_min=%d\n", max, min);
-//                for (auto &q:quant_inds) {
-//                    q -= min;
-//                }
-//                encoder.preprocess_encode(quant_inds, 4 * quantizer.get_radius());
-//                encoder.preprocess_encode(quant_inds, max - min + 10);
                 encoder.preprocess_encode(quant_inds, 0);
 
-//                write(min, compressed_data_pos);
-                encoder.save(compressed_data_pos);
+//                write(min, lossless_buffer_pos);
+                encoder.save(lossless_buffer_pos);
 
-                encoder.encode(quant_inds, compressed_data_pos);
+                encoder.encode(quant_inds, lossless_buffer_pos);
 
                 encoder.postprocess_encode();
 
             }
 
             size_t size = 0;
-            uchar *lossless_data_cur_level = lossless.compress(compressed_data,
-                                                               compressed_data_pos - compressed_data,
-                                                               size);
-            lossless.postcompress_data(compressed_data);
-            memcpy(lossless_data_pos, lossless_data_cur_level, size);
-            lossless_data_pos += size;
+            uchar *compressed = lossless.compress(lossless_buffer.data(), lossless_buffer_pos - lossless_buffer.data(), size);
+//            lossless.postcompress_data(lossless_buffer.data());
+
+            cmpr_ofs.write(reinterpret_cast<const char *>(compressed), size);
+//            memcpy(lossless_data_pos, compressed, size);
+//            lossless_data_pos += size;
             lossless_size.push_back(size);
-            delete[]lossless_data_cur_level;
+            delete[]compressed;
 
             quant_inds.clear();
 
@@ -798,6 +788,9 @@ namespace SZ {
             return predict_error;
         }
 
+        std::vector<uchar> lossless_buffer;
+        std::ofstream cmpr_ofs;
+        std::ifstream cmpr_ifs;
         int levels = -1, level_independent = -1, level_fill = 0;
         size_t interp_block_limit, block_size, core_blocksize, core_stride;
         int interpolator_id;

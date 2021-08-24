@@ -17,10 +17,16 @@
 template<uint N, class ... Dims>
 void interp_compress_decompress(const char *path, double eb, int interp_level, int interp_op,
                                 int direction_op, int block_size, int interp_block_size, Dims ... args) {
-//    std::string ori_datafile(path);
+    std::string ori_datafile(path);
+    std::stringstream ss;
+    ss << ori_datafile.substr(ori_datafile.rfind('/') + 1) << ".sz3.out";
+    std::string decompressed_file_name = ss.str();
+    ss.clear();
+    ss << ori_datafile.substr(ori_datafile.rfind('/') + 1) << ".sz3";
+    std::string compress_file_name = ss.str();
+    std::cout << "decompressed file = " << decompressed_file_name << std::endl;
 
     std::vector<size_t> compressed_size;
-    SZ::uchar *compressed;
     double compression_ratio;
     auto dims = std::array<size_t, N>{static_cast<size_t>(std::forward<Dims>(args))...};
     size_t num = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>());
@@ -47,7 +53,7 @@ void interp_compress_decompress(const char *path, double eb, int interp_level, i
                 interp_block_size,
                 interp_level
         );
-        compressed = sz.compress(path, compressed_size);
+        sz.compress(path, compress_file_name.data(), compressed_size);
         size_t total_compressed_size = std::accumulate(compressed_size.begin(), compressed_size.end(), (size_t) 0);
 
         clock_gettime(CLOCK_REALTIME, &end);
@@ -57,13 +63,7 @@ void interp_compress_decompress(const char *path, double eb, int interp_level, i
         std::cout << "Compression time = " << compress_time << "s" << std::endl;
         std::cout << "Compressed size = " << total_compressed_size << std::endl;
         std::cout << "Compression ratio = " << compression_ratio << std::endl << std::endl;
-//        exit(0);
     }
-    std::string decompressed_file_name(path);
-    std::stringstream ss;
-    ss << decompressed_file_name.substr(decompressed_file_name.rfind('/') + 1) << ".sz3.out";
-    decompressed_file_name = ss.str();
-    std::cout << "decompressed file = " << decompressed_file_name << std::endl;
     {
         std::cout << "****************** Decompression ****************" << std::endl;
 
@@ -82,13 +82,12 @@ void interp_compress_decompress(const char *path, double eb, int interp_level, i
                 interp_block_size,
                 interp_level
         );
-        sz.decompress(compressed, compressed_size, decompressed_file_name.c_str());
+        sz.decompress(compress_file_name.data(), compressed_size, decompressed_file_name.c_str());
 
         clock_gettime(CLOCK_REALTIME, &end);
         double decompress_time =
                 (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / (double) 1000000000;
         std::cout << "Decompression time = " << decompress_time << "s" << std::endl;
-        delete[]compressed;
 
     }
 
