@@ -35,6 +35,7 @@ namespace SZ {
                                                                                          std::begin(global_dimensions),
                                                                                          std::end(global_dimensions),
                                                                                          stride, 0);
+
             auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data,
                                                                                          std::begin(global_dimensions),
                                                                                          std::end(global_dimensions), 1,
