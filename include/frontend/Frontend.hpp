@@ -1,5 +1,10 @@
 #ifndef SZ3_FRONTEND_INTERFACE
 #define SZ3_FRONTEND_INTERFACE
+/**
+ * Frontend is the combination of Predictor and Quantizer
+ * For compression, it takes the original data as input, and outputs integer values
+ * which will be used for lossless compression by the Encoder and Lossless modules.
+ */
 
 #include "def.hpp"
 

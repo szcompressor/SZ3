@@ -1,5 +1,8 @@
 #ifndef SZ3_FRONTEND
 #define SZ3_FRONTEND
+/**
+ * This module contains SZ3 Predictor and Quantizer
+ */
 
 #include "Frontend.hpp"
 #include "def.hpp"
