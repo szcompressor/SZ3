@@ -12,7 +12,7 @@
 #include <cstring>
 #include <sys/time.h>
 #include <encoder/ArithmeticEncoder.hpp>
-#include "utils/FileUtil.h"
+#include "utils/FileUtil.hpp"
 
 unsigned char *readByteData(char *srcFilePath, size_t *byteLength, int *status) {
     FILE *pFile = fopen(srcFilePath, "rb");

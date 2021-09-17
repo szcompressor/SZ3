@@ -88,7 +88,7 @@ namespace SZ {
         double Min = ori_data[0];
         double diffMax = fabs(data[0] - ori_data[0]);
         double diff_sum = 0;
-        double maxpw_relerr = fabs((data[0] - ori_data[0]) / ori_data[0]);
+        double maxpw_relerr = 0;
         double sum1 = 0, sum2 = 0;
         for (i = 0; i < num_elements; i++) {
             sum1 += ori_data[i];

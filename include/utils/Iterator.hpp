@@ -110,6 +110,8 @@ namespace SZ {
                 return global_offset != rhs.global_offset;
             }
 
+
+
             std::array<size_t, N> get_global_index() const {
                 auto offset = global_offset;
                 std::array<size_t, N> global_idx{0};
@@ -245,6 +247,42 @@ namespace SZ {
         using reference = T &;
         using pointer = T *;
 
+        template<class ForwardIt1>
+        multi_dimensional_range(
+                T *data_,
+                ForwardIt1 global_dims_begin,
+                ForwardIt1 global_dims_end,
+                size_t stride_,
+                ptrdiff_t offset_
+        ): data(data_), start_position{false} {
+            static_assert(
+                    std::is_convertible<
+                            typename std::iterator_traits<ForwardIt1>::value_type,
+                            std::size_t>::value,
+                    "ForwardIt1 must be convertible to std::size_t"
+            );
+            if (global_dims_end - global_dims_begin != N) {
+                std::cout << global_dims_end - global_dims_begin << " " << N << std::endl;
+                std::cerr << "#dimensions does not match!\n";
+                exit(0);
+            }
+            set_access_stride(stride_);
+            // set global dimensions
+            int i = 0;
+            for (auto iter = global_dims_begin; iter != global_dims_end; ++iter) {
+                global_dimensions[i++] = *iter;
+            }
+//            size_t cur_stride = stride_;
+//            for (int i = N - 1; i >= 0; i--) {
+//                global_dim_strides[i] = cur_stride;
+//                cur_stride *= global_dimensions[i];
+//            }
+            // set_dimensions(dims_begin, dims_end);
+            set_dimensions_auto();
+            set_global_dim_strides();
+            set_offsets(offset_);
+        }
+
         multi_dimensional_iterator begin() {
             return multi_dimensional_iterator(this->shared_from_this(), start_offset);
         }
@@ -299,40 +337,16 @@ namespace SZ {
             }
         }
 
-        template<class ForwardIt1>
-        multi_dimensional_range(
-                T *data_,
-                ForwardIt1 global_dims_begin,
-                ForwardIt1 global_dims_end,
-                size_t stride_,
-                ptrdiff_t offset_
-        ): data(data_), start_position{false} {
-            static_assert(
-                    std::is_convertible<
-                            typename std::iterator_traits<ForwardIt1>::value_type,
-                            std::size_t>::value,
-                    "ForwardIt1 must be convertible to std::size_t"
-            );
-            if (global_dims_end - global_dims_begin != N) {
-                std::cout << global_dims_end - global_dims_begin << " " << N << std::endl;
-                std::cerr << "#dimensions does not match!\n";
-                exit(0);
+        void update_block_range(multi_dimensional_iterator block, size_t block_size) {
+            std::fill(dimensions.begin(), dimensions.end(), block_size);
+            for (int i = 0; i < N; i++) {
+                //check boundary condition
+                if (block.local_index[i] == block.range->dimensions[i] - 1) {
+                    dimensions[i] = global_dimensions[i] - block.local_index[i] * block.range->access_stride;
+                }
             }
-            set_access_stride(stride_);
-            // set global dimensions
-            int i = 0;
-            for (auto iter = global_dims_begin; iter != global_dims_end; ++iter) {
-                global_dimensions[i++] = *iter;
-            }
-//            size_t cur_stride = stride_;
-//            for (int i = N - 1; i >= 0; i--) {
-//                global_dim_strides[i] = cur_stride;
-//                cur_stride *= global_dimensions[i];
-//            }
-            // set_dimensions(dims_begin, dims_end);
-            set_dimensions_auto();
-            set_global_dim_strides();
-            set_offsets(offset_);
+            this->set_offsets(block.get_offset());
+            this->set_starting_position(block.get_local_index());
         }
 
         size_t get_dimensions(size_t i) const {

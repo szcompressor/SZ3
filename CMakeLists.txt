@@ -23,12 +23,17 @@ else()
     list(APPEND thirdparty_export "zstd")
 endif()
 
+find_package(GSL)
+if (GSL_FOUND)
+    add_definitions(-DENABLE_GSL="TRUE")
+endif()
+
 add_library(${PROJECT_NAME} INTERFACE)
 target_include_directories(
         ${PROJECT_NAME} INTERFACE
         $<BUILD_INTERFACE:${${PROJECT_NAME}_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_FULL_INCLUDEDIR}>
-        PkgConfig::ZSTD)
+        ${ZSTD_dep})
 
 
 install(DIRECTORY ${${PROJECT_NAME}_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_FULL_INCLUDEDIR})

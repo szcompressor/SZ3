@@ -1,7 +1,7 @@
 #include "frontend/SZMetaFrontend.hpp"
 #include "predictor/Predictor.hpp"
 #include "quantizer/IntegerQuantizer.hpp"
-#include "utils/FileUtil.h"
+#include "utils/FileUtil.hpp"
 #include "utils/Config.hpp"
 #include "def.hpp"
 #include <cstdio>
@@ -12,7 +12,7 @@
 template<typename T, uint N>
 float SZ_compress_build_frontend(std::unique_ptr<T[]> const &data, const SZ::Config<T, N> &conf) {
     auto quantizer = SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2);
-    return SZ_compress_bulid_backend(data, conf, make_sz_meta_frontend(conf, quantizer));
+    return SZ_compress_build_backend(data, conf, make_sz_meta_frontend(conf, quantizer));
 }
 
 template<class T, uint N>

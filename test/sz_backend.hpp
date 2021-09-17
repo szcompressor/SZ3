@@ -87,7 +87,7 @@ float SZ_compress(std::unique_ptr<T[]> const &data,
 }
 
 template<typename T, class Frontend, uint N>
-float SZ_compress_bulid_backend(std::unique_ptr<T[]> const &data,
+float SZ_compress_build_backend(std::unique_ptr<T[]> const &data,
                                 const SZ::Config<T, N> &conf,
                                 Frontend frontend) {
     if (conf.lossless_op == 1) {

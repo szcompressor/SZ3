@@ -2,15 +2,15 @@
 // Created by Kai Zhao on 1/29/21.
 //
 
-#ifndef SZ3_PRETRANSPOSE_H
-#define SZ3_PRETRANSPOSE_H
+#ifndef SZ3_TRANSPOSE_H
+#define SZ3_TRANSPOSE_H
 
 #include "preprocessor/PreProcessor.hpp"
 
 namespace SZ {
     template<class T, uint N>
 
-    class PreTranspose : public concepts::PreprocessorInterface<T, N> {
+    class Transpose : public concepts::PreprocessorInterface<T, N> {
     public:
         void preprocess(T *data, std::array<size_t, N> dims, std::array<size_t, N> axes) {
             static_assert(N < 5, "Data in 5D and above is not supported yet.");
@@ -80,4 +80,4 @@ namespace SZ {
 
     };
 }
-#endif //SZ3_PRETRANSPOSE_H
+#endif //SZ3_TRANSPOSE_H
