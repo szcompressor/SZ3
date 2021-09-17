@@ -41,7 +41,6 @@ namespace SZ {
             */
             virtual void postdecompress_data() = 0;
 
-            virtual void clear() = 0;
         };
     }
 }

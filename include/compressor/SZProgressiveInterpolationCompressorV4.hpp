@@ -10,7 +10,7 @@
 #include "utils/FileIterator.hpp"
 #include "utils/MemoryUtil.hpp"
 #include "utils/Config.hpp"
-#include "utils/FileUtil.h"
+#include "utils/FileUtil.hpp"
 #include "utils/Interpolators.hpp"
 #include "utils/Timer.hpp"
 #include "def.hpp"
