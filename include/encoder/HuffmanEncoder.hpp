@@ -7,7 +7,6 @@
 #include "utils/MemoryUtil.hpp"
 #include "utils/Timer.hpp"
 #include "utils/ska_hash/unordered_map.hpp"
-#include "utils/ska_hash/bytell_hash_map.hpp"
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
@@ -85,10 +84,21 @@ namespace SZ {
             return huffmanTree;
         }
 
+        /**
+         * build huffman tree using bins
+         * @param bins
+         * @param stateNum is no longer needed
+         */
         void preprocess_encode(const std::vector<T> &bins, int stateNum) {
             preprocess_encode(bins.data(), bins.size(), stateNum);
         }
 
+        /**
+         * build huffman tree using bins
+         * @param bins
+         * @param num_bin
+         * @param stateNum is no longer needed
+         */
         void preprocess_encode(const T *bins, size_t num_bin, int stateNum) {
             nodeCount = 0;
             init(bins, num_bin);
