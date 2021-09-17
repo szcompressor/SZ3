@@ -5,12 +5,19 @@
 #include "encoder/Encoder.hpp"
 #include "utils/ByteUtil.hpp"
 #include "utils/MemoryUtil.hpp"
+#include "utils/Timer.hpp"
+#include "utils/ska_hash/unordered_map.hpp"
+#include "utils/ska_hash/bytell_hash_map.hpp"
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
 #include <iostream>
 #include <map>
+#include <unordered_map>
+#include <unordered_set>
+#include <set>
+
 
 namespace SZ {
 
@@ -499,23 +506,28 @@ namespace SZ {
             if (length == 0) {
                 return;
             }
-            std::map<T, size_t> frequency;
             T max = s[0];
             offset = s[0]; //offset is min
+
+            ska::unordered_map<T, size_t> frequency;
             for (size_t i = 0; i < length; i++) {
-                int x = s[i];
-                frequency[x]++;
-                if (x > max) {
-                    max = x;
+                frequency[s[i]]++;
+            }
+
+            for (const auto &kv: frequency) {
+                auto k=kv.first;
+                if (k > max) {
+                    max = k;
                 }
-                if (x < offset) {
-                    offset = x;
+                if (k < offset) {
+                    offset = k;
                 }
             }
+
             int stateNum = max - offset + 2;
             huffmanTree = createHuffmanTree(stateNum);
 
-            for (const auto& f:frequency) {
+            for (const auto &f: frequency) {
                 qinsert(new_node(f.second, f.first - offset, 0, 0));
             }
 
