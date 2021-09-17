@@ -40,7 +40,8 @@ namespace SZ {
             frontend.save(compressed_data_pos);
 
             timer.start();
-            encoder.preprocess_encode(quant_inds, 2 * frontend.get_radius());
+//            encoder.preprocess_encode(quant_inds, 2 * frontend.get_radius());
+            encoder.preprocess_encode(quant_inds, 0);
             encoder.save(compressed_data_pos);
             encoder.encode(quant_inds, compressed_data_pos);
             encoder.postprocess_encode();
