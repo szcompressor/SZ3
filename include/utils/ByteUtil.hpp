@@ -2,8 +2,8 @@
 // Created by Kai Zhao on 1/28/21.
 //
 
-#ifndef SZ3_BYTEUTIL_H
-#define SZ3_BYTEUTIL_H
+#ifndef SZ3_BYTEUTIL_HPP
+#define SZ3_BYTEUTIL_HPP
 
 #include "def.hpp"
 #include <cstring>
@@ -324,4 +324,4 @@ namespace SZ {
     }
 
 };
-#endif //SZ3_BYTEUTIL_H
+#endif //SZ3_BYTEUTIL_HPP

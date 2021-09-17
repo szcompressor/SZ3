@@ -236,6 +236,7 @@ namespace SZ {
 //                delete[]core_data;
 //                return dec_data;
             }
+            printf("retrieved = %.3f%% %lu\n", retrieved_size * 100.0 / (num_elements * sizeof(float)), retrieved_size);
 
         }
 
@@ -455,6 +456,7 @@ namespace SZ {
         std::array<size_t, N> dimension_offsets;
         std::vector<std::array<int, N>> dimension_sequences;
         int direction_sequence_id;
+        size_t retrieved_size = 0;
 
         void lossless_decode(uchar const *&lossless_data_pos, const std::vector<size_t> &lossless_size, int lossless_id) {
 
@@ -462,6 +464,7 @@ namespace SZ {
             if (lossless_buffer.size() < remaining_length) {
                 lossless_buffer.resize(remaining_length);
             }
+            retrieved_size += remaining_length;
             uchar *lossless_buffer_pos = lossless_buffer.data();
             cmpr_ifs.read(reinterpret_cast<char *>(lossless_buffer_pos), remaining_length);
 

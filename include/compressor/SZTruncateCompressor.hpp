@@ -8,7 +8,7 @@
 #include "utils/FileUtil.h"
 #include "utils/Config.hpp"
 #include "utils/Timer.hpp"
-#include "utils/ByteUtil.h"
+#include "utils/ByteUtil.hpp"
 #include "def.hpp"
 #include <cstring>
 

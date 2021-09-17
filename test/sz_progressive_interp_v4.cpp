@@ -178,7 +178,7 @@ std::pair<int, int> interp_tuning(char *path, double eb, std::array<size_t, N> d
     size_t r3 = b3 * 2 * sampling_block;
     size_t di, dj, dk;
     size_t sampling_num = r1 * r2 * r3;
-    std::array<size_t, 3> sampling_dims{r1, r1, r3};
+    std::array<size_t, 3> sampling_dims{r1, r2, r3};
     std::vector<float> sampling_data(sampling_num, 0);
     for (size_t bi = 0; bi < b1; bi++) {
         for (size_t bj = 0; bj < b2; bj++) {

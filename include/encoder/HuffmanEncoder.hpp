@@ -3,7 +3,7 @@
 
 #include "def.hpp"
 #include "encoder/Encoder.hpp"
-#include "utils/ByteUtil.h"
+#include "utils/ByteUtil.hpp"
 #include "utils/MemoryUtil.hpp"
 #include <cassert>
 #include <cstdlib>
