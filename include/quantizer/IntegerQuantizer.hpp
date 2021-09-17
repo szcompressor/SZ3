@@ -170,13 +170,9 @@ namespace SZ {
             index = 0;
         }
 
-        virtual void postcompress_data() {
-            clear();
-        }
+        virtual void postcompress_data() {};
 
-        virtual void postdecompress_data() {
-            clear();
-        }
+        virtual void postdecompress_data() {};
 
         virtual void precompress_data() {};
 

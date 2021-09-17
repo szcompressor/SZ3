@@ -127,7 +127,8 @@ namespace SZ {
                                             (level > level_fill ? PB_recover : PB_fill),
                                             interpolators[interpolator_id], direction_sequence_id, stride, true);
                     }
-                    quantizer.postdecompress_data();
+//                    quantizer.postdecompress_data();
+                    quantizer.clear();
                     std::cout << "Level = " << level << " , quant size = " << quant_inds.size()
                               << " , time = " << timer.stop() << std::endl;
                     quant_inds_count += quant_index;
@@ -194,7 +195,8 @@ namespace SZ {
                         block_interpolation(block_data.data(), block_start_idx, block_end_idx, PB_recover,
                                             interpolators[interpolator_id], direction_sequence_id, stride, false);
 
-                        quantizer.postdecompress_data();
+//                        quantizer.postdecompress_data();
+                        quantizer.clear();
                         quant_inds_count += quant_index;
                         quant_size[level] += quant_index;
                     }
@@ -500,7 +502,8 @@ namespace SZ {
             uchar *lossless_buffer_pos = lossless_buffer.data();
 
             quantizer.save(lossless_buffer_pos);
-            quantizer.postcompress_data();
+//            quantizer.postcompress_data();
+            quantizer.clear();
             write((size_t) quant_inds.size(), lossless_buffer_pos);
             if (quant_inds.size() < 128) {
                 write(quant_inds.data(), quant_inds.size(), lossless_buffer_pos);

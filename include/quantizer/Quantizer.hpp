@@ -29,6 +29,7 @@ namespace SZ {
 
             virtual T recover(T pred, int quant_index) = 0;
 
+            virtual void clear() = 0;
         };
     }
 }
