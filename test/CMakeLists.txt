@@ -5,10 +5,9 @@ set(exes sz_demo
         test_huffman_coding
         test_arithmetic_coding
         sz_interp
-        sz_progressive_interp
-        sz_progressive_interp_v2
-        sz_progressive_interp_v3
-        sz_progressive_interp_v4
+        sz_pinterp
+        sz_pinterp_block
+        sz_pinterp_block_fileio
         sz_rtm
         sz_interp_double
         )

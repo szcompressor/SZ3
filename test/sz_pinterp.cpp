@@ -1,4 +1,4 @@
-#include <compressor/SZProgressiveInterpolationCompressorV3.hpp>
+#include <compressor/SZProgressive.hpp>
 #include <compressor/SZInterpolationCompressor.hpp>
 #include <quantizer/IntegerQuantizer.hpp>
 #include <predictor/ComposedPredictor.hpp>
@@ -45,7 +45,7 @@ interp_compress_decompress(char *path, float *data, size_t num, double eb, int i
 
 
         auto dims = std::array<size_t, N>{static_cast<size_t>(std::forward<Dims>(args))...};
-        auto sz = SZ::SZProgressiveInterpolationCompressorV3<float, N, SZ::LinearQuantizer<float>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
+        auto sz = SZ::SZProgressive<float, N, SZ::LinearQuantizer<float>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
                 SZ::LinearQuantizer<float>(eb),
                 SZ::HuffmanEncoder<int>(),
                 SZ::Lossless_zstd(),
@@ -66,18 +66,16 @@ interp_compress_decompress(char *path, float *data, size_t num, double eb, int i
         compressInfo.compress_time = compress_time;
         std::cout << "Compression time = " << compress_time << "s" << std::endl;
         std::cout << "Compressed size = " << total_compressed_size << std::endl;
-        std::cout << "Compression ratio = " << compression_ratio << std::endl << std::endl;
+        std::cout << "Compression ratio = " << compression_ratio << std::endl;
 //        exit(0);
     }
     {
-        std::cout << "****************** Decompression ****************" << std::endl;
-
         struct timespec start, end;
         clock_gettime(CLOCK_REALTIME, &start);
         float *dec_data;
 
         auto dims = std::array<size_t, N>{static_cast<size_t>(std::forward<Dims>(args))...};
-        auto sz = SZ::SZProgressiveInterpolationCompressorV3<float, N, SZ::LinearQuantizer<float>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
+        auto sz = SZ::SZProgressive<float, N, SZ::LinearQuantizer<float>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
                 SZ::LinearQuantizer<float>(eb),
                 SZ::HuffmanEncoder<int>(),
                 SZ::Lossless_zstd(),
@@ -110,8 +108,7 @@ interp_compress_decompress(char *path, float *data, size_t num, double eb, int i
         assert(num1 == num);
         double psnr, nrmse;
         SZ::verify<float>(ori_data.get(), dec_data, num, psnr, nrmse);
-        delete[]dec_data;
-        delete[]compressed;
+
 //        std::vector<float> error(num);
 //        for (size_t i = 0; i < num; i++) {
 //            error[i] = ori_data[i] - dec_data[i];

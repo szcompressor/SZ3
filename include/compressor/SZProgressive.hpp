@@ -18,17 +18,17 @@
 
 namespace SZ {
     template<class T, uint N, class Quantizer, class Encoder, class Lossless>
-    class SZProgressiveInterpolationCompressorV2 {
+    class SZProgressive {
     public:
 
 
-        SZProgressiveInterpolationCompressorV2(Quantizer quantizer, Encoder encoder, Lossless lossless,
-                                               const std::array<size_t, N> dims,
-                                               int interpolator,
-                                               int direction,
-                                               size_t interp_dim_limit,
-                                               size_t interp_block_size,
-                                               int level_fill_) :
+        SZProgressive(Quantizer quantizer, Encoder encoder, Lossless lossless,
+                      const std::array<size_t, N> dims,
+                      int interpolator,
+                      int direction,
+                      size_t interp_dim_limit,
+                      size_t interp_block_size,
+                      int level_fill_) :
                 quantizer(quantizer), encoder(encoder), lossless(lossless),
                 global_dimensions(dims),
                 interpolators({"linear", "cubic"}),
@@ -281,6 +281,7 @@ namespace SZ {
         }
 
     private:
+
         void lossless_decode(uchar const *&lossless_data_pos, const std::vector<size_t> &lossless_size, int lossless_id) {
 
             size_t remaining_length = lossless_size[lossless_id];
@@ -298,13 +299,8 @@ namespace SZ {
                 quant_inds.resize(quant_size);
                 read(quant_inds.data(), quant_size, compressed_data_pos, remaining_length);
             } else {
-                int min;
-                read(min, compressed_data_pos, remaining_length);
                 encoder.load(compressed_data_pos, remaining_length);
                 quant_inds = encoder.decode(compressed_data_pos, quant_size);
-                for (auto &q:quant_inds) {
-                    q += min;
-                }
                 encoder.postprocess_decode();
             }
             quant_index = 0;
@@ -314,8 +310,6 @@ namespace SZ {
         }
 
         void encode_lossless(uchar *&lossless_data_pos, std::vector<size_t> &lossless_size) {
-            Timer timer;
-
             uchar *compressed_data = (quant_inds.size() < 1000000) ?
                                      new uchar[10 * quant_inds.size() * sizeof(T)] :
                                      new uchar[size_t(1.2 * quant_inds.size()) * sizeof(T)];
@@ -327,28 +321,12 @@ namespace SZ {
             if (quant_inds.size() < 128) {
                 write(quant_inds.data(), quant_inds.size(), compressed_data_pos);
             } else {
-                auto mm = std::minmax_element(quant_inds.begin(), quant_inds.end());
-                int max = *mm.second, min = *mm.first;
-                for (auto &q:quant_inds) {
-                    q -= min;
-                }
-                timer.start();
-//                encoder.preprocess_encode(quant_inds, 4 * quantizer.get_radius());
-                encoder.preprocess_encode(quant_inds, max - min + 1);
-
-                write(min, compressed_data_pos);
+                encoder.preprocess_encode(quant_inds, 0);
                 encoder.save(compressed_data_pos);
-                encode_time += timer.stop();
-
                 encoder.encode(quant_inds, compressed_data_pos);
-
-                timer.start();
                 encoder.postprocess_encode();
-                encode_time += timer.stop();
-
             }
 
-            timer.start();
             size_t size = 0;
             uchar *lossless_data_cur_level = lossless.compress(compressed_data,
                                                                compressed_data_pos - compressed_data,
@@ -357,9 +335,7 @@ namespace SZ {
             memcpy(lossless_data_pos, lossless_data_cur_level, size);
             lossless_data_pos += size;
             lossless_size.push_back(size);
-
-            quant_inds.clear();
-            lossless_time += timer.stop();
+            delete[]lossless_data_cur_level;
 
         }
 
