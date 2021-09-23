@@ -27,15 +27,16 @@ namespace SZ {
                       int interpolator,
                       int direction,
                       size_t interp_dim_limit,
-                      size_t interp_block_size,
+                      int level_independent_,
+                      size_t block_size_,
                       int level_fill_) :
                 quantizer(quantizer), encoder(encoder), lossless(lossless),
                 global_dimensions(dims),
                 interpolators({"linear", "cubic"}),
                 interpolator_id(interpolator), direction_sequence_id(direction),
                 interp_dim_limit(interp_dim_limit),
-                block_size(interp_block_size),
-                level_independent(2),
+                level_independent(level_independent_),
+                block_size(block_size_),
                 level_fill(level_fill_) {
             static_assert(std::is_base_of<concepts::QuantizerInterface<T>, Quantizer>::value,
                           "must implement the quatizer interface");
@@ -72,17 +73,14 @@ namespace SZ {
 
 
         T *decompress(uchar const *lossless_data, const std::vector<size_t> &lossless_size) {
+
             int lossless_id = 0;
             size_t remaining_length = lossless_size[lossless_id];
             uchar const *data_header = lossless_data;
 
             read(global_dimensions.data(), N, data_header, remaining_length);
-            num_elements = 1;
-            for (const auto &d : global_dimensions) {
-                num_elements *= d;
-                std::cout << d << " ";
-            }
-            std::cout << std::endl;
+            num_elements = std::accumulate(global_dimensions.begin(), global_dimensions.end(), (size_t) 1, std::multiplies<>());
+
             read(interp_dim_limit, data_header, remaining_length);
             lossless_data += lossless_size[lossless_id];
             lossless_id++;
@@ -117,7 +115,7 @@ namespace SZ {
                                             interpolators[interpolator_id], direction_sequence_id, stride, true);
                     }
                     quantizer.postdecompress_data();
-                    std::cout << "Level = " << level << " , quant size = " << quant_inds.size() << std::endl;
+                    std::cout << "Level = " << level << " , quant size = " << quant_inds.size() << ", Time = " << timer.stop() << std::endl;
                     quant_inds_count += quant_index;
                 } else {
                     auto block_range = std::make_shared<
@@ -130,7 +128,7 @@ namespace SZ {
 
                         auto end_idx = block.get_global_index();
                         for (int i = 0; i < N; i++) {
-                            end_idx[i] += block_size - 1;
+                            end_idx[i] += block_size;
                             if (end_idx[i] > global_dimensions[i] - 1) {
                                 end_idx[i] = global_dimensions[i] - 1;
                             }
@@ -144,9 +142,8 @@ namespace SZ {
                         quantizer.postdecompress_data();
                         quant_inds_count += quant_index;
                     }
-                    std::cout << "Level = " << level << " , #blocks = " << nBlock << std::endl;
+                    std::cout << "Level = " << level << " , #blocks = " << nBlock <<", Time = "<< timer.stop() << std::endl;
                 }
-                timer.stop("Level Decompress");
 
             }
 
@@ -186,6 +183,7 @@ namespace SZ {
             size_t interp_compressed_size = 0;
 //            debug.resize(num_elements, 0);
 //            preds.resize(num_elements, 0);
+            size_t quant_inds_total = 0;
 
             T eb = quantizer.get_eb();
             std::cout << "Absolute error bound = " << eb << std::endl;
@@ -202,12 +200,9 @@ namespace SZ {
             write(interp_dim_limit, lossless_data_pos);
             lossless_size.push_back(lossless_data_pos - lossless_data);
 
-            for (uint level = levels; level > 0 && level <= levels; level--) {
-                if (level >= 3) {
-                    quantizer.set_eb(eb * eb_ratio);
-                } else {
-                    quantizer.set_eb(eb);
-                }
+            for (uint level = levels; level > 0; level--) {
+                quantizer.set_eb((level >= 3) ? eb * eb_ratio : eb);
+
                 uint stride = 1U << (level - 1);
 //                std::cout << "Level = " << level << ", stride = " << stride << std::endl;
 
@@ -236,6 +231,7 @@ namespace SZ {
                     }
                     printf("level = %d , quant size = %lu , time=%.3f\n", level, quant_inds.size(), timer.stop());
 
+                    quant_inds_total += quant_inds.size();
                     encode_lossless(lossless_data_pos, lossless_size);
 
                 } else {
@@ -250,7 +246,7 @@ namespace SZ {
                     for (auto block = block_range->begin(); block != block_range->end(); ++block, nBlock++) {
                         auto end_idx = block.get_global_index();
                         for (int i = 0; i < N; i++) {
-                            end_idx[i] += block_size - 1;
+                            end_idx[i] += block_size;
                             if (end_idx[i] > global_dimensions[i] - 1) {
                                 end_idx[i] = global_dimensions[i] - 1;
                             }
@@ -259,7 +255,7 @@ namespace SZ {
                         quant_inds.push_back(quantizer.quantize_and_overwrite(*first, 0));
                         block_interpolation(data, block.get_global_index(), end_idx, PB_predict_overwrite,
                                             interpolators[interpolator_id], direction_sequence_id, stride, false);
-
+                        quant_inds_total += quant_inds.size();
                         encode_lossless(lossless_data_pos, lossless_size);
                     }
                     printf("level = %d , #block = %lu, time=%.3f, encode_time=%.3f lossless_time=%.3f\n", level, nBlock, timer.stop(), encode_time,
@@ -270,11 +266,8 @@ namespace SZ {
             if (deleteData) {
                 delete[]data;
             }
-//            std::cout << "total element = " << num_elements << std::endl;
-//            std::cout << "quantization element = " << quant_inds.size() << std::endl;
-//            assert(quant_inds.size() == num_elements);
-//            timer.stop("Predition & Quantization");
-
+            std::cout << "total element = " << num_elements << ", quantization element = " << quant_inds_total << std::endl;
+            assert(quant_inds_total >= num_elements);
 
 //            compressed_size += interp_compressed_size;
             return lossless_data;
@@ -317,6 +310,7 @@ namespace SZ {
 
             quantizer.save(compressed_data_pos);
             quantizer.postcompress_data();
+            quantizer.clear();
             write((size_t) quant_inds.size(), compressed_data_pos);
             if (quant_inds.size() < 128) {
                 write(quant_inds.data(), quant_inds.size(), compressed_data_pos);
@@ -336,6 +330,8 @@ namespace SZ {
             lossless_data_pos += size;
             lossless_size.push_back(size);
             delete[]lossless_data_cur_level;
+
+            quant_inds.clear();
 
         }
 
@@ -359,11 +355,14 @@ namespace SZ {
             quant_inds.push_back(quantizer.quantize_and_overwrite(d, pred));
         }
 
-        inline void recover(T &d, T pred) {
+        inline void recover(size_t idx, T &d, T pred) {
             d = quantizer.recover(pred, quant_inds[quant_index++]);
+//            if (fabs(ori_data[idx] - d) > 1e-3) {
+//                printf("%lu %.5f %.5f %d %lu\n", idx, ori_data[idx], d, quant_inds[quant_index-1],quant_index-1);
+//            }
         };
 
-        inline void fill(T &d, T pred) {
+        inline void fill(size_t idx, T &d, T pred) {
             d = pred;
         };
 
@@ -376,8 +375,10 @@ namespace SZ {
             }
             double predict_error = 0;
 
+
             size_t stride3x = 3 * stride;
             size_t stride5x = 5 * stride;
+//            printf("stride %lu %lu %lu\n", stride, stride3x, stride5x);
             if (interp_func == "linear" || n < 5) {
                 if (pb == PB_predict_overwrite) {
                     for (size_t i = 1; i + 1 < n; i += 2) {
@@ -395,27 +396,29 @@ namespace SZ {
                 } else if (pb == PB_recover) {
                     for (size_t i = 1; i + 1 < n; i += 2) {
                         T *d = data + begin + i * stride;
-                        recover(*d, interp_linear(*(d - stride), *(d + stride)));
+                        recover(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
                     }
                     if (n % 2 == 0) {
                         T *d = data + begin + (n - 1) * stride;
                         if (n < 4) {
-                            recover(*d, *(d - stride));
+                            recover(d - data, *d, *(d - stride));
                         } else {
-                            recover(*d, interp_linear1(*(d - stride3x), *(d - stride)));
+                            recover(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
                         }
                     }
                 } else {
                     for (size_t i = 1; i + 1 < n; i += 2) {
                         T *d = data + begin + i * stride;
-                        fill(*d, interp_linear(*(d - stride), *(d + stride)));
+                        fill(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
+//                        fill(d - data, *d, *(d - stride));
                     }
                     if (n % 2 == 0) {
                         T *d = data + begin + (n - 1) * stride;
                         if (n < 4) {
-                            fill(*d, *(d - stride));
+                            fill(d - data, *d, *(d - stride));
                         } else {
-                            fill(*d, interp_linear1(*(d - stride3x), *(d - stride)));
+                            fill(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
+//                            fill(d - data, *d, *(d - stride));
                         }
                     }
                 }
@@ -445,18 +448,18 @@ namespace SZ {
                     size_t i;
                     for (i = 3; i + 3 < n; i += 2) {
                         d = data + begin + i * stride;
-                        recover(*d, interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                        recover(d - data, *d, interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
                     }
                     d = data + begin + stride;
 
-                    recover(*d, interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
+                    recover(d - data, *d, interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
 
                     d = data + begin + i * stride;
-                    recover(*d, interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                    recover(d - data, *d, interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
 
                     if (n % 2 == 0) {
                         d = data + begin + (n - 1) * stride;
-                        recover(*d, interp_quad_3(*(d - stride5x), *(d - stride3x), *(d - stride)));
+                        recover(d - data, *d, interp_quad_3(*(d - stride5x), *(d - stride3x), *(d - stride)));
                     }
                 } else {
                     T *d;
@@ -464,18 +467,18 @@ namespace SZ {
                     size_t i;
                     for (i = 3; i + 3 < n; i += 2) {
                         d = data + begin + i * stride;
-                        fill(*d, interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                        fill(d - data, *d, interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
                     }
                     d = data + begin + stride;
 
-                    fill(*d, interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
+                    fill(d - data, *d, interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
 
                     d = data + begin + i * stride;
-                    fill(*d, interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                    fill(d - data, *d, interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
 
                     if (n % 2 == 0) {
                         d = data + begin + (n - 1) * stride;
-                        fill(*d, interp_quad_3(*(d - stride5x), *(d - stride3x), *(d - stride)));
+                        fill(d - data, *d, interp_quad_3(*(d - stride5x), *(d - stride3x), *(d - stride)));
                     }
                 }
             }
@@ -514,10 +517,11 @@ namespace SZ {
 
         template<uint NN = N>
         typename std::enable_if<NN == 3, double>::type
-        block_interpolation(T *data, std::array<size_t, N> begin, std::array<size_t, N> end, const PredictorBehavior pb,
+        block_interpolation(T *data, std::array<size_t, N> begin, std::array<size_t, N> end, PredictorBehavior pb,
                             const std::string &interp_func, const int direction, uint stride, bool overlap) {
             double predict_error = 0;
             size_t stride2x = stride * 2;
+
             std::array<int, N> dims = dimension_sequences[direction];
             for (size_t j = ((overlap && begin[dims[1]]) ? begin[dims[1]] + stride2x : begin[dims[1]]); j <= end[dims[1]]; j += stride2x) {
                 for (size_t k = ((overlap && begin[dims[2]]) ? begin[dims[2]] + stride2x : begin[dims[2]]); k <= end[dims[2]]; k += stride2x) {
@@ -528,6 +532,8 @@ namespace SZ {
                                                             stride * dimension_offsets[dims[0]], interp_func, pb);
                 }
             }
+
+
             for (size_t i = ((overlap && begin[dims[0]]) ? begin[dims[0]] + stride : begin[dims[0]]); i <= end[dims[0]]; i += stride) {
                 for (size_t k = ((overlap && begin[dims[2]]) ? begin[dims[2]] + stride2x : begin[dims[2]]); k <= end[dims[2]]; k += stride2x) {
                     size_t begin_offset = i * dimension_offsets[dims[0]] + begin[dims[1]] * dimension_offsets[dims[1]] +
@@ -537,6 +543,7 @@ namespace SZ {
                                                             stride * dimension_offsets[dims[1]], interp_func, pb);
                 }
             }
+
             for (size_t i = ((overlap && begin[dims[0]]) ? begin[dims[0]] + stride : begin[dims[0]]); i <= end[dims[0]]; i += stride) {
                 for (size_t j = ((overlap && begin[dims[1]]) ? begin[dims[1]] + stride : begin[dims[1]]); j <= end[dims[1]]; j += stride) {
                     size_t begin_offset = i * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]] +
@@ -546,6 +553,8 @@ namespace SZ {
                                                             stride * dimension_offsets[dims[2]], interp_func, pb);
                 }
             }
+
+
             return predict_error;
         }
 
@@ -631,6 +640,7 @@ namespace SZ {
             return predict_error;
         }
 
+        std::vector<T> ori_data;
         double encode_time = 0, lossless_time = 0;
         int levels = -1, level_independent = -1, level_fill = 0;
         size_t interp_dim_limit, block_size;

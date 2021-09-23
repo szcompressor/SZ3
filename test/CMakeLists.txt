@@ -6,8 +6,7 @@ set(exes sz_demo
         test_arithmetic_coding
         sz_interp
         sz_pinterp
-        sz_pinterp_block
-        sz_pinterp_block_fileio
+        sz_pinterp_savememory
         sz_rtm
         sz_interp_double
         )
