@@ -15,26 +15,27 @@ find_package(PkgConfig)
 
 
 pkg_search_module(ZSTD IMPORTED_TARGET libzstd)
-if(ZSTD_FOUND)
+if (ZSTD_FOUND)
     set(ZSTD_dep PkgConfig::ZSTD)
-else()
+else ()
     add_subdirectory(zstd)
     set(ZSTD_dep zstd)
     list(APPEND thirdparty_export "zstd")
-endif()
+endif ()
 
 find_package(GSL)
-if (GSL_FOUND)
-    add_definitions(-DENABLE_GSL="TRUE")
-endif()
+
 
 add_library(${PROJECT_NAME} INTERFACE)
 target_include_directories(
         ${PROJECT_NAME} INTERFACE
         $<BUILD_INTERFACE:${${PROJECT_NAME}_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_FULL_INCLUDEDIR}>
-        ${ZSTD_dep})
-
+        )
+target_link_libraries(${PROJECT_NAME} INTERFACE ${ZSTD_dep})
+if (GSL_FOUND)
+    target_link_libraries(${PROJECT_NAME} INTERFACE GSL::gsl)
+endif ()
 
 install(DIRECTORY ${${PROJECT_NAME}_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_FULL_INCLUDEDIR})
 

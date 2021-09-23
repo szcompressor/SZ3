@@ -78,7 +78,7 @@ namespace SZ {
         printf("max absolute error = %.2G\n", max_err);
         printf("max relative error = %.2G\n", max_err / (max - min));
         printf("max pw relative error = %.2G\n", maxpw_relerr);
-        printf("PSNR = %f, NRMSE= %.10G\n", psnr, nrmse);
+        printf("PSNR = %f, NRMSE= %.10G L2Error= %.10G\n", psnr, nrmse, l2_err);
     }
 
     template<typename Type>
@@ -135,9 +135,10 @@ namespace SZ {
         printf("Max absolute error = %.2G\n", diffMax);
         printf("Max relative error = %.2G\n", diffMax / (Max - Min));
         printf("Max pw relative error = %.2G\n", maxpw_relerr);
-        printf("PSNR = %f, NRMSE= %.10G\n", psnr, nrmse);
-        printf("acEff=%f\n", acEff);
-        printf("errAutoCorr=%.10f\n", autocorrelation1DLag1<double>(diff, num_elements, diff_sum / num_elements));
+//        printf("PSNR = %f, NRMSE= %.10G\n", psnr, nrmse);
+        printf("PSNR = %f, NRMSE= %.10G L2Error= %.10G\n", psnr, nrmse, sum);
+//        printf("acEff=%f\n", acEff);
+//        printf("errAutoCorr=%.10f\n", autocorrelation1DLag1<double>(diff, num_elements, diff_sum / num_elements));
         free(diff);
     }
 
