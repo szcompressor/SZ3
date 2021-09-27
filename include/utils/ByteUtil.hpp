@@ -306,6 +306,15 @@ namespace SZ {
         b[7] = (unsigned char) (num);
     }
 
+
+    inline uint extract_bits_from_uint(uint v, uint startbit, uint len) {
+        return v >> (32 - startbit - len) & ((1 << len) - 1);
+    }
+
+    inline uint recover_bits_to_uint(uint bits, uint startbit, uint len) {
+        return bits << (32 - startbit - len);
+    }
+
     int bytesToInt(const unsigned char *bytes) {
         lfloat buf;
         memcpy(buf.byte, bytes, 4);
