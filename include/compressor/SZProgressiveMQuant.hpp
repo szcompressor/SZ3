@@ -214,9 +214,7 @@ namespace SZ {
 //            quantizer.set_eb(eb * eb_ratio);
 
             Timer timer(true);
-            uchar *lossless_data = (num_elements < 1000000) ?
-                                   new uchar[4 * num_elements * sizeof(T)] :
-                                   new uchar[size_t(1.2 * num_elements) * sizeof(T)];
+            uchar *lossless_data = new uchar[size_t((num_elements < 1000000 ? 4 : 1.2) * num_elements) * sizeof(T)];
             uchar *lossless_data_pos = lossless_data;
 
             write(global_dimensions.data(), N, lossless_data_pos);
@@ -287,7 +285,7 @@ namespace SZ {
                 }
             }
             for (int b = 0; b < bsize; b++) {
-                uchar *compressed_data = new uchar[(quant_inds.size() < 1000000 ? 10 : 1.2) * quant_inds.size() * sizeof(T)];
+                uchar *compressed_data = new uchar[size_t((quant_inds.size() < 1000000 ? 10 : 1.2) * quant_inds.size()) * sizeof(T)];
                 uchar *compressed_data_pos = compressed_data;
 
                 if (b == 0) {
@@ -368,9 +366,7 @@ namespace SZ {
         }
 
         void encode_lossless(uchar *&lossless_data_pos, std::vector<size_t> &lossless_size) {
-            uchar *compressed_data = (quant_inds.size() < 1000000) ?
-                                     new uchar[10 * quant_inds.size() * sizeof(T)] :
-                                     new uchar[size_t(1.2 * quant_inds.size()) * sizeof(T)];
+            uchar *compressed_data = new uchar[size_t((quant_inds.size() < 1000000 ? 10 : 1.2) * quant_inds.size()) * sizeof(T)];
             uchar *compressed_data_pos = compressed_data;
 
             quantizer.save(compressed_data_pos);
@@ -429,7 +425,6 @@ namespace SZ {
 //                printf("%lu %.5f %.5f %d %lu\n", idx, ori_data[idx], d, quant_inds[quant_index-1],quant_index-1);
 //            }
         };
-
 
 
         inline void recover_delta(size_t idx, T &d, T pred) {
