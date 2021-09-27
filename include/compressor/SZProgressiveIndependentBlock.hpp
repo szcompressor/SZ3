@@ -223,12 +223,9 @@ namespace SZ {
 
         }
 
-        uchar *compress(T *data, std::vector<size_t> &compressed_size) {
-            return compress(data, compressed_size, false);
-        }
 
         // compress given the error bound
-        uchar *compress(T *data, std::vector<size_t> &lossless_size, bool deleteData) {
+        uchar *compress(T *data, std::vector<size_t> &lossless_size) {
             size_t num_elements = std::accumulate(global_dimensions.begin(), global_dimensions.end(), (size_t) 1, std::multiplies<>());
             size_t core_num_elements = std::accumulate(core_dimensions.begin(), core_dimensions.end(), (size_t) 1, std::multiplies<>());
             size_t block_num_elements = round(pow(block_size + 1, N));
@@ -399,9 +396,6 @@ namespace SZ {
             }
 
 
-            if (deleteData) {
-                delete[]data;
-            }
             std::cout << "total element = " << num_elements << ", quantization element = " << quant_inds_total << std::endl;
             assert(quant_inds_total >= num_elements);
 //            timer.stop("Predition & Quantization");

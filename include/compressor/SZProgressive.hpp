@@ -172,12 +172,8 @@ namespace SZ {
             return dec_data;
         }
 
-        uchar *compress(T *data, std::vector<size_t> &compressed_size) {
-            return compress(data, compressed_size, false);
-        }
-
         // compress given the error bound
-        uchar *compress(T *data, std::vector<size_t> &lossless_size, bool deleteData) {
+        uchar *compress(T *data, std::vector<size_t> &lossless_size) {
             quant_inds.reserve(num_elements);
 //            quant_inds.resize(num_elements);
             size_t interp_compressed_size = 0;
@@ -262,9 +258,6 @@ namespace SZ {
                            lossless_time);
 
                 }
-            }
-            if (deleteData) {
-                delete[]data;
             }
             std::cout << "total element = " << num_elements << ", quantization element = " << quant_inds_total << std::endl;
             assert(quant_inds_total >= num_elements);
