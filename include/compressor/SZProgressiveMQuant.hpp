@@ -267,19 +267,21 @@ namespace SZ {
             printf("level = %d , quant size = %lu , prediction time=%.3f\n", 1, quant_inds.size(), timer.stop());
             quant_inds_total += quant_inds.size();
 
+
             Timer timer2(true);
             timer.start();
             int radius = quantizer.get_radius();
             size_t bsize = bitplane.size();
             size_t qsize = quant_inds.size();
-            std::vector<uint32_t> bitmasks(bsize);
             std::vector<int> quants(qsize);
+            std::vector<int> quant_sign(qsize);
             uchar *compressed_data = new uchar[size_t((quant_inds.size() < 1000000 ? 10 : 1.2) * quant_inds.size()) * sizeof(T)];
 
-            for (int b = 0, startbit = 0; b < bsize; b++) {
+            for (int b = 0, bitstart = 0; b < bsize; b++) {
                 timer.start();
-                bitmasks[b] = ((1 << bitplane[b]) - 1) << (32 - startbit - bitplane[b]);
-                startbit += bitplane[b];
+                uint32_t bitshifts = 32 - bitstart - bitplane[b];
+                uint32_t bitmasks = (1 << bitplane[b]) - 1;
+                bitstart += bitplane[b];
                 uchar *compressed_data_pos = compressed_data;
 
                 if (b == 0) {
@@ -287,10 +289,10 @@ namespace SZ {
                     quantizer.clear();
 
                     write((size_t) qsize, compressed_data_pos);
-                    std::vector<int> quant_sign(qsize);
                     for (size_t i = 0; i < qsize; i++) {
                         if (quant_inds[i] == -radius) {
                             quant_sign[i] = 0;
+                            quant_inds[i] = 0;
                         } else if (quant_inds[i] < 0) {
                             quant_inds[i] = -quant_inds[i];
                             quant_sign[i] = -1;
@@ -307,7 +309,7 @@ namespace SZ {
                 }
                 ska::unordered_map<int, size_t> frequency;
                 for (size_t i = 0; i < qsize; i++) {
-                    quants[i] = ((uint32_t) quant_inds[i]) & bitmasks[b];
+                    quants[i] = ((uint32_t) quant_inds[i]) >> bitshifts & bitmasks;
                     frequency[quants[i]]++;
                 }
                 encoder.preprocess_encode(quants, frequency);
