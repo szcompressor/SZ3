@@ -25,7 +25,7 @@ void interp_compress_decompress(const char *path, double eb, int interp_op, int 
 
     size_t num = 0;
     auto data = SZ::readfile<float>(path, num);
-    SZ::Timer timer(true);
+
     {
 
         std::cout << "****************** compression ****************" << std::endl;
@@ -35,7 +35,7 @@ void interp_compress_decompress(const char *path, double eb, int interp_op, int 
                   << "Block size         = " << block_size << std::endl
                   << "Level fill         = " << level_fill << std::endl;
 
-
+        SZ::Timer timer(true);
         auto dims = std::array<size_t, N>{static_cast<size_t>(std::forward<Dims>(args))...};
         auto sz = SZ::SZProgressiveMQuant<float, N, SZ::LinearQuantizer2<float>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
                 SZ::LinearQuantizer2<float>(eb),
@@ -44,11 +44,10 @@ void interp_compress_decompress(const char *path, double eb, int interp_op, int 
                 dims, interp_op, direction_op, 50000, level_independent, block_size, level_fill
         );
         compressed = sz.compress(data.get(), compressed_size);
-        total_compressed_size = std::accumulate(compressed_size.begin(), compressed_size.end(), (size_t) 0);
-
-
-        auto compression_ratio = num * sizeof(float) * 1.0 / total_compressed_size;
         timer.stop("Compression");
+
+        total_compressed_size = std::accumulate(compressed_size.begin(), compressed_size.end(), (size_t) 0);
+        auto compression_ratio = num * sizeof(float) * 1.0 / total_compressed_size;
         std::cout << "Compressed size = " << total_compressed_size << std::endl;
         std::cout << "Compression ratio = " << compression_ratio << std::endl << std::endl;
     }
@@ -56,7 +55,7 @@ void interp_compress_decompress(const char *path, double eb, int interp_op, int 
         std::cout << "****************** Decompression ****************" << std::endl;
 
         float *dec_data;
-        timer.start();
+        SZ::Timer timer(true);
         auto dims = std::array<size_t, N>{static_cast<size_t>(std::forward<Dims>(args))...};
         auto sz = SZ::SZProgressiveMQuant<float, N, SZ::LinearQuantizer2<float>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
                 SZ::LinearQuantizer2<float>(eb),

@@ -142,7 +142,7 @@ namespace SZ {
                         quantizer.postdecompress_data();
                         quant_inds_count += quant_index;
                     }
-                    std::cout << "Level = " << level << " , #blocks = " << nBlock <<", Time = "<< timer.stop() << std::endl;
+                    std::cout << "Level = " << level << " , #blocks = " << nBlock << ", Time = " << timer.stop() << std::endl;
                 }
 
             }
@@ -225,10 +225,12 @@ namespace SZ {
                                             interpolators[interpolator_id], direction_sequence_id, stride, true);
 
                     }
-                    printf("level = %d , quant size = %lu , time=%.3f\n", level, quant_inds.size(), timer.stop());
 
-                    quant_inds_total += quant_inds.size();
+                    size_t quant_size = quant_inds.size();
+                    quant_inds_total += quant_size;
                     encode_lossless(lossless_data_pos, lossless_size);
+
+                    printf("level = %d , quant size = %lu , time=%.3f\n", level, quant_size, timer.stop());
 
                 } else {
                     timer.start();
