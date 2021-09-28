@@ -78,6 +78,7 @@ namespace SZ {
 
 
         T *decompress(uchar const *lossless_data, const std::vector<size_t> &lossless_size) {
+            Timer timer(true);
 
             int lossless_id = 0;
             size_t remaining_length = lossless_size[lossless_id];
@@ -96,7 +97,7 @@ namespace SZ {
 
 //            check_dec = true;
             for (uint level = levels; level > level_fill && level > 1; level--) {
-                Timer timer(true);
+                timer.start();
                 size_t stride = 1U << (level - 1);
 
                 lossless_decode(lossless_data, lossless_size, lossless_id++);
@@ -127,18 +128,13 @@ namespace SZ {
 
 
             for (uint level = level_fill; level > 1; level--) {
-                Timer timer(true);
+                timer.start();
                 size_t stride = 1U << (level - 1);
                 block_interpolation(dec_data, global_begin, global_end, PB_fill,
                                     interpolators[interpolator_id], direction_sequence_id, stride, true);
                 std::cout << "Fill Level = " << level << " " << std::endl;
             }
-//            if (level_fill == 1) {
 
-            std::vector<int> quant_sign;
-//                size_t bsize = bitplane.size();
-            int bitstart = 0;
-            size_t quant_size;
 
             if (level_independent == 0) {
                 block_interpolation(dec_data, global_begin, global_end, PB_fill,
@@ -147,8 +143,10 @@ namespace SZ {
             }
 
 
-            std::fill(quant_inds.begin(), quant_inds.end(), 0);
-            for (int b = 0; b < std::min<int>(bitplane.size(), level_independent); b++) {
+            std::vector<int> quant_sign;
+            size_t quant_size;
+            for (int b = 0, bitstart = 0; b < std::min<int>(bitplane.size(), level_independent); b++) {
+                timer.start();
 
                 size_t length = lossless_size[lossless_id];
                 retrieved_size += length;
@@ -163,30 +161,30 @@ namespace SZ {
                     read(quant_size, compressed_data_pos, length);
                     quant_inds.resize(quant_size);
 
-                    encoder.load(compressed_data_pos, length);
-                    quant_sign = encoder.decode(compressed_data_pos, quant_size);
-                    encoder.postprocess_decode();
+                    quant_sign = decode_int_2bits(compressed_data_pos, length);
 
                     dec_delta.resize(num_elements, 0);
                 }
 
-                //                printf("%lu\n", quant_size);
                 encoder.load(compressed_data_pos, length);
                 auto quant_ind_truncated = encoder.decode(compressed_data_pos, quant_size);
                 encoder.postprocess_decode();
-                quantizer.reset_unpred_index();
-
-                quant_index = 0;
 
                 lossless.postdecompress_data(compressed_data);
                 lossless_data += lossless_size[lossless_id];
                 lossless_id++;
 
+                quantizer.reset_unpred_index();
+                quant_index = 0;
+
+                int bitshift = 32 - bitstart - bitplane[b];
                 for (size_t i = 0; i < quant_size; i++) {
                     if (quant_sign[i] == 0) { //unpredictable data
                         quant_inds[i] = -quantizer.get_radius();
-                    } else {
-                        quant_inds[i] = quant_sign[i] * recover_bits_to_uint(quant_ind_truncated[i], bitstart, bitplane[b]);
+                    } else if (quant_sign[i] == 1) { // pred >= 0
+                        quant_inds[i] = (quant_ind_truncated[i] << bitshift);
+                    } else { // pred < 0
+                        quant_inds[i] = -(quant_ind_truncated[i] << bitshift);
                     }
                 }
 
@@ -194,7 +192,8 @@ namespace SZ {
                                     interpolators[interpolator_id], direction_sequence_id, 1, true);
 
                 bitstart += bitplane[b];
-                printf("Bitplane %d\n", b);
+                printf("Bitplane = %d, time = %.3f\n", b, timer.stop());
+
             }
 
             printf("retrieved = %.3f%% %lu\n", retrieved_size * 100.0 / (num_elements * sizeof(float)), retrieved_size);
@@ -274,7 +273,6 @@ namespace SZ {
             size_t bsize = bitplane.size();
             size_t qsize = quant_inds.size();
             std::vector<int> quants(qsize);
-            std::vector<int> quant_sign(qsize);
             uchar *compressed_data = new uchar[size_t((quant_inds.size() < 1000000 ? 10 : 1.2) * quant_inds.size()) * sizeof(T)];
 
             for (int b = 0, bitstart = 0; b < bsize; b++) {
@@ -284,33 +282,35 @@ namespace SZ {
                 bitstart += bitplane[b];
                 uchar *compressed_data_pos = compressed_data;
 
+                ska::unordered_map<int, size_t> frequency;
                 if (b == 0) {
                     quantizer.save(compressed_data_pos);
                     quantizer.clear();
 
                     write((size_t) qsize, compressed_data_pos);
+
+                    std::vector<int> quant_sign(qsize);
                     for (size_t i = 0; i < qsize; i++) {
                         if (quant_inds[i] == -radius) {
                             quant_sign[i] = 0;
                             quant_inds[i] = 0;
                         } else if (quant_inds[i] < 0) {
                             quant_inds[i] = -quant_inds[i];
-                            quant_sign[i] = -1;
+                            quant_sign[i] = 2;
                         } else {
                             quant_sign[i] = 1;
                         }
+                        quants[i] = ((uint32_t) quant_inds[i]) >> bitshifts & bitmasks;
+                        frequency[quants[i]]++;
                     }
 
-                    encoder.preprocess_encode(quant_sign, 0);
-                    encoder.save(compressed_data_pos);
-                    encoder.encode(quant_sign, compressed_data_pos);
-                    encoder.postprocess_encode();
+                    encode_int_2bits(quant_sign, compressed_data_pos);
 
-                }
-                ska::unordered_map<int, size_t> frequency;
-                for (size_t i = 0; i < qsize; i++) {
-                    quants[i] = ((uint32_t) quant_inds[i]) >> bitshifts & bitmasks;
-                    frequency[quants[i]]++;
+                } else {
+                    for (size_t i = 0; i < qsize; i++) {
+                        quants[i] = ((uint32_t) quant_inds[i]) >> bitshifts & bitmasks;
+                        frequency[quants[i]]++;
+                    }
                 }
                 encoder.preprocess_encode(quants, frequency);
                 encoder.save(compressed_data_pos);
@@ -324,8 +324,7 @@ namespace SZ {
                 lossless_data_pos += size;
                 lossless_size.push_back(size);
                 delete[]lossless_result;
-                timer.stop("bitplane encode+lossless");
-
+                printf("Bitplane = %d, time = %.3f\n", b, timer.stop());
             }
             delete[]compressed_data;
 
@@ -338,6 +337,62 @@ namespace SZ {
         }
 
     private:
+
+        inline void encode_int_2bits(const std::vector<int> &data, uchar *&c) {
+
+            size_t intLen = data.size();
+            size_t byteLen = intLen * 2 / 8 + (intLen % 4 == 0 ? 0 : 1);
+
+            write(intLen, c);
+            write(byteLen, c);
+
+            size_t b, i = 0;
+            int mod4 = intLen % 4;
+            for (b = 0; b < (mod4 == 0 ? byteLen : byteLen - 1); b++, i += 4) {
+                c[b] = (data[i] << 6) | (data[i + 1] << 4) | (data[i + 2] << 2) | data[i + 3];
+            }
+            if (mod4 > 0) {
+                if (mod4 == 1) {
+                    c[b] = (data[i] << 6);
+                } else if (mod4 == 2) {
+                    c[b] = (data[i] << 6) | (data[i + 1] << 4);
+                } else if (mod4 == 3) {
+                    c[b] = (data[i] << 6) | (data[i + 1] << 4) | (data[i + 2] << 2);
+                }
+            }
+            c += byteLen;
+        }
+
+
+        std::vector<int> decode_int_2bits(const uchar *&c, size_t &remaining_length) {
+            size_t byteLen, intLen;
+            read(intLen, c, remaining_length);
+            read(byteLen, c, remaining_length);
+            std::vector<int> ints(intLen);
+            size_t i = 0, b = 0;
+
+            int mod4 = intLen % 4;
+            for (; b < (mod4 == 0 ? byteLen : byteLen - 1); b++, i += 4) {
+                ints[i] = (c[b] & 0xC0) >> 6;
+                ints[i + 1] = (c[b] & 0x30) >> 4;
+                ints[i + 2] = (c[b] & 0x0C) >> 2;
+                ints[i + 3] = c[b] & 0x03;
+            }
+            if (mod4 > 0) {
+                if (mod4 >= 1) {
+                    ints[i] = (c[b] & 0xC0) >> 6;
+                }
+                if (mod4 >= 2) {
+                    ints[i + 1] = (c[b] & 0x30) >> 4;
+                }
+                if (mod4 >= 3) {
+                    ints[i + 2] = (c[b] & 0x0C) >> 2;
+                }
+            }
+            c += byteLen;
+            remaining_length -= byteLen;
+            return ints;
+        }
 
         void print_global_index(size_t offset) {
             std::array<size_t, N> global_idx{0};
