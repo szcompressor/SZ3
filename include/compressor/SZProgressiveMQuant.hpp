@@ -166,9 +166,14 @@ namespace SZ {
                     dec_delta.resize(num_elements, 0);
                 }
 
-                encoder.load(compressed_data_pos, length);
-                auto quant_ind_truncated = encoder.decode(compressed_data_pos, quant_size);
-                encoder.postprocess_decode();
+                std::vector<int> quant_ind_truncated;
+                if (bitplane[b] == 2) {
+                    quant_ind_truncated = decode_int_2bits(compressed_data_pos, length);
+                } else {
+                    encoder.load(compressed_data_pos, length);
+                    quant_ind_truncated = encoder.decode(compressed_data_pos, quant_size);
+                    encoder.postprocess_decode();
+                }
 
                 lossless.postdecompress_data(compressed_data);
                 lossless_data += lossless_size[lossless_id];
@@ -282,7 +287,6 @@ namespace SZ {
                 bitstart += bitplane[b];
                 uchar *compressed_data_pos = compressed_data;
 
-                ska::unordered_map<int, size_t> frequency;
                 if (b == 0) {
                     quantizer.save(compressed_data_pos);
                     quantizer.clear();
@@ -300,22 +304,22 @@ namespace SZ {
                         } else {
                             quant_sign[i] = 1;
                         }
-                        quants[i] = ((uint32_t) quant_inds[i]) >> bitshifts & bitmasks;
-                        frequency[quants[i]]++;
                     }
-
                     encode_int_2bits(quant_sign, compressed_data_pos);
 
-                } else {
-                    for (size_t i = 0; i < qsize; i++) {
-                        quants[i] = ((uint32_t) quant_inds[i]) >> bitshifts & bitmasks;
-                        frequency[quants[i]]++;
-                    }
                 }
-                encoder.preprocess_encode(quants, frequency);
-                encoder.save(compressed_data_pos);
-                encoder.encode(quants, compressed_data_pos);
-                encoder.postprocess_encode();
+                for (size_t i = 0; i < qsize; i++) {
+                    quants[i] = ((uint32_t) quant_inds[i]) >> bitshifts & bitmasks;
+                }
+
+                if (bitplane[b] == 2) {
+                    encode_int_2bits(quants, compressed_data_pos);
+                } else {
+                    encoder.preprocess_encode(quants, 0);
+                    encoder.save(compressed_data_pos);
+                    encoder.encode(quants, compressed_data_pos);
+                    encoder.postprocess_encode();
+                }
 
                 size_t size = 0;
                 uchar *lossless_result = lossless.compress(

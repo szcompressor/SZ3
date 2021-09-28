@@ -40,7 +40,7 @@ void interp_compress_decompress(const char *path, double eb, int interp_op, int 
         auto sz = SZ::SZProgressiveMQuant<float, N, SZ::LinearQuantizer2<float>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
                 SZ::LinearQuantizer2<float>(eb),
                 SZ::HuffmanEncoder<int>(),
-                SZ::Lossless_zstd(),
+                SZ::Lossless_zstd(2),
                 dims, interp_op, direction_op, 50000, level_independent, block_size, level_fill
         );
         compressed = sz.compress(data.get(), compressed_size);
