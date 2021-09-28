@@ -16,6 +16,7 @@
 #include <cstring>
 #include <cmath>
 #include <utils/ByteUtil.hpp>
+#include <utils/ska_hash/unordered_map.hpp>
 
 namespace SZ {
     template<class T, uint N, class Quantizer, class Encoder, class Lossless>
@@ -202,6 +203,8 @@ namespace SZ {
 
         // compress given the error bound
         uchar *compress(T *data, std::vector<size_t> &lossless_size) {
+            Timer timer(true);
+
             quant_inds.reserve(num_elements);
 //            quant_inds.resize(num_elements);
             size_t interp_compressed_size = 0;
@@ -213,7 +216,6 @@ namespace SZ {
             std::cout << "Absolute error bound = " << eb << std::endl;
 //            quantizer.set_eb(eb * eb_ratio);
 
-            Timer timer(true);
             uchar *lossless_data = new uchar[size_t((num_elements < 1000000 ? 4 : 1.2) * num_elements) * sizeof(T)];
             uchar *lossless_data_pos = lossless_data;
 
@@ -222,12 +224,12 @@ namespace SZ {
             lossless_size.push_back(lossless_data_pos - lossless_data);
 
             for (uint level = levels; level > 1; level--) {
-                quantizer.set_eb((level >= 3) ? eb * eb_ratio : eb);
+                timer.start();
 
+                quantizer.set_eb((level >= 3) ? eb * eb_ratio : eb);
                 uint stride = 1U << (level - 1);
 //                std::cout << "Level = " << level << ", stride = " << stride << std::endl;
 
-                timer.start();
                 if (level == levels) {
                     quant_inds.push_back(quantizer.quantize_and_overwrite(*data, 0));
                 }
@@ -249,43 +251,35 @@ namespace SZ {
                                         interpolators[interpolator_id], direction_sequence_id, stride, true);
 
                 }
-                printf("level = %d , quant size = %lu , time=%.3f\n", level, quant_inds.size(), timer.stop());
 
-                quant_inds_total += quant_inds.size();
+                auto quant_size = quant_inds.size();
+                quant_inds_total += quant_size;
                 encode_lossless(lossless_data_pos, lossless_size);
+
+                printf("level = %d , quant size = %lu , time=%.3f\n", level, quant_size, timer.stop());
 
             }
 
             timer.start();
-
-//            debug_idx_list.clear();
             quantizer.set_eb(eb);
             block_interpolation(data, global_begin, global_end, PB_predict_overwrite,
                                 interpolators[interpolator_id], direction_sequence_id, 1, true);
-            printf("level = %d , quant size = %lu , time=%.3f\n", 1, quant_inds.size(), timer.stop());
+            printf("level = %d , quant size = %lu , prediction time=%.3f\n", 1, quant_inds.size(), timer.stop());
             quant_inds_total += quant_inds.size();
 
-
+            Timer timer2(true);
+            timer.start();
+            int radius = quantizer.get_radius();
             size_t bsize = bitplane.size();
             size_t qsize = quant_inds.size();
+            std::vector<uint32_t> bitmasks(bsize);
+            std::vector<int> quants(qsize);
+            uchar *compressed_data = new uchar[size_t((quant_inds.size() < 1000000 ? 10 : 1.2) * quant_inds.size()) * sizeof(T)];
 
-            std::vector<std::vector<int>> quants(bsize, std::vector<int>(qsize));
-            std::vector<int> quant_sign(qsize);
-            int radius = quantizer.get_radius();
-            for (size_t i = 0; i < qsize; i++) {
-                if (quant_inds[i] == -radius) {
-                    quant_sign[i] = 0;
-                    continue;
-                }
-                quant_sign[i] = (quant_inds[i] >= 0 ? 1 : -1);
-                int bitstart = 0;
-                for (int b = 0; b < bsize; b++) {
-                    quants[b][i] = extract_bits_from_uint(quant_sign[i] * quant_inds[i], bitstart, bitplane[b]);
-                    bitstart += bitplane[b];
-                }
-            }
-            for (int b = 0; b < bsize; b++) {
-                uchar *compressed_data = new uchar[size_t((quant_inds.size() < 1000000 ? 10 : 1.2) * quant_inds.size()) * sizeof(T)];
+            for (int b = 0, startbit = 0; b < bsize; b++) {
+                timer.start();
+                bitmasks[b] = ((1 << bitplane[b]) - 1) << (32 - startbit - bitplane[b]);
+                startbit += bitplane[b];
                 uchar *compressed_data_pos = compressed_data;
 
                 if (b == 0) {
@@ -293,6 +287,17 @@ namespace SZ {
                     quantizer.clear();
 
                     write((size_t) qsize, compressed_data_pos);
+                    std::vector<int> quant_sign(qsize);
+                    for (size_t i = 0; i < qsize; i++) {
+                        if (quant_inds[i] == -radius) {
+                            quant_sign[i] = 0;
+                        } else if (quant_inds[i] < 0) {
+                            quant_inds[i] = -quant_inds[i];
+                            quant_sign[i] = -1;
+                        } else {
+                            quant_sign[i] = 1;
+                        }
+                    }
 
                     encoder.preprocess_encode(quant_sign, 0);
                     encoder.save(compressed_data_pos);
@@ -300,27 +305,33 @@ namespace SZ {
                     encoder.postprocess_encode();
 
                 }
-                encoder.preprocess_encode(quants[b], 0);
+                ska::unordered_map<int, size_t> frequency;
+                for (size_t i = 0; i < qsize; i++) {
+                    quants[i] = ((uint32_t) quant_inds[i]) & bitmasks[b];
+                    frequency[quants[i]]++;
+                }
+                encoder.preprocess_encode(quants, frequency);
                 encoder.save(compressed_data_pos);
-                encoder.encode(quants[b], compressed_data_pos);
+                encoder.encode(quants, compressed_data_pos);
                 encoder.postprocess_encode();
 
                 size_t size = 0;
                 uchar *lossless_result = lossless.compress(
                         compressed_data, compressed_data_pos - compressed_data, size);
-                lossless.postcompress_data(compressed_data);
                 memcpy(lossless_data_pos, lossless_result, size);
                 lossless_data_pos += size;
                 lossless_size.push_back(size);
                 delete[]lossless_result;
+                timer.stop("bitplane encode+lossless");
 
             }
+            delete[]compressed_data;
 
 //            quant_inds.clear();
-
             std::cout << "total element = " << num_elements << ", quantization element = " << quant_inds_total << std::endl;
             assert(quant_inds_total >= num_elements);
 
+            timer2.stop("multilevel_quantization");
             return lossless_data;
         }
 
@@ -401,29 +412,17 @@ namespace SZ {
         };
 
         inline void quantize1(size_t idx, T &d, T pred) {
-            if (idx >= 2 * 449 * 449 * 235 && idx < 3 * 449 * 449 * 235 &&
-                fabs(d - pred) > max_error) {
-                max_error = fabs(d - pred);
-            }
             auto quant = quantizer.quantize_and_overwrite(d, pred);
 //            quant_inds.push_back(quant);
             quant_inds[idx] = quant;
         }
 
         inline void quantize(size_t idx, T &d, T pred) {
-//            preds[idx] = pred;
-//            quant_inds[idx] = quantizer.quantize_and_overwrite(d, pred);
             quant_inds.push_back(quantizer.quantize_and_overwrite(d, pred));
         }
 
         inline void recover(size_t idx, T &d, T pred) {
             d = quantizer.recover(pred, quant_inds[quant_index++]);
-//            if (idx==14259602){
-//                printf("DEBUG %lu %.5f %.5f %.5f %d\n", idx, ori_data[idx], d, pred,quant_inds[quant_index-1] );
-//            }
-//            if (fabs(ori_data[idx] - d) > 1e-3) {
-//                printf("%lu %.5f %.5f %d %lu\n", idx, ori_data[idx], d, quant_inds[quant_index-1],quant_index-1);
-//            }
         };
 
 

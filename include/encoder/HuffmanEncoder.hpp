@@ -107,6 +107,42 @@ namespace SZ {
             nodeCount = nodeCount * 2 - 1;
         }
 
+        void preprocess_encode(const std::vector<T> &bins, ska::unordered_map<T, size_t> &frequency) {
+            if (bins.size() == 0) {
+                return;
+            }
+            T max = bins[0];
+            offset = bins[0]; //offset is min
+
+            for (const auto &kv: frequency) {
+                auto k = kv.first;
+                if (k > max) {
+                    max = k;
+                }
+                if (k < offset) {
+                    offset = k;
+                }
+            }
+
+            int stateNum = max - offset + 2;
+            huffmanTree = createHuffmanTree(stateNum);
+
+            for (const auto &f: frequency) {
+                qinsert(new_node(f.second, f.first - offset, 0, 0));
+            }
+
+            while (huffmanTree->qend > 2)
+                qinsert(new_node(0, 0, qremove(), qremove()));
+
+            build_code(huffmanTree->qq[1], 0, 0, 0);
+            treeRoot = huffmanTree->qq[1];
+
+            nodeCount = 0;
+            for (int i = 0; i < huffmanTree->stateNum; i++)
+                if (huffmanTree->code[i]) nodeCount++;
+            nodeCount = nodeCount * 2 - 1;
+        }
+
         //save the huffman Tree in the compressed data
         uint save(uchar *&c) {
             write(offset, c);
@@ -525,7 +561,7 @@ namespace SZ {
             }
 
             for (const auto &kv: frequency) {
-                auto k=kv.first;
+                auto k = kv.first;
                 if (k > max) {
                     max = k;
                 }
