@@ -28,7 +28,7 @@ namespace SZ {
         SZProgressiveMQuant(Quantizer quantizer, Encoder encoder, Lossless lossless,
                             const std::array<size_t, N> dims,
                             int interpolator,
-                            int direction,
+                            int direction_id_,
                             size_t interp_dim_limit,
                             int level_independent_,
                             size_t block_size_,
@@ -36,7 +36,7 @@ namespace SZ {
                 quantizer(quantizer), encoder(encoder), lossless(lossless),
                 global_dimensions(dims),
                 interpolators({"linear", "cubic"}),
-                interpolator_id(interpolator), direction_sequence_id(direction),
+                interpolator_id(interpolator),
                 interp_dim_limit(interp_dim_limit),
                 level_independent(level_independent_),
                 block_size(block_size_),
@@ -61,20 +61,41 @@ namespace SZ {
                 global_end[i] = global_dimensions[i] - 1;
             }
 
-            dimension_offsets[N - 1] = 1;
+            dim_offsets[N - 1] = 1;
             for (int i = N - 2; i >= 0; i--) {
-                dimension_offsets[i] = dimension_offsets[i + 1] * global_dimensions[i + 1];
+                dim_offsets[i] = dim_offsets[i + 1] * global_dimensions[i + 1];
             }
 
-            dimension_sequences = std::vector<std::array<int, N>>();
-            auto sequence = std::array<int, N>();
-            for (int i = 0; i < N; i++) {
-                sequence[i] = i;
+            std::array<int, N> base_direction;
+            std::array<int, N - 1> stride_multiplication;
+            for (int i = 0; i < N - 1; i++) {
+                base_direction[i] = i;
+                stride_multiplication[i] = 2;
             }
+            base_direction[N - 1] = N - 1;
+
+            int direction_id = 0;
             do {
-                dimension_sequences.push_back(sequence);
-            } while (std::next_permutation(sequence.begin(), sequence.end()));
+                if (direction_id_ == direction_id) {
+                    for (int i = 0; i < N - 1; i++) {
+                        auto direction = base_direction;
+                        std::rotate(direction.begin() + i, direction.begin() + i + 1, direction.end());
+                        directions[i] = std::pair{direction, stride_multiplication};
+                        stride_multiplication[i] = 1;
+                    }
+                    directions[N - 1] = std::pair{base_direction, stride_multiplication};
+                    break;
+                }
+                direction_id++;
+            } while (std::next_permutation(base_direction.begin(), base_direction.end()));
 
+            for (int i = 0; i < N; i++) {
+                printf("direction %d is ", i);
+                for (int j = 0; j < N; j++) {
+                    printf("%d ", directions[i].first[j]);
+                }
+                printf("\n");
+            }
         }
 
 
@@ -119,8 +140,10 @@ namespace SZ {
                             end_idx[i] = global_dimensions[i] - 1;
                         }
                     }
-                    block_interpolation(dec_data, block.get_global_index(), end_idx, PB_recover,
-                                        interpolators[interpolator_id], direction_sequence_id, stride, true);
+                    for (const auto &direction: directions) {
+                        block_interpolation(dec_data, block.get_global_index(), end_idx, PB_recover,
+                                            interpolators[interpolator_id], direction, stride, true);
+                    }
                 }
                 quantizer.postdecompress_data();
                 std::cout << "Level = " << level << " , quant size = " << quant_inds.size() << ", Time = " << timer.stop() << std::endl;
@@ -131,15 +154,19 @@ namespace SZ {
             for (uint level = level_fill; level > 1; level--) {
                 timer.start();
                 size_t stride = 1U << (level - 1);
-                block_interpolation(dec_data, global_begin, global_end, PB_fill,
-                                    interpolators[interpolator_id], direction_sequence_id, stride, true);
+                for (const auto &direction: directions) {
+                    block_interpolation(dec_data, global_begin, global_end, PB_fill,
+                                        interpolators[interpolator_id], direction, stride, true);
+                }
                 std::cout << "Fill Level = " << level << " " << std::endl;
             }
 
 
             if (level_independent == 0) {
-                block_interpolation(dec_data, global_begin, global_end, PB_fill,
-                                    interpolators[interpolator_id], direction_sequence_id, 1, true);
+                for (const auto &direction: directions) {
+                    block_interpolation(dec_data, global_begin, global_end, PB_fill,
+                                        interpolators[interpolator_id], direction, 1, true);
+                }
                 std::cout << "Fill Level = " << 1 << " " << std::endl;
             }
 
@@ -206,9 +233,10 @@ namespace SZ {
                         }
                     }
 
-                    block_interpolation(dec_data, global_begin, global_end, (b == 0 ? PB_recover : PB_recover_delta),
-                                        interpolators[interpolator_id], direction_sequence_id, 1, true);
-
+                    for (const auto &direction: directions) {
+                        block_interpolation(dec_data, global_begin, global_end, (b == 0 ? PB_recover : PB_recover_delta),
+                                            interpolators[interpolator_id], direction, 1, true);
+                    }
                     SZ::verify<float>(data, dec_data, num_elements);
 
                 }
@@ -218,8 +246,10 @@ namespace SZ {
 
             }
             if (bitplanetogether) {
-                block_interpolation(dec_data, global_begin, global_end, PB_recover,
-                                    interpolators[interpolator_id], direction_sequence_id, 1, true);
+                for (const auto &direction: directions) {
+                    block_interpolation(dec_data, global_begin, global_end, PB_recover,
+                                        interpolators[interpolator_id], direction, 1, true);
+                }
             }
             printf("\nretrieved = %.3f%% %lu\n", retrieved_size * 100.0 / (num_elements * sizeof(float)), retrieved_size);
             return dec_data;
@@ -270,10 +300,10 @@ namespace SZ {
                             end_idx[i] = global_dimensions[i] - 1;
                         }
                     }
-
-                    block_interpolation(data, block.get_global_index(), end_idx, PB_predict_overwrite,
-                                        interpolators[interpolator_id], direction_sequence_id, stride, true);
-
+                    for (const auto &direction: directions) {
+                        block_interpolation(data, block.get_global_index(), end_idx, PB_predict_overwrite,
+                                            interpolators[interpolator_id], direction, stride, true);
+                    }
                 }
 
                 auto quant_size = quant_inds.size();
@@ -286,8 +316,10 @@ namespace SZ {
 
             timer.start();
             quantizer.set_eb(eb);
-            block_interpolation(data, global_begin, global_end, PB_predict_overwrite,
-                                interpolators[interpolator_id], direction_sequence_id, 1, true);
+            for (const auto &direction: directions) {
+                block_interpolation(data, global_begin, global_end, PB_predict_overwrite,
+                                    interpolators[interpolator_id], direction, 1, true);
+            }
             printf("level = %d , quant size = %lu , prediction time=%.3f\n", 1, quant_inds.size(), timer.stop());
             quant_inds_total += quant_inds.size();
 
@@ -422,7 +454,7 @@ namespace SZ {
             return ints;
         }
 
-        void print_global_index(size_t offset) {
+        void global_index(size_t offset) {
             std::array<size_t, N> global_idx{0};
             for (int i = N - 1; i >= 0; i--) {
                 global_idx[i] = offset % global_dimensions[i];
@@ -683,158 +715,42 @@ namespace SZ {
             return predict_error;
         }
 
-        template<uint NN = N>
-        typename std::enable_if<NN == 1, double>::type
-        block_interpolation(T *data, std::array<size_t, N> begin, std::array<size_t, N> end, const PredictorBehavior pb,
-                            const std::string &interp_func, const int direction, uint stride, bool overlap) {
-            return block_interpolation_1d(data, begin[0], end[0], stride, interp_func, pb);
-        }
 
-        template<uint NN = N>
-        typename std::enable_if<NN == 2, double>::type
-        block_interpolation(T *data, std::array<size_t, N> begin, std::array<size_t, N> end, const PredictorBehavior pb,
-                            const std::string &interp_func, const int direction, uint stride, bool overlap) {
-            double predict_error = 0;
-            size_t stride2x = stride * 2;
-            std::array<int, N> dims = dimension_sequences[direction];
-            for (size_t j = ((overlap && begin[dims[1]]) ? begin[dims[1]] + stride2x : begin[dims[1]]); j <= end[dims[1]]; j += stride2x) {
-                size_t begin_offset = begin[dims[0]] * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]];
-                predict_error += block_interpolation_1d(data, begin_offset,
-                                                        begin_offset + (end[dims[0]] - begin[dims[0]]) * dimension_offsets[dims[0]],
-                                                        stride * dimension_offsets[dims[0]], interp_func, pb);
-            }
-            for (size_t i = ((overlap && begin[dims[0]]) ? begin[dims[0]] + stride : begin[dims[0]]); i <= end[dims[0]]; i += stride) {
-                size_t begin_offset = i * dimension_offsets[dims[0]] + begin[dims[1]] * dimension_offsets[dims[1]];
-                predict_error += block_interpolation_1d(data, begin_offset,
-                                                        begin_offset + (end[dims[1]] - begin[dims[1]]) * dimension_offsets[dims[1]],
-                                                        stride * dimension_offsets[dims[1]], interp_func, pb);
-            }
-            return predict_error;
-        }
+        void block_interpolation(T *data, std::array<size_t, N> begin, std::array<size_t, N> end, PredictorBehavior pb,
+                                 const std::string &interp_func, const std::pair<std::array<int, N>, std::array<int, N - 1>> direction, uint stride,
+                                 bool overlap) {
 
-        template<uint NN = N>
-        typename std::enable_if<NN == 3, double>::type
-        block_interpolation(T *data, std::array<size_t, N> begin, std::array<size_t, N> end, PredictorBehavior pb,
-                            const std::string &interp_func, const int direction, uint stride, bool overlap) {
-            double predict_error = 0;
-            size_t stride2x = stride * 2;
+            auto dims = direction.first;
+            auto s = direction.second;
 
-            std::array<int, N> dims = dimension_sequences[direction];
-            for (size_t j = ((overlap && begin[dims[1]]) ? begin[dims[1]] + stride2x : begin[dims[1]]); j <= end[dims[1]]; j += stride2x) {
-                for (size_t k = ((overlap && begin[dims[2]]) ? begin[dims[2]] + stride2x : begin[dims[2]]); k <= end[dims[2]]; k += stride2x) {
-                    size_t begin_offset = begin[dims[0]] * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]]
-                                          + k * dimension_offsets[dims[2]];
-                    predict_error += block_interpolation_1d(data, begin_offset,
-                                                            begin_offset + (end[dims[0]] - begin[dims[0]]) * dimension_offsets[dims[0]],
-                                                            stride * dimension_offsets[dims[0]], interp_func, pb);
+            if (N == 1) {
+                block_interpolation_1d(data, begin[0], end[0], stride, interp_func, pb);
+            } else if (N == 2) {
+                for (size_t i = begin[dims[0]] + ((overlap && begin[dims[0]]) ? stride * s[0] : 0); i <= end[dims[0]]; i += stride * s[0]) {
+                    size_t begin_offset = i * dim_offsets[dims[0]] + begin[dims[1]] * dim_offsets[dims[1]];
+                    block_interpolation_1d(data, begin_offset, begin_offset + (end[dims[1]] - begin[dims[1]]) * dim_offsets[dims[1]],
+                                           stride * dim_offsets[dims[1]], interp_func, pb);
                 }
-            }
-
-
-            for (size_t i = ((overlap && begin[dims[0]]) ? begin[dims[0]] + stride : begin[dims[0]]); i <= end[dims[0]]; i += stride) {
-                for (size_t k = ((overlap && begin[dims[2]]) ? begin[dims[2]] + stride2x : begin[dims[2]]); k <= end[dims[2]]; k += stride2x) {
-                    size_t begin_offset = i * dimension_offsets[dims[0]] + begin[dims[1]] * dimension_offsets[dims[1]] +
-                                          k * dimension_offsets[dims[2]];
-                    predict_error += block_interpolation_1d(data, begin_offset,
-                                                            begin_offset + (end[dims[1]] - begin[dims[1]]) * dimension_offsets[dims[1]],
-                                                            stride * dimension_offsets[dims[1]], interp_func, pb);
+            } else if (N == 3) {
+                for (size_t i = begin[dims[0]] + ((overlap && begin[dims[0]]) ? stride * s[0] : 0); i <= end[dims[0]]; i += stride * s[0]) {
+                    for (size_t j = begin[dims[1]] + ((overlap && begin[dims[1]]) ? stride * s[1] : 0); j <= end[dims[1]]; j += stride * s[1]) {
+                        size_t begin_offset = i * dim_offsets[dims[0]] + j * dim_offsets[dims[1]] + begin[dims[2]] * dim_offsets[dims[2]];
+                        block_interpolation_1d(data, begin_offset, begin_offset + (end[dims[2]] - begin[dims[2]]) * dim_offsets[dims[2]],
+                                               stride * dim_offsets[dims[2]], interp_func, pb);
+                    }
                 }
-            }
-
-            for (size_t i = ((overlap && begin[dims[0]]) ? begin[dims[0]] + stride : begin[dims[0]]); i <= end[dims[0]]; i += stride) {
-                for (size_t j = ((overlap && begin[dims[1]]) ? begin[dims[1]] + stride : begin[dims[1]]); j <= end[dims[1]]; j += stride) {
-                    size_t begin_offset = i * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]] +
-                                          begin[dims[2]] * dimension_offsets[dims[2]];
-                    predict_error += block_interpolation_1d(data, begin_offset,
-                                                            begin_offset + (end[dims[2]] - begin[dims[2]]) * dimension_offsets[dims[2]],
-                                                            stride * dimension_offsets[dims[2]], interp_func, pb);
-                }
-            }
-
-
-            return predict_error;
-        }
-
-
-        template<uint NN = N>
-        typename std::enable_if<NN == 4, double>::type
-        block_interpolation(T *data, std::array<size_t, N> begin, std::array<size_t, N> end, const PredictorBehavior pb,
-                            const std::string &interp_func, const int direction, uint stride, bool overlap) {
-            double predict_error = 0;
-            size_t stride2x = stride * 2;
-            max_error = 0;
-            std::array<int, N> dims = dimension_sequences[direction];
-            for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride2x : 0); j <= end[dims[1]]; j += stride2x) {
-                for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride2x : 0); k <= end[dims[2]]; k += stride2x) {
-                    for (size_t t = (begin[dims[3]] ? begin[dims[3]] + stride2x : 0);
-                         t <= end[dims[3]]; t += stride2x) {
-                        size_t begin_offset =
-                                begin[dims[0]] * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]] +
-                                k * dimension_offsets[dims[2]] +
-                                t * dimension_offsets[dims[3]];
-                        predict_error += block_interpolation_1d(data, begin_offset,
-                                                                begin_offset +
-                                                                (end[dims[0]] - begin[dims[0]]) *
-                                                                dimension_offsets[dims[0]],
-                                                                stride * dimension_offsets[dims[0]], interp_func, pb);
+            } else {
+                for (size_t i = begin[dims[0]] + ((overlap && begin[dims[0]]) ? stride * s[0] : 0); i <= end[dims[0]]; i += stride * s[0]) {
+                    for (size_t j = begin[dims[1]] + ((overlap && begin[dims[1]]) ? stride * s[1] : 0); j <= end[dims[1]]; j += stride * s[1]) {
+                        for (size_t k = begin[dims[2]] + ((overlap && begin[dims[2]]) ? stride * s[2] : 0); k <= end[dims[2]]; k += stride * s[2]) {
+                            size_t begin_offset = i * dim_offsets[dims[0]] + j * dim_offsets[dims[1]] + k * dim_offsets[dims[2]] +
+                                                  begin[dims[3]] * dim_offsets[dims[3]];
+                            block_interpolation_1d(data, begin_offset, begin_offset + (end[dims[3]] - begin[dims[3]]) * dim_offsets[dims[3]],
+                                                   stride * dim_offsets[dims[3]], interp_func, pb);
+                        }
                     }
                 }
             }
-//            printf("%.8f ", max_error);
-            max_error = 0;
-            for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride) {
-                for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride2x : 0); k <= end[dims[2]]; k += stride2x) {
-                    for (size_t t = (begin[dims[3]] ? begin[dims[3]] + stride2x : 0);
-                         t <= end[dims[3]]; t += stride2x) {
-                        size_t begin_offset =
-                                i * dimension_offsets[dims[0]] + begin[dims[1]] * dimension_offsets[dims[1]] +
-                                k * dimension_offsets[dims[2]] +
-                                t * dimension_offsets[dims[3]];
-                        predict_error += block_interpolation_1d(data, begin_offset,
-                                                                begin_offset +
-                                                                (end[dims[1]] - begin[dims[1]]) *
-                                                                dimension_offsets[dims[1]],
-                                                                stride * dimension_offsets[dims[1]], interp_func, pb);
-                    }
-                }
-            }
-//            printf("%.8f ", max_error);
-            max_error = 0;
-            for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride) {
-                for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride : 0); j <= end[dims[1]]; j += stride) {
-                    for (size_t t = (begin[dims[3]] ? begin[dims[3]] + stride2x : 0);
-                         t <= end[dims[3]]; t += stride2x) {
-                        size_t begin_offset = i * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]] +
-                                              begin[dims[2]] * dimension_offsets[dims[2]] +
-                                              t * dimension_offsets[dims[3]];
-                        predict_error += block_interpolation_1d(data, begin_offset,
-                                                                begin_offset +
-                                                                (end[dims[2]] - begin[dims[2]]) *
-                                                                dimension_offsets[dims[2]],
-                                                                stride * dimension_offsets[dims[2]], interp_func, pb);
-                    }
-                }
-            }
-
-//            printf("%.8f ", max_error);
-            max_error = 0;
-            for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride) {
-                for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride : 0); j <= end[dims[1]]; j += stride) {
-                    for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride : 0); k <= end[dims[2]]; k += stride) {
-                        size_t begin_offset =
-                                i * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]] +
-                                k * dimension_offsets[dims[2]] +
-                                begin[dims[3]] * dimension_offsets[dims[3]];
-                        predict_error += block_interpolation_1d(data, begin_offset,
-                                                                begin_offset +
-                                                                (end[dims[3]] - begin[dims[3]]) *
-                                                                dimension_offsets[dims[3]],
-                                                                stride * dimension_offsets[dims[3]], interp_func, pb);
-                    }
-                }
-            }
-//            printf("%.8f \n", max_error);
-            return predict_error;
         }
 
         int levels = -1;
@@ -848,14 +764,15 @@ namespace SZ {
         size_t quant_index = 0; // for decompress
         size_t num_elements;
         std::array<size_t, N> global_dimensions, global_begin, global_end;
-        std::array<size_t, N> dimension_offsets;
-        std::vector<std::array<int, N>> dimension_sequences;
-        int direction_sequence_id;
+        std::array<size_t, N> dim_offsets;
+        std::array<std::pair<std::array<int, N>, std::array<int, N - 1>>, N> directions;
+//        int direction_sequence_id;
         Quantizer quantizer;
         Encoder encoder;
         Lossless lossless;
 
-        std::vector<int> bitplane = {8, 8, 8, 2, 2, 2, 1, 1};
+//        std::vector<int> bitplane = {8, 8, 8, 2, 2, 2, 1, 1};
+        std::vector<int> bitplane = {24, 4, 2, 2};
         std::vector<T> dec_delta;
         size_t retrieved_size = 0;
 

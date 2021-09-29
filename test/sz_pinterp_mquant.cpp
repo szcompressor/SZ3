@@ -17,8 +17,6 @@
 template<uint N, class ... Dims>
 void interp_compress_decompress(const char *path, double eb, int interp_op, int direction_op,
                                 int level_independent, int block_size, int level_fill, Dims ... args) {
-    std::string compressed_file_name(path);
-
     std::vector<size_t> compressed_size;
     size_t total_compressed_size = 0;
     SZ::uchar *compressed;
@@ -51,6 +49,10 @@ void interp_compress_decompress(const char *path, double eb, int interp_op, int 
         std::cout << "Compressed size = " << total_compressed_size << std::endl;
         std::cout << "Compression ratio = " << compression_ratio << std::endl << std::endl;
     }
+//    std::string file = std::string(path).substr(std::string(path).rfind('/') + 1) + ".sz3";
+//    std::cout << "compressed file = " << file << std::endl;
+//    SZ::writefile(file.c_str(), compressed, total_compressed_size);
+
     data = SZ::readfile<float>(path, num);
     {
         std::cout << "****************** Decompression ****************" << std::endl;
@@ -69,13 +71,9 @@ void interp_compress_decompress(const char *path, double eb, int interp_op, int 
 
         timer.stop("Decompression");
 
-//        std::string decompressed_file_name(path);
-//        std::stringstream ss;
-//        ss << decompressed_file_name.substr(decompressed_file_name.rfind('/') + 1)
-//           << ".sz3.out";
-//        decompressed_file_name = ss.str();
-//        std::cout << "DEBUG decompressed file = " << decompressed_file_name << std::endl;
-//        SZ::writefile(decompressed_file_name.c_str(), dec_data.get(), num);
+//        std::string file = std::string(path).substr(std::string(path).rfind('/') + 1) + ".sz3.out";
+//        std::cout << "decompressed file = " << file << std::endl;
+//        SZ::writefile(file.c_str(), dec_data.get(), num);
 
         size_t num1 = 0;
         auto ori_data = SZ::readfile<float>(path, num1);
