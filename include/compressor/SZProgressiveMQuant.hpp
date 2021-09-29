@@ -17,6 +17,7 @@
 #include <cmath>
 #include <utils/ByteUtil.hpp>
 #include <utils/ska_hash/unordered_map.hpp>
+#include <utils/Verification.hpp>
 
 namespace SZ {
     template<class T, uint N, class Quantizer, class Encoder, class Lossless>
@@ -77,7 +78,7 @@ namespace SZ {
         }
 
 
-        T *decompress(uchar const *lossless_data, const std::vector<size_t> &lossless_size) {
+        T *decompress(uchar const *lossless_data, const std::vector<size_t> &lossless_size, T *data) {
             Timer timer(true);
 
             int lossless_id = 0;
@@ -145,6 +146,7 @@ namespace SZ {
 
             std::vector<int> quant_sign;
             size_t quant_size;
+            bool bitplanetogether = false;
             for (int b = 0, bitstart = 0; b < std::min<int>(bitplane.size(), level_independent); b++) {
                 timer.start();
 
@@ -156,14 +158,12 @@ namespace SZ {
 
                 if (b == 0) {
                     quantizer.load(compressed_data_pos, length);
-//                    eb = quantizer.get_eb();
-
                     read(quant_size, compressed_data_pos, length);
-                    quant_inds.resize(quant_size);
+                    quant_inds.clear();
+                    quant_inds.resize(quant_size, 0);
+                    dec_delta.resize(num_elements, 0);
 
                     quant_sign = decode_int_2bits(compressed_data_pos, length);
-
-                    dec_delta.resize(num_elements, 0);
                 }
 
                 std::vector<int> quant_ind_truncated;
@@ -182,26 +182,46 @@ namespace SZ {
                 quantizer.reset_unpred_index();
                 quant_index = 0;
 
+                printf("\n************Bitplane = %d *****************\n", b);
                 int bitshift = 32 - bitstart - bitplane[b];
-                for (size_t i = 0; i < quant_size; i++) {
-                    if (quant_sign[i] == 0) { //unpredictable data
-                        quant_inds[i] = -quantizer.get_radius();
-                    } else if (quant_sign[i] == 1) { // pred >= 0
-                        quant_inds[i] = (quant_ind_truncated[i] << bitshift);
-                    } else { // pred < 0
-                        quant_inds[i] = -(quant_ind_truncated[i] << bitshift);
+                if (bitplanetogether) {
+                    for (size_t i = 0; i < quant_size; i++) {
+                        if (quant_sign[i] == 0) { //unpredictable data
+                            quant_inds[i] = -quantizer.get_radius();
+                        } else if (quant_sign[i] == 1) { // pred >= 0
+                            quant_inds[i] += (quant_ind_truncated[i] << bitshift);
+                        } else { // pred < 0
+                            quant_inds[i] += -(quant_ind_truncated[i] << bitshift);
+                        }
                     }
+                } else {
+
+                    for (size_t i = 0; i < quant_size; i++) {
+                        if (quant_sign[i] == 0) { //unpredictable data
+                            quant_inds[i] = -quantizer.get_radius();
+                        } else if (quant_sign[i] == 1) { // pred >= 0
+                            quant_inds[i] = (quant_ind_truncated[i] << bitshift);
+                        } else { // pred < 0
+                            quant_inds[i] = -(quant_ind_truncated[i] << bitshift);
+                        }
+                    }
+
+                    block_interpolation(dec_data, global_begin, global_end, (b == 0 ? PB_recover : PB_recover_delta),
+                                        interpolators[interpolator_id], direction_sequence_id, 1, true);
+
+                    SZ::verify<float>(data, dec_data, num_elements);
+
                 }
-
-                block_interpolation(dec_data, global_begin, global_end, (b == 0 ? PB_recover : PB_recover_delta),
-                                    interpolators[interpolator_id], direction_sequence_id, 1, true);
-
                 bitstart += bitplane[b];
-                printf("Bitplane = %d, time = %.3f\n", b, timer.stop());
+                printf("retrieved = %.3f%% %lu\n", retrieved_size * 100.0 / (num_elements * sizeof(float)), retrieved_size);
+                printf("Decompression time = %.3f\n", timer.stop());
 
             }
-
-            printf("retrieved = %.3f%% %lu\n", retrieved_size * 100.0 / (num_elements * sizeof(float)), retrieved_size);
+            if (bitplanetogether) {
+                block_interpolation(dec_data, global_begin, global_end, PB_recover,
+                                    interpolators[interpolator_id], direction_sequence_id, 1, true);
+            }
+            printf("\nretrieved = %.3f%% %lu\n", retrieved_size * 100.0 / (num_elements * sizeof(float)), retrieved_size);
             return dec_data;
         }
 
@@ -271,6 +291,10 @@ namespace SZ {
             printf("level = %d , quant size = %lu , prediction time=%.3f\n", 1, quant_inds.size(), timer.stop());
             quant_inds_total += quant_inds.size();
 
+//            for (int i = 0; i < 10; i++) {
+//                printf("%d ", quant_inds[i]);
+//            }
+//            printf("\n");
 
             Timer timer2(true);
             timer.start();
@@ -831,7 +855,7 @@ namespace SZ {
         Encoder encoder;
         Lossless lossless;
 
-        std::vector<int> bitplane = {24, 4, 2, 2};
+        std::vector<int> bitplane = {24, 2, 2, 2, 1, 1};
         std::vector<T> dec_delta;
         size_t retrieved_size = 0;
 

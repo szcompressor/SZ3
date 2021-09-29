@@ -51,6 +51,7 @@ void interp_compress_decompress(const char *path, double eb, int interp_op, int 
         std::cout << "Compressed size = " << total_compressed_size << std::endl;
         std::cout << "Compression ratio = " << compression_ratio << std::endl << std::endl;
     }
+    data = SZ::readfile<float>(path, num);
     {
         std::cout << "****************** Decompression ****************" << std::endl;
 
@@ -63,7 +64,7 @@ void interp_compress_decompress(const char *path, double eb, int interp_op, int 
                 SZ::Lossless_zstd(),
                 dims, interp_op, direction_op, 50000, level_independent, block_size, level_fill
         );
-        dec_data = sz.decompress(compressed, compressed_size);
+        dec_data = sz.decompress(compressed, compressed_size, data.get());
 
 
         timer.stop("Decompression");
