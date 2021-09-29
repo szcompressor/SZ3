@@ -855,7 +855,7 @@ namespace SZ {
         Encoder encoder;
         Lossless lossless;
 
-        std::vector<int> bitplane = {24, 2, 2, 2, 1, 1};
+        std::vector<int> bitplane = {8, 8, 8, 2, 2, 2, 1, 1};
         std::vector<T> dec_delta;
         size_t retrieved_size = 0;
 
