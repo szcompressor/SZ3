@@ -65,37 +65,8 @@ namespace SZ {
             for (int i = N - 2; i >= 0; i--) {
                 dim_offsets[i] = dim_offsets[i + 1] * global_dimensions[i + 1];
             }
+            set_directions_and_stride(direction_id_);
 
-            std::array<int, N> base_direction;
-            std::array<int, N - 1> stride_multiplication;
-            for (int i = 0; i < N - 1; i++) {
-                base_direction[i] = i;
-                stride_multiplication[i] = 2;
-            }
-            base_direction[N - 1] = N - 1;
-
-            int direction_id = 0;
-            do {
-                if (direction_id_ == direction_id) {
-                    for (int i = 0; i < N - 1; i++) {
-                        auto direction = base_direction;
-                        std::rotate(direction.begin() + i, direction.begin() + i + 1, direction.end());
-                        directions[i] = std::pair{direction, stride_multiplication};
-                        stride_multiplication[i] = 1;
-                    }
-                    directions[N - 1] = std::pair{base_direction, stride_multiplication};
-                    break;
-                }
-                direction_id++;
-            } while (std::next_permutation(base_direction.begin(), base_direction.end()));
-
-            for (int i = 0; i < N; i++) {
-                printf("direction %d is ", i);
-                for (int j = 0; j < N; j++) {
-                    printf("%d ", directions[i].first[j]);
-                }
-                printf("\n");
-            }
         }
 
 
@@ -323,10 +294,6 @@ namespace SZ {
             printf("level = %d , quant size = %lu , prediction time=%.3f\n", 1, quant_inds.size(), timer.stop());
             quant_inds_total += quant_inds.size();
 
-//            for (int i = 0; i < 10; i++) {
-//                printf("%d ", quant_inds[i]);
-//            }
-//            printf("\n");
 
             Timer timer2(true);
             timer.start();
@@ -398,72 +365,32 @@ namespace SZ {
 
     private:
 
-        inline void encode_int_2bits(const std::vector<int> &data, uchar *&c) {
+        int levels = -1;
+        int level_independent = -1;
+        int level_fill = 0;
+        int interpolator_id;
+        size_t interp_dim_limit, block_size;
+        double eb_ratio = 0.5;
+        std::vector<std::string> interpolators;
+        std::vector<int> quant_inds;
+        size_t quant_index = 0; // for decompress
+        size_t num_elements;
+        std::array<size_t, N> global_dimensions, global_begin, global_end;
+        std::array<size_t, N> dim_offsets;
+        std::array<std::pair<std::array<int, N>, std::array<int, N - 1>>, N> directions;
+//        int direction_sequence_id;
+        Quantizer quantizer;
+        Encoder encoder;
+        Lossless lossless;
 
-            size_t intLen = data.size();
-            size_t byteLen = intLen * 2 / 8 + (intLen % 4 == 0 ? 0 : 1);
+//        std::vector<int> bitplane = {8, 8, 8, 2, 2, 2, 1, 1};
+        std::vector<int> bitplane = {24, 4, 2, 2};
+        std::vector<T> dec_delta;
+        size_t retrieved_size = 0;
 
-            write(intLen, c);
-            write(byteLen, c);
-
-            size_t b, i = 0;
-            int mod4 = intLen % 4;
-            for (b = 0; b < (mod4 == 0 ? byteLen : byteLen - 1); b++, i += 4) {
-                c[b] = (data[i] << 6) | (data[i + 1] << 4) | (data[i + 2] << 2) | data[i + 3];
-            }
-            if (mod4 > 0) {
-                if (mod4 == 1) {
-                    c[b] = (data[i] << 6);
-                } else if (mod4 == 2) {
-                    c[b] = (data[i] << 6) | (data[i + 1] << 4);
-                } else if (mod4 == 3) {
-                    c[b] = (data[i] << 6) | (data[i + 1] << 4) | (data[i + 2] << 2);
-                }
-            }
-            c += byteLen;
-        }
-
-
-        std::vector<int> decode_int_2bits(const uchar *&c, size_t &remaining_length) {
-            size_t byteLen, intLen;
-            read(intLen, c, remaining_length);
-            read(byteLen, c, remaining_length);
-            std::vector<int> ints(intLen);
-            size_t i = 0, b = 0;
-
-            int mod4 = intLen % 4;
-            for (; b < (mod4 == 0 ? byteLen : byteLen - 1); b++, i += 4) {
-                ints[i] = (c[b] & 0xC0) >> 6;
-                ints[i + 1] = (c[b] & 0x30) >> 4;
-                ints[i + 2] = (c[b] & 0x0C) >> 2;
-                ints[i + 3] = c[b] & 0x03;
-            }
-            if (mod4 > 0) {
-                if (mod4 >= 1) {
-                    ints[i] = (c[b] & 0xC0) >> 6;
-                }
-                if (mod4 >= 2) {
-                    ints[i + 1] = (c[b] & 0x30) >> 4;
-                }
-                if (mod4 >= 3) {
-                    ints[i + 2] = (c[b] & 0x0C) >> 2;
-                }
-            }
-            c += byteLen;
-            remaining_length -= byteLen;
-            return ints;
-        }
-
-        void global_index(size_t offset) {
-            std::array<size_t, N> global_idx{0};
-            for (int i = N - 1; i >= 0; i--) {
-                global_idx[i] = offset % global_dimensions[i];
-                offset /= global_dimensions[i];
-            }
-            for (const auto &id: global_idx) {
-                printf("%lu ", id);
-            }
-        }
+        //debug only
+        double max_error;
+//        float eb;
 
         void lossless_decode(uchar const *&lossless_data_pos, const std::vector<size_t> &lossless_size, int lossless_id) {
 
@@ -753,38 +680,49 @@ namespace SZ {
             }
         }
 
-        int levels = -1;
-        int level_independent = -1;
-        int level_fill = 0;
-        int interpolator_id;
-        size_t interp_dim_limit, block_size;
-        double eb_ratio = 0.5;
-        std::vector<std::string> interpolators;
-        std::vector<int> quant_inds;
-        size_t quant_index = 0; // for decompress
-        size_t num_elements;
-        std::array<size_t, N> global_dimensions, global_begin, global_end;
-        std::array<size_t, N> dim_offsets;
-        std::array<std::pair<std::array<int, N>, std::array<int, N - 1>>, N> directions;
-//        int direction_sequence_id;
-        Quantizer quantizer;
-        Encoder encoder;
-        Lossless lossless;
+        void set_directions_and_stride(int direction_id_) {
+            std::array<int, N> base_direction;
+            std::array<int, N - 1> stride_multiplication;
+            for (int i = 0; i < N - 1; i++) {
+                base_direction[i] = i;
+                stride_multiplication[i] = 2;
+            }
+            base_direction[N - 1] = N - 1;
 
-//        std::vector<int> bitplane = {8, 8, 8, 2, 2, 2, 1, 1};
-        std::vector<int> bitplane = {24, 4, 2, 2};
-        std::vector<T> dec_delta;
-        size_t retrieved_size = 0;
+            int direction_id = 0;
+            do {
+                if (direction_id_ == direction_id) {
+                    for (int i = 0; i < N - 1; i++) {
+                        auto direction = base_direction;
+                        std::rotate(direction.begin() + i, direction.begin() + i + 1, direction.end());
+                        directions[i] = std::pair{direction, stride_multiplication};
+                        stride_multiplication[i] = 1;
+                    }
+                    directions[N - 1] = std::pair{base_direction, stride_multiplication};
+                    break;
+                }
+                direction_id++;
+            } while (std::next_permutation(base_direction.begin(), base_direction.end()));
 
-        //debug only
-//        bool check_dec = false;
-        double max_error;
-//        float eb;
-//        std::vector<T> ori_data;
-//        std::vector<int> debug;
-//        std::vector<size_t> debug_idx_list;
-//        std::vector<int> debug;
-//        std::vector<T> preds;
+            for (int i = 0; i < N; i++) {
+                printf("direction %d is ", i);
+                for (int j = 0; j < N; j++) {
+                    printf("%d ", directions[i].first[j]);
+                }
+                printf("\n");
+            }
+        }
+
+        void global_index(size_t offset) {
+            std::array<size_t, N> global_idx{0};
+            for (int i = N - 1; i >= 0; i--) {
+                global_idx[i] = offset % global_dimensions[i];
+                offset /= global_dimensions[i];
+            }
+            for (const auto &id: global_idx) {
+                printf("%lu ", id);
+            }
+        }
 
     };
 

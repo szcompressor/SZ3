@@ -6,6 +6,7 @@
 #define SZ3_BYTEUTIL_HPP
 
 #include "def.hpp"
+#include "MemoryUtil.hpp"
 #include <cstring>
 
 namespace SZ {
@@ -388,6 +389,62 @@ namespace SZ {
             lfBuf_cur.byte[i] = bytes[i];
         }
         return lfBuf_cur.value;
+    }
+
+    inline void encode_int_2bits(const std::vector<int> &data, uchar *&c) {
+
+        size_t intLen = data.size();
+        size_t byteLen = intLen * 2 / 8 + (intLen % 4 == 0 ? 0 : 1);
+
+        write(intLen, c);
+        write(byteLen, c);
+
+        size_t b, i = 0;
+        int mod4 = intLen % 4;
+        for (b = 0; b < (mod4 == 0 ? byteLen : byteLen - 1); b++, i += 4) {
+            c[b] = (data[i] << 6) | (data[i + 1] << 4) | (data[i + 2] << 2) | data[i + 3];
+        }
+        if (mod4 > 0) {
+            if (mod4 == 1) {
+                c[b] = (data[i] << 6);
+            } else if (mod4 == 2) {
+                c[b] = (data[i] << 6) | (data[i + 1] << 4);
+            } else if (mod4 == 3) {
+                c[b] = (data[i] << 6) | (data[i + 1] << 4) | (data[i + 2] << 2);
+            }
+        }
+        c += byteLen;
+    }
+
+
+    std::vector<int> decode_int_2bits(const uchar *&c, size_t &remaining_length) {
+        size_t byteLen, intLen;
+        read(intLen, c, remaining_length);
+        read(byteLen, c, remaining_length);
+        std::vector<int> ints(intLen);
+        size_t i = 0, b = 0;
+
+        int mod4 = intLen % 4;
+        for (; b < (mod4 == 0 ? byteLen : byteLen - 1); b++, i += 4) {
+            ints[i] = (c[b] & 0xC0) >> 6;
+            ints[i + 1] = (c[b] & 0x30) >> 4;
+            ints[i + 2] = (c[b] & 0x0C) >> 2;
+            ints[i + 3] = c[b] & 0x03;
+        }
+        if (mod4 > 0) {
+            if (mod4 >= 1) {
+                ints[i] = (c[b] & 0xC0) >> 6;
+            }
+            if (mod4 >= 2) {
+                ints[i + 1] = (c[b] & 0x30) >> 4;
+            }
+            if (mod4 >= 3) {
+                ints[i + 2] = (c[b] & 0x0C) >> 2;
+            }
+        }
+        c += byteLen;
+        remaining_length -= byteLen;
+        return ints;
     }
 
 };
