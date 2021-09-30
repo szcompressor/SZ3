@@ -88,8 +88,7 @@ namespace SZ {
             T *dec_data = new T[num_elements];
             size_t quant_inds_count = 0;
 
-//            check_dec = true;
-            for (uint level = levels; level > level_fill && level > 1; level--) {
+            for (uint level = levels; level > level_fill && level > bitplane_levels; level--) {
                 timer.start();
                 size_t stride = 1U << (level - 1);
 
@@ -122,29 +121,161 @@ namespace SZ {
             }
 
 
-            for (uint level = level_fill; level > 1; level--) {
+            std::vector<int> bits(N * bitplane_levels), bits_delta(N * bitplane_levels);
+            for (;;) {
+                bool change = false;
+                for (uint level = bitplane_levels; level > 0; level--) {
+                    size_t stride = 1U << (level - 1);
+                    for (int direct = 0; direct < N; direct++) {
+                        int bid = level * bitplane_levels + direct;
+                        printf("\n************Bitplane = %d *****************\n", bid);
+                        if (bits[bid] < bitplane.size()) {
+                            change = true;
+                            if (bits_delta[bid] == 0) {
+                                block_interpolation(dec_data, dec_data, global_begin, global_end, &SZProgressiveMQuant::fill,
+                                                    interpolators[interpolator_id], directions[direct], stride, true);
+                            } else {
+//                                int losslessid = locate_losslessid(level, direct, bits[bid]);
+//                                lossless_decode_bitplane(losslessid, bits_delta[bid]);
+                                if (bits[bid] == 0) {
+                                    block_interpolation(dec_data, dec_data, global_begin, global_end, &SZProgressiveMQuant::recover,
+                                                        interpolators[interpolator_id], directions[direct], stride, true);
+                                } else {
+                                    block_interpolation(dec_data, dec_delta.data(), global_begin, global_end, &SZProgressiveMQuant::recover_delta,
+                                                        interpolators[interpolator_id], directions[direct], stride, true);
+                                }
+                                bits[bid] += bits_delta[bid];
+                            }
+                        }
+                    }
+                }
+                if (change) {
+                    printf("\nretrieved = %.3f%% %lu\n", retrieved_size * 100.0 / (num_elements * sizeof(float)), retrieved_size);
+                    verify(data, dec_data, num_elements);
+                } else {
+                    break;
+                }
+            }
+
+            return dec_data;
+        }
+
+        // compress given the error bound
+        uchar *compress(T *data, std::vector<size_t> &lossless_size) {
+            Timer timer(true);
+
+            quant_inds.reserve(num_elements);
+//            quant_inds.resize(num_elements);
+            size_t interp_compressed_size = 0;
+            size_t quant_inds_total = 0;
+
+            T eb = quantizer.get_eb();
+            std::cout << "Absolute error bound = " << eb << std::endl;
+//            quantizer.set_eb(eb * eb_ratio);
+
+            uchar *lossless_data = new uchar[size_t((num_elements < 1000000 ? 4 : 1.2) * num_elements) * sizeof(T)];
+            uchar *lossless_data_pos = lossless_data;
+
+            write(global_dimensions.data(), N, lossless_data_pos);
+            write(interp_dim_limit, lossless_data_pos);
+            lossless_size.push_back(lossless_data_pos - lossless_data);
+
+            for (uint level = levels; level > bitplane_levels; level--) {
                 timer.start();
-                size_t stride = 1U << (level - 1);
+
+                quantizer.set_eb((level >= 3) ? eb * eb_ratio : eb);
+                uint stride = 1U << (level - 1);
+
+                if (level == levels) {
+                    quant_inds.push_back(quantizer.quantize_and_overwrite(*data, 0));
+                }
+                auto block_range = std::make_shared<
+                        SZ::multi_dimensional_range<T, N>>(data, std::begin(global_dimensions),
+                                                           std::end(global_dimensions),
+                                                           interp_dim_limit * stride, 0);
+
+                for (auto block = block_range->begin(); block != block_range->end(); ++block) {
+                    auto end_idx = block.get_global_index();
+                    for (int i = 0; i < N; i++) {
+                        end_idx[i] += interp_dim_limit * stride;
+                        if (end_idx[i] > global_dimensions[i] - 1) {
+                            end_idx[i] = global_dimensions[i] - 1;
+                        }
+                    }
+                    for (const auto &direction: directions) {
+                        block_interpolation(data, data, block.get_global_index(), end_idx, &SZProgressiveMQuant::quantize,
+                                            interpolators[interpolator_id], direction, stride, true);
+                    }
+                }
+
+                auto quant_size = quant_inds.size();
+                quant_inds_total += quant_size;
+                encode_lossless(lossless_data_pos, lossless_size);
+                printf("level = %d , quant size = %lu , time=%.3f\n", level, quant_size, timer.stop());
+
+            }
+
+            for (uint level = bitplane_levels; level > 0; level--) {
+                timer.start();
+
+                quantizer.set_eb((level >= 3) ? eb * eb_ratio : eb);
+                uint stride = 1U << (level - 1);
+                if (level == levels) {
+                    quant_inds.push_back(quantizer.quantize_and_overwrite(*data, 0));
+                }
                 for (const auto &direction: directions) {
-                    block_interpolation(dec_data, dec_data, global_begin, global_end, &SZProgressiveMQuant::fill,
+                    block_interpolation(data, data, global_begin, global_end, &SZProgressiveMQuant::quantize,
                                         interpolators[interpolator_id], direction, stride, true);
                 }
-                std::cout << "Fill Level = " << level << " " << std::endl;
+
+                auto quant_size = quant_inds.size();
+                quant_inds_total += quant_size;
+                encode_lossless_bitplane(lossless_data_pos, lossless_size);
+                printf("level = %d , quant size = %lu , time=%.3f\n", level, quant_size, timer.stop());
+
             }
 
+//            quant_inds.clear();
+            std::cout << "total element = " << num_elements << ", quantization element = " << quant_inds_total << std::endl;
+            assert(quant_inds_total >= num_elements);
 
-            if (level_independent == 0) {
-                for (const auto &direction: directions) {
-                    block_interpolation(dec_data, dec_data, global_begin, global_end, &SZProgressiveMQuant::fill,
-                                        interpolators[interpolator_id], direction, 1, true);
-                }
-                std::cout << "Fill Level = " << 1 << " " << std::endl;
-            }
+            return lossless_data;
+        }
 
+    private:
+        typedef void (SZProgressiveMQuant::*PredictionFunc)(size_t, T &, T);
 
+        int levels = -1;
+        int level_independent = -1;
+        int level_fill = 0;
+        int interpolator_id;
+        size_t interp_dim_limit, block_size;
+        double eb_ratio = 0.5;
+        std::vector<std::string> interpolators;
+        std::vector<int> quant_inds;
+        size_t quant_index = 0; // for decompress
+        size_t num_elements;
+        std::array<size_t, N> global_dimensions, global_begin, global_end;
+        std::array<size_t, N> dim_offsets;
+        std::array<std::pair<std::array<int, N>, std::array<int, N - 1>>, N> directions;
+        Quantizer quantizer;
+        Encoder encoder;
+        Lossless lossless;
+
+//        std::vector<int> bitplane = {8, 8, 8, 2, 2, 2, 1, 1};
+        std::vector<int> bitplane = {24, 4, 2, 2};
+        std::vector<T> dec_delta;
+        size_t retrieved_size = 0;
+        int bitplane_levels = 3;
+
+        //debug only
+        double max_error;
+//        float eb;
+
+        void lossless_decode_bitplane(uchar const *lossless_data, const std::vector<size_t> &lossless_size, int lossless_id) {
+            Timer timer;
             std::vector<int> quant_sign;
             size_t quant_size;
-            bool bitplanetogether = false;
             for (int b = 0, bitstart = 0; b < std::min<int>(bitplane.size(), level_independent); b++) {
                 timer.start();
 
@@ -182,125 +313,27 @@ namespace SZ {
 
                 printf("\n************Bitplane = %d *****************\n", b);
                 int bitshift = 32 - bitstart - bitplane[b];
-                if (bitplanetogether) {
-                    for (size_t i = 0; i < quant_size; i++) {
-                        if (quant_sign[i] == 0) { //unpredictable data
-                            quant_inds[i] = -quantizer.get_radius();
-                        } else if (quant_sign[i] == 1) { // pred >= 0
-                            quant_inds[i] += (quant_ind_truncated[i] << bitshift);
-                        } else { // pred < 0
-                            quant_inds[i] += -(quant_ind_truncated[i] << bitshift);
-                        }
+                for (size_t i = 0; i < quant_size; i++) {
+                    if (quant_sign[i] == 0) { //unpredictable data
+                        quant_inds[i] = -quantizer.get_radius();
+                    } else if (quant_sign[i] == 1) { // pred >= 0
+                        quant_inds[i] += (quant_ind_truncated[i] << bitshift);
+                    } else { // pred < 0
+                        quant_inds[i] += -(quant_ind_truncated[i] << bitshift);
                     }
-                } else {
-
-                    for (size_t i = 0; i < quant_size; i++) {
-                        if (quant_sign[i] == 0) { //unpredictable data
-                            quant_inds[i] = -quantizer.get_radius();
-                        } else if (quant_sign[i] == 1) { // pred >= 0
-                            quant_inds[i] = (quant_ind_truncated[i] << bitshift);
-                        } else { // pred < 0
-                            quant_inds[i] = -(quant_ind_truncated[i] << bitshift);
-                        }
-                    }
-
-                    for (const auto &direction: directions) {
-                        block_interpolation(dec_data, (b == 0 ? dec_data : dec_delta.data()), global_begin, global_end,
-                                            (b == 0 ? &SZProgressiveMQuant::recover : &SZProgressiveMQuant::recover_delta),
-                                            interpolators[interpolator_id], direction, 1, true);
-                    }
-                    SZ::verify<float>(data, dec_data, num_elements);
-
                 }
                 bitstart += bitplane[b];
-                printf("retrieved = %.3f%% %lu\n", retrieved_size * 100.0 / (num_elements * sizeof(float)), retrieved_size);
-                printf("Decompression time = %.3f\n", timer.stop());
-
             }
-            if (bitplanetogether) {
-                for (const auto &direction: directions) {
-                    block_interpolation(dec_data, dec_data, global_begin, global_end, &SZProgressiveMQuant::recover,
-                                        interpolators[interpolator_id], direction, 1, true);
-                }
-            }
-            printf("\nretrieved = %.3f%% %lu\n", retrieved_size * 100.0 / (num_elements * sizeof(float)), retrieved_size);
-            return dec_data;
         }
 
-        // compress given the error bound
-        uchar *compress(T *data, std::vector<size_t> &lossless_size) {
-            Timer timer(true);
-
-            quant_inds.reserve(num_elements);
-//            quant_inds.resize(num_elements);
-            size_t interp_compressed_size = 0;
-            size_t quant_inds_total = 0;
-
-            T eb = quantizer.get_eb();
-            std::cout << "Absolute error bound = " << eb << std::endl;
-//            quantizer.set_eb(eb * eb_ratio);
-
-            uchar *lossless_data = new uchar[size_t((num_elements < 1000000 ? 4 : 1.2) * num_elements) * sizeof(T)];
-            uchar *lossless_data_pos = lossless_data;
-
-            write(global_dimensions.data(), N, lossless_data_pos);
-            write(interp_dim_limit, lossless_data_pos);
-            lossless_size.push_back(lossless_data_pos - lossless_data);
-
-            for (uint level = levels; level > 1; level--) {
-                timer.start();
-
-                quantizer.set_eb((level >= 3) ? eb * eb_ratio : eb);
-                uint stride = 1U << (level - 1);
-//                std::cout << "Level = " << level << ", stride = " << stride << std::endl;
-
-                if (level == levels) {
-                    quant_inds.push_back(quantizer.quantize_and_overwrite(*data, 0));
-                }
-                auto block_range = std::make_shared<
-                        SZ::multi_dimensional_range<T, N>>(data, std::begin(global_dimensions),
-                                                           std::end(global_dimensions),
-                                                           interp_dim_limit * stride, 0);
-
-                for (auto block = block_range->begin(); block != block_range->end(); ++block) {
-                    auto end_idx = block.get_global_index();
-                    for (int i = 0; i < N; i++) {
-                        end_idx[i] += interp_dim_limit * stride;
-                        if (end_idx[i] > global_dimensions[i] - 1) {
-                            end_idx[i] = global_dimensions[i] - 1;
-                        }
-                    }
-                    for (const auto &direction: directions) {
-                        block_interpolation(data, data, block.get_global_index(), end_idx, &SZProgressiveMQuant::quantize,
-                                            interpolators[interpolator_id], direction, stride, true);
-                    }
-                }
-
-                auto quant_size = quant_inds.size();
-                quant_inds_total += quant_size;
-                encode_lossless(lossless_data_pos, lossless_size);
-
-                printf("level = %d , quant size = %lu , time=%.3f\n", level, quant_size, timer.stop());
-
-            }
-
-            timer.start();
-            quantizer.set_eb(eb);
-            for (const auto &direction: directions) {
-                block_interpolation(data, data, global_begin, global_end, &SZProgressiveMQuant::quantize,
-                                    interpolators[interpolator_id], direction, 1, true);
-            }
-            printf("level = %d , quant size = %lu , prediction time=%.3f\n", 1, quant_inds.size(), timer.stop());
-            quant_inds_total += quant_inds.size();
-
-
-            Timer timer2(true);
-            timer.start();
+        void encode_lossless_bitplane(uchar *&lossless_data_pos, std::vector<size_t> &lossless_size) {
+            Timer timer;
             int radius = quantizer.get_radius();
             size_t bsize = bitplane.size();
             size_t qsize = quant_inds.size();
             std::vector<int> quants(qsize);
-            uchar *compressed_data = new uchar[size_t((quant_inds.size() < 1000000 ? 10 : 1.2) * quant_inds.size()) * sizeof(T)];
+            uchar *compressed_data = new uchar[size_t((quant_inds.size() < 1000000 ? 10 : 1.2)
+                                                      * quant_inds.size()) * sizeof(T)];
 
             for (int b = 0, bitstart = 0; b < bsize; b++) {
                 timer.start();
@@ -354,42 +387,7 @@ namespace SZ {
             }
             delete[]compressed_data;
 
-//            quant_inds.clear();
-            std::cout << "total element = " << num_elements << ", quantization element = " << quant_inds_total << std::endl;
-            assert(quant_inds_total >= num_elements);
-
-            timer2.stop("multilevel_quantization");
-            return lossless_data;
         }
-
-    private:
-        typedef void (SZProgressiveMQuant::*PredictionFunc)(size_t, T &, T);
-
-        int levels = -1;
-        int level_independent = -1;
-        int level_fill = 0;
-        int interpolator_id;
-        size_t interp_dim_limit, block_size;
-        double eb_ratio = 0.5;
-        std::vector<std::string> interpolators;
-        std::vector<int> quant_inds;
-        size_t quant_index = 0; // for decompress
-        size_t num_elements;
-        std::array<size_t, N> global_dimensions, global_begin, global_end;
-        std::array<size_t, N> dim_offsets;
-        std::array<std::pair<std::array<int, N>, std::array<int, N - 1>>, N> directions;
-        Quantizer quantizer;
-        Encoder encoder;
-        Lossless lossless;
-
-//        std::vector<int> bitplane = {8, 8, 8, 2, 2, 2, 1, 1};
-        std::vector<int> bitplane = {24, 4, 2, 2};
-        std::vector<T> dec_delta;
-        size_t retrieved_size = 0;
-
-        //debug only
-        double max_error;
-//        float eb;
 
         void lossless_decode(uchar const *&lossless_data_pos, const std::vector<size_t> &lossless_size, int lossless_id) {
 
