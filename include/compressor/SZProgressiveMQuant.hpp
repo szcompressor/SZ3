@@ -12,12 +12,12 @@
 #include "utils/FileUtil.hpp"
 #include "utils/Interpolators.hpp"
 #include "utils/Timer.hpp"
+#include "utils/ByteUtil.hpp"
+#include "utils/ska_hash/unordered_map.hpp"
+#include "utils/Verification.hpp"
 #include "def.hpp"
 #include <cstring>
 #include <cmath>
-#include <utils/ByteUtil.hpp>
-#include <utils/ska_hash/unordered_map.hpp>
-#include <utils/Verification.hpp>
 
 namespace SZ {
     template<class T, uint N, class Quantizer, class Encoder, class Lossless>
@@ -112,7 +112,7 @@ namespace SZ {
                         }
                     }
                     for (const auto &direction: directions) {
-                        block_interpolation(dec_data, block.get_global_index(), end_idx, PB_recover,
+                        block_interpolation(dec_data, dec_data, block.get_global_index(), end_idx, &SZProgressiveMQuant::recover,
                                             interpolators[interpolator_id], direction, stride, true);
                     }
                 }
@@ -126,7 +126,7 @@ namespace SZ {
                 timer.start();
                 size_t stride = 1U << (level - 1);
                 for (const auto &direction: directions) {
-                    block_interpolation(dec_data, global_begin, global_end, PB_fill,
+                    block_interpolation(dec_data, dec_data, global_begin, global_end, &SZProgressiveMQuant::fill,
                                         interpolators[interpolator_id], direction, stride, true);
                 }
                 std::cout << "Fill Level = " << level << " " << std::endl;
@@ -135,7 +135,7 @@ namespace SZ {
 
             if (level_independent == 0) {
                 for (const auto &direction: directions) {
-                    block_interpolation(dec_data, global_begin, global_end, PB_fill,
+                    block_interpolation(dec_data, dec_data, global_begin, global_end, &SZProgressiveMQuant::fill,
                                         interpolators[interpolator_id], direction, 1, true);
                 }
                 std::cout << "Fill Level = " << 1 << " " << std::endl;
@@ -205,7 +205,8 @@ namespace SZ {
                     }
 
                     for (const auto &direction: directions) {
-                        block_interpolation(dec_data, global_begin, global_end, (b == 0 ? PB_recover : PB_recover_delta),
+                        block_interpolation(dec_data, (b == 0 ? dec_data : dec_delta.data()), global_begin, global_end,
+                                            (b == 0 ? &SZProgressiveMQuant::recover : &SZProgressiveMQuant::recover_delta),
                                             interpolators[interpolator_id], direction, 1, true);
                     }
                     SZ::verify<float>(data, dec_data, num_elements);
@@ -218,7 +219,7 @@ namespace SZ {
             }
             if (bitplanetogether) {
                 for (const auto &direction: directions) {
-                    block_interpolation(dec_data, global_begin, global_end, PB_recover,
+                    block_interpolation(dec_data, dec_data, global_begin, global_end, &SZProgressiveMQuant::recover,
                                         interpolators[interpolator_id], direction, 1, true);
                 }
             }
@@ -233,8 +234,6 @@ namespace SZ {
             quant_inds.reserve(num_elements);
 //            quant_inds.resize(num_elements);
             size_t interp_compressed_size = 0;
-//            debug.resize(num_elements, 0);
-//            preds.resize(num_elements, 0);
             size_t quant_inds_total = 0;
 
             T eb = quantizer.get_eb();
@@ -272,7 +271,7 @@ namespace SZ {
                         }
                     }
                     for (const auto &direction: directions) {
-                        block_interpolation(data, block.get_global_index(), end_idx, PB_predict_overwrite,
+                        block_interpolation(data, data, block.get_global_index(), end_idx, &SZProgressiveMQuant::quantize,
                                             interpolators[interpolator_id], direction, stride, true);
                     }
                 }
@@ -288,7 +287,7 @@ namespace SZ {
             timer.start();
             quantizer.set_eb(eb);
             for (const auto &direction: directions) {
-                block_interpolation(data, global_begin, global_end, PB_predict_overwrite,
+                block_interpolation(data, data, global_begin, global_end, &SZProgressiveMQuant::quantize,
                                     interpolators[interpolator_id], direction, 1, true);
             }
             printf("level = %d , quant size = %lu , prediction time=%.3f\n", 1, quant_inds.size(), timer.stop());
@@ -364,6 +363,7 @@ namespace SZ {
         }
 
     private:
+        typedef void (SZProgressiveMQuant::*PredictionFunc)(size_t, T &, T);
 
         int levels = -1;
         int level_independent = -1;
@@ -378,7 +378,6 @@ namespace SZ {
         std::array<size_t, N> global_dimensions, global_begin, global_end;
         std::array<size_t, N> dim_offsets;
         std::array<std::pair<std::array<int, N>, std::array<int, N - 1>>, N> directions;
-//        int direction_sequence_id;
         Quantizer quantizer;
         Encoder encoder;
         Lossless lossless;
@@ -451,10 +450,6 @@ namespace SZ {
 
         }
 
-        enum PredictorBehavior {
-            PB_predict_overwrite, PB_predict, PB_recover, PB_fill, PB_recover_delta
-        };
-
         inline void quantize1(size_t idx, T &d, T pred) {
             auto quant = quantizer.quantize_and_overwrite(d, pred);
 //            quant_inds.push_back(quant);
@@ -485,195 +480,82 @@ namespace SZ {
             d = pred;
         }
 
-        double block_interpolation_1d(T *data, size_t begin, size_t end, size_t stride,
-                                      const std::string &interp_func,
-                                      const PredictorBehavior pb) {
+
+        double block_interpolation_1d(T *d, T *pd, size_t begin, size_t end, size_t stride,
+                                      const std::string &interp_func, PredictionFunc func) {
             size_t n = (end - begin) / stride + 1;
             if (n <= 1) {
                 return 0;
             }
-            double predict_error = 0;
-            size_t stride3x = 3 * stride;
-            size_t stride5x = 5 * stride;
-//            printf("stride %lu %lu %lu\n", stride, stride3x, stride5x);
+
+            size_t c;
+            size_t stride3x = stride * 3, stride5x = stride * 5;
             if (interp_func == "linear" || n < 5) {
-                if (pb == PB_predict_overwrite) {
-                    for (size_t i = 1; i + 1 < n; i += 2) {
-                        T *d = data + begin + i * stride;
-                        quantize(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
-                    }
-                    if (n % 2 == 0) {
-                        T *d = data + begin + (n - 1) * stride;
-                        if (n < 4) {
-                            quantize(d - data, *d, *(d - stride));
-                        } else {
-                            quantize(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
-                        }
-                    }
-                } else if (pb == PB_recover) {
-                    for (size_t i = 1; i + 1 < n; i += 2) {
-                        T *d = data + begin + i * stride;
-                        recover(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
-                    }
-                    if (n % 2 == 0) {
-                        T *d = data + begin + (n - 1) * stride;
-                        if (n < 4) {
-                            recover(d - data, *d, *(d - stride));
-                        } else {
-                            recover(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
-                        }
-                    }
-                } else if (pb == PB_recover_delta) {
-                    for (size_t i = 1; i + 1 < n; i += 2) {
-                        T *d = data + begin + i * stride;
-                        recover_delta(d - data, *d, interp_linear(dec_delta[d - stride - data], dec_delta[d + stride - data]));
-                    }
-                    if (n % 2 == 0) {
-                        T *d = data + begin + (n - 1) * stride;
-                        if (n < 4) {
-                            recover_delta(d - data, *d, dec_delta[d - stride - data]);
-                        } else {
-                            recover_delta(d - data, *d, interp_linear1(dec_delta[d - stride3x - data], dec_delta[d - stride - data]));
-                        }
-                    }
-                } else {
-                    for (size_t i = 1; i + 1 < n; i += 2) {
-                        T *d = data + begin + i * stride;
-                        fill(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
-//                        fill(d - data, *d, *(d - stride));
-                    }
-                    if (n % 2 == 0) {
-                        T *d = data + begin + (n - 1) * stride;
-                        if (n < 4) {
-                            fill(d - data, *d, *(d - stride));
-                        } else {
-                            fill(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
-//                            fill(d - data, *d, *(d - stride));
-                        }
+                size_t i = 1;
+                for (i = 1; i + 1 < n; i += 2) {
+                    c = begin + i * stride;
+                    (this->*func)(c, d[c], interp_linear(pd[c - stride], pd[c + stride]));
+                }
+                if (n % 2 == 0) {
+                    c = begin + (n - 1) * stride;
+                    if (n < 4) {
+                        (this->*func)(c, d[c], pd[c - stride]);
+                    } else {
+                        (this->*func)(c, d[c], interp_linear1(pd[c - stride3x], pd[c - stride]));
                     }
                 }
             } else {
-                if (pb == PB_predict_overwrite) {
-
-                    T *d;
-                    size_t i;
-
-                    d = data + begin + stride;
-                    quantize(d - data, *d, interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
-
-                    for (i = 3; i + 3 < n; i += 2) {
-                        d = data + begin + i * stride;
-                        quantize(d - data, *d,
-                                 interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                    }
-
-                    d = data + begin + i * stride;
-                    quantize(d - data, *d, interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
-                    if (n % 2 == 0) {
-                        d = data + begin + (n - 1) * stride;
-                        quantize(d - data, *d, interp_quad_3(*(d - stride5x), *(d - stride3x), *(d - stride)));
-                    }
-
-                } else if (pb == PB_recover) {
-                    T *d;
-                    size_t i;
-
-                    d = data + begin + stride;
-                    recover(d - data, *d, interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
-
-                    for (i = 3; i + 3 < n; i += 2) {
-                        d = data + begin + i * stride;
-                        recover(d - data, *d, interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                    }
-
-                    d = data + begin + i * stride;
-                    recover(d - data, *d, interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
-
-                    if (n % 2 == 0) {
-                        d = data + begin + (n - 1) * stride;
-                        recover(d - data, *d, interp_quad_3(*(d - stride5x), *(d - stride3x), *(d - stride)));
-                    }
-                } else if (pb == PB_recover_delta) {
-                    T *d;
-                    size_t i;
-
-                    d = data + begin + stride;
-                    recover_delta(d - data, *d,
-                                  interp_quad_1(dec_delta[d - stride - data], dec_delta[d + stride - data], dec_delta[d + stride3x - data]));
-
-                    for (i = 3; i + 3 < n; i += 2) {
-                        d = data + begin + i * stride;
-                        recover_delta(d - data, *d,
-                                      interp_cubic(dec_delta[d - stride3x - data], dec_delta[d - stride - data], dec_delta[d + stride - data],
-                                                   dec_delta[d + stride3x - data]));
-                    }
-
-                    d = data + begin + i * stride;
-                    recover_delta(d - data, *d,
-                                  interp_quad_2(dec_delta[d - stride3x - data], dec_delta[d - stride - data], dec_delta[d + stride - data]));
-
-                    if (n % 2 == 0) {
-                        d = data + begin + (n - 1) * stride;
-                        recover_delta(d - data, *d,
-                                      interp_quad_3(dec_delta[d - stride5x - data], dec_delta[d - stride3x - data], dec_delta[d - stride - data]));
-                    }
-                } else {
-                    T *d;
-                    size_t i;
-
-                    d = data + begin + stride;
-                    fill(d - data, *d, interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
-
-                    for (i = 3; i + 3 < n; i += 2) {
-                        d = data + begin + i * stride;
-                        fill(d - data, *d, interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                    }
-
-                    d = data + begin + i * stride;
-                    fill(d - data, *d, interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
-
-                    if (n % 2 == 0) {
-                        d = data + begin + (n - 1) * stride;
-                        fill(d - data, *d, interp_quad_3(*(d - stride5x), *(d - stride3x), *(d - stride)));
-                    }
+                size_t i = 1;
+                c = begin + i * stride;
+                (this->*func)(c, d[c], interp_quad_1(pd[c - stride], pd[c + stride], pd[c + stride3x]));
+                for (i = 3; i + 3 < n; i += 2) {
+                    c = begin + i * stride;
+                    (this->*func)(c, d[c], interp_cubic(pd[c - stride3x], pd[c - stride], pd[c + stride], pd[c + stride3x]));
+                }
+                c = begin + i * stride;
+                (this->*func)(c, d[c], interp_quad_2(pd[c - stride3x], pd[c - stride], pd[c + stride]));
+                if (n % 2 == 0) {
+                    c = begin + (n - 1) * stride;
+                    (this->*func)(c, d[c], interp_quad_3(pd[c - stride5x], pd[c - stride3x], pd[c - stride]));
                 }
             }
-
-            return predict_error;
+            return 0;
         }
 
 
-        void block_interpolation(T *data, std::array<size_t, N> begin, std::array<size_t, N> end, PredictorBehavior pb,
-                                 const std::string &interp_func, const std::pair<std::array<int, N>, std::array<int, N - 1>> direction, uint stride,
-                                 bool overlap) {
+        void block_interpolation(T *data, T *pred_data, std::array<size_t, N> begin, std::array<size_t, N> end, PredictionFunc func,
+                                 const std::string &interp_func, const std::pair<std::array<int, N>, std::array<int, N - 1>> direction,
+                                 uint stride, bool overlap) {
 
             auto dims = direction.first;
             auto s = direction.second;
 
             if (N == 1) {
-                block_interpolation_1d(data, begin[0], end[0], stride, interp_func, pb);
+                block_interpolation_1d(data, pred_data, begin[0], end[0], stride, interp_func, func);
             } else if (N == 2) {
                 for (size_t i = begin[dims[0]] + ((overlap && begin[dims[0]]) ? stride * s[0] : 0); i <= end[dims[0]]; i += stride * s[0]) {
                     size_t begin_offset = i * dim_offsets[dims[0]] + begin[dims[1]] * dim_offsets[dims[1]];
-                    block_interpolation_1d(data, begin_offset, begin_offset + (end[dims[1]] - begin[dims[1]]) * dim_offsets[dims[1]],
-                                           stride * dim_offsets[dims[1]], interp_func, pb);
+                    block_interpolation_1d(data, pred_data, begin_offset, begin_offset + (end[dims[1]] - begin[dims[1]]) * dim_offsets[dims[1]],
+                                           stride * dim_offsets[dims[1]], interp_func, func);
                 }
             } else if (N == 3) {
                 for (size_t i = begin[dims[0]] + ((overlap && begin[dims[0]]) ? stride * s[0] : 0); i <= end[dims[0]]; i += stride * s[0]) {
                     for (size_t j = begin[dims[1]] + ((overlap && begin[dims[1]]) ? stride * s[1] : 0); j <= end[dims[1]]; j += stride * s[1]) {
                         size_t begin_offset = i * dim_offsets[dims[0]] + j * dim_offsets[dims[1]] + begin[dims[2]] * dim_offsets[dims[2]];
-                        block_interpolation_1d(data, begin_offset, begin_offset + (end[dims[2]] - begin[dims[2]]) * dim_offsets[dims[2]],
-                                               stride * dim_offsets[dims[2]], interp_func, pb);
+                        block_interpolation_1d(data, pred_data, begin_offset, begin_offset + (end[dims[2]] - begin[dims[2]]) * dim_offsets[dims[2]],
+                                               stride * dim_offsets[dims[2]], interp_func, func);
                     }
                 }
             } else {
                 for (size_t i = begin[dims[0]] + ((overlap && begin[dims[0]]) ? stride * s[0] : 0); i <= end[dims[0]]; i += stride * s[0]) {
                     for (size_t j = begin[dims[1]] + ((overlap && begin[dims[1]]) ? stride * s[1] : 0); j <= end[dims[1]]; j += stride * s[1]) {
-                        for (size_t k = begin[dims[2]] + ((overlap && begin[dims[2]]) ? stride * s[2] : 0); k <= end[dims[2]]; k += stride * s[2]) {
+                        for (size_t k = begin[dims[2]] + ((overlap && begin[dims[2]]) ? stride * s[2] : 0);
+                             k <= end[dims[2]]; k += stride * s[2]) {
                             size_t begin_offset = i * dim_offsets[dims[0]] + j * dim_offsets[dims[1]] + k * dim_offsets[dims[2]] +
                                                   begin[dims[3]] * dim_offsets[dims[3]];
-                            block_interpolation_1d(data, begin_offset, begin_offset + (end[dims[3]] - begin[dims[3]]) * dim_offsets[dims[3]],
-                                                   stride * dim_offsets[dims[3]], interp_func, pb);
+                            block_interpolation_1d(data, pred_data, begin_offset,
+                                                   begin_offset + (end[dims[3]] - begin[dims[3]]) * dim_offsets[dims[3]],
+                                                   stride * dim_offsets[dims[3]], interp_func, func);
                         }
                     }
                 }
