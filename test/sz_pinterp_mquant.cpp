@@ -29,7 +29,7 @@ void interp_compress_decompress(const char *path, double eb, int interp_op, int 
         std::cout << "****************** compression ****************" << std::endl;
         std::cout << "Interp op          = " << interp_op << std::endl
                   << "Direction          = " << direction_op << std::endl
-                  << "Level independent  = " << level_independent << std::endl
+                  << "Progressive Level  = " << level_independent << std::endl
                   << "Block size         = " << block_size << std::endl
                   << "Level fill         = " << level_fill << std::endl;
 
@@ -75,13 +75,15 @@ void interp_compress_decompress(const char *path, double eb, int interp_op, int 
 //        std::cout << "decompressed file = " << file << std::endl;
 //        SZ::writefile(file.c_str(), dec_data.get(), num);
 
-        size_t num1 = 0;
-        auto ori_data = SZ::readfile<float>(path, num1);
-        assert(num1 == num);
-        double psnr, nrmse;
-        SZ::verify<float>(ori_data.get(), dec_data, num, psnr, nrmse);
-        delete[]dec_data;
-        delete[]compressed;
+        if (level_independent <= 0) {
+            size_t num1 = 0;
+            auto ori_data = SZ::readfile<float>(path, num1);
+            assert(num1 == num);
+            double psnr, nrmse;
+            SZ::verify<float>(ori_data.get(), dec_data, num, psnr, nrmse);
+            delete[]dec_data;
+            delete[]compressed;
+        }
 //        std::vector<float> error(num);
 //        for (size_t i = 0; i < num; i++) {
 //            error[i] = ori_data[i] - dec_data[i];
@@ -97,7 +99,14 @@ void interp_compress_decompress(const char *path, double eb, int interp_op, int 
 
 
 int main(int argc, char **argv) {
-
+    if (argc < 2) {
+        std::cout << "psz usage: " << argv[0] <<
+                  " data_file -num_dim dim0 .. dimn abs_eb [interp_op direction_op p_level block_size]"
+                  << std::endl
+                  << "example: " << argv[0] <<
+                  " qmcpack.dat -3 33120 69 69 1e-3 [1 0 0 128]" << std::endl;
+        return 0;
+    }
 
     int dim = atoi(argv[2] + 1);
     assert(1 <= dim && dim <= 4);
@@ -121,32 +130,33 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    int level_fill = 0, level_independent = 0;
-    int block_size = 128;
+    int level_progressive = 0;
     if (argp < argc) {
-        level_independent = atoi(argv[argp++]);
+        level_progressive = atoi(argv[argp++]);
     }
 
+    int block_size = 128;
     if (argp < argc) {
         block_size = atoi(argv[argp++]);
     }
 
+    int level_fill = 0;
     if (argp < argc) {
         level_fill = atoi(argv[argp++]);
     }
 
 
     if (dim == 1) {
-        interp_compress_decompress<1>(argv[1], eb, interp_op, direction_op, level_independent,
+        interp_compress_decompress<1>(argv[1], eb, interp_op, direction_op, level_progressive,
                                       block_size, level_fill, dims[0]);
     } else if (dim == 2) {
-        interp_compress_decompress<2>(argv[1], eb, interp_op, direction_op, level_independent,
+        interp_compress_decompress<2>(argv[1], eb, interp_op, direction_op, level_progressive,
                                       block_size, level_fill, dims[0], dims[1]);
     } else if (dim == 3) {
-        interp_compress_decompress<3>(argv[1], eb, interp_op, direction_op, level_independent,
+        interp_compress_decompress<3>(argv[1], eb, interp_op, direction_op, level_progressive,
                                       block_size, level_fill, dims[0], dims[1], dims[2]);
     } else if (dim == 4) {
-        interp_compress_decompress<4>(argv[1], eb, interp_op, direction_op, level_independent,
+        interp_compress_decompress<4>(argv[1], eb, interp_op, direction_op, level_progressive,
                                       block_size, level_fill, dims[0], dims[1], dims[2], dims[3]);
     }
 

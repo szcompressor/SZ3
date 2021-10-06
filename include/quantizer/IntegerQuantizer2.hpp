@@ -116,10 +116,6 @@ namespace SZ {
             }
         }
 
-        void reset_unpred_index() {
-            index = 0;
-        }
-
         void recover_delta(T &dest, T &delta, T delta_pred, int del_quant_index) {
             if (del_quant_index != -radius) {
                 delta = recover_pred(delta_pred, del_quant_index);
@@ -145,7 +141,7 @@ namespace SZ {
         }
 
         T recover_unpred() {
-            return unpred[index++];
+            return unpred_pos[index++];
         }
 
         void save(unsigned char *&c) const {
@@ -175,6 +171,7 @@ namespace SZ {
             size_t unpred_size = *reinterpret_cast<const size_t *>(c);
             c += sizeof(size_t);
             this->unpred = std::vector<T>(reinterpret_cast<const T *>(c), reinterpret_cast<const T *>(c) + unpred_size);
+            unpred_pos = unpred.data();
             c += unpred_size * sizeof(T);
             // std::cout << "loading: eb = " << this->error_bound << ", unpred_num = "  << unpred.size() << std::endl;
             // reset index
@@ -198,12 +195,14 @@ namespace SZ {
             return unpred;
         }
 
-        void set_unpred(std::vector<T> &u) {
-            unpred = u;
+        void set_unpred_pos(T *pos) {
+            index = 0;
+            unpred_pos = pos;
         }
 
     private:
-        std::vector<T> unpred;
+        std::vector<T> unpred; // for compression
+        T *unpred_pos; // for decompression
         size_t index = 0; // used in decompression only
 
         T error_bound;
