@@ -156,7 +156,7 @@ namespace SZ {
 //                                    }
                                 } else {
                                     quant_inds.clear();
-                                    for (int bg = b_bg[bid]; bg < b_bg[bid] + b_bg_delta[bid]; bg++) {
+                                    for (int bg = b_bg[bid]; bg < std::min(bg_total, b_bg[bid] + b_bg_delta[bid]); bg++) {
                                         uchar const *bg_data = b_data[bid * bg_total + bg];
                                         size_t bg_len = b_data_size[bid * bg_total + bg];
                                         lossless_decode_bitgroup(bg, bg_data, bg_len, b_quantbin_sign[bid], b_quantbin_size[bid]);
