@@ -145,7 +145,6 @@ namespace SZ {
                 dec_delta.resize(num_elements, 0);
 
 
-
                 for (;;) {
                     bool change = false;
                     printf("\n-----------------------\n");
@@ -174,10 +173,6 @@ namespace SZ {
                                     }
                                     quant_index = 0;
                                     quantizer.set_unpred_pos(b_unpred[bid].data());
-//                                    for (int i=0;i<8;i++){
-//                                        printf("%d ", quant_inds[i]);
-//                                    }
-//                                    printf("\n");
                                     if (b_bg[bid] == 0) {
                                         block_interpolation(dec_data, dec_data, global_begin, global_end, &SZProgressiveMQuant::recover,
                                                             interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
@@ -204,25 +199,25 @@ namespace SZ {
                             if (b_bg_delta[b]) {
                                 b_bg_delta[b] = 0;
                                 b_bg_delta[(b + 1) % (bid_total)] = 1;
-//                                b_bg_delta[(b + 1) % (bid_total - 1)] = 1;
-//                                if (b == bid_total - 2) {//propagate residual to the last bitgroup
-//                                    int bid = bid_total - 1;
-//                                    quant_inds.clear();
-//                                    quant_inds.resize(b_quantbin_size[bid], 0);
-//                                    for (size_t i = 0; i < b_quantbin_size[bid]; i++) {
-//                                        if (b_quantbin_sign[bid][i] == 0) { //unpredictable data
-//                                            quant_inds[i] = -quantizer.get_radius();
-//                                        }
-//                                    }
-//                                    quant_index = 0;
-//                                    quantizer.set_unpred_pos(b_unpred[bid].data());
-//                                    block_interpolation(dec_data, dec_delta.data(), global_begin, global_end, &SZProgressiveMQuant::recover_delta,
-//                                                        interpolators[interpolator_id], directions[N - 1], 1, true);
-//                                }
                                 break;
                             }
                         }
                     }
+
+//                    if (b == bid_total - 2) {//propagate residual to the last bitgroup
+//                        int bid = bid_total - 1;
+//                        quant_inds.clear();
+//                        quant_inds.resize(b_quantbin_size[bid], 0);
+//                        for (size_t i = 0; i < b_quantbin_size[bid]; i++) {
+//                            if (b_quantbin_sign[bid][i] == 0) { //unpredictable data
+//                                quant_inds[i] = -quantizer.get_radius();
+//                            }
+//                        }
+//                        quant_index = 0;
+//                        quantizer.set_unpred_pos(b_unpred[bid].data());
+//                        block_interpolation(dec_data, dec_delta.data(), global_begin, global_end, &SZProgressiveMQuant::recover_delta,
+//                                            interpolators[interpolator_id], directions[N - 1], 1, true);
+//                    }
 
                     float retrieved_rate = retrieved_size * 100.0 / (num_elements * sizeof(float));
                     printf("\nretrieved = %.3f%% %lu\n", retrieved_rate, retrieved_size);
