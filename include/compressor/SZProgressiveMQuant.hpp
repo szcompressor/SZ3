@@ -123,8 +123,13 @@ namespace SZ {
 
             if (level_progressive > 0) {
 
-                int bid_total = N * level_progressive, bg_total = bitplane.size();
-                std::vector<int> b_bg(bid_total), b_bg_delta(bid_total, 1);
+                std::vector<double> final_psnr;
+                std::vector<double> final_retrieved_rate;
+                std::vector<double> final_max_err;
+
+                int bid_total = N * level_progressive, bg_total = bitgroup.size();
+                std::vector<int> b_bg(bid_total), b_bg_delta(bid_total);
+                b_bg_delta[0] = 1;
                 std::vector<size_t> b_quantbin_size(bid_total);
                 std::vector<std::vector<int>> b_quantbin_sign(bid_total);
                 std::vector<std::vector<T>> b_unpred(bid_total);
@@ -139,22 +144,25 @@ namespace SZ {
                 dec_delta.clear();
                 dec_delta.resize(num_elements, 0);
 
+
+
                 for (;;) {
                     bool change = false;
                     printf("\n-----------------------\n");
                     for (uint level = level_progressive; level > 0; level--) {
-                        size_t stride = 1U << (level - 1);
                         for (int direct = 0; direct < N; direct++) {
                             int bid = (level_progressive - level) * N + direct;
-                            if (b_bg[bid] < bitplane.size()) {
-                                printf("Level = %d , direction = %d , bid = %d, bg = %d\n", level, direct, bid, b_bg[bid]);
-                                change = true;
+                            if (b_bg[bid] < bitgroup.size()) {
                                 if (b_bg_delta[bid] == 0) {
 //                                    if (b_bg[bid] == 0) {
 //                                        block_interpolation(dec_data, dec_data, global_begin, global_end, &SZProgressiveMQuant::fill,
 //                                                            interpolators[interpolator_id], directions[direct], stride, true);
 //                                    }
+
                                 } else {
+                                    printf("Level = %d , direction = %d , bid = %d, bg = %d\n", level, direct, bid, b_bg[bid]);
+                                    change = true;
+
                                     quant_inds.clear();
                                     for (int bg = b_bg[bid]; bg < std::min(bg_total, b_bg[bid] + b_bg_delta[bid]); bg++) {
                                         uchar const *bg_data = b_data[bid * bg_total + bg];
@@ -170,25 +178,63 @@ namespace SZ {
 //                                        printf("%d ", quant_inds[i]);
 //                                    }
 //                                    printf("\n");
-
                                     if (b_bg[bid] == 0) {
                                         block_interpolation(dec_data, dec_data, global_begin, global_end, &SZProgressiveMQuant::recover,
-                                                            interpolators[interpolator_id], directions[direct], stride, true);
+                                                            interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
                                     } else {
                                         block_interpolation(dec_data, dec_delta.data(), global_begin, global_end, &SZProgressiveMQuant::recover_delta,
-                                                            interpolators[interpolator_id], directions[direct], stride, true);
+                                                            interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
                                     }
                                     b_bg[bid] += b_bg_delta[bid];
                                 }
                             }
                         }
                     }
-                    if (change) {
-                        printf("\nretrieved = %.3f%% %lu\n", retrieved_size * 100.0 / (num_elements * sizeof(float)), retrieved_size);
-                        verify(data, dec_data, num_elements);
-                    } else {
+
+                    if (!change) {
                         break;
                     }
+
+                    if (final_psnr.empty()) {//first round
+                        b_bg_delta.clear();
+                        b_bg_delta.resize(bid_total, 0);
+                        b_bg_delta[0] = 1;
+                    } else {
+                        for (int b = 0; b < bid_total; b++) {
+                            if (b_bg_delta[b]) {
+                                b_bg_delta[b] = 0;
+                                b_bg_delta[(b + 1) % (bid_total)] = 1;
+//                                b_bg_delta[(b + 1) % (bid_total - 1)] = 1;
+//                                if (b == bid_total - 2) {//propagate residual to the last bitgroup
+//                                    int bid = bid_total - 1;
+//                                    quant_inds.clear();
+//                                    quant_inds.resize(b_quantbin_size[bid], 0);
+//                                    for (size_t i = 0; i < b_quantbin_size[bid]; i++) {
+//                                        if (b_quantbin_sign[bid][i] == 0) { //unpredictable data
+//                                            quant_inds[i] = -quantizer.get_radius();
+//                                        }
+//                                    }
+//                                    quant_index = 0;
+//                                    quantizer.set_unpred_pos(b_unpred[bid].data());
+//                                    block_interpolation(dec_data, dec_delta.data(), global_begin, global_end, &SZProgressiveMQuant::recover_delta,
+//                                                        interpolators[interpolator_id], directions[N - 1], 1, true);
+//                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    float retrieved_rate = retrieved_size * 100.0 / (num_elements * sizeof(float));
+                    printf("\nretrieved = %.3f%% %lu\n", retrieved_rate, retrieved_size);
+                    double psnr, nrmse, max_err;
+                    verify(data, dec_data, num_elements, psnr, nrmse, max_err);
+                    final_retrieved_rate.push_back(retrieved_rate);
+                    final_psnr.push_back(psnr);
+                    final_max_err.push_back(max_err);
+                }
+
+                for (int i = 0; i < final_psnr.size(); i++) {
+                    printf("%.3f%% %.2f %.3G\n", final_retrieved_rate[i], final_psnr[i], final_max_err[i]);
                 }
             }
 
@@ -303,8 +349,8 @@ namespace SZ {
         Encoder encoder;
         Lossless lossless;
 
-//        std::vector<int> bitplane = {8, 8, 8, 2, 2, 2, 1, 1};
-        std::vector<int> bitplane = {24, 4, 2, 2};
+//        std::vector<int> bitgroup = {8, 8, 8, 2, 2, 2, 1, 1};
+        std::vector<int> bitgroup = {24, 2, 2, 2, 1, 1};
         std::vector<T> dec_delta;
         size_t retrieved_size = 0;
 
@@ -336,7 +382,7 @@ namespace SZ {
 
 
             std::vector<int> quant_ind_truncated;
-            if (bitplane[bg] == 2) {
+            if (bitgroup[bg] == 2) {
                 quant_ind_truncated = decode_int_2bits(compressed_data_pos, length);
             } else {
                 encoder.load(compressed_data_pos, length);
@@ -350,7 +396,7 @@ namespace SZ {
 //                printf("\n************Bitplane = %d *****************\n", bg);
             int bitshift = 32;
             for (int bb = 0; bb <= bg; bb++) {
-                bitshift -= bitplane[bb];
+                bitshift -= bitgroup[bb];
             }
             quant_inds.resize(quant_size, 0);
             for (size_t i = 0; i < quant_size; i++) {
@@ -368,7 +414,7 @@ namespace SZ {
         void encode_lossless_bitplane(uchar *&lossless_data_pos, std::vector<size_t> &lossless_size) {
             Timer timer;
             int radius = quantizer.get_radius();
-            size_t bsize = bitplane.size();
+            size_t bsize = bitgroup.size();
             size_t qsize = quant_inds.size();
             std::vector<int> quants(qsize);
             uchar *compressed_data = new uchar[size_t((quant_inds.size() < 1000000 ? 10 : 1.2)
@@ -376,9 +422,9 @@ namespace SZ {
 
             for (int bg = 0, bitstart = 0; bg < bsize; bg++) {
                 timer.start();
-                uint32_t bitshifts = 32 - bitstart - bitplane[bg];
-                uint32_t bitmasks = (1 << bitplane[bg]) - 1;
-                bitstart += bitplane[bg];
+                uint32_t bitshifts = 32 - bitstart - bitgroup[bg];
+                uint32_t bitmasks = (1 << bitgroup[bg]) - 1;
+                bitstart += bitgroup[bg];
                 uchar *compressed_data_pos = compressed_data;
 
                 if (bg == 0) {
@@ -406,7 +452,7 @@ namespace SZ {
                     quants[i] = ((uint32_t) quant_inds[i]) >> bitshifts & bitmasks;
                 }
 
-                if (bitplane[bg] == 2) {
+                if (bitgroup[bg] == 2) {
                     encode_int_2bits(quants, compressed_data_pos);
                 } else {
                     encoder.preprocess_encode(quants, 0);
