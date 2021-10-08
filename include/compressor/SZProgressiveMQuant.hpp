@@ -39,8 +39,9 @@ namespace SZ {
                 interpolator_id(interpolator),
                 interp_dim_limit(interp_dim_limit),
                 level_progressive(level_progressive_),
-                block_size(block_size_),
-                level_fill(level_fill_) {
+                block_size(block_size_)
+//                level_fill(level_fill_)
+        {
             static_assert(std::is_base_of<concepts::QuantizerInterface<T>, Quantizer>::value,
                           "must implement the quatizer interface");
 //            static_assert(std::is_base_of<concepts::EncoderInterface<>, Encoder>::value,
@@ -88,7 +89,7 @@ namespace SZ {
             T *dec_data = new T[num_elements];
             size_t quant_inds_count = 0;
 
-            for (uint level = levels; level > level_fill && level > level_progressive; level--) {
+            for (uint level = levels; level > level_progressive; level--) {
                 timer.start();
                 size_t stride = 1U << (level - 1);
 
@@ -123,9 +124,7 @@ namespace SZ {
 
             if (level_progressive > 0) {
 
-                std::vector<double> final_psnr;
-                std::vector<double> final_retrieved_rate;
-                std::vector<double> final_max_err;
+                std::vector<ska::unordered_map<std::string, double>> final_result;
 
                 int bid_total = N * level_progressive, bg_total = bitgroup.size();
                 std::vector<int> b_bg(bid_total), b_bg_delta(bid_total);
@@ -144,10 +143,10 @@ namespace SZ {
                 dec_delta.clear();
                 dec_delta.resize(num_elements, 0);
 
-
-                for (;;) {
+                bool done = false;
+                while (!done) {
                     bool change = false;
-                    printf("\n-----------------------\n");
+                    ska::unordered_map<std::string, double> result;
                     for (uint level = level_progressive; level > 0; level--) {
                         for (int direct = 0; direct < N; direct++) {
                             int bid = (level_progressive - level) * N + direct;
@@ -159,11 +158,14 @@ namespace SZ {
 //                                    }
 
                                 } else {
+                                    printf("\n-----------------------\n");
                                     printf("Level = %d , direction = %d , bid = %d, bg = %d\n", level, direct, bid, b_bg[bid]);
                                     change = true;
-
+                                    result["level"] = level;
+                                    result["direct"] = direct;
                                     quant_inds.clear();
-                                    for (int bg = b_bg[bid]; bg < std::min(bg_total, b_bg[bid] + b_bg_delta[bid]); bg++) {
+                                    int bg_end = std::min(bg_total, b_bg[bid] + b_bg_delta[bid]);
+                                    for (int bg = b_bg[bid]; bg < bg_end; bg++) {
                                         uchar const *bg_data = b_data[bid * bg_total + bg];
                                         size_t bg_len = b_data_size[bid * bg_total + bg];
                                         lossless_decode_bitgroup(bg, bg_data, bg_len, b_quantbin_sign[bid], b_quantbin_size[bid]);
@@ -180,25 +182,26 @@ namespace SZ {
                                         block_interpolation(dec_data, dec_delta.data(), global_begin, global_end, &SZProgressiveMQuant::recover_delta,
                                                             interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
                                     }
-                                    b_bg[bid] += b_bg_delta[bid];
+                                    b_bg[bid] = bg_end;
                                 }
                             }
                         }
                     }
 
-                    if (!change) {
-                        break;
-                    }
 
-                    if (final_psnr.empty()) {//first round
+//                    if (!change) {
+//                        break;
+//                    }
+
+                    if (final_result.empty()) {//first round
                         b_bg_delta.clear();
                         b_bg_delta.resize(bid_total, 0);
-                        b_bg_delta[0] = 1;
+                        b_bg_delta[0] = 2;
                     } else {
                         for (int b = 0; b < bid_total; b++) {
                             if (b_bg_delta[b]) {
                                 b_bg_delta[b] = 0;
-                                b_bg_delta[(b + 1) % (bid_total)] = 1;
+                                b_bg_delta[(b + 1) % (bid_total)] = (b == bid_total - 2 ? 1 : 2);
                                 break;
                             }
                         }
@@ -219,17 +222,33 @@ namespace SZ {
 //                                            interpolators[interpolator_id], directions[N - 1], 1, true);
 //                    }
 
+                    if (!change) {
+                        continue;
+                    }
+
                     float retrieved_rate = retrieved_size * 100.0 / (num_elements * sizeof(float));
                     printf("\nretrieved = %.3f%% %lu\n", retrieved_rate, retrieved_size);
                     double psnr, nrmse, max_err;
                     verify(data, dec_data, num_elements, psnr, nrmse, max_err);
-                    final_retrieved_rate.push_back(retrieved_rate);
-                    final_psnr.push_back(psnr);
-                    final_max_err.push_back(max_err);
+                    result["retrieved_rate"] = retrieved_rate;
+                    result["psnr"] = psnr;
+                    result["max_err"] = max_err;
+                    final_result.push_back(result);
+
+                    done = true;
+                    for (const auto &b: b_bg) {
+                        printf("%d ", b);
+                        if (b < bitgroup.size()) {
+                            done = false;
+                        }
+                    }
+                    printf("\n");
                 }
 
-                for (int i = 0; i < final_psnr.size(); i++) {
-                    printf("%.3f%% %.2f %.3G\n", final_retrieved_rate[i], final_psnr[i], final_max_err[i]);
+
+                for (int i = 0; i < final_result.size(); i++) {
+                    printf("Level = %d, direction = %d, %.3f%% %.2f %.3G\n", (int) final_result[i]["level"], (int) final_result[i]["direct"],
+                           final_result[i]["retrieved_rate"], final_result[i]["psnr"], final_result[i]["max_err"]);
                 }
             }
 
@@ -259,7 +278,7 @@ namespace SZ {
             for (uint level = levels; level > level_progressive; level--) {
                 timer.start();
 
-                quantizer.set_eb((level >= 3) ? eb * eb_ratio : eb);
+//                quantizer.set_eb((level >= 3) ? eb * eb_ratio : eb);
                 uint stride = 1U << (level - 1);
 
                 if (level == levels) {
@@ -294,7 +313,7 @@ namespace SZ {
             for (uint level = level_progressive; level > 0; level--) {
                 timer.start();
 
-                quantizer.set_eb((level >= 3) ? eb * eb_ratio : eb);
+//                quantizer.set_eb((level >= 3) ? eb * eb_ratio : eb);
                 uint stride = 1U << (level - 1);
                 if (level == levels) {
                     quant_inds.push_back(quantizer.quantize_and_overwrite(*data, 0));
@@ -329,7 +348,7 @@ namespace SZ {
 
         int levels = -1;
         int level_progressive = -1;
-        int level_fill = 0;
+//        int level_fill = 0;
         int interpolator_id;
         size_t interp_dim_limit, block_size;
         double eb_ratio = 0.5;
