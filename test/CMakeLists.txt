@@ -1,5 +1,6 @@
 set(exes sz_md
         sz_demo
+        mdb
         )
 
 foreach (EXE IN LISTS exes)
