@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <iostream>
 #include <memory>
+#include <sstream>
 
 
 template<class T>
@@ -317,6 +318,12 @@ void compress(char *data_path, size_t r0, size_t r1, size_t batch_size, double r
     printf("method=mdb, file=%s, block=%lu, compression_ratio=%.3f, reb=%.1e, eb=%.6f, psnr=%.3f, nsmse=%e, compress_time=%.3f, decompress_time=%.3f, ori_bytes=%lu, compressed_bytes=%lu, pmc=%.2f%%, swing=%.2f%%, gorilla=%.2f%%\n\n",
            src_file_name.data(), batch_size, ratio, reb, max_diff, psnr, nrmse, 0.0, 0.0, num * sizeof(T), total_size,
            total_pmc_n * 100.0 / num, total_swing_n * 100.0 / num, total_gorilla_n * 100.0 / num);
+    std::stringstream ss;
+    ss << src_file_name.substr(src_file_name.rfind('/') + 1)
+       << ".b" << batch_size
+       << "." << reb << ".mdb"  << ".out";
+    std::cout << "Decompressed file = " << ss.str() << std::endl;
+    SZ::writefile(ss.str().data(), dec_data.data(), num);
 }
 
 int main(int argc, char **argv) {
