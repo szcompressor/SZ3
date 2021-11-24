@@ -26,8 +26,7 @@ namespace SZ {
                                   const std::array<size_t, N> dims,
                                   size_t blocksize,
                                   int interpolator,
-                                  int direction,
-                                  int interp_levels) :
+                                  int direction) :
                 quantizer(quantizer), encoder(encoder), lossless(lossless),
                 blocksize(blocksize), global_dimensions(dims),
 //                interpolators({"linear", "cubic", "cubic2", "akima", "pchip"}),

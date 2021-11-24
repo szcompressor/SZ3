@@ -7,7 +7,6 @@
 
 
 namespace SZ {
-
     template<typename Type>
     double autocorrelation1DLag1(const Type *data, size_t numOfElem, Type avg) {
         double cov = 0;

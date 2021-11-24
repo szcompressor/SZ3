@@ -5,6 +5,7 @@ set(exes sz_demo
         test_arithmetic_coding
         sz_interp
         sz_rtm
+        sz_interp_int
         sz_interp_double
         )
 

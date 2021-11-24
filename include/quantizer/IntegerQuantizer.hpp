@@ -185,8 +185,8 @@ namespace SZ {
         std::vector<T> unpred;
         size_t index = 0; // used in decompression only
 
-        T error_bound;
-        T error_bound_reciprocal;
+        double error_bound;
+        double error_bound_reciprocal;
         int radius; // quantization interval radius
     };
 
