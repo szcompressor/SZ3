@@ -1,13 +1,15 @@
 #include <compressor/SZInterpolationCompressor.hpp>
 #include <compressor/SZBlockInterpolationCompressor.hpp>
+#include <compressor/SZGeneralCompressor.hpp>
+#include <frontend/SZMetaFrontend.hpp>
 #include <quantizer/IntegerQuantizer.hpp>
 #include <predictor/ComposedPredictor.hpp>
 #include <predictor/SimplePredictor.hpp>
 #include <lossless/Lossless_zstd.hpp>
-#include <meta/meta_compress.hpp>
 #include <utils/Iterator.hpp>
 #include <utils/Verification.hpp>
 #include <utils/Extraction.hpp>
+#include <utils/QuantOptimizatioin.hpp>
 #include <utils/Config.hpp>
 #include <cstdio>
 #include <iostream>
@@ -15,7 +17,6 @@
 #include <memory>
 #include <type_traits>
 #include <sstream>
-
 
 
 template<class T, uint N, class ... Dims>
@@ -26,7 +27,7 @@ interp_compress_decompress(char *path, T *data, size_t num, double eb, int inter
     std::string compressed_file_name;
     {
 
-        std::cout << "****************** compression ****************" << std::endl;
+        std::cout << "****************** Interp Compression ****************" << std::endl;
         std::cout << "Interp Op          = " << interp_op << std::endl
                   << "Direction          = " << direction_op << std::endl
                   << "SZ block size      = " << block_size << std::endl
@@ -63,7 +64,7 @@ interp_compress_decompress(char *path, T *data, size_t num, double eb, int inter
         SZ::writefile(compressed_file_name.c_str(), compressed.get(), compressed_size);
     }
     {
-        std::cout << "***************** Decompression ****************" << std::endl;
+        std::cout << "***************** Interp Decompression ****************" << std::endl;
         size_t compressed_size = 0;
         auto compressed = SZ::readfile<SZ::uchar>(compressed_file_name.c_str(), compressed_size);
 //        remove(compressed_file_name.c_str());
@@ -99,12 +100,7 @@ interp_compress_decompress(char *path, T *data, size_t num, double eb, int inter
 
         auto compression_ratio = num * sizeof(T) * 1.0 / compressed_size;
         printf("PSNR = %f, NRMSE = %.10G, Compression Ratio = %.2f\n", psnr, nrmse, compression_ratio);
-        std::cout << "Options " << compression_ratio
-                  << " " << interp_op
-                  << " " << direction_op
-                  << " " << block_size
-                  << " " << interp_block_size
-                  << std::endl;
+
         compressStats.psnr = psnr;
         compressStats.nrmse = nrmse;
         compressStats.ratio = compression_ratio;
@@ -115,10 +111,11 @@ interp_compress_decompress(char *path, T *data, size_t num, double eb, int inter
 }
 
 template<class T, uint N>
-double interp_compress_block_version(T *data, std::array<size_t, N> dims, size_t num, double eb, int interp_level, int interp_op, int direction_op,
+double interp_compress_block_version(T *data, std::array<size_t, N> dims, size_t num, double eb, int interp_level,
+                                     int interp_op, int direction_op,
                                      int block_size, int interp_block_size) {
 
-    std::cout << "****************** compression ****************" << std::endl;
+    std::cout << "****************** Interp Compression ****************" << std::endl;
     std::cout << "Interp Op          = " << interp_op << std::endl
               << "Direction          = " << direction_op << std::endl
               << "SZ block size      = " << block_size << std::endl
@@ -151,7 +148,7 @@ double interp_compress_block_version(T *data, std::array<size_t, N> dims, size_t
     auto compression_ratio = num * sizeof(T) * 1.0 / compressed_size;
     std::cout << "Compressed size = " << compressed_size << std::endl;
     std::cout << "Compression ratio = " << compression_ratio << std::endl;
-    std::cout << "Tuning Interp Compression time = " << compression_time
+    std::cout << "Interp compression time = " << compression_time
               << " Ratio = " << compression_ratio
               << " Params = " << interp_level
               << " " << interp_op
@@ -162,29 +159,70 @@ double interp_compress_block_version(T *data, std::array<size_t, N> dims, size_t
               << std::endl;
 
 
-    std::cout << "****************** end ****************" << std::endl;
+    std::cout << "****************** Interp end ****************" << std::endl;
     return compression_ratio;
 }
 
-template<typename T>
-SZ::CompressStats lorenzo_compress_3D(T *data, size_t num_elements, int r1, int r2, int r3, float precision,
-                                      META::meta_params params) {
-    size_t result_size = 0;
-    SZ::CompressStats compressStats;
-
+template<typename T, uint N>
+SZ::CompressStats
+lorenzo_compress_decompress_3d(char *path, T *data, size_t num_elements, SZ::Config<T, N> conf, bool decompress) {
     SZ::Timer timer(true);
+    SZ::CompressStats compressStats;
+    std::cout << "***************** Lorenzo Compression ****************" << std::endl;
 
-    unsigned char *result = META::meta_compress_3d<T>(data, r1, r2, r3, precision, result_size, params, compressStats);
-    unsigned char *result_after_lossless = NULL;
-    size_t lossless_outsize = META::meta_lossless_compress(ZSTD_COMPRESSOR, 3, result, result_size,
-                                                           &result_after_lossless);
-    free(result);
-    free(result_after_lossless);
+    auto quantizer = SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2);
+    auto sz = make_sz_general_compressor(conf, make_sz_meta_frontend(conf, quantizer), SZ::HuffmanEncoder<int>(),
+                                         SZ::Lossless_zstd());
+
+    size_t compressed_size = 0;
+    SZ::uchar *compressed = sz.compress(data, compressed_size);
 
     compressStats.compress_time = timer.stop();
     compressStats.ori_bytes = num_elements * sizeof(T);
-    compressStats.compress_bytes = lossless_outsize;
+    compressStats.compress_bytes = compressed_size;
     compressStats.ratio = compressStats.ori_bytes * 1.0 / compressStats.compress_bytes;
+
+    std::string compressed_file_name = SZ::compressed_path(path, false);
+
+    std::cout << "Compression time = " << compressStats.compress_time << "s" << std::endl;
+    std::cout << "Compression size = " << compressed_size << std::endl;
+    std::cout << "Compression ratio = " << compressStats.ratio << std::endl;
+
+
+    delete[]compressed;
+    if (decompress) {
+        std::cout << "Compression file = " << compressed_file_name << std::endl;
+        SZ::writefile(compressed_file_name.c_str(), compressed, compressed_size);
+
+        std::cout << "***************** Lorenzo Decompression ****************" << std::endl;
+        auto compressed = SZ::readfile<SZ::uchar>(compressed_file_name.c_str(), compressed_size);
+//        remove(compressed_file_name.c_str());
+
+        timer.start();
+        quantizer = SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2);
+        sz = make_sz_general_compressor(conf, make_sz_meta_frontend(conf, quantizer), SZ::HuffmanEncoder<int>(),
+                                        SZ::Lossless_zstd());
+
+        T *dec_data = sz.decompress(compressed.get(), compressed_size);
+
+        compressStats.decompress_time = timer.stop();
+        std::string decompressed_file_name = SZ::decompressed_path(path, false);
+
+        std::cout << "Decompression time = " << compressStats.decompress_time << "s" << std::endl;
+        std::cout << "Decompression file = " << decompressed_file_name << std::endl;
+        SZ::writefile(decompressed_file_name.c_str(), dec_data, num_elements);
+
+        size_t num1 = 0;
+        auto ori_data = SZ::readfile<T>(path, num1);
+        assert(num1 == num_elements);
+        SZ::verify<T>(ori_data.get(), dec_data, num_elements, compressStats.psnr, compressStats.nrmse);
+
+        printf("PSNR = %f, NRMSE = %.10G, Compression Ratio = %.2f\n",
+               compressStats.psnr, compressStats.nrmse, compressStats.ratio);
+
+    } else {
+        std::cout << "***************** Lorenzo End ****************" << std::endl;
+    }
 
     return compressStats;
 }
@@ -207,29 +245,29 @@ void interp_lorenzo_tuning(char *path, double reb, bool enable_lorenzo, Dims ...
     std::vector<T> sampling_data = SZ::sampling<T, N>(data.get(), dims, sampling_num, sample_dims, sampling_block);
     printf("%lu %lu %lu %lu %lu\n", sampling_data.size(), sampling_num, sample_dims[0], sample_dims[1], sample_dims[2]);
 
-    SZ::CompressStats result_lorenzo;
-    META::meta_params lorenzo_params(false, 5, 3, 0, true, true, false, eb);
-
+    SZ::CompressStats lorenzo_stats;
+    SZ::Config<T, N> lorenzo_config(eb, sample_dims);
     if (enable_lorenzo) {
         if (N != 3) {
             printf("Lorenzo can only be enabled in 3D mode");
             exit(0);
         }
-        lorenzo_params.capacity = 65536 * 2;
-        lorenzo_params.lossless = true;
+        lorenzo_config.enable_2ndlorenzo = true;
+        lorenzo_config.enable_regression = false;
+        lorenzo_config.block_size = 5;
+        lorenzo_config.quant_state_num = 65536 * 2;
 
-        result_lorenzo = lorenzo_compress_3D(sampling_data.data(), sampling_num, sample_dims[0], sample_dims[1], sample_dims[2], eb, lorenzo_params);
-        printf("Tuning lorenzo ratio = %.2f, lorenzo:%d, lorenzo2:%d, pred_dim:%d compress_time:%.3f\n",
-               result_lorenzo.ratio, lorenzo_params.use_lorenzo, lorenzo_params.use_lorenzo_2layer, lorenzo_params.prediction_dim,
-               result_lorenzo.compress_time);
+        lorenzo_stats = lorenzo_compress_decompress_3d(path, sampling_data.data(), sampling_num, lorenzo_config, false);
+        printf("Lorenzo ratio = %.2f, compress_time:%.3f\n",
+               lorenzo_stats.ratio, lorenzo_stats.compress_time);
     }
-    double best_lorenzo_ratio = result_lorenzo.ratio;
+    double best_lorenzo_ratio = lorenzo_stats.ratio;
     double best_interp_ratio = 0, ratio;
 
     int interp_level = -1, interp_op, direction_op = 0, block_size = sampling_block, interp_block_size = sampling_block;
-//    SZ_Option sz_op = SZ_LR;
     for (int i = 0; i < 2; i++) {
-        ratio = interp_compress_block_version<T, N>(sampling_data.data(), sample_dims, sampling_num, eb, interp_level, i, direction_op,
+        ratio = interp_compress_block_version<T, N>(sampling_data.data(), sample_dims, sampling_num, eb, interp_level,
+                                                    i, direction_op,
                                                     block_size, interp_block_size);
         if (ratio > best_interp_ratio) {
             best_interp_ratio = ratio;
@@ -238,7 +276,8 @@ void interp_lorenzo_tuning(char *path, double reb, bool enable_lorenzo, Dims ...
     }
     std::cout << "interp best interp_op = " << interp_op << " , best ratio = " << best_interp_ratio << std::endl;
 
-    ratio = interp_compress_block_version<T, N>(sampling_data.data(), sample_dims, sampling_num, eb, interp_level, interp_op, 5,
+    ratio = interp_compress_block_version<T, N>(sampling_data.data(), sample_dims, sampling_num, eb, interp_level,
+                                                interp_op, 5,
                                                 block_size, interp_block_size);
     if (ratio > best_interp_ratio * 1.02) {
         best_interp_ratio = ratio;
@@ -247,71 +286,61 @@ void interp_lorenzo_tuning(char *path, double reb, bool enable_lorenzo, Dims ...
     std::cout << "interp best direction_op = " << direction_op << " , best ratio = " << best_interp_ratio
               << std::endl;
 
-    bool lorenzo = enable_lorenzo && result_lorenzo.ratio > best_interp_ratio && result_lorenzo.ratio < 80 && best_interp_ratio < 80;
-    printf("Lorenzo compression ratio = %.2f\n", result_lorenzo.ratio);
+    bool lorenzo = enable_lorenzo && lorenzo_stats.ratio > best_interp_ratio && lorenzo_stats.ratio < 80 &&
+                   best_interp_ratio < 80;
+    printf("\nLorenzo compression ratio = %.2f\n", lorenzo_stats.ratio);
     printf("Interp compression ratio = %.2f\n", best_interp_ratio);
     printf("choose %s\n", lorenzo ? "lorenzo" : "interp");
 
     if (lorenzo) {
         int capacity = 65536 * 2;
-        META::optimize_quant_invl_3d(data.get(), dims[0], dims[1], dims[2], eb, capacity);
-        lorenzo_params.capacity = capacity;
-//    printf("tuning capacity: %d\n", capacity);
-
-        lorenzo_params.prediction_dim = 2;
-        result_lorenzo = lorenzo_compress_3D(sampling_data.data(), sampling_num, sample_dims[0], sample_dims[1], sample_dims[2], eb, lorenzo_params);
-        printf("Tuning Lorenzo ratio = %.2f, lorenzo:%d, lorenzo2:%d, pred_dim:%d compress_time:%.3f\n",
-               result_lorenzo.ratio, lorenzo_params.use_lorenzo, lorenzo_params.use_lorenzo_2layer, lorenzo_params.prediction_dim,
-               result_lorenzo.compress_time);
-        if (result_lorenzo.ratio > best_lorenzo_ratio * 1.02) {
-            best_lorenzo_ratio = result_lorenzo.ratio;
-        } else {
-            lorenzo_params.prediction_dim = 3;
-        }
+        T tmpT = 0;
+        bool tmp = false;
+        SZ::optimize_quant_invl_3d<T>(data.get(), dims[0], dims[1], dims[2], eb, capacity, tmp, tmpT);
+        lorenzo_config.quant_state_num = capacity;
 
         if (reb < 1.01e-6 && best_lorenzo_ratio > 5) {
-            lorenzo_params.capacity = 16384;
-            result_lorenzo = lorenzo_compress_3D(sampling_data.data(), sampling_num, sample_dims[0], sample_dims[1], sample_dims[2], eb,
-                                                 lorenzo_params);
-            printf("Tuning Lorenzo ratio = %.2f, lorenzo:%d, lorenzo2:%d, pred_dim:%d compress_time:%.3f\n",
-                   result_lorenzo.ratio, lorenzo_params.use_lorenzo, lorenzo_params.use_lorenzo_2layer,
-                   lorenzo_params.prediction_dim,
-                   result_lorenzo.compress_time);
-            if (result_lorenzo.ratio > best_lorenzo_ratio * 1.02) {
-                best_lorenzo_ratio = result_lorenzo.ratio;
+            lorenzo_config.quant_state_num = 16384;
+            lorenzo_stats = lorenzo_compress_decompress_3d(path, sampling_data.data(), sampling_num, lorenzo_config,
+                                                           false);
+            printf("Lorenzo quant_bin=8192, ratio = %.2f, compress_time:%.3f\n",
+                   lorenzo_stats.ratio, lorenzo_stats.compress_time);
+            if (lorenzo_stats.ratio > best_lorenzo_ratio * 1.02) {
+                best_lorenzo_ratio = lorenzo_stats.ratio;
             } else {
-                lorenzo_params.capacity = capacity;
+                lorenzo_config.quant_state_num = capacity;
             }
         }
 
-
         double tuning_time = timer.stop();
         std::cout << "Tuning time = " << tuning_time << "s" << std::endl;
-        std::cout << "================================ END TUNING ================================" << std::endl << std::endl;
+        std::cout << "================================ END TUNING ================================" << std::endl
+                  << std::endl;
         std::cout << "================================ BEGIN SZ-Lorenzo ================================" << std::endl;
 
-        lorenzo_params.print();
-        auto result = meta_compress_decompress_3d(data.get(), num, dims[0], dims[1], dims[2], eb, lorenzo_params, true);
-        printf("PSNR = %f, NRMSE = %.10G, Compression Ratio = %.2f\n", result.psnr, result.nrmse,
-               result.ratio);
-        std::cout << "Total compress time = " << tuning_time + result.compress_time << std::endl;
+        lorenzo_config.dims = dims;
+        lorenzo_config.num = num;
+        auto result = lorenzo_compress_decompress_3d(path, data.get(), num, lorenzo_config, true);
+        std::cout << "\nTotal compress time (include tuning) = " << tuning_time + result.compress_time << std::endl;
         std::cout << "Total decompress time = " << result.decompress_time << std::endl;
-        std::cout << "==================================== END SZ-Lorenzo ===================================" << std::endl;
+        std::cout << "==================================== END SZ-Lorenzo ==================================="
+                  << std::endl;
 
     } else {
         double tuning_time = timer.stop();
         std::cout << "Tuning time = " << tuning_time << "s" << std::endl;
-        std::cout << "====================================== END TUNING ======================================" << std::endl << std::endl;
-        std::cout << "==================================== BEGIN SZ-Interp ===================================" << std::endl;
+        std::cout << "====================================== END TUNING ======================================"
+                  << std::endl << std::endl;
+        std::cout << "==================================== BEGIN SZ-Interp ==================================="
+                  << std::endl;
 
         block_size = 6;
         interp_block_size = 32;
         auto result = interp_compress_decompress<T, N>(path, data.get(), num, eb, interp_op, direction_op,
                                                        block_size, interp_block_size, args...);
-//        printf("PSNR = %f, NRMSE = %.10G, Compression Ratio = %.2f\n", result.psnr, result.nrmse,
-//               result.ratio);
-        std::cout << "Total compress time = " << tuning_time + result.compress_time << std::endl;
+        std::cout << "\nTotal compress time (include tuning) = " << tuning_time + result.compress_time << std::endl;
         std::cout << "Total decompress time = " << result.decompress_time << std::endl;
-        std::cout << "==================================== END SZ-Interp ===================================" << std::endl;
+        std::cout << "==================================== END SZ-Interp ==================================="
+                  << std::endl;
     }
 }
