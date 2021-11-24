@@ -9,9 +9,11 @@
 #include "meta_optimize_quant_intervals.hpp"
 #include "meta_def.hpp"
 #include "meta_utils.hpp"
+#include "utils/Config.hpp"
+#include "utils/Verification.hpp"
 #include <random>
 #include <list>
-#include <utils/Verification.hpp>
+
 
 namespace META {
     using namespace std;
@@ -117,7 +119,7 @@ namespace META {
     template<typename T>
     unsigned char *
     meta_compress_3d(const T *data, size_t r1, size_t r2, size_t r3, double precision, size_t &compressed_size,
-                     const meta_params &params, meta_compress_info &compress_info) {
+                     const meta_params &params, SZ::CompressStats &compress_info) {
 //    ori_data_sp_float = (float *) data;
         DSize_3d size(r1, r2, r3, params.block_size);
         int capacity = 0; // num of quant intervals
@@ -304,7 +306,7 @@ namespace META {
     template<typename T>
     unsigned char *
     meta_compress_3d_sampling(const T *data, size_t r1, size_t r2, size_t r3, double precision, size_t &compressed_size,
-                              const meta_params &params, meta_compress_info &compress_info) {
+                              const meta_params &params, SZ::CompressStats &compress_info) {
 //    ori_data_sp_float = (float *) data;
         DSize_3d size(r1, r2, r3, params.block_size);
         int capacity = params.capacity;; // num of quant intervals
@@ -662,10 +664,10 @@ namespace META {
     }
 
     template<typename T>
-    meta_compress_info meta_compress_decompress_3d(T *data, size_t num_elements, int r1, int r2, int r3, float precision,
-                                                   meta_params params, bool use_decompress) {
+    SZ::CompressStats meta_compress_decompress_3d(T *data, size_t num_elements, int r1, int r2, int r3, float precision,
+                                                  meta_params params, bool use_decompress) {
         size_t result_size = 0;
-        meta_compress_info compressInfo;
+        SZ::CompressStats compressInfo;
 
         struct timespec start, end;
         clock_gettime(CLOCK_REALTIME, &start);
@@ -713,11 +715,11 @@ namespace META {
 
 
     template<typename T>
-    meta_compress_info
+    SZ::CompressStats
     meta_compress_3d_sampling_wrapper(const T *data, size_t num_elements, int r1, int r2, int r3, float precision,
                                       meta_params params) {
         size_t result_size = 0;
-        meta_compress_info compressInfo;
+        SZ::CompressStats compressInfo;
 
         struct timespec start, end;
         clock_gettime(CLOCK_REALTIME, &start);
@@ -820,7 +822,7 @@ namespace META {
 
 
         meta_params best_params_stage2 = best_params_stage1;
-        meta_compress_info best_compress_info;
+        SZ::CompressStats best_compress_info;
         best_ratio = 0;
         list<int> block_size_set = {5, 6, 7, 8};
         for (auto block_size:block_size_set) {

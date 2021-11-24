@@ -163,7 +163,7 @@ namespace SZ {
     private:
         //        unsigned char *
 //        compress_3d(const T *data, size_t r1, size_t r2, size_t r3, double precision, size_t &compressed_size,
-//                    const SZMETA::meta_params &params, SZMETA::meta_compress_info &compress_info) {
+//                    const SZMETA::meta_params &params, SZMETA::CompressStats &compress_info) {
         std::vector<int> compress_3d(const T *data) {
             clear();
 

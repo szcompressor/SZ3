@@ -42,6 +42,20 @@ namespace SZ {
         uint block_size, stride, pred_dim = 0;
         double eb;
     };
+
+    struct CompressStats {
+        float compress_time;
+        float decompress_time;
+        double psnr;
+        double nrmse;
+        size_t ori_bytes;
+        size_t compress_bytes;
+        size_t lorenzo_count;
+        size_t lorenzo2_count;
+        size_t regression_count;
+        size_t block_count;
+        float ratio;
+    };
 }
 
 #endif //SZ_CONFIG_HPP

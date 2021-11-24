@@ -9,8 +9,37 @@
 #include <fstream>
 #include <iomanip>
 #include <cassert>
+#include <random>
+#include <sstream>
 
 namespace SZ {
+
+    double random_double() {
+        std::random_device rd;  //Will be used to obtain a seed for the random number engine
+        std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+        std::uniform_real_distribution<> dis(0, 100000000);
+        return dis(gen);
+    }
+
+    std::string compressed_path(const std::string &ori_path, bool random = false) {
+        std::stringstream ss;
+        ss << ori_path.substr(ori_path.rfind('/') + 1);
+        if (random) {
+            ss << "_" << random_double();
+        }
+        ss << ".sz3";
+        return ss.str();
+    }
+
+    std::string decompressed_path(const std::string &ori_path, bool random = false) {
+        std::stringstream ss;
+        ss << ori_path.substr(ori_path.rfind('/') + 1);
+        if (random) {
+            ss << "_" << random_double();
+        }
+        ss << ".sz3.out";
+        return ss.str();
+    }
 
     template<typename Type>
     void readfile(const char *file, const size_t num, Type *data) {
