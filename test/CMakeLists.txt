@@ -2,8 +2,8 @@ set(exes
         sz_interp
         sz_interp_int
         sz_interp_double
-        sz_demo
-        sz_fast
+        sz_v2
+        sz_v2s
         sz_truncate
         sz_pw
         test_huffman_coding
