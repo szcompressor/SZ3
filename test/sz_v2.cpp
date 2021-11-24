@@ -1,5 +1,8 @@
-#include "frontend/SZMetaFrontend.hpp"
+#include "frontend/SZ3Frontend.hpp"
 #include "predictor/Predictor.hpp"
+#include "predictor/LorenzoPredictor.hpp"
+#include "predictor/RegressionPredictor.hpp"
+#include "predictor/ComposedPredictor.hpp"
 #include "quantizer/IntegerQuantizer.hpp"
 #include "utils/FileUtil.hpp"
 #include "utils/Config.hpp"
@@ -7,13 +10,50 @@
 #include <cstdio>
 #include <iostream>
 #include <memory>
-#include "sz_backend.hpp"
+
+#include "sz_v2.hpp"
+
 
 template<typename T, uint N>
 float SZ_compress_build_frontend(std::unique_ptr<T[]> const &data, const SZ::Config<T, N> &conf) {
     auto quantizer = SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2);
-    return SZ_compress_build_backend(data, conf, make_sz_meta_frontend(conf, quantizer));
+    std::vector<std::shared_ptr<SZ::concepts::PredictorInterface<T, N>>> predictors;
+
+    int use_single_predictor =
+            (conf.enable_lorenzo + conf.enable_2ndlorenzo + conf.enable_regression) == 1;
+    if (conf.enable_lorenzo) {
+        if (use_single_predictor) {
+            return SZ_compress_build_backend<T>(data, conf,
+                                                make_sz3_frontend(conf, SZ::LorenzoPredictor<T, N, 1>(conf.eb),
+                                                                  quantizer));
+        } else {
+            predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 1>>(conf.eb));
+        }
+    }
+    if (conf.enable_2ndlorenzo) {
+        if (use_single_predictor) {
+            return SZ_compress_build_backend<T>(data, conf,
+                                                make_sz3_frontend(conf, SZ::LorenzoPredictor<T, N, 2>(conf.eb),
+                                                                  quantizer));
+        } else {
+            predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 2>>(conf.eb));
+        }
+    }
+    if (conf.enable_regression) {
+        if (use_single_predictor) {
+            return SZ_compress_build_backend<T>(data, conf,
+                                                make_sz3_frontend(conf, SZ::RegressionPredictor<T, N>(conf.block_size,
+                                                                                                      conf.eb),
+                                                                  quantizer));
+        } else {
+            predictors.push_back(std::make_shared<SZ::RegressionPredictor<T, N>>(conf.block_size, conf.eb));
+        }
+    }
+
+    return SZ_compress_build_backend<T>(data, conf,
+                                        make_sz3_frontend(conf, SZ::ComposedPredictor<T, N>(predictors), quantizer));
 }
+
 
 template<class T, uint N>
 float SZ_compress_parse_args(int argc, char **argv, int argp, std::unique_ptr<T[]> &data, float eb,
@@ -61,6 +101,7 @@ float SZ_compress_parse_args(int argc, char **argv, int argp, std::unique_ptr<T[
 
 int main(int argc, char **argv) {
     if (argc < 2) {
+        std::cout << "SZ v" << SZ_versionString() << std::endl;
         std::cout << "usage: " << argv[0] <<
                   " data_file -num_dim dim0 .. dimn relative_eb [blocksize lorenzo_op regression_op encoder_op lossless_op quant_state_num]"
                   << std::endl;

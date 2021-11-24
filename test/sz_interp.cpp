@@ -2,7 +2,15 @@
 
 
 int main(int argc, char **argv) {
-
+    if (argc < 2) {
+        std::cout << "SZ-interp v" << SZ_versionString() << std::endl;
+        std::cout << "usage: " << argv[0] <<
+                  " data_file -num_dim dim0 .. dimn relative_eb [interp_op interp_direction]"
+                  << std::endl;
+        std::cout << "example: " << argv[0] <<
+                  " qmcpack.dat -3 33120 69 69 1e-3 [1 0]" << std::endl;
+        return 0;
+    }
 
     int dim = atoi(argv[2] + 1);
     assert(1 <= dim && dim <= 4);
