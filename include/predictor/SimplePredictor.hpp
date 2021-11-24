@@ -21,7 +21,7 @@ namespace SZ {
             this->noise = 0;
         }
 
-        SimplePredictor(T eb) {
+        SimplePredictor(double eb) {
             this->noise = this->noise = 0.5 * eb;
         }
 

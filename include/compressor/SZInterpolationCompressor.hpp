@@ -65,22 +65,16 @@ namespace SZ {
         }
 
 
-        T *decompress(uchar *compressed_data, const size_t length, bool pre_de_lossless = false) {
+        T *decompress(uchar *compressed_data, const size_t length) {
             size_t remaining_length = length;
             uchar *lossless_decompressed;
             uchar const *compressed_data_pos;
-            if (pre_de_lossless) {
-                compressed_data_pos = compressed_data;
-            } else {
-                lossless_decompressed = lossless.decompress(compressed_data, remaining_length);
-                compressed_data_pos = lossless_decompressed;
-                T eb;
-                read(eb, compressed_data_pos, remaining_length);
-            }
+            lossless_decompressed = lossless.decompress(compressed_data, remaining_length);
+            compressed_data_pos = lossless_decompressed;
 
             read(global_dimensions.data(), N, compressed_data_pos, remaining_length);
             num_elements = 1;
-            for (const auto &d : global_dimensions) {
+            for (const auto &d: global_dimensions) {
                 num_elements *= d;
                 std::cout << d << " ";
             }
@@ -93,10 +87,9 @@ namespace SZ {
 
             encoder.postprocess_decode();
 
-            if (!pre_de_lossless) {
-                lossless.postdecompress_data(lossless_decompressed);
-            }
+            lossless.postdecompress_data(lossless_decompressed);
             double eb = quantizer.get_eb();
+
 //            quantizer.set_eb(eb * eb_ratio);
 
 //            auto dec_data = std::make_shared<T[]>(num_elements);
@@ -140,24 +133,14 @@ namespace SZ {
             return dec_data;
         }
 
-        uchar *compress(T *data, size_t &compressed_size) {
-            return compress(data, compressed_size, false);
-        }
-
         // compress given the error bound
-        uchar *compress(T *data, size_t &compressed_size, bool deleteData) {
+        uchar *compress(T *data, size_t &compressed_size) {
             quant_inds.reserve(num_elements);
-//            quant_inds.resize(num_elements);
             size_t interp_compressed_size = 0;
-//            debug.resize(num_elements, 0);
-//            preds.resize(num_elements, 0);
 
-            T eb = quantizer.get_eb();
-            std::cout << "Absolute error bound = " << eb << std::endl;
-//            quantizer.set_eb(eb * eb_ratio);
+            double eb = quantizer.get_eb();
+            printf("Absolute error bound = %.5f\n", eb);
 
-//            quant_inds[0] = quantizer.quantize_and_overwrite(*data, 0);
-//            preds[0] = 0;
             quant_inds.push_back(quantizer.quantize_and_overwrite(*data, 0));
 
             Timer timer;
@@ -192,9 +175,6 @@ namespace SZ {
                                         interpolators[interpolator_id], direction_sequence_id, stride);
                 }
             }
-            if (deleteData) {
-                delete[]data;
-            }
             std::cout << "total element = " << num_elements << std::endl;
             std::cout << "quantization element = " << quant_inds.size() << std::endl;
             assert(quant_inds.size() == num_elements);
@@ -207,7 +187,6 @@ namespace SZ {
                                      new uchar[4 * num_elements * sizeof(T)] :
                                      new uchar[size_t(1.2 * num_elements) * sizeof(T)];
             uchar *compressed_data_pos = compressed_data;
-            write(eb, compressed_data_pos);
             write(global_dimensions.data(), N, compressed_data_pos);
             write(blocksize, compressed_data_pos);
 
@@ -502,8 +481,6 @@ namespace SZ {
         std::vector<std::string> interpolators;
         std::vector<int> quant_inds;
         size_t quant_index = 0; // for decompress
-//        std::vector<int> debug;
-//        std::vector<T> preds;
         double max_error;
         Quantizer quantizer;
         Encoder encoder;

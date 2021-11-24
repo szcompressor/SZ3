@@ -113,7 +113,7 @@ int main(int argc, char **argv) {
         byteLen = atoi(argv[argp++]);
     }
 
-    float eb = 0;
+    double eb = 0;
 
 
     if (dim == 1) {

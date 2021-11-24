@@ -54,7 +54,7 @@ namespace SZ {
             } else {
                 lossless_decompressed = lossless.decompress(compressed_data, remaining_length);
                 compressed_data_pos = lossless_decompressed;
-                float eb;
+                double eb;
                 read(eb, compressed_data_pos, remaining_length);
             }
 

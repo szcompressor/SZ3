@@ -15,7 +15,7 @@ namespace SZ {
     public:
         LinearQuantizer() : error_bound(1), error_bound_reciprocal(1), radius(32768) {}
 
-        LinearQuantizer(T eb, int r = 32768) : error_bound(eb),
+        LinearQuantizer(double eb, int r = 32768) : error_bound(eb),
                                                error_bound_reciprocal(1.0 / eb),
                                                radius(r) {
             assert(eb != 0);
@@ -23,9 +23,9 @@ namespace SZ {
 
         int get_radius() const { return radius; }
 
-        T get_eb() const { return error_bound; }
+        double get_eb() const { return error_bound; }
 
-        void set_eb(T eb) {
+        void set_eb(double eb) {
             error_bound = eb;
             error_bound_reciprocal = 1.0 / eb;
         }
@@ -139,8 +139,8 @@ namespace SZ {
             c[0] = 0b00000010;
             c += 1;
             // std::cout << "saving eb = " << this->error_bound << ", unpred_num = "  << unpred.size() << std::endl;
-            *reinterpret_cast<T *>(c) = this->error_bound;
-            c += sizeof(T);
+            *reinterpret_cast<double *>(c) = this->error_bound;
+            c += sizeof(double);
             *reinterpret_cast<int *>(c) = this->radius;
             c += sizeof(int);
             *reinterpret_cast<size_t *>(c) = unpred.size();
@@ -153,9 +153,9 @@ namespace SZ {
             assert(remaining_length > (sizeof(uint8_t) + sizeof(T) + sizeof(int)));
             c += sizeof(uint8_t);
             remaining_length -= sizeof(uint8_t);
-            this->error_bound = *reinterpret_cast<const T *>(c);
+            this->error_bound = *reinterpret_cast<const double *>(c);
             this->error_bound_reciprocal = 1.0 / this->error_bound;
-            c += sizeof(T);
+            c += sizeof(double);
             this->radius = *reinterpret_cast<const int *>(c);
             c += sizeof(int);
             size_t unpred_size = *reinterpret_cast<const size_t *>(c);

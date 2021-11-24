@@ -11,7 +11,7 @@ namespace SZ {
     template<class T, uint N>
     class Config {
     public:
-        Config(T _eb, std::array<size_t, N> _dims) : eb(_eb), dims(_dims) {
+        Config(double _eb, std::array<size_t, N> _dims) : eb(_eb), dims(_dims) {
             switch (N) {
                 case 1:
                     block_size = 128;
@@ -40,7 +40,7 @@ namespace SZ {
         int encoder_op = 1;// 0-> skip encoder(use PQLCompressor); 1->HuffmanEncoder; 2->ArithmeticEncoder
         size_t quant_state_num = 65536;
         uint block_size, stride, pred_dim = 0;
-        T eb;
+        double eb;
     };
 }
 

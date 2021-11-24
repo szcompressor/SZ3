@@ -20,7 +20,7 @@ namespace SZ {
             this->noise = 0;
         }
 
-        LorenzoPredictor(T eb) {
+        LorenzoPredictor(double eb) {
             this->noise = 0;
             if (L == 1) {
                 if (N == 1) {
