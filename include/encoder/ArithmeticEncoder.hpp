@@ -1,7 +1,7 @@
 #ifndef SZ_ArithmeticEncoder_HPP
 #define SZ_ArithmeticEncoder_HPP
 
-#include "utils/ByteUtil.h"
+#include "utils/ByteUtil.hpp"
 #include "encoder/Encoder.hpp"
 #include <cassert>
 #include <iostream>

@@ -1,7 +1,7 @@
 #include "compressor/SZTruncateCompressor.hpp"
 #include "lossless/Lossless_zstd.hpp"
 #include "lossless/Lossless_bypass.hpp"
-#include "utils/FileUtil.h"
+#include "utils/FileUtil.hpp"
 #include "utils/Config.hpp"
 #include "utils/Verification.hpp"
 #include "utils/Timer.hpp"
@@ -15,6 +15,7 @@
 std::string src_file_name;
 float relative_error_bound = 0;
 float compression_time = 0;
+int byteLen = 2;
 
 template<typename T, class Lossless, uint N>
 float SZ_compress(std::unique_ptr<T[]> const &data,
@@ -23,12 +24,13 @@ float SZ_compress(std::unique_ptr<T[]> const &data,
     std::cout << "****************** Options ********************" << std::endl;
     std::cout << "dimension = " << N
               << ", error bound = " << conf.eb
+              << ", byteLen = " << byteLen
               << ", lossless = " << conf.lossless_op
               << std::endl;
 
     std::vector<T> data_ = std::vector<T>(data.get(), data.get() + conf.num);
 
-    auto sz = make_sz_truncate_compressor(conf, lossless);
+    auto sz = make_sz_truncate_compressor(conf, lossless, byteLen);
 
     SZ::Timer timer;
     timer.start();
@@ -80,8 +82,8 @@ float SZ_compress_parse_args(int argc, char **argv, int argp, std::unique_ptr<T[
     if (argp < argc) {
         conf.lossless_op = atoi(argv[argp++]);
     }
-    if (conf.lossless_op == 1) {
-        return SZ_compress<T>(data, conf, SZ::Lossless_zstd());
+    if (conf.lossless_op > 0) {
+        return SZ_compress<T>(data, conf, SZ::Lossless_zstd(conf.lossless_op));
     } else {
         return SZ_compress<T>(data, conf, SZ::Lossless_bypass());
     }
@@ -89,12 +91,9 @@ float SZ_compress_parse_args(int argc, char **argv, int argp, std::unique_ptr<T[
 
 
 int main(int argc, char **argv) {
-    if (argc < 2) {
-        std::cout << "usage: " << argv[0] <<
-                  " data_file -num_dim dim0 .. dimn relative_eb "
-                  << std::endl;
-        std::cout << "example: " << argv[0] <<
-                  " qmcpack.dat -3 33120 69 69 1e-3" << std::endl;
+    if (argc < 4) {
+        std::cout << "usage: " << argv[0] << " data_file -num_dim dim0 .. dimn byteLens " << std::endl;
+        std::cout << "example: " << argv[0] << " qmcpack.dat -3 33120 69 69 2" << std::endl;
         return 0;
     }
 
@@ -110,21 +109,12 @@ int main(int argc, char **argv) {
     for (int i = 0; i < dim; i++) {
         dims[i] = atoi(argv[argp++]);
     }
-
-//    char *eb_op = argv[argp++] + 1;
-//    if (*eb_op == 'a') {
-//        eb = atof(argv[argp++]);
-//    } else {
-    relative_error_bound = atof(argv[argp++]);
-//    relative_error_bound = 0;
-    float max = data[0];
-    float min = data[0];
-    for (int i = 1; i < num; i++) {
-        if (max < data[i]) max = data[i];
-        if (min > data[i]) min = data[i];
+    if (argp < argc) {
+        byteLen = atoi(argv[argp++]);
     }
-    float eb = relative_error_bound * (max - min);
-//    }
+
+    float eb = 0;
+
 
     if (dim == 1) {
         SZ_compress_parse_args<float, 1>(argc, argv, argp, data, eb, std::array<size_t, 1>{dims[0]});

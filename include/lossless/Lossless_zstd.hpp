@@ -8,13 +8,17 @@
 #include "zstd.h"
 #include "def.hpp"
 #include "utils/MemoryUtil.hpp"
-#include "utils/FileUtil.h"
+#include "utils/FileUtil.hpp"
 #include "lossless/Lossless.hpp"
 
 namespace SZ {
     class Lossless_zstd : public concepts::LosslessInterface {
 
     public:
+        Lossless_zstd() = default;
+
+        Lossless_zstd(int comp_level) : compression_level(comp_level) {};
+
         uchar *compress(uchar *data, size_t dataLength, size_t &outSize) {
             size_t estimatedCompressedSize = dataLength < 100 ? 200 : dataLength * 1.2;
             uchar *compressBytes = new uchar[estimatedCompressedSize];
@@ -22,7 +26,7 @@ namespace SZ {
             write(dataLength, compressBytesPos);
 
             outSize = ZSTD_compress(compressBytesPos, estimatedCompressedSize, data, dataLength,
-                                    3); //default setting of level is 3
+                                    compression_level);
             outSize += sizeof(size_t);
             return compressBytes;
         }
@@ -46,6 +50,8 @@ namespace SZ {
             delete[] data;
         }
 
+    private:
+        int compression_level = 3;  //default setting of level is 3
     };
 }
 #endif //SZ_LOSSLESS_ZSTD_HPP

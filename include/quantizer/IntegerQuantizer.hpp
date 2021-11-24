@@ -17,7 +17,9 @@ namespace SZ {
 
         LinearQuantizer(T eb, int r = 32768) : error_bound(eb),
                                                error_bound_reciprocal(1.0 / eb),
-                                               radius(r) {}
+                                               radius(r) {
+            assert(eb != 0);
+        }
 
         int get_radius() const { return radius; }
 
@@ -84,7 +86,7 @@ namespace SZ {
             }
         }
 
-        int quantize_and_overwrite(T ori, T pred, T& dest) {
+        int quantize_and_overwrite(T ori, T pred, T &dest) {
             T diff = ori - pred;
             int quant_index = (int) (fabs(diff) * this->error_bound_reciprocal) + 1;
             if (quant_index < this->radius * 2) {

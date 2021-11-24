@@ -1,6 +1,11 @@
 #ifndef SZ2_FRONT_END
 #define SZ2_FRONT_END
 
+/**
+ * This module is SZ2's prediction and quantization implementation.
+ * It only supports 3D data.
+ */
+
 #include "Frontend.hpp"
 #include "predictor/MetaLorenzoPredictor.hpp"
 #include "predictor/MetaRegressionPredictor.hpp"

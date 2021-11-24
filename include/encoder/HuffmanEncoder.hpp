@@ -3,12 +3,20 @@
 
 #include "def.hpp"
 #include "encoder/Encoder.hpp"
-#include "utils/ByteUtil.h"
+#include "utils/ByteUtil.hpp"
+#include "utils/MemoryUtil.hpp"
+#include "utils/Timer.hpp"
+#include "utils/ska_hash/unordered_map.hpp"
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
 #include <iostream>
+#include <map>
+#include <unordered_map>
+#include <unordered_set>
+#include <set>
+
 
 namespace SZ {
 
@@ -76,13 +84,23 @@ namespace SZ {
             return huffmanTree;
         }
 
+        /**
+         * build huffman tree using bins
+         * @param bins
+         * @param stateNum is no longer needed
+         */
         void preprocess_encode(const std::vector<T> &bins, int stateNum) {
             preprocess_encode(bins.data(), bins.size(), stateNum);
         }
 
+        /**
+         * build huffman tree using bins
+         * @param bins
+         * @param num_bin
+         * @param stateNum is no longer needed
+         */
         void preprocess_encode(const T *bins, size_t num_bin, int stateNum) {
             nodeCount = 0;
-            huffmanTree = createHuffmanTree(stateNum);
             init(bins, num_bin);
             for (int i = 0; i < huffmanTree->stateNum; i++)
                 if (huffmanTree->code[i]) nodeCount++;
@@ -91,6 +109,7 @@ namespace SZ {
 
         //save the huffman Tree in the compressed data
         uint save(uchar *&c) {
+            write(offset, c);
             intToBytes_bigEndian(c, nodeCount);
             c += sizeof(int);
             intToBytes_bigEndian(c, huffmanTree->stateNum / 2);
@@ -123,7 +142,7 @@ namespace SZ {
             int lackBits = 0;
             //long totalBitSize = 0, maxBitSize = 0, bitSize21 = 0, bitSize32 = 0;
             for (i = 0; i < num_bin; i++) {
-                state = bins[i];
+                state = bins[i] - offset;
                 bitSize = huffmanTree->cout[state];
 
                 if (lackBits == 0) {
@@ -211,7 +230,7 @@ namespace SZ {
             if (n->t) //root->t==1 means that all state values are the same (constant)
             {
                 for (count = 0; count < targetLength; count++)
-                    out[count] = n->c;
+                    out[count] = n->c + offset;
                 return out;
             }
 
@@ -224,7 +243,7 @@ namespace SZ {
                     n = n->right;
 
                 if (n->t) {
-                    out[count] = n->c;
+                    out[count] = n->c + offset;
                     n = t;
                     count++;
                 }
@@ -241,6 +260,7 @@ namespace SZ {
 
         //load Huffman tree
         void load(const uchar *&c, size_t &remaining_length) {
+            read(offset, c, remaining_length);
             nodeCount = bytesToInt_bigEndian(c);
             int stateNum = bytesToInt_bigEndian(c + sizeof(int)) * 2;
             size_t encodeStartIndex;
@@ -269,6 +289,7 @@ namespace SZ {
         unsigned int nodeCount;
         uchar sysEndianType; //0: little endian, 1: big endian
         bool loaded = false;
+        T offset;
 
 
         node reconstruct_HuffTree_from_bytes_anyStates(const unsigned char *bytes, uint nodeCount) {
@@ -492,17 +513,33 @@ namespace SZ {
          * @param size_t length (input)
          * */
         void init(const T *s, size_t length) {
-            size_t i, index;
-            size_t *freq = (size_t *) malloc(huffmanTree->allNodes * sizeof(size_t));
-            memset(freq, 0, huffmanTree->allNodes * sizeof(size_t));
-            for (i = 0; i < length; i++) {
-                index = s[i];
-                freq[index]++;
+            if (length == 0) {
+                return;
+            }
+            T max = s[0];
+            offset = s[0]; //offset is min
+
+            ska::unordered_map<T, size_t> frequency;
+            for (size_t i = 0; i < length; i++) {
+                frequency[s[i]]++;
             }
 
-            for (i = 0; i < huffmanTree->allNodes; i++)
-                if (freq[i])
-                    qinsert(new_node(freq[i], i, 0, 0));
+            for (const auto &kv: frequency) {
+                auto k=kv.first;
+                if (k > max) {
+                    max = k;
+                }
+                if (k < offset) {
+                    offset = k;
+                }
+            }
+
+            int stateNum = max - offset + 2;
+            huffmanTree = createHuffmanTree(stateNum);
+
+            for (const auto &f: frequency) {
+                qinsert(new_node(f.second, f.first - offset, 0, 0));
+            }
 
             while (huffmanTree->qend > 2)
                 qinsert(new_node(0, 0, qremove(), qremove()));
@@ -510,7 +547,6 @@ namespace SZ {
             build_code(huffmanTree->qq[1], 0, 0, 0);
             treeRoot = huffmanTree->qq[1];
 
-            free(freq);
         }
 
         template<class T1>
