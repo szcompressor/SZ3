@@ -1,4 +1,4 @@
-#include "frontend/SZ3Frontend.hpp"
+#include "frontend/SZFrontend.hpp"
 #include "predictor/Predictor.hpp"
 #include "predictor/LorenzoPredictor.hpp"
 #include "predictor/RegressionPredictor.hpp"
@@ -182,7 +182,7 @@ float SZ_compress_build_frontend(std::unique_ptr<T[]> const &data, SZ::Config<T,
     if (conf.enable_lorenzo) {
         if (use_single_predictor) {
             return SZ_compress_build_backend<T>(data, conf,
-                                                make_sz3_frontend(conf, SZ::LorenzoPredictor<T, N, 1>(conf.eb),
+                                                make_sz_frontend(conf, SZ::LorenzoPredictor<T, N, 1>(conf.eb),
                                                                   quantizer));
         } else {
             predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 1>>(conf.eb));
@@ -191,7 +191,7 @@ float SZ_compress_build_frontend(std::unique_ptr<T[]> const &data, SZ::Config<T,
     if (conf.enable_2ndlorenzo) {
         if (use_single_predictor) {
             return SZ_compress_build_backend<T>(data, conf,
-                                                make_sz3_frontend(conf, SZ::LorenzoPredictor<T, N, 2>(conf.eb),
+                                                make_sz_frontend(conf, SZ::LorenzoPredictor<T, N, 2>(conf.eb),
                                                                   quantizer));
         } else {
             predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 2>>(conf.eb));
@@ -200,7 +200,7 @@ float SZ_compress_build_frontend(std::unique_ptr<T[]> const &data, SZ::Config<T,
     if (conf.enable_regression) {
         if (use_single_predictor) {
             return SZ_compress_build_backend<T>(data, conf,
-                                                make_sz3_frontend(conf, SZ::RegressionPredictor<T, N>(conf.block_size,
+                                                make_sz_frontend(conf, SZ::RegressionPredictor<T, N>(conf.block_size,
                                                                                                       conf.eb),
                                                                   quantizer));
         } else {
@@ -209,7 +209,7 @@ float SZ_compress_build_frontend(std::unique_ptr<T[]> const &data, SZ::Config<T,
     }
 
     return SZ_compress_build_backend<T>(data, conf,
-                                        make_sz3_frontend(conf, SZ::ComposedPredictor<T, N>(predictors), quantizer));
+                                        make_sz_frontend(conf, SZ::ComposedPredictor<T, N>(predictors), quantizer));
 }
 
 

@@ -2,8 +2,9 @@
 #define SZ2_FRONT_END
 
 /**
- * This module is SZ2's prediction and quantization implementation.
- * It only supports 3D data.
+ * This module is the implementation of the prediction and quantization methods in SZ2.
+ * It has better speed than SZFrontend since multidimensional iterator is not used.
+ * Currently only 3D data is supported.
  */
 
 #include "Frontend.hpp"
@@ -27,7 +28,7 @@ namespace SZ {
                        conf.enable_regression, conf.eb),
                 precision(conf.eb),
                 conf(conf) {
-            assert(N == 3 && "SZ2 Front only support 3D compression");
+            assert(N == 3 && "SZ2 Front only support 3D data");
         }
 
         ~SZMetaFrontend() {

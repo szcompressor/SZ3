@@ -237,13 +237,12 @@ void interp_lorenzo_tuning(char *path, double reb, bool enable_lorenzo, Dims ...
     double eb = reb * SZ::data_range(data.get(), num);
     auto dims = std::array<size_t, N>{static_cast<size_t>(std::forward<Dims>(args))...};
 
-
     SZ::Timer timer(true);
 
     size_t sampling_num, sampling_block;
     std::array<size_t, N> sample_dims;
     std::vector<T> sampling_data = SZ::sampling<T, N>(data.get(), dims, sampling_num, sample_dims, sampling_block);
-    printf("%lu %lu %lu %lu %lu\n", sampling_data.size(), sampling_num, sample_dims[0], sample_dims[1], sample_dims[2]);
+//    printf("%lu %lu %lu %lu %lu\n", sampling_data.size(), sampling_num, sample_dims[0], sample_dims[1], sample_dims[2]);
 
     SZ::CompressStats lorenzo_stats;
     SZ::Config<T, N> lorenzo_config(eb, sample_dims);
@@ -293,22 +292,29 @@ void interp_lorenzo_tuning(char *path, double reb, bool enable_lorenzo, Dims ...
     printf("choose %s\n", lorenzo ? "lorenzo" : "interp");
 
     if (lorenzo) {
-        int capacity = 65536 * 2;
-        T tmpT = 0;
-        bool tmp = false;
-        SZ::optimize_quant_invl_3d<T>(data.get(), dims[0], dims[1], dims[2], eb, capacity, tmp, tmpT);
-        lorenzo_config.quant_state_num = capacity;
+        lorenzo_config.quant_state_num = SZ::optimize_quant_invl_3d<T>(data.get(), dims[0], dims[1], dims[2], eb);
+        lorenzo_config.pred_dim = 2;
+        lorenzo_stats = lorenzo_compress_decompress_3d(path, sampling_data.data(), sampling_num, lorenzo_config,
+                                                       false);
+        printf("Lorenzo, pred_dim=2, ratio = %.2f, compress_time:%.3f\n",
+               lorenzo_stats.ratio, lorenzo_stats.compress_time);
+        if (lorenzo_stats.ratio > best_lorenzo_ratio * 1.02) {
+            best_lorenzo_ratio = lorenzo_stats.ratio;
+        } else {
+            lorenzo_config.pred_dim = 3;
+        }
 
+        int quant_num = lorenzo_config.quant_state_num;
         if (reb < 1.01e-6 && best_lorenzo_ratio > 5) {
             lorenzo_config.quant_state_num = 16384;
             lorenzo_stats = lorenzo_compress_decompress_3d(path, sampling_data.data(), sampling_num, lorenzo_config,
                                                            false);
-            printf("Lorenzo quant_bin=8192, ratio = %.2f, compress_time:%.3f\n",
+            printf("Lorenzo, quant_bin=8192, ratio = %.2f, compress_time:%.3f\n",
                    lorenzo_stats.ratio, lorenzo_stats.compress_time);
             if (lorenzo_stats.ratio > best_lorenzo_ratio * 1.02) {
                 best_lorenzo_ratio = lorenzo_stats.ratio;
             } else {
-                lorenzo_config.quant_state_num = capacity;
+                lorenzo_config.quant_state_num = quant_num;
             }
         }
 

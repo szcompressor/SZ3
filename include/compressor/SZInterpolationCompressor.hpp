@@ -1,5 +1,5 @@
-#ifndef _SZ_SZ_FAST_INTERPOLATION_HPP
-#define _SZ_SZ_FAST_INTERPOLATION_HPP
+#ifndef _SZ_INTERPOLATION_COMPRESSSOR_HPP
+#define _SZ_INTERPOLATION_COMPRESSSOR_HPP
 
 #include "predictor/Predictor.hpp"
 #include "predictor/LorenzoPredictor.hpp"
@@ -29,7 +29,6 @@ namespace SZ {
                                   int direction) :
                 quantizer(quantizer), encoder(encoder), lossless(lossless),
                 blocksize(blocksize), global_dimensions(dims),
-//                interpolators({"linear", "cubic", "cubic2", "akima", "pchip"}),
                 interpolators({"linear", "cubic"}),
                 interpolator_id(interpolator), direction_sequence_id(direction) {
             static_assert(std::is_base_of<concepts::QuantizerInterface<T>, Quantizer>::value,

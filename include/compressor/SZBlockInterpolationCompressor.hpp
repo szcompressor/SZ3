@@ -1,5 +1,5 @@
-#ifndef _SZ_FAST_BLOCK_INTERPOLATION_HPP
-#define _SZ_FAST_BLOCK_INTERPOLATION_HPP
+#ifndef _SZ_BLOCK_INTERPOLATION_COMPRESSOR_HPP
+#define _SZ_BLOCK_INTERPOLATION_COMPRESSOR_HPP
 
 #include "predictor/Predictor.hpp"
 #include "predictor/LorenzoPredictor.hpp"
@@ -12,10 +12,10 @@
 #include "utils/FileUtil.hpp"
 #include "utils/Interpolators.hpp"
 #include "def.hpp"
+#include "predictor/RegressionPredictor.hpp"
+#include "predictor/ComposedPredictor.hpp"
 #include <cstring>
 #include <cmath>
-#include <predictor/RegressionPredictor.hpp>
-#include <predictor/ComposedPredictor.hpp>
 
 namespace SZ {
     template<class T, uint N, class Predictor, class Quantizer, class Encoder, class Lossless>

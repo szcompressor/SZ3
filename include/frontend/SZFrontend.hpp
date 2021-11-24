@@ -17,10 +17,10 @@ namespace SZ {
 
 
     template<class T, uint N, class Predictor, class Quantizer>
-    class SZ3Frontend : public concepts::FrontendInterface<T, N> {
+    class SZFrontend : public concepts::FrontendInterface<T, N> {
     public:
 
-        SZ3Frontend(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer) :
+        SZFrontend(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer) :
                 fallback_predictor(LorenzoPredictor<T, N, 1>(conf.eb)),
                 predictor(predictor),
                 quantizer(quantizer),
@@ -30,7 +30,7 @@ namespace SZ {
                 num_elements(conf.num) {
         }
 
-        ~SZ3Frontend() = default;
+        ~SZFrontend() = default;
 
         std::vector<int> compress(T *data) {
             std::vector<int> quant_inds(num_elements);
@@ -144,9 +144,9 @@ namespace SZ {
     };
 
     template<class T, uint N, class Predictor, class Quantizer>
-    SZ3Frontend<T, N, Predictor, Quantizer>
-    make_sz3_frontend(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer) {
-        return SZ3Frontend<T, N, Predictor, Quantizer>(conf, predictor, quantizer);
+    SZFrontend<T, N, Predictor, Quantizer>
+    make_sz_frontend(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer) {
+        return SZFrontend<T, N, Predictor, Quantizer>(conf, predictor, quantizer);
     }
 }
 

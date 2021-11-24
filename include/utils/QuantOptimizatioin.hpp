@@ -85,8 +85,7 @@ namespace SZ {
     }
 
     template<typename T>
-    void optimize_quant_invl_3d(const T *data, size_t r1, size_t r2, size_t r3, double precision,
-                                int &capacity, bool &use_mean, T &mean) {
+    int optimize_quant_invl_3d(const T *data, size_t r1, size_t r2, size_t r3, double precision) {
         float mean_rough = sample_rough_mean_3d(data, r1, r2, r3, sqrt(r1 * r2 * r3));
         std::vector<size_t> intervals = std::vector<size_t>(QuantIntvSampleCapacity, 0);
         std::vector<size_t> freq_intervals = std::vector<size_t>(QuantIntvMeanCapacity, 0);
@@ -143,22 +142,7 @@ namespace SZ {
         float pred_freq = freq_count * 1.0 / sample_count;
         float mean_guess = mean_rough;
         float mean_freq = estimate_mean_freq_and_position(freq_intervals, precision, sample_count, mean_guess);
-        capacity = estimate_quantization_intervals(intervals, sample_count);
-        mean = 0;
-        use_mean = false;
-        if (mean_freq > 0.5 || mean_freq > pred_freq) {
-            double sum = 0.0;
-            size_t mean_count = 0;
-            for (size_t i = 0; i < len; i++) {
-                if (fabs(data[i] - mean_guess) <= precision) {
-                    sum += data[i];
-                    mean_count++;
-                }
-            }
-            if (mean_count > 0) mean = sum / mean_count;
-            use_mean = true;
-            return;
-        }
+        return estimate_quantization_intervals(intervals, sample_count);
     }
 }
 
