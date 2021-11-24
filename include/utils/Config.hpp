@@ -24,9 +24,10 @@ namespace SZ {
                     block_size = 6;
                     break;
             }
+            pred_dim = N;
             stride = block_size;
             num = 1;
-            for (const auto &d:_dims) {
+            for (const auto &d: _dims) {
                 num *= d;
             }
         }
@@ -37,9 +38,9 @@ namespace SZ {
         bool enable_2ndlorenzo = false;
         bool enable_regression = true;
         int lossless_op = 1; // 0-> skip lossless(use lossless_bypass); 1-> zstd
-        int encoder_op = 1;// 0-> skip encoder(use PQLCompressor); 1->HuffmanEncoder; 2->ArithmeticEncoder
+        int encoder_op = 1;// 0-> skip encoder; 1->HuffmanEncoder; 2->ArithmeticEncoder
         size_t quant_state_num = 65536;
-        uint block_size, stride, pred_dim = 0;
+        uint block_size, stride, pred_dim;
         double eb;
     };
 

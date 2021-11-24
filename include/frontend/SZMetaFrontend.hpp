@@ -23,7 +23,7 @@ namespace SZ {
     public:
         SZMetaFrontend(const Config<T, N> &conf, Quantizer quantizer) :
                 quantizer(quantizer),
-                params(false, conf.block_size, 3, 0, conf.enable_lorenzo, conf.enable_2ndlorenzo,
+                params(false, conf.block_size, conf.pred_dim, 0, conf.enable_lorenzo, conf.enable_2ndlorenzo,
                        conf.enable_regression, conf.eb),
                 precision(conf.eb),
                 conf(conf) {
