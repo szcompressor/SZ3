@@ -177,7 +177,7 @@ namespace SZ {
             std::cout << "Number of data point = " << num_elements << std::endl;
 //            std::cout << "quantization element = " << quant_inds.size() << std::endl;
             assert(quant_inds.size() == num_elements);
-            timer.stop("Predition & Quantization");
+            timer.stop("Prediction & Quantization");
 
 //            writefile("pred.dat", preds.data(), num_elements);
 //            writefile("quant.dat", quant_inds.data(), num_elements);
