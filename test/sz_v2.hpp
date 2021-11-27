@@ -34,6 +34,7 @@ float SZ_compress(std::unique_ptr<T[]> const &data,
               << "lorenzo = " << conf.enable_lorenzo
               << ", 2ndlorenzo = " << conf.enable_2ndlorenzo
               << ", regression = " << conf.enable_regression
+              << ", 2ndregression = " << conf.enable_2ndregression
               << ", encoder = " << conf.encoder_op
               << ", lossless = " << conf.lossless_op
               << std::endl;

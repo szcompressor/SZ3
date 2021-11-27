@@ -37,6 +37,7 @@ namespace SZ {
         bool enable_lorenzo = true;
         bool enable_2ndlorenzo = false;
         bool enable_regression = true;
+        bool enable_2ndregression = false;
         int lossless_op = 1; // 0-> skip lossless(use lossless_bypass); 1-> zstd
         int encoder_op = 1;// 0-> skip encoder; 1->HuffmanEncoder; 2->ArithmeticEncoder
         size_t quant_state_num = 65536;

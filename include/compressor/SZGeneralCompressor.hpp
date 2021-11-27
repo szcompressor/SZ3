@@ -45,7 +45,7 @@ namespace SZ {
             encoder.save(compressed_data_pos);
             encoder.encode(quant_inds, compressed_data_pos);
             encoder.postprocess_encode();
-            timer.stop("Encoder");
+            timer.stop("Coding");
 
             timer.start();
             uchar *lossless_data = lossless.compress(compressed_data,

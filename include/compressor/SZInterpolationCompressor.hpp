@@ -174,8 +174,8 @@ namespace SZ {
                                         interpolators[interpolator_id], direction_sequence_id, stride);
                 }
             }
-            std::cout << "total element = " << num_elements << std::endl;
-            std::cout << "quantization element = " << quant_inds.size() << std::endl;
+            std::cout << "Number of data point = " << num_elements << std::endl;
+//            std::cout << "quantization element = " << quant_inds.size() << std::endl;
             assert(quant_inds.size() == num_elements);
             timer.stop("Predition & Quantization");
 
@@ -192,15 +192,19 @@ namespace SZ {
             quantizer.save(compressed_data_pos);
             quantizer.postcompress_data();
 
+            timer.start();
             encoder.preprocess_encode(quant_inds, 4 * quantizer.get_radius());
             encoder.save(compressed_data_pos);
             encoder.encode(quant_inds, compressed_data_pos);
             encoder.postprocess_encode();
+            timer.stop("Coding");
 
+            timer.start();
             uchar *lossless_data = lossless.compress(compressed_data,
                                                      compressed_data_pos - compressed_data,
                                                      compressed_size);
             lossless.postcompress_data(compressed_data);
+            timer.stop("Lossless");
 
             compressed_size += interp_compressed_size;
             return lossless_data;
