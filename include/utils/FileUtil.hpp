@@ -60,7 +60,7 @@ namespace SZ {
     std::unique_ptr<Type[]> readfile(const char *file, size_t &num) {
         std::ifstream fin(file, std::ios::binary);
         if (!fin) {
-            std::cout << " Error, Couldn't find the file" << "\n";
+            std::cout << " Error, Couldn't find the file" << file << "\n";
             return 0;
         }
         fin.seekg(0, std::ios::end);
