@@ -63,8 +63,7 @@ namespace SZ {
             } while (std::next_permutation(sequence.begin(), sequence.end()));
         }
 
-
-        T *decompress(uchar *compressed_data, const size_t length) {
+        T *decompress(uchar *compressed_data, T *dec_data, const size_t length) {
             size_t remaining_length = length;
             uchar *lossless_decompressed;
             uchar const *compressed_data_pos;
@@ -92,7 +91,6 @@ namespace SZ {
 //            quantizer.set_eb(eb * eb_ratio);
 
 //            auto dec_data = std::make_shared<T[]>(num_elements);
-            T *dec_data = new T[num_elements];
 
 //            quantizer.set_eb(eb);
 //            Timer timer;
@@ -129,6 +127,12 @@ namespace SZ {
             quantizer.postdecompress_data();
 //            timer.stop("Interpolation Decompress");
 
+            return dec_data;
+        }
+
+        T *decompress(uchar *compressed_data, const size_t length) {
+            T *dec_data = new T[num_elements];
+            decompress(compressed_data, dec_data, length);
             return dec_data;
         }
 
