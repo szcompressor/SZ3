@@ -18,6 +18,13 @@ namespace SZ {
 
     // read variable
     template<class T1>
+    void read(T1 &var, uchar const *&compressed_data_pos) {
+        memcpy(&var, compressed_data_pos, sizeof(T1));
+        compressed_data_pos += sizeof(T1);
+    }
+
+    // read variable
+    template<class T1>
     void read(T1 &var, uchar const *&compressed_data_pos, size_t &remaining_length) {
         assert(sizeof(T1) < remaining_length);
         memcpy(&var, compressed_data_pos, sizeof(T1));
