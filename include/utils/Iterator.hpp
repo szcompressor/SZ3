@@ -250,6 +250,20 @@ namespace SZ {
             set_offsets(offset_);
         }
 
+        multi_dimensional_range(
+                T *data_,
+                std::array<size_t, N> global_dims_,
+                std::array<size_t, N> stride_,
+                ptrdiff_t offset_
+        ) : data(data_), start_position{false} {
+            set_access_stride(stride_);
+            // set global dimensions
+            global_dimensions = global_dims_;
+            set_dimensions_auto();
+            set_global_dim_strides();
+            set_offsets(offset_);
+        }
+
         multi_dimensional_iterator begin() {
             return multi_dimensional_iterator(this->shared_from_this(), start_offset);
         }
@@ -271,7 +285,7 @@ namespace SZ {
             // std::cout << "dimensions: ";
             for (int i = 0; i < dimensions.size(); i++) {
                 // std::cout << "g[i]=" << global_dimensions[i] << ",str=" << access_stride << " ";
-                dimensions[i] = (global_dimensions[i] - 1) / access_stride + 1;
+                dimensions[i] = (global_dimensions[i] - 1) / access_stride[i] + 1;
                 // std::cout << dimensions[i] << " ";
             }
             // std::cout << std::endl;
@@ -281,7 +295,7 @@ namespace SZ {
             // std::cout << "strides: ";
             size_t cur_stride = 1;
             for (int i = N - 1; i >= 0; i--) {
-                global_dim_strides[i] = cur_stride * access_stride;
+                global_dim_strides[i] = cur_stride * access_stride[i];
                 cur_stride *= global_dimensions[i];
                 // std::cout << dim_strides[i] << " ";
             }
@@ -294,6 +308,10 @@ namespace SZ {
         }
 
         void set_access_stride(size_t stride_) {
+            access_stride.fill(stride_);
+        }
+
+        void set_access_stride(std::array<size_t, N> stride_) {
             access_stride = stride_;
         }
 
@@ -309,7 +327,7 @@ namespace SZ {
             for (int i = 0; i < N; i++) {
                 //check boundary condition
                 if (block.local_index[i] == block.range->dimensions[i] - 1) {
-                    dimensions[i] = global_dimensions[i] - block.local_index[i] * block.range->access_stride;
+                    dimensions[i] = global_dimensions[i] - block.local_index[i] * block.range->access_stride[i];
                 }
             }
             this->set_offsets(block.get_offset());
@@ -342,7 +360,7 @@ namespace SZ {
         std::array<size_t, N> dimensions;              // the dimensions
 //        std::array<size_t, N> dim_strides;              // strides for dimensions
         std::array<bool, N> start_position;       // indicator for starting position, used for block-wise lorenzo predictor
-        size_t access_stride;                                // stride for access pattern
+        std::array<size_t, N> access_stride;                                // stride for access pattern
         ptrdiff_t start_offset;                              // offset for start point
         ptrdiff_t end_offset;                                  // offset for end point
         T *data;                                                    // data pointer
