@@ -17,6 +17,14 @@ namespace SZ {
         compressed_data_pos += num_elements * sizeof(T1);
     }
 
+    // read array
+    template<class T1>
+    void read(T1 *array, size_t num_elements, uchar const *&compressed_data_pos) {
+        memcpy(array, compressed_data_pos, num_elements * sizeof(T1));
+        compressed_data_pos += num_elements * sizeof(T1);
+    }
+
+
     // read variable
     template<class T1>
     void read(T1 &var, uchar const *&compressed_data_pos) {

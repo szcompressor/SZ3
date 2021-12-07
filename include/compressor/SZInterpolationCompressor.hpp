@@ -74,9 +74,7 @@ namespace SZ {
             num_elements = 1;
             for (const auto &d: global_dimensions) {
                 num_elements *= d;
-                std::cout << d << " ";
             }
-            std::cout << std::endl;
             uint block_size = 0;
             read(block_size, compressed_data_pos, remaining_length);
             quantizer.load(compressed_data_pos, remaining_length);
@@ -123,7 +121,7 @@ namespace SZ {
                                         interpolators[interpolator_id], direction_sequence_id, stride);
                 }
             }
-            std::cout << "Total quant element = " << quant_inds.size() << std::endl;
+//            std::cout << "Total quant element = " << quant_inds.size() << std::endl;
             quantizer.postdecompress_data();
 //            timer.stop("Interpolation Decompress");
 
@@ -142,7 +140,7 @@ namespace SZ {
             size_t interp_compressed_size = 0;
 
             double eb = quantizer.get_eb();
-            printf("Absolute error bound = %.5f\n", eb);
+//            printf("Absolute error bound = %.5f\n", eb);
 
             quant_inds.push_back(quantizer.quantize_and_overwrite(*data, 0));
 
