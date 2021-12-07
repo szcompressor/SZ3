@@ -11,7 +11,8 @@ namespace SZ {
     template<class T, uint N>
     class Config {
     public:
-        Config(double _eb, std::array<size_t, N> _dims) : eb(_eb), dims(_dims) {
+        Config(double _eb, std::array<size_t, N> _dims) : eb(_eb) {
+            update_dims(_dims);
             switch (N) {
                 case 1:
                     block_size = 128;
@@ -26,10 +27,16 @@ namespace SZ {
             }
             pred_dim = N;
             stride = block_size;
+
+        }
+
+        size_t update_dims(std::array<size_t, N> _dims) {
+            dims = _dims;
             num = 1;
             for (const auto &d: _dims) {
                 num *= d;
             }
+            return num;
         }
 
         std::array<size_t, N> dims = {0};
