@@ -1,22 +1,22 @@
-set(exes
-        sz_interp
-        sz_interp_int
-        sz_interp_double
-        sz_v2
-        sz_v2s
-        sz_truncate
-        sz_pw
-        test_huffman_coding
-        test_arithmetic_coding)
+file(GLOB cpu_source_files "${CMAKE_SOURCE_DIR}/test/*.cpp")
 
-foreach (EXE IN LISTS exes)
+
+foreach (SRCFILE IN LISTS cpu_source_files)
+    get_filename_component(EXE ${SRCFILE} NAME_WLE)
     message(STATUS "Target = ${EXE}")
     add_executable(${EXE} ${EXE}.cpp)
-    target_include_directories(${EXE} PRIVATE ${PROJECT_SOURCE_DIR}/include)
-    target_link_libraries(${EXE} SZ3 ${ZSTD_dep})
+
+    set(deps "")
+    list(APPEND deps SZ3)
+    list(APPEND deps ${ZSTD_dep})
     if (GSL_FOUND)
-        target_link_libraries(${EXE} GSL::gsl)
-    endif()
+        list(APPEND deps GSL::gsl)
+    endif ()
+    if (OpenMP_CXX_FOUND)
+        list(APPEND deps OpenMP::OpenMP_CXX)
+    endif ()
+    target_link_libraries(${EXE} ${deps})
+
     install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${EXE} TYPE BIN)
 endforeach ()
 install(FILES ${PROJECT_SOURCE_DIR}/test/testfloat_8_8_128.dat DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})

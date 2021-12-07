@@ -12,6 +12,7 @@ include(CTest)
 set(thirdparty_export "")
 
 find_package(PkgConfig)
+find_package(OpenMP)
 
 
 pkg_search_module(ZSTD IMPORTED_TARGET libzstd)
