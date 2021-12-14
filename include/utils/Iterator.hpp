@@ -150,7 +150,7 @@ namespace SZ {
                 auto offset = global_offset;
                 std::array<int, N> args{std::forward<Args>(pos)...};
                 for (int i = 0; i < N; i++) {
-                    if (local_index[i] < args[i] && range->whether_global_start_position(i)) return 0;
+                    if (local_index[i] < args[i] && range->is_left_boundary(i)) return 0;
                     offset -= args[i] ? args[i] * range->global_dim_strides[i] : 0;
                 }
                 return range->data[offset];
@@ -221,7 +221,7 @@ namespace SZ {
                 ForwardIt1 global_dims_end,
                 size_t stride_,
                 ptrdiff_t offset_
-        ): data(data_), start_position{false} {
+        ): data(data_), left_boundary{false} {
             static_assert(
                     std::is_convertible<
                             typename std::iterator_traits<ForwardIt1>::value_type,
@@ -255,7 +255,7 @@ namespace SZ {
                 std::array<size_t, N> global_dims_,
                 std::array<size_t, N> stride_,
                 ptrdiff_t offset_
-        ) : data(data_), start_position{false} {
+        ) : data(data_), left_boundary{false} {
             set_access_stride(stride_);
             // set global dimensions
             global_dimensions = global_dims_;
@@ -315,23 +315,25 @@ namespace SZ {
             access_stride = stride_;
         }
 
-        // NOTE: did not consider the real offset for simplicity
-        void set_starting_position(const std::array<size_t, N> &dims) {
-            for (int i = 0; i < N; i++) {
-                start_position[i] = (dims[i] == 0);
-            }
-        }
-
         void update_block_range(multi_dimensional_iterator block, size_t block_size) {
-            std::fill(dimensions.begin(), dimensions.end(), block_size);
+            std::array<size_t, N> dims;
             for (int i = 0; i < N; i++) {
                 //check boundary condition
                 if (block.local_index[i] == block.range->dimensions[i] - 1) {
-                    dimensions[i] = global_dimensions[i] - block.local_index[i] * block.range->access_stride[i];
+                    dims[i] = global_dimensions[i] - block.local_index[i] * block.range->access_stride[i];
+                } else {
+                    dims[i] = block_size;
                 }
             }
+            update_block_range(block, dims);
+        }
+
+        void update_block_range(multi_dimensional_iterator block, const std::array<size_t, N> &dims) {
+            dimensions = dims;
+            for (int i = 0; i < N; i++) {
+                left_boundary[i] = (block.get_local_index(i) == 0);
+            }
             this->set_offsets(block.get_offset());
-            this->set_starting_position(block.get_local_index());
         }
 
         size_t get_dimensions(size_t i) const {
@@ -346,8 +348,8 @@ namespace SZ {
             return global_dimensions;
         }
 
-        bool whether_global_start_position(size_t i) const {
-            return start_position[i];
+        bool is_left_boundary(size_t i) const {
+            return left_boundary[i];
         }
 
         T *get_data() {
@@ -357,13 +359,12 @@ namespace SZ {
     private:
         std::array<size_t, N> global_dimensions;
         std::array<size_t, N> global_dim_strides;
-        std::array<size_t, N> dimensions;              // the dimensions
-//        std::array<size_t, N> dim_strides;              // strides for dimensions
-        std::array<bool, N> start_position;       // indicator for starting position, used for block-wise lorenzo predictor
-        std::array<size_t, N> access_stride;                                // stride for access pattern
-        ptrdiff_t start_offset;                              // offset for start point
-        ptrdiff_t end_offset;                                  // offset for end point
-        T *data;                                                    // data pointer
+        std::array<size_t, N> dimensions;        // the dimensions
+        std::array<bool, N> left_boundary;       // if current block is the left boundary, iterators go outside the boundary will return 0.
+        std::array<size_t, N> access_stride;     // stride for access pattern
+        ptrdiff_t start_offset;                  // offset for start point
+        ptrdiff_t end_offset;                    // offset for end point
+        T *data;                                 // data pointer
     };
 
 }

@@ -60,7 +60,7 @@ namespace SZ {
 
             read(global_dimensions.data(), N, compressed_data_pos, remaining_length);
             num_elements = 1;
-            for (const auto &d : global_dimensions) {
+            for (const auto &d: global_dimensions) {
                 num_elements *= d;
                 std::cout << d << " ";
             }
@@ -110,20 +110,16 @@ namespace SZ {
             size_t block_idx = 0;
 
             for (auto block = inter_begin; block != inter_end; block++) {
-                auto block_global_idx = block.get_global_index();
+//                auto block_global_idx = block.get_global_index();
                 auto interp_end_idx = block.get_global_index();
                 uint max_interp_level = 1;
                 for (int i = 0; i < N; i++) {
-                    intra_block_dims[i] = (block_global_idx[i] + block_size > global_dimensions[i]) ?
-                                          global_dimensions[i] - block_global_idx[i] : block_size;
                     interp_end_idx[i] += intra_block_dims[i] - 1;
                     if (max_interp_level < ceil(log2(intra_block_dims[i]))) {
                         max_interp_level = (uint) ceil(log2(intra_block_dims[i]));
                     }
                 }
-                intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
-                intra_block_range->set_offsets(block.get_offset());
-                intra_block_range->set_starting_position(block.get_local_index());
+                intra_block_range->update_block_range(block, block_size);
 
                 if (block_selection[block_idx++] == 0) {
                     concepts::PredictorInterface<T, N> *predictor_withfallback = &predictor;
@@ -148,9 +144,10 @@ namespace SZ {
                         for (int i = 0; i < N; i++) {
                             interp_stationary_dims[i] = ceil(1.0 * intra_block_dims[i] / stride_sz);
                         }
-                        interp_stationary_range->set_dimensions(interp_stationary_dims.begin(), interp_stationary_dims.end());
-                        interp_stationary_range->set_offsets(block.get_offset());
-                        interp_stationary_range->set_starting_position(block.get_local_index());
+                        interp_stationary_range->update_block_range(block, interp_stationary_dims);
+//                        interp_stationary_range->set_dimensions(interp_stationary_dims.begin(), interp_stationary_dims.end());
+//                        interp_stationary_range->set_offsets(block.get_offset());
+//                        interp_stationary_range->set_starting_position(block.get_local_index());
                         concepts::PredictorInterface<T, N> *interp_stationary_predictor = &predictor;
                         if (!predictor.predecompress_block(intra_block_range)) {
                             interp_stationary_predictor = &fallback_predictor;
@@ -220,9 +217,7 @@ namespace SZ {
                         }
                     }
 
-                    intra_block_range->set_dimensions(intra_block_dims.begin(), intra_block_dims.end());
-                    intra_block_range->set_offsets(block.get_offset());
-                    intra_block_range->set_starting_position(block.get_local_index());
+                    intra_block_range->update_block_range(block, block_size);
                     concepts::PredictorInterface<T, N> *predictor_withfallback = &predictor;
                     if (!predictor.precompress_block(intra_block_range)) {
                         predictor_withfallback = &fallback_predictor;
@@ -264,9 +259,10 @@ namespace SZ {
 //                                   std::cout << "Dim " << interp_stationary_dims[i] << std::endl;
 //                                }
                             }
-                            interp_stationary_range->set_dimensions(interp_stationary_dims.begin(), interp_stationary_dims.end());
-                            interp_stationary_range->set_offsets(block.get_offset());
-                            interp_stationary_range->set_starting_position(block.get_local_index());
+                            interp_stationary_range->update_block_range(block, interp_stationary_dims);
+//                            interp_stationary_range->set_dimensions(interp_stationary_dims.begin(), interp_stationary_dims.end());
+//                            interp_stationary_range->set_offsets(block.get_offset());
+//                            interp_stationary_range->set_starting_position(block.get_local_index());
                             concepts::PredictorInterface<T, N> *interp_stationary_predictor = &predictor;
                             if (!predictor.precompress_block(intra_block_range)) {
                                 interp_stationary_predictor = &fallback_predictor;
@@ -303,7 +299,7 @@ namespace SZ {
             {
                 std::vector<size_t> cnt(2, 0);
                 size_t cnt_total = 0;
-                for (auto &sel:block_selection) {
+                for (auto &sel: block_selection) {
                     cnt[sel]++;
                     cnt_total++;
                 }
