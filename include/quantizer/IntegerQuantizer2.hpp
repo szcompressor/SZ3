@@ -126,6 +126,17 @@ namespace SZ {
             }
         }
 
+        void recover_delta_accumulate(T &dest, T &delta, T delta_pred, int del_quant_index) {
+            if (del_quant_index != -radius) {
+                T temp = recover_pred(delta_pred, del_quant_index);
+                delta += temp;
+                dest += temp;
+            } else {
+                delta = 0;
+                dest = recover_unpred();
+            }
+        }
+
         // recover the data using the quantization index
         T recover(T pred, int quant_index) {
             if (quant_index != -radius) {

@@ -129,6 +129,7 @@ namespace SZ {
                 int bid_total = N * level_progressive, bg_total = bitgroup.size();
                 std::vector<int> b_bg(bid_total), b_bg_delta(bid_total);
                 b_bg_delta[0] = 1;
+                std::vector<bool> residual(bid_total, false);
                 std::vector<size_t> b_quantbin_size(bid_total);
                 std::vector<std::vector<int>> b_quantbin_sign(bid_total);
                 std::vector<std::vector<T>> b_unpred(bid_total);
@@ -150,14 +151,8 @@ namespace SZ {
                     for (uint level = level_progressive; level > 0; level--) {
                         for (int direct = 0; direct < N; direct++) {
                             int bid = (level_progressive - level) * N + direct;
-                            if (b_bg[bid] < bitgroup.size()) {
-                                if (b_bg_delta[bid] == 0) {
-//                                    if (b_bg[bid] == 0) {
-//                                        block_interpolation(dec_data, dec_data, global_begin, global_end, &SZProgressiveMQuant::fill,
-//                                                            interpolators[interpolator_id], directions[direct], stride, true);
-//                                    }
-
-                                } else {
+                            if (b_bg_delta[bid] > 0) {
+                                if (b_bg[bid] < bitgroup.size()) {
                                     printf("\n-----------------------\n");
                                     printf("Level = %d , direction = %d , bid = %d, bg = %d\n", level, direct, bid, b_bg[bid]);
                                     change = true;
@@ -178,9 +173,22 @@ namespace SZ {
                                     if (b_bg[bid] == 0) {
                                         block_interpolation(dec_data, dec_data, global_begin, global_end, &SZProgressiveMQuant::recover,
                                                             interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
+                                        residual[bid] = false;
                                     } else {
-                                        block_interpolation(dec_data, dec_delta.data(), global_begin, global_end, &SZProgressiveMQuant::recover_delta,
-                                                            interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
+                                        if (bid > 1 && residual[bid - 1]) {
+                                            block_interpolation(dec_data, dec_delta.data(), global_begin, global_end,
+                                                                (residual[bid] ? &SZProgressiveMQuant::recover_deltaquant_and_accumulate_residual
+                                                                               : &SZProgressiveMQuant::recover_deltaquant_and_save_residual),
+                                                                interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
+                                            residual[bid - 1] = false;
+                                            residual[bid] = true;
+                                        } else {
+                                            block_interpolation(dec_data, dec_delta.data(), global_begin, global_end,
+                                                                (residual[bid] ? &SZProgressiveMQuant::recover_deltaquant_and_accumulate_residual
+                                                                               : &SZProgressiveMQuant::recover_deltaquant_and_save_residual),
+                                                                "none", directions[direct], 1U << (level - 1), true);
+                                            residual[bid] = true;
+                                        }
                                     }
                                     b_bg[bid] = bg_end;
                                 }
@@ -188,39 +196,13 @@ namespace SZ {
                         }
                     }
 
-
-//                    if (!change) {
-//                        break;
-//                    }
-
-                    if (final_result.empty()) {//first round
-                        b_bg_delta.clear();
-                        b_bg_delta.resize(bid_total, 0);
-                        b_bg_delta[0] = 2;
-                    } else {
-                        for (int b = 0; b < bid_total; b++) {
-                            if (b_bg_delta[b]) {
-                                b_bg_delta[b] = 0;
-                                b_bg_delta[(b + 1) % (bid_total)] = (b == bid_total - 2 ? 1 : 2);
-                                break;
-                            }
+                    for (int b = 0; b < bid_total; b++) {
+                        if (b_bg_delta[b]) {
+                            b_bg_delta[b] = 0;
+                            b_bg_delta[(b + 1) % (bid_total)] = (b == bid_total - 2 ? 1 : 2);
+                            break;
                         }
                     }
-
-//                    if (b == bid_total - 2) {//propagate residual to the last bitgroup
-//                        int bid = bid_total - 1;
-//                        quant_inds.clear();
-//                        quant_inds.resize(b_quantbin_size[bid], 0);
-//                        for (size_t i = 0; i < b_quantbin_size[bid]; i++) {
-//                            if (b_quantbin_sign[bid][i] == 0) { //unpredictable data
-//                                quant_inds[i] = -quantizer.get_radius();
-//                            }
-//                        }
-//                        quant_index = 0;
-//                        quantizer.set_unpred_pos(b_unpred[bid].data());
-//                        block_interpolation(dec_data, dec_delta.data(), global_begin, global_end, &SZProgressiveMQuant::recover_delta,
-//                                            interpolators[interpolator_id], directions[N - 1], 1, true);
-//                    }
 
                     if (!change) {
                         continue;
@@ -563,17 +545,14 @@ namespace SZ {
         };
 
 
-        inline void recover_delta(size_t idx, T &d, T pred) {
+        inline void recover_deltaquant_and_save_residual(size_t idx, T &d, T pred) {
             quantizer.recover_delta(d, dec_delta[idx], pred, quant_inds[quant_index++]);
-//            quantizer.recover_delta(d, dec_delta[idx], pred, quantbins[quant_index++]);
-//            if (check_dec) {
-//                if (fabs(d - ori_data[idx]) > 1.1e-3) {
-//                    printf("ERROR %lu %lu %.5f %.5f ", quant_index-1, idx, ori_data[idx], d);
-//                    print_global_index(idx);
-//                    printf("\n");
-//                }
-//            }
         };
+
+        inline void recover_deltaquant_and_accumulate_residual(size_t idx, T &d, T pred) {
+            quantizer.recover_delta_accumulate(d, dec_delta[idx], pred, quant_inds[quant_index++]);
+        };
+
 
         inline void fill(size_t idx, T &d, T pred) {
             d = pred;
@@ -589,7 +568,12 @@ namespace SZ {
 
             size_t c;
             size_t stride3x = stride * 3, stride5x = stride * 5;
-            if (interp_func == "linear" || n < 5) {
+            if (interp_func == "none") {
+                for (size_t i = 1; i < n; i += 2) {
+                    c = begin + i * stride;
+                    (this->*func)(c, d[c], 0.0);
+                }
+            } else if (interp_func == "linear" || n < 5) {
                 size_t i = 1;
                 for (i = 1; i + 1 < n; i += 2) {
                     c = begin + i * stride;
