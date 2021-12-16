@@ -128,7 +128,7 @@ namespace SZ {
 
                 int bid_total = N * level_progressive, bg_total = bitgroup.size();
                 std::vector<int> b_bg(bid_total), b_bg_delta(bid_total);
-                b_bg_delta[0] = 1;
+                b_bg_delta[0] = bg_total;
                 std::vector<bool> residual(bid_total, false);
                 std::vector<size_t> b_quantbin_size(bid_total);
                 std::vector<std::vector<int>> b_quantbin_sign(bid_total);
