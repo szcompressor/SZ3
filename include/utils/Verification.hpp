@@ -46,6 +46,7 @@ namespace SZ {
         double max_err = 0;
         double maxpw_relerr = 0;
         double l2_err = 0;
+        size_t max_err_idx = 0;
 
         while (start < num_elements) {
             size_t size = num_elements - start > buffer_size ? buffer_size : num_elements - start;
@@ -53,8 +54,12 @@ namespace SZ {
             fdec.read(reinterpret_cast<char *>(&data[0]), size * sizeof(Type));
 
             for (size_t i = 0; i < size; i++) {
-                if (max < ori_data[i]) max = ori_data[i];
-                if (min > ori_data[i]) min = ori_data[i];
+                if (max < ori_data[i]) {
+                    max = ori_data[i];
+                }
+                if (min > ori_data[i]) {
+                    min = ori_data[i];
+                }
                 double err = fabs(data[i] - ori_data[i]);
                 if (ori_data[i] != 0) {
                     double relerr = err / fabs(ori_data[i]);
@@ -62,8 +67,10 @@ namespace SZ {
                         maxpw_relerr = relerr;
                 }
 
-                if (max_err < err)
+                if (max_err < err) {
                     max_err = err;
+                    max_err_idx = i;
+                }
                 l2_err += err * err;
             }
             start += size;
@@ -96,6 +103,7 @@ namespace SZ {
         }
         double mean1 = sum1 / num_elements;
         double mean2 = sum2 / num_elements;
+        size_t max_err_idx = 0;
 
         double sum3 = 0, sum4 = 0;
         double sum = 0, prodSum = 0, relerr = 0;
@@ -114,8 +122,10 @@ namespace SZ {
                     maxpw_relerr = relerr;
             }
 
-            if (max_err < err)
+            if (max_err < err) {
                 max_err = err;
+                max_err_idx = i;
+            }
             prodSum += (ori_data[i] - mean1) * (data[i] - mean2);
             sum3 += (ori_data[i] - mean1) * (ori_data[i] - mean1);
             sum4 += (data[i] - mean2) * (data[i] - mean2);

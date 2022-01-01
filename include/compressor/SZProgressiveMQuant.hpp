@@ -146,16 +146,16 @@ namespace SZ {
 
                 bool done = false;
                 while (!done) {
-                    bool change = false;
+                    int lastChangedBid = -1;
                     ska::unordered_map<std::string, double> result;
                     for (uint level = level_progressive; level > 0; level--) {
                         for (int direct = 0; direct < N; direct++) {
                             int bid = (level_progressive - level) * N + direct;
                             if (b_bg_delta[bid] > 0) {
-                                if (b_bg[bid] < bitgroup.size()) {
+                                if (b_bg[bid] < bg_total) {
                                     printf("\n-----------------------\n");
                                     printf("Level = %d , direction = %d , bid = %d, bg = %d\n", level, direct, bid, b_bg[bid]);
-                                    change = true;
+                                    lastChangedBid = bid;
                                     result["level"] = level;
                                     result["direct"] = direct;
                                     quant_inds.clear();
@@ -204,9 +204,25 @@ namespace SZ {
                         }
                     }
 
-                    if (!change) {
+                    if (lastChangedBid == -1) {
                         continue;
                     }
+
+                    for (uint level = level_progressive; level > 0; level--) {
+                        for (int direct = 0; direct < N; direct++) {
+                            int bid = (level_progressive - level) * N + direct;
+                            if (bid >= lastChangedBid && bid > 1 && residual[bid - 1] && b_bg[bid] > 0) {
+                                block_interpolation(dec_data, dec_delta.data(), global_begin, global_end,
+                                                    (residual[bid] ? &SZProgressiveMQuant::recover_and_accumulate_residual
+                                                                   : &SZProgressiveMQuant::recover_and_save_residual),
+                                                    interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
+                                residual[bid - 1] = false;
+                                residual[bid] = true;
+                            }
+                        }
+                    }
+                    printf("\n");
+                    std::fill(dec_delta.begin(),dec_delta.end(),0);
 
                     float retrieved_rate = retrieved_size * 100.0 / (num_elements * sizeof(float));
                     printf("\nretrieved = %.3f%% %lu\n", retrieved_rate, retrieved_size);
@@ -220,7 +236,7 @@ namespace SZ {
                     done = true;
                     for (const auto &b: b_bg) {
                         printf("%d ", b);
-                        if (b < bitgroup.size()) {
+                        if (b < bg_total) {
                             done = false;
                         }
                     }
@@ -304,10 +320,6 @@ namespace SZ {
                 for (const auto &direction: directions) {
                     block_interpolation(data, data, global_begin, global_end, &SZProgressiveMQuant::quantize,
                                         interpolators[interpolator_id], direction, stride, true);
-//                    for (int i=0;i<8;i++){
-//                        printf("%d ", quant_inds[i]);
-//                    }
-//                    printf("\n");
 
                     auto quant_size = quant_inds.size();
                     quant_inds_total += quant_size;
@@ -346,9 +358,14 @@ namespace SZ {
         Lossless lossless;
 
 //        std::vector<int> bitgroup = {8, 8, 8, 2, 2, 2, 1, 1};
-        std::vector<int> bitgroup = {24, 2, 2, 2, 1, 1};
+        //quantization bins in different levels have different distribution.
+        //a dynamic bitgroup should be used for each level
+        std::vector<int> bitgroup = {16, 8, 8};
+//        std::vector<int> bitgroup = {24, 2, 2, 2, 1, 1};
+        //        std::vector<int> bitgroup = {16, 2, 2, 2, 2, 2, 2, 2, 2};
         std::vector<T> dec_delta;
         size_t retrieved_size = 0;
+        ska::unordered_set<size_t> unpred_idx;
 
         //debug only
         double max_error;
@@ -540,10 +557,33 @@ namespace SZ {
         }
 
         inline void recover(size_t idx, T &d, T pred) {
-            d = quantizer.recover(pred, quant_inds[quant_index++]);
-//            d = quantizer.recover(pred, quantbins[quant_index++]);
+            int quant_bin = quant_inds[quant_index++];
+            if (quant_bin != -quantizer.get_radius()) {
+                d = quantizer.recover_pred(pred, quant_bin);
+            } else {
+                unpred_idx.insert(idx);
+                d = quantizer.recover_unpred();
+            }
+//            d = quantizer.recover(pred, quant_inds[quant_index++]);
         };
 
+        inline void recover_and_accumulate_residual(size_t idx, T &d, T pred) {
+            if (unpred_idx.find(idx) == unpred_idx.end()) {
+                d += pred;
+                dec_delta[idx] += pred;
+            } else {
+                dec_delta[idx] = 0;
+            }
+        };
+
+        inline void recover_and_save_residual(size_t idx, T &d, T pred) {
+            if (unpred_idx.find(idx) == unpred_idx.end()) {
+                d += pred;
+                dec_delta[idx] = pred;
+            } else {
+                dec_delta[idx] = 0;
+            }
+        };
 
         inline void recover_deltaquant_and_save_residual(size_t idx, T &d, T pred) {
             quantizer.recover_delta(d, dec_delta[idx], pred, quant_inds[quant_index++]);
