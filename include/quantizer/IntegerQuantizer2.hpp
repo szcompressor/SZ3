@@ -116,17 +116,7 @@ namespace SZ {
             }
         }
 
-        void recover_delta(T &dest, T &delta, T delta_pred, int del_quant_index) {
-            if (del_quant_index != -radius) {
-                delta = recover_pred(delta_pred, del_quant_index);
-                dest += delta;
-            } else {
-                delta = 0;
-                dest = recover_unpred();
-            }
-        }
-
-        void recover_delta_accumulate(T &dest, T &delta, T delta_pred, int del_quant_index) {
+        void recover_set_delta(T &dest, T &delta, T delta_pred, int del_quant_index) {
             if (del_quant_index != -radius) {
                 T temp = recover_pred(delta_pred, del_quant_index);
                 delta += temp;

@@ -129,7 +129,6 @@ namespace SZ {
                 int bid_total = N * level_progressive, bg_total = bitgroup.size();
                 std::vector<int> b_bg(bid_total), b_bg_delta(bid_total);
                 b_bg_delta[0] = bg_total;
-                std::vector<bool> residual(bid_total, false);
                 std::vector<size_t> b_quantbin_size(bid_total);
                 std::vector<std::vector<int>> b_quantbin_sign(bid_total);
                 std::vector<std::vector<T>> b_unpred(bid_total);
@@ -146,83 +145,75 @@ namespace SZ {
 
                 bool done = false;
                 while (!done) {
-                    int lastChangedBid = -1;
+                    bool lastChangedBid = false;
                     ska::unordered_map<std::string, double> result;
                     for (uint level = level_progressive; level > 0; level--) {
                         for (int direct = 0; direct < N; direct++) {
                             int bid = (level_progressive - level) * N + direct;
-                            if (b_bg_delta[bid] > 0) {
-                                if (b_bg[bid] < bg_total) {
-                                    printf("\n-----------------------\n");
-                                    printf("Level = %d , direction = %d , bid = %d, bg = %d\n", level, direct, bid, b_bg[bid]);
-                                    lastChangedBid = bid;
-                                    result["level"] = level;
-                                    result["direct"] = direct;
-                                    quant_inds.clear();
-                                    int bg_end = std::min(bg_total, b_bg[bid] + b_bg_delta[bid]);
-                                    for (int bg = b_bg[bid]; bg < bg_end; bg++) {
-                                        uchar const *bg_data = b_data[bid * bg_total + bg];
-                                        size_t bg_len = b_data_size[bid * bg_total + bg];
-                                        lossless_decode_bitgroup(bg, bg_data, bg_len, b_quantbin_sign[bid], b_quantbin_size[bid]);
-                                        if (bg == 0) {
-                                            b_unpred[bid] = quantizer.get_unpred();
-                                        }
+                            if (b_bg_delta[bid] > 0 && b_bg[bid] < bg_total) {
+                                printf("\n-----------------------\n");
+                                printf("Level = %d , direction = %d , bid = %d, bg = %d\n", level, direct, bid, b_bg[bid]);
+                                lastChangedBid = true;
+                                result["level"] = level;
+                                result["direct"] = direct;
+                                quant_inds.clear();
+                                int bg_end = std::min(bg_total, b_bg[bid] + b_bg_delta[bid]);
+                                for (int bg = b_bg[bid]; bg < bg_end; bg++) {
+                                    uchar const *bg_data = b_data[bid * bg_total + bg];
+                                    size_t bg_len = b_data_size[bid * bg_total + bg];
+                                    lossless_decode_bitgroup(bg, bg_data, bg_len, b_quantbin_sign[bid], b_quantbin_size[bid]);
+                                    if (bg == 0) {
+                                        b_unpred[bid] = quantizer.get_unpred();
                                     }
-                                    quant_index = 0;
-                                    quantizer.set_unpred_pos(b_unpred[bid].data());
-                                    if (b_bg[bid] == 0) {
-                                        block_interpolation(dec_data, dec_data, global_begin, global_end, &SZProgressiveMQuant::recover,
-                                                            interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
-                                        residual[bid] = false;
-                                    } else {
-                                        if (bid > 1 && residual[bid - 1]) {
-                                            block_interpolation(dec_data, dec_delta.data(), global_begin, global_end,
-                                                                (residual[bid] ? &SZProgressiveMQuant::recover_deltaquant_and_accumulate_residual
-                                                                               : &SZProgressiveMQuant::recover_deltaquant_and_save_residual),
-                                                                interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
-                                            residual[bid - 1] = false;
-                                            residual[bid] = true;
-                                        } else {
-                                            block_interpolation(dec_data, dec_delta.data(), global_begin, global_end,
-                                                                (residual[bid] ? &SZProgressiveMQuant::recover_deltaquant_and_accumulate_residual
-                                                                               : &SZProgressiveMQuant::recover_deltaquant_and_save_residual),
-                                                                "none", directions[direct], 1U << (level - 1), true);
-                                            residual[bid] = true;
-                                        }
-                                    }
-                                    b_bg[bid] = bg_end;
+                                }
+                                quant_index = 0;
+                                quantizer.set_unpred_pos(b_unpred[bid].data());
+                                if (b_bg[bid] == 0) {
+                                    block_interpolation(dec_data, dec_data, global_begin, global_end, &SZProgressiveMQuant::recover,
+                                                        interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
+                                } else {
+                                    block_interpolation(dec_data, dec_delta.data(), global_begin, global_end,
+                                                        &SZProgressiveMQuant::recover_deltaquant_and_accumulate_residual,
+                                                        interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
+                                }
+                                b_bg[bid] = bg_end;
+
+                            } else {
+
+                                if (lastChangedBid) {
+                                    block_interpolation(dec_data, dec_delta.data(), global_begin, global_end,
+                                                        &SZProgressiveMQuant::recover_and_accumulate_residual,
+                                                        interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
                                 }
                             }
                         }
                     }
 
+//                    bool last = true;
+//                    for (int b = 0; b < bid_total - 1; b++) {
+//                        if (b_bg[b] < bg_total) {
+//                            last = false;
+//                            break;
+//                        }
+//                    }
+//                    if (last) {
+//                        b_bg_delta[bid_total - 1] = 1;
+//                    } else {
                     for (int b = 0; b < bid_total; b++) {
                         if (b_bg_delta[b]) {
                             b_bg_delta[b] = 0;
-                            b_bg_delta[(b + 1) % (bid_total)] = (b == bid_total - 2 ? 1 : 2);
+                            b_bg_delta[(b + 1) % (bid_total )] = (b == bid_total - 2 ? 1 : 1);
                             break;
                         }
                     }
+//                    }
 
-                    if (lastChangedBid == -1) {
+                    if (!lastChangedBid) {
                         continue;
                     }
 
-                    for (uint level = level_progressive; level > 0; level--) {
-                        for (int direct = 0; direct < N; direct++) {
-                            int bid = (level_progressive - level) * N + direct;
-                            if (bid >= lastChangedBid && bid > 1 && residual[bid - 1] && b_bg[bid] > 0) {
-                                block_interpolation(dec_data, dec_delta.data(), global_begin, global_end,
-                                                    (residual[bid] ? &SZProgressiveMQuant::recover_and_accumulate_residual
-                                                                   : &SZProgressiveMQuant::recover_and_save_residual),
-                                                    interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
-                                residual[bid - 1] = false;
-                                residual[bid] = true;
-                            }
-                        }
-                    }
-                    printf("\n");
-                    std::fill(dec_delta.begin(),dec_delta.end(),0);
+                    dec_delta.clear();
+                    dec_delta.resize(num_elements, 0);
 
                     float retrieved_rate = retrieved_size * 100.0 / (num_elements * sizeof(float));
                     printf("\nretrieved = %.3f%% %lu\n", retrieved_rate, retrieved_size);
@@ -360,8 +351,8 @@ namespace SZ {
 //        std::vector<int> bitgroup = {8, 8, 8, 2, 2, 2, 1, 1};
         //quantization bins in different levels have different distribution.
         //a dynamic bitgroup should be used for each level
-        std::vector<int> bitgroup = {16, 8, 8};
-//        std::vector<int> bitgroup = {24, 2, 2, 2, 1, 1};
+//        std::vector<int> bitgroup = {16, 8, 8};
+        std::vector<int> bitgroup = {24, 2, 2, 2, 1, 1};
         //        std::vector<int> bitgroup = {16, 2, 2, 2, 2, 2, 2, 2, 2};
         std::vector<T> dec_delta;
         size_t retrieved_size = 0;
@@ -590,7 +581,7 @@ namespace SZ {
         };
 
         inline void recover_deltaquant_and_accumulate_residual(size_t idx, T &d, T pred) {
-            quantizer.recover_delta_accumulate(d, dec_delta[idx], pred, quant_inds[quant_index++]);
+            quantizer.recover_set_delta(d, dec_delta[idx], pred, quant_inds[quant_index++]);
         };
 
 
