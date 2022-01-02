@@ -162,8 +162,9 @@ namespace SZ {
 
         void load(const unsigned char *&c, size_t &remaining_length) {
             assert(remaining_length > (sizeof(uint8_t) + sizeof(T) + sizeof(int)));
+            auto c0 = c;
             c += sizeof(uint8_t);
-            remaining_length -= sizeof(uint8_t);
+//            remaining_length -= sizeof(uint8_t);
             this->error_bound = *reinterpret_cast<const T *>(c);
             this->error_bound_reciprocal = 1.0 / this->error_bound;
             c += sizeof(T);
@@ -176,6 +177,7 @@ namespace SZ {
             c += unpred_size * sizeof(T);
             // std::cout << "loading: eb = " << this->error_bound << ", unpred_num = "  << unpred.size() << std::endl;
             // reset index
+            remaining_length -= (c - c0);
             index = 0;
         }
 

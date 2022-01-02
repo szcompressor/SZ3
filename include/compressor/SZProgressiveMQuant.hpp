@@ -128,7 +128,7 @@ namespace SZ {
 
                 int bid_total = N * level_progressive, bg_total = bitgroup.size();
                 std::vector<int> b_bg(bid_total), b_bg_delta(bid_total);
-                b_bg_delta[0] = bg_total;
+                b_bg_delta[0] = 1;
                 std::vector<size_t> b_quantbin_size(bid_total);
                 std::vector<std::vector<int>> b_quantbin_sign(bid_total);
                 std::vector<std::vector<T>> b_unpred(bid_total);
@@ -200,7 +200,7 @@ namespace SZ {
                     for (int b = 0; b < bid_total; b++) {
                         if (b_bg_delta[b]) {
                             b_bg_delta[b] = 0;
-                            b_bg_delta[(b + 1) % (bid_total)] = (b == bid_total - 2 ? 1 : 2);
+                            b_bg_delta[(b + 1) % (bid_total)] = (b == bid_total - 2 ? 1 : 1);
                             break;
                         }
                     }
@@ -350,10 +350,9 @@ namespace SZ {
         Lossless lossless;
 
 //        std::vector<int> bitgroup = {8, 8, 8, 2, 2, 2, 1, 1};
-        //quantization bins in different levels have different distribution.
-        //a dynamic bitgroup should be used for each level
-//        std::vector<int> bitgroup = {16, 8, 8};
-        std::vector<int> bitgroup = {24, 2, 2, 2, 1, 1};
+//TODO quantization bins in different levels have different distribution.
+// a dynamic bitgroup should be used for each level
+        std::vector<int> bitgroup = {16, 8, 4, 2, 1, 1};
         //        std::vector<int> bitgroup = {16, 2, 2, 2, 2, 2, 2, 2, 2};
         std::vector<T> dec_delta;
         size_t retrieved_size = 0;
@@ -381,10 +380,17 @@ namespace SZ {
             if (bg == 0) {
                 quantizer.load(compressed_data_pos, length);
                 read(quant_size, compressed_data_pos, length);
-
+//                printf("unpred size = %lu\n", quantizer.get_unpred().size());
+//TODO Only load unpred at first ( avoid loading sign bits)
+//TODO represent quant as [-radius, radius] or [0, 2*radius].
+// The con of [-radius, radius] is loading all the sign bits before the value bits.
                 quant_sign = decode_int_2bits(compressed_data_pos, length);
             }
 
+            uchar *xx = compressed_data + (compressed_data_pos - compressed_data);
+            size_t size;
+            auto xxxx = lossless.compress(xx, length, size);
+            printf("%lu %lu\n", data_length, size);
 
             std::vector<int> quant_ind_truncated;
             if (bitgroup[bg] == 2) {
