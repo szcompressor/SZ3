@@ -387,10 +387,10 @@ namespace SZ {
                 quant_sign = decode_int_2bits(compressed_data_pos, length);
             }
 
-            uchar *xx = compressed_data + (compressed_data_pos - compressed_data);
-            size_t size;
-            auto xxxx = lossless.compress(xx, length, size);
-            printf("%lu %lu\n", data_length, size);
+//            uchar *xx = compressed_data + (compressed_data_pos - compressed_data);
+//            size_t size;
+//            auto xxxx = lossless.compress(xx, length, size);
+//            printf("%lu %lu\n", data_length, size);
 
             std::vector<int> quant_ind_truncated;
             if (bitgroup[bg] == 2) {
