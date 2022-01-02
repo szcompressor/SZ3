@@ -143,9 +143,8 @@ namespace SZ {
                 dec_delta.clear();
                 dec_delta.resize(num_elements, 0);
 
-                bool done = false;
-                while (!done) {
-                    bool lastChangedBid = false;
+                while (true) {
+                    bool changed = false;
                     ska::unordered_map<std::string, double> result;
                     for (uint level = level_progressive; level > 0; level--) {
                         for (int direct = 0; direct < N; direct++) {
@@ -153,10 +152,11 @@ namespace SZ {
                             if (b_bg_delta[bid] > 0 && b_bg[bid] < bg_total) {
                                 printf("\n-----------------------\n");
                                 printf("Level = %d , direction = %d , bid = %d, bg = %d\n", level, direct, bid, b_bg[bid]);
-                                lastChangedBid = true;
+                                changed = true;
                                 result["level"] = level;
                                 result["direct"] = direct;
                                 quant_inds.clear();
+                                quant_index = 0;
                                 int bg_end = std::min(bg_total, b_bg[bid] + b_bg_delta[bid]);
                                 for (int bg = b_bg[bid]; bg < bg_end; bg++) {
                                     uchar const *bg_data = b_data[bid * bg_total + bg];
@@ -166,23 +166,21 @@ namespace SZ {
                                         b_unpred[bid] = quantizer.get_unpred();
                                     }
                                 }
-                                quant_index = 0;
                                 quantizer.set_unpred_pos(b_unpred[bid].data());
                                 if (b_bg[bid] == 0) {
                                     block_interpolation(dec_data, dec_data, global_begin, global_end, &SZProgressiveMQuant::recover,
                                                         interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
                                 } else {
                                     block_interpolation(dec_data, dec_delta.data(), global_begin, global_end,
-                                                        &SZProgressiveMQuant::recover_deltaquant_and_accumulate_residual,
+                                                        &SZProgressiveMQuant::recover_set_delta,
                                                         interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
                                 }
                                 b_bg[bid] = bg_end;
 
                             } else {
-
-                                if (lastChangedBid) {
+                                if (changed) {
                                     block_interpolation(dec_data, dec_delta.data(), global_begin, global_end,
-                                                        &SZProgressiveMQuant::recover_and_accumulate_residual,
+                                                        &SZProgressiveMQuant::recover_set_delta_no_quant,
                                                         interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
                                 }
                             }
@@ -202,13 +200,13 @@ namespace SZ {
                     for (int b = 0; b < bid_total; b++) {
                         if (b_bg_delta[b]) {
                             b_bg_delta[b] = 0;
-                            b_bg_delta[(b + 1) % (bid_total )] = (b == bid_total - 2 ? 1 : 1);
+                            b_bg_delta[(b + 1) % (bid_total)] = (b == bid_total - 2 ? 1 : 2);
                             break;
                         }
                     }
 //                    }
 
-                    if (!lastChangedBid) {
+                    if (!changed) {
                         continue;
                     }
 
@@ -224,7 +222,7 @@ namespace SZ {
                     result["max_err"] = max_err;
                     final_result.push_back(result);
 
-                    done = true;
+                    bool done = true;
                     for (const auto &b: b_bg) {
                         printf("%d ", b);
                         if (b < bg_total) {
@@ -232,6 +230,9 @@ namespace SZ {
                         }
                     }
                     printf("\n");
+                    if (done) {
+                        break;
+                    }
                 }
 
 
@@ -558,7 +559,7 @@ namespace SZ {
 //            d = quantizer.recover(pred, quant_inds[quant_index++]);
         };
 
-        inline void recover_and_accumulate_residual(size_t idx, T &d, T pred) {
+        inline void recover_set_delta_no_quant(size_t idx, T &d, T pred) {
             if (unpred_idx.find(idx) == unpred_idx.end()) {
                 d += pred;
                 dec_delta[idx] += pred;
@@ -567,20 +568,7 @@ namespace SZ {
             }
         };
 
-        inline void recover_and_save_residual(size_t idx, T &d, T pred) {
-            if (unpred_idx.find(idx) == unpred_idx.end()) {
-                d += pred;
-                dec_delta[idx] = pred;
-            } else {
-                dec_delta[idx] = 0;
-            }
-        };
-
-        inline void recover_deltaquant_and_save_residual(size_t idx, T &d, T pred) {
-            quantizer.recover_delta(d, dec_delta[idx], pred, quant_inds[quant_index++]);
-        };
-
-        inline void recover_deltaquant_and_accumulate_residual(size_t idx, T &d, T pred) {
+        inline void recover_set_delta(size_t idx, T &d, T pred) {
             quantizer.recover_set_delta(d, dec_delta[idx], pred, quant_inds[quant_index++]);
         };
 
@@ -599,12 +587,7 @@ namespace SZ {
 
             size_t c;
             size_t stride3x = stride * 3, stride5x = stride * 5;
-            if (interp_func == "none") {
-                for (size_t i = 1; i < n; i += 2) {
-                    c = begin + i * stride;
-                    (this->*func)(c, d[c], 0.0);
-                }
-            } else if (interp_func == "linear" || n < 5) {
+            if (interp_func == "linear" || n < 5) {
                 size_t i = 1;
                 for (i = 1; i + 1 < n; i += 2) {
                     c = begin + i * stride;
