@@ -11,7 +11,7 @@ namespace SZ {
 
             virtual ~QuantizerInterface() = default;
 
-            virtual int quantize(T data, T pred) = 0;
+//            virtual int quantize(T data, T pred) = 0;
 
             virtual int quantize_and_overwrite(T &data, T pred) = 0;
 

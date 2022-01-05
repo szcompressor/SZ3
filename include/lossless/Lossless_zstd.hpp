@@ -31,6 +31,17 @@ namespace SZ {
             return compressBytes;
         }
 
+        size_t compress(uchar *dataIn, size_t dataLength, uchar *dataOut) {
+            size_t estimatedCompressedSize = dataLength < 100 ? 200 : dataLength * 1.2;
+            uchar *dataOutPos = dataOut;
+            write(dataLength, dataOutPos);
+
+            size_t outSize = ZSTD_compress(dataOutPos, estimatedCompressedSize,
+                                           dataIn, dataLength, compression_level);
+            outSize += sizeof(size_t);
+            return outSize;
+        }
+
         void postcompress_data(uchar *data) {
             delete[] data;
         }

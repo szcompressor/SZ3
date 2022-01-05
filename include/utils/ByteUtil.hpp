@@ -447,5 +447,90 @@ namespace SZ {
         return ints;
     }
 
+
+    inline void encode_int_1bit(const std::vector<int> &data, uchar *&c) {
+
+        size_t intLen = data.size();
+        size_t byteLen = intLen / 8 + (intLen % 8 == 0 ? 0 : 1);
+
+        write(intLen, c);
+        write(byteLen, c);
+
+        size_t b, i = 0;
+        int mod8 = intLen % 8;
+        for (b = 0; b < (mod8 == 0 ? byteLen : byteLen - 1); b++, i += 8) {
+            c[b] = (data[i] << 7) | (data[i + 1] << 6) | (data[i + 2] << 5) | (data[i + 3] << 4)
+                   | (data[i + 4] << 3) | (data[i + 5] << 2) | (data[i + 6] << 1) | (data[i + 7]);
+        }
+        if (mod8 > 0) {
+            if (mod8 == 1) {
+                c[b] = (data[i] << 7);
+            } else if (mod8 == 2) {
+                c[b] = (data[i] << 7) | (data[i + 1] << 6);
+            } else if (mod8 == 3) {
+                c[b] = (data[i] << 7) | (data[i + 1] << 6) | (data[i + 2] << 5);
+            } else if (mod8 == 4) {
+                c[b] = (data[i] << 7) | (data[i + 1] << 6) | (data[i + 2] << 5) | (data[i + 3] << 4);
+            } else if (mod8 == 5) {
+                c[b] = (data[i] << 7) | (data[i + 1] << 6) | (data[i + 2] << 5) | (data[i + 3] << 4)
+                       | (data[i + 4] << 3);
+            } else if (mod8 == 6) {
+                c[b] = (data[i] << 7) | (data[i + 1] << 6) | (data[i + 2] << 5) | (data[i + 3] << 4)
+                       | (data[i + 4] << 3) | (data[i + 5] << 2);
+            } else if (mod8 == 7) {
+                c[b] = (data[i] << 7) | (data[i + 1] << 6) | (data[i + 2] << 5) | (data[i + 3] << 4)
+                       | (data[i + 4] << 3) | (data[i + 5] << 2) | (data[i + 6] << 1);
+            }
+        }
+        c += byteLen;
+    }
+
+    std::vector<int> decode_int_1bit(const uchar *&c, size_t &remaining_length) {
+        size_t byteLen, intLen;
+        read(intLen, c, remaining_length);
+        read(byteLen, c, remaining_length);
+        std::vector<int> ints(intLen);
+        size_t i = 0, b = 0;
+
+        int mod8 = intLen % 8;
+        for (; b < (mod8 == 0 ? byteLen : byteLen - 1); b++, i += 8) {
+            ints[i] = (c[b] & 0x80) >> 7;
+            ints[i + 1] = (c[b] & 0x40) >> 6;
+            ints[i + 2] = (c[b] & 0x20) >> 5;
+            ints[i + 3] = (c[b] & 0x10) >> 4;
+            ints[i + 4] = (c[b] & 0x08) >> 3;
+            ints[i + 5] = (c[b] & 0x04) >> 2;
+            ints[i + 6] = (c[b] & 0x02) >> 1;
+            ints[i + 7] = (c[b] & 0x01);
+        }
+        if (mod8 > 0) {
+            if (mod8 >= 1) {
+                ints[i] = (c[b] & 0x80) >> 7;
+            }
+            if (mod8 >= 2) {
+                ints[i + 1] = (c[b] & 0x40) >> 6;
+            }
+            if (mod8 >= 3) {
+                ints[i + 2] = (c[b] & 0x20) >> 5;
+            }
+            if (mod8 >= 4) {
+                ints[i + 3] = (c[b] & 0x10) >> 4;
+            }
+            if (mod8 >= 5) {
+                ints[i + 4] = (c[b] & 0x08) >> 3;
+            }
+            if (mod8 >= 6) {
+                ints[i + 5] = (c[b] & 0x04) >> 2;
+            }
+            if (mod8 >= 7) {
+                ints[i + 6] = (c[b] & 0x02) >> 1;
+            }
+
+        }
+        c += byteLen;
+        remaining_length -= byteLen;
+        return ints;
+    }
+
 };
 #endif //SZ3_BYTEUTIL_HPP

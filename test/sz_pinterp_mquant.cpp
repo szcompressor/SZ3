@@ -36,7 +36,7 @@ void interp_compress_decompress(const char *path, double eb, int interp_op, int 
         SZ::Timer timer(true);
         auto dims = std::array<size_t, N>{static_cast<size_t>(std::forward<Dims>(args))...};
         auto sz = SZ::SZProgressiveMQuant<float, N, SZ::LinearQuantizer2<float>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
-                SZ::LinearQuantizer2<float>(eb),
+                SZ::LinearQuantizer2<float>(num, eb),
                 SZ::HuffmanEncoder<int>(),
                 SZ::Lossless_zstd(2),
                 dims, interp_op, direction_op, 50000, level_independent, block_size, level_fill
@@ -61,7 +61,7 @@ void interp_compress_decompress(const char *path, double eb, int interp_op, int 
         SZ::Timer timer(true);
         auto dims = std::array<size_t, N>{static_cast<size_t>(std::forward<Dims>(args))...};
         auto sz = SZ::SZProgressiveMQuant<float, N, SZ::LinearQuantizer2<float>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
-                SZ::LinearQuantizer2<float>(eb),
+                SZ::LinearQuantizer2<float>(num, eb),
                 SZ::HuffmanEncoder<int>(),
                 SZ::Lossless_zstd(),
                 dims, interp_op, direction_op, 50000, level_independent, block_size, level_fill

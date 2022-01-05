@@ -13,11 +13,11 @@ namespace SZ {
     template<class T>
     class LinearQuantizer2 : public concepts::QuantizerInterface<T> {
     public:
-        LinearQuantizer2() : error_bound(1), error_bound_reciprocal(1), radius(32768) {}
+        LinearQuantizer2(size_t num_) : num(num_), error_bound(1), error_bound_reciprocal(1), radius(32768) {}
 
-        LinearQuantizer2(T eb, int r = 32768) : error_bound(eb),
-                                                error_bound_reciprocal(1.0 / eb),
-                                                radius(r) {
+        LinearQuantizer2(size_t num_, T eb, int r = 32768) : num(num_), error_bound(eb),
+                                                             error_bound_reciprocal(1.0 / eb),
+                                                             radius(r) {
             assert(eb != 0);
         }
 
@@ -30,35 +30,20 @@ namespace SZ {
             error_bound_reciprocal = 1.0 / eb;
         }
 
-        // quantize the data with a prediction value, and returns the quantization index
-        int quantize(T data, T pred) {
-            T diff = data - pred;
-            int quant_index = (int) (fabs(diff) * this->error_bound_reciprocal) + 1;
-            if (quant_index < this->radius * 2) {
-                quant_index >>= 1;
-                int half_index = quant_index;
-                quant_index <<= 1;
-                int quant_index_shifted;
-                if (diff < 0) {
-                    quant_index = -quant_index;
-                    quant_index_shifted = -half_index;
-                } else {
-                    quant_index_shifted = half_index;
-                }
-                T decompressed_data = pred + quant_index * this->error_bound;
-                if (fabs(decompressed_data - data) > this->error_bound) {
-                    return -radius;
-                } else {
-                    return quant_index_shifted;
-                }
-            } else {
-                return -radius;
-            }
+
+        T recover(T pred, int quant_index) {
+            printf("IntegerQuantizer2.recover(T pred, int quant_index) is not supported");
+            exit(0);
+        }
+
+        int quantize_and_overwrite(T &data, T pred) {
+            printf("IntegerQuantizer2.quantize_and_overwrite(T &data, T pred) is not supported");
+            exit(0);
         }
 
         // quantize the data with a prediction value, and returns the quantization index and the decompressed data
         // int quantize(T data, T pred, T& dec_data);
-        int quantize_and_overwrite(T &data, T pred) {
+        int quantize_and_overwrite(size_t idx, T &data, T pred) {
             T diff = data - pred;
             int quant_index = (int) (fabs(diff) * this->error_bound_reciprocal) + 1;
             if (quant_index < this->radius * 2) {
@@ -74,75 +59,54 @@ namespace SZ {
                 }
                 T decompressed_data = pred + quant_index * this->error_bound;
                 if (fabs(decompressed_data - data) > this->error_bound) {
-                    unpred.push_back(data);
-                    return -radius;
+                    unpred_idx.push_back(idx);
+                    unpred_val.push_back(data);
+                    return 0;
                 } else {
                     data = decompressed_data;
                     return quant_index_shifted;
                 }
             } else {
-                unpred.push_back(data);
-                return -radius;
+                unpred_idx.push_back(idx);
+                unpred_val.push_back(data);
+                return 0;
             }
         }
 
-        int quantize_and_overwrite(T ori, T pred, T &dest) {
-            T diff = ori - pred;
-            int quant_index = (int) (fabs(diff) * this->error_bound_reciprocal) + 1;
-            if (quant_index < this->radius * 2) {
-                quant_index >>= 1;
-                int half_index = quant_index;
-                quant_index <<= 1;
-                int quant_index_shifted;
-                if (diff < 0) {
-                    quant_index = -quant_index;
-                    quant_index_shifted = -half_index;
-                } else {
-                    quant_index_shifted = half_index;
-                }
-                T decompressed_data = pred + quant_index * this->error_bound;
-                if (fabs(decompressed_data - ori) > this->error_bound) {
-                    unpred.push_back(ori);
-                    dest = ori;
-                    return -radius;
-                } else {
-                    dest = decompressed_data;
-                    return quant_index_shifted;
-                }
-            } else {
-                unpred.push_back(ori);
-                dest = ori;
-                return -radius;
-            }
-        }
 
-        void recover_set_delta(T &dest, T &delta, T delta_pred, int del_quant_index) {
-            if (del_quant_index != -radius) {
-                T temp = recover_pred(delta_pred, del_quant_index);
-                delta += temp;
+        void recover_and_residual(size_t idx, T &dest, T &delta, T pred, int quant_index) {
+            if (!isunpred[idx]) {
+                T temp = recover_pred(pred, quant_index);
                 dest += temp;
+                delta += temp;
             } else {
+                dest = unpred_map[idx];
                 delta = 0;
-                dest = recover_unpred();
             }
         }
+
+        void recover_and_residual(size_t idx, T &dest, T &delta, T pred) {
+            if (!isunpred[idx]) {
+                dest += pred;
+                delta += pred;
+            } else {
+                dest = unpred_map[idx];
+                delta = 0;
+            }
+        };
 
         // recover the data using the quantization index
-        T recover(T pred, int quant_index) {
-            if (quant_index != -radius) {
+        T recover(size_t idx, T pred, int quant_index) {
+            if (!isunpred[idx]) {
                 return recover_pred(pred, quant_index);
             } else {
-                return recover_unpred();
+                return unpred_map[idx];
             }
         }
 
 
         T recover_pred(T pred, int quant_index) {
             return pred + 2 * (quant_index) * this->error_bound;
-        }
-
-        T recover_unpred() {
-            return unpred_pos[index++];
         }
 
         void save(unsigned char *&c) const {
@@ -154,10 +118,15 @@ namespace SZ {
             c += sizeof(T);
             *reinterpret_cast<int *>(c) = this->radius;
             c += sizeof(int);
-            *reinterpret_cast<size_t *>(c) = unpred.size();
+            size_t unpred_size = unpred_idx.size();
+            *reinterpret_cast<size_t *>(c) = unpred_size;
             c += sizeof(size_t);
-            memcpy(c, unpred.data(), unpred.size() * sizeof(T));
-            c += unpred.size() * sizeof(T);
+            memcpy(c, unpred_idx.data(), unpred_size * sizeof(size_t));
+            c += unpred_size * sizeof(size_t);
+            memcpy(c, unpred_val.data(), unpred_size * sizeof(T));
+            c += unpred_size * sizeof(T);
+//            printf("xx %lu\n", unpred_idx.size());
+
         };
 
         void load(const unsigned char *&c, size_t &remaining_length) {
@@ -172,18 +141,28 @@ namespace SZ {
             c += sizeof(int);
             size_t unpred_size = *reinterpret_cast<const size_t *>(c);
             c += sizeof(size_t);
-            this->unpred = std::vector<T>(reinterpret_cast<const T *>(c), reinterpret_cast<const T *>(c) + unpred_size);
-            unpred_pos = unpred.data();
+            const size_t *unpred_idx_ptr = reinterpret_cast<const size_t *>(c);
+            c += unpred_size * sizeof(size_t);
+            const T *unpred_val_ptr = reinterpret_cast<const T *>(c);
             c += unpred_size * sizeof(T);
+            isunpred.resize(num, false);
+            for (size_t i = 0; i < unpred_size; i++) {
+                size_t idx = unpred_idx_ptr[i];
+                unpred_map[idx] = unpred_val_ptr[i];
+                isunpred[idx] = true;
+            }
             // std::cout << "loading: eb = " << this->error_bound << ", unpred_num = "  << unpred.size() << std::endl;
             // reset index
+//            printf("xx %lu\n", unpred_map.size());
             remaining_length -= (c - c0);
-            index = 0;
+
         }
 
         void clear() {
-            unpred.clear();
-            index = 0;
+        }
+
+        size_t get_unpred_size() {
+            return unpred_idx.size();
         }
 
         virtual void postcompress_data() {};
@@ -194,23 +173,17 @@ namespace SZ {
 
         virtual void predecompress_data() {};
 
-        std::vector<T> get_unpred() {
-            return unpred;
-        }
-
-        void set_unpred_pos(T *pos) {
-            index = 0;
-            unpred_pos = pos;
-        }
-
     private:
-        std::vector<T> unpred; // for compression
-        T *unpred_pos; // for decompression
-        size_t index = 0; // used in decompression only
-
         T error_bound;
         T error_bound_reciprocal;
         int radius; // quantization interval radius
+        size_t num;
+
+        std::vector<T> unpred_val; // for compression
+        std::vector<size_t> unpred_idx; // for compression
+        ska::unordered_map<size_t, T> unpred_map; // for decompression
+        std::vector<bool> isunpred; //for decompression
+
     };
 
 }
