@@ -91,14 +91,12 @@ namespace SZ {
 //            uchar const *buffer_pos = buffer;
             quantizer.load(buffer, buffer_len);
 
-            float retrieved_rate1 = retrieved_size * 100.0 / (num_elements * sizeof(float));
-            printf("\nretrieved = %.3f%% %lu\n", retrieved_rate1, retrieved_size);
+            printf("retrieved = %.3f%% %lu\n", retrieved_size * 100.0 / (num_elements * sizeof(float)), retrieved_size);
 
             int lossless_id = 1;
             lossless_data += lossless_size[0];
 
             T *dec_data = new T[num_elements];
-            size_t quant_inds_count = 0;
 
             for (uint level = levels; level > level_progressive; level--) {
                 timer.start();
@@ -129,20 +127,17 @@ namespace SZ {
                 }
                 quantizer.postdecompress_data();
                 std::cout << "Level = " << level << " , quant size = " << quant_inds.size() << ", Time = " << timer.stop() << std::endl;
-                quant_inds_count += quant_cnt;
             }
 
+            printf("retrieved = %.3f%% %lu\n", retrieved_size * 100.0 / (num_elements * sizeof(float)), retrieved_size);
 
             if (level_progressive > 0) {
 
-                std::vector<ska::unordered_map<std::string, double>> final_result;
+                std::vector<ska::unordered_map<std::string, double>> result_stat;
 
                 int bid_total = N * level_progressive, bg_total = bitgroup.size();
                 std::vector<int> b_bg(bid_total), b_bg_delta(bid_total);
                 b_bg_delta[0] = 1;
-                std::vector<size_t> b_quantbin_size(bid_total);
-                std::vector<std::vector<int>> b_quantbin_sign(bid_total);
-//                std::vector<std::vector<T>> b_unpred(bid_total);
                 std::vector<uchar const *> b_data(bid_total * bg_total);
                 std::vector<size_t> b_data_size(bid_total * bg_total);
                 for (int i = 0; i < bid_total * bg_total; i++) {
@@ -172,12 +167,8 @@ namespace SZ {
                                 for (int bg = b_bg[bid]; bg < bg_end; bg++) {
                                     uchar const *bg_data = b_data[bid * bg_total + bg];
                                     size_t bg_len = b_data_size[bid * bg_total + bg];
-                                    lossless_decode_bitgroup(bg, bg_data, bg_len, b_quantbin_sign[bid], b_quantbin_size[bid]);
-//                                    if (bg == 0) {
-//                                        b_unpred[bid] = quantizer.get_unpred();
-//                                    }
+                                    lossless_decode_bitgroup(bg, bg_data, bg_len);
                                 }
-//                                quantizer.set_unpred_pos(b_unpred[bid].data());
                                 if (b_bg[bid] == 0) {
                                     block_interpolation(dec_data, dec_data, global_begin, global_end, &SZProgressiveMQuant::recover,
                                                         interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
@@ -231,7 +222,7 @@ namespace SZ {
                     result["retrieved_rate"] = retrieved_rate;
                     result["psnr"] = psnr;
                     result["max_err"] = max_err;
-                    final_result.push_back(result);
+                    result_stat.push_back(result);
 
                     bool done = true;
                     for (const auto &b: b_bg) {
@@ -247,9 +238,9 @@ namespace SZ {
                 }
 
 
-                for (int i = 0; i < final_result.size(); i++) {
-                    printf("Level = %d, direction = %d, %.3f%% %.2f %.3G\n", (int) final_result[i]["level"], (int) final_result[i]["direct"],
-                           final_result[i]["retrieved_rate"], final_result[i]["psnr"], final_result[i]["max_err"]);
+                for (int i = 0; i < result_stat.size(); i++) {
+                    printf("Level = %d, direction = %d, %.3f%% %.2f %.3G\n", (int) result_stat[i]["level"], (int) result_stat[i]["direct"],
+                           result_stat[i]["retrieved_rate"], result_stat[i]["psnr"], result_stat[i]["max_err"]);
                 }
             }
 
@@ -372,6 +363,7 @@ namespace SZ {
 //TODO quantization bins in different levels have different distribution.
 // a dynamic bitgroup should be used for each level
         std::vector<int> bitgroup = {16, 8, 4, 2, 1, 1};
+//        std::vector<int> bitgroup = {8, 24};
         //        std::vector<int> bitgroup = {16, 2, 2, 2, 2, 2, 2, 2, 2};
         std::vector<T> dec_delta;
         size_t retrieved_size = 0;
@@ -381,13 +373,8 @@ namespace SZ {
 //        float eb;
 
         void
-        lossless_decode_bitgroup(int bg, uchar const *data_pos, const size_t data_length,
-                                 std::vector<int> &quant_sign, size_t &quant_size) {
-            Timer timer;
-//            std::vector<int> quant_sign;
-//            size_t quant_size;
-//            for (int bg = bg_start; bg < bg_end; bg++) {
-            timer.start();
+        lossless_decode_bitgroup(int bg, uchar const *data_pos, const size_t data_length) {
+            Timer timer(true);
 
             size_t length = data_length;
             retrieved_size += length;
@@ -395,16 +382,8 @@ namespace SZ {
             uchar *compressed_data = lossless.decompress(data_pos, length);
             uchar const *compressed_data_pos = compressed_data;
 
-            if (bg == 0) {
-//                quantizer.load(compressed_data_pos, length);
-                read(quant_size, compressed_data_pos, length);
-//                printf("unpred size = %lu\n", quantizer.get_unpred().size());
-//Done Only load unpred at first ( avoid loading sign bits)
-//TODO represent quant as [-radius, radius] or [0, 2*radius].
-// The con of [-radius, radius] is loading all the sign bits before the value bits.
-                quant_sign = decode_int_1bit(compressed_data_pos, length);
-            }
-
+            size_t quant_size;
+            read(quant_size, compressed_data_pos, length);
 
             std::vector<int> quant_ind_truncated;
             if (bitgroup[bg] == 2) {
@@ -425,70 +404,50 @@ namespace SZ {
             }
             quant_inds.resize(quant_size, 0);
             for (size_t i = 0; i < quant_size; i++) {
-                if (quant_sign[i] == 0) { // pred >= 0
-                    quant_inds[i] += (quant_ind_truncated[i] << bitshift);
-                } else { // pred < 0
-                    quant_inds[i] += -(quant_ind_truncated[i] << bitshift);
-                }
+                quant_inds[i] += (uint32_t((quant_ind_truncated[i] << bitshift)) ^ 0xaaaaaaaau) - 0xaaaaaaaau;
             }
-//            }
         }
 
         void encode_lossless_bitplane(uchar *&lossless_data_pos, std::vector<size_t> &lossless_size) {
             Timer timer;
-            int radius = quantizer.get_radius();
             size_t bsize = bitgroup.size();
             size_t qsize = quant_inds.size();
             std::vector<int> quants(qsize);
-            uchar *compressed_data = new uchar[size_t((quant_inds.size() < 1000000 ? 10 : 1.2)
-                                                      * quant_inds.size()) * sizeof(T)];
+            uchar *buffer = new uchar[size_t((quant_inds.size() < 1000000 ? 10 : 1.2)
+                                             * quant_inds.size()) * sizeof(T)];
+            for (size_t i = 0; i < qsize; i++) {
+                quant_inds[i] = ((int32_t) quant_inds[i] + (uint32_t) 0xaaaaaaaau) ^ (uint32_t) 0xaaaaaaaau;
+            }
 
             for (int bg = 0, bitstart = 0; bg < bsize; bg++) {
                 timer.start();
                 uint32_t bitshifts = 32 - bitstart - bitgroup[bg];
                 uint32_t bitmasks = (1 << bitgroup[bg]) - 1;
                 bitstart += bitgroup[bg];
-                uchar *compressed_data_pos = compressed_data;
+                uchar *buffer_pos = buffer;
 
-                if (bg == 0) {
-//                    quantizer.save(compressed_data_pos);
-//                    quantizer.clear();
-//
-                    write((size_t) qsize, compressed_data_pos);
+                write((size_t) qsize, buffer_pos);
 
-                    std::vector<int> quant_sign(qsize);
-                    for (size_t i = 0; i < qsize; i++) {
-                        if (quant_inds[i] < 0) {
-                            quant_inds[i] = -quant_inds[i];
-                            quant_sign[i] = 1;
-                        } else {
-                            quant_sign[i] = 0;
-                        }
-                    }
-                    encode_int_1bit(quant_sign, compressed_data_pos);
-
-                }
                 for (size_t i = 0; i < qsize; i++) {
                     quants[i] = ((uint32_t) quant_inds[i]) >> bitshifts & bitmasks;
                 }
 
                 if (bitgroup[bg] == 2) {
-                    encode_int_2bits(quants, compressed_data_pos);
+                    encode_int_2bits(quants, buffer_pos);
                 } else {
                     encoder.preprocess_encode(quants, 0);
-                    encoder.save(compressed_data_pos);
-                    encoder.encode(quants, compressed_data_pos);
+                    encoder.save(buffer_pos);
+                    encoder.encode(quants, buffer_pos);
                     encoder.postprocess_encode();
                 }
 
                 size_t size = lossless.compress(
-                        compressed_data, compressed_data_pos - compressed_data, lossless_data_pos);
+                        buffer, buffer_pos - buffer, lossless_data_pos);
 
                 lossless_data_pos += size;
                 lossless_size.push_back(size);
-//                printf("Bitplane = %d, time = %.3f\n", bg, timer.stop());
             }
-            delete[]compressed_data;
+            delete[]buffer;
             quant_inds.clear();
         }
 
@@ -499,9 +458,6 @@ namespace SZ {
 
             uchar *compressed_data = lossless.decompress(lossless_data_pos, remaining_length);
             uchar const *compressed_data_pos = compressed_data;
-
-//            quantizer.load(compressed_data_pos, remaining_length);
-//            double eb = quantizer.get_eb();
 
             size_t quant_size;
             read(quant_size, compressed_data_pos, remaining_length);
@@ -524,9 +480,6 @@ namespace SZ {
             uchar *compressed_data = new uchar[size_t((quant_inds.size() < 1000000 ? 10 : 1.2) * quant_inds.size()) * sizeof(T)];
             uchar *compressed_data_pos = compressed_data;
 
-//            quantizer.save(compressed_data_pos);
-//            quantizer.postcompress_data();
-//            quantizer.clear();
             write((size_t) quant_inds.size(), compressed_data_pos);
             if (quant_inds.size() < 128) {
                 write(quant_inds.data(), quant_inds.size(), compressed_data_pos);
