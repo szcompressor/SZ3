@@ -19,26 +19,22 @@ namespace SZ {
 
         Lossless_zstd(int comp_level) : compression_level(comp_level) {};
 
-        uchar *compress(uchar *data, size_t dataLength, size_t &outSize) {
-            size_t estimatedCompressedSize = dataLength < 100 ? 200 : dataLength * 1.2;
-            uchar *compressBytes = new uchar[estimatedCompressedSize];
-            uchar *compressBytesPos = compressBytes;
-            write(dataLength, compressBytesPos);
-
-            outSize = ZSTD_compress(compressBytesPos, estimatedCompressedSize, data, dataLength,
-                                    compression_level);
-            outSize += sizeof(size_t);
-            return compressBytes;
+        uchar *compress(uchar *dataIn, size_t inSize, size_t &outSize) {
+            size_t estimatedOutSize = inSize < 100 ? 200 : inSize * 1.2;
+            uchar *buffer = new uchar[estimatedOutSize];
+            outSize = compress(dataIn, inSize, buffer);
+            return buffer;
         }
 
-        size_t compress(uchar *dataIn, size_t dataLength, uchar *dataOut) {
-            size_t estimatedCompressedSize = dataLength < 100 ? 200 : dataLength * 1.2;
+        size_t compress(uchar *dataIn, size_t inSize, uchar *dataOut) {
+            size_t estimatedCompressedSize = inSize < 100 ? 200 : inSize * 1.2;
             uchar *dataOutPos = dataOut;
-            write(dataLength, dataOutPos);
+            write(inSize, dataOutPos);
 
             size_t outSize = ZSTD_compress(dataOutPos, estimatedCompressedSize,
-                                           dataIn, dataLength, compression_level);
+                                           dataIn, inSize, compression_level);
             outSize += sizeof(size_t);
+            printf("[ZSTD] ratio = %.2f inSize = %lu outSize = %lu\n", inSize * 1.0 / outSize, inSize, outSize);
             return outSize;
         }
 

@@ -89,7 +89,7 @@ namespace SZ {
     }
 
     template<typename Type>
-    void verify(Type *ori_data, Type *data, size_t num_elements, double &psnr, double &nrmse, double &max_err) {
+    void verify(Type *ori_data, Type *data, size_t num_elements, double &psnr, double &nrmse, double &max_err, double &range) {
         size_t i = 0;
         double Max = ori_data[0];
         double Min = ori_data[0];
@@ -137,7 +137,7 @@ namespace SZ {
         double acEff = ee / std1 / std2;
 
         double mse = sum / num_elements;
-        double range = Max - Min;
+        range = Max - Min;
         psnr = 20 * log10(range) - 10 * log10(mse);
         nrmse = sqrt(mse) / range;
 
@@ -154,14 +154,14 @@ namespace SZ {
 
     template<typename Type>
     void verify(Type *ori_data, Type *data, size_t num_elements, double &psnr, double &nrmse) {
-        double max_err;
-        verify(ori_data, data, num_elements, psnr, nrmse, max_err);
+        double max_err, range;
+        verify(ori_data, data, num_elements, psnr, nrmse, max_err, range);
     }
 
     template<typename Type>
     void verify(Type *ori_data, Type *data, size_t num_elements) {
-        double psnr, nrmse, max_err;
-        verify(ori_data, data, num_elements, psnr, nrmse, max_err);
+        double psnr, nrmse, max_err, range;
+        verify(ori_data, data, num_elements, psnr, nrmse, max_err, range);
     }
 };
 

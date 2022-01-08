@@ -217,11 +217,12 @@ namespace SZ {
 
                     float retrieved_rate = retrieved_size * 100.0 / (num_elements * sizeof(float));
                     printf("\nretrieved = %.3f%% %lu\n", retrieved_rate, retrieved_size);
-                    double psnr, nrmse, max_err;
-                    verify(data, dec_data, num_elements, psnr, nrmse, max_err);
+                    double psnr, nrmse, max_err, range;
+                    verify(data, dec_data, num_elements, psnr, nrmse, max_err, range);
                     result["retrieved_rate"] = retrieved_rate;
                     result["psnr"] = psnr;
                     result["max_err"] = max_err;
+                    result["max_rel_err"] = max_err / range;
                     result_stat.push_back(result);
 
                     bool done = true;
@@ -239,8 +240,10 @@ namespace SZ {
 
 
                 for (int i = 0; i < result_stat.size(); i++) {
-                    printf("Level = %d, direction = %d, %.3f%% %.2f %.3G\n", (int) result_stat[i]["level"], (int) result_stat[i]["direct"],
-                           result_stat[i]["retrieved_rate"], result_stat[i]["psnr"], result_stat[i]["max_err"]);
+                    printf("Level = %d, direction = %d, Rate= %.3f%% , PSNR= %.2f , ABS = %.3G , REL = %.3G\n",
+                           (int) result_stat[i]["level"], (int) result_stat[i]["direct"],
+                           result_stat[i]["retrieved_rate"], result_stat[i]["psnr"],
+                           result_stat[i]["max_err"], result_stat[i]["max_rel_err"]);
                 }
             }
 
@@ -297,8 +300,8 @@ namespace SZ {
 
                 auto quant_size = quant_inds.size();
                 quant_inds_total += quant_size;
-                encode_lossless(lossless_data_pos, lossless_size);
-                printf("level = %d , quant size = %lu , time=%.3f\n", level, quant_size, timer.stop());
+                auto size = encode_lossless(lossless_data_pos, lossless_size);
+                printf("level = %d , quant size = %lu , lossless size = %lu, time=%.3f\n", level, quant_size, size, timer.stop());
 
             }
 
@@ -317,11 +320,11 @@ namespace SZ {
 
                     auto quant_size = quant_inds.size();
                     quant_inds_total += quant_size;
-                    encode_lossless_bitplane(lossless_data_pos, lossless_size);
-                    printf("level = %d , direction = %d, quant size = %lu, time=%.3f\n", level, d++, quant_size, timer.stop());
+                    auto size = encode_lossless_bitplane(lossless_data_pos, lossless_size);
+                    printf("level = %d , direction = %d, quant size = %lu, lossless size = %lu, time=%.3f\n",
+                           level, d++, quant_size, size, timer.stop());
 
                 }
-
             }
 
 //            quant_inds.clear();
@@ -386,7 +389,9 @@ namespace SZ {
             read(quant_size, compressed_data_pos, length);
 
             std::vector<int> quant_ind_truncated;
-            if (bitgroup[bg] == 2) {
+            if (bitgroup[bg] == 1) {
+                quant_ind_truncated = decode_int_1bit(compressed_data_pos, length);
+            } else if (bitgroup[bg] == 2) {
                 quant_ind_truncated = decode_int_2bits(compressed_data_pos, length);
             } else {
                 encoder.load(compressed_data_pos, length);
@@ -408,7 +413,7 @@ namespace SZ {
             }
         }
 
-        void encode_lossless_bitplane(uchar *&lossless_data_pos, std::vector<size_t> &lossless_size) {
+        size_t encode_lossless_bitplane(uchar *&lossless_data_pos, std::vector<size_t> &lossless_size) {
             Timer timer;
             size_t bsize = bitgroup.size();
             size_t qsize = quant_inds.size();
@@ -419,6 +424,7 @@ namespace SZ {
                 quant_inds[i] = ((int32_t) quant_inds[i] + (uint32_t) 0xaaaaaaaau) ^ (uint32_t) 0xaaaaaaaau;
             }
 
+            size_t total_size = 0;
             for (int bg = 0, bitstart = 0; bg < bsize; bg++) {
                 timer.start();
                 uint32_t bitshifts = 32 - bitstart - bitgroup[bg];
@@ -432,9 +438,13 @@ namespace SZ {
                     quants[i] = ((uint32_t) quant_inds[i]) >> bitshifts & bitmasks;
                 }
 
-                if (bitgroup[bg] == 2) {
+                if (bitgroup[bg] == 1) {
+                    encode_int_1bit(quants, buffer_pos);
+                } else if (bitgroup[bg] == 2) {
                     encode_int_2bits(quants, buffer_pos);
                 } else {
+                    //TODO huffman tree is huge if using large radius on early levels
+                    // set different raduis for each level
                     encoder.preprocess_encode(quants, 0);
                     encoder.save(buffer_pos);
                     encoder.encode(quants, buffer_pos);
@@ -444,11 +454,14 @@ namespace SZ {
                 size_t size = lossless.compress(
                         buffer, buffer_pos - buffer, lossless_data_pos);
 
+                total_size += size;
                 lossless_data_pos += size;
                 lossless_size.push_back(size);
             }
             delete[]buffer;
             quant_inds.clear();
+
+            return total_size;
         }
 
         void lossless_decode(uchar const *&lossless_data_pos, const std::vector<size_t> &lossless_size, int lossless_id) {
@@ -476,7 +489,7 @@ namespace SZ {
             lossless_data_pos += lossless_size[lossless_id];
         }
 
-        void encode_lossless(uchar *&lossless_data_pos, std::vector<size_t> &lossless_size) {
+        size_t encode_lossless(uchar *&lossless_data_pos, std::vector<size_t> &lossless_size) {
             uchar *compressed_data = new uchar[size_t((quant_inds.size() < 1000000 ? 10 : 1.2) * quant_inds.size()) * sizeof(T)];
             uchar *compressed_data_pos = compressed_data;
 
@@ -499,6 +512,7 @@ namespace SZ {
 
             quant_inds.clear();
 
+            return size;
         }
 
         inline void quantize(size_t idx, T &data, T pred) {
