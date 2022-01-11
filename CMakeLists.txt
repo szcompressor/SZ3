@@ -3,6 +3,8 @@ project(SZ3 VERSION 3.0.0.0)
 include(GNUInstallDirs)
 include(CTest)
 
+option(BUILD_SHARED_LIBS "build shared libraries by default" ON)
+
 find_package(PkgConfig)
 find_package(OpenMP)
 
@@ -18,8 +20,9 @@ target_compile_features(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME} INTERFACE OpenMP::OpenMP_CXX)
 
+option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" OFF)
 pkg_search_module(ZSTD IMPORTED_TARGET libzstd)
-if(ZSTD_FOUND)
+if(ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
   target_link_libraries(${PROJECT_NAME} INTERFACE PkgConfig::ZSTD)
 else()
   add_subdirectory(zstd)

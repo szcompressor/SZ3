@@ -48,7 +48,7 @@ target_include_directories(zstd
   )
 
 
-install(TARGETS zstd EXPORT ZSTDConfig
+install(TARGETS zstd EXPORT SZ3Targets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} 
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
@@ -59,6 +59,5 @@ install(FILES
   common/zstd_errors.h 
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/
   )
-export(TARGETS zstd FILE ZSTDConfig.cmake)
 
 
