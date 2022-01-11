@@ -234,7 +234,7 @@ namespace SZ {
             quant_inds.push_back(quantizer.quantize_and_overwrite(d, pred));
         }
 
-        inline void recover(T &d, T pred) {
+        inline void recover(size_t idx, T &d, T pred) {
             d = quantizer.recover(pred, quant_inds[quant_index++]);
         };
 
@@ -267,14 +267,14 @@ namespace SZ {
                 } else {
                     for (size_t i = 1; i + 1 < n; i += 2) {
                         T *d = data + begin + i * stride;
-                        recover(*d, interp_linear(*(d - stride), *(d + stride)));
+                        recover(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
                     }
                     if (n % 2 == 0) {
                         T *d = data + begin + (n - 1) * stride;
                         if (n < 4) {
-                            recover(*d, *(d - stride));
+                            recover(d - data, *d, *(d - stride));
                         } else {
-                            recover(*d, interp_linear1(*(d - stride3x), *(d - stride)));
+                            recover(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
                         }
                     }
                 }
@@ -304,18 +304,18 @@ namespace SZ {
                     size_t i;
                     for (i = 3; i + 3 < n; i += 2) {
                         d = data + begin + i * stride;
-                        recover(*d, interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                        recover(d - data, *d, interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
                     }
                     d = data + begin + stride;
 
-                    recover(*d, interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
+                    recover(d - data, *d, interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
 
                     d = data + begin + i * stride;
-                    recover(*d, interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                    recover(d - data, *d, interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
 
                     if (n % 2 == 0) {
                         d = data + begin + (n - 1) * stride;
-                        recover(*d, interp_quad_3(*(d - stride5x), *(d - stride3x), *(d - stride)));
+                        recover(d - data, *d, interp_quad_3(*(d - stride5x), *(d - stride3x), *(d - stride)));
                     }
                 }
             }
