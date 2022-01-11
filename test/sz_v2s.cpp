@@ -1,9 +1,9 @@
-#include "frontend/SZMetaFrontend.hpp"
-#include "predictor/Predictor.hpp"
-#include "quantizer/IntegerQuantizer.hpp"
-#include "utils/FileUtil.hpp"
-#include "utils/Config.hpp"
-#include "def.hpp"
+#include "SZ3/frontend/SZMetaFrontend.hpp"
+#include "SZ3/predictor/Predictor.hpp"
+#include "SZ3/quantizer/IntegerQuantizer.hpp"
+#include "SZ3/utils/FileUtil.hpp"
+#include "SZ3/utils/Config.hpp"
+#include "SZ3/def.hpp"
 #include <cstdio>
 #include <iostream>
 #include <memory>

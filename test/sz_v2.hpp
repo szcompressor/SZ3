@@ -5,14 +5,14 @@
 #ifndef SZ3_SZ_V2_HPP
 #define SZ3_SZ_V2_HPP
 
-#include "compressor/SZGeneralCompressor.hpp"
-#include "encoder/HuffmanEncoder.hpp"
-#include "encoder/ArithmeticEncoder.hpp"
-#include "encoder/BypassEncoder.hpp"
-#include "lossless/Lossless_zstd.hpp"
-#include "lossless/Lossless_bypass.hpp"
-#include "utils/Verification.hpp"
-#include "utils/Timer.hpp"
+#include "SZ3/compressor/SZGeneralCompressor.hpp"
+#include "SZ3/encoder/HuffmanEncoder.hpp"
+#include "SZ3/encoder/ArithmeticEncoder.hpp"
+#include "SZ3/encoder/BypassEncoder.hpp"
+#include "SZ3/lossless/Lossless_zstd.hpp"
+#include "SZ3/lossless/Lossless_bypass.hpp"
+#include "SZ3/utils/Verification.hpp"
+#include "SZ3/utils/Timer.hpp"
 #include <sstream>
 #include <random>
 
