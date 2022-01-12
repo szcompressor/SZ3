@@ -176,7 +176,7 @@ namespace SZ {
                                         interpolators[interpolator_id], direction_sequence_id, stride);
                 }
             }
-            std::cout << "Number of data point = " << num_elements << std::endl;
+//            std::cout << "Number of data point = " << num_elements << std::endl;
 //            std::cout << "quantization element = " << quant_inds.size() << std::endl;
             assert(quant_inds.size() == num_elements);
             timer.stop("Prediction & Quantization");

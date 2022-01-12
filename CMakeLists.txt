@@ -4,6 +4,7 @@ include(GNUInstallDirs)
 include(CTest)
 
 option(BUILD_SHARED_LIBS "build shared libraries by default" ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(PkgConfig)
 find_package(OpenMP)
@@ -21,6 +22,14 @@ target_compile_features(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME} INTERFACE OpenMP::OpenMP_CXX)
 
 option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" OFF)
+option(SZ3_DEBUG_TIMINGS "print debug timing information" ON)
+
+if(SZ3_DEBUG_TIMINGS)
+  target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_DEBUG_TIMINGS=1)
+else()
+  target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_DEBUG_TIMINGS=0)
+endif()
+
 pkg_search_module(ZSTD IMPORTED_TARGET libzstd)
 if(ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
   target_link_libraries(${PROJECT_NAME} INTERFACE PkgConfig::ZSTD)
