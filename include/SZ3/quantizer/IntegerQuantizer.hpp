@@ -16,8 +16,8 @@ namespace SZ {
         LinearQuantizer() : error_bound(1), error_bound_reciprocal(1), radius(32768) {}
 
         LinearQuantizer(double eb, int r = 32768) : error_bound(eb),
-                                               error_bound_reciprocal(1.0 / eb),
-                                               radius(r) {
+                                                    error_bound_reciprocal(1.0 / eb),
+                                                    radius(r) {
             assert(eb != 0);
         }
 
@@ -165,6 +165,10 @@ namespace SZ {
             // std::cout << "loading: eb = " << this->error_bound << ", unpred_num = "  << unpred.size() << std::endl;
             // reset index
             index = 0;
+        }
+
+        void print() {
+            printf("[IntegerQuantizer] error_bound = %.8G, radius = %d, unpred = %lu\n", error_bound, radius, unpred.size());
         }
 
         void clear() {

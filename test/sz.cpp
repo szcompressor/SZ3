@@ -1,7 +1,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
-#include "sz.hpp"
+#include "SZ3/sz.hpp"
 
 #define SZ_FLOAT 0
 #define SZ_DOUBLE 1
@@ -71,7 +71,7 @@ void usage() {
 
 template<class T>
 void compress(char *inPath, char *cmpPath, SZ::ConfigNew conf) {
-    T *data = (T *) malloc(sizeof(T) * conf.num);
+    T *data = new T[conf.num];
     SZ::readfile<T>(inPath, conf.num, data);
 
     size_t outSize;
@@ -91,14 +91,50 @@ void compress(char *inPath, char *cmpPath, SZ::ConfigNew conf) {
     printf("compression time = %f\n", compress_time);
     printf("compressed data file: %s\n", outputFilePath);
 
-    free(data);
-    free(bytes);
+    delete[]data;
+    delete[]bytes;
+}
+
+template<class T>
+void decompress(char *inPath, char *cmpPath, char *decPath,
+                SZ::ConfigNew conf,
+                int binaryOutput, int printCmpResults) {
+
+    size_t cmpSize;
+    char *cmpData = SZ::readfile<char>(cmpPath, cmpSize).get();
+
+    SZ::Timer timer(true);
+    T *decData = SZ_decompress_interp<T>(conf, cmpData, cmpSize);
+    double compress_time = timer.stop();
+
+    char outputFilePath[256];
+    if (decPath == NULL) {
+        sprintf(outputFilePath, "%s.out", cmpPath);
+    } else {
+        strcpy(outputFilePath, decPath);
+    }
+    if (binaryOutput == 1) {
+        SZ::writefile<T>(outputFilePath, decData, conf.num);
+    } else { //txt output
+//        writeFloatData(decData, nbEle, outputFilePath, &status);
+    }
+    if (printCmpResults) {
+        //compute the distortion / compression errors...
+        size_t totalNbEle;
+        auto ori_data = SZ::readfile<T>(inPath, totalNbEle);
+        assert(totalNbEle == conf.num);
+        SZ::verify<T>(ori_data.get(), decData, conf.num);
+    }
+    delete[]decData;
+
+    printf("decompression time = %f seconds.\n", compress_time);
+    printf("decompressed decData file: %s\n", outputFilePath);
 }
 
 int main(int argc, char *argv[]) {
     int binaryOutput = 1;
     int printCmpResults = 0;
-    int isCompression = -1000; //1 : compression ; 0: decompression
+    int compressionMode = 0; // &1 : compression ; &2: decompression
     int dataType = SZ_FLOAT;
     char *inPath = NULL;
     char *cmpPath = NULL;
@@ -144,7 +180,7 @@ int main(int argc, char *argv[]) {
                 printCmpResults = 1;
                 break;
             case 'z':
-                isCompression = 1;
+                compressionMode |= 1;
                 if (i + 1 < argc) {
                     cmpPath = argv[i + 1];
                     if (cmpPath[0] != '-')
@@ -154,7 +190,7 @@ int main(int argc, char *argv[]) {
                 }
                 break;
             case 'x':
-                isCompression = 0;
+                compressionMode |= 2;
                 if (i + 1 < argc) {
                     decPath = argv[i + 1];
                     if (decPath[0] != '-')
@@ -267,7 +303,7 @@ int main(int argc, char *argv[]) {
         conf = SZ::ConfigNew(r5, r4, r3, r2, r1);
     }
 
-    if (isCompression == 1 && errBoundMode != NULL) {
+    if (errBoundMode != NULL) {
         if (strcmp(errBoundMode, "ABS") == 0)
             conf.errorBoundMode = ABS;
         else if (strcmp(errBoundMode, "REL") == 0 || strcmp(errBoundMode, "VR_REL") == 0)
@@ -289,8 +325,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-
-    if (isCompression == 1) {
+    if (compressionMode & 1) {
         if (absErrorBound != NULL) {
             conf.absErrorBound = atof(absErrorBound);
         }
@@ -307,141 +342,24 @@ int main(int argc, char *argv[]) {
             usage();
             exit(0);
         }
-
-        if (printCmpResults == 1) {
-            printf("Error: -a can be only used in decompression.\n");
+    }
+    if (compressionMode & 2) { //decompression
+        if (printCmpResults) {
+            if (inPath == NULL) {
+                printf("Error: Since you add -a option (analysis), please specify the original data path by -i <path>.\n");
+                exit(0);
+            }
         }
 
-    } else if (isCompression == 0) //decompression
-//    {
-//        if (printCmpResults) {
-//            if (inPath == NULL) {
-//                printf("Error: Since you add -a option (analysis), please specify the original data path by -i <path>.\n");
-//                exit(0);
-//            }
-//        }
-//
-//        char outputFilePath[256];
-//
-//
-//        if (checkFileExistance(cmpPath) == 0) {
-//            printf("Error: compression file (%s) is not readable.\n", cmpPath);
-//            exit(0);
-//        }
-//
-//        if (dataType == 0) {
-//
-//            bytes = readByteData(cmpPath, &byteLength, &status);
-//            if (status != SZ_SCES) {
-//                printf("Error: %s cannot be read!\n", cmpPath);
-//                exit(0);
-//            }
-//            cost_start();
-//            float *data = NULL;
-//            float *data_ = SZ_decompress(SZ_FLOAT, bytes, byteLength, r5, r4, r3, r2, r1);
-//            if (confparams_dec->sol_ID == SZ_Transpose)
-//                data = detransposeData(data_, SZ_FLOAT, r5, r4, r3, r2, r1);
-//            else //confparams_dec->sol_ID==SZ
-//                data = data_;
-//            cost_end();
-//            if (decPath == NULL)
-//                sprintf(outputFilePath, "%s.out", cmpPath);
-//            else
-//                strcpy(outputFilePath, decPath);
-//            if (binaryOutput == 1)
-//                writeFloatData_inBytes(data, nbEle, outputFilePath, &status);
-//            else //txt output
-//                writeFloatData(data, nbEle, outputFilePath, &status);
-//
-//            if (status != SZ_SCES) {
-//                printf("Error: %s cannot be written!\n", outputFilePath);
-//                exit(0);
-//            }
-//
-//            if (printCmpResults) {
-//                if (inPath == NULL) {
-//                    printf("Error: Since you add -a option (analysis), please specify the original data path by -i <path>.\n");
-//                    exit(0);
-//                }
-//                //compute the distortion / compression errors...
-//                size_t totalNbEle;
-//                float *ori_data = readFloatData(inPath, &totalNbEle, &status);
-//                if (status != SZ_SCES) {
-//                    printf("Error: %s cannot be read!\n", inPath);
-//                    exit(0);
-//                }
-//
-//                size_t i = 0;
-//                float Max = 0, Min = 0, diffMax = 0;
-//                Max = ori_data[0];
-//                Min = ori_data[0];
-//                diffMax = fabs(data[0] - ori_data[0]);
-//                double sum1 = 0, sum2 = 0, sum22 = 0;
-//                for (i = 0; i < nbEle; i++) {
-//                    sum1 += ori_data[i];
-//                    sum2 += data[i];
-//                    sum22 += data[i] * data[i];
-//                }
-//                double mean1 = sum1 / nbEle;
-//                double mean2 = sum2 / nbEle;
-//
-//                double sum3 = 0, sum4 = 0;
-//                double sum = 0, prodSum = 0, relerr = 0;
-//
-//                double maxpw_relerr = 0;
-//                for (i = 0; i < nbEle; i++) {
-//                    if (Max < ori_data[i]) Max = ori_data[i];
-//                    if (Min > ori_data[i]) Min = ori_data[i];
-//
-//                    float err = fabs(data[i] - ori_data[i]);
-//                    if (ori_data[i] != 0) {
-//                        relerr = err / fabs(ori_data[i]);
-//                        //float rerr = err/0.0020479534287005662918;
-//                        //if(rerr>0.001)
-//                        //{printf("i=%zu, %.30G\n", i, relerr); break;}
-//                        if (maxpw_relerr < relerr)
-//                            maxpw_relerr = relerr;
-//                    }
-//
-//                    if (diffMax < err)
-//                        diffMax = err;
-//                    prodSum += (ori_data[i] - mean1) * (data[i] - mean2);
-//                    sum3 += (ori_data[i] - mean1) * (ori_data[i] - mean1);
-//                    sum4 += (data[i] - mean2) * (data[i] - mean2);
-//                    sum += err * err;
-//                }
-//                double std1 = sqrt(sum3 / nbEle);
-//                double std2 = sqrt(sum4 / nbEle);
-//                double ee = prodSum / nbEle;
-//                double acEff = ee / std1 / std2;
-//
-//                double mse = sum / nbEle;
-//                double range = Max - Min;
-//                double psnr = 20 * log10(range) - 10 * log10(mse);
-//                double nrmse = sqrt(mse) / range;
-//                double compressionRatio = 1.0 * nbEle * sizeof(float) / byteLength;
-//                double normErr = sqrt(sum);
-//                double normErr_norm = normErr / sqrt(sum22);
-//
-//                printf("Min=%.20G, Max=%.20G, range=%.20G\n", Min, Max, range);
-//                printf("Max absolute error = %.10f\n", diffMax);
-//                printf("Max relative error = %f\n", diffMax / (Max - Min));
-//                printf("Max pw relative error = %f\n", maxpw_relerr);
-//                printf("PSNR = %f, NRMSE= %.20G\n", psnr, nrmse);
-//                printf("normError = %f, normErr_norm = %f\n", normErr, normErr_norm);
-//                printf("acEff=%f\n", acEff);
-//                printf("compressionRatio=%f\n", compressionRatio);
-//
-//                free(ori_data);
-//            }
-//            free(data);
-//
-//            printf("decompression time = %f seconds.\n", totalCost);
-//            printf("decompressed data file: %s\n", outputFilePath);
-//        } else //double-data
-//        {
-//
-//        }
-//    }
+        if (dataType == SZ_FLOAT) {
+            decompress<float>(inPath, cmpPath, decPath, conf, binaryOutput, printCmpResults);
+        } else if (dataType == SZ_DOUBLE) {
+            decompress<double>(inPath, cmpPath, decPath, conf, binaryOutput, printCmpResults);
+        } else {
+            printf("Error: data type not supported \n");
+            usage();
+            exit(0);
+        }
+    }
     return 0;
 }

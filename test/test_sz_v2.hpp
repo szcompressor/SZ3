@@ -2,8 +2,8 @@
 // Created by Kai Zhao on 3/2/21.
 //
 
-#ifndef SZ3_SZ_V2_HPP
-#define SZ3_SZ_V2_HPP
+#ifndef SZ3_TEST_SZ_V2_HPP
+#define SZ3_TEST_SZ_V2_HPP
 
 #include "SZ3/compressor/SZGeneralCompressor.hpp"
 #include "SZ3/encoder/HuffmanEncoder.hpp"
@@ -100,5 +100,5 @@ float SZ_compress_build_backend(std::unique_ptr<T[]> const &data,
     }
 }
 
-#endif //SZ3_SZ_V2_HPP
+#endif //SZ3_TEST_SZ_V2_HPP
 

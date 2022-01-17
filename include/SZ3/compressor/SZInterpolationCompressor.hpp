@@ -13,6 +13,7 @@
 #include "SZ3/utils/Interpolators.hpp"
 #include "SZ3/utils/Timer.hpp"
 #include "SZ3/def.hpp"
+#include "SZ3/utils/ConfigNew.hpp"
 #include <cstring>
 #include <cmath>
 
@@ -22,77 +23,43 @@ namespace SZ {
     public:
 
 
-        SZInterpolationCompressor(Quantizer quantizer, Encoder encoder, Lossless lossless,
-                                  const std::array<size_t, N> dims,
-                                  size_t blocksize,
-                                  int interpolator,
-                                  int direction) :
-                quantizer(quantizer), encoder(encoder), lossless(lossless),
-                blocksize(blocksize), global_dimensions(dims),
-                interpolators({"linear", "cubic"}),
-                interpolator_id(interpolator), direction_sequence_id(direction) {
+        SZInterpolationCompressor(Quantizer quantizer, Encoder encoder, Lossless lossless) :
+                quantizer(quantizer), encoder(encoder), lossless(lossless) {
+
             static_assert(std::is_base_of<concepts::QuantizerInterface<T>, Quantizer>::value,
                           "must implement the quatizer interface");
             static_assert(std::is_base_of<concepts::EncoderInterface<int>, Encoder>::value,
                           "must implement the encoder interface");
             static_assert(std::is_base_of<concepts::LosslessInterface, Lossless>::value,
                           "must implement the lossless interface");
-
-            assert(blocksize % 2 == 0 && "Interpolation block size should be even numbers");
-            num_elements = 1;
-            interpolation_level = -1;
-            for (int i = 0; i < N; i++) {
-                if (interpolation_level < ceil(log2(dims[i]))) {
-                    interpolation_level = (uint) ceil(log2(dims[i]));
-                }
-                num_elements *= dims[i];
-            }
-
-            dimension_offsets[N - 1] = 1;
-            for (int i = N - 2; i >= 0; i--) {
-                dimension_offsets[i] = dimension_offsets[i + 1] * global_dimensions[i + 1];
-            }
-
-            dimension_sequences = std::vector<std::array<int, N>>();
-            auto sequence = std::array<int, N>();
-            for (int i = 0; i < N; i++) {
-                sequence[i] = i;
-            }
-            do {
-                dimension_sequences.push_back(sequence);
-            } while (std::next_permutation(sequence.begin(), sequence.end()));
         }
+
 
         T *decompress(uchar *compressed_data, T *dec_data, const size_t length) {
             size_t remaining_length = length;
-            uchar *lossless_decompressed;
-            uchar const *compressed_data_pos;
-            lossless_decompressed = lossless.decompress(compressed_data, remaining_length);
-            compressed_data_pos = lossless_decompressed;
+            uchar *buffer = lossless.decompress(compressed_data, remaining_length);
+            uchar const *buffer_pos = buffer;
 
-            read(global_dimensions.data(), N, compressed_data_pos, remaining_length);
-            num_elements = 1;
-            for (const auto &d: global_dimensions) {
-                num_elements *= d;
+            read(global_dimensions.data(), N, buffer_pos, remaining_length);
+            for (auto &d: global_dimensions) {
+                printf("%lu ", d);
             }
-            uint block_size = 0;
-            read(block_size, compressed_data_pos, remaining_length);
-            quantizer.load(compressed_data_pos, remaining_length);
-            encoder.load(compressed_data_pos, remaining_length);
-            quant_inds = encoder.decode(compressed_data_pos, num_elements);
+            printf("\n");
+            read(blocksize, buffer_pos, remaining_length);
+            read(interpolator_id, buffer_pos, remaining_length);
+            read(direction_sequence_id, buffer_pos, remaining_length);
+
+            init();
+
+            quantizer.load(buffer_pos, remaining_length);
+            quantizer.print();
+            encoder.load(buffer_pos, remaining_length);
+            quant_inds = encoder.decode(buffer_pos, num_elements);
 
             encoder.postprocess_decode();
 
-            lossless.postdecompress_data(lossless_decompressed);
+            lossless.postdecompress_data(buffer);
             double eb = quantizer.get_eb();
-
-//            quantizer.set_eb(eb * eb_ratio);
-
-//            auto dec_data = std::make_shared<T[]>(num_elements);
-
-//            quantizer.set_eb(eb);
-//            Timer timer;
-//            timer.start();
 
             *dec_data = quantizer.recover(0, quant_inds[quant_index++]);
 
@@ -117,9 +84,13 @@ namespace SZ {
                             end_idx[i] = global_dimensions[i] - 1;
                         }
                     }
+//                    block.print();
                     block_interpolation(dec_data, block.get_global_index(), end_idx, PB_recover,
                                         interpolators[interpolator_id], direction_sequence_id, stride);
+
                 }
+                printf("%d %lu\n", level, quant_index);
+                fflush(stdout);
             }
 //            std::cout << "Total quant element = " << quant_inds.size() << std::endl;
             quantizer.postdecompress_data();
@@ -135,7 +106,14 @@ namespace SZ {
         }
 
         // compress given the error bound
-        uchar *compress(T *data, size_t &compressed_size) {
+        uchar *compress(const ConfigNew &conf, T *data, size_t &compressed_size) {
+            std::copy_n(conf.dims.begin(), N, global_dimensions.begin());
+            blocksize = conf.interp_block_size;
+            interpolator_id = conf.interp_op;
+            direction_sequence_id = conf.interp_direction_op;
+
+            init();
+
             quant_inds.reserve(num_elements);
             size_t interp_compressed_size = 0;
 
@@ -175,6 +153,7 @@ namespace SZ {
                     block_interpolation(data, block.get_global_index(), end_idx, PB_predict_overwrite,
                                         interpolators[interpolator_id], direction_sequence_id, stride);
                 }
+                printf("%d %lu\n", level, quant_inds.size());
             }
 //            std::cout << "Number of data point = " << num_elements << std::endl;
 //            std::cout << "quantization element = " << quant_inds.size() << std::endl;
@@ -190,9 +169,13 @@ namespace SZ {
             uchar *compressed_data_pos = compressed_data;
             write(global_dimensions.data(), N, compressed_data_pos);
             write(blocksize, compressed_data_pos);
+            write(interpolator_id, compressed_data_pos);
+            write(direction_sequence_id, compressed_data_pos);
 
+            quantizer.print();
             quantizer.save(compressed_data_pos);
             quantizer.postcompress_data();
+
 
             timer.start();
             encoder.preprocess_encode(quant_inds, 4 * quantizer.get_radius());
@@ -217,6 +200,32 @@ namespace SZ {
         enum PredictorBehavior {
             PB_predict_overwrite, PB_predict, PB_recover
         };
+
+        void init() {
+            assert(blocksize % 2 == 0 && "Interpolation block size should be even numbers");
+            num_elements = 1;
+            interpolation_level = -1;
+            for (int i = 0; i < N; i++) {
+                if (interpolation_level < ceil(log2(global_dimensions[i]))) {
+                    interpolation_level = (uint) ceil(log2(global_dimensions[i]));
+                }
+                num_elements *= global_dimensions[i];
+            }
+
+            dimension_offsets[N - 1] = 1;
+            for (int i = N - 2; i >= 0; i--) {
+                dimension_offsets[i] = dimension_offsets[i + 1] * global_dimensions[i + 1];
+            }
+
+            dimension_sequences = std::vector<std::array<int, N>>();
+            auto sequence = std::array<int, N>();
+            for (int i = 0; i < N; i++) {
+                sequence[i] = i;
+            }
+            do {
+                dimension_sequences.push_back(sequence);
+            } while (std::next_permutation(sequence.begin(), sequence.end()));
+        }
 
         inline void quantize1(size_t idx, T &d, T pred) {
             if (idx >= 2 * 449 * 449 * 235 && idx < 3 * 449 * 449 * 235 &&
@@ -483,7 +492,7 @@ namespace SZ {
         uint blocksize;
         int interpolator_id;
         double eb_ratio = 0.5;
-        std::vector<std::string> interpolators;
+        std::vector<std::string> interpolators = {"linear", "cubic"};
         std::vector<int> quant_inds;
         size_t quant_index = 0; // for decompress
         double max_error;

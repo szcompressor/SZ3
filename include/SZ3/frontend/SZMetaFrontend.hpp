@@ -22,7 +22,7 @@ namespace SZ {
     template<class T, uint N, class Quantizer>
     class SZMetaFrontend : public concepts::FrontendInterface<T, N> {
     public:
-        SZMetaFrontend(const Config<T, N> &conf, Quantizer quantizer) :
+        SZMetaFrontend(const Config <T, N> &conf, Quantizer quantizer) :
                 quantizer(quantizer),
                 params(false, conf.block_size, conf.pred_dim, 0, conf.enable_lorenzo, conf.enable_2ndlorenzo,
                        conf.enable_regression, conf.eb),
@@ -331,7 +331,7 @@ namespace SZ {
         T *decompress_3d(std::vector<int> &quant_inds) {
 
             int *type = quant_inds.data();
-            T *dec_data = (T *) malloc(size.num_elements * sizeof(T));
+            T *dec_data = new T[size.num_elements];
 //    dec_data_sp_float = (float *) dec_data;
             const float *reg_params_pos = (const float *) (reg_params + RegCoeffNum3d);;
 
@@ -528,13 +528,13 @@ namespace SZ {
         T *unpred_data_buffer = nullptr; // not used, unpredictable data is controlled by quantizer
 
         Quantizer quantizer;
-        Config<T, N> conf;
+        Config <T, N> conf;
 
     };
 
     template<class T, uint N, class Predictor>
     SZMetaFrontend<T, N, Predictor>
-    make_sz_meta_frontend(const Config<T, N> &conf, Predictor predictor) {
+    make_sz_meta_frontend(const Config <T, N> &conf, Predictor predictor) {
         return SZMetaFrontend<T, N, Predictor>(conf, predictor);
     }
 }
