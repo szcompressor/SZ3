@@ -1,0 +1,7 @@
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/SZ3Targets.cmake")
+
+find_package(OpenMP)
+check_required_components(SZ3)
+

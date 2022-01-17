@@ -1,43 +1,69 @@
 cmake_minimum_required(VERSION 3.13)
-project(SZ3)
-#project(First VERSION 3.0.0.0)
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "-O3")
+project(SZ3 VERSION 3.0.0.0)
 include(GNUInstallDirs)
-
-include(CheckCXXCompilerFlag)
 include(CTest)
-#by default pass no 3rd party exports
-set(thirdparty_export "")
+
+option(BUILD_SHARED_LIBS "build shared libraries by default" ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(PkgConfig)
 find_package(OpenMP)
 
+add_library(${PROJECT_NAME} INTERFACE)
+target_include_directories(
+        ${PROJECT_NAME} INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+        )
+target_compile_features(${PROJECT_NAME}
+    INTERFACE cxx_std_17
+  )
+
+target_link_libraries(${PROJECT_NAME} INTERFACE OpenMP::OpenMP_CXX)
+
+option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" OFF)
+option(SZ3_DEBUG_TIMINGS "print debug timing information" ON)
+
+if(SZ3_DEBUG_TIMINGS)
+  target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_DEBUG_TIMINGS=1)
+else()
+  target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_DEBUG_TIMINGS=0)
+endif()
 
 pkg_search_module(ZSTD IMPORTED_TARGET libzstd)
-if(ZSTD_FOUND)
-    set(ZSTD_dep PkgConfig::ZSTD)
+if(ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
+  target_link_libraries(${PROJECT_NAME} INTERFACE PkgConfig::ZSTD)
 else()
-    add_subdirectory(zstd)
-    set(ZSTD_dep zstd)
-    list(APPEND thirdparty_export "zstd")
+  add_subdirectory(zstd)
+  target_link_libraries(${PROJECT_NAME} INTERFACE zstd)
 endif()
 
 find_package(GSL)
 if (GSL_FOUND)
-    add_definitions(-DENABLE_GSL="TRUE")
+  target_compile_definitions(${PROJECT_NAME} INTERFACE -DENABLE_GSL="TRUE")
 endif()
-
-add_library(${PROJECT_NAME} INTERFACE)
-target_include_directories(
-        ${PROJECT_NAME} INTERFACE
-        $<BUILD_INTERFACE:${${PROJECT_NAME}_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_FULL_INCLUDEDIR}>
-        ${ZSTD_dep})
-
-
-install(DIRECTORY ${${PROJECT_NAME}_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_FULL_INCLUDEDIR})
 
 add_subdirectory(test)
 
+install(TARGETS ${PROJECT_NAME} 
+  EXPORT SZ3Targets
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(EXPORT SZ3Targets NAMESPACE SZ3:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3)
+include(CMakePackageConfigHelpers)
+configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/SZ3Config.cmake.in
+  "${CMAKE_CURRENT_BINARY_DIR}/SZ3Config.cmake"
+  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3
+  )
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/SZ3ConfigVersion.cmake"
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY AnyNewerVersion
+  )
+install(FILES
+  ${CMAKE_CURRENT_BINARY_DIR}/SZ3Config.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/SZ3ConfigVersion.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3
+  )

@@ -11,8 +11,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <sys/time.h>
-#include <encoder/ArithmeticEncoder.hpp>
-#include "utils/FileUtil.hpp"
+#include <SZ3/encoder/ArithmeticEncoder.hpp>
+#include "SZ3/utils/FileUtil.hpp"
 
 unsigned char *readByteData(char *srcFilePath, size_t *byteLength, int *status) {
     FILE *pFile = fopen(srcFilePath, "rb");
