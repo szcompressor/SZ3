@@ -22,4 +22,18 @@ namespace SZ {
     typedef unsigned int uint;
     typedef unsigned char uchar;
 }
+
+#define ABS 0
+#define REL 1
+#define ABS_AND_REL 2
+#define ABS_OR_REL 3
+#define PSNR 4
+#define NORM 5
+#define PW_REL 10
+#define ABS_AND_PW_REL 11
+#define ABS_OR_PW_REL 12
+#define REL_AND_PW_REL 13
+#define REL_OR_PW_REL 14
+
+
 #endif

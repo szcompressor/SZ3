@@ -7,16 +7,6 @@
 
 
 namespace SZ {
-    template<class T>
-    T data_range(T *data, size_t num) {
-        T max = data[0];
-        T min = data[0];
-        for (size_t i = 1; i < num; i++) {
-            if (max < data[i]) max = data[i];
-            if (min > data[i]) min = data[i];
-        }
-        return max - min;
-    }
 
     template<uint N>
     float cal_sampling_ratio(size_t block, size_t n, size_t dmin, std::array<size_t, N> dims) {

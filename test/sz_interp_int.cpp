@@ -1,6 +1,5 @@
 #include "sz_interp.hpp"
 
-
 int main(int argc, char **argv) {
 
 

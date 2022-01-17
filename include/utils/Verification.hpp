@@ -5,8 +5,18 @@
 #ifndef SZ_VERIFICATION_HPP
 #define SZ_VERIFICATION_HPP
 
-
 namespace SZ {
+    template<class T>
+    T data_range(T *data, size_t num) {
+        T max = data[0];
+        T min = data[0];
+        for (size_t i = 1; i < num; i++) {
+            if (max < data[i]) max = data[i];
+            if (min > data[i]) min = data[i];
+        }
+        return max - min;
+    }
+
     template<typename Type>
     double autocorrelation1DLag1(const Type *data, size_t numOfElem, Type avg) {
         double cov = 0;
