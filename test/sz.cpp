@@ -1,10 +1,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
-#include <def.hpp>
 #include "sz.hpp"
-#include "utils/Timer.hpp"
-#include "utils/FileUtil.hpp"
 
 #define SZ_FLOAT 0
 #define SZ_DOUBLE 1

@@ -7,7 +7,7 @@
 
 #include <vector>
 #include <numeric>
-#include "def.hpp"
+#include "SZ3/def.hpp"
 
 namespace SZ {
 
