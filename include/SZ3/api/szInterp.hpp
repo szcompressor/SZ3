@@ -176,7 +176,7 @@ char *SZ_compress_Interp_lorenzo_N(SZ::Config &conf, T *data, size_t &outSize) {
         conf.interp_op = interp_op;
         conf.interp_direction_op = direction_op;
         double tuning_time = timer.stop();
-        std::cout << "Tuning time = " << tuning_time << "s" << std::endl;
+//        std::cout << "Tuning time = " << tuning_time << "s" << std::endl;
         std::cout << "====================================== END TUNING ======================================"
                   << std::endl << std::endl;
         return SZ_compress_Interp_N<T, N>(conf, data, outSize);
@@ -212,7 +212,7 @@ char *SZ_compress_Interp_lorenzo_N(SZ::Config &conf, T *data, size_t &outSize) {
         lorenzo_config.update_dims(conf.dims.begin(), conf.dims.end());
         conf = lorenzo_config;
         double tuning_time = timer.stop();
-        std::cout << "Tuning time = " << tuning_time << "s" << std::endl;
+//        std::cout << "Tuning time = " << tuning_time << "s" << std::endl;
         std::cout << "====================================== END TUNING ======================================"
                   << std::endl << std::endl;
         return SZ_compress_LorenzoReg_N<T, N>(conf, data, outSize);
