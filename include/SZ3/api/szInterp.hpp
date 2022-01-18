@@ -90,7 +90,8 @@ double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> d
             interp_level
     );
 
-    sz.compress(data1.data(), compressed_size);
+    auto cmpData = sz.compress(data1.data(), compressed_size);
+    delete[]cmpData;
 
     double compression_time = timer.stop();
 
