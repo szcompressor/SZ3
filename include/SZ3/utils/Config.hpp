@@ -48,7 +48,7 @@ namespace SZ {
         double absErrorBound;
         double relErrorBound;
         int errorBoundMode = ABS;
-        char cmprMethod = METHOD_LORENZO;
+        char cmprMethod = METHOD_LORENZO_REG;
 
     };
 

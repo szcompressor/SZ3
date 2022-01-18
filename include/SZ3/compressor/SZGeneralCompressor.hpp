@@ -59,7 +59,7 @@ namespace SZ {
             return decompress(cmpData, cmpSize, dec_data);
         }
 
-        T *decompress(uchar const *cmpData, const size_t& cmpSize, T *decData) {
+        T *decompress(uchar const *cmpData, const size_t &cmpSize, T *decData) {
             size_t remaining_length = cmpSize;
 
             Timer timer(true);
@@ -92,9 +92,12 @@ namespace SZ {
     };
 
     template<class T, uint N, class Frontend, class Encoder, class Lossless>
-    SZGeneralCompressor<T, N, Frontend, Encoder, Lossless>
-    make_sz_general_compressor(const Config &conf, Frontend frontend, Encoder encoder, Lossless lossless) {
-        return SZGeneralCompressor<T, N, Frontend, Encoder, Lossless>(frontend, encoder, lossless);
+    std::shared_ptr<SZGeneralCompressor<T, N, Frontend, Encoder, Lossless>>
+    make_sz_general_compressor(Frontend frontend, Encoder encoder, Lossless lossless) {
+        return std::make_shared<SZGeneralCompressor<T, N, Frontend, Encoder, Lossless>>(frontend, encoder, lossless);
     }
+
+
+
 }
 #endif

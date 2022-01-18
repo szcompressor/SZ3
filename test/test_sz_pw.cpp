@@ -1,4 +1,4 @@
-#include "SZ3/frontend/SZFrontend.hpp"
+#include "SZ3/frontend/SZGeneralFrontend.hpp"
 #include "SZ3/predictor/Predictor.hpp"
 #include "SZ3/predictor/LorenzoPredictor.hpp"
 #include "SZ3/predictor/RegressionPredictor.hpp"
@@ -88,7 +88,7 @@ float SZ_compress(std::unique_ptr<T[]> const &data,
     }
 
 //    std::vector<T> data1 = std::vector<T>(data.get(), data.get() + conf.num);
-    auto sz = SZ::make_sz_general_compressor<T, N>(conf, frontend, encoder, lossless);
+    auto sz = SZ::make_sz_general_compressor<T, N>(frontend, encoder, lossless);
 
     SZ::Timer timer;
     timer.start();
@@ -97,7 +97,7 @@ float SZ_compress(std::unique_ptr<T[]> const &data,
 
     size_t compressed_size = 0;
     std::unique_ptr<SZ::uchar[]> compressed;
-    compressed.reset(sz.compress(conf, data.get(), compressed_size));
+    compressed.reset(sz->compress(conf, data.get(), compressed_size));
 
     compression_time = timer.stop("Compression");
 
@@ -119,7 +119,7 @@ float SZ_compress(std::unique_ptr<T[]> const &data,
     compressed = SZ::readfile<SZ::uchar>(compressed_file_name.c_str(), compressed_size);
 
     timer.start();
-    T *dec_data = sz.decompress(compressed.get(), compressed_size, conf.num);
+    T *dec_data = sz->decompress(compressed.get(), compressed_size, conf.num);
     timer.stop("Decompression");
 //    SZ::verify<T>(data1.data(), dec_data, conf.num);
 
@@ -182,7 +182,7 @@ float SZ_compress_build_frontend(std::unique_ptr<T[]> const &data, SZ::Config &c
     if (conf.enable_lorenzo) {
         if (use_single_predictor) {
             return SZ_compress_build_backend<T, N>(data, conf,
-                                                   SZ::make_sz_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 1>(conf.absErrorBound),
+                                                   SZ::make_sz_general_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 1>(conf.absErrorBound),
                                                                               quantizer));
         } else {
             predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 1>>(conf.absErrorBound));
@@ -191,7 +191,7 @@ float SZ_compress_build_frontend(std::unique_ptr<T[]> const &data, SZ::Config &c
     if (conf.enable_2ndlorenzo) {
         if (use_single_predictor) {
             return SZ_compress_build_backend<T, N>(data, conf,
-                                                   SZ::make_sz_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 2>(conf.absErrorBound),
+                                                   SZ::make_sz_general_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 2>(conf.absErrorBound),
                                                                               quantizer));
         } else {
             predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 2>>(conf.absErrorBound));
@@ -200,7 +200,7 @@ float SZ_compress_build_frontend(std::unique_ptr<T[]> const &data, SZ::Config &c
     if (conf.enable_regression) {
         if (use_single_predictor) {
             return SZ_compress_build_backend<T, N>(data, conf,
-                                                   SZ::make_sz_frontend<T, N>(conf, SZ::RegressionPredictor<T, N>(conf.block_size,
+                                                   SZ::make_sz_general_frontend<T, N>(conf, SZ::RegressionPredictor<T, N>(conf.block_size,
                                                                                                                   conf.absErrorBound),
                                                                               quantizer));
         } else {
@@ -209,7 +209,7 @@ float SZ_compress_build_frontend(std::unique_ptr<T[]> const &data, SZ::Config &c
     }
 
     return SZ_compress_build_backend<T, N>(data, conf,
-                                           SZ::make_sz_frontend<T, N>(conf, SZ::ComposedPredictor<T, N>(predictors), quantizer));
+                                           SZ::make_sz_general_frontend<T, N>(conf, SZ::ComposedPredictor<T, N>(predictors), quantizer));
 }
 
 

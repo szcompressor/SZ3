@@ -41,14 +41,14 @@ float SZ_compress(std::unique_ptr<T[]> const &data,
 
     std::vector<T> data_ = std::vector<T>(data.get(), data.get() + conf.num);
 
-    auto sz = SZ::make_sz_general_compressor<T, N>(conf, frontend, encoder, lossless);
+    auto sz = SZ::make_sz_general_compressor<T, N>(frontend, encoder, lossless);
 
     SZ::Timer timer(true);
     std::cout << "****************** Compression ******************" << std::endl;
 
     size_t compressed_size = 0;
     std::unique_ptr<SZ::uchar[]> compressed;
-    compressed.reset(sz.compress(conf, data.get(), compressed_size));
+    compressed.reset(sz->compress(conf, data.get(), compressed_size));
 
     timer.stop("Compression");
 
@@ -63,7 +63,7 @@ float SZ_compress(std::unique_ptr<T[]> const &data,
     compressed = SZ::readfile<SZ::uchar>(compressed_file_name.c_str(), compressed_size);
 
     timer.start();
-    T *dec_data = sz.decompress(compressed.get(), compressed_size, conf.num);
+    T *dec_data = sz->decompress(compressed.get(), compressed_size, conf.num);
     timer.stop("Decompression");
 
 //    remove(compressed_file_name.c_str());

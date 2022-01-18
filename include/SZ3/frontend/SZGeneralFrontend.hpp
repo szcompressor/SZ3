@@ -1,7 +1,7 @@
 #ifndef SZ3_FRONTEND
 #define SZ3_FRONTEND
 /**
- * This module contains SZ3 Predictor and Quantizer
+ * This module is the implementation of general frontend in SZ3
  */
 
 #include "Frontend.hpp"
@@ -17,10 +17,10 @@ namespace SZ {
 
 
     template<class T, uint N, class Predictor, class Quantizer>
-    class SZFrontend : public concepts::FrontendInterface<T, N> {
+    class SZGeneralFrontend : public concepts::FrontendInterface<T, N> {
     public:
 
-        SZFrontend(const Config &conf, Predictor predictor, Quantizer quantizer) :
+        SZGeneralFrontend(const Config &conf, Predictor predictor, Quantizer quantizer) :
                 fallback_predictor(LorenzoPredictor<T, N, 1>(conf.absErrorBound)),
                 predictor(predictor),
                 quantizer(quantizer),
@@ -30,7 +30,7 @@ namespace SZ {
             std::copy_n(conf.dims.begin(), N, global_dimensions.begin());
         }
 
-        ~SZFrontend() = default;
+        ~SZGeneralFrontend() = default;
 
         std::vector<int> compress(T *data) {
             std::vector<int> quant_inds(num_elements);
@@ -144,9 +144,9 @@ namespace SZ {
     };
 
     template<class T, uint N, class Predictor, class Quantizer>
-    SZFrontend<T, N, Predictor, Quantizer>
-    make_sz_frontend(const Config &conf, Predictor predictor, Quantizer quantizer) {
-        return SZFrontend<T, N, Predictor, Quantizer>(conf, predictor, quantizer);
+    SZGeneralFrontend<T, N, Predictor, Quantizer>
+    make_sz_general_frontend(const Config &conf, Predictor predictor, Quantizer quantizer) {
+        return SZGeneralFrontend<T, N, Predictor, Quantizer>(conf, predictor, quantizer);
     }
 }
 

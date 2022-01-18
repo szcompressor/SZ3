@@ -3,6 +3,7 @@
 #include <cmath>
 #include "SZ3/sz.hpp"
 
+
 #define SZ_FLOAT 0
 #define SZ_DOUBLE 1
 #define SZ_UINT8 2

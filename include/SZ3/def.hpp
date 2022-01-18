@@ -35,9 +35,9 @@ namespace SZ {
 #define REL_AND_PW_REL 13
 #define REL_OR_PW_REL 14
 
-#define METHOD_LORENZO_REGRESSION 0
+#define METHOD_LORENZO_REG 0
 #define METHOD_INTERP_LORENZO 1
 #define METHOD_INTERP 2
-#define METHOD_LORENZO 3
+#define METHOD_LORENZO_REG_FAST 3
 
 #endif

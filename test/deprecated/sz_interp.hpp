@@ -1,16 +1,16 @@
-#include <SZ3/compressor/SZInterpolationCompressor.hpp>
+#include "SZ3/compressor/SZInterpolationCompressor.hpp"
 #include "SZ3/compressor/deprecated/SZBlockInterpolationCompressor.hpp"
-#include <SZ3/compressor/SZGeneralCompressor.hpp>
-#include <SZ3/frontend/SZMetaFrontend.hpp>
-#include <SZ3/quantizer/IntegerQuantizer.hpp>
-#include <SZ3/predictor/ComposedPredictor.hpp>
-#include <SZ3/predictor/SimplePredictor.hpp>
-#include <SZ3/lossless/Lossless_zstd.hpp>
-#include <SZ3/utils/Iterator.hpp>
-#include <SZ3/utils/Verification.hpp>
-#include <SZ3/utils/Extraction.hpp>
-#include <SZ3/utils/QuantOptimizatioin.hpp>
-#include <SZ3/utils/Config.hpp>
+#include "SZ3/compressor/SZGeneralCompressor.hpp"
+#include "SZ3/frontend/SZMetaFrontend.hpp"
+#include "SZ3/quantizer/IntegerQuantizer.hpp"
+#include "SZ3/predictor/ComposedPredictor.hpp"
+#include "SZ3/predictor/SimplePredictor.hpp"
+#include "SZ3/lossless/Lossless_zstd.hpp"
+#include "SZ3/utils/Iterator.hpp"
+#include "SZ3/utils/Verification.hpp"
+#include "SZ3/utils/Extraction.hpp"
+#include "SZ3/utils/QuantOptimizatioin.hpp"
+#include "SZ3/utils/Config.hpp"
 #include <cstdio>
 #include <iostream>
 #include <cmath>
@@ -200,10 +200,10 @@ lorenzo_compress_decompress_3d(char *path, T *data, size_t num_elements, SZ::Con
 
         timer.start();
         quantizer = SZ::LinearQuantizer<T>(conf.absErrorBound, conf.quant_state_num / 2);
-        sz = make_sz_general_compressor(conf, make_sz_meta_frontend(conf, quantizer), SZ::HuffmanEncoder<int>(),
+        sz = make_sz_general_compressor(make_sz_meta_frontend(conf, quantizer), SZ::HuffmanEncoder<int>(),
                                         SZ::Lossless_zstd());
 
-        T *dec_data = sz.decompress(compressed.get(), compressed_size);
+        T *dec_data = sz->decompress(compressed.get(), compressed_size);
 
         compressStats.decompress_time = timer.stop();
         std::string decompressed_file_name = SZ::decompressed_path(path, false);
