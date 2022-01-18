@@ -24,7 +24,7 @@ See COPYRIGHT in top-level directory.
 ## Installation
 
 * mkdir build && cd build
-* cmake .. -DCMAKE_INSTALL_PREFIX:PATH=[INSTALL_DIR]
+* cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX:PATH=[INSTALL_DIR] ..
 * make
 * make install
 
@@ -32,11 +32,7 @@ Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [
 
 ## Testing Examples
 
-You can use the executable 'sz_demo' command to do the compression/decompression.
-
-* ./sz_demo testfloat_8_8_128.dat -3 8 8 128 1e-3
-
-The order of the dimensions is the same as the c array. For example, use '-3 r1 r2 r3' for data[r1][r2][r3]
+You can use the executable 'sz' command to do the compression/decompression.
 
 ## Version history
 

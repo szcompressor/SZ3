@@ -117,16 +117,7 @@ char *SZ_compress_Interp_lorenzo_N(SZ::Config &conf, T *data, size_t &outSize) {
     std::cout << "================================ BEGIN TUNING ================================" << std::endl;
     SZ::Timer timer(true);
 
-    if (conf.errorBoundMode != ABS) {
-        if (conf.errorBoundMode == REL) {
-            conf.errorBoundMode = ABS;
-            conf.absErrorBound = conf.relErrorBound * SZ::data_range(data, conf.num);
-        } else {
-            printf("Error, error bound mode not supported\n");
-            exit(0);
-        }
-    }
-
+    SZ::calAbsErrorBound(conf, data);
 
     size_t sampling_num, sampling_block;
     std::vector<size_t> sample_dims(N);
