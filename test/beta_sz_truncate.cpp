@@ -3,7 +3,7 @@
 #include "SZ3/lossless/Lossless_bypass.hpp"
 #include "SZ3/utils/FileUtil.hpp"
 #include "SZ3/utils/Config.hpp"
-#include "SZ3/utils/Verification.hpp"
+#include "SZ3/utils/Statistic.hpp"
 #include "SZ3/utils/Timer.hpp"
 #include "SZ3/def.hpp"
 #include <cstdio>

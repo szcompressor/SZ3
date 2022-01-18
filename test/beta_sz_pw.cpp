@@ -13,7 +13,7 @@
 #include "SZ3/encoder/BypassEncoder.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
 #include "SZ3/lossless/Lossless_bypass.hpp"
-#include "SZ3/utils/Verification.hpp"
+#include "SZ3/utils/Statistic.hpp"
 #include "SZ3/utils/Timer.hpp"
 #include <sstream>
 #include <random>

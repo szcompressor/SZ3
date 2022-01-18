@@ -2,8 +2,8 @@
 // Created by Kai Zhao on 4/20/20.
 //
 
-#ifndef SZ_VERIFICATION_HPP
-#define SZ_VERIFICATION_HPP
+#ifndef SZ_STATISTIC_HPP
+#define SZ_STATISTIC_HPP
 
 namespace SZ {
     template<class T>
@@ -119,4 +119,4 @@ namespace SZ {
 };
 
 
-#endif //SZ_VERIFICATION_HPP
+#endif

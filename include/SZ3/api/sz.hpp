@@ -13,7 +13,7 @@
 #include "SZ3/predictor/PolyRegressionPredictor.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
 #include "SZ3/utils/Iterator.hpp"
-#include "SZ3/utils/Verification.hpp"
+#include "SZ3/utils/Statistic.hpp"
 #include "SZ3/utils/Extraction.hpp"
 #include "SZ3/utils/QuantOptimizatioin.hpp"
 #include "SZ3/utils/Config.hpp"
