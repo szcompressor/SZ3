@@ -1,5 +1,5 @@
 #include "SZ3/compressor/SZInterpolationCompressor.hpp"
-#include "SZ3/compressor/SZBlockInterpolationCompressor.hpp"
+#include "SZ3/compressor/deprecated/SZBlockInterpolationCompressor.hpp"
 #include "SZ3/compressor/SZGeneralCompressor.hpp"
 #include "SZ3/frontend/SZMetaFrontend.hpp"
 #include "SZ3/quantizer/IntegerQuantizer.hpp"

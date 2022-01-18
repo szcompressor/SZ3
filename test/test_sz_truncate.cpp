@@ -11,13 +11,14 @@
 #include <memory>
 #include <sstream>
 #include <random>
+#include <array>
 
 std::string src_file_name;
 float relative_error_bound = 0;
 float compression_time = 0;
 int byteLen = 2;
 
-template<typename T, class Lossless, uint N>
+template<typename T, uint N, class Lossless>
 float SZ_compress(std::unique_ptr<T[]> const &data,
                   const SZ::Config &conf, Lossless lossless) {
 
@@ -30,7 +31,7 @@ float SZ_compress(std::unique_ptr<T[]> const &data,
 
     std::vector<T> data_ = std::vector<T>(data.get(), data.get() + conf.num);
 
-    auto sz = make_sz_truncate_compressor(conf, lossless, byteLen);
+    auto sz = SZ::make_sz_truncate_compressor<T, N>(conf, lossless, byteLen);
 
     SZ::Timer timer;
     timer.start();
@@ -39,7 +40,7 @@ float SZ_compress(std::unique_ptr<T[]> const &data,
 
     size_t compressed_size = 0;
     std::unique_ptr<SZ::uchar[]> compressed;
-    compressed.reset(sz.compress(data.get(), compressed_size));
+    compressed.reset(sz.compress(conf,data.get(), compressed_size));
 
     compression_time = timer.stop("Compression");
 
@@ -78,14 +79,16 @@ float SZ_compress(std::unique_ptr<T[]> const &data,
 template<class T, uint N>
 float SZ_compress_parse_args(int argc, char **argv, int argp, std::unique_ptr<T[]> &data, float eb,
                              std::array<size_t, N> dims) {
-    SZ::Config conf(eb, dims);
+    SZ::Config conf;
+    conf.update_dims(dims.begin(), dims.end());
+    conf.absErrorBound = eb;
     if (argp < argc) {
         conf.lossless_op = atoi(argv[argp++]);
     }
     if (conf.lossless_op > 0) {
-        return SZ_compress<T>(data, conf, SZ::Lossless_zstd(conf.lossless_op));
+        return SZ_compress<T, N>(data, conf, SZ::Lossless_zstd(conf.lossless_op));
     } else {
-        return SZ_compress<T>(data, conf, SZ::Lossless_bypass());
+        return SZ_compress<T, N>(data, conf, SZ::Lossless_bypass());
     }
 }
 

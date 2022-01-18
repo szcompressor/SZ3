@@ -12,7 +12,7 @@
 #include <iostream>
 #include <memory>
 
-#include "test_sz_v2.hpp"
+#include "test_szv2.hpp"
 
 
 template<typename T, uint N>
@@ -24,28 +24,28 @@ float SZ_compress_build_frontend(std::unique_ptr<T[]> const &data, const SZ::Con
             (conf.enable_lorenzo + conf.enable_2ndlorenzo + conf.enable_regression) == 1;
     if (conf.enable_lorenzo) {
         if (use_single_predictor) {
-            return SZ_compress_build_backend<T>(data, conf,
-                                                make_sz_frontend(conf, SZ::LorenzoPredictor<T, N, 1>(conf.absErrorBound),
-                                                                 quantizer));
+            return SZ_compress_build_backend<T, N>(data, conf,
+                                                   SZ::make_sz_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 1>(conf.absErrorBound),
+                                                                              quantizer));
         } else {
             predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 1>>(conf.absErrorBound));
         }
     }
     if (conf.enable_2ndlorenzo) {
         if (use_single_predictor) {
-            return SZ_compress_build_backend<T>(data, conf,
-                                                make_sz_frontend(conf, SZ::LorenzoPredictor<T, N, 2>(conf.absErrorBound),
-                                                                 quantizer));
+            return SZ_compress_build_backend<T, N>(data, conf,
+                                                   SZ::make_sz_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 2>(conf.absErrorBound),
+                                                                              quantizer));
         } else {
             predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 2>>(conf.absErrorBound));
         }
     }
     if (conf.enable_regression) {
         if (use_single_predictor) {
-            return SZ_compress_build_backend<T>(data, conf,
-                                                make_sz_frontend(conf, SZ::RegressionPredictor<T, N>(conf.block_size,
-                                                                                                     conf.absErrorBound),
-                                                                 quantizer));
+            return SZ_compress_build_backend<T, N>(data, conf,
+                                                   SZ::make_sz_frontend<T, N>(conf, SZ::RegressionPredictor<T, N>(conf.block_size,
+                                                                                                                  conf.absErrorBound),
+                                                                              quantizer));
         } else {
             predictors.push_back(std::make_shared<SZ::RegressionPredictor<T, N>>(conf.block_size, conf.absErrorBound));
         }
@@ -53,22 +53,24 @@ float SZ_compress_build_frontend(std::unique_ptr<T[]> const &data, const SZ::Con
 
     if (conf.enable_2ndregression) {
         if (use_single_predictor) {
-            return SZ_compress_build_backend<T>(data, conf, make_sz_frontend(conf, SZ::PolyRegressionPredictor<T, N>(
+            return SZ_compress_build_backend<T, N>(data, conf, SZ::make_sz_frontend<T, N>(conf, SZ::PolyRegressionPredictor<T, N>(
                     conf.block_size, conf.absErrorBound), quantizer));
         } else {
             predictors.push_back(std::make_shared<SZ::PolyRegressionPredictor<T, N>>(conf.block_size, conf.absErrorBound));
         }
     }
 
-    return SZ_compress_build_backend<T>(data, conf,
-                                        make_sz_frontend(conf, SZ::ComposedPredictor<T, N>(predictors), quantizer));
+    return SZ_compress_build_backend<T, N>(data, conf,
+                                           SZ::make_sz_frontend<T, N>(conf, SZ::ComposedPredictor<T, N>(predictors), quantizer));
 }
 
 
 template<class T, uint N>
 float SZ_compress_parse_args(int argc, char **argv, int argp, std::unique_ptr<T[]> &data, float eb,
                              std::array<size_t, N> dims) {
-    SZ::Config conf(eb, dims);
+    SZ::Config conf;
+    conf.update_dims(dims.begin(), dims.end());
+    conf.absErrorBound = eb;
     if (argp < argc) {
         int block_size = atoi(argv[argp++]);
         conf.block_size = block_size;
@@ -106,7 +108,7 @@ float SZ_compress_parse_args(int argc, char **argv, int argp, std::unique_ptr<T[
         conf.quant_state_num = atoi(argv[argp++]);
     }
 
-    auto ratio = SZ_compress_build_frontend(data, conf);
+    auto ratio = SZ_compress_build_frontend<T, N>(data, conf);
     return ratio;
 }
 

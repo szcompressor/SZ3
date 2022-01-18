@@ -7,18 +7,20 @@
 #include <cstdio>
 #include <iostream>
 #include <memory>
-#include "test_sz_v2.hpp"
+#include "test_szv2.hpp"
 
 template<typename T, uint N>
 float SZ_compress_build_frontend(std::unique_ptr<T[]> const &data, const SZ::Config &conf) {
     auto quantizer = SZ::LinearQuantizer<T>(conf.absErrorBound, conf.quant_state_num / 2);
-    return SZ_compress_build_backend(data, conf, make_sz_meta_frontend(conf, quantizer));
+    return SZ_compress_build_backend<T, N>(data, conf, SZ::make_sz_meta_frontend<T, N>(conf, quantizer));
 }
 
 template<class T, uint N>
 float SZ_compress_parse_args(int argc, char **argv, int argp, std::unique_ptr<T[]> &data, float eb,
                              std::array<size_t, N> dims) {
-    SZ::Config conf(eb, dims);
+    SZ::Config conf;
+    conf.update_dims(dims.begin(), dims.end());
+    conf.absErrorBound = eb;
     if (argp < argc) {
         int block_size = atoi(argv[argp++]);
         conf.block_size = block_size;
@@ -55,7 +57,7 @@ float SZ_compress_parse_args(int argc, char **argv, int argp, std::unique_ptr<T[
         conf.quant_state_num = atoi(argv[argp++]);
     }
 
-    auto ratio = SZ_compress_build_frontend(data, conf);
+    auto ratio = SZ_compress_build_frontend<T, N>(data, conf);
     return ratio;
 }
 
