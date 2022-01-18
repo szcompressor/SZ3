@@ -59,10 +59,11 @@ namespace SZ {
         double diffMax = fabs(data[0] - ori_data[0]);
         double diff_sum = 0;
         double maxpw_relerr = 0;
-        double sum1 = 0, sum2 = 0;
+        double sum1 = 0, sum2 = 0, l2sum = 0;
         for (i = 0; i < num_elements; i++) {
             sum1 += ori_data[i];
             sum2 += data[i];
+            l2sum += data[i] * data[i];
         }
         double mean1 = sum1 / num_elements;
         double mean2 = sum2 / num_elements;
@@ -101,13 +102,17 @@ namespace SZ {
         psnr = 20 * log10(range) - 10 * log10(mse);
         nrmse = sqrt(mse) / range;
 
+        double normErr = sqrt(sum);
+        double normErr_norm = normErr / sqrt(l2sum);
+
         printf("Min=%.20G, Max=%.20G, range=%.20G\n", Min, Max, range);
         printf("Max absolute error = %.2G\n", diffMax);
         printf("Max relative error = %.2G\n", diffMax / (Max - Min));
         printf("Max pw relative error = %.2G\n", maxpw_relerr);
         printf("PSNR = %f, NRMSE= %.10G\n", psnr, nrmse);
+        printf ("normError = %f, normErr_norm = %f\n", normErr, normErr_norm);
         printf("acEff=%f\n", acEff);
-        printf("errAutoCorr=%.10f\n", autocorrelation1DLag1<double>(diff, num_elements, diff_sum / num_elements));
+//        printf("errAutoCorr=%.10f\n", autocorrelation1DLag1<double>(diff, num_elements, diff_sum / num_elements));
         free(diff);
     }
 

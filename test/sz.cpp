@@ -128,6 +128,7 @@ void decompress(char *inPath, char *cmpPath, char *decPath,
     }
     delete[]decData;
 
+    printf("compressionRatio=%f\n", conf.num * sizeof(T) * 1.0 / cmpSize);
     printf("decompression time = %f seconds.\n", compress_time);
     printf("decompressed decData file: %s\n", outputFilePath);
 }
