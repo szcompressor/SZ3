@@ -9,6 +9,7 @@
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/Timer.hpp"
 #include "SZ3/utils/ByteUtil.hpp"
+#include "SZ3/utils/MemoryUtil.hpp"
 #include "SZ3/def.hpp"
 #include <cstring>
 
@@ -18,13 +19,13 @@ namespace SZ {
     public:
 
 
-        SZTruncateCompressor(const Config<T, N> &conf, Lossless lossless, int byteLens) :
+        SZTruncateCompressor(const Config &conf, Lossless lossless, int byteLens) :
                 lossless(lossless), conf(conf), byteLen(byteLens) {
             static_assert(std::is_base_of<concepts::LosslessInterface, Lossless>::value,
                           "must implement the lossless interface");
         }
 
-        uchar *compress(T *data, size_t &compressed_size) {
+        uchar *compress(const Config &conf, T *data, size_t &compressed_size) {
 
             auto compressed_data = new uchar[conf.num * sizeof(T)];
             auto compressed_data_pos = (uchar *) compressed_data;
@@ -40,32 +41,37 @@ namespace SZ {
             return lossless_data;
         }
 
+        T *decompress(uchar const *cmpData, const size_t &cmpSize, size_t num) {
+            T *dec_data = new T[num];
+            return decompress(cmpData, cmpSize, dec_data);
+        }
 
-        T *decompress(uchar const *lossless_compressed_data, const size_t length) {
-            size_t remaining_length = length;
+        T *decompress(uchar const *cmpData, const size_t& cmpSize, T *decData) {
+            size_t remaining_length = cmpSize;
 
-            auto compressed_data = lossless.decompress(lossless_compressed_data, remaining_length);
+            auto compressed_data = lossless.decompress(cmpData, remaining_length);
             auto compressed_data_pos = (uchar *) compressed_data;
 
             Timer timer(true);
-            auto dec_data = new T[conf.num];
-            truncateArrayRecover(compressed_data_pos, conf.num, byteLen, dec_data);
+//            auto dec_data = new T[conf.num];
+            truncateArrayRecover(compressed_data_pos, conf.num, byteLen, decData);
 
             lossless.postdecompress_data(compressed_data);
             timer.stop("Prediction & Recover");
-            return dec_data;
+            return decData;
         }
+
 
 
     private:
         Lossless lossless;
-        Config<T, N> conf;
+        Config conf;
         int byteLen = 2;
     };
 
     template<class T, uint N, class Lossless>
     SZTruncateCompressor<T, N, Lossless>
-    make_sz_truncate_compressor(const Config<T, N> &conf, Lossless lossless, int byteLens) {
+    make_sz_truncate_compressor(const Config &conf, Lossless lossless, int byteLens) {
         return SZTruncateCompressor<T, N, Lossless>(conf, lossless, byteLens);
     }
 }

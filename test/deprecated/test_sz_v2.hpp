@@ -21,12 +21,12 @@ float relative_error_bound = 0;
 
 template<typename T, class Frontend, class Encoder, class Lossless, uint N>
 float SZ_compress(std::unique_ptr<T[]> const &data,
-                  const SZ::Config<T, N> &conf,
+                  const SZ::Config &conf,
                   Frontend frontend, Encoder encoder, Lossless lossless) {
 
     std::cout << "****************** Options ********************" << std::endl;
     std::cout << "dimension = " << N
-              << ", error bound = " << conf.eb
+              << ", error bound = " << conf.absErrorBound
               << ", block_size = " << conf.block_size
               << ", stride = " << conf.stride
               << ", quan_state_num = " << conf.quant_state_num
@@ -79,7 +79,7 @@ float SZ_compress(std::unique_ptr<T[]> const &data,
 
 template<typename T, class Frontend, uint N>
 float SZ_compress_build_backend(std::unique_ptr<T[]> const &data,
-                                const SZ::Config<T, N> &conf,
+                                const SZ::Config &conf,
                                 Frontend frontend) {
     if (conf.lossless_op == 1) {
         if (conf.encoder_op == 1) {

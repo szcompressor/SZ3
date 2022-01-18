@@ -21,7 +21,7 @@ namespace SZ {
 
             virtual std::vector<int> compress(T *data) = 0;
 
-            virtual T *decompress(std::vector<int> &quant_inds) = 0;
+            virtual T *decompress(std::vector<int> &quant_inds, T *dec_data) = 0;
 
             virtual void save(uchar *&c) = 0;
 

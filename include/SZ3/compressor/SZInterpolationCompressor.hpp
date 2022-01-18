@@ -13,7 +13,7 @@
 #include "SZ3/utils/Interpolators.hpp"
 #include "SZ3/utils/Timer.hpp"
 #include "SZ3/def.hpp"
-#include "SZ3/utils/ConfigNew.hpp"
+#include "SZ3/utils/Config.hpp"
 #include <cstring>
 #include <cmath>
 
@@ -34,10 +34,14 @@ namespace SZ {
                           "must implement the lossless interface");
         }
 
+        T *decompress(uchar const *cmpData, const size_t &cmpSize, size_t num) {
+            T *dec_data = new T[num];
+            return decompress(cmpData, cmpSize, dec_data);
+        }
 
-        T *decompress(const ConfigNew &conf, uchar *compressed_data, T *dec_data, const size_t length) {
-            size_t remaining_length = length;
-            uchar *buffer = lossless.decompress(compressed_data, remaining_length);
+        T *decompress(uchar const *cmpData, const size_t& cmpSize, T *decData) {
+            size_t remaining_length = cmpSize;
+            uchar *buffer = lossless.decompress(cmpData, remaining_length);
             uchar const *buffer_pos = buffer;
 
             read(global_dimensions.data(), N, buffer_pos, remaining_length);
@@ -46,7 +50,6 @@ namespace SZ {
             read(direction_sequence_id, buffer_pos, remaining_length);
 
             init();
-            assert(conf.num == num_elements);
 
             quantizer.load(buffer_pos, remaining_length);
             encoder.load(buffer_pos, remaining_length);
@@ -57,7 +60,7 @@ namespace SZ {
             lossless.postdecompress_data(buffer);
             double eb = quantizer.get_eb();
 
-            *dec_data = quantizer.recover(0, quant_inds[quant_index++]);
+            *decData = quantizer.recover(0, quant_inds[quant_index++]);
 
             for (uint level = interpolation_level; level > 0 && level <= interpolation_level; level--) {
                 if (level >= 3) {
@@ -67,7 +70,7 @@ namespace SZ {
                 }
                 size_t stride = 1U << (level - 1);
                 auto inter_block_range = std::make_shared<
-                        SZ::multi_dimensional_range<T, N>>(dec_data,
+                        SZ::multi_dimensional_range<T, N>>(decData,
                                                            std::begin(global_dimensions), std::end(global_dimensions),
                                                            stride * blocksize, 0);
                 auto inter_begin = inter_block_range->begin();
@@ -80,7 +83,7 @@ namespace SZ {
                             end_idx[i] = global_dimensions[i] - 1;
                         }
                     }
-                    block_interpolation(dec_data, block.get_global_index(), end_idx, PB_recover,
+                    block_interpolation(decData, block.get_global_index(), end_idx, PB_recover,
                                         interpolators[interpolator_id], direction_sequence_id, stride);
 
                 }
@@ -88,17 +91,11 @@ namespace SZ {
             quantizer.postdecompress_data();
 //            timer.stop("Interpolation Decompress");
 
-            return dec_data;
-        }
-
-        T *decompress(const ConfigNew &conf, uchar *compressed_data, const size_t length) {
-            T *dec_data = new T[conf.num];
-            decompress(conf, compressed_data, dec_data, length);
-            return dec_data;
+            return decData;
         }
 
         // compress given the error bound
-        uchar *compress(const ConfigNew &conf, T *data, size_t &compressed_size) {
+        uchar *compress(const Config &conf, T *data, size_t &compressed_size) {
             std::copy_n(conf.dims.begin(), N, global_dimensions.begin());
             blocksize = conf.interp_block_size;
             interpolator_id = conf.interp_op;
@@ -155,31 +152,32 @@ namespace SZ {
 //            writefile("pred.dat", preds.data(), num_elements);
 //            writefile("quant.dat", quant_inds.data(), num_elements);
             //TODO find a better estimation method
-            uchar *compressed_data = (num_elements < 1000000) ?
-                                     new uchar[4 * num_elements * sizeof(T)] :
-                                     new uchar[size_t(1.2 * num_elements) * sizeof(T)];
-            uchar *compressed_data_pos = compressed_data;
-            write(global_dimensions.data(), N, compressed_data_pos);
-            write(blocksize, compressed_data_pos);
-            write(interpolator_id, compressed_data_pos);
-            write(direction_sequence_id, compressed_data_pos);
+            uchar *buffer = (num_elements < 1000000) ?
+                            new uchar[4 * num_elements * sizeof(T)] :
+                            new uchar[size_t(1.2 * num_elements) * sizeof(T)];
+            uchar *buffer_pos = buffer;
 
-            quantizer.save(compressed_data_pos);
+            write(global_dimensions.data(), N, buffer_pos);
+            write(blocksize, buffer_pos);
+            write(interpolator_id, buffer_pos);
+            write(direction_sequence_id, buffer_pos);
+
+            quantizer.save(buffer_pos);
             quantizer.postcompress_data();
 
 
             timer.start();
             encoder.preprocess_encode(quant_inds, 4 * quantizer.get_radius());
-            encoder.save(compressed_data_pos);
-            encoder.encode(quant_inds, compressed_data_pos);
+            encoder.save(buffer_pos);
+            encoder.encode(quant_inds, buffer_pos);
             encoder.postprocess_encode();
             timer.stop("Coding");
 
             timer.start();
-            uchar *lossless_data = lossless.compress(compressed_data,
-                                                     compressed_data_pos - compressed_data,
+            uchar *lossless_data = lossless.compress(buffer,
+                                                     buffer_pos - buffer,
                                                      compressed_size);
-            lossless.postcompress_data(compressed_data);
+            lossless.postcompress_data(buffer);
             timer.stop("Lossless");
 
             compressed_size += interp_compressed_size;

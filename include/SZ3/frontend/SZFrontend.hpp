@@ -20,14 +20,14 @@ namespace SZ {
     class SZFrontend : public concepts::FrontendInterface<T, N> {
     public:
 
-        SZFrontend(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer) :
-                fallback_predictor(LorenzoPredictor<T, N, 1>(conf.eb)),
+        SZFrontend(const Config &conf, Predictor predictor, Quantizer quantizer) :
+                fallback_predictor(LorenzoPredictor<T, N, 1>(conf.absErrorBound)),
                 predictor(predictor),
                 quantizer(quantizer),
                 block_size(conf.block_size),
                 stride(conf.stride),
-                global_dimensions(conf.dims),
                 num_elements(conf.num) {
+            std::copy_n(conf.dims.begin(), N, global_dimensions.begin());
         }
 
         ~SZFrontend() = default;
@@ -64,11 +64,11 @@ namespace SZ {
             return quant_inds;
         }
 
-        T *decompress(std::vector<int> &quant_inds) {
+        T *decompress(std::vector<int> &quant_inds, T *dec_data) {
 
             int const *quant_inds_pos = (int const *) quant_inds.data();
             std::array<size_t, N> intra_block_dims;
-            auto dec_data = new T[num_elements];
+//            auto dec_data = new T[num_elements];
             auto block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
                     dec_data, std::begin(global_dimensions), std::end(global_dimensions), stride, 0);
 
@@ -145,7 +145,7 @@ namespace SZ {
 
     template<class T, uint N, class Predictor, class Quantizer>
     SZFrontend<T, N, Predictor, Quantizer>
-    make_sz_frontend(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer) {
+    make_sz_frontend(const Config &conf, Predictor predictor, Quantizer quantizer) {
         return SZFrontend<T, N, Predictor, Quantizer>(conf, predictor, quantizer);
     }
 }

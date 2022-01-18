@@ -1,4 +1,4 @@
-#include <SZ3/encoder/HuffmanEncoder.hpp>
+#include "SZ3/encoder/HuffmanEncoder.hpp"
 #include <vector>
 #include <iostream>
 

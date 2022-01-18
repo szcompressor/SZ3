@@ -127,7 +127,7 @@ double interp_compress_block_version(T *data, std::array<size_t, N> dims, size_t
     std::vector<T> data1(data, data + num);
     size_t compressed_size = 0;
 
-    SZ::Config<T, N> conf(eb, dims);
+    SZ::Config conf(eb, dims);
     conf.block_size = block_size;
     conf.stride = conf.block_size;
     auto sz = SZ::make_sz_fast_block_interpolation_compressor(
@@ -165,12 +165,12 @@ double interp_compress_block_version(T *data, std::array<size_t, N> dims, size_t
 
 template<typename T, uint N>
 SZ::CompressStats
-lorenzo_compress_decompress_3d(char *path, T *data, size_t num_elements, SZ::Config<T, N> conf, bool decompress) {
+lorenzo_compress_decompress_3d(char *path, T *data, size_t num_elements, SZ::Config conf, bool decompress) {
     SZ::Timer timer(true);
     SZ::CompressStats compressStats;
     std::cout << "***************** Lorenzo Compression ****************" << std::endl;
 
-    auto quantizer = SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2);
+    auto quantizer = SZ::LinearQuantizer<T>(conf.absErrorBound, conf.quant_state_num / 2);
     auto sz = make_sz_general_compressor(conf, make_sz_meta_frontend(conf, quantizer), SZ::HuffmanEncoder<int>(),
                                          SZ::Lossless_zstd());
 
@@ -199,7 +199,7 @@ lorenzo_compress_decompress_3d(char *path, T *data, size_t num_elements, SZ::Con
 //        remove(compressed_file_name.c_str());
 
         timer.start();
-        quantizer = SZ::LinearQuantizer<T>(conf.eb, conf.quant_state_num / 2);
+        quantizer = SZ::LinearQuantizer<T>(conf.absErrorBound, conf.quant_state_num / 2);
         sz = make_sz_general_compressor(conf, make_sz_meta_frontend(conf, quantizer), SZ::HuffmanEncoder<int>(),
                                         SZ::Lossless_zstd());
 
@@ -245,7 +245,7 @@ void interp_lorenzo_tuning(char *path, double reb, bool enable_lorenzo, Dims ...
 //    printf("%lu %lu %lu %lu %lu\n", sampling_data.size(), sampling_num, sample_dims[0], sample_dims[1], sample_dims[2]);
 
     SZ::CompressStats lorenzo_stats;
-    SZ::Config<T, N> lorenzo_config(eb, sample_dims);
+    SZ::Config lorenzo_config(eb, sample_dims);
     if (enable_lorenzo) {
         if (N != 3) {
             printf("Lorenzo can only be enabled in 3D mode");

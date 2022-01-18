@@ -23,10 +23,10 @@ namespace SZ {
     public:
 
 
-        SZBlockInterpolationCompressor(const Config<T, N> &conf,
+        SZBlockInterpolationCompressor(const Config &conf,
                                        Predictor predictor, Quantizer quantizer, Encoder encoder, Lossless lossless,
                                        int interpolator, int direction, int interpo_level) :
-                fallback_predictor(LorenzoPredictor<T, N, 1>(conf.eb)),
+                fallback_predictor(LorenzoPredictor<T, N, 1>(conf.absErrorBound)),
                 predictor(predictor), quantizer(quantizer), encoder(encoder), lossless(lossless),
                 block_size(conf.block_size), stride(conf.stride),
                 global_dimensions(conf.dims), num_elements(conf.num),
@@ -684,7 +684,7 @@ namespace SZ {
 
     template<class T, uint N, class Predictor, class Quantizer, class Encoder, class Lossless>
     SZBlockInterpolationCompressor<T, N, Predictor, Quantizer, Encoder, Lossless>
-    make_sz_fast_block_interpolation_compressor(const Config<T, N> &conf, Predictor predictor, Quantizer quantizer,
+    make_sz_fast_block_interpolation_compressor(const Config &conf, Predictor predictor, Quantizer quantizer,
                                                 Encoder encoder, Lossless lossless,
                                                 int interp_op,
                                                 int direction_op,

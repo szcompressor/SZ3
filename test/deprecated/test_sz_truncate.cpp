@@ -19,11 +19,11 @@ int byteLen = 2;
 
 template<typename T, class Lossless, uint N>
 float SZ_compress(std::unique_ptr<T[]> const &data,
-                  const SZ::Config<T, N> &conf, Lossless lossless) {
+                  const SZ::Config &conf, Lossless lossless) {
 
     std::cout << "****************** Options ********************" << std::endl;
     std::cout << "dimension = " << N
-              << ", error bound = " << conf.eb
+              << ", error bound = " << conf.absErrorBound
               << ", byteLen = " << byteLen
               << ", lossless = " << conf.lossless_op
               << std::endl;
@@ -61,7 +61,7 @@ float SZ_compress(std::unique_ptr<T[]> const &data,
     compressed = SZ::readfile<SZ::uchar>(compressed_file_name.c_str(), compressed_size);
 
     timer.start();
-    T *dec_data = sz.decompress(compressed.get(), compressed_size);
+    T *dec_data = sz.decompress(compressed.get(), compressed_size, conf.num);
     timer.stop("Decompression");
 
     SZ::verify<T>(data_.data(), dec_data, conf.num);
@@ -78,7 +78,7 @@ float SZ_compress(std::unique_ptr<T[]> const &data,
 template<class T, uint N>
 float SZ_compress_parse_args(int argc, char **argv, int argp, std::unique_ptr<T[]> &data, float eb,
                              std::array<size_t, N> dims) {
-    SZ::Config<float, N> conf(eb, dims);
+    SZ::Config conf(eb, dims);
     if (argp < argc) {
         conf.lossless_op = atoi(argv[argp++]);
     }

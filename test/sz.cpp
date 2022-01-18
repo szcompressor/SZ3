@@ -70,13 +70,13 @@ void usage() {
 }
 
 template<class T>
-void compress(char *inPath, char *cmpPath, SZ::ConfigNew conf) {
+void compress(char *inPath, char *cmpPath, SZ::Config conf) {
     T *data = new T[conf.num];
     SZ::readfile<T>(inPath, conf.num, data);
 
     size_t outSize;
     SZ::Timer timer(true);
-    char *bytes = SZ_compress_interp<T>(conf, data, outSize);
+    char *bytes = SZ_compress<T>(conf, data, outSize);
     double compress_time = timer.stop();
 
     char outputFilePath[256];
@@ -97,14 +97,14 @@ void compress(char *inPath, char *cmpPath, SZ::ConfigNew conf) {
 
 template<class T>
 void decompress(char *inPath, char *cmpPath, char *decPath,
-                SZ::ConfigNew conf,
+                SZ::Config conf,
                 int binaryOutput, int printCmpResults) {
 
     size_t cmpSize;
     auto cmpData = SZ::readfile<char>(cmpPath, cmpSize);
 
     SZ::Timer timer(true);
-    T *decData = SZ_decompress_interp<T>(conf, cmpData.get(), cmpSize);
+    T *decData = SZ_decompress<T>(conf, cmpData.get(), cmpSize);
     double compress_time = timer.stop();
 
     char outputFilePath[256];
@@ -285,22 +285,22 @@ int main(int argc, char *argv[]) {
     }
 
 
-    SZ::ConfigNew conf;
+    SZ::Config conf;
     if (r2 == 0) {
         nbEle = r1;
-        conf = SZ::ConfigNew(r1);
+        conf = SZ::Config(r1);
     } else if (r3 == 0) {
         nbEle = r1 * r2;
-        conf = SZ::ConfigNew(r2, r1);
+        conf = SZ::Config(r2, r1);
     } else if (r4 == 0) {
         nbEle = r1 * r2 * r3;
-        conf = SZ::ConfigNew(r3, r2, r1);
+        conf = SZ::Config(r3, r2, r1);
     } else if (r5 == 0) {
         nbEle = r1 * r2 * r3 * r4;
-        conf = SZ::ConfigNew(r4, r3, r2, r1);
+        conf = SZ::Config(r4, r3, r2, r1);
     } else {
         nbEle = r1 * r2 * r3 * r4 * r5;
-        conf = SZ::ConfigNew(r5, r4, r3, r2, r1);
+        conf = SZ::Config(r5, r4, r3, r2, r1);
     }
 
     if (errBoundMode != NULL) {

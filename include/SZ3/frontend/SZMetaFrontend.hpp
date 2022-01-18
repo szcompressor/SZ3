@@ -22,11 +22,11 @@ namespace SZ {
     template<class T, uint N, class Quantizer>
     class SZMetaFrontend : public concepts::FrontendInterface<T, N> {
     public:
-        SZMetaFrontend(const Config <T, N> &conf, Quantizer quantizer) :
+        SZMetaFrontend(const Config &conf, Quantizer quantizer) :
                 quantizer(quantizer),
                 params(false, conf.block_size, conf.pred_dim, 0, conf.enable_lorenzo, conf.enable_2ndlorenzo,
-                       conf.enable_regression, conf.eb),
-                precision(conf.eb),
+                       conf.enable_regression, conf.absErrorBound),
+                precision(conf.absErrorBound),
                 conf(conf) {
             assert(N == 3 && "SZ2 Front only support 3D data");
         }
@@ -42,8 +42,8 @@ namespace SZ {
             return compress_3d(data);
         };
 
-        T *decompress(std::vector<int> &quant_inds) {
-            return decompress_3d(quant_inds);
+        T *decompress(std::vector<int> &quant_inds, T *dec_data) {
+            return decompress_3d(quant_inds, dec_data);
         };
 
 
@@ -174,7 +174,7 @@ namespace SZ {
             size = SZMETA::DSize_3d(r1, r2, r3, conf.block_size);
 
 //            capacity = 0; // num of quant intervals
-//            mean_info = optimize_quant_invl_3d(data, r1, r2, r3, conf.eb, capacity);
+//            mean_info = optimize_quant_invl_3d(data, r1, r2, r3, conf.absErrorBound, capacity);
 //            if (conf.quant_state_num > 0) {
 //                capacity = conf.quant_state_num;
 //            }
@@ -232,7 +232,7 @@ namespace SZ {
                    (size.block_size + params.lorenzo_padding_layer) * (size.d2 + params.lorenzo_padding_layer) *
                    (size.d3 + params.lorenzo_padding_layer) * sizeof(T));
             int capacity_lorenzo = mean_info.use_mean ? capacity - 2 : capacity;
-            T recip_precision = (T) 1.0 / conf.eb;
+            T recip_precision = (T) 1.0 / conf.absErrorBound;
 
             const T *x_data_pos = data;
             for (size_t i = 0; i < size.num_x; i++) {
@@ -261,7 +261,7 @@ namespace SZ {
 
                         int selection_result = meta_blockwise_selection_3d(z_data_pos, mean_info, size.dim0_offset,
                                                                            size.dim1_offset,
-                                                                           min_size, conf.eb, reg_params_pos,
+                                                                           min_size, conf.absErrorBound, reg_params_pos,
                                                                            params.prediction_dim,
                                                                            params.use_lorenzo,
                                                                            params.use_lorenzo_2layer,
@@ -328,10 +328,10 @@ namespace SZ {
 
         //T *
 //        meta_decompress_3d(const unsigned char *compressed, size_t r1, size_t r2, size_t r3) {
-        T *decompress_3d(std::vector<int> &quant_inds) {
+        T *decompress_3d(std::vector<int> &quant_inds, T *dec_data) {
 
             int *type = quant_inds.data();
-            T *dec_data = new T[size.num_elements];
+//            T *dec_data = new T[size.num_elements];
 //    dec_data_sp_float = (float *) dec_data;
             const float *reg_params_pos = (const float *) (reg_params + RegCoeffNum3d);;
 
@@ -528,13 +528,13 @@ namespace SZ {
         T *unpred_data_buffer = nullptr; // not used, unpredictable data is controlled by quantizer
 
         Quantizer quantizer;
-        Config <T, N> conf;
+        Config conf;
 
     };
 
     template<class T, uint N, class Predictor>
     SZMetaFrontend<T, N, Predictor>
-    make_sz_meta_frontend(const Config <T, N> &conf, Predictor predictor) {
+    make_sz_meta_frontend(const Config&conf, Predictor predictor) {
         return SZMetaFrontend<T, N, Predictor>(conf, predictor);
     }
 }

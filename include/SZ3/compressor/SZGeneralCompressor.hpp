@@ -17,8 +17,7 @@ namespace SZ {
     public:
 
 
-        SZGeneralCompressor(const Config<T, N> &conf,
-                            Frontend frontend, Encoder encoder, Lossless lossless) :
+        SZGeneralCompressor(Frontend frontend, Encoder encoder, Lossless lossless) :
                 frontend(frontend), encoder(encoder), lossless(lossless) {
             static_assert(std::is_base_of<concepts::FrontendInterface<T, N>, Frontend>::value,
                           "must implement the frontend interface");
@@ -28,43 +27,45 @@ namespace SZ {
                           "must implement the lossless interface");
         }
 
-        uchar *compress(T *data, size_t &compressed_size) {
+        uchar *compress(const Config &conf, T *data, size_t &compressed_size) {
 
             Timer timer(true);
             std::vector<int> quant_inds = frontend.compress(data);
             timer.stop("Prediction & Quantization");
 
-            uchar *compressed_data = new uchar[2 * quant_inds.size() * sizeof(T)];
-            uchar *compressed_data_pos = compressed_data;
+            uchar *buffer = new uchar[2 * quant_inds.size() * sizeof(T)];
+            uchar *buffer_pos = buffer;
 
-            frontend.save(compressed_data_pos);
+            frontend.save(buffer_pos);
 
             timer.start();
 //            encoder.preprocess_encode(quant_inds, 2 * frontend.get_radius());
             encoder.preprocess_encode(quant_inds, 0);
-            encoder.save(compressed_data_pos);
-            encoder.encode(quant_inds, compressed_data_pos);
+            encoder.save(buffer_pos);
+            encoder.encode(quant_inds, buffer_pos);
             encoder.postprocess_encode();
             timer.stop("Coding");
 
             timer.start();
-            uchar *lossless_data = lossless.compress(compressed_data,
-                                                     compressed_data_pos - compressed_data,
-                                                     compressed_size);
-            lossless.postcompress_data(compressed_data);
+            uchar *lossless_data = lossless.compress(buffer, buffer_pos - buffer, compressed_size);
+            lossless.postcompress_data(buffer);
             timer.stop("Lossless");
 
             return lossless_data;
         }
 
-        T *decompress(uchar const *lossless_compressed_data, const size_t length) {
-            size_t remaining_length = length;
+        T *decompress(uchar const *cmpData, const size_t &cmpSize, size_t num) {
+            T *dec_data = new T[num];
+            return decompress(cmpData, cmpSize, dec_data);
+        }
+
+        T *decompress(uchar const *cmpData, const size_t& cmpSize, T *decData) {
+            size_t remaining_length = cmpSize;
 
             Timer timer(true);
-            auto compressed_data = lossless.decompress(lossless_compressed_data, remaining_length);
+            auto compressed_data = lossless.decompress(cmpData, remaining_length);
             uchar const *compressed_data_pos = compressed_data;
             timer.stop("Lossless");
-
 
             frontend.load(compressed_data_pos, remaining_length);
 
@@ -78,9 +79,9 @@ namespace SZ {
             lossless.postdecompress_data(compressed_data);
 
             timer.start();
-            auto decom = frontend.decompress(quant_inds);
+            frontend.decompress(quant_inds, decData);
             timer.stop("Prediction & Recover");
-            return decom;
+            return decData;
         }
 
 
@@ -92,8 +93,8 @@ namespace SZ {
 
     template<class T, uint N, class Frontend, class Encoder, class Lossless>
     SZGeneralCompressor<T, N, Frontend, Encoder, Lossless>
-    make_sz_general_compressor(const Config<T, N> &conf, Frontend frontend, Encoder encoder, Lossless lossless) {
-        return SZGeneralCompressor<T, N, Frontend, Encoder, Lossless>(conf, frontend, encoder, lossless);
+    make_sz_general_compressor(const Config &conf, Frontend frontend, Encoder encoder, Lossless lossless) {
+        return SZGeneralCompressor<T, N, Frontend, Encoder, Lossless>(frontend, encoder, lossless);
     }
 }
 #endif
