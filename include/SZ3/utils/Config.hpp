@@ -11,6 +11,7 @@
 
 namespace SZ {
 
+
     class Config {
     public:
         template<class ... Dims>

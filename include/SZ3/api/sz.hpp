@@ -37,20 +37,22 @@ char *SZ_compress_N(SZ::Config &conf, T *data, size_t &outSize) {
     } else if (conf.cmprMethod == METHOD_INTERP_LORENZO) {
         cmpData = (char *) SZ_compress_Interp_lorenzo_N<T, N>(conf, data, outSize);
     }
-    cmpData[outSize] = conf.cmprMethod;
-    outSize += 1;
+    memcpy(cmpData + outSize, &conf, sizeof(SZ::Config)); //Config.dims is a vector and only the pointer is saved.
+    outSize += sizeof(SZ::Config); //TODO add save() and load() to Config
     return cmpData;
 }
 
 
 template<class T, uint N>
 T *SZ_decompress_N(SZ::Config &conf, char *cmpData, size_t cmpSize) {
-    char cmprMethod = cmpData[cmpSize - 1];
-    conf.cmprMethod = cmprMethod;
+    auto dims = conf.dims;
+    memcpy(&conf, cmpData + (cmpSize - sizeof(SZ::Config)), sizeof(SZ::Config));
+    conf.dims = dims;
+    conf.update_dims(dims.begin(), dims.end());
 
-    if (cmprMethod == METHOD_LORENZO_REG || cmprMethod == METHOD_LORENZO_REG_FAST) {
+    if (conf.cmprMethod == METHOD_LORENZO_REG || conf.cmprMethod == METHOD_LORENZO_REG_FAST) {
         return SZ_decompress_LorenzoReg_N<T, N>(conf, cmpData, cmpSize);
-    } else if (cmprMethod == METHOD_INTERP) {
+    } else if (conf.cmprMethod == METHOD_INTERP) {
         return SZ_decompress_Interp_N<T, N>(conf, cmpData, cmpSize);
     }
     return nullptr;

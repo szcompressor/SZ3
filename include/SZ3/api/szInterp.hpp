@@ -76,7 +76,7 @@ double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> d
 
     SZ::Config conf;
     conf.absErrorBound = eb;
-    conf.update_dims(dims.begin(),dims.end());
+    conf.update_dims(dims.begin(), dims.end());
     conf.block_size = block_size;
     conf.stride = conf.block_size;
     auto sz = SZ::make_sz_block_interpolation_compressor<T, N>(
@@ -219,11 +219,12 @@ char *SZ_compress_Interp_lorenzo_N(SZ::Config &conf, T *data, size_t &outSize) {
             }
         }
         lorenzo_config.update_dims(conf.dims.begin(), conf.dims.end());
+        conf = lorenzo_config;
         double tuning_time = timer.stop();
         std::cout << "Tuning time = " << tuning_time << "s" << std::endl;
         std::cout << "====================================== END TUNING ======================================"
                   << std::endl << std::endl;
-        return SZ_compress_LorenzoReg_N<T, N>(lorenzo_config, data, outSize);
+        return SZ_compress_LorenzoReg_N<T, N>(conf, data, outSize);
     }
 
 
