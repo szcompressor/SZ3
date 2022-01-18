@@ -8,6 +8,7 @@
 #include <vector>
 #include <numeric>
 #include "SZ3/def.hpp"
+#include "MemoryUtil.hpp"
 
 namespace SZ {
 
@@ -30,6 +31,54 @@ namespace SZ {
             N = dims.size();
             num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<>());
             return num;
+        }
+
+
+        void save(unsigned char *&c) {
+            write(N, c);
+            write(dims.data(), dims.size(), c);
+            write(num, c);
+            write(cmprMethod, c);
+            write(errorBoundMode, c);
+            write(absErrorBound, c);
+            write(relErrorBound, c);
+            write(enable_lorenzo, c);
+            write(enable_2ndlorenzo, c);
+            write(enable_regression, c);
+            write(enable_2ndregression, c);
+            write(interp_op, c);
+            write(interp_direction_op, c);
+            write(interp_block_size, c);
+            write(lossless_op, c);
+            write(encoder_op, c);
+            write(quant_state_num, c);
+            write(block_size, c);
+            write(stride, c);
+            write(pred_dim, c);
+        };
+
+        void load(const unsigned char *&c) {
+            read(N, c);
+            dims.resize(N);
+            read(dims.data(), N, c);
+            read(num, c);
+            read(cmprMethod, c);
+            read(errorBoundMode, c);
+            read(absErrorBound, c);
+            read(relErrorBound, c);
+            read(enable_lorenzo, c);
+            read(enable_2ndlorenzo, c);
+            read(enable_regression, c);
+            read(enable_2ndregression, c);
+            read(interp_op, c);
+            read(interp_direction_op, c);
+            read(interp_block_size, c);
+            read(lossless_op, c);
+            read(encoder_op, c);
+            read(quant_state_num, c);
+            read(block_size, c);
+            read(stride, c);
+            read(pred_dim, c);
         }
 
         int N;
