@@ -101,10 +101,10 @@ void decompress(char *inPath, char *cmpPath, char *decPath,
                 int binaryOutput, int printCmpResults) {
 
     size_t cmpSize;
-    char *cmpData = SZ::readfile<char>(cmpPath, cmpSize).get();
+    auto cmpData = SZ::readfile<char>(cmpPath, cmpSize);
 
     SZ::Timer timer(true);
-    T *decData = SZ_decompress_interp<T>(conf, cmpData, cmpSize);
+    T *decData = SZ_decompress_interp<T>(conf, cmpData.get(), cmpSize);
     double compress_time = timer.stop();
 
     char outputFilePath[256];

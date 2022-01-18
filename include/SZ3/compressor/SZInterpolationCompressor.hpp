@@ -35,24 +35,20 @@ namespace SZ {
         }
 
 
-        T *decompress(uchar *compressed_data, T *dec_data, const size_t length) {
+        T *decompress(const ConfigNew &conf, uchar *compressed_data, T *dec_data, const size_t length) {
             size_t remaining_length = length;
             uchar *buffer = lossless.decompress(compressed_data, remaining_length);
             uchar const *buffer_pos = buffer;
 
             read(global_dimensions.data(), N, buffer_pos, remaining_length);
-            for (auto &d: global_dimensions) {
-                printf("%lu ", d);
-            }
-            printf("\n");
             read(blocksize, buffer_pos, remaining_length);
             read(interpolator_id, buffer_pos, remaining_length);
             read(direction_sequence_id, buffer_pos, remaining_length);
 
             init();
+            assert(conf.num == num_elements);
 
             quantizer.load(buffer_pos, remaining_length);
-            quantizer.print();
             encoder.load(buffer_pos, remaining_length);
             quant_inds = encoder.decode(buffer_pos, num_elements);
 
@@ -84,24 +80,20 @@ namespace SZ {
                             end_idx[i] = global_dimensions[i] - 1;
                         }
                     }
-//                    block.print();
                     block_interpolation(dec_data, block.get_global_index(), end_idx, PB_recover,
                                         interpolators[interpolator_id], direction_sequence_id, stride);
 
                 }
-                printf("%d %lu\n", level, quant_index);
-                fflush(stdout);
             }
-//            std::cout << "Total quant element = " << quant_inds.size() << std::endl;
             quantizer.postdecompress_data();
 //            timer.stop("Interpolation Decompress");
 
             return dec_data;
         }
 
-        T *decompress(uchar *compressed_data, const size_t length) {
-            T *dec_data = new T[num_elements];
-            decompress(compressed_data, dec_data, length);
+        T *decompress(const ConfigNew &conf, uchar *compressed_data, const size_t length) {
+            T *dec_data = new T[conf.num];
+            decompress(conf, compressed_data, dec_data, length);
             return dec_data;
         }
 
@@ -141,6 +133,7 @@ namespace SZ {
 
                 auto inter_begin = inter_block_range->begin();
                 auto inter_end = inter_block_range->end();
+
                 for (auto block = inter_begin; block != inter_end; ++block) {
                     auto end_idx = block.get_global_index();
                     for (int i = 0; i < N; i++) {
@@ -153,7 +146,6 @@ namespace SZ {
                     block_interpolation(data, block.get_global_index(), end_idx, PB_predict_overwrite,
                                         interpolators[interpolator_id], direction_sequence_id, stride);
                 }
-                printf("%d %lu\n", level, quant_inds.size());
             }
 //            std::cout << "Number of data point = " << num_elements << std::endl;
 //            std::cout << "quantization element = " << quant_inds.size() << std::endl;
@@ -172,7 +164,6 @@ namespace SZ {
             write(interpolator_id, compressed_data_pos);
             write(direction_sequence_id, compressed_data_pos);
 
-            quantizer.print();
             quantizer.save(compressed_data_pos);
             quantizer.postcompress_data();
 
@@ -345,7 +336,7 @@ namespace SZ {
                             const std::string &interp_func, const int direction, uint stride = 1) {
             double predict_error = 0;
             size_t stride2x = stride * 2;
-            std::array<int, N> dims = dimension_sequences[direction];
+            const std::array<int, N> dims = dimension_sequences[direction];
             for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride2x : 0); j <= end[dims[1]]; j += stride2x) {
                 size_t begin_offset = begin[dims[0]] * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]];
                 predict_error += block_interpolation_1d(data, begin_offset,
@@ -369,7 +360,7 @@ namespace SZ {
                             const std::string &interp_func, const int direction, uint stride = 1) {
             double predict_error = 0;
             size_t stride2x = stride * 2;
-            std::array<int, N> dims = dimension_sequences[direction];
+            const std::array<int, N> dims = dimension_sequences[direction];
             for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride2x : 0); j <= end[dims[1]]; j += stride2x) {
                 for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride2x : 0); k <= end[dims[2]]; k += stride2x) {
                     size_t begin_offset = begin[dims[0]] * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]] +
@@ -414,7 +405,7 @@ namespace SZ {
             double predict_error = 0;
             size_t stride2x = stride * 2;
             max_error = 0;
-            std::array<int, N> dims = dimension_sequences[direction];
+            const std::array<int, N> dims = dimension_sequences[direction];
             for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride2x : 0); j <= end[dims[1]]; j += stride2x) {
                 for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride2x : 0); k <= end[dims[2]]; k += stride2x) {
                     for (size_t t = (begin[dims[3]] ? begin[dims[3]] + stride2x : 0);

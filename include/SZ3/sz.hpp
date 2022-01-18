@@ -63,16 +63,16 @@ char *SZ_compress_interp(SZ::ConfigNew conf, T *data, size_t &outSize) {
 
 
 template<class T, uint N>
-T *SZ_decompress_interp_N(SZ::ConfigNew conf, char *cmpData, size_t cmpSize) {
+T *SZ_decompress_interp_N(const SZ::ConfigNew &conf, char *cmpData, size_t cmpSize) {
     auto sz = SZ::SZInterpolationCompressor<T, N, SZ::LinearQuantizer<T>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
             SZ::LinearQuantizer<T>(),
             SZ::HuffmanEncoder<int>(),
             SZ::Lossless_zstd());
-    return sz.decompress((SZ::uchar *) cmpData, cmpSize);
+    return sz.decompress(conf, (SZ::uchar *) cmpData, cmpSize);
 }
 
 template<class T>
-T *SZ_decompress_interp(SZ::ConfigNew conf, char *cmpData, size_t cmpSize) {
+T *SZ_decompress_interp(const SZ::ConfigNew &conf, char *cmpData, size_t cmpSize) {
     if (conf.N == 1) {
         return SZ_decompress_interp_N<T, 1>(conf, cmpData, cmpSize);
     } else if (conf.N == 2) {
