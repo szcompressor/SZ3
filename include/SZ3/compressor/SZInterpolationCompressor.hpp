@@ -147,7 +147,7 @@ namespace SZ {
 //            std::cout << "Number of data point = " << num_elements << std::endl;
 //            std::cout << "quantization element = " << quant_inds.size() << std::endl;
             assert(quant_inds.size() == num_elements);
-            timer.stop("Prediction & Quantization");
+//            timer.stop("Prediction & Quantization");
 
 //            writefile("pred.dat", preds.data(), num_elements);
 //            writefile("quant.dat", quant_inds.data(), num_elements);
@@ -171,14 +171,14 @@ namespace SZ {
             encoder.save(buffer_pos);
             encoder.encode(quant_inds, buffer_pos);
             encoder.postprocess_encode();
-            timer.stop("Coding");
+//            timer.stop("Coding");
 
             timer.start();
             uchar *lossless_data = lossless.compress(buffer,
                                                      buffer_pos - buffer,
                                                      compressed_size);
             lossless.postcompress_data(buffer);
-            timer.stop("Lossless");
+//            timer.stop("Lossless");
 
             compressed_size += interp_compressed_size;
             return lossless_data;

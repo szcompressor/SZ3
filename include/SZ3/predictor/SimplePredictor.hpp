@@ -67,7 +67,7 @@ namespace SZ {
         }
 
         void print() const {
-            std::cout << "Simple predictor, noise = " << noise << "\n";
+//            std::cout << "Simple predictor, noise = " << noise << "\n";
         }
 
         inline T estimate_error(const iterator &iter) const noexcept {

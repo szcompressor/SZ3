@@ -306,10 +306,10 @@ namespace SZ {
                     cnt[sel]++;
                     cnt_total++;
                 }
-                printf("Interp Percentage = %.3f\nSZ Percentage = %.3f\n", 1.0 * cnt[1] / cnt_total, 1.0 * cnt[0] / cnt_total);
+//                printf("Interp Percentage = %.3f\nSZ Percentage = %.3f\n", 1.0 * cnt[1] / cnt_total, 1.0 * cnt[0] / cnt_total);
             }
             quantizer.postcompress_data();
-            predictor.print();
+//            predictor.print();
 
             write(quantizer.get_eb(), compressed_data_pos);
             write(global_dimensions.data(), N, compressed_data_pos);

@@ -62,12 +62,11 @@ double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> d
                                                   int interp_op, int direction_op,
                                                   int block_size, int interp_block_size) {
 
-    std::cout << "****************** Interp Compression ****************" << std::endl;
-    std::cout << "Interp Op          = " << interp_op << std::endl
-              << "Direction          = " << direction_op << std::endl
-              << "SZ block size      = " << block_size << std::endl
-              << "Interp block size  = " << interp_block_size << std::endl;
-//              << "SZ_mode            = " << sz_op << std::endl;
+//    std::cout << "****************** Interp Compression ****************" << std::endl;
+//    std::cout << "Interp Op          = " << interp_op << std::endl
+//              << "Direction          = " << direction_op << std::endl
+//              << "SZ block size      = " << block_size << std::endl
+//              << "Interp block size  = " << interp_block_size << std::endl;
 
     SZ::Timer timer(true);
 
@@ -96,26 +95,26 @@ double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> d
     double compression_time = timer.stop();
 
     auto compression_ratio = num * sizeof(T) * 1.0 / compressed_size;
-    std::cout << "Compressed size = " << compressed_size << std::endl;
-    std::cout << "Compression ratio = " << compression_ratio << std::endl;
-    std::cout << "Interp compression time = " << compression_time
-              << " Ratio = " << compression_ratio
-              << " Params = " << interp_level
-              << " " << interp_op
-              << " " << direction_op
-              << " " << block_size
-              << " " << interp_block_size
-              //              << " " << sz_op
-              << std::endl;
+//    std::cout << "Compressed size = " << compressed_size << std::endl;
+//    std::cout << "Compression ratio = " << compression_ratio << std::endl;
+//    std::cout << "Interp compression time = " << compression_time
+//              << " Ratio = " << compression_ratio
+//              << " Params = " << interp_level
+//              << " " << interp_op
+//              << " " << direction_op
+//              << " " << block_size
+//              << " " << interp_block_size
+//              //              << " " << sz_op
+//              << std::endl;
 
 
-    std::cout << "****************** Interp end ****************" << std::endl;
+//    std::cout << "****************** Interp end ****************" << std::endl;
     return compression_ratio;
 }
 
 template<class T, uint N>
 char *SZ_compress_Interp_lorenzo_N(SZ::Config &conf, T *data, size_t &outSize) {
-    std::cout << "================================ BEGIN TUNING ================================" << std::endl;
+    std::cout << "====================================== BEGIN TUNING ================================" << std::endl;
     SZ::Timer timer(true);
 
     SZ::calAbsErrorBound(conf, data);
@@ -137,7 +136,7 @@ char *SZ_compress_Interp_lorenzo_N(SZ::Config &conf, T *data, size_t &outSize) {
     auto cmprData = SZ_compress_LorenzoReg_N<T, N>(lorenzo_config, sampling_data.data(), sampleOutSize);
     delete[]cmprData;
     double ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;
-    printf("Lorenzo ratio = %.2f\n", ratio);
+//    printf("Lorenzo ratio = %.2f\n", ratio);
 
     double best_lorenzo_ratio = ratio, best_interp_ratio = 0;
     int interp_level = -1, interp_op, direction_op = 0, block_size = sampling_block, interp_block_size = sampling_block;
@@ -168,8 +167,8 @@ char *SZ_compress_Interp_lorenzo_N(SZ::Config &conf, T *data, size_t &outSize) {
     }
 
     bool useInterp = !(best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 80 && best_interp_ratio < 80);
-    printf("\nLorenzo compression ratio = %.2f\n", best_lorenzo_ratio);
-    printf("Interp compression ratio = %.2f\n", best_interp_ratio);
+//    printf("\nLorenzo compression ratio = %.2f\n", best_lorenzo_ratio);
+//    printf("Interp compression ratio = %.2f\n", best_interp_ratio);
     printf("choose %s\n", useInterp ? "Interp" : "Lorenzo");
 
     if (useInterp) {
@@ -189,7 +188,7 @@ char *SZ_compress_Interp_lorenzo_N(SZ::Config &conf, T *data, size_t &outSize) {
             cmprData = SZ_compress_LorenzoReg_N<T, N>(lorenzo_config, sampling_data.data(), sampleOutSize);
             delete[]cmprData;
             ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;
-            printf("Lorenzo, pred_dim=2, ratio = %.2f\n", ratio);
+//            printf("Lorenzo, pred_dim=2, ratio = %.2f\n", ratio);
             if (ratio > best_lorenzo_ratio * 1.02) {
                 best_lorenzo_ratio = ratio;
             } else {
@@ -203,7 +202,7 @@ char *SZ_compress_Interp_lorenzo_N(SZ::Config &conf, T *data, size_t &outSize) {
             cmprData = SZ_compress_LorenzoReg_N<T, N>(lorenzo_config, sampling_data.data(), sampleOutSize);
             delete[]cmprData;
             ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;
-            printf("Lorenzo, quant_bin=8192, ratio = %.2f\n", ratio);
+//            printf("Lorenzo, quant_bin=8192, ratio = %.2f\n", ratio);
             if (ratio > best_lorenzo_ratio * 1.02) {
                 best_lorenzo_ratio = ratio;
             } else {

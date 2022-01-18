@@ -31,7 +31,7 @@ namespace SZ {
 
             Timer timer(true);
             std::vector<int> quant_inds = frontend.compress(data);
-            timer.stop("Prediction & Quantization");
+//            timer.stop("Prediction & Quantization");
 
             uchar *buffer = new uchar[2 * quant_inds.size() * sizeof(T)];
             uchar *buffer_pos = buffer;
@@ -44,12 +44,12 @@ namespace SZ {
             encoder.save(buffer_pos);
             encoder.encode(quant_inds, buffer_pos);
             encoder.postprocess_encode();
-            timer.stop("Coding");
+//            timer.stop("Coding");
 
             timer.start();
             uchar *lossless_data = lossless.compress(buffer, buffer_pos - buffer, compressed_size);
             lossless.postcompress_data(buffer);
-            timer.stop("Lossless");
+//            timer.stop("Lossless");
 
             return lossless_data;
         }
@@ -65,7 +65,7 @@ namespace SZ {
             Timer timer(true);
             auto compressed_data = lossless.decompress(cmpData, remaining_length);
             uchar const *compressed_data_pos = compressed_data;
-            timer.stop("Lossless");
+//            timer.stop("Lossless");
 
             frontend.load(compressed_data_pos, remaining_length);
 
@@ -74,13 +74,13 @@ namespace SZ {
             timer.start();
             auto quant_inds = encoder.decode(compressed_data_pos, frontend.get_num_elements());
             encoder.postprocess_decode();
-            timer.stop("Decoder");
+//            timer.stop("Decoder");
 
             lossless.postdecompress_data(compressed_data);
 
             timer.start();
             frontend.decompress(quant_inds, decData);
-            timer.stop("Prediction & Recover");
+//            timer.stop("Prediction & Recover");
             return decData;
         }
 
