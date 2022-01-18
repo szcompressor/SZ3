@@ -9,7 +9,7 @@
 namespace SZ {
 
     template<uint N>
-    float cal_sampling_ratio(size_t block, size_t n, size_t dmin, std::array<size_t, N> dims) {
+    float cal_sampling_ratio(size_t block, size_t n, size_t dmin, std::vector<size_t> dims) {
         size_t sample_n = 1;
         for (auto dim: dims) {
             sample_n *= dim / dmin * 2 * block;
@@ -20,7 +20,9 @@ namespace SZ {
 
     template<class T, uint N>
     inline typename std::enable_if<N == 4, std::vector<T>>::type
-    sampling(T *data, std::array<size_t, N> dims, size_t &sample_num, std::array<size_t, N> &sample_dims, size_t &sampling_block) {
+    sampling(T *data, std::vector<size_t> dims, size_t &sample_num, std::vector<size_t> &sample_dims, size_t &sampling_block) {
+        assert(dims.size() == N);
+        assert(sample_dims.size() == N);
         SZ::Timer timer(true);
         size_t num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<>());
 
@@ -82,7 +84,9 @@ namespace SZ {
 
     template<class T, uint N>
     inline typename std::enable_if<N == 3, std::vector<T>>::type
-    sampling(T *data, std::array<size_t, N> dims, size_t &sample_num, std::array<size_t, N> &sample_dims, size_t &sampling_block) {
+    sampling(T *data, std::vector<size_t> dims, size_t &sample_num, std::vector<size_t> &sample_dims, size_t &sampling_block) {
+        assert(dims.size() == N);
+        assert(sample_dims.size() == N);
         SZ::Timer timer(true);
         size_t num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<>());
 
@@ -132,7 +136,9 @@ namespace SZ {
 
     template<class T, uint N>
     inline typename std::enable_if<N == 2, std::vector<T>>::type
-    sampling(T *data, std::array<size_t, N> dims, size_t &sample_num, std::array<size_t, N>& sample_dims, size_t &sampling_block) {
+    sampling(T *data, std::vector<size_t> dims, size_t &sample_num, std::vector<size_t> &sample_dims, size_t &sampling_block) {
+        assert(dims.size() == N);
+        assert(sample_dims.size() == N);
         SZ::Timer timer(true);
         size_t num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<>());
 
@@ -173,7 +179,9 @@ namespace SZ {
 
     template<class T, uint N>
     inline typename std::enable_if<N == 1, std::vector<T>>::type
-    sampling(T *data, std::array<size_t, N> dims, size_t &sample_num, std::array<size_t, N>& sample_dims, size_t &sampling_block) {
+    sampling(T *data, std::vector<size_t> dims, size_t &sample_num, std::vector<size_t> &sample_dims, size_t &sampling_block) {
+        assert(dims.size() == N);
+        assert(sample_dims.size() == N);
         SZ::Timer timer(true);
         size_t num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<>());
 

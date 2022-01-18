@@ -29,10 +29,13 @@ namespace SZ {
                 fallback_predictor(LorenzoPredictor<T, N, 1>(conf.absErrorBound)),
                 predictor(predictor), quantizer(quantizer), encoder(encoder), lossless(lossless),
                 block_size(conf.block_size), stride(conf.stride),
-                global_dimensions(conf.dims), num_elements(conf.num),
+                num_elements(conf.num),
 //                interpolators({"linear", "cubic", "cubic2", "akima", "pchip"}),
                 interpolators({"linear", "cubic"}),
                 interpolator_op(interpolator), direction_op(direction), interp_level(interpo_level) {
+
+            std::copy_n(conf.dims.begin(), N, global_dimensions.begin());
+
             static_assert(std::is_base_of<concepts::PredictorInterface<T, N>, Predictor>::value,
                           "must implement the predictor interface");
             static_assert(std::is_base_of<concepts::QuantizerInterface<T>, Quantizer>::value,
@@ -684,11 +687,11 @@ namespace SZ {
 
     template<class T, uint N, class Predictor, class Quantizer, class Encoder, class Lossless>
     SZBlockInterpolationCompressor<T, N, Predictor, Quantizer, Encoder, Lossless>
-    make_sz_fast_block_interpolation_compressor(const Config &conf, Predictor predictor, Quantizer quantizer,
-                                                Encoder encoder, Lossless lossless,
-                                                int interp_op,
-                                                int direction_op,
-                                                uint interp_level) {
+    make_sz_block_interpolation_compressor(const Config &conf, Predictor predictor, Quantizer quantizer,
+                                           Encoder encoder, Lossless lossless,
+                                           int interp_op,
+                                           int direction_op,
+                                           uint interp_level) {
         return SZBlockInterpolationCompressor<T, N, Predictor, Quantizer, Encoder, Lossless>(conf, predictor, quantizer,
                                                                                              encoder, lossless,
                                                                                              interp_op, direction_op,

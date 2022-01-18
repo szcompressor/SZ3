@@ -17,6 +17,19 @@ namespace SZ {
         return max - min;
     }
 
+    template<class T>
+    void calAbsErrorBound(SZ::Config &conf, T *data) {
+        if (conf.errorBoundMode != ABS) {
+            if (conf.errorBoundMode == REL) {
+                conf.errorBoundMode = ABS;
+                conf.absErrorBound = conf.relErrorBound * SZ::data_range(data, conf.num);
+            } else {
+                printf("Error, error bound mode not supported\n");
+                exit(0);
+            }
+        }
+    }
+
     template<typename Type>
     double autocorrelation1DLag1(const Type *data, size_t numOfElem, Type avg) {
         double cov = 0;
