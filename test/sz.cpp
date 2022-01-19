@@ -90,7 +90,7 @@ void compress(char *inPath, char *cmpPath, SZ::Config conf) {
 
     printf("compression ratio = %.2f \n", conf.num * 1.0 * sizeof(T) / outSize);
     printf("compression time = %f\n", compress_time);
-    printf("compressed data file: %s\n", outputFilePath);
+    printf("compressed data file = %s\n", outputFilePath);
 
     delete[]data;
     delete[]bytes;
@@ -128,9 +128,9 @@ void decompress(char *inPath, char *cmpPath, char *decPath,
     }
     delete[]decData;
 
-    printf("compressionRatio=%f\n", conf.num * sizeof(T) * 1.0 / cmpSize);
+    printf("compression ratio = %f\n", conf.num * sizeof(T) * 1.0 / cmpSize);
     printf("decompression time = %f seconds.\n", compress_time);
-    printf("decompressed decData file: %s\n", outputFilePath);
+    printf("decompressed file = %s\n", outputFilePath);
 }
 
 int main(int argc, char *argv[]) {
