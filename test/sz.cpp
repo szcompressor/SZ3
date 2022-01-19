@@ -29,29 +29,29 @@ void usage() {
     printf("* data type:\n");
     printf("	-f: single precision (float type)\n");
     printf("	-d: double precision (double type)\n");
-    printf("* configuration file: \n");
-    printf("	-c <configuration file> : configuration file sz.config\n");
+//    printf("* configuration file: \n");
+//    printf("	-c <configuration file> : configuration file sz.config\n");
     printf("* error control: (the error control parameters here will overwrite the setting in sz.config)\n");
     printf("	-M <error bound mode> : 10 options as follows. \n");
     printf("		ABS (absolute error bound)\n");
     printf("		REL (value range based error bound, so a.k.a., VR_REL)\n");
-    printf("		ABS_AND_REL (using min{ABS, REL})\n");
-    printf("		ABS_OR_REL (using max{ABS, REL})\n");
-    printf("		PSNR (peak signal-to-noise ratio)\n");
-    printf("		NORM (norm2 error : sqrt(sum(xi-xi')^2)\n");
-    printf("		PW_REL (point-wise relative error bound)\n");
+//    printf("		ABS_AND_REL (using min{ABS, REL})\n");
+//    printf("		ABS_OR_REL (using max{ABS, REL})\n");
+//    printf("		PSNR (peak signal-to-noise ratio)\n");
+//    printf("		NORM (norm2 error : sqrt(sum(xi-xi')^2)\n");
+//    printf("		PW_REL (point-wise relative error bound)\n");
     printf("	-A <absolute error bound>: specifying absolute error bound\n");
     printf("	-R <value_range based relative error bound>: specifying relative error bound\n");
-    printf("	-P <point-wise relative error bound>: specifying point-wise relative error bound\n");
-    printf("	-S <PSNR>: specifying PSNR\n");
-    printf("	-N <normErr>: specifying normErr\n");
+//    printf("	-P <point-wise relative error bound>: specifying point-wise relative error bound\n");
+//    printf("	-S <PSNR>: specifying PSNR\n");
+//    printf("	-N <normErr>: specifying normErr\n");
     printf("* input data file:\n");
     printf("	-i <original data file> : original data file\n");
     printf("	-s <compressed data file> : compressed data file in decompression\n");
     printf("* output type of decompressed file: \n");
     printf("	-b (by default) : decompressed file stored in binary format\n");
-    printf("	-t : decompreadded file stored in text format\n");
-    printf("	-T : pre-processing with Tucker Tensor Decomposition\n");
+//    printf("	-t : decompreadded file stored in text format\n");
+//    printf("	-T : pre-processing with Tucker Tensor Decomposition\n");
     printf("* dimensions: \n");
     printf("	-1 <nx> : dimension for 1D data such as data[nx]\n");
     printf("	-2 <nx> <ny> : dimensions for 2D data such as data[ny][nx]\n");
@@ -80,7 +80,7 @@ void compress(char *inPath, char *cmpPath, SZ::Config conf) {
     char *bytes = SZ_compress<T>(conf, data, outSize);
     double compress_time = timer.stop();
 
-    char outputFilePath[256];
+    char outputFilePath[1024];
     if (cmpPath == NULL) {
         sprintf(outputFilePath, "%s.sz", inPath);
     } else {
@@ -108,7 +108,7 @@ void decompress(char *inPath, char *cmpPath, char *decPath,
     T *decData = SZ_decompress<T>(conf, cmpData.get(), cmpSize);
     double compress_time = timer.stop();
 
-    char outputFilePath[256];
+    char outputFilePath[1024];
     if (decPath == NULL) {
         sprintf(outputFilePath, "%s.out", cmpPath);
     } else {

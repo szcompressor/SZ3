@@ -28,7 +28,7 @@ namespace SZ {
                        conf.enable_regression, conf.absErrorBound),
                 precision(conf.absErrorBound),
                 conf(conf) {
-            assert(N == 3 && "SZ2 Front only support 3D data");
+            assert(N == 3 && "SZMeta Front only support 3D data");
         }
 
         ~SZMetaFrontend() {

@@ -132,7 +132,7 @@ namespace SZ {
 
         void load(const uchar *&c, size_t &remaining_length) {
             //TODO: adjust remaining_length
-            std::cout << "load regression predictor" << std::endl;
+//            std::cout << "load regression predictor" << std::endl;
             c += sizeof(uint8_t);
             remaining_length -= sizeof(uint8_t);
 

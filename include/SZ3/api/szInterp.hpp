@@ -153,7 +153,7 @@ char *SZ_compress_Interp_lorenzo_N(SZ::Config &conf, T *data, size_t &outSize) {
                 interp_op = i;
             }
         }
-        std::cout << "interp best interp_op = " << interp_op << " , best ratio = " << best_interp_ratio << std::endl;
+        std::cout << "interp select interp_op = " << interp_op << " , ratio = " << best_interp_ratio << std::endl;
 
         ratio = do_not_use_this_interp_compress_block_test<T, N>(sampling_data.data(), sample_dims, sampling_num, conf.absErrorBound, interp_level,
                                                                  interp_op, 5,
@@ -162,14 +162,14 @@ char *SZ_compress_Interp_lorenzo_N(SZ::Config &conf, T *data, size_t &outSize) {
             best_interp_ratio = ratio;
             direction_op = 5;
         }
-        std::cout << "interp best direction_op = " << direction_op << " , best ratio = " << best_interp_ratio
+        std::cout << "interp select direction_op = " << direction_op << " ,  ratio = " << best_interp_ratio
                   << std::endl;
     }
 
     bool useInterp = !(best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 80 && best_interp_ratio < 80);
 //    printf("\nLorenzo compression ratio = %.2f\n", best_lorenzo_ratio);
 //    printf("Interp compression ratio = %.2f\n", best_interp_ratio);
-    printf("choose %s\n", useInterp ? "Interp" : "Lorenzo");
+    printf("choose %s\n", useInterp ? "interp" : "Lorenzo");
 
     if (useInterp) {
         conf.cmprMethod = METHOD_INTERP;

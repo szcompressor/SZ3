@@ -75,9 +75,9 @@ namespace SZ {
             }
 
         }
-        auto sampling_time = timer.stop();
-        printf("Generate sampling data, block = %lu percent = %.3f%% Time = %.3f \n", sampling_block, sample_num * 100.0 / num,
-               sampling_time);
+//        auto sampling_time = timer.stop();
+//        printf("Generate sampling data, block = %lu percent = %.3f%% Time = %.3f \n", sampling_block, sample_num * 100.0 / num,
+//               sampling_time);
         return sampling_data;
     }
 
@@ -128,9 +128,9 @@ namespace SZ {
                 }
             }
         }
-        auto sampling_time = timer.stop();
-        printf("Generate sampling data, block = %lu percent = %.3f%% Time = %.3f \n", sampling_block, sample_num * 100.0 / num,
-               sampling_time);
+//        auto sampling_time = timer.stop();
+//        printf("Generate sampling data, block = %lu percent = %.3f%% Time = %.3f \n", sampling_block, sample_num * 100.0 / num,
+//               sampling_time);
         return sampling_data;
     }
 
@@ -171,9 +171,9 @@ namespace SZ {
                 }
             }
         }
-        auto sampling_time = timer.stop();
-        printf("Generate sampling data, block = %lu percent = %.3f%% Time = %.3f \n", sampling_block, sample_num * 100.0 / num,
-               sampling_time);
+//        auto sampling_time = timer.stop();
+//        printf("Generate sampling data, block = %lu percent = %.3f%% Time = %.3f \n", sampling_block, sample_num * 100.0 / num,
+//               sampling_time);
         return sampling_data;
     }
 
@@ -206,9 +206,9 @@ namespace SZ {
                 sampling_data[bi * 2 * sampling_block + i] = d;
             }
         }
-        auto sampling_time = timer.stop();
-        printf("Generate sampling data, block = %lu percent = %.3f%% Time = %.3f \n", sampling_block, sample_num * 100.0 / num,
-               sampling_time);
+//        auto sampling_time = timer.stop();
+//        printf("Generate sampling data, block = %lu percent = %.3f%% Time = %.3f \n", sampling_block, sample_num * 100.0 / num,
+//               sampling_time);
         return sampling_data;
     }
 };

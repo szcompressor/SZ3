@@ -297,7 +297,7 @@ namespace SZ {
 //                }
 //            }
 
-            assert(quant_inds.size() == num_elements);
+//            assert(quant_inds.size() == num_elements);
 
             {
                 std::vector<size_t> cnt(2, 0);
