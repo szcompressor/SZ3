@@ -26,7 +26,7 @@ namespace SZ {
         }
 
         template<class Iter>
-        size_t update_dims(Iter begin, Iter end) {
+        size_t setDims(Iter begin, Iter end) {
             dims = std::vector<size_t>(begin, end);
             N = dims.size();
             num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<>());

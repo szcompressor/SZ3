@@ -217,7 +217,7 @@ template<class T, uint N>
 float SZ_compress_parse_args(int argc, char **argv, int argp, std::unique_ptr<T[]> &data, float eb,
                              std::array<size_t, N> dims) {
     SZ::Config conf;
-    conf.update_dims(dims.begin(), dims.end());
+    conf.setDims(dims.begin(), dims.end());
     conf.absErrorBound = eb;
     if (argp < argc) {
         int block_size = atoi(argv[argp++]);
