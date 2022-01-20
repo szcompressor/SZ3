@@ -38,6 +38,5 @@ namespace SZ {
 #define METHOD_LORENZO_REG 0
 #define METHOD_INTERP_LORENZO 1
 #define METHOD_INTERP 2
-#define METHOD_LORENZO_REG_FAST 3
 
 #endif

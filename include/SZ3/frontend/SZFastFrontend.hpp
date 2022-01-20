@@ -1,5 +1,5 @@
-#ifndef SZ2_FRONT_END
-#define SZ2_FRONT_END
+#ifndef SZ3_SZFASTFRONTEND
+#define SZ3_SZFASTFRONTEND
 
 /**
  * This module is the implementation of the prediction and quantization methods in SZ2.
@@ -20,9 +20,9 @@ namespace SZ {
     using namespace SZMETA;
 
     template<class T, uint N, class Quantizer>
-    class SZMetaFrontend : public concepts::FrontendInterface<T, N> {
+    class SZFastFrontend : public concepts::FrontendInterface<T, N> {
     public:
-        SZMetaFrontend(const Config &conf, Quantizer quantizer) :
+        SZFastFrontend(const Config &conf, Quantizer quantizer) :
                 quantizer(quantizer),
                 params(false, conf.block_size, conf.pred_dim, 0, conf.enable_lorenzo, conf.enable_2ndlorenzo,
                        conf.enable_regression, conf.absErrorBound),
@@ -31,7 +31,7 @@ namespace SZ {
             assert(N == 3 && "SZMeta Front only support 3D data");
         }
 
-        ~SZMetaFrontend() {
+        ~SZFastFrontend() {
             clear();
         }
 
@@ -533,9 +533,9 @@ namespace SZ {
     };
 
     template<class T, uint N, class Predictor>
-    SZMetaFrontend<T, N, Predictor>
-    make_sz_meta_frontend(const Config&conf, Predictor predictor) {
-        return SZMetaFrontend<T, N, Predictor>(conf, predictor);
+    SZFastFrontend<T, N, Predictor>
+    make_sz_fast_frontend(const Config&conf, Predictor predictor) {
+        return SZFastFrontend<T, N, Predictor>(conf, predictor);
     }
 }
 

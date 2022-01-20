@@ -4,7 +4,7 @@
 #include "SZ3/compressor/SZInterpolationCompressor.hpp"
 #include "SZ3/compressor/deprecated/SZBlockInterpolationCompressor.hpp"
 #include "SZ3/compressor/SZGeneralCompressor.hpp"
-#include "SZ3/frontend/SZMetaFrontend.hpp"
+#include "SZ3/frontend/SZFastFrontend.hpp"
 #include "SZ3/frontend/SZGeneralFrontend.hpp"
 #include "SZ3/quantizer/IntegerQuantizer.hpp"
 #include "SZ3/predictor/ComposedPredictor.hpp"
@@ -30,7 +30,7 @@ char *SZ_compress_N(SZ::Config &conf, T *data, size_t &outSize) {
     SZ::calAbsErrorBound(conf, data);
 
     char *cmpData;
-    if (conf.cmprMethod == METHOD_LORENZO_REG || conf.cmprMethod == METHOD_LORENZO_REG_FAST) {
+    if (conf.cmprMethod == METHOD_LORENZO_REG) {
         cmpData = (char *) SZ_compress_LorenzoReg_N<T, N>(conf, data, outSize);
     } else if (conf.cmprMethod == METHOD_INTERP) {
         cmpData = (char *) SZ_compress_Interp_N<T, N>(conf, data, outSize);
@@ -59,7 +59,7 @@ T *SZ_decompress_N(SZ::Config &conf, char *cmpData, size_t cmpSize) {
         conf.load(cmpDataPos);
     }
 
-    if (conf.cmprMethod == METHOD_LORENZO_REG || conf.cmprMethod == METHOD_LORENZO_REG_FAST) {
+    if (conf.cmprMethod == METHOD_LORENZO_REG) {
         return SZ_decompress_LorenzoReg_N<T, N>(conf, cmpData, cmpSize);
     } else if (conf.cmprMethod == METHOD_INTERP) {
         return SZ_decompress_Interp_N<T, N>(conf, cmpData, cmpSize);

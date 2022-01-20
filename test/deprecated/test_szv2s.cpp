@@ -1,4 +1,4 @@
-#include "SZ3/frontend/SZMetaFrontend.hpp"
+#include "SZ3/frontend/SZFastFrontend.hpp"
 #include "SZ3/predictor/Predictor.hpp"
 #include "SZ3/quantizer/IntegerQuantizer.hpp"
 #include "SZ3/utils/FileUtil.hpp"
@@ -12,14 +12,14 @@
 template<typename T, uint N>
 float SZ_compress_build_frontend(std::unique_ptr<T[]> const &data, const SZ::Config &conf) {
     auto quantizer = SZ::LinearQuantizer<T>(conf.absErrorBound, conf.quant_state_num / 2);
-    return SZ_compress_build_backend<T, N>(data, conf, SZ::make_sz_meta_frontend<T, N>(conf, quantizer));
+    return SZ_compress_build_backend<T, N>(data, conf, SZ::make_sz_fast_frontend<T, N>(conf, quantizer));
 }
 
 template<class T, uint N>
 float SZ_compress_parse_args(int argc, char **argv, int argp, std::unique_ptr<T[]> &data, float eb,
                              std::array<size_t, N> dims) {
     SZ::Config conf;
-    conf.update_dims(dims.begin(), dims.end());
+    conf.setDims(dims.begin(), dims.end());
     conf.absErrorBound = eb;
     if (argp < argc) {
         int block_size = atoi(argv[argp++]);

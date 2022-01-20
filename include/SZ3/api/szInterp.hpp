@@ -4,7 +4,7 @@
 #include "SZ3/compressor/SZInterpolationCompressor.hpp"
 #include "SZ3/compressor/deprecated/SZBlockInterpolationCompressor.hpp"
 #include "SZ3/compressor/SZGeneralCompressor.hpp"
-#include "SZ3/frontend/SZMetaFrontend.hpp"
+#include "SZ3/frontend/SZFastFrontend.hpp"
 #include "SZ3/frontend/SZGeneralFrontend.hpp"
 #include "SZ3/quantizer/IntegerQuantizer.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
@@ -29,31 +29,27 @@ char *SZ_compress_Interp_N(SZ::Config &conf, T *data, size_t &outSize) {
 //              << "Interp block size  = " << interp_block_size << std::endl;
 
     assert(N == conf.N);
+    assert(conf.cmprMethod == METHOD_INTERP);
     SZ::calAbsErrorBound(conf, data);
 
-    char *cmpData;
-    if (conf.cmprMethod == METHOD_INTERP) {
-        auto sz = SZ::SZInterpolationCompressor<T, N, SZ::LinearQuantizer<T>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
-                SZ::LinearQuantizer<T>(conf.absErrorBound),
-                SZ::HuffmanEncoder<int>(),
-                SZ::Lossless_zstd());
-        cmpData = (char *) sz.compress(conf, data, outSize);
-    }
+    auto sz = SZ::SZInterpolationCompressor<T, N, SZ::LinearQuantizer<T>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
+            SZ::LinearQuantizer<T>(conf.absErrorBound),
+            SZ::HuffmanEncoder<int>(),
+            SZ::Lossless_zstd());
+    char *cmpData = (char *) sz.compress(conf, data, outSize);
     return cmpData;
 }
 
 
 template<class T, uint N>
 T *SZ_decompress_Interp_N(const SZ::Config &conf, char *cmpData, size_t cmpSize) {
+    assert(conf.cmprMethod == METHOD_INTERP);
     SZ::uchar const *cmpDataPos = (SZ::uchar *) cmpData;
-    if (conf.cmprMethod == METHOD_INTERP) {
-        auto sz = SZ::SZInterpolationCompressor<T, N, SZ::LinearQuantizer<T>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
-                SZ::LinearQuantizer<T>(),
-                SZ::HuffmanEncoder<int>(),
-                SZ::Lossless_zstd());
-        return sz.decompress(cmpDataPos, cmpSize, conf.num);
-    }
-    return nullptr;
+    auto sz = SZ::SZInterpolationCompressor<T, N, SZ::LinearQuantizer<T>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
+            SZ::LinearQuantizer<T>(),
+            SZ::HuffmanEncoder<int>(),
+            SZ::Lossless_zstd());
+    return sz.decompress(cmpDataPos, cmpSize, conf.num);
 }
 
 
@@ -114,6 +110,8 @@ double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> d
 
 template<class T, uint N>
 char *SZ_compress_Interp_lorenzo_N(SZ::Config &conf, T *data, size_t &outSize) {
+    assert(conf.cmprMethod == METHOD_INTERP_LORENZO);
+
     std::cout << "====================================== BEGIN TUNING ================================" << std::endl;
     SZ::Timer timer(true);
 
@@ -125,7 +123,7 @@ char *SZ_compress_Interp_lorenzo_N(SZ::Config &conf, T *data, size_t &outSize) {
 //    printf("%lu %lu %lu %lu %lu\n", sampling_data.size(), sampling_num, sample_dims[0], sample_dims[1], sample_dims[2]);
 
     SZ::Config lorenzo_config = conf;
-    lorenzo_config.cmprMethod = METHOD_LORENZO_REG_FAST;
+    lorenzo_config.cmprMethod = METHOD_LORENZO_REG;
     lorenzo_config.setDims(sample_dims.begin(), sample_dims.end());
     lorenzo_config.enable_lorenzo = true;
     lorenzo_config.enable_2ndlorenzo = true;

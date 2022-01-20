@@ -4,7 +4,7 @@
 #include "SZ3/compressor/SZInterpolationCompressor.hpp"
 #include "SZ3/compressor/deprecated/SZBlockInterpolationCompressor.hpp"
 #include "SZ3/compressor/SZGeneralCompressor.hpp"
-#include "SZ3/frontend/SZMetaFrontend.hpp"
+#include "SZ3/frontend/SZFastFrontend.hpp"
 #include "SZ3/frontend/SZGeneralFrontend.hpp"
 #include "SZ3/quantizer/IntegerQuantizer.hpp"
 #include "SZ3/predictor/ComposedPredictor.hpp"
@@ -75,19 +75,19 @@ template<class T, uint N>
 char *SZ_compress_LorenzoReg_N(SZ::Config &conf, T *data, size_t &outSize) {
 
     assert(N == conf.N);
+    assert(conf.cmprMethod == METHOD_LORENZO_REG);
     SZ::calAbsErrorBound(conf, data);
 
     char *cmpData;
-    if (conf.cmprMethod == METHOD_LORENZO_REG || conf.cmprMethod == METHOD_LORENZO_REG_FAST) {
-        auto quantizer = SZ::LinearQuantizer<T>(conf.absErrorBound, conf.quant_state_num / 2);
-        if (N == 3 && conf.cmprMethod == METHOD_LORENZO_REG_FAST) {
-            auto sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_meta_frontend<T, N>(conf, quantizer), SZ::HuffmanEncoder<int>(),
-                                                           SZ::Lossless_zstd());
-            cmpData = (char *) sz->compress(conf, data, outSize);
-        } else {
-            auto sz = make_lorenzo_regression_compressor<T, N>(conf, quantizer, SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd());
-            cmpData = (char *) sz->compress(conf, data, outSize);
-        }
+    auto quantizer = SZ::LinearQuantizer<T>(conf.absErrorBound, conf.quant_state_num / 2);
+    if (N == 3 && !conf.enable_2ndregression) {
+        // use fast version for 3D
+        auto sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_fast_frontend<T, N>(conf, quantizer), SZ::HuffmanEncoder<int>(),
+                                                       SZ::Lossless_zstd());
+        cmpData = (char *) sz->compress(conf, data, outSize);
+    } else {
+        auto sz = make_lorenzo_regression_compressor<T, N>(conf, quantizer, SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd());
+        cmpData = (char *) sz->compress(conf, data, outSize);
     }
     return cmpData;
 }
@@ -95,22 +95,21 @@ char *SZ_compress_LorenzoReg_N(SZ::Config &conf, T *data, size_t &outSize) {
 
 template<class T, uint N>
 T *SZ_decompress_LorenzoReg_N(const SZ::Config &conf, char *cmpData, size_t cmpSize) {
+    assert(conf.cmprMethod == METHOD_LORENZO_REG);
+
     SZ::uchar const *cmpDataPos = (SZ::uchar *) cmpData;
+    SZ::LinearQuantizer<T> quantizer;
+    if (N == 3 && !conf.enable_2ndregression) {
+        // use fast version for 3D
+        auto sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_fast_frontend<T, N>(conf, quantizer),
+                                                       SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd());
+        return sz->decompress(cmpDataPos, cmpSize, conf.num);
 
-    if (conf.cmprMethod == METHOD_LORENZO_REG || conf.cmprMethod == METHOD_LORENZO_REG_FAST) {
-        SZ::LinearQuantizer<T> quantizer;
-        if (N == 3 && conf.cmprMethod == METHOD_LORENZO_REG_FAST) {
-            auto sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_meta_frontend<T, N>(conf, quantizer),
-                                                           SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd());
-            return sz->decompress(cmpDataPos, cmpSize, conf.num);
-
-        } else {
-            auto sz = make_lorenzo_regression_compressor<T, N>(conf, quantizer, SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd());
-            return sz->decompress(cmpDataPos, cmpSize, conf.num);
-        }
-
+    } else {
+        auto sz = make_lorenzo_regression_compressor<T, N>(conf, quantizer, SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd());
+        return sz->decompress(cmpDataPos, cmpSize, conf.num);
     }
-    return nullptr;
+
 }
 
 #endif
