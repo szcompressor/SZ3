@@ -4,6 +4,7 @@
 
 #ifndef SZ_STATISTIC_HPP
 #define SZ_STATISTIC_HPP
+
 #include "Config.hpp"
 
 namespace SZ {
@@ -16,6 +17,10 @@ namespace SZ {
             if (min > data[i]) min = data[i];
         }
         return max - min;
+    }
+
+    int factorial(int n) {
+        return (n == 0) || (n == 1) ? 1 : n * factorial(n - 1);
     }
 
     template<class T>
@@ -111,7 +116,7 @@ namespace SZ {
         printf("Max relative error = %.2G\n", diffMax / (Max - Min));
         printf("Max pw relative error = %.2G\n", maxpw_relerr);
         printf("PSNR = %f, NRMSE= %.10G\n", psnr, nrmse);
-        printf ("normError = %f, normErr_norm = %f\n", normErr, normErr_norm);
+        printf("normError = %f, normErr_norm = %f\n", normErr, normErr_norm);
         printf("acEff=%f\n", acEff);
 //        printf("errAutoCorr=%.10f\n", autocorrelation1DLag1<double>(diff, num_elements, diff_sum / num_elements));
         free(diff);
