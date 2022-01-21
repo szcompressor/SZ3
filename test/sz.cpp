@@ -310,16 +310,16 @@ int main(int argc, char *argv[]) {
             conf.errorBoundMode = ABS;
         else if (strcmp(errBoundMode, "REL") == 0 || strcmp(errBoundMode, "VR_REL") == 0)
             conf.errorBoundMode = REL;
-        else if (strcmp(errBoundMode, "ABS_AND_REL") == 0)
-            conf.errorBoundMode = ABS_AND_REL;
-        else if (strcmp(errBoundMode, "ABS_OR_REL") == 0)
-            conf.errorBoundMode = ABS_OR_REL;
-        else if (strcmp(errBoundMode, "PSNR") == 0)
-            conf.errorBoundMode = PSNR;
-        else if (strcmp(errBoundMode, "PW_REL") == 0)
-            conf.errorBoundMode = PW_REL;
-        else if (strcmp(errBoundMode, "NORM") == 0)
-            conf.errorBoundMode = NORM;
+//        else if (strcmp(errBoundMode, "ABS_AND_REL") == 0)
+//            conf.errorBoundMode = ABS_AND_REL;
+//        else if (strcmp(errBoundMode, "ABS_OR_REL") == 0)
+//            conf.errorBoundMode = ABS_OR_REL;
+//        else if (strcmp(errBoundMode, "PSNR") == 0)
+//            conf.errorBoundMode = PSNR;
+//        else if (strcmp(errBoundMode, "PW_REL") == 0)
+//            conf.errorBoundMode = PW_REL;
+//        else if (strcmp(errBoundMode, "NORM") == 0)
+//            conf.errorBoundMode = NORM;
         else {
             printf("Error: wrong error bound mode setting by using the option '-M'\n");
             usage();
