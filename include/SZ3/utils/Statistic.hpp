@@ -4,6 +4,7 @@
 
 #ifndef SZ_STATISTIC_HPP
 #define SZ_STATISTIC_HPP
+#include "Config.hpp"
 
 namespace SZ {
     template<class T>
