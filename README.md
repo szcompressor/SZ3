@@ -37,7 +37,7 @@ Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [
 You can use the executable 'sz' command to do the compression/decompression.
 
 ## API
-Please refer to "include/SZ3/api/sz.hpp" for API and instructions.
+Please refer to 'include/SZ3/api/sz.hpp' for API and instructions.
 
 ## Version history
 
