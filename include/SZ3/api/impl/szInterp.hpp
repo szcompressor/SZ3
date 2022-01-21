@@ -57,14 +57,6 @@ template<class T, uint N>
 double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> dims, size_t num,
                                                   double eb, int interp_op, int direction_op, int block_size) {
 
-//    std::cout << "****************** Interp Compression ****************" << std::endl;
-//    std::cout << "Interp Op          = " << interp_op << std::endl
-//              << "Direction          = " << direction_op << std::endl
-//              << "SZ block size      = " << block_size << std::endl
-//              << "Interp block size  = " << interp_block_size << std::endl;
-
-    SZ::Timer timer(true);
-
     std::vector<T> data1(data, data + num);
     size_t compressed_size = 0;
 
@@ -86,24 +78,7 @@ double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> d
 
     auto cmpData = sz.compress(data1.data(), compressed_size);
     delete[]cmpData;
-
-    double compression_time = timer.stop();
-
     auto compression_ratio = num * sizeof(T) * 1.0 / compressed_size;
-//    std::cout << "Compressed size = " << compressed_size << std::endl;
-//    std::cout << "Compression ratio = " << compression_ratio << std::endl;
-//    std::cout << "Interp compression time = " << compression_time
-//              << " Ratio = " << compression_ratio
-//              << " Params = " << interp_level
-//              << " " << interp_op
-//              << " " << direction_op
-//              << " " << block_size
-//              << " " << interp_block_size
-//              //              << " " << sz_op
-//              << std::endl;
-
-
-//    std::cout << "****************** Interp end ****************" << std::endl;
     return compression_ratio;
 }
 
