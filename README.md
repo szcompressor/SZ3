@@ -26,7 +26,7 @@ See COPYRIGHT in top-level directory.
 ## Installation
 
 * mkdir build && cd build
-* cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX:PATH=[INSTALL_DIR] ..
+* cmake -DCMAKE_INSTALL_PREFIX:PATH=[INSTALL_DIR] ..
 * make
 * make install
 
