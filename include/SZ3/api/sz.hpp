@@ -11,7 +11,7 @@
  * @param conf compression configuration. Please update the config with 1). data dimension and shape and 2). desired settings.
  * @param data source data
  * @param outSize compressed data size in bytes
- * @return compressed data
+ * @return compressed data, remember to 'delete []' when the data is no longer needed.
 
 The compression algorithms are:
 METHOD_INTERP_LORENZO:
@@ -86,7 +86,7 @@ char *SZ_compress(SZ::Config &conf, T *data, size_t &outSize) {
  * The correct config will be loaded from compressed data and returned.
  * @param cmpData compressed data
  * @param cmpSize compressed data size in bytes
- * @return decompressed data
+ * @return decompressed data, remember to 'delete []' when the data is no longer needed.
 
  example:
  SZ::Config conf;
