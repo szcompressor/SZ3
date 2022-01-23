@@ -21,13 +21,13 @@ namespace SZ {
         RegressionPredictor() : quantizer_independent(0), quantizer_liner(0), prev_coeffs{0}, current_coeffs{0} {}
 
         RegressionPredictor(uint block_size, double eb) : quantizer_independent(eb / (N + 1)),
-                                                     quantizer_liner(eb / (N + 1) / block_size),
-                                                     prev_coeffs{0}, current_coeffs{0} {
+                                                          quantizer_liner(eb / (N + 1) / block_size),
+                                                          prev_coeffs{0}, current_coeffs{0} {
         }
 
         RegressionPredictor(uint block_size, double eb1, double eb2) : quantizer_independent(eb1),
-                                                             quantizer_liner(eb2),
-                                                             prev_coeffs{0}, current_coeffs{0} {
+                                                                       quantizer_liner(eb2),
+                                                                       prev_coeffs{0}, current_coeffs{0} {
         }
 
         using Range = multi_dimensional_range<T, N>;
@@ -49,7 +49,7 @@ namespace SZ {
             // std::cout << "precompress_block" << std::endl;
             auto dims = range->get_dimensions();
             size_t num_elements = 1;
-            for (const auto &dim : dims) {
+            for (const auto &dim: dims) {
                 num_elements *= dim;
                 if (dim <= 1) {
                     return false;
@@ -67,7 +67,7 @@ namespace SZ {
                     for (int t = 0; t < dims[N - 1]; t++) {
                         T data = *iter;
                         sum_cumulative += data;
-                        sum[N - 1] += iter.get_local_index(N - 1) * data;
+                        sum[N - 1] += (double) iter.get_local_index(N - 1) * data;
                         iter.move();
                     }
                     for (int i = 0; i < N - 1; i++) {
@@ -121,7 +121,7 @@ namespace SZ {
         }
 
         bool predecompress_block(const std::shared_ptr<Range> &range) noexcept {
-            for (const auto &dim :  range->get_dimensions()) {
+            for (const auto &dim: range->get_dimensions()) {
                 if (dim <= 1) {
                     return false;
                 }
@@ -159,11 +159,11 @@ namespace SZ {
             int count = 0;
             int ind = regression_coeff_index ? regression_coeff_index : regression_coeff_quant_inds.size();
             std::cout << "Prev coeffs: ";
-            for (const auto &c:prev_coeffs) {
+            for (const auto &c: prev_coeffs) {
                 std::cout << c << " ";
             }
             std::cout << "\nCurrent coeffs: ";
-            for (const auto &c:current_coeffs) {
+            for (const auto &c: current_coeffs) {
                 std::cout << c << " ";
             }
             std::cout << std::endl;
