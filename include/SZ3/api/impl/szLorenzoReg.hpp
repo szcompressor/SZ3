@@ -1,8 +1,6 @@
 #ifndef SZ3_SZ_LORENZO_REG_HPP
 #define SZ3_SZ_LORENZO_REG_HPP
 
-#include "SZ3/compressor/SZInterpolationCompressor.hpp"
-#include "SZ3/compressor/deprecated/SZBlockInterpolationCompressor.hpp"
 #include "SZ3/compressor/SZGeneralCompressor.hpp"
 #include "SZ3/frontend/SZFastFrontend.hpp"
 #include "SZ3/frontend/SZGeneralFrontend.hpp"
