@@ -55,6 +55,7 @@ namespace SZ {
             write(block_size, c);
             write(stride, c);
             write(pred_dim, c);
+            write(openmp, c);
         };
 
         void load(const unsigned char *&c) {
@@ -79,26 +80,28 @@ namespace SZ {
             read(block_size, c);
             read(stride, c);
             read(pred_dim, c);
+            read(openmp, c);
         }
 
-        int N;
+        char N;
         std::vector<size_t> dims;
         size_t num;
         bool enable_lorenzo = true;
         bool enable_2ndlorenzo = false;
         bool enable_regression = true;
         bool enable_2ndregression = false;
-        int interp_op = 1;
-        int interp_direction_op = 0;
+        uint8_t interp_op = 1;
+        uint8_t interp_direction_op = 0;
         int interp_block_size = 32;
-        int lossless_op = 1; // 0-> skip lossless(use lossless_bypass); 1-> zstd
-        int encoder_op = 1;// 0-> skip encoder; 1->HuffmanEncoder; 2->ArithmeticEncoder
-        size_t quant_state_num = 65536;
+        uint8_t lossless_op = 1; // 0-> skip lossless(use lossless_bypass); 1-> zstd
+        uint8_t encoder_op = 1;// 0-> skip encoder; 1->HuffmanEncoder; 2->ArithmeticEncoder
+        int quant_state_num = 65536;
         int block_size, stride, pred_dim;
         double absErrorBound;
         double relErrorBound;
-        int errorBoundMode = ABS;
-        char cmprMethod = METHOD_INTERP_LORENZO;
+        uint8_t errorBoundMode = ABS;
+        uint8_t cmprMethod = METHOD_INTERP_LORENZO;
+        bool openmp = false;
 
     };
 

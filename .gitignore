@@ -3,4 +3,5 @@ compressed.out
 perf.data*
 build
 cmake-build-debug
+cmake-build-release
 .idea

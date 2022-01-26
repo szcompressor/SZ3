@@ -70,7 +70,7 @@ make_lorenzo_regression_compressor(const SZ::Config &conf, Quantizer quantizer, 
 
 
 template<class T, uint N>
-char *SZ_compress_LorenzoReg_N(SZ::Config &conf, T *data, size_t &outSize) {
+char *SZ_compress_LorenzoReg(SZ::Config &conf, T *data, size_t &outSize) {
 
     assert(N == conf.N);
     assert(conf.cmprMethod == METHOD_LORENZO_REG);
@@ -92,7 +92,7 @@ char *SZ_compress_LorenzoReg_N(SZ::Config &conf, T *data, size_t &outSize) {
 
 
 template<class T, uint N>
-T *SZ_decompress_LorenzoReg_N(const SZ::Config &conf, char *cmpData, size_t cmpSize) {
+void SZ_decompress_LorenzoReg(const SZ::Config &conf, char *cmpData, size_t cmpSize, T *decData) {
     assert(conf.cmprMethod == METHOD_LORENZO_REG);
 
     SZ::uchar const *cmpDataPos = (SZ::uchar *) cmpData;
@@ -101,11 +101,13 @@ T *SZ_decompress_LorenzoReg_N(const SZ::Config &conf, char *cmpData, size_t cmpS
         // use fast version for 3D
         auto sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_fast_frontend<T, N>(conf, quantizer),
                                                        SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd());
-        return sz->decompress(cmpDataPos, cmpSize, conf.num);
+        sz->decompress(cmpDataPos, cmpSize, decData);
+        return;
 
     } else {
         auto sz = make_lorenzo_regression_compressor<T, N>(conf, quantizer, SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd());
-        return sz->decompress(cmpDataPos, cmpSize, conf.num);
+        sz->decompress(cmpDataPos, cmpSize, decData);
+        return;
     }
 
 }
