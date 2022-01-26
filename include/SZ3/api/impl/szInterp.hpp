@@ -14,7 +14,7 @@
 #include "SZ3/utils/QuantOptimizatioin.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/predictor/SimplePredictor.hpp"
-#include "SZLorenzoReg.hpp"
+#include "SZ3/api/impl/SZLorenzoReg.hpp"
 #include <cmath>
 #include <memory>
 
