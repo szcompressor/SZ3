@@ -3,7 +3,7 @@
 
 #include "SZ3/def.hpp"
 #include "SZDispatcher.hpp"
-#include "SZDispatcherOMP.hpp"
+#include "SZImplOMP.hpp"
 #include <cmath>
 
 template<class T, uint N>
@@ -12,7 +12,7 @@ char *SZ_compress_impl(SZ::Config &conf, T *data, size_t &outSize) {
     conf.openmp=false;
 #endif
     if (conf.openmp) {
-        return SZ_compress_dispatcher_OMP<T, N>(conf, data, outSize);
+        return SZ_compress_OMP<T, N>(conf, data, outSize);
     } else {
         return SZ_compress_dispatcher<T, N>(conf, data, outSize);
     }
@@ -25,7 +25,7 @@ void SZ_decompress_impl(SZ::Config &conf, char *cmpData, size_t cmpSize, T *decD
     conf.openmp=false;
 #endif
     if (conf.openmp) {
-        SZ_decompress_dispatcher_OMP<T, N>(conf, cmpData, cmpSize, decData);
+        SZ_decompress_OMP<T, N>(conf, cmpData, cmpSize, decData);
     } else {
         SZ_decompress_dispatcher<T, N>(conf, cmpData, cmpSize, decData);
     }

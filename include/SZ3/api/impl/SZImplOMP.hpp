@@ -9,7 +9,7 @@
 #include "omp.h"
 
 template<class T, uint N>
-char *SZ_compress_dispatcher_OMP(SZ::Config &conf, T *data, size_t &outSize) {
+char *SZ_compress_OMP(SZ::Config &conf, T *data, size_t &outSize) {
 #ifdef _OPENMP
 
     assert(N == conf.N);
@@ -102,7 +102,7 @@ char *SZ_compress_dispatcher_OMP(SZ::Config &conf, T *data, size_t &outSize) {
 
 
 template<class T, uint N>
-void SZ_decompress_dispatcher_OMP(const SZ::Config &conf, char *cmpData, size_t cmpSize, T *decData) {
+void SZ_decompress_OMP(const SZ::Config &conf, char *cmpData, size_t cmpSize, T *decData) {
 #ifdef _OPENMP
 
     const unsigned char *cmpr_data_pos = (unsigned char *) cmpData;
