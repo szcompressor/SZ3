@@ -4,8 +4,8 @@
 #include "SZ3/utils/MemoryUtil.hpp"
 #include "SZ3/utils/Statistic.hpp"
 #include "SZ3/utils/Config.hpp"
-#include "SZInterp.hpp"
-#include "SZLorenzoReg.hpp"
+#include "SZ3/api/impl/SZInterp.hpp"
+#include "SZ3/api/impl/SZLorenzoReg.hpp"
 #include <cmath>
 
 

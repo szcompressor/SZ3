@@ -1,7 +1,7 @@
 #ifndef SZ3_IMPL_SZDISPATCHER_OMP_HPP
 #define SZ3_IMPL_SZDISPATCHER_OMP_HPP
 
-#include "SZDispatcher.hpp"
+#include "SZ3/api/impl/SZDispatcher.hpp"
 #include <cmath>
 #include <memory>
 

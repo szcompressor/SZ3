@@ -2,8 +2,8 @@
 #define SZ3_IMPL_SZ_HPP
 
 #include "SZ3/def.hpp"
-#include "SZDispatcher.hpp"
-#include "SZImplOMP.hpp"
+#include "SZ3/api/impl/SZDispatcher.hpp"
+#include "SZ3/api/impl/SZImplOMP.hpp"
 #include <cmath>
 
 template<class T, uint N>
