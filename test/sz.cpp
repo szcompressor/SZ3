@@ -16,6 +16,60 @@
 #define SZ_INT64 9
 
 void usage() {
+    printf("Note: SZ3 command line arguments are backward compatible with SZ2, \n");
+    printf("      use -h2 to show the supported SZ2 command line arguments. \n");
+    printf("Usage: sz <options>\n");
+    printf("Options:\n");
+    printf("* general options:\n");
+    printf("	-h: print the help information\n");
+    printf("	-h2: print the help information for SZ2 style command line\n");
+    printf("	-v: print the version number\n");
+    printf("* input and output:\n");
+    printf("	-i <path> : original binary input file\n");
+    printf("	-o <path> : compressed binary output file\n");
+    printf("	-z <path> : compressed output (w -i) or input (w/o -i) file\n");
+    //    printf("	-t : decompreadded file stored in text format\n");
+//    printf("	-p: print meta data (configuration info)\n");
+    printf("* data type:\n");
+    printf("	-f: single precision (float type)\n");
+    printf("	-d: double precision (double type)\n");
+    printf("* configuration file: \n");
+    printf("	-c <configuration file> : configuration file sz.config\n");
+    printf("* error control: (the error control parameters here will overwrite the setting in sz.config)\n");
+    printf("	-M <error control mode> <error bound> : error control mode options as follows \n");
+    printf("		ABS (absolute error bound)\n");
+    printf("		REL (value range based error bound, so a.k.a., VR_REL)\n");
+//    printf("		ABS_AND_REL (using min{ABS, REL})\n");
+//    printf("		ABS_OR_REL (using max{ABS, REL})\n");
+//    printf("		PSNR (peak signal-to-noise ratio)\n");
+//    printf("		NORM (norm2 error : sqrt(sum(xi-xi')^2)\n");
+//    printf("		PW_REL (point-wise relative error bound)\n");
+//    printf("	-A <absolute error bound>: specifying absolute error bound\n");
+//    printf("	-R <value_range based relative error bound>: specifying relative error bound\n");
+//    printf("	-P <point-wise relative error bound>: specifying point-wise relative error bound\n");
+//    printf("	-S <PSNR>: specifying PSNR\n");
+//    printf("	-N <normErr>: specifying normErr\n");
+//    printf("	-T : pre-processing with Tucker Tensor Decomposition\n");
+    printf("* dimensions: \n");
+    printf("	-1 <nx> : dimension for 1D data such as data[nx]\n");
+    printf("	-2 <nx> <ny> : dimensions for 2D data such as data[ny][nx]\n");
+    printf("	-3 <nx> <ny> <nz> : dimensions for 3D data such as data[nz][ny][nx] \n");
+    printf("	-4 <nx> <ny> <nz> <np>: dimensions for 4D data such as data[np][nz][ny][nx] \n");
+    printf("* print compression results: \n");
+    printf("	-a : print compression results such as distortions\n");
+    printf("* examples: \n");
+    printf("	sz -z -f -c sz.config -i testdata/x86/testfloat_8_8_128.dat -3 8 8 128\n");
+    printf("	sz -z -f -c sz.config -M ABS -A 1E-3 -i testdata/x86/testfloat_8_8_128.dat -3 8 8 128\n");
+    printf("	sz -x -f -s testdata/x86/testfloat_8_8_128.dat.sz -3 8 8 128\n");
+    printf("	sz -x -f -s testdata/x86/testfloat_8_8_128.dat.sz -i testdata/x86/testfloat_8_8_128.dat -3 8 8 128 -a\n");
+    printf("	sz -z -d -c sz.config -i testdata/x86/testdouble_8_8_128.dat -3 8 8 128\n");
+    printf("	sz -x -d -s testdata/x86/testdouble_8_8_128.dat.sz -3 8 8 128\n");
+    printf("	sz -p -s testdata/x86/testdouble_8_8_128.dat.sz\n");
+    exit(0);
+}
+
+void usage_sz2() {
+    printf("Note: below are the supported command line arguments in SZ2 style\n");
     printf("Usage: sz <options>\n");
     printf("Options:\n");
     printf("* operation type:\n");
@@ -23,7 +77,7 @@ void usage() {
     printf("                          (the compressed file will be named as <input_file>.sz if not specified)\n");
     printf("	-x <decompressed file>: the decompression operation with an optionally specified output file\n");
     printf("                      (the decompressed file will be named as <cmpred_file>.out if not specified)\n");
-    printf("	-p: print meta data (configuration info)\n");
+//    printf("	-p: print meta data (configuration info)\n");
     printf("	-h: print the help information\n");
     printf("	-v: print the version number\n");
     printf("* data type:\n");
@@ -81,7 +135,7 @@ void compress(char *inPath, char *cmpPath, SZ::Config conf) {
     double compress_time = timer.stop();
 
     char outputFilePath[1024];
-    if (cmpPath == NULL) {
+    if (cmpPath == nullptr) {
         sprintf(outputFilePath, "%s.sz", inPath);
     } else {
         strcpy(outputFilePath, cmpPath);
@@ -109,7 +163,7 @@ void decompress(char *inPath, char *cmpPath, char *decPath,
     double compress_time = timer.stop();
 
     char outputFilePath[1024];
-    if (decPath == NULL) {
+    if (decPath == nullptr) {
         sprintf(outputFilePath, "%s.out", cmpPath);
     } else {
         strcpy(outputFilePath, decPath);
@@ -136,21 +190,25 @@ void decompress(char *inPath, char *cmpPath, char *decPath,
 int main(int argc, char *argv[]) {
     int binaryOutput = 1;
     int printCmpResults = 0;
-    int compressionMode = 0; // &1 : compression ; &2: decompression
+    bool compression = false;
+    bool decompression = false;
     int dataType = SZ_FLOAT;
-    char *inPath = NULL;
-    char *cmpPath = NULL;
-    char *conPath = NULL;
-    char *decPath = NULL;
+    char *inPath = nullptr;
+    char *cmpPath = nullptr;
+    char *conPath = nullptr;
+    char *decPath = nullptr;
+    bool delCmpPath = false;
 
-    char *errBoundMode = NULL;
-    char *absErrorBound = NULL;
-    char *relErrorBound = NULL;
-    char *pwrErrorBound = NULL;
-    char *psnr_ = NULL;
-    char *normError = NULL;
+    char *errBoundMode = nullptr;
+    char *errBound = nullptr;
+    char *absErrorBound = nullptr;
+    char *relErrorBound = nullptr;
+    char *pwrErrorBound = nullptr;
+    char *psnr_ = nullptr;
+    char *normError = nullptr;
 
-    size_t r5 = 0;
+    bool sz2mode = false;
+
     size_t r4 = 0;
     size_t r3 = 0;
     size_t r2 = 0;
@@ -158,13 +216,17 @@ int main(int argc, char *argv[]) {
 
     size_t i = 0;
     int status;
-    size_t nbEle;
     if (argc == 1)
         usage();
 
     for (i = 1; i < argc; i++) {
-        if (argv[i][0] != '-' || argv[i][2])
-            usage();
+        if (argv[i][0] != '-' || argv[i][2]) {
+            if (argv[i][1] == 'h' && argv[i][2] == '2') {
+                usage_sz2();
+            } else {
+                usage();
+            }
+        }
         switch (argv[i][1]) {
             case 'h':
                 usage();
@@ -175,30 +237,33 @@ int main(int argc, char *argv[]) {
             case 'b':
                 binaryOutput = 1;
                 break;
-//            case 't':
-//                binaryOutput = 0;
-//                break;
+            case 't':
+                binaryOutput = 0;
+                printf("text output is not yet supported.");
+                exit(0);
+                break;
             case 'a':
                 printCmpResults = 1;
                 break;
             case 'z':
-                compressionMode |= 1;
+                compression = true;
                 if (i + 1 < argc) {
                     cmpPath = argv[i + 1];
                     if (cmpPath[0] != '-')
                         i++;
                     else
-                        cmpPath = NULL;
+                        cmpPath = nullptr;
                 }
                 break;
             case 'x':
-                compressionMode |= 2;
+                sz2mode = true;
+                decompression = true;
                 if (i + 1 < argc) {
                     decPath = argv[i + 1];
                     if (decPath[0] != '-')
                         i++;
                     else
-                        decPath = NULL;
+                        decPath = nullptr;
                 }
                 break;
             case 'f':
@@ -212,7 +277,13 @@ int main(int argc, char *argv[]) {
                     usage();
                 inPath = argv[i];
                 break;
+            case 'o':
+                if (++i == argc)
+                    usage();
+                decPath = argv[i];
+                break;
             case 's':
+                sz2mode = true;
                 if (++i == argc)
                     usage();
                 cmpPath = argv[i];
@@ -248,6 +319,9 @@ int main(int argc, char *argv[]) {
                 if (++i == argc)
                     usage();
                 errBoundMode = argv[i];
+                if (i + 1 < argc && argv[i + 1][0] != '-') {
+                    errBound = argv[++i];
+                }
                 break;
             case 'A':
                 if (++i == argc)
@@ -280,39 +354,62 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if ((inPath == NULL) & (cmpPath == NULL)) {
+    if ((inPath == nullptr) && (cmpPath == nullptr)) {
         printf("Error: you need to specify either a raw binary data file or a compressed data file as input\n");
         usage();
         exit(0);
     }
 
+    if (!sz2mode && inPath != nullptr && cmpPath != nullptr) {
+        compression = true;
+    }
+    if (cmpPath != nullptr && decPath != nullptr) {
+        decompression = true;
+    }
+    char cmpPathTmp[1024];
+    if (inPath != nullptr && cmpPath == nullptr && decPath != nullptr) {
+        compression = true;
+        decompression = true;
+        sprintf(cmpPathTmp, "%s.sz.tmp", inPath);
+        cmpPath = cmpPathTmp;
+        delCmpPath = true;
+    }
 
     SZ::Config conf;
     if (r2 == 0) {
-        nbEle = r1;
         conf = SZ::Config(r1);
     } else if (r3 == 0) {
-        nbEle = r1 * r2;
         conf = SZ::Config(r2, r1);
     } else if (r4 == 0) {
-        nbEle = r1 * r2 * r3;
         conf = SZ::Config(r3, r2, r1);
-    } else if (r5 == 0) {
-        nbEle = r1 * r2 * r3 * r4;
-        conf = SZ::Config(r4, r3, r2, r1);
     } else {
-        nbEle = r1 * r2 * r3 * r4 * r5;
-        conf = SZ::Config(r5, r4, r3, r2, r1);
+        conf = SZ::Config(r4, r3, r2, r1);
     }
-    if (compressionMode & 1 && conPath != NULL) {
+    if (compression && conPath != nullptr) {
         conf.loadcfg(conPath);
     }
 
-    if (errBoundMode != NULL) {
-        if (strcmp(errBoundMode, "ABS") == 0)
+    if (errBoundMode != nullptr) {
+        {
+            // backward compatible with SZ2
+            if (relErrorBound != nullptr) {
+                conf.relErrorBound = atof(relErrorBound);
+            }
+            if (absErrorBound != nullptr) {
+                conf.absErrorBound = atof(absErrorBound);
+            }
+        }
+        if (strcmp(errBoundMode, "ABS") == 0) {
             conf.errorBoundMode = EB_ABS;
-        else if (strcmp(errBoundMode, "REL") == 0 || strcmp(errBoundMode, "VR_REL") == 0)
+            if (errBound != nullptr) {
+                conf.absErrorBound = atof(errBound);
+            }
+        } else if (strcmp(errBoundMode, "REL") == 0 || strcmp(errBoundMode, "VR_REL") == 0) {
             conf.errorBoundMode = EB_REL;
+            if (errBound != nullptr) {
+                conf.relErrorBound = atof(errBound);
+            }
+        }
 //        else if (strcmp(errBoundMode, "ABS_AND_REL") == 0)
 //            conf.errorBoundMode = ABS_AND_REL;
 //        else if (strcmp(errBoundMode, "ABS_OR_REL") == 0)
@@ -330,13 +427,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (compressionMode & 1) {
-        if (absErrorBound != NULL) {
-            conf.absErrorBound = atof(absErrorBound);
-        }
-        if (relErrorBound != NULL) {
-            conf.relErrorBound = atof(relErrorBound);
-        }
+    if (compression) {
 
         if (dataType == SZ_FLOAT) {
             compress<float>(inPath, cmpPath, conf);
@@ -348,12 +439,10 @@ int main(int argc, char *argv[]) {
             exit(0);
         }
     }
-    if (compressionMode & 2) { //decompression
-        if (printCmpResults) {
-            if (inPath == NULL) {
-                printf("Error: Since you add -a option (analysis), please specify the original data path by -i <path>.\n");
-                exit(0);
-            }
+    if (decompression) {
+        if (printCmpResults && inPath == nullptr) {
+            printf("Error: Since you add -a option (analysis), please specify the original data path by -i <path>.\n");
+            exit(0);
         }
 
         if (dataType == SZ_FLOAT) {
@@ -365,6 +454,9 @@ int main(int argc, char *argv[]) {
             usage();
             exit(0);
         }
+    }
+    if (delCmpPath) {
+        remove(cmpPath);
     }
     return 0;
 }

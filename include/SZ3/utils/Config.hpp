@@ -39,9 +39,12 @@ namespace SZ {
             INIReader cfg(cfgpath);
 
             if (cfg.ParseError() != 0) {
-                std::cout << "Can't load cfg file = <<" << cfgpath << std::endl;
+                std::cout << "Can't load cfg file  <<" << cfgpath << std::endl;
                 exit(0);
+            } else {
+                std::cout << "Load cfg from " << cfgpath << std::endl;
             }
+
             auto cmprAlgoStr = cfg.Get("GlobalSettings", "cmprAlgo", "");
             if (cmprAlgoStr == "ALGO_LORENZO_REG") {
                 cmprAlgo = ALGO_LORENZO_REG;
@@ -124,6 +127,9 @@ namespace SZ {
             read(openmp, c);
         }
 
+        void print(){
+
+        }
         char N;
         std::vector<size_t> dims;
         size_t num;
