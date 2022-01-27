@@ -8,7 +8,7 @@
 /*------   Version   ------*/
 #define SZ_VERSION_MAJOR    3
 #define SZ_VERSION_MINOR    1
-#define SZ_VERSION_RELEASE  0
+#define SZ_VERSION_RELEASE  1
 
 #define SZ_LIB_VERSION SZ_VERSION_MAJOR.SZ_VERSION_MINOR.SZ_VERSION_RELEASE
 #define SZ_QUOTE(str) #str
