@@ -59,6 +59,9 @@ namespace SZ {
             } else if (ebModeStr == "EB_REL") {
                 errorBoundMode = EB_REL;
             }
+            absErrorBound = cfg.GetReal("GlobalSettings", "AbsErrorBound", absErrorBound);
+            relErrorBound = cfg.GetReal("GlobalSettings", "RelErrorBound", relErrorBound);
+
             openmp = cfg.GetBoolean("GlobalSettings", "OpenMP", openmp);
             lorenzo = cfg.GetBoolean("AlgoSettings", "Lorenzo", lorenzo);
             lorenzo2 = cfg.GetBoolean("AlgoSettings", "Lorenzo2ndOrder", lorenzo2);
@@ -75,6 +78,7 @@ namespace SZ {
             interpBlockSize = cfg.GetInteger("AlgoSettings", "InterpolationBlockSize", interpBlockSize);
             blockSize = cfg.GetInteger("AlgoSettings", "BlockSize", blockSize);
             quantbinCnt = cfg.GetInteger("AlgoSettings", "QuantizationBinTotal", quantbinCnt);
+
 
         }
 
@@ -127,9 +131,10 @@ namespace SZ {
             read(openmp, c);
         }
 
-        void print(){
+        void print() {
 
         }
+
         char N;
         std::vector<size_t> dims;
         size_t num;

@@ -24,6 +24,7 @@ void usage() {
     printf("	-h: print the help information\n");
     printf("	-h2: print the help information for SZ2 style command line\n");
     printf("	-v: print the version number\n");
+    printf("	-a : print compression results such as distortions\n");
     printf("* input and output:\n");
     printf("	-i <path> : original binary input file\n");
     printf("	-o <path> : compressed binary output file\n");
@@ -39,32 +40,17 @@ void usage() {
     printf("	-M <error control mode> <error bound> : error control mode options as follows \n");
     printf("		ABS (absolute error bound)\n");
     printf("		REL (value range based error bound, so a.k.a., VR_REL)\n");
-//    printf("		ABS_AND_REL (using min{ABS, REL})\n");
-//    printf("		ABS_OR_REL (using max{ABS, REL})\n");
-//    printf("		PSNR (peak signal-to-noise ratio)\n");
-//    printf("		NORM (norm2 error : sqrt(sum(xi-xi')^2)\n");
-//    printf("		PW_REL (point-wise relative error bound)\n");
-//    printf("	-A <absolute error bound>: specifying absolute error bound\n");
-//    printf("	-R <value_range based relative error bound>: specifying relative error bound\n");
-//    printf("	-P <point-wise relative error bound>: specifying point-wise relative error bound\n");
-//    printf("	-S <PSNR>: specifying PSNR\n");
-//    printf("	-N <normErr>: specifying normErr\n");
-//    printf("	-T : pre-processing with Tucker Tensor Decomposition\n");
     printf("* dimensions: \n");
     printf("	-1 <nx> : dimension for 1D data such as data[nx]\n");
     printf("	-2 <nx> <ny> : dimensions for 2D data such as data[ny][nx]\n");
     printf("	-3 <nx> <ny> <nz> : dimensions for 3D data such as data[nz][ny][nx] \n");
     printf("	-4 <nx> <ny> <nz> <np>: dimensions for 4D data such as data[np][nz][ny][nx] \n");
-    printf("* print compression results: \n");
-    printf("	-a : print compression results such as distortions\n");
     printf("* examples: \n");
-    printf("	sz -z -f -c sz.config -i testdata/x86/testfloat_8_8_128.dat -3 8 8 128\n");
-    printf("	sz -z -f -c sz.config -M ABS -A 1E-3 -i testdata/x86/testfloat_8_8_128.dat -3 8 8 128\n");
-    printf("	sz -x -f -s testdata/x86/testfloat_8_8_128.dat.sz -3 8 8 128\n");
-    printf("	sz -x -f -s testdata/x86/testfloat_8_8_128.dat.sz -i testdata/x86/testfloat_8_8_128.dat -3 8 8 128 -a\n");
-    printf("	sz -z -d -c sz.config -i testdata/x86/testdouble_8_8_128.dat -3 8 8 128\n");
-    printf("	sz -x -d -s testdata/x86/testdouble_8_8_128.dat.sz -3 8 8 128\n");
-    printf("	sz -p -s testdata/x86/testdouble_8_8_128.dat.sz\n");
+    printf("	sz -f -i test.dat    -z test.dat.sz     -3 8 8 128 -M ABS 1e-3 \n");
+    printf("	sz -f -z test.dat.sz -o test.dat.sz.out -3 8 8 128 -M REL 1e-3 -a \n");
+    printf("	sz -f -i test.dat    -o test.dat.sz.out -3 8 8 128 -M ABS 1e-3 -a \n");
+    printf("	sz -f -i test.dat    -o test.dat.sz.out -3 8 8 128 -c sz.config \n");
+    printf("	sz -f -i test.dat    -o test.dat.sz.out -3 8 8 128 -c sz.config -M ABS 1e-3 -a\n");
     exit(0);
 }
 
