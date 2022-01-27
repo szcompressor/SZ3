@@ -102,6 +102,8 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
     lorenzo_config.lorenzo = true;
     lorenzo_config.lorenzo2 = true;
     lorenzo_config.regression = false;
+    lorenzo_config.regression2 = false;
+    lorenzo_config.openmp = false;
     lorenzo_config.blockSize = 5;
     lorenzo_config.quantbinCnt = 65536 * 2;
     size_t sampleOutSize;

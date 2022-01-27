@@ -48,3 +48,4 @@ Version		New features
 * SZ 3.0.2  Support point-wise relative error bound mode.
 * SZ 3.1.0  The default algorithm is now interpolation+Lorenzo.
 * SZ 3.1.1  Add OpenMP support. Works for all algorithms.
+* SZ 3.1.2  Support configuration file (INI format). Example can be found in 'test/sz.config'

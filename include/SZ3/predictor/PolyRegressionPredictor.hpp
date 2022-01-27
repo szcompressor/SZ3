@@ -122,7 +122,7 @@ namespace SZ {
         }
 
         void save(uchar *&c) const {
-            std::cout << "save 2-Layer Regression Predictor" << std::endl;
+//            std::cout << "save 2-Layer Regression Predictor" << std::endl;
             c[0] = predictor_id;
             c += 1;
             quantizer_independent.save(c);
@@ -151,7 +151,7 @@ namespace SZ {
 
         void load(const uchar *&c, size_t &remaining_length) {
             //TODO: adjust remaining_length
-            std::cout << "load predictor" << std::endl;
+//            std::cout << "load predictor" << std::endl;
             c += sizeof(uint8_t);
             remaining_length -= sizeof(uint8_t);
             quantizer_independent.load(c, remaining_length);

@@ -45,7 +45,7 @@ namespace SZ {
                 std::cout << "Load cfg from " << cfgpath << std::endl;
             }
 
-            auto cmprAlgoStr = cfg.Get("GlobalSettings", "cmprAlgo", "");
+            auto cmprAlgoStr = cfg.Get("GlobalSettings", "CmprAlgo", "");
             if (cmprAlgoStr == "ALGO_LORENZO_REG") {
                 cmprAlgo = ALGO_LORENZO_REG;
             } else if (cmprAlgoStr == "ALGO_INTERP_LORENZO") {
@@ -53,10 +53,10 @@ namespace SZ {
             } else if (cmprAlgoStr == "ALGO_INTERP") {
                 cmprAlgo = ALGO_INTERP;
             }
-            auto ebModeStr = cfg.Get("GlobalSettings", "errorBoundMode", "");
-            if (ebModeStr == "EB_ABS") {
+            auto ebModeStr = cfg.Get("GlobalSettings", "ErrorBoundMode", "");
+            if (ebModeStr == "ABS") {
                 errorBoundMode = EB_ABS;
-            } else if (ebModeStr == "EB_REL") {
+            } else if (ebModeStr == "REL") {
                 errorBoundMode = EB_REL;
             }
             absErrorBound = cfg.GetReal("GlobalSettings", "AbsErrorBound", absErrorBound);

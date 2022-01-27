@@ -24,8 +24,12 @@ std::shared_ptr<SZ::concepts::CompressorInterface<T>>
 make_lorenzo_regression_compressor(const SZ::Config &conf, Quantizer quantizer, Encoder encoder, Lossless lossless) {
     std::vector<std::shared_ptr<SZ::concepts::PredictorInterface<T, N>>> predictors;
 
-    int use_single_predictor =
-            (conf.lorenzo + conf.lorenzo2 + conf.regression) == 1;
+    int methodCnt = (conf.lorenzo + conf.lorenzo2 + conf.regression + conf.regression2);
+    int use_single_predictor = (methodCnt == 1);
+    if (methodCnt == 0) {
+        printf("All lorenzo and regression methods are disabled.\n");
+        exit(0);
+    }
     if (conf.lorenzo) {
         if (use_single_predictor) {
             return SZ::make_sz_general_compressor<T, N>(
