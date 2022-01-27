@@ -28,7 +28,7 @@ namespace SZ {
                                        int interpolator, int direction, int interpo_level) :
                 fallback_predictor(LorenzoPredictor<T, N, 1>(conf.absErrorBound)),
                 predictor(predictor), quantizer(quantizer), encoder(encoder), lossless(lossless),
-                block_size(conf.block_size), stride(conf.stride),
+                block_size(conf.blockSize), stride(conf.stride),
                 num_elements(conf.num),
 //                interpolators({"linear", "cubic", "cubic2", "akima", "pchip"}),
                 interpolators({"linear", "cubic"}),

@@ -25,9 +25,9 @@ namespace SZ {
 
     template<class T>
     void calAbsErrorBound(SZ::Config &conf, T *data) {
-        if (conf.errorBoundMode != ABS) {
-            if (conf.errorBoundMode == REL) {
-                conf.errorBoundMode = ABS;
+        if (conf.errorBoundMode != EB_ABS) {
+            if (conf.errorBoundMode == EB_REL) {
+                conf.errorBoundMode = EB_ABS;
                 conf.absErrorBound = conf.relErrorBound * SZ::data_range(data, conf.num);
             } else {
                 printf("Error, error bound mode not supported\n");

@@ -23,13 +23,13 @@ template<class T, uint N>
 char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
 
 //    std::cout << "****************** Interp Compression ****************" << std::endl;
-//    std::cout << "Interp Op          = " << interp_op << std::endl
-//              << "Direction          = " << direction_op << std::endl
-//              << "SZ block size      = " << block_size << std::endl
-//              << "Interp block size  = " << interp_block_size << std::endl;
+//    std::cout << "Interp Op          = " << interpAlgo << std::endl
+//              << "Direction          = " << direction << std::endl
+//              << "SZ block size      = " << blockSize << std::endl
+//              << "Interp block size  = " << interpBlockSize << std::endl;
 
     assert(N == conf.N);
-    assert(conf.cmprMethod == METHOD_INTERP);
+    assert(conf.cmprAlgo == ALGO_INTERP);
     SZ::calAbsErrorBound(conf, data);
 
     auto sz = SZ::SZInterpolationCompressor<T, N, SZ::LinearQuantizer<T>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
@@ -43,7 +43,7 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
 
 template<class T, uint N>
 void SZ_decompress_Interp(const SZ::Config &conf, char *cmpData, size_t cmpSize, T *decData) {
-    assert(conf.cmprMethod == METHOD_INTERP);
+    assert(conf.cmprAlgo == ALGO_INTERP);
     SZ::uchar const *cmpDataPos = (SZ::uchar *) cmpData;
     auto sz = SZ::SZInterpolationCompressor<T, N, SZ::LinearQuantizer<T>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
             SZ::LinearQuantizer<T>(),
@@ -63,8 +63,8 @@ double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> d
     SZ::Config conf;
     conf.absErrorBound = eb;
     conf.setDims(dims.begin(), dims.end());
-    conf.block_size = block_size;
-    conf.stride = conf.block_size;
+    conf.blockSize = block_size;
+    conf.stride = conf.blockSize;
     auto sz = SZ::make_sz_block_interpolation_compressor<T, N>(
             conf,
             SZ::SimplePredictor<T, N>(eb),
@@ -84,7 +84,7 @@ double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> d
 
 template<class T, uint N>
 char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
-    assert(conf.cmprMethod == METHOD_INTERP_LORENZO);
+    assert(conf.cmprAlgo == ALGO_INTERP_LORENZO);
 
     std::cout << "====================================== BEGIN TUNING ================================" << std::endl;
     SZ::Timer timer(true);
@@ -97,13 +97,13 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
 //    printf("%lu %lu %lu %lu %lu\n", sampling_data.size(), sampling_num, sample_dims[0], sample_dims[1], sample_dims[2]);
 
     SZ::Config lorenzo_config = conf;
-    lorenzo_config.cmprMethod = METHOD_LORENZO_REG;
+    lorenzo_config.cmprAlgo = ALGO_LORENZO_REG;
     lorenzo_config.setDims(sample_dims.begin(), sample_dims.end());
-    lorenzo_config.enable_lorenzo = true;
-    lorenzo_config.enable_2ndlorenzo = true;
-    lorenzo_config.enable_regression = false;
-    lorenzo_config.block_size = 5;
-    lorenzo_config.quant_state_num = 65536 * 2;
+    lorenzo_config.lorenzo = true;
+    lorenzo_config.lorenzo2 = true;
+    lorenzo_config.regression = false;
+    lorenzo_config.blockSize = 5;
+    lorenzo_config.quantbinCnt = 65536 * 2;
     size_t sampleOutSize;
     auto cmprData = SZ_compress_LorenzoReg<T, N>(lorenzo_config, sampling_data.data(), sampleOutSize);
     delete[]cmprData;
@@ -114,24 +114,24 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
 
     {
         //tune interp
-        for (int interp_op = 0; interp_op < 2; interp_op++) {
+        for (auto &interp_op: {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC}) {
             ratio = do_not_use_this_interp_compress_block_test<T, N>(sampling_data.data(), sample_dims, sampling_num, conf.absErrorBound,
-                                                                     interp_op, conf.interp_direction_op, sampling_block);
+                                                                     interp_op, conf.interpDirection, sampling_block);
             if (ratio > best_interp_ratio) {
                 best_interp_ratio = ratio;
-                conf.interp_op = interp_op;
+                conf.interpAlgo = interp_op;
             }
         }
-        std::cout << "interp select interp_op = " << (unsigned) conf.interp_op << std::endl;
+        std::cout << "interp best interpAlgo = " << (conf.interpAlgo == 0 ? "LINEAR" : "CUBIC") << std::endl;
 
         int direction_op = SZ::factorial(N) - 1;
         ratio = do_not_use_this_interp_compress_block_test<T, N>(sampling_data.data(), sample_dims, sampling_num, conf.absErrorBound,
-                                                                 conf.interp_op, direction_op, sampling_block);
+                                                                 conf.interpAlgo, direction_op, sampling_block);
         if (ratio > best_interp_ratio * 1.02) {
             best_interp_ratio = ratio;
-            conf.interp_direction_op = direction_op;
+            conf.interpDirection = direction_op;
         }
-        std::cout << "interp select direction_op = " << (unsigned) conf.interp_direction_op << std::endl;
+        std::cout << "interp best direction = " << (unsigned) conf.interpDirection << std::endl;
     }
 
     bool useInterp = !(best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 80 && best_interp_ratio < 80);
@@ -140,7 +140,7 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
     printf("choose %s\n", useInterp ? "interp" : "Lorenzo");
 
     if (useInterp) {
-        conf.cmprMethod = METHOD_INTERP;
+        conf.cmprAlgo = ALGO_INTERP;
         double tuning_time = timer.stop();
 //        std::cout << "Tuning time = " << tuning_time << "s" << std::endl;
         std::cout << "====================================== END TUNING ======================================" << std::endl;
@@ -148,7 +148,7 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
     } else {
         //further tune lorenzo
         if (N == 3) {
-            lorenzo_config.quant_state_num = SZ::optimize_quant_invl_3d<T>(data, conf.dims[0], conf.dims[1], conf.dims[2], conf.absErrorBound);
+            lorenzo_config.quantbinCnt = SZ::optimize_quant_invl_3d<T>(data, conf.dims[0], conf.dims[1], conf.dims[2], conf.absErrorBound);
             lorenzo_config.pred_dim = 2;
             cmprData = SZ_compress_LorenzoReg<T, N>(lorenzo_config, sampling_data.data(), sampleOutSize);
             delete[]cmprData;
@@ -162,8 +162,8 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
         }
 
         if (conf.relErrorBound < 1.01e-6 && best_lorenzo_ratio > 5) {
-            auto quant_num = lorenzo_config.quant_state_num;
-            lorenzo_config.quant_state_num = 16384;
+            auto quant_num = lorenzo_config.quantbinCnt;
+            lorenzo_config.quantbinCnt = 16384;
             cmprData = SZ_compress_LorenzoReg<T, N>(lorenzo_config, sampling_data.data(), sampleOutSize);
             delete[]cmprData;
             ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;
@@ -171,7 +171,7 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
             if (ratio > best_lorenzo_ratio * 1.02) {
                 best_lorenzo_ratio = ratio;
             } else {
-                lorenzo_config.quant_state_num = quant_num;
+                lorenzo_config.quantbinCnt = quant_num;
             }
         }
         lorenzo_config.setDims(conf.dims.begin(), conf.dims.end());

@@ -24,8 +24,8 @@ namespace SZ {
     public:
         SZFastFrontend(const Config &conf, Quantizer quantizer) :
                 quantizer(quantizer),
-                params(false, conf.block_size, conf.pred_dim, 0, conf.enable_lorenzo, conf.enable_2ndlorenzo,
-                       conf.enable_regression, conf.absErrorBound),
+                params(false, conf.blockSize, conf.pred_dim, 0, conf.lorenzo, conf.lorenzo2,
+                       conf.regression, conf.absErrorBound),
                 precision(conf.absErrorBound),
                 conf(conf) {
             assert(N == 3 && "SZMeta Front only support 3D data");
@@ -171,12 +171,12 @@ namespace SZ {
             size_t r1 = conf.dims[0];
             size_t r2 = conf.dims[1];
             size_t r3 = conf.dims[2];
-            size = SZMETA::DSize_3d(r1, r2, r3, conf.block_size);
+            size = SZMETA::DSize_3d(r1, r2, r3, conf.blockSize);
 
 //            capacity = 0; // num of quant intervals
 //            mean_info = optimize_quant_invl_3d(data, r1, r2, r3, conf.absErrorBound, capacity);
-//            if (conf.quant_state_num > 0) {
-//                capacity = conf.quant_state_num;
+//            if (conf.quantbinCnt > 0) {
+//                capacity = conf.quantbinCnt;
 //            }
 //            intv_radius = (capacity >> 1);
             std::vector<int> type(size.num_elements);

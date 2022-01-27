@@ -24,8 +24,8 @@ namespace SZ {
 }
 
 
-#define ABS 0
-#define REL 1
+#define EB_ABS 0
+#define EB_REL 1
 //#define ABS_AND_REL 2
 //#define ABS_OR_REL 3
 //#define PSNR 4
@@ -36,8 +36,11 @@ namespace SZ {
 //#define REL_AND_PW_REL 13
 //#define REL_OR_PW_REL 14
 
-#define METHOD_LORENZO_REG 0
-#define METHOD_INTERP_LORENZO 1
-#define METHOD_INTERP 2
+#define ALGO_LORENZO_REG 0
+#define ALGO_INTERP_LORENZO 1
+#define ALGO_INTERP 2
 
+
+#define INTERP_ALGO_LINEAR 0
+#define INTERP_ALGO_CUBIC 1
 #endif

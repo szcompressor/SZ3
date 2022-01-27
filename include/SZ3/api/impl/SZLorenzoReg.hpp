@@ -25,8 +25,8 @@ make_lorenzo_regression_compressor(const SZ::Config &conf, Quantizer quantizer, 
     std::vector<std::shared_ptr<SZ::concepts::PredictorInterface<T, N>>> predictors;
 
     int use_single_predictor =
-            (conf.enable_lorenzo + conf.enable_2ndlorenzo + conf.enable_regression) == 1;
-    if (conf.enable_lorenzo) {
+            (conf.lorenzo + conf.lorenzo2 + conf.regression) == 1;
+    if (conf.lorenzo) {
         if (use_single_predictor) {
             return SZ::make_sz_general_compressor<T, N>(
                     SZ::make_sz_general_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 1>(conf.absErrorBound), quantizer),
@@ -35,7 +35,7 @@ make_lorenzo_regression_compressor(const SZ::Config &conf, Quantizer quantizer, 
             predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 1>>(conf.absErrorBound));
         }
     }
-    if (conf.enable_2ndlorenzo) {
+    if (conf.lorenzo2) {
         if (use_single_predictor) {
             return SZ::make_sz_general_compressor<T, N>(
                     SZ::make_sz_general_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 2>(conf.absErrorBound), quantizer),
@@ -44,23 +44,23 @@ make_lorenzo_regression_compressor(const SZ::Config &conf, Quantizer quantizer, 
             predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 2>>(conf.absErrorBound));
         }
     }
-    if (conf.enable_regression) {
+    if (conf.regression) {
         if (use_single_predictor) {
             return SZ::make_sz_general_compressor<T, N>(
-                    SZ::make_sz_general_frontend<T, N>(conf, SZ::RegressionPredictor<T, N>(conf.block_size, conf.absErrorBound),
+                    SZ::make_sz_general_frontend<T, N>(conf, SZ::RegressionPredictor<T, N>(conf.blockSize, conf.absErrorBound),
                                                        quantizer), encoder, lossless);
         } else {
-            predictors.push_back(std::make_shared<SZ::RegressionPredictor<T, N>>(conf.block_size, conf.absErrorBound));
+            predictors.push_back(std::make_shared<SZ::RegressionPredictor<T, N>>(conf.blockSize, conf.absErrorBound));
         }
     }
 
-    if (conf.enable_2ndregression) {
+    if (conf.regression2) {
         if (use_single_predictor) {
             return SZ::make_sz_general_compressor<T, N>(
-                    SZ::make_sz_general_frontend<T, N>(conf, SZ::PolyRegressionPredictor<T, N>(conf.block_size, conf.absErrorBound),
+                    SZ::make_sz_general_frontend<T, N>(conf, SZ::PolyRegressionPredictor<T, N>(conf.blockSize, conf.absErrorBound),
                                                        quantizer), encoder, lossless);
         } else {
-            predictors.push_back(std::make_shared<SZ::PolyRegressionPredictor<T, N>>(conf.block_size, conf.absErrorBound));
+            predictors.push_back(std::make_shared<SZ::PolyRegressionPredictor<T, N>>(conf.blockSize, conf.absErrorBound));
         }
     }
     return SZ::make_sz_general_compressor<T, N>(
@@ -73,12 +73,12 @@ template<class T, uint N>
 char *SZ_compress_LorenzoReg(SZ::Config &conf, T *data, size_t &outSize) {
 
     assert(N == conf.N);
-    assert(conf.cmprMethod == METHOD_LORENZO_REG);
+    assert(conf.cmprAlgo == ALGO_LORENZO_REG);
     SZ::calAbsErrorBound(conf, data);
 
     char *cmpData;
-    auto quantizer = SZ::LinearQuantizer<T>(conf.absErrorBound, conf.quant_state_num / 2);
-    if (N == 3 && !conf.enable_2ndregression) {
+    auto quantizer = SZ::LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2);
+    if (N == 3 && !conf.regression2) {
         // use fast version for 3D
         auto sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_fast_frontend<T, N>(conf, quantizer), SZ::HuffmanEncoder<int>(),
                                                        SZ::Lossless_zstd());
@@ -93,11 +93,11 @@ char *SZ_compress_LorenzoReg(SZ::Config &conf, T *data, size_t &outSize) {
 
 template<class T, uint N>
 void SZ_decompress_LorenzoReg(const SZ::Config &conf, char *cmpData, size_t cmpSize, T *decData) {
-    assert(conf.cmprMethod == METHOD_LORENZO_REG);
+    assert(conf.cmprAlgo == ALGO_LORENZO_REG);
 
     SZ::uchar const *cmpDataPos = (SZ::uchar *) cmpData;
     SZ::LinearQuantizer<T> quantizer;
-    if (N == 3 && !conf.enable_2ndregression) {
+    if (N == 3 && !conf.regression2) {
         // use fast version for 3D
         auto sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_fast_frontend<T, N>(conf, quantizer),
                                                        SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd());

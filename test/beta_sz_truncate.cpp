@@ -26,7 +26,7 @@ float SZ_compress(std::unique_ptr<T[]> const &data,
     std::cout << "dimension = " << N
               << ", error bound = " << conf.absErrorBound
               << ", byteLen = " << byteLen
-              << ", lossless = " << conf.lossless_op
+              << ", lossless = " << conf.lossless
               << std::endl;
 
     std::vector<T> data_ = std::vector<T>(data.get(), data.get() + conf.num);
@@ -83,10 +83,10 @@ float SZ_compress_parse_args(int argc, char **argv, int argp, std::unique_ptr<T[
     conf.setDims(dims.begin(), dims.end());
     conf.absErrorBound = eb;
     if (argp < argc) {
-        conf.lossless_op = atoi(argv[argp++]);
+        conf.lossless = atoi(argv[argp++]);
     }
-    if (conf.lossless_op > 0) {
-        return SZ_compress<T, N>(data, conf, SZ::Lossless_zstd(conf.lossless_op));
+    if (conf.lossless > 0) {
+        return SZ_compress<T, N>(data, conf, SZ::Lossless_zstd(conf.lossless));
     } else {
         return SZ_compress<T, N>(data, conf, SZ::Lossless_bypass());
     }

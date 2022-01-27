@@ -29,8 +29,8 @@ void usage() {
     printf("* data type:\n");
     printf("	-f: single precision (float type)\n");
     printf("	-d: double precision (double type)\n");
-//    printf("* configuration file: \n");
-//    printf("	-c <configuration file> : configuration file sz.config\n");
+    printf("* configuration file: \n");
+    printf("	-c <configuration file> : configuration file sz.config\n");
     printf("* error control: (the error control parameters here will overwrite the setting in sz.config)\n");
     printf("	-M <error bound mode> : 10 options as follows. \n");
     printf("		ABS (absolute error bound)\n");
@@ -304,12 +304,15 @@ int main(int argc, char *argv[]) {
         nbEle = r1 * r2 * r3 * r4 * r5;
         conf = SZ::Config(r5, r4, r3, r2, r1);
     }
+    if (compressionMode & 1 && conPath != NULL) {
+        conf.loadcfg(conPath);
+    }
 
     if (errBoundMode != NULL) {
         if (strcmp(errBoundMode, "ABS") == 0)
-            conf.errorBoundMode = ABS;
+            conf.errorBoundMode = EB_ABS;
         else if (strcmp(errBoundMode, "REL") == 0 || strcmp(errBoundMode, "VR_REL") == 0)
-            conf.errorBoundMode = REL;
+            conf.errorBoundMode = EB_REL;
 //        else if (strcmp(errBoundMode, "ABS_AND_REL") == 0)
 //            conf.errorBoundMode = ABS_AND_REL;
 //        else if (strcmp(errBoundMode, "ABS_OR_REL") == 0)

@@ -97,9 +97,9 @@ namespace SZ {
         // compress given the error bound
         uchar *compress(const Config &conf, T *data, size_t &compressed_size) {
             std::copy_n(conf.dims.begin(), N, global_dimensions.begin());
-            blocksize = conf.interp_block_size;
-            interpolator_id = conf.interp_op;
-            direction_sequence_id = conf.interp_direction_op;
+            blocksize = conf.interpBlockSize;
+            interpolator_id = conf.interpAlgo;
+            direction_sequence_id = conf.interpDirection;
 
             init();
 

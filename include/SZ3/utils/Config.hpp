@@ -5,10 +5,12 @@
 #ifndef SZ_Config_HPP
 #define SZ_Config_HPP
 
+#include <iostream>
 #include <vector>
 #include <numeric>
 #include "SZ3/def.hpp"
 #include "MemoryUtil.hpp"
+#include "INIReader.h"
 
 namespace SZ {
 
@@ -20,9 +22,9 @@ namespace SZ {
             dims = std::vector<size_t>{static_cast<size_t>(std::forward<Dims>(args))...};
             N = dims.size();
             num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<>());
-            block_size = (N == 1 ? 128 : (N == 2 ? 16 : 6));
+            blockSize = (N == 1 ? 128 : (N == 2 ? 16 : 6));
             pred_dim = N;
-            stride = block_size;
+            stride = blockSize;
         }
 
         template<class Iter>
@@ -33,26 +35,65 @@ namespace SZ {
             return num;
         }
 
+        void loadcfg(const std::string &cfgpath) {
+            INIReader cfg(cfgpath);
+
+            if (cfg.ParseError() != 0) {
+                std::cout << "Can't load cfg file = <<" << cfgpath << std::endl;
+                exit(0);
+            }
+            auto cmprAlgoStr = cfg.Get("GlobalSettings", "cmprAlgo", "");
+            if (cmprAlgoStr == "ALGO_LORENZO_REG") {
+                cmprAlgo = ALGO_LORENZO_REG;
+            } else if (cmprAlgoStr == "ALGO_INTERP_LORENZO") {
+                cmprAlgo = ALGO_INTERP_LORENZO;
+            } else if (cmprAlgoStr == "ALGO_INTERP") {
+                cmprAlgo = ALGO_INTERP;
+            }
+            auto ebModeStr = cfg.Get("GlobalSettings", "errorBoundMode", "");
+            if (ebModeStr == "EB_ABS") {
+                errorBoundMode = EB_ABS;
+            } else if (ebModeStr == "EB_REL") {
+                errorBoundMode = EB_REL;
+            }
+            openmp = cfg.GetBoolean("GlobalSettings", "OpenMP", openmp);
+            lorenzo = cfg.GetBoolean("AlgoSettings", "Lorenzo", lorenzo);
+            lorenzo2 = cfg.GetBoolean("AlgoSettings", "Lorenzo2ndOrder", lorenzo2);
+            regression = cfg.GetBoolean("AlgoSettings", "Regression", regression);
+            regression2 = cfg.GetBoolean("AlgoSettings", "Regression2ndOrder", regression2);
+
+            auto interpAlgoStr = cfg.Get("AlgoSettings", "InterpolationAlgo", "");
+            if (interpAlgoStr == "INTERP_ALGO_LINEAR") {
+                interpAlgo = INTERP_ALGO_LINEAR;
+            } else if (interpAlgoStr == "INTERP_ALGO_CUBIC") {
+                interpAlgo = INTERP_ALGO_CUBIC;
+            }
+            interpDirection = cfg.GetInteger("AlgoSettings", "InterpolationDirection", interpDirection);
+            interpBlockSize = cfg.GetInteger("AlgoSettings", "InterpolationBlockSize", interpBlockSize);
+            blockSize = cfg.GetInteger("AlgoSettings", "BlockSize", blockSize);
+            quantbinCnt = cfg.GetInteger("AlgoSettings", "QuantizationBinTotal", quantbinCnt);
+
+        }
 
         void save(unsigned char *&c) {
             write(N, c);
             write(dims.data(), dims.size(), c);
             write(num, c);
-            write(cmprMethod, c);
+            write(cmprAlgo, c);
             write(errorBoundMode, c);
             write(absErrorBound, c);
             write(relErrorBound, c);
-            write(enable_lorenzo, c);
-            write(enable_2ndlorenzo, c);
-            write(enable_regression, c);
-            write(enable_2ndregression, c);
-            write(interp_op, c);
-            write(interp_direction_op, c);
-            write(interp_block_size, c);
-            write(lossless_op, c);
-            write(encoder_op, c);
-            write(quant_state_num, c);
-            write(block_size, c);
+            write(lorenzo, c);
+            write(lorenzo2, c);
+            write(regression, c);
+            write(regression2, c);
+            write(interpAlgo, c);
+            write(interpDirection, c);
+            write(interpBlockSize, c);
+            write(lossless, c);
+            write(encoder, c);
+            write(quantbinCnt, c);
+            write(blockSize, c);
             write(stride, c);
             write(pred_dim, c);
             write(openmp, c);
@@ -63,21 +104,21 @@ namespace SZ {
             dims.resize(N);
             read(dims.data(), N, c);
             read(num, c);
-            read(cmprMethod, c);
+            read(cmprAlgo, c);
             read(errorBoundMode, c);
             read(absErrorBound, c);
             read(relErrorBound, c);
-            read(enable_lorenzo, c);
-            read(enable_2ndlorenzo, c);
-            read(enable_regression, c);
-            read(enable_2ndregression, c);
-            read(interp_op, c);
-            read(interp_direction_op, c);
-            read(interp_block_size, c);
-            read(lossless_op, c);
-            read(encoder_op, c);
-            read(quant_state_num, c);
-            read(block_size, c);
+            read(lorenzo, c);
+            read(lorenzo2, c);
+            read(regression, c);
+            read(regression2, c);
+            read(interpAlgo, c);
+            read(interpDirection, c);
+            read(interpBlockSize, c);
+            read(lossless, c);
+            read(encoder, c);
+            read(quantbinCnt, c);
+            read(blockSize, c);
             read(stride, c);
             read(pred_dim, c);
             read(openmp, c);
@@ -86,22 +127,22 @@ namespace SZ {
         char N;
         std::vector<size_t> dims;
         size_t num;
-        bool enable_lorenzo = true;
-        bool enable_2ndlorenzo = false;
-        bool enable_regression = true;
-        bool enable_2ndregression = false;
-        uint8_t interp_op = 1;
-        uint8_t interp_direction_op = 0;
-        int interp_block_size = 32;
-        uint8_t lossless_op = 1; // 0-> skip lossless(use lossless_bypass); 1-> zstd
-        uint8_t encoder_op = 1;// 0-> skip encoder; 1->HuffmanEncoder; 2->ArithmeticEncoder
-        int quant_state_num = 65536;
-        int block_size, stride, pred_dim;
+        uint8_t cmprAlgo = ALGO_INTERP_LORENZO;
+        uint8_t errorBoundMode = EB_ABS;
         double absErrorBound;
         double relErrorBound;
-        uint8_t errorBoundMode = ABS;
-        uint8_t cmprMethod = METHOD_INTERP_LORENZO;
+        bool lorenzo = true;
+        bool lorenzo2 = false;
+        bool regression = true;
+        bool regression2 = false;
         bool openmp = false;
+        uint8_t lossless = 1; // 0-> skip lossless(use lossless_bypass); 1-> zstd
+        uint8_t encoder = 1;// 0-> skip encoder; 1->HuffmanEncoder; 2->ArithmeticEncoder
+        uint8_t interpAlgo = INTERP_ALGO_CUBIC;
+        uint8_t interpDirection = 0;
+        int interpBlockSize = 32;
+        int quantbinCnt = 65536;
+        int blockSize, stride, pred_dim;
 
     };
 

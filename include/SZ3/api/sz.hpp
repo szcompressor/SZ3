@@ -14,38 +14,38 @@
  * @return compressed data, remember to 'delete []' when the data is no longer needed.
 
 The compression algorithms are:
-METHOD_INTERP_LORENZO:
+ALGO_INTERP_LORENZO:
  The default algorithm in SZ3. It is the implementation of our ICDE'21 paper.
  The whole dataset will be compressed by interpolation or lorenzo predictor with auto-optimized settings.
-METHOD_INTERP:
+ALGO_INTERP:
  The whole dataset will be compressed by interpolation predictor with default settings.
-METHOD_LORENZO_REG:
+ALGO_LORENZO_REG:
  The whole dataset will be compressed by lorenzo and/or regression based predictors block by block with default settings.
  The four predictors ( 1st-order lorenzo, 2nd-order lorenzo, 1st-order regression, 2nd-order regression)
- can be enabled or disabled independently by conf settings (enable_lorenzo, enable_2ndlorenzo, enable_regression, enable_2ndregression).
+ can be enabled or disabled independently by conf settings (lorenzo, lorenzo2, regression, regression2).
 
 Interpolation+lorenzo example:
 SZ::Config conf(100, 200, 300); // 300 is the fastest dimension
-conf.cmprMethod = METHOD_INTERP_LORENZO;
-conf.errorBoundMode = ABS; // refer to def.hpp for all supported error bound mode
+conf.cmprAlgo = ALGO_INTERP_LORENZO;
+conf.errorBoundMode = EB_ABS; // refer to def.hpp for all supported error bound mode
 conf.absErrorBound = 1E-3; // absolute error bound 1e-3
 char *compressedData = SZ_compress(conf, data, outSize);
 
 Interpolation example:
 SZ::Config conf(100, 200, 300); // 300 is the fastest dimension
-conf.cmprMethod = METHOD_INTER;
-conf.errorBoundMode = REL; // refer to def.hpp for all supported error bound mode
+conf.cmprAlgo = METHOD_INTER;
+conf.errorBoundMode = EB_REL; // refer to def.hpp for all supported error bound mode
 conf.relErrorBound = 1E-3; // value-rang-based error bound 1e-3
 char *compressedData = SZ_compress(conf, data, outSize);
 
 Lorenzo/regression example :
 SZ::Config conf(100, 200, 300); // 300 is the fastest dimension
-conf.cmprMethod = METHOD_LORENZO_REG;
-conf.enable_lorenzo = true; // only use 1st order lorenzo
-conf.enable_2ndlorenzo = false;
-conf.enable_regression = false;
-conf.enable_2ndregression = false;
-conf.errorBoundMode = ABS; // refer to def.hpp for all supported error bound mode
+conf.cmprAlgo = ALGO_LORENZO_REG;
+conf.lorenzo = true; // only use 1st order lorenzo
+conf.lorenzo2 = false;
+conf.regression = false;
+conf.regression2 = false;
+conf.errorBoundMode = EB_ABS; // refer to def.hpp for all supported error bound mode
 conf.absErrorBound = 1E-3; // absolute error bound 1e-3
 char *compressedData = SZ_compress(conf, data, outSize);
  */

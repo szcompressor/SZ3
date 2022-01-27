@@ -24,7 +24,7 @@ namespace SZ {
                 fallback_predictor(LorenzoPredictor<T, N, 1>(conf.absErrorBound)),
                 predictor(predictor),
                 quantizer(quantizer),
-                block_size(conf.block_size),
+                block_size(conf.blockSize),
                 stride(conf.stride),
                 num_elements(conf.num) {
             std::copy_n(conf.dims.begin(), N, global_dimensions.begin());
