@@ -36,6 +36,10 @@ Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [
 
 You can use the executable 'sz' command to do the compression/decompression.
 
+SZ3 simplifies command line arguments in the previous version. If you are a new user, please follow the instructions given by the executable. 
+
+For backward compatibility, most of the SZ2 command line arguments are supported in SZ3. Existing scripts involving SZ2 should work after replacing SZ2 with SZ3.
+
 ## API
 Please refer to 'include/SZ3/api/sz.hpp' for API and instructions.
 
@@ -48,4 +52,4 @@ Version		New features
 * SZ 3.0.2  Support point-wise relative error bound mode.
 * SZ 3.1.0  The default algorithm is now interpolation+Lorenzo.
 * SZ 3.1.1  Add OpenMP support. Works for all algorithms.
-* SZ 3.1.2  Support configuration file (INI format). Example can be found in 'test/sz.config'
+* SZ 3.1.2  Support configuration file (INI format). Example can be found in 'test/sz.config'.
