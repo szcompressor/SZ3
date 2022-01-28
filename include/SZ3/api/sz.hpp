@@ -90,6 +90,12 @@ char *SZ_compress(SZ::Config &conf, T *data, size_t &outSize) {
  * @param cmpData compressed data
  * @param cmpSize compressed data size in bytes
  * @param decData pre-allocated memory space for decompressed data
+
+ example:
+ auto decompressedData = new float[100x200x300];
+ SZ::Config conf;
+ SZ_decompress(conf, char *cmpData, size_t cmpSize, decompressedData);
+
  */
 template<class T>
 void SZ_decompress(SZ::Config &conf, char *cmpData, size_t cmpSize, T *&decData) {
