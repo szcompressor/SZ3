@@ -360,6 +360,10 @@ int main(int argc, char *argv[]) {
         cmpPath = cmpPathTmp;
         delCmpPath = true;
     }
+    if (!compression && !decompression) {
+        usage();
+        exit(0);
+    }
 
     SZ::Config conf;
     if (r2 == 0) {
