@@ -160,7 +160,7 @@ namespace SZ {
         }
 
         void print() {
-
+            printf("CmprAlgo = %s\n", enum2Str((ALGO) cmprAlgo));
         }
 
         char N;

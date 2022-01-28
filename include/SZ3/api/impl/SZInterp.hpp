@@ -32,6 +32,7 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
     assert(conf.cmprAlgo == SZ::ALGO_INTERP);
     SZ::calAbsErrorBound(conf, data);
 
+    conf.print();
     auto sz = SZ::SZInterpolationCompressor<T, N, SZ::LinearQuantizer<T>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
             SZ::LinearQuantizer<T>(conf.absErrorBound),
             SZ::HuffmanEncoder<int>(),
