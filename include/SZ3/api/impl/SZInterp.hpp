@@ -29,7 +29,7 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
 //              << "Interp block size  = " << interpBlockSize << std::endl;
 
     assert(N == conf.N);
-    assert(conf.cmprAlgo == ALGO_INTERP);
+    assert(conf.cmprAlgo == SZ::ALGO_INTERP);
     SZ::calAbsErrorBound(conf, data);
 
     auto sz = SZ::SZInterpolationCompressor<T, N, SZ::LinearQuantizer<T>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
@@ -43,7 +43,7 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
 
 template<class T, uint N>
 void SZ_decompress_Interp(const SZ::Config &conf, char *cmpData, size_t cmpSize, T *decData) {
-    assert(conf.cmprAlgo == ALGO_INTERP);
+    assert(conf.cmprAlgo == SZ::ALGO_INTERP);
     SZ::uchar const *cmpDataPos = (SZ::uchar *) cmpData;
     auto sz = SZ::SZInterpolationCompressor<T, N, SZ::LinearQuantizer<T>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
             SZ::LinearQuantizer<T>(),
@@ -84,7 +84,7 @@ double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> d
 
 template<class T, uint N>
 char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
-    assert(conf.cmprAlgo == ALGO_INTERP_LORENZO);
+    assert(conf.cmprAlgo == SZ::ALGO_INTERP_LORENZO);
 
     std::cout << "====================================== BEGIN TUNING ================================" << std::endl;
     SZ::Timer timer(true);
@@ -97,7 +97,7 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
 //    printf("%lu %lu %lu %lu %lu\n", sampling_data.size(), sampling_num, sample_dims[0], sample_dims[1], sample_dims[2]);
 
     SZ::Config lorenzo_config = conf;
-    lorenzo_config.cmprAlgo = ALGO_LORENZO_REG;
+    lorenzo_config.cmprAlgo = SZ::ALGO_LORENZO_REG;
     lorenzo_config.setDims(sample_dims.begin(), sample_dims.end());
     lorenzo_config.lorenzo = true;
     lorenzo_config.lorenzo2 = true;
@@ -116,7 +116,7 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
 
     {
         //tune interp
-        for (auto &interp_op: {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC}) {
+        for (auto &interp_op: {SZ::INTERP_ALGO_LINEAR, SZ::INTERP_ALGO_CUBIC}) {
             ratio = do_not_use_this_interp_compress_block_test<T, N>(sampling_data.data(), sample_dims, sampling_num, conf.absErrorBound,
                                                                      interp_op, conf.interpDirection, sampling_block);
             if (ratio > best_interp_ratio) {
@@ -142,7 +142,7 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
     printf("choose %s\n", useInterp ? "interp" : "Lorenzo");
 
     if (useInterp) {
-        conf.cmprAlgo = ALGO_INTERP;
+        conf.cmprAlgo = SZ::ALGO_INTERP;
         double tuning_time = timer.stop();
 //        std::cout << "Tuning time = " << tuning_time << "s" << std::endl;
         std::cout << "====================================== END TUNING ======================================" << std::endl;

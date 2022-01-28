@@ -14,6 +14,34 @@
 
 namespace SZ {
 
+    enum EB {
+        EB_ABS, EB_REL
+    };
+    const char *EB_STR[] = {"ABS", "REL"};
+
+    enum ALGO {
+        ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP
+    };
+    const char *ALGO_STR[] = {"ALGO_LORENZO_REG", "ALGO_INTERP_LORENZO", "ALGO_INTERP"};
+
+    enum INTERP_ALGO {
+        INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC
+    };
+    const char *INTERP_ALGO_STR[] = {"INTERP_ALGO_LINEAR", "INTERP_ALGO_CUBIC"};
+
+    template<class T>
+    const char *enum2Str(T e) {
+        if (std::is_same<T, ALGO>::value) {
+            return ALGO_STR[e];
+        } else if (std::is_same<T, INTERP_ALGO>::value) {
+            return INTERP_ALGO_STR[e];
+        } else if (std::is_same<T, EB>::value) {
+            return EB_STR[e];
+        } else {
+            printf("invalid enum type for enum2Str()\n ");
+            exit(0);
+        }
+    }
 
     class Config {
     public:
@@ -46,17 +74,17 @@ namespace SZ {
             }
 
             auto cmprAlgoStr = cfg.Get("GlobalSettings", "CmprAlgo", "");
-            if (cmprAlgoStr == "ALGO_LORENZO_REG") {
+            if (cmprAlgoStr == ALGO_STR[ALGO_LORENZO_REG]) {
                 cmprAlgo = ALGO_LORENZO_REG;
-            } else if (cmprAlgoStr == "ALGO_INTERP_LORENZO") {
+            } else if (cmprAlgoStr == ALGO_STR[ALGO_INTERP_LORENZO]) {
                 cmprAlgo = ALGO_INTERP_LORENZO;
-            } else if (cmprAlgoStr == "ALGO_INTERP") {
+            } else if (cmprAlgoStr == ALGO_STR[ALGO_INTERP]) {
                 cmprAlgo = ALGO_INTERP;
             }
             auto ebModeStr = cfg.Get("GlobalSettings", "ErrorBoundMode", "");
-            if (ebModeStr == "ABS") {
+            if (ebModeStr == EB_STR[EB_ABS]) {
                 errorBoundMode = EB_ABS;
-            } else if (ebModeStr == "REL") {
+            } else if (ebModeStr == EB_STR[EB_REL]) {
                 errorBoundMode = EB_REL;
             }
             absErrorBound = cfg.GetReal("GlobalSettings", "AbsErrorBound", absErrorBound);
@@ -69,9 +97,9 @@ namespace SZ {
             regression2 = cfg.GetBoolean("AlgoSettings", "Regression2ndOrder", regression2);
 
             auto interpAlgoStr = cfg.Get("AlgoSettings", "InterpolationAlgo", "");
-            if (interpAlgoStr == "INTERP_ALGO_LINEAR") {
+            if (interpAlgoStr == INTERP_ALGO_STR[INTERP_ALGO_LINEAR]) {
                 interpAlgo = INTERP_ALGO_LINEAR;
-            } else if (interpAlgoStr == "INTERP_ALGO_CUBIC") {
+            } else if (interpAlgoStr == INTERP_ALGO_STR[INTERP_ALGO_CUBIC]) {
                 interpAlgo = INTERP_ALGO_CUBIC;
             }
             interpDirection = cfg.GetInteger("AlgoSettings", "InterpolationDirection", interpDirection);

@@ -15,6 +15,7 @@
 #include "SZ3/lossless/Lossless_bypass.hpp"
 #include "SZ3/utils/Statistic.hpp"
 #include "SZ3/utils/Timer.hpp"
+#include "SZ3/version.hpp"
 #include <sstream>
 #include <random>
 #include <cstdio>
@@ -261,7 +262,7 @@ float SZ_compress_parse_args(int argc, char **argv, int argp, std::unique_ptr<T[
 
 int main(int argc, char **argv) {
     if (argc < 2) {
-        std::cout << "SZ v" << SZ_versionString() << std::endl;
+        std::cout << "SZ v" << PROJECT_VER << std::endl;
         std::cout << "usage: " << argv[0] <<
                   " data_file -num_dim dim0 .. dimn relative_eb [blocksize lorenzo_op regression_op encoder lossless quantbinCnt]"
                   << std::endl;

@@ -3,6 +3,7 @@
 
 
 #include "SZ3/api/impl/SZImpl.hpp"
+#include "SZ3/version.hpp"
 #include <memory>
 
 /**
@@ -26,26 +27,26 @@ ALGO_LORENZO_REG:
 
 Interpolation+lorenzo example:
 SZ::Config conf(100, 200, 300); // 300 is the fastest dimension
-conf.cmprAlgo = ALGO_INTERP_LORENZO;
-conf.errorBoundMode = EB_ABS; // refer to def.hpp for all supported error bound mode
+conf.cmprAlgo = SZ::ALGO_INTERP_LORENZO;
+conf.errorBoundMode = SZ::EB_ABS; // refer to def.hpp for all supported error bound mode
 conf.absErrorBound = 1E-3; // absolute error bound 1e-3
 char *compressedData = SZ_compress(conf, data, outSize);
 
 Interpolation example:
 SZ::Config conf(100, 200, 300); // 300 is the fastest dimension
-conf.cmprAlgo = METHOD_INTER;
-conf.errorBoundMode = EB_REL; // refer to def.hpp for all supported error bound mode
+conf.cmprAlgo = SZ::ALGO_INTERP;
+conf.errorBoundMode = SZ::EB_REL; // refer to def.hpp for all supported error bound mode
 conf.relErrorBound = 1E-3; // value-rang-based error bound 1e-3
 char *compressedData = SZ_compress(conf, data, outSize);
 
 Lorenzo/regression example :
 SZ::Config conf(100, 200, 300); // 300 is the fastest dimension
-conf.cmprAlgo = ALGO_LORENZO_REG;
+conf.cmprAlgo = SZ::ALGO_LORENZO_REG;
 conf.lorenzo = true; // only use 1st order lorenzo
 conf.lorenzo2 = false;
 conf.regression = false;
 conf.regression2 = false;
-conf.errorBoundMode = EB_ABS; // refer to def.hpp for all supported error bound mode
+conf.errorBoundMode = SZ::EB_ABS; // refer to def.hpp for all supported error bound mode
 conf.absErrorBound = 1E-3; // absolute error bound 1e-3
 char *compressedData = SZ_compress(conf, data, outSize);
  */

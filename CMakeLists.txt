@@ -18,6 +18,8 @@ endif()
 find_package(PkgConfig)
 find_package(OpenMP)
 
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/SZ3/version.hpp.in ${CMAKE_CURRENT_SOURCE_DIR}/include/SZ3/version.hpp)
+
 add_library(${PROJECT_NAME} INTERFACE)
 target_include_directories(
         ${PROJECT_NAME} INTERFACE

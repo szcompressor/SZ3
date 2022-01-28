@@ -13,7 +13,7 @@ char *SZ_compress_OMP(SZ::Config &conf, T *data, size_t &outSize) {
 #ifdef _OPENMP
 
     assert(N == conf.N);
-    if (conf.errorBoundMode != EB_ABS && conf.errorBoundMode != EB_REL) {
+    if (conf.errorBoundMode != SZ::EB_ABS && conf.errorBoundMode != SZ::EB_REL) {
         printf("Error, error bound mode not supported\n");
         exit(0);
     }
@@ -55,7 +55,7 @@ char *SZ_compress_OMP(SZ::Config &conf, T *data, size_t &outSize) {
         size_t num_t = dims_t[0] * num_t_base;
 
         T *data_t = data + lo * num_t_base;
-        if (conf.errorBoundMode == EB_REL) {
+        if (conf.errorBoundMode == SZ::EB_REL) {
             auto minmax = std::minmax_element(data_t, data_t + num_t);
             min_t[tid] = *minmax.first;
             max_t[tid] = *minmax.second;
@@ -64,7 +64,7 @@ char *SZ_compress_OMP(SZ::Config &conf, T *data, size_t &outSize) {
             {
                 double range = *std::max_element(max_t.begin(), max_t.end()) - *std::min_element(min_t.begin(), min_t.end());
                 conf.absErrorBound = conf.relErrorBound * range;
-                conf.errorBoundMode = EB_ABS;
+                conf.errorBoundMode = SZ::EB_ABS;
 //                std::cout << "error bound = " << eb << ", range = " << range << std::endl;
             }
         }

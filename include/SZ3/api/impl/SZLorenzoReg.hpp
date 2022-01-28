@@ -77,7 +77,7 @@ template<class T, uint N>
 char *SZ_compress_LorenzoReg(SZ::Config &conf, T *data, size_t &outSize) {
 
     assert(N == conf.N);
-    assert(conf.cmprAlgo == ALGO_LORENZO_REG);
+    assert(conf.cmprAlgo == SZ::ALGO_LORENZO_REG);
     SZ::calAbsErrorBound(conf, data);
 
     char *cmpData;
@@ -97,7 +97,7 @@ char *SZ_compress_LorenzoReg(SZ::Config &conf, T *data, size_t &outSize) {
 
 template<class T, uint N>
 void SZ_decompress_LorenzoReg(const SZ::Config &conf, char *cmpData, size_t cmpSize, T *decData) {
-    assert(conf.cmprAlgo == ALGO_LORENZO_REG);
+    assert(conf.cmprAlgo == SZ::ALGO_LORENZO_REG);
 
     SZ::uchar const *cmpDataPos = (SZ::uchar *) cmpData;
     SZ::LinearQuantizer<T> quantizer;

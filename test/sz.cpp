@@ -218,7 +218,7 @@ int main(int argc, char *argv[]) {
                 usage();
                 exit(0);
             case 'v':
-                printf("version: %d.%d.%d\n", SZ_VERSION_MAJOR, SZ_VERSION_MINOR, SZ_VERSION_RELEASE);
+                printf("version: %s\n", PROJECT_VER);
                 exit(0);
             case 'b':
                 binaryOutput = 1;
@@ -390,12 +390,12 @@ int main(int argc, char *argv[]) {
             }
         }
         if (strcmp(errBoundMode, "ABS") == 0) {
-            conf.errorBoundMode = EB_ABS;
+            conf.errorBoundMode = SZ::EB_ABS;
             if (errBound != nullptr) {
                 conf.absErrorBound = atof(errBound);
             }
         } else if (strcmp(errBoundMode, "REL") == 0 || strcmp(errBoundMode, "VR_REL") == 0) {
-            conf.errorBoundMode = EB_REL;
+            conf.errorBoundMode = SZ::EB_REL;
             if (errBound != nullptr) {
                 conf.relErrorBound = atof(errBound);
             }
