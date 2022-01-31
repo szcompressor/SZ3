@@ -360,6 +360,9 @@ int main(int argc, char *argv[]) {
         cmpPath = cmpPathTmp;
         delCmpPath = true;
     }
+    if (inPath == nullptr) {
+        compression = false;
+    }
     if (!compression && !decompression) {
         usage();
         exit(0);
