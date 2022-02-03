@@ -15,9 +15,9 @@
 namespace SZ {
 
     enum EB {
-        EB_ABS, EB_REL
+        EB_ABS, EB_REL, EB_PSNR, EB_L2NORM, EB_ABS_AND_REL, EB_ABS_OR_REL
     };
-    const char *EB_STR[] = {"ABS", "REL"};
+    const char *EB_STR[] = {"ABS", "REL", "PSNR", "NORM", "ABS_AND_REL", "ABS_OR_REL"};
 
     enum ALGO {
         ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP
@@ -86,9 +86,19 @@ namespace SZ {
                 errorBoundMode = EB_ABS;
             } else if (ebModeStr == EB_STR[EB_REL]) {
                 errorBoundMode = EB_REL;
+            } else if (ebModeStr == EB_STR[EB_PSNR]) {
+                errorBoundMode = EB_PSNR;
+            } else if (ebModeStr == EB_STR[EB_L2NORM]) {
+                errorBoundMode = EB_L2NORM;
+            } else if (ebModeStr == EB_STR[EB_ABS_AND_REL]) {
+                errorBoundMode = EB_ABS_AND_REL;
+            } else if (ebModeStr == EB_STR[EB_ABS_OR_REL]) {
+                errorBoundMode = EB_ABS_OR_REL;
             }
             absErrorBound = cfg.GetReal("GlobalSettings", "AbsErrorBound", absErrorBound);
             relErrorBound = cfg.GetReal("GlobalSettings", "RelErrorBound", relErrorBound);
+            psnrErrorBound = cfg.GetReal("GlobalSettings", "PSNRErrorBound", psnrErrorBound);
+            l2normErrorBound = cfg.GetReal("GlobalSettings", "L2NormErrorBound", l2normErrorBound);
 
             openmp = cfg.GetBoolean("GlobalSettings", "OpenMP", openmp);
             lorenzo = cfg.GetBoolean("AlgoSettings", "Lorenzo", lorenzo);
@@ -170,6 +180,8 @@ namespace SZ {
         uint8_t errorBoundMode = EB_ABS;
         double absErrorBound;
         double relErrorBound;
+        double psnrErrorBound;
+        double l2normErrorBound;
         bool lorenzo = true;
         bool lorenzo2 = false;
         bool regression = true;

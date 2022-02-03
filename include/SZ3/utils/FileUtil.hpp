@@ -14,33 +14,6 @@
 
 namespace SZ {
 
-    double random_double() {
-        std::random_device rd;  //Will be used to obtain a seed for the random number engine
-        std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-        std::uniform_real_distribution<> dis(0, 100000000);
-        return dis(gen);
-    }
-
-    std::string compressed_path(const std::string &ori_path, bool random = false) {
-        std::stringstream ss;
-        ss << ori_path.substr(ori_path.rfind('/') + 1);
-        if (random) {
-            ss << "_" << random_double();
-        }
-        ss << ".sz3";
-        return ss.str();
-    }
-
-    std::string decompressed_path(const std::string &ori_path, bool random = false) {
-        std::stringstream ss;
-        ss << ori_path.substr(ori_path.rfind('/') + 1);
-        if (random) {
-            ss << "_" << random_double();
-        }
-        ss << ".sz3.out";
-        return ss.str();
-    }
-
     template<typename Type>
     void readfile(const char *file, const size_t num, Type *data) {
         std::ifstream fin(file, std::ios::binary);
@@ -60,7 +33,7 @@ namespace SZ {
     std::unique_ptr<Type[]> readfile(const char *file, size_t &num) {
         std::ifstream fin(file, std::ios::binary);
         if (!fin) {
-            std::cout << " Error, Couldn't find the file: " << file << "\n";
+            std::cout << " Error, Couldn't find the file: " << file << std::endl;
             exit(0);
         }
         fin.seekg(0, std::ios::end);
@@ -80,6 +53,21 @@ namespace SZ {
         fout.write(reinterpret_cast<const char *>(&data[0]), num_elements * sizeof(Type));
         fout.close();
     }
+
+    template<typename Type>
+    void writeTextFile(const char *file, Type *data, size_t num_elements) {
+        std::ofstream fout(file);
+        if (fout.is_open()) {
+            for (size_t i = 0; i < num_elements; i++) {
+                fout << data[i] << std::endl;
+            }
+            fout.close();
+        } else {
+            std::cout << "Error, unable to open file for output: " << file << std::endl;
+            exit(0);
+        }
+    }
+
 }
 
-#endif /*_SZ_CONCEPTS*/
+#endif

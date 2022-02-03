@@ -91,7 +91,7 @@ namespace SZ {
         inline typename std::enable_if<NN == 1, std::array<T, M>>::type get_poly_index(const iterator &iter) const {
             T i = iter.get_local_index(0);
 
-            return std::array<T, M>{1.0, i, i * i};
+            return std::array<T, M>{1, i, i * i};
         }
 
         template<uint NN = N>
@@ -99,7 +99,7 @@ namespace SZ {
             T i = iter.get_local_index(0);
             T j = iter.get_local_index(1);
 
-            return std::array<T, M>{1.0, i, j, i * i, i * j, j * j};
+            return std::array<T, M>{1, i, j, i * i, i * j, j * j};
         }
 
         template<uint NN = N>
@@ -109,7 +109,7 @@ namespace SZ {
             T j = iter.get_local_index(1);
             T k = iter.get_local_index(2);
 
-            return std::array<T, M>{1.0, i, j, k, i * i, i * j, i * k, j * j, j * k, k * k};
+            return std::array<T, M>{1, i, j, k, i * i, i * j, i * k, j * j, j * k, k * k};
         }
 
         inline T predict(const iterator &iter) const noexcept {

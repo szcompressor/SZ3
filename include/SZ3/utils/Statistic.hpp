@@ -23,12 +23,31 @@ namespace SZ {
         return (n == 0) || (n == 1) ? 1 : n * factorial(n - 1);
     }
 
+    double computeABSErrBoundFromPSNR(double psnr, double threshold, double value_range) {
+        double v1 = psnr + 10 * log10(1 - 2.0 / 3.0 * threshold);
+        double v2 = v1 / (-20);
+        double v3 = pow(10, v2);
+        return value_range * v3;
+    }
+
     template<class T>
     void calAbsErrorBound(SZ::Config &conf, T *data) {
         if (conf.errorBoundMode != EB_ABS) {
             if (conf.errorBoundMode == EB_REL) {
                 conf.errorBoundMode = EB_ABS;
                 conf.absErrorBound = conf.relErrorBound * SZ::data_range(data, conf.num);
+            } else if (conf.errorBoundMode == EB_PSNR) {
+                conf.errorBoundMode = EB_ABS;
+                conf.absErrorBound = computeABSErrBoundFromPSNR(conf.psnrErrorBound, 0.99, SZ::data_range(data, conf.num));
+            } else if (conf.errorBoundMode == EB_L2NORM) {
+                conf.errorBoundMode = EB_ABS;
+                conf.absErrorBound = sqrt(3.0 / conf.num) * conf.l2normErrorBound;
+            } else if (conf.errorBoundMode == EB_ABS_AND_REL) {
+                conf.errorBoundMode = EB_ABS;
+                conf.absErrorBound = std::min(conf.absErrorBound, conf.relErrorBound * SZ::data_range(data, conf.num));
+            } else if (conf.errorBoundMode == EB_ABS_OR_REL) {
+                conf.errorBoundMode = EB_ABS;
+                conf.absErrorBound = std::max(conf.absErrorBound, conf.relErrorBound * SZ::data_range(data, conf.num));
             } else {
                 printf("Error, error bound mode not supported\n");
                 exit(0);

@@ -27,19 +27,31 @@ void usage() {
     printf("	-a : print compression results such as distortions\n");
     printf("* input and output:\n");
     printf("	-i <path> : original binary input file\n");
-    printf("	-o <path> : compressed binary output file\n");
+    printf("	-o <path> : compressed output file, default in binary format\n");
     printf("	-z <path> : compressed output (w -i) or input (w/o -i) file\n");
-    //    printf("	-t : decompreadded file stored in text format\n");
+    printf("	-t : store compressed output file in text format\n");
 //    printf("	-p: print meta data (configuration info)\n");
     printf("* data type:\n");
     printf("	-f: single precision (float type)\n");
     printf("	-d: double precision (double type)\n");
+    printf("	-I <width>: integer type (width = 32 or 64)\n");
     printf("* configuration file: \n");
     printf("	-c <configuration file> : configuration file sz.config\n");
     printf("* error control: (the error control parameters here will overwrite the setting in sz.config)\n");
-    printf("	-M <error control mode> <error bound> : error control mode options as follows \n");
+    printf("	-M <error control mode> < error bound (optional) > \n");
+    printf("	error control mode as follows: \n");
     printf("		ABS (absolute error bound)\n");
     printf("		REL (value range based error bound, so a.k.a., VR_REL)\n");
+    printf("		PSNR (peak signal-to-noise ratio)\n");
+    printf("		NORM (norm2 error : sqrt(sum(xi-xi')^2)\n");
+    printf("		ABS_AND_REL (using min{ABS, REL})\n");
+    printf("		ABS_OR_REL (using max{ABS, REL})\n");
+    printf("	error bound can be set directly after the error control mode, or separately with the following options:\n");
+    printf("		-A <absolute error bound>: specifying absolute error bound\n");
+    printf("		-R <value_range based relative error bound>: specifying relative error bound\n");
+//    printf("		-P <point-wise relative error bound>: specifying point-wise relative error bound\n");
+    printf("		-S <PSNR>: specifying PSNR\n");
+    printf("		-N <normErr>: specifying normErr\n");
     printf("* dimensions: \n");
     printf("	-1 <nx> : dimension for 1D data such as data[nx]\n");
     printf("	-2 <nx> <ny> : dimensions for 2D data such as data[ny][nx]\n");
@@ -48,7 +60,7 @@ void usage() {
     printf("* examples: \n");
     printf("	sz -f -i test.dat    -z test.dat.sz     -3 8 8 128 -M ABS 1e-3 \n");
     printf("	sz -f -z test.dat.sz -o test.dat.sz.out -3 8 8 128 -M REL 1e-3 -a \n");
-    printf("	sz -f -i test.dat    -o test.dat.sz.out -3 8 8 128 -M ABS 1e-3 -a \n");
+    printf("	sz -f -i test.dat    -o test.dat.sz.out -3 8 8 128 -M ABS_AND_REL -A 1 -R 1e-3 -a \n");
     printf("	sz -f -i test.dat    -o test.dat.sz.out -3 8 8 128 -c sz.config \n");
     printf("	sz -f -i test.dat    -o test.dat.sz.out -3 8 8 128 -c sz.config -M ABS 1e-3 -a\n");
     exit(0);
@@ -75,22 +87,22 @@ void usage_sz2() {
     printf("	-M <error bound mode> : 10 options as follows. \n");
     printf("		ABS (absolute error bound)\n");
     printf("		REL (value range based error bound, so a.k.a., VR_REL)\n");
-//    printf("		ABS_AND_REL (using min{ABS, REL})\n");
-//    printf("		ABS_OR_REL (using max{ABS, REL})\n");
-//    printf("		PSNR (peak signal-to-noise ratio)\n");
-//    printf("		NORM (norm2 error : sqrt(sum(xi-xi')^2)\n");
+    printf("		ABS_AND_REL (using min{ABS, REL})\n");
+    printf("		ABS_OR_REL (using max{ABS, REL})\n");
+    printf("		PSNR (peak signal-to-noise ratio)\n");
+    printf("		NORM (norm2 error : sqrt(sum(xi-xi')^2)\n");
 //    printf("		PW_REL (point-wise relative error bound)\n");
     printf("	-A <absolute error bound>: specifying absolute error bound\n");
     printf("	-R <value_range based relative error bound>: specifying relative error bound\n");
 //    printf("	-P <point-wise relative error bound>: specifying point-wise relative error bound\n");
-//    printf("	-S <PSNR>: specifying PSNR\n");
-//    printf("	-N <normErr>: specifying normErr\n");
+    printf("	-S <PSNR>: specifying PSNR\n");
+    printf("	-N <normErr>: specifying normErr\n");
     printf("* input data file:\n");
     printf("	-i <original data file> : original data file\n");
     printf("	-s <compressed data file> : compressed data file in decompression\n");
     printf("* output type of decompressed file: \n");
     printf("	-b (by default) : decompressed file stored in binary format\n");
-//    printf("	-t : decompreadded file stored in text format\n");
+    printf("	-t : decompreadded file stored in text format\n");
 //    printf("	-T : pre-processing with Tucker Tensor Decomposition\n");
     printf("* dimensions: \n");
     printf("	-1 <nx> : dimension for 1D data such as data[nx]\n");
@@ -156,8 +168,8 @@ void decompress(char *inPath, char *cmpPath, char *decPath,
     }
     if (binaryOutput == 1) {
         SZ::writefile<T>(outputFilePath, decData, conf.num);
-    } else { //txt output
-//        writeFloatData(decData, nbEle, outputFilePath, &status);
+    } else {
+        SZ::writeTextFile<T>(outputFilePath, decData, conf.num);
     }
     if (printCmpResults) {
         //compute the distortion / compression errors...
@@ -174,7 +186,7 @@ void decompress(char *inPath, char *cmpPath, char *decPath,
 }
 
 int main(int argc, char *argv[]) {
-    int binaryOutput = 1;
+    bool binaryOutput = true;
     int printCmpResults = 0;
     bool compression = false;
     bool decompression = false;
@@ -190,8 +202,8 @@ int main(int argc, char *argv[]) {
     char *absErrorBound = nullptr;
     char *relErrorBound = nullptr;
     char *pwrErrorBound = nullptr;
-    char *psnr_ = nullptr;
-    char *normError = nullptr;
+    char *psnrErrorBound = nullptr;
+    char *normErrorBound = nullptr;
 
     bool sz2mode = false;
 
@@ -204,6 +216,7 @@ int main(int argc, char *argv[]) {
     int status;
     if (argc == 1)
         usage();
+    int width = -1;
 
     for (i = 1; i < argc; i++) {
         if (argv[i][0] != '-' || argv[i][2]) {
@@ -221,12 +234,10 @@ int main(int argc, char *argv[]) {
                 printf("version: %s\n", PROJECT_VER);
                 exit(0);
             case 'b':
-                binaryOutput = 1;
+                binaryOutput = true;
                 break;
             case 't':
-                binaryOutput = 0;
-                printf("text output is not yet supported.");
-                exit(0);
+                binaryOutput = false;
                 break;
             case 'a':
                 printCmpResults = 1;
@@ -257,6 +268,18 @@ int main(int argc, char *argv[]) {
                 break;
             case 'd':
                 dataType = SZ_DOUBLE;
+                break;
+            case 'I':
+                if (++i == argc || sscanf(argv[i], "%d", &width) != 1) {
+                    usage();
+                }
+                if (width == 32) {
+                    dataType = SZ_INT32;
+                } else if (width == 64) {
+                    dataType = SZ_INT64;
+                } else {
+                    usage();
+                }
                 break;
             case 'i':
                 if (++i == argc)
@@ -324,16 +347,16 @@ int main(int argc, char *argv[]) {
 //                    usage();
 //                pwrErrorBound = argv[i];
 //                break;
-//            case 'N':
-//                if (++i == argc)
-//                    usage();
-//                normError = argv[i];
-//                break;
-//            case 'S':
-//                if (++i == argc)
-//                    usage();
-//                psnr_ = argv[i];
-//                break;
+            case 'N':
+                if (++i == argc)
+                    usage();
+                normErrorBound = argv[i];
+                break;
+            case 'S':
+                if (++i == argc)
+                    usage();
+                psnrErrorBound = argv[i];
+                break;
             default:
                 usage();
                 break;
@@ -391,29 +414,38 @@ int main(int argc, char *argv[]) {
             if (absErrorBound != nullptr) {
                 conf.absErrorBound = atof(absErrorBound);
             }
+            if (psnrErrorBound != nullptr) {
+                conf.psnrErrorBound = atof(psnrErrorBound);
+            }
+            if (normErrorBound != nullptr) {
+                conf.l2normErrorBound = atof(normErrorBound);
+            }
         }
-        if (strcmp(errBoundMode, "ABS") == 0) {
+        if (strcmp(errBoundMode, SZ::EB_STR[SZ::EB_ABS]) == 0) {
             conf.errorBoundMode = SZ::EB_ABS;
             if (errBound != nullptr) {
                 conf.absErrorBound = atof(errBound);
             }
-        } else if (strcmp(errBoundMode, "REL") == 0 || strcmp(errBoundMode, "VR_REL") == 0) {
+        } else if (strcmp(errBoundMode, SZ::EB_STR[SZ::EB_REL]) == 0 || strcmp(errBoundMode, "VR_REL") == 0) {
             conf.errorBoundMode = SZ::EB_REL;
             if (errBound != nullptr) {
                 conf.relErrorBound = atof(errBound);
             }
-        }
-//        else if (strcmp(errBoundMode, "ABS_AND_REL") == 0)
-//            conf.errorBoundMode = ABS_AND_REL;
-//        else if (strcmp(errBoundMode, "ABS_OR_REL") == 0)
-//            conf.errorBoundMode = ABS_OR_REL;
-//        else if (strcmp(errBoundMode, "PSNR") == 0)
-//            conf.errorBoundMode = PSNR;
-//        else if (strcmp(errBoundMode, "PW_REL") == 0)
-//            conf.errorBoundMode = PW_REL;
-//        else if (strcmp(errBoundMode, "NORM") == 0)
-//            conf.errorBoundMode = NORM;
-        else {
+        } else if (strcmp(errBoundMode, SZ::EB_STR[SZ::EB_PSNR]) == 0) {
+            conf.errorBoundMode = SZ::EB_PSNR;
+            if (errBound != nullptr) {
+                conf.psnrErrorBound = atof(errBound);
+            }
+        } else if (strcmp(errBoundMode, SZ::EB_STR[SZ::EB_L2NORM]) == 0) {
+            conf.errorBoundMode = SZ::EB_L2NORM;
+            if (errBound != nullptr) {
+                conf.l2normErrorBound = atof(errBound);
+            }
+        } else if (strcmp(errBoundMode, SZ::EB_STR[SZ::EB_ABS_AND_REL]) == 0) {
+            conf.errorBoundMode = SZ::EB_ABS_AND_REL;
+        } else if (strcmp(errBoundMode, SZ::EB_STR[SZ::EB_ABS_OR_REL]) == 0) {
+            conf.errorBoundMode = SZ::EB_ABS_OR_REL;
+        } else {
             printf("Error: wrong error bound mode setting by using the option '-M'\n");
             usage();
             exit(0);
@@ -426,6 +458,10 @@ int main(int argc, char *argv[]) {
             compress<float>(inPath, cmpPath, conf);
         } else if (dataType == SZ_DOUBLE) {
             compress<double>(inPath, cmpPath, conf);
+        } else if (dataType == SZ_INT32) {
+            compress<int32_t>(inPath, cmpPath, conf);
+        } else if (dataType == SZ_INT64) {
+            compress<int64_t>(inPath, cmpPath, conf);
         } else {
             printf("Error: data type not supported \n");
             usage();
@@ -442,6 +478,10 @@ int main(int argc, char *argv[]) {
             decompress<float>(inPath, cmpPath, decPath, conf, binaryOutput, printCmpResults);
         } else if (dataType == SZ_DOUBLE) {
             decompress<double>(inPath, cmpPath, decPath, conf, binaryOutput, printCmpResults);
+        } else if (dataType == SZ_INT32) {
+            decompress<int32_t>(inPath, cmpPath, decPath, conf, binaryOutput, printCmpResults);
+        } else if (dataType == SZ_INT64) {
+            decompress<int64_t>(inPath, cmpPath, decPath, conf, binaryOutput, printCmpResults);
         } else {
             printf("Error: data type not supported \n");
             usage();

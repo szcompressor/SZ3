@@ -67,12 +67,8 @@ Scripts without parameters below should work fine by replacing SZ2 with SZ3.
 |-----------|---------------------------------|------------------------------------------|
 | -c        | Config file                     | SZ3 has different config format with SZ2 |
 | -p        | Print configuration info        | Will be supported soon                   |
-| -t        | Output in text format           | Will be supported soon                   |
-| -M        | ABS_AND_REL and ABS_OR_REL      | Will be supported soon                   |
 | -T        | Tucker Tensor Decomposition     | Will be supported later                  |
-| -P        | Point-wise relative error bound | Further research is needed               |
-| -N        | Norm error bound                | Further research is needed               |
-| -S        | PSNR error bound                | Further research is needed               |
+| -P        | Point-wise relative error bound | Will be supported later                  |
 
 
 ## API
@@ -89,3 +85,4 @@ Version New features
 * SZ 3.1.0 The default algorithm is now interpolation+Lorenzo.
 * SZ 3.1.1 Add OpenMP support. Works for all algorithms.
 * SZ 3.1.2 Support configuration file (INI format). Example can be found in 'test/sz.config'.
+* SZ 3.1.3 Support more error control mode: PSNR, L2Norm, ABS_AND_REL, ABS_OR_REL. Support INT32 and INT64 datatype. 
