@@ -46,7 +46,7 @@ namespace SZ {
         std::ifstream fin(file, std::ios::binary);
         if (!fin) {
             std::cout << " Error, Couldn't find the file: " << file << "\n";
-            return;
+            exit(0);
         }
         fin.seekg(0, std::ios::end);
         const size_t num_elements = fin.tellg() / sizeof(Type);
@@ -61,7 +61,7 @@ namespace SZ {
         std::ifstream fin(file, std::ios::binary);
         if (!fin) {
             std::cout << " Error, Couldn't find the file: " << file << "\n";
-            return 0;
+            exit(0);
         }
         fin.seekg(0, std::ios::end);
         const size_t num_elements = fin.tellg() / sizeof(Type);
