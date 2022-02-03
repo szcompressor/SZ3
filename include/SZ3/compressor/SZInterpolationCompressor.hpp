@@ -165,7 +165,7 @@ namespace SZ {
 
 
             timer.start();
-            encoder.preprocess_encode(quant_inds, 4 * quantizer.get_radius());
+            encoder.preprocess_encode(quant_inds, 0);
             encoder.save(buffer_pos);
             encoder.encode(quant_inds, buffer_pos);
             encoder.postprocess_encode();

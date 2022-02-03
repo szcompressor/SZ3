@@ -96,7 +96,7 @@ namespace SZMETA {
         SZ::write(reg_unpredictable_data, reg_unpredictable_count, compressed_pos);
 
         SZ::HuffmanEncoder<int> selector_encoder = SZ::HuffmanEncoder<int>();
-        selector_encoder.preprocess_encode(reg_params_type, reg_count, 2 * RegCoeffCapacity);
+        selector_encoder.preprocess_encode(reg_params_type, reg_count, 0);
         selector_encoder.save(compressed_pos);
         selector_encoder.encode(reg_params_type, reg_count, compressed_pos);
         selector_encoder.postprocess_encode();

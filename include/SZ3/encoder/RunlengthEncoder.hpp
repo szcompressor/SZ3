@@ -3,6 +3,8 @@
 
 #include "Encoder.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
+#include "SZ3/def.hpp"
+#include <vector>
 
 namespace SZ {
 

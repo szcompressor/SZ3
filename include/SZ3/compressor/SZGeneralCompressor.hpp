@@ -39,7 +39,6 @@ namespace SZ {
             frontend.save(buffer_pos);
 
             timer.start();
-//            encoder.preprocess_encode(quant_inds, 2 * frontend.get_radius());
             encoder.preprocess_encode(quant_inds, 0);
             encoder.save(buffer_pos);
             encoder.encode(quant_inds, buffer_pos);

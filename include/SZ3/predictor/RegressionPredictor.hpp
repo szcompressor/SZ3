@@ -112,8 +112,7 @@ namespace SZ {
                 quantizer_independent.save(c);
                 quantizer_liner.save(c);
                 HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
-                encoder.preprocess_encode(regression_coeff_quant_inds,
-                                          4 * std::max(quantizer_liner.get_radius(), quantizer_independent.get_radius()));
+                encoder.preprocess_encode(regression_coeff_quant_inds,0);
                 encoder.save(c);
                 encoder.encode(regression_coeff_quant_inds, c);
                 encoder.postprocess_encode();

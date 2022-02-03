@@ -2,6 +2,8 @@
 #define _SZ_BYPASS_ENCODER_HPP
 
 #include "Encoder.hpp"
+#include "SZ3/def.hpp"
+#include <vector>
 
 namespace SZ {
 
@@ -16,7 +18,7 @@ namespace SZ {
         };
 
         size_t encode(const std::vector<T> &bins, uchar *&bytes) {
-            for (auto &bin:bins) {
+            for (auto &bin: bins) {
                 *bytes++ = uchar(bin);
             }
             return 0;
@@ -28,7 +30,7 @@ namespace SZ {
 
         std::vector<T> decode(const uchar *&bytes, size_t targetLength) {
             std::vector<T> bins(targetLength);
-            for (auto &bin:bins) {
+            for (auto &bin: bins) {
                 bin = *bytes++;
             }
             return bins;

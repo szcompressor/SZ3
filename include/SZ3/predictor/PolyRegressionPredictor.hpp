@@ -131,9 +131,7 @@ namespace SZ {
             *reinterpret_cast<size_t *>(c) = regression_coeff_quant_inds.size();
             c += sizeof(size_t);
             HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
-            encoder.preprocess_encode(regression_coeff_quant_inds, 4 * std::max({quantizer_independent.get_radius(),
-                                                                                 quantizer_liner.get_radius(),
-                                                                                 quantizer_poly.get_radius()}));
+            encoder.preprocess_encode(regression_coeff_quant_inds, 0);
             encoder.save(c);
             encoder.encode(regression_coeff_quant_inds, c);
             encoder.postprocess_encode();
