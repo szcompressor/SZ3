@@ -33,7 +33,7 @@ namespace SZ {
             std::vector<int> quant_inds = frontend.compress(data);
 //            timer.stop("Prediction & Quantization");
 
-            uchar *buffer = new uchar[1.2 * frontend.size_est()];
+            uchar *buffer = new uchar[size_t(1.2 * frontend.size_est())];
             uchar *buffer_pos = buffer;
 
             frontend.save(buffer_pos);
