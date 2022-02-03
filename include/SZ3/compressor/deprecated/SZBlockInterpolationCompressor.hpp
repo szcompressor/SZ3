@@ -148,9 +148,7 @@ namespace SZ {
             quantizer.postcompress_data();
 //            predictor.print();
 
-            size_t bufferSize = (num_elements < 1000000) ?
-                                4 * num_elements * sizeof(T) + quantizer.size_est() :
-                                size_t(1.2 * num_elements) * sizeof(T) + quantizer.size_est();
+            size_t bufferSize = 1.2 * (quant_inds.size() * sizeof(T) + quantizer.size_est());
             uchar *buffer = new uchar[bufferSize];
             uchar *bufferPos = buffer;
 
@@ -286,7 +284,7 @@ namespace SZ {
         typename std::enable_if<NN == 1, double>::type
         block_interpolation(T *data, std::array<size_t, N> begin, std::array<size_t, N> end, const PredictorBehavior pb,
                             const std::string &interp_func, const int direction, uint stride_ip = 1) {
-            return block_interpolation_1d(data, offset2(begin), offset2(end), 1, interp_func, pb);
+            return block_interpolation_1d(data, offset2(begin), offset2(end), stride_ip, interp_func, pb);
         }
 
         template<uint NN = N>

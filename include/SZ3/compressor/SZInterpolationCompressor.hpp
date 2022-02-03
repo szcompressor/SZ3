@@ -151,10 +151,8 @@ namespace SZ {
 
 //            writefile("pred.dat", preds.data(), num_elements);
 //            writefile("quant.dat", quant_inds.data(), num_elements);
-            //TODO find a better estimation method
-            uchar *buffer = (num_elements < 1000000) ?
-                            new uchar[4 * num_elements * sizeof(T) + quantizer.size_est()] :
-                            new uchar[size_t(1.2 * num_elements) * sizeof(T) + quantizer.size_est()];
+            size_t bufferSize = 1.2 * (quant_inds.size() * sizeof(T) + quantizer.size_est());
+            uchar *buffer = new uchar[bufferSize];
             uchar *buffer_pos = buffer;
 
             write(global_dimensions.data(), N, buffer_pos);

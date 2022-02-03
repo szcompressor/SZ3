@@ -115,6 +115,10 @@ namespace SZ {
             quantizer.load(c, remaining_length);
         }
 
+        size_t size_est() {
+            return quantizer.size_est() + sizeof(T) * num_elements;
+        }
+
         void print() {
 //            predictor.print();
 //            quantizer.print();

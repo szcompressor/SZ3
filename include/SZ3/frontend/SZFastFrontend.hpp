@@ -153,6 +153,9 @@ namespace SZ {
             }
         }
 
+        size_t size_est() {
+            return quantizer.size_est() + sizeof(T) * size.num_elements;
+        }
 
         int get_radius() const {
 //            return capacity;
@@ -534,7 +537,7 @@ namespace SZ {
 
     template<class T, uint N, class Predictor>
     SZFastFrontend<T, N, Predictor>
-    make_sz_fast_frontend(const Config&conf, Predictor predictor) {
+    make_sz_fast_frontend(const Config &conf, Predictor predictor) {
         return SZFastFrontend<T, N, Predictor>(conf, predictor);
     }
 }

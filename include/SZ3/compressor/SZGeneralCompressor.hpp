@@ -33,7 +33,7 @@ namespace SZ {
             std::vector<int> quant_inds = frontend.compress(data);
 //            timer.stop("Prediction & Quantization");
 
-            uchar *buffer = new uchar[2 * quant_inds.size() * sizeof(T)];
+            uchar *buffer = new uchar[1.2 * frontend.size_est()];
             uchar *buffer_pos = buffer;
 
             frontend.save(buffer_pos);
@@ -96,7 +96,6 @@ namespace SZ {
     make_sz_general_compressor(Frontend frontend, Encoder encoder, Lossless lossless) {
         return std::make_shared<SZGeneralCompressor<T, N, Frontend, Encoder, Lossless>>(frontend, encoder, lossless);
     }
-
 
 
 }
