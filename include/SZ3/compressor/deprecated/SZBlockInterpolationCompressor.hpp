@@ -148,23 +148,26 @@ namespace SZ {
             quantizer.postcompress_data();
 //            predictor.print();
 
-            uchar *compressed_data = new uchar[2 * num_elements * sizeof(T) + quantizer.size_est()];
-            uchar *compressed_data_pos = compressed_data;
+            size_t bufferSize = (num_elements < 1000000) ?
+                                4 * num_elements * sizeof(T) + quantizer.size_est() :
+                                size_t(1.2 * num_elements) * sizeof(T) + quantizer.size_est();
+            uchar *buffer = new uchar[bufferSize];
+            uchar *bufferPos = buffer;
 
-            write(quantizer.get_eb(), compressed_data_pos);
-            write(global_dimensions.data(), N, compressed_data_pos);
-            write(block_size, compressed_data_pos);
-            quantizer.save(compressed_data_pos);
+            write(quantizer.get_eb(), bufferPos);
+            write(global_dimensions.data(), N, bufferPos);
+            write(block_size, bufferPos);
+            quantizer.save(bufferPos);
 
             encoder.preprocess_encode(quant_inds, 4 * quantizer.get_radius());
-            encoder.save(compressed_data_pos);
-            encoder.encode(quant_inds, compressed_data_pos);
+            encoder.save(bufferPos);
+            encoder.encode(quant_inds, bufferPos);
             encoder.postprocess_encode();
 
-            uchar *lossless_data = lossless.compress(compressed_data,
-                                                     compressed_data_pos - compressed_data,
+            uchar *lossless_data = lossless.compress(buffer,
+                                                     bufferPos - buffer,
                                                      compressed_size);
-            lossless.postcompress_data(compressed_data);
+            lossless.postcompress_data(buffer);
 
             return lossless_data;
         }

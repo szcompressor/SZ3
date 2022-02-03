@@ -39,7 +39,7 @@ namespace SZ {
             return decompress(cmpData, cmpSize, dec_data);
         }
 
-        T *decompress(uchar const *cmpData, const size_t& cmpSize, T *decData) {
+        T *decompress(uchar const *cmpData, const size_t &cmpSize, T *decData) {
             size_t remaining_length = cmpSize;
             uchar *buffer = lossless.decompress(cmpData, remaining_length);
             uchar const *buffer_pos = buffer;
@@ -153,8 +153,8 @@ namespace SZ {
 //            writefile("quant.dat", quant_inds.data(), num_elements);
             //TODO find a better estimation method
             uchar *buffer = (num_elements < 1000000) ?
-                            new uchar[4 * num_elements * sizeof(T)] :
-                            new uchar[size_t(1.2 * num_elements) * sizeof(T)];
+                            new uchar[4 * num_elements * sizeof(T) + quantizer.size_est()] :
+                            new uchar[size_t(1.2 * num_elements) * sizeof(T) + quantizer.size_est()];
             uchar *buffer_pos = buffer;
 
             write(global_dimensions.data(), N, buffer_pos);
