@@ -38,7 +38,7 @@ void usage() {
     printf("* configuration file: \n");
     printf("	-c <configuration file> : configuration file sz.config\n");
     printf("* error control: (the error control parameters here will overwrite the setting in sz.config)\n");
-    printf("	-M <error control mode> < error bound (optional) > \n");
+    printf("	-M <error control mode> <error bound (optional)> \n");
     printf("	error control mode as follows: \n");
     printf("		ABS (absolute error bound)\n");
     printf("		REL (value range based error bound, so a.k.a., VR_REL)\n");
