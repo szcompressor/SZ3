@@ -2,6 +2,7 @@
 #define SZ_optimize_quant_intervals_hpp
 
 #include <vector>
+#include "SZ3/predictor/MetaLorenzoPredictor.hpp"
 
 namespace SZ {
 
@@ -105,7 +106,7 @@ namespace SZ {
         float pred_err = 0;
         int radius = (QuantIntvMeanCapacity >> 1);
         while (data_pos - data < len) {
-            pred_value = lorenzo_predict_3d(data_pos, r23, r3);
+            pred_value = SZMETA::lorenzo_predict_3d(data_pos, r23, r3);
             pred_err = fabs(pred_value - *data_pos);
             if (pred_err < precision) freq_count++;
             pred_index = (pred_err / precision + 1) / 2;
