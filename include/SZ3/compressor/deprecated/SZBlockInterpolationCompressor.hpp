@@ -148,7 +148,7 @@ namespace SZ {
             quantizer.postcompress_data();
 //            predictor.print();
 
-            size_t bufferSize = 1.2 * (quant_inds.size() * sizeof(T) + quantizer.size_est());
+            size_t bufferSize = 1.5 * (quant_inds.size() * sizeof(T) + quantizer.size_est());
             uchar *buffer = new uchar[bufferSize];
             uchar *bufferPos = buffer;
 
@@ -161,6 +161,8 @@ namespace SZ {
             encoder.save(bufferPos);
             encoder.encode(quant_inds, bufferPos);
             encoder.postprocess_encode();
+
+            assert(bufferPos - buffer < bufferSize);
 
             uchar *lossless_data = lossless.compress(buffer,
                                                      bufferPos - buffer,

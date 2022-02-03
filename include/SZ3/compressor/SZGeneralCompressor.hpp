@@ -33,7 +33,8 @@ namespace SZ {
             std::vector<int> quant_inds = frontend.compress(data);
 //            timer.stop("Prediction & Quantization");
 
-            uchar *buffer = new uchar[size_t(1.2 * frontend.size_est())];
+            size_t bufferSize = 1.5 * (frontend.size_est());
+            uchar *buffer = new uchar[bufferSize];
             uchar *buffer_pos = buffer;
 
             frontend.save(buffer_pos);
@@ -44,6 +45,7 @@ namespace SZ {
             encoder.encode(quant_inds, buffer_pos);
             encoder.postprocess_encode();
 //            timer.stop("Coding");
+            assert(buffer_pos - buffer < bufferSize);
 
             timer.start();
             uchar *lossless_data = lossless.compress(buffer, buffer_pos - buffer, compressed_size);
