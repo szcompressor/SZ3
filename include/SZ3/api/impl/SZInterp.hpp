@@ -3,9 +3,6 @@
 
 #include "SZ3/compressor/SZInterpolationCompressor.hpp"
 #include "SZ3/compressor/deprecated/SZBlockInterpolationCompressor.hpp"
-#include "SZ3/compressor/SZGeneralCompressor.hpp"
-#include "SZ3/frontend/SZFastFrontend.hpp"
-#include "SZ3/frontend/SZGeneralFrontend.hpp"
 #include "SZ3/quantizer/IntegerQuantizer.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
 #include "SZ3/utils/Iterator.hpp"
@@ -13,7 +10,6 @@
 #include "SZ3/utils/Extraction.hpp"
 #include "SZ3/utils/QuantOptimizatioin.hpp"
 #include "SZ3/utils/Config.hpp"
-#include "SZ3/predictor/SimplePredictor.hpp"
 #include "SZ3/api/impl/SZLorenzoReg.hpp"
 #include <cmath>
 #include <memory>
@@ -68,13 +64,11 @@ double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> d
     conf.stride = conf.blockSize;
     auto sz = SZ::make_sz_block_interpolation_compressor<T, N>(
             conf,
-            SZ::SimplePredictor<T, N>(eb),
             SZ::LinearQuantizer<T>(eb),
             SZ::HuffmanEncoder<int>(),
             SZ::Lossless_zstd(),
             interp_op,
-            direction_op,
-            -1
+            direction_op
     );
 
     auto cmpData = sz.compress(data1.data(), compressed_size);

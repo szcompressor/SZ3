@@ -18,26 +18,22 @@
 #include <cmath>
 
 namespace SZ {
-    template<class T, uint N, class Predictor, class Quantizer, class Encoder, class Lossless>
+    template<class T, uint N, class Quantizer, class Encoder, class Lossless>
     class SZBlockInterpolationCompressor {
     public:
 
 
         SZBlockInterpolationCompressor(const Config &conf,
-                                       Predictor predictor, Quantizer quantizer, Encoder encoder, Lossless lossless,
-                                       int interpolator, int direction, int interpo_level) :
-                fallback_predictor(LorenzoPredictor<T, N, 1>(conf.absErrorBound)),
-                predictor(predictor), quantizer(quantizer), encoder(encoder), lossless(lossless),
+                                       Quantizer quantizer, Encoder encoder, Lossless lossless,
+                                       int interpolator, int direction) :
+                quantizer(quantizer), encoder(encoder), lossless(lossless),
                 block_size(conf.blockSize), stride(conf.stride),
                 num_elements(conf.num),
-//                interpolators({"linear", "cubic", "cubic2", "akima", "pchip"}),
                 interpolators({"linear", "cubic"}),
-                interpolator_op(interpolator), direction_op(direction), interp_level(interpo_level) {
+                interpolator_op(interpolator), direction_op(direction) {
 
             std::copy_n(conf.dims.begin(), N, global_dimensions.begin());
 
-            static_assert(std::is_base_of<concepts::PredictorInterface<T, N>, Predictor>::value,
-                          "must implement the predictor interface");
             static_assert(std::is_base_of<concepts::QuantizerInterface<T>, Quantizer>::value,
                           "must implement the quatizer interface");
             static_assert(std::is_base_of<concepts::EncoderInterface<int>, Encoder>::value,
@@ -48,287 +44,122 @@ namespace SZ {
         }
 
 
-        T *decompress(uchar *compressed_data, const size_t length, bool pre_de_lossless = false) {
+        T *decompress(uchar *compressed_data, const size_t length) {
             size_t remaining_length = length;
             uchar *lossless_decompressed;
             uchar const *compressed_data_pos;
-            if (pre_de_lossless) {
-                compressed_data_pos = compressed_data;
-            } else {
-                lossless_decompressed = lossless.decompress(compressed_data, remaining_length);
-                compressed_data_pos = lossless_decompressed;
-                double eb;
-                read(eb, compressed_data_pos, remaining_length);
-            }
+
+            lossless_decompressed = lossless.decompress(compressed_data, remaining_length);
+            compressed_data_pos = lossless_decompressed;
+            double eb;
+            read(eb, compressed_data_pos, remaining_length);
 
             read(global_dimensions.data(), N, compressed_data_pos, remaining_length);
             num_elements = 1;
             for (const auto &d: global_dimensions) {
                 num_elements *= d;
-                std::cout << d << " ";
             }
             std::cout << std::endl;
             read(block_size, compressed_data_pos, remaining_length);
             stride = block_size;
-            predictor.load(compressed_data_pos, remaining_length);
             quantizer.load(compressed_data_pos, remaining_length);
             encoder.load(compressed_data_pos, remaining_length);
             quant_inds = encoder.decode(compressed_data_pos, num_elements);
 
             encoder.postprocess_decode();
 
-            std::vector<int> block_selection;
-            size_t selection_size = *reinterpret_cast<const size_t *>(compressed_data_pos);
-            compressed_data_pos += sizeof(size_t);
-            remaining_length -= sizeof(size_t);
-            HuffmanEncoder<int> selection_encoder;
-            selection_encoder.load(compressed_data_pos, remaining_length);
-            block_selection = selection_encoder.decode(compressed_data_pos, selection_size);
-            selection_encoder.postprocess_decode();
+            lossless.postdecompress_data(lossless_decompressed);
 
-            if (!pre_de_lossless) {
-                lossless.postdecompress_data(lossless_decompressed);
-            }
+            T *dec_data = new T[num_elements];
+            auto range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data,
+                                                                             std::begin(global_dimensions),
+                                                                             std::end(global_dimensions),
+                                                                             block_size,
+                                                                             0);
 
-            auto dec_data = std::make_unique<T[]>(num_elements);
-            auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.get(),
-                                                                                         std::begin(global_dimensions),
-                                                                                         std::end(global_dimensions),
-                                                                                         block_size,
-                                                                                         0);
-            auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data.get(),
-                                                                                         std::begin(global_dimensions),
-                                                                                         std::end(global_dimensions),
-                                                                                         1, 0);
-
-            predictor.predecompress_data(inter_block_range->begin());
-            fallback_predictor.predecompress_data(inter_block_range->begin());
             quantizer.predecompress_data();
 
 //            debug.resize(num_elements, 0);
 
-            auto inter_begin = inter_block_range->begin();
-            auto inter_end = inter_block_range->end();
-            std::array<size_t, N> intra_block_dims;
+            auto inter_begin = range->begin();
+            auto inter_end = range->end();
             size_t block_idx = 0;
 
             for (auto block = inter_begin; block != inter_end; block++) {
-//                auto block_global_idx = block.get_global_index();
                 auto interp_end_idx = block.get_global_index();
                 uint max_interp_level = 1;
+                auto block_global_idx = block.get_global_index();
                 for (int i = 0; i < N; i++) {
-                    interp_end_idx[i] += intra_block_dims[i] - 1;
-                    if (max_interp_level < ceil(log2(intra_block_dims[i]))) {
-                        max_interp_level = (uint) ceil(log2(intra_block_dims[i]));
+                    size_t block_dim = (block_global_idx[i] + block_size > global_dimensions[i]) ?
+                                       global_dimensions[i] - block_global_idx[i] : block_size;
+                    interp_end_idx[i] += block_dim - 1;
+                    if (max_interp_level < ceil(log2(block_dim))) {
+                        max_interp_level = (uint) ceil(log2(block_dim));
                     }
                 }
-                intra_block_range->update_block_range(block, block_size);
 
-                if (block_selection[block_idx++] == 0) {
-                    concepts::PredictorInterface<T, N> *predictor_withfallback = &predictor;
-                    if (!predictor.predecompress_block(intra_block_range)) {
-                        predictor_withfallback = &fallback_predictor;
-                    }
-                    auto intra_begin = intra_block_range->begin();
-                    auto intra_end = intra_block_range->end();
-                    for (auto element = intra_begin; element != intra_end; ++element) {
-                        *element = quantizer.recover(predictor_withfallback->predict(element), quant_inds[quant_index++]);
-                    }
-                } else {
-                    if (!interp_level) {
-                        auto first = intra_block_range->begin();
-                        *first = quantizer.recover(fallback_predictor.predict(first), quant_inds[quant_index++]);
-                    } else {
-                        max_interp_level = interp_level;
-                        size_t stride_sz = 1U << max_interp_level;
-                        auto interp_stationary_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
-                                dec_data.get(), std::begin(global_dimensions), std::end(global_dimensions), stride_sz, 0);
-                        std::array<size_t, N> interp_stationary_dims;
-                        for (int i = 0; i < N; i++) {
-                            interp_stationary_dims[i] = ceil(1.0 * intra_block_dims[i] / stride_sz);
-                        }
-                        interp_stationary_range->update_block_range(block, interp_stationary_dims);
-//                        interp_stationary_range->set_dimensions(interp_stationary_dims.begin(), interp_stationary_dims.end());
-//                        interp_stationary_range->set_offsets(block.get_offset());
-//                        interp_stationary_range->set_starting_position(block.get_local_index());
-                        concepts::PredictorInterface<T, N> *interp_stationary_predictor = &predictor;
-                        if (!predictor.predecompress_block(intra_block_range)) {
-                            interp_stationary_predictor = &fallback_predictor;
-                        }
-                        for (auto element = interp_stationary_range->begin();
-                             element != interp_stationary_range->end(); ++element) {
-                            *element = quantizer.recover(interp_stationary_predictor->predict(element),
-                                                         quant_inds[quant_index++]);
-//                            debug[element.get_offset()]++;
-                        }
-//                            std::cout << "quan: " << quant_inds.size() << std::endl;
-                    }
-                    for (uint level = max_interp_level; level > 0 && level <= max_interp_level; level--) {
-                        size_t stride_ip = 1U << (level - 1);
-                        block_interpolation(dec_data.get(), block.get_global_index(), interp_end_idx, PB_recover,
-                                            interpolators[interpolator_op], direction_op, stride_ip);
-                    }
+                *block = quantizer.recover(0, quant_inds[quant_index++]);
+
+                for (uint level = max_interp_level; level > 0 && level <= max_interp_level; level--) {
+                    size_t stride_ip = 1U << (level - 1);
+                    block_interpolation(dec_data, block.get_global_index(), interp_end_idx, PB_recover,
+                                        interpolators[interpolator_op], direction_op, stride_ip);
                 }
             }
 
-            assert(quant_index == num_elements);
-            predictor.postdecompress_data(inter_block_range->begin());
 
-//            fallback_predictor.postdecompress_data(inter_block_range->begin());
+            assert(quant_index == num_elements);
             quantizer.postdecompress_data();
 
-            return dec_data.release();
+            return dec_data;
         }
 
 
         // compress given the error bound
         uchar *compress(T *data, size_t &compressed_size) {
             quant_inds.clear();
-            uchar *compressed_data = new uchar[2 * num_elements * sizeof(T)];
-            uchar *compressed_data_pos = compressed_data;
-            std::vector<int> block_selection;
-            data2 = std::vector<T>(data, data + num_elements);
-
-//            debug.resize(num_elements, 0);
-
-            auto inter_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data,
-                                                                                         std::begin(global_dimensions),
-                                                                                         std::end(global_dimensions),
-                                                                                         block_size, 0);
-            auto intra_block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data,
-                                                                                         std::begin(global_dimensions),
-                                                                                         std::end(global_dimensions), 1, 0);
-            std::array<size_t, N> intra_block_dims;
-            predictor.precompress_data(inter_block_range->begin());
+            auto range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data,
+                                                                             std::begin(global_dimensions),
+                                                                             std::end(global_dimensions),
+                                                                             block_size, 0);
             quantizer.precompress_data();
-            struct timespec start, end;
-            clock_gettime(CLOCK_REALTIME, &start);
-            {
-                auto inter_begin = inter_block_range->begin();
-                auto inter_end = inter_block_range->end();
-                for (auto block = inter_begin; block != inter_end; ++block) {
+            for (auto block = range->begin(); block != range->end(); ++block) {
 
-                    auto block_global_idx = block.get_global_index();
-                    auto interp_end_idx = block.get_global_index();
-                    uint max_interp_level = 1;
-                    for (int i = 0; i < N; i++) {
-                        intra_block_dims[i] = (block_global_idx[i] + block_size > global_dimensions[i]) ?
-                                              global_dimensions[i] - block_global_idx[i] : block_size;
-                        interp_end_idx[i] += intra_block_dims[i] - 1;
-                        if (max_interp_level < ceil(log2(intra_block_dims[i]))) {
-                            max_interp_level = (uint) ceil(log2(intra_block_dims[i]));
-                        }
-                    }
-
-                    intra_block_range->update_block_range(block, block_size);
-                    concepts::PredictorInterface<T, N> *predictor_withfallback = &predictor;
-                    if (!predictor.precompress_block(intra_block_range)) {
-                        predictor_withfallback = &fallback_predictor;
-                    }
-                    double sz_predict_error = 1;
-//                    for (auto element = intra_block_range->begin(); element != intra_block_range->end(); ++element) {
-//                        sz_predict_error += predictor_withfallback->estimate_error(element);
-//                    }
-
-                    double interp_predict_error = 0;
-
-//                    for (uint level = max_interp_level; level > 0 && level <= max_interp_level; level--) {
-//                        uint stride_ip = 1U << (level - 1);
-//                        interp_predict_error += block_interpolation(data, block.get_global_index(), interp_end_idx, PB_predict,
-//                                                                    interpolators[interpolator_op], direction_op, stride_ip);
-//                    }
-
-                    if (sz_predict_error < interp_predict_error) {
-                        predictor_withfallback->precompress_block_commit();
-                        for (auto element = intra_block_range->begin(); element != intra_block_range->end(); ++element) {
-                            quant_inds.push_back(quantizer.quantize_and_overwrite(
-                                    *element, predictor_withfallback->predict(element)));
-                        }
-                        block_selection.push_back(0);
-                    } else {
-                        if (!interp_level) {
-                            auto first = intra_block_range->begin();
-                            quant_inds.push_back(quantizer.quantize_and_overwrite(*first, fallback_predictor.predict(first)));
-//                            debug[first.get_offset()]++;
-                        } else {
-                            max_interp_level = std::min(interp_level, max_interp_level);
-                            size_t stride_sz = 1U << max_interp_level;
-                            auto interp_stationary_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
-                                    data, std::begin(global_dimensions), std::end(global_dimensions), stride_sz, 0);
-                            std::array<size_t, N> interp_stationary_dims;
-                            for (int i = 0; i < N; i++) {
-                                interp_stationary_dims[i] = ceil(1.0 * intra_block_dims[i] / stride_sz);
-//                                if (block_selection.size() == 11) {
-//                                   std::cout << "Dim " << interp_stationary_dims[i] << std::endl;
-//                                }
-                            }
-                            interp_stationary_range->update_block_range(block, interp_stationary_dims);
-//                            interp_stationary_range->set_dimensions(interp_stationary_dims.begin(), interp_stationary_dims.end());
-//                            interp_stationary_range->set_offsets(block.get_offset());
-//                            interp_stationary_range->set_starting_position(block.get_local_index());
-                            concepts::PredictorInterface<T, N> *interp_stationary_predictor = &predictor;
-                            if (!predictor.precompress_block(intra_block_range)) {
-                                interp_stationary_predictor = &fallback_predictor;
-                            }
-                            interp_stationary_predictor->precompress_block_commit();
-                            for (auto element = interp_stationary_range->begin();
-                                 element != interp_stationary_range->end(); ++element) {
-                                auto quan = quantizer.quantize_and_overwrite(
-                                        *element, interp_stationary_predictor->predict(element));
-                                quant_inds.push_back(quan);
-//                                debug[element.get_offset()]++;
-//                                if (block_selection.size() == 11) {
-//                                    std::cout << "Ele " << element.get_offset() << std::endl;
-//                                }
-                            }
-                        }
-                        for (uint level = max_interp_level; level > 0 && level <= max_interp_level; level--) {
-                            uint stride_ip = 1U << (level - 1);
-                            block_interpolation(data, block.get_global_index(), interp_end_idx, PB_predict_overwrite,
-                                                interpolators[interpolator_op], direction_op, stride_ip);
-                        }
-                        block_selection.push_back(1);
+                auto block_global_idx = block.get_global_index();
+                auto interp_end_idx = block.get_global_index();
+                uint max_interp_level = 1;
+                for (int i = 0; i < N; i++) {
+                    size_t block_dim = (block_global_idx[i] + block_size > global_dimensions[i]) ?
+                                       global_dimensions[i] - block_global_idx[i] : block_size;
+                    interp_end_idx[i] += block_dim - 1;
+                    if (max_interp_level < ceil(log2(block_dim))) {
+                        max_interp_level = (uint) ceil(log2(block_dim));
                     }
                 }
-            }
-//            for (size_t i = 0; i < num_elements; i++) {
-//                if (debug[i] != 1) {
-//                    std::cout << i << "," << debug[i] << std::endl;
-//                }
-//            }
+                quant_inds.push_back(quantizer.quantize_and_overwrite(*block, 0));
 
-//            assert(quant_inds.size() == num_elements);
-
-            {
-                std::vector<size_t> cnt(2, 0);
-                size_t cnt_total = 0;
-                for (auto &sel: block_selection) {
-                    cnt[sel]++;
-                    cnt_total++;
+                for (uint level = max_interp_level; level > 0 && level <= max_interp_level; level--) {
+                    uint stride_ip = 1U << (level - 1);
+                    block_interpolation(data, block.get_global_index(), interp_end_idx, PB_predict_overwrite,
+                                        interpolators[interpolator_op], direction_op, stride_ip);
                 }
-//                printf("Interp Percentage = %.3f\nSZ Percentage = %.3f\n", 1.0 * cnt[1] / cnt_total, 1.0 * cnt[0] / cnt_total);
             }
+
             quantizer.postcompress_data();
 //            predictor.print();
+
+            uchar *compressed_data = new uchar[2 * num_elements * sizeof(T)];
+            uchar *compressed_data_pos = compressed_data;
 
             write(quantizer.get_eb(), compressed_data_pos);
             write(global_dimensions.data(), N, compressed_data_pos);
             write(block_size, compressed_data_pos);
-            predictor.save(compressed_data_pos);
             quantizer.save(compressed_data_pos);
 
             encoder.preprocess_encode(quant_inds, 4 * quantizer.get_radius());
             encoder.save(compressed_data_pos);
             encoder.encode(quant_inds, compressed_data_pos);
             encoder.postprocess_encode();
-
-            *reinterpret_cast<size_t *>(compressed_data_pos) = (size_t) block_selection.size();
-            compressed_data_pos += sizeof(size_t);
-            HuffmanEncoder<int> selection_encoder;
-            selection_encoder.preprocess_encode(block_selection, 4);
-            selection_encoder.save(compressed_data_pos);
-            selection_encoder.encode(block_selection, compressed_data_pos);
-            selection_encoder.postprocess_encode();
 
             uchar *lossless_data = lossless.compress(compressed_data,
                                                      compressed_data_pos - compressed_data,
@@ -666,16 +497,9 @@ namespace SZ {
 
         int interpolator_op;
         int direction_op;
-        double sz_eb_ratio = 1;
-        uint interp_level;
         std::vector<std::string> interpolators;
         std::vector<int> quant_inds;
-        std::vector<int> block_select_quant;
         size_t quant_index = 0; // for decompress
-//        std::vector<int> debug;
-        std::vector<T> data2;
-        Predictor predictor;
-        LorenzoPredictor<T, N, 1> fallback_predictor;
         Quantizer quantizer;
         Encoder encoder;
         Lossless lossless;
@@ -685,18 +509,11 @@ namespace SZ {
         std::array<size_t, N> global_dimensions;
     };
 
-    template<class T, uint N, class Predictor, class Quantizer, class Encoder, class Lossless>
-    SZBlockInterpolationCompressor<T, N, Predictor, Quantizer, Encoder, Lossless>
-    make_sz_block_interpolation_compressor(const Config &conf, Predictor predictor, Quantizer quantizer,
-                                           Encoder encoder, Lossless lossless,
-                                           int interp_op,
-                                           int direction_op,
-                                           uint interp_level) {
-        return SZBlockInterpolationCompressor<T, N, Predictor, Quantizer, Encoder, Lossless>(conf, predictor, quantizer,
-                                                                                             encoder, lossless,
-                                                                                             interp_op, direction_op,
-                                                                                             interp_level
-        );
+    template<class T, uint N, class Quantizer, class Encoder, class Lossless>
+    SZBlockInterpolationCompressor<T, N, Quantizer, Encoder, Lossless>
+    make_sz_block_interpolation_compressor(const Config &conf, Quantizer quantizer, Encoder encoder, Lossless lossless,
+                                           int interp_op, int direction_op) {
+        return SZBlockInterpolationCompressor<T, N, Quantizer, Encoder, Lossless>(conf, quantizer, encoder, lossless, interp_op, direction_op);
     }
 
 };
