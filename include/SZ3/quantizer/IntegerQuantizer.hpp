@@ -134,6 +134,10 @@ namespace SZ {
             return unpred[index++];
         }
 
+        size_t size_est() {
+            return unpred.size() * sizeof(T);
+        }
+
         void save(unsigned char *&c) const {
             // std::string serialized(sizeof(uint8_t) + sizeof(T) + sizeof(int),0);
             c[0] = 0b00000010;
@@ -175,6 +179,7 @@ namespace SZ {
             unpred.clear();
             index = 0;
         }
+
 
         virtual void postcompress_data() {
         }

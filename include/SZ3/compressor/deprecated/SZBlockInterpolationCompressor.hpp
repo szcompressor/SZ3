@@ -148,7 +148,7 @@ namespace SZ {
             quantizer.postcompress_data();
 //            predictor.print();
 
-            uchar *compressed_data = new uchar[2 * num_elements * sizeof(T)];
+            uchar *compressed_data = new uchar[2 * num_elements * sizeof(T) + quantizer.size_est()];
             uchar *compressed_data_pos = compressed_data;
 
             write(quantizer.get_eb(), compressed_data_pos);
