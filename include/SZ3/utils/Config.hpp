@@ -10,7 +10,7 @@
 #include <numeric>
 #include "SZ3/def.hpp"
 #include "MemoryUtil.hpp"
-#include "INIReader.h"
+#include "SZ3/utils/inih/INIReader.h"
 
 namespace SZ {
 
