@@ -8,8 +8,7 @@ SZ3: A Modular Error-bounded Lossy Compression Framework for Scientific Datasets
 
 ## Citations
 
-**Kindly note**: If you mention SZ in your paper, the most appropriate citation is including these three references (***
-ICDE21, HPDC2020, Bigdata2018***), because they cover the design and implementation of the latest version of SZ.
+**Kindly note**: If you mention SZ in your paper, the most appropriate citation is including these three references (**ICDE21, HPDC2020, Bigdata2018**), because they cover the design and implementation of the latest version of SZ.
 
 * SZ3 Algorithm: Kai Zhao, Sheng Di, Maxim Dmitriev, Thierry-Laurent D. Tonellot, Zizhong Chen, and Franck
   Cappello. "[Optimizing Error-Bounded Lossy Compression for Scientiﬁc Data by Dynamic Spline Interpolation](https://ieeexplore.ieee.org/document/9458791)"
