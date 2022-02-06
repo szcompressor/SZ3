@@ -2,7 +2,6 @@
 #define _SZ_BLOCK_INTERPOLATION_COMPRESSOR_HPP
 
 #include "SZ3/predictor/Predictor.hpp"
-#include "SZ3/predictor/LorenzoPredictor.hpp"
 #include "SZ3/quantizer/Quantizer.hpp"
 #include "SZ3/encoder/Encoder.hpp"
 #include "SZ3/lossless/Lossless.hpp"
@@ -12,8 +11,6 @@
 #include "SZ3/utils/FileUtil.hpp"
 #include "SZ3/utils/Interpolators.hpp"
 #include "SZ3/def.hpp"
-#include "SZ3/predictor/RegressionPredictor.hpp"
-#include "SZ3/predictor/ComposedPredictor.hpp"
 #include <cstring>
 #include <cmath>
 
@@ -23,16 +20,8 @@ namespace SZ {
     public:
 
 
-        SZBlockInterpolationCompressor(const Config &conf,
-                                       Quantizer quantizer, Encoder encoder, Lossless lossless,
-                                       int interpolator, int direction) :
-                quantizer(quantizer), encoder(encoder), lossless(lossless),
-                block_size(conf.blockSize), stride(conf.stride),
-                num_elements(conf.num),
-                interpolators({"linear", "cubic"}),
-                interpolator_op(interpolator), direction_op(direction) {
-
-            std::copy_n(conf.dims.begin(), N, global_dimensions.begin());
+        SZBlockInterpolationCompressor(Quantizer quantizer, Encoder encoder, Lossless lossless) :
+                quantizer(quantizer), encoder(encoder), lossless(lossless) {
 
             static_assert(std::is_base_of<concepts::QuantizerInterface<T>, Quantizer>::value,
                           "must implement the quatizer interface");
@@ -43,35 +32,37 @@ namespace SZ {
 
         }
 
+        T *decompress(uchar const *cmpData, const size_t &cmpSize, size_t num) {
+            T *dec_data = new T[num];
+            return decompress(cmpData, cmpSize, dec_data);
+        }
 
-        T *decompress(uchar *compressed_data, const size_t length) {
-            size_t remaining_length = length;
-            uchar *lossless_decompressed;
-            uchar const *compressed_data_pos;
+        T *decompress(uchar const *cmpData, const size_t &cmpSize, T *decData) {
 
-            lossless_decompressed = lossless.decompress(compressed_data, remaining_length);
-            compressed_data_pos = lossless_decompressed;
-            double eb;
-            read(eb, compressed_data_pos, remaining_length);
+            size_t remaining_length = cmpSize;
 
-            read(global_dimensions.data(), N, compressed_data_pos, remaining_length);
+            uchar *buffer = lossless.decompress(cmpData, remaining_length);
+            uchar const *buffer_pos = buffer;
+
+            read(global_dimensions.data(), N, buffer_pos, remaining_length);
             num_elements = 1;
             for (const auto &d: global_dimensions) {
                 num_elements *= d;
             }
-            std::cout << std::endl;
-            read(block_size, compressed_data_pos, remaining_length);
-            stride = block_size;
-            quantizer.load(compressed_data_pos, remaining_length);
-            encoder.load(compressed_data_pos, remaining_length);
-            quant_inds = encoder.decode(compressed_data_pos, num_elements);
+//            std::cout << std::endl;
+            read(block_size, buffer_pos, remaining_length);
+            read(interpolator_id, buffer_pos, remaining_length);
+            read(direction_sequence_id, buffer_pos, remaining_length);
+
+            quantizer.load(buffer_pos, remaining_length);
+            encoder.load(buffer_pos, remaining_length);
+            quant_inds = encoder.decode(buffer_pos, num_elements);
 
             encoder.postprocess_decode();
 
-            lossless.postdecompress_data(lossless_decompressed);
+            lossless.postdecompress_data(buffer);
 
-            T *dec_data = new T[num_elements];
-            auto range = std::make_shared<SZ::multi_dimensional_range<T, N>>(dec_data,
+            auto range = std::make_shared<SZ::multi_dimensional_range<T, N>>(decData,
                                                                              std::begin(global_dimensions),
                                                                              std::end(global_dimensions),
                                                                              block_size,
@@ -102,21 +93,30 @@ namespace SZ {
 
                 for (uint level = max_interp_level; level > 0 && level <= max_interp_level; level--) {
                     size_t stride_ip = 1U << (level - 1);
-                    block_interpolation(dec_data, block.get_global_index(), interp_end_idx, PB_recover,
-                                        interpolators[interpolator_op], direction_op, stride_ip);
+                    block_interpolation(decData, block.get_global_index(), interp_end_idx, PB_recover,
+                                        interpolators[interpolator_id], direction_sequence_id, stride_ip);
                 }
             }
 
 
-            assert(quant_index == num_elements);
+//            assert(quant_index == num_elements);
             quantizer.postdecompress_data();
 
-            return dec_data;
+            return decData;
         }
 
 
         // compress given the error bound
-        uchar *compress(T *data, size_t &compressed_size) {
+        uchar *compress(const Config &conf, T *data, size_t &compressed_size) {
+
+            block_size = conf.blockSize;
+            num_elements = conf.num;
+            interpolator_id = conf.interpAlgo;
+            direction_sequence_id = conf.interpDirection;
+
+
+            std::copy_n(conf.dims.begin(), N, global_dimensions.begin());
+
             quant_inds.clear();
             auto range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data,
                                                                              std::begin(global_dimensions),
@@ -141,31 +141,32 @@ namespace SZ {
                 for (uint level = max_interp_level; level > 0 && level <= max_interp_level; level--) {
                     uint stride_ip = 1U << (level - 1);
                     block_interpolation(data, block.get_global_index(), interp_end_idx, PB_predict_overwrite,
-                                        interpolators[interpolator_op], direction_op, stride_ip);
+                                        interpolators[interpolator_id], direction_sequence_id, stride_ip);
                 }
             }
-
             quantizer.postcompress_data();
 //            predictor.print();
 
             size_t bufferSize = 1.5 * (quant_inds.size() * sizeof(T) + quantizer.size_est());
             uchar *buffer = new uchar[bufferSize];
-            uchar *bufferPos = buffer;
+            uchar *buffer_pos = buffer;
 
-            write(quantizer.get_eb(), bufferPos);
-            write(global_dimensions.data(), N, bufferPos);
-            write(block_size, bufferPos);
-            quantizer.save(bufferPos);
+            write(global_dimensions.data(), N, buffer_pos);
+            write(block_size, buffer_pos);
+            write(interpolator_id, buffer_pos);
+            write(direction_sequence_id, buffer_pos);
+
+            quantizer.save(buffer_pos);
 
             encoder.preprocess_encode(quant_inds, 0);
-            encoder.save(bufferPos);
-            encoder.encode(quant_inds, bufferPos);
+            encoder.save(buffer_pos);
+            encoder.encode(quant_inds, buffer_pos);
             encoder.postprocess_encode();
 
-            assert(bufferPos - buffer < bufferSize);
+            assert(buffer_pos - buffer < bufferSize);
 
             uchar *lossless_data = lossless.compress(buffer,
-                                                     bufferPos - buffer,
+                                                     buffer_pos - buffer,
                                                      compressed_size);
             lossless.postcompress_data(buffer);
 
@@ -498,26 +499,18 @@ namespace SZ {
             return predict_error;
         }
 
-        int interpolator_op;
-        int direction_op;
-        std::vector<std::string> interpolators;
+        int interpolator_id;
+        int direction_sequence_id;
+        std::vector<std::string> interpolators = {"linear", "cubic"};
         std::vector<int> quant_inds;
         size_t quant_index = 0; // for decompress
         Quantizer quantizer;
         Encoder encoder;
         Lossless lossless;
         uint block_size;
-        uint stride;
         size_t num_elements;
         std::array<size_t, N> global_dimensions;
     };
-
-    template<class T, uint N, class Quantizer, class Encoder, class Lossless>
-    SZBlockInterpolationCompressor<T, N, Quantizer, Encoder, Lossless>
-    make_sz_block_interpolation_compressor(const Config &conf, Quantizer quantizer, Encoder encoder, Lossless lossless,
-                                           int interp_op, int direction_op) {
-        return SZBlockInterpolationCompressor<T, N, Quantizer, Encoder, Lossless>(conf, quantizer, encoder, lossless, interp_op, direction_op);
-    }
 
 };
 

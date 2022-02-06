@@ -55,25 +55,21 @@ double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> d
                                                   double eb, int interp_op, int direction_op, int block_size) {
 
     std::vector<T> data1(data, data + num);
-    size_t compressed_size = 0;
+    size_t outSize = 0;
 
     SZ::Config conf;
     conf.absErrorBound = eb;
     conf.setDims(dims.begin(), dims.end());
     conf.blockSize = block_size;
-    conf.stride = conf.blockSize;
-    auto sz = SZ::make_sz_block_interpolation_compressor<T, N>(
-            conf,
+    conf.interpAlgo = interp_op;
+    conf.interpDirection = direction_op;
+    auto sz = SZ::SZBlockInterpolationCompressor<T, N, SZ::LinearQuantizer<T>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
             SZ::LinearQuantizer<T>(eb),
             SZ::HuffmanEncoder<int>(),
-            SZ::Lossless_zstd(),
-            interp_op,
-            direction_op
-    );
-
-    auto cmpData = sz.compress(data1.data(), compressed_size);
+            SZ::Lossless_zstd());
+    char *cmpData = (char *) sz.compress(conf, data1.data(), outSize);
     delete[]cmpData;
-    auto compression_ratio = num * sizeof(T) * 1.0 / compressed_size;
+    auto compression_ratio = num * sizeof(T) * 1.0 / outSize;
     return compression_ratio;
 }
 
