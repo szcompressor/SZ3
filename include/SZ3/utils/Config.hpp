@@ -193,7 +193,9 @@ namespace SZ {
         uint8_t interpDirection = 0;
         int interpBlockSize = 32;
         int quantbinCnt = 65536;
-        int blockSize, stride, pred_dim;
+        int blockSize;
+        int stride; //not used now
+        int pred_dim; // not used now
 
     };
 
