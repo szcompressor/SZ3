@@ -95,7 +95,7 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
     lorenzo_config.regression = false;
     lorenzo_config.regression2 = false;
     lorenzo_config.openmp = false;
-//    lorenzo_config.blockSize = 5;
+    lorenzo_config.blockSize = 5;
     lorenzo_config.quantbinCnt = 65536 * 2;
     size_t sampleOutSize;
     auto cmprData = SZ_compress_LorenzoReg<T, N>(lorenzo_config, sampling_data.data(), sampleOutSize);
@@ -125,6 +125,7 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
             conf.interpDirection = direction_op;
         }
         std::cout << "interp best direction = " << (unsigned) conf.interpDirection << std::endl;
+
     }
 
     bool useInterp = !(best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 80 && best_interp_ratio < 80);
