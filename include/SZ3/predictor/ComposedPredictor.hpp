@@ -53,7 +53,6 @@ namespace SZ {
             do_estimate_error(range->begin(), min_dimension);
 
             sid = std::distance(predict_error.begin(), std::min_element(predict_error.begin(), predict_error.end()));
-            // std::cout << sid << std::endl;
             return precompress_block_result[sid];
         }
 
@@ -70,10 +69,8 @@ namespace SZ {
         void save(uchar *&c) const {
             auto tmp = c;
             for (const auto &p:predictors) {
-                // std::cout << "COMPOSED SAVE OFFSET = " << c - tmp << std::endl;
                 p->save(c);
             }
-            // std::cout << "COMPOSED SAVE OFFSET = " << c - tmp << std::endl;
             // store selection
 
             *reinterpret_cast<size_t *>(c) = (size_t) selection.size();
@@ -89,16 +86,13 @@ namespace SZ {
 //            c += sizeof(size_t);
 //            memcpy(c, selection.data(), selection.size() * sizeof(int));
 //            c += selection.size() * sizeof(int);
-            // std::cout << "selection size: " << selection.size() << std::endl;
         }
 
         void load(const uchar *&c, size_t &remaining_length) {
             auto tmp = c;
             for (const auto &p:predictors) {
-                // std::cout << "COMPOSED LOAD OFFSET = " << c - tmp << std::endl;
                 p->load(c, remaining_length);
             }
-            // std::cout << "COMPOSED LOAD OFFSET = " << c - tmp << std::endl;
 
             // load selection
             // TODO: check correctness
@@ -113,7 +107,6 @@ namespace SZ {
             }
 //            size_t selection_size = *reinterpret_cast<const size_t *>(c);
 //            c += sizeof(size_t);
-            // std::cout << "selection size = " << selection_size << std::endl;
 //            this->selection = std::vector<int>(reinterpret_cast<const int *>(c),
 //                                               reinterpret_cast<const int *>(c) + selection_size);
 //            c += selection_size * sizeof(int);

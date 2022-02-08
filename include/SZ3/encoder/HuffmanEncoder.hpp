@@ -122,7 +122,6 @@ namespace SZ {
                 totalSize = convert_HuffTree_to_bytes_anyStates<unsigned short>(nodeCount, c);
             else
                 totalSize = convert_HuffTree_to_bytes_anyStates<unsigned int>(nodeCount, c);
-            // printf("1\n");
             c += totalSize;
             return totalSize + sizeof(int) + sizeof(int);
         }
@@ -248,7 +247,6 @@ namespace SZ {
                     count++;
                 }
             }
-            if (t != n) printf("garbage input\n");
             bytes += encodedLength;
             return out;
         }

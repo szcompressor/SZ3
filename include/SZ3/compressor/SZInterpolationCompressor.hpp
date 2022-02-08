@@ -107,7 +107,6 @@ namespace SZ {
             size_t interp_compressed_size = 0;
 
             double eb = quantizer.get_eb();
-//            printf("Absolute error bound = %.5f\n", eb);
 
             quant_inds.push_back(quantizer.quantize_and_overwrite(*data, 0));
 
@@ -121,7 +120,6 @@ namespace SZ {
                     quantizer.set_eb(eb);
                 }
                 uint stride = 1U << (level - 1);
-//                std::cout << "Level = " << level << ", stride = " << stride << std::endl;
 
                 auto inter_block_range = std::make_shared<
                         SZ::multi_dimensional_range<T, N>>(data, std::begin(global_dimensions),
@@ -144,8 +142,6 @@ namespace SZ {
                                         interpolators[interpolator_id], direction_sequence_id, stride);
                 }
             }
-//            std::cout << "Number of data point = " << num_elements << std::endl;
-//            std::cout << "quantization element = " << quant_inds.size() << std::endl;
             assert(quant_inds.size() == num_elements);
 //            timer.stop("Prediction & Quantization");
 
@@ -419,7 +415,6 @@ namespace SZ {
                     }
                 }
             }
-//            printf("%.8f ", max_error);
             max_error = 0;
             for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride) {
                 for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride2x : 0); k <= end[dims[2]]; k += stride2x) {
@@ -437,7 +432,6 @@ namespace SZ {
                     }
                 }
             }
-//            printf("%.8f ", max_error);
             max_error = 0;
             for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride) {
                 for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride : 0); j <= end[dims[1]]; j += stride) {
@@ -455,7 +449,6 @@ namespace SZ {
                 }
             }
 
-//            printf("%.8f ", max_error);
             max_error = 0;
             for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride) {
                 for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride : 0); j <= end[dims[1]]; j += stride) {
@@ -472,7 +465,6 @@ namespace SZ {
                     }
                 }
             }
-//            printf("%.8f \n", max_error);
             return predict_error;
         }
 

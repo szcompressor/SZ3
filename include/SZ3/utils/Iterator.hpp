@@ -76,7 +76,6 @@ namespace SZ {
                     local_index[i]++;
                 }
                 global_offset += offset;
-                // std::cout << "offset=" << offset << ", current_offset=" << current_offset << std::endl;
                 return *this;
             }
 

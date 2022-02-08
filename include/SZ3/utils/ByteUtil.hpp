@@ -332,7 +332,6 @@ namespace SZ {
             for (b = 4 - byteLen; b < 4; b++) {
                 *binary++ = bytes.byte[b];
             }
-//            std::cout << std::bitset<32>(data[i]) << " " << std::bitset<16>(*binary) << '\n';
         }
     }
 

@@ -231,7 +231,7 @@ int main(int argc, char *argv[]) {
                 usage();
                 exit(0);
             case 'v':
-                printf("version: %s\n", PROJECT_VER);
+                printf("version: %s\n", SZ3_VER);
                 exit(0);
             case 'b':
                 binaryOutput = true;
