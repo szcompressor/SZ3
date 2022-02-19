@@ -60,4 +60,5 @@ install(FILES
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/
   )
 
+export(TARGETS zstd FILE zstd.cmake)
 

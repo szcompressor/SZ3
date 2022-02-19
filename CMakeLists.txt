@@ -3,6 +3,8 @@ project(SZ3 VERSION 3.1.3.0)
 include(GNUInstallDirs)
 include(CTest)
 
+set(CMAKE_CXX_FLAGS "-g --param ggc-min-expand=20")
+
 option(BUILD_SHARED_LIBS "build shared libraries by default" ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -56,6 +58,9 @@ endif()
 
 add_subdirectory(test)
 
+#add hdf5 filter dir
+add_subdirectory(H5Z-SZ3)
+
 install(TARGETS ${PROJECT_NAME} 
   EXPORT SZ3Targets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -78,3 +83,5 @@ install(FILES
   ${CMAKE_CURRENT_BINARY_DIR}/SZ3ConfigVersion.cmake
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3
   )
+#export sz3 target for external use
+export(TARGETS SZ3 FILE SZ3.cmake)
