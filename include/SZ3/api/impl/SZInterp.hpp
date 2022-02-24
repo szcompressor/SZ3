@@ -15,7 +15,7 @@
 #include <memory>
 
 
-template<class T, uint N>
+template<class T, SZ::uint N>
 char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
 
 //    std::cout << "****************** Interp Compression ****************" << std::endl;
@@ -38,7 +38,7 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
 }
 
 
-template<class T, uint N>
+template<class T, SZ::uint N>
 void SZ_decompress_Interp(const SZ::Config &conf, char *cmpData, size_t cmpSize, T *decData) {
     assert(conf.cmprAlgo == SZ::ALGO_INTERP);
     SZ::uchar const *cmpDataPos = (SZ::uchar *) cmpData;
@@ -50,7 +50,7 @@ void SZ_decompress_Interp(const SZ::Config &conf, char *cmpData, size_t cmpSize,
 }
 
 
-template<class T, uint N>
+template<class T, SZ::uint N>
 double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> dims, size_t num,
                                                   double eb, int interp_op, int direction_op, int block_size) {
 
@@ -73,7 +73,7 @@ double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> d
     return compression_ratio;
 }
 
-template<class T, uint N>
+template<class T, SZ::uint N>
 char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
     assert(conf.cmprAlgo == SZ::ALGO_INTERP_LORENZO);
 
