@@ -130,10 +130,22 @@ namespace SZ {
         double normErr = sqrt(sum);
         double normErr_norm = normErr / sqrt(l2sum);
 
+        double max_abs_val = std::max(fabs(Max), fabs(Min));
+        double max_abs_val_sq = max_abs_val * max_abs_val;
+        double max_x_square_diff = 0;
+        for(int i=0; i<num_elements; i++){
+            double x_square_diff = fabs(ori_data[i] * ori_data[i] - data[i] * data[i]);
+            if(x_square_diff > max_x_square_diff) max_x_square_diff = x_square_diff;
+            if(x_square_diff / max_abs_val_sq > 1e-5){
+                std::cout << i << ": ori = " << ori_data[i] << ", dec = " << data[i] << ", err = " << x_square_diff / max_abs_val_sq << std::endl;
+            }           
+        }
+
         printf("Min=%.20G, Max=%.20G, range=%.20G\n", Min, Max, range);
         printf("Max absolute error = %.2G\n", diffMax);
         printf("Max relative error = %.2G\n", diffMax / (Max - Min));
         printf("Max pw relative error = %.2G\n", maxpw_relerr);
+        printf("Max x^2 error = %.6G, relative x^2 error = %.6G\n", max_x_square_diff, max_x_square_diff / max_abs_val_sq);
         printf("PSNR = %f, NRMSE= %.10G\n", psnr, nrmse);
         printf("normError = %f, normErr_norm = %f\n", normErr, normErr_norm);
         printf("acEff=%f\n", acEff);

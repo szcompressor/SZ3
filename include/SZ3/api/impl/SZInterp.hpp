@@ -81,6 +81,9 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
     SZ::Timer timer(true);
 
     SZ::calAbsErrorBound(conf, data);
+    // overwrite qoi for parameter exploration
+    int qoi = conf.qoi;
+    conf.qoi = 0;
 
     size_t sampling_num, sampling_block;
     std::vector<size_t> sample_dims(N);
@@ -170,6 +173,9 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
         }
         lorenzo_config.setDims(conf.dims.begin(), conf.dims.end());
         conf = lorenzo_config;
+        // assign qoi back
+        conf.qoi = qoi;
+        std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << std::endl;
         double tuning_time = timer.stop();
 //        std::cout << "Tuning time = " << tuning_time << "s" << std::endl;
         std::cout << "====================================== END TUNING ======================================" << std::endl;

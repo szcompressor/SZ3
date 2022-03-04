@@ -117,7 +117,11 @@ namespace SZ {
             blockSize = cfg.GetInteger("AlgoSettings", "BlockSize", blockSize);
             quantbinCnt = cfg.GetInteger("AlgoSettings", "QuantizationBinTotal", quantbinCnt);
 
-
+            qoi = cfg.GetInteger("QoISettings", "qoi", 0); // whether to enable qoi
+            qoiEB = cfg.GetReal("QoISettings", "qoiEB", 1.0);
+            qoiEBBase = cfg.GetReal("QoISettings", "qoiEBBase", 0);
+            qoiEBLogBase = cfg.GetReal("QoISettings", "qoiEBLogBase", 0);
+            qoiQuantbinCnt = cfg.GetInteger("QoISettings", "qoiQuantbinCnt", 64);
         }
 
         void save(unsigned char *&c) {
@@ -142,6 +146,12 @@ namespace SZ {
             write(stride, c);
             write(pred_dim, c);
             write(openmp, c);
+            // add qoi info
+            write(qoi, c);
+            write(qoiEB, c);
+            write(qoiEBBase, c);
+            write(qoiEBLogBase, c);
+            write(qoiQuantbinCnt, c);
         };
 
         void load(const unsigned char *&c) {
@@ -167,6 +177,12 @@ namespace SZ {
             read(stride, c);
             read(pred_dim, c);
             read(openmp, c);
+            // add qoi info
+            read(qoi, c);
+            read(qoiEB, c);
+            read(qoiEBBase, c);
+            read(qoiEBLogBase, c);
+            read(qoiQuantbinCnt, c);
         }
 
         void print() {
@@ -196,7 +212,11 @@ namespace SZ {
         int blockSize;
         int stride; //not used now
         int pred_dim; // not used now
-
+        int qoi = 0; // whether to enable qoi
+        double qoiEB;
+        double qoiEBBase = std::numeric_limits<double>::epsilon();
+        double qoiEBLogBase = 2;
+        int qoiQuantbinCnt = 64;        
     };
 
 

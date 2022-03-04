@@ -4,11 +4,15 @@
 #include "SZ3/compressor/SZGeneralCompressor.hpp"
 #include "SZ3/frontend/SZFastFrontend.hpp"
 #include "SZ3/frontend/SZGeneralFrontend.hpp"
+#include "SZ3/frontend/SZQoIFrontend.hpp"
 #include "SZ3/quantizer/IntegerQuantizer.hpp"
+#include "SZ3/quantizer/QoIIntegerQuantizer.hpp"
 #include "SZ3/predictor/ComposedPredictor.hpp"
 #include "SZ3/predictor/LorenzoPredictor.hpp"
 #include "SZ3/predictor/RegressionPredictor.hpp"
 #include "SZ3/predictor/PolyRegressionPredictor.hpp"
+#include "SZ3/encoder/QoIEncoder.hpp"
+#include "SZ3/qoi/XSquare.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
 #include "SZ3/utils/Iterator.hpp"
 #include "SZ3/utils/Statistic.hpp"
@@ -82,6 +86,51 @@ char *SZ_compress_LorenzoReg(SZ::Config &conf, T *data, size_t &outSize) {
     SZ::calAbsErrorBound(conf, data);
 
     char *cmpData;
+    if(conf.qoi > 0){
+        std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << std::endl;
+        // compute abs qoi eb
+        {
+            T max = data[0];
+            T min = data[0];
+            for (size_t i = 1; i < conf.num; i++) {
+                if (max < data[i]) max = data[i];
+                if (min > data[i]) min = data[i];
+            }
+            max = max * max;
+            min = min * min;
+            auto max_abs_val = (max > min) ? max : min;
+            conf.qoiEB *= max_abs_val;
+        }
+        // set eb base and log base if not set by config
+        if(conf.qoiEBBase == 0) 
+            conf.qoiEBBase = std::numeric_limits<T>::epsilon();
+        if(conf.qoiEBLogBase == 0)
+            conf.qoiEBLogBase = 2;
+        std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << std::endl;
+        auto quantizer = SZ::VariableEBLinearQuantizer<T, T>(conf.quantbinCnt / 2);
+        auto quantizer_eb = SZ::EBLogQuantizer<T>(conf.qoiEBBase, conf.qoiEBLogBase, conf.qoiQuantbinCnt / 2);
+        // text x^2
+        auto qoi = SZ::QoI_X_Square<T>(conf.qoiEB, conf.num, conf.absErrorBound);
+        // will not have reg since SZ3 is used
+        assert(conf.regression + conf.regression2 == 0);
+        // will use both two Lorenzo predictors
+        assert(conf.lorenzo);
+        assert(conf.lorenzo2);
+        // identify which one to use
+        if(conf.lorenzo){
+            auto sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_qoi_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 1>(conf.absErrorBound), quantizer, quantizer_eb, qoi),
+                                                        SZ::QoIEncoder<int>(), SZ::Lossless_zstd());
+            cmpData = (char *) sz->compress(conf, data, outSize);
+            conf.lorenzo2 = false;
+        }
+        else{
+            auto sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_qoi_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 2>(conf.absErrorBound), quantizer, quantizer_eb, qoi),
+                                                        SZ::QoIEncoder<int>(), SZ::Lossless_zstd());
+            cmpData = (char *) sz->compress(conf, data, outSize);            
+            conf.lorenzo = false;
+        }
+        return cmpData;
+    }
     auto quantizer = SZ::LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2);
     if (N == 3 && !conf.regression2) {
         // use fast version for 3D
@@ -101,6 +150,24 @@ void SZ_decompress_LorenzoReg(const SZ::Config &conf, char *cmpData, size_t cmpS
     assert(conf.cmprAlgo == SZ::ALGO_LORENZO_REG);
 
     SZ::uchar const *cmpDataPos = (SZ::uchar *) cmpData;
+    if(conf.qoi > 0){
+        auto quantizer = SZ::VariableEBLinearQuantizer<T, T>(conf.quantbinCnt / 2);
+        auto quantizer_eb = SZ::EBLogQuantizer<T>(conf.qoiEBBase, conf.qoiEBLogBase, conf.qoiQuantbinCnt / 2);
+        // text x^2
+        auto qoi = SZ::QoI_X_Square<T>(conf.qoiEB, conf.num, conf.absErrorBound);
+        // identify which one to use
+        if(conf.lorenzo){
+            auto sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_qoi_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 1>(conf.absErrorBound), quantizer, quantizer_eb, qoi),
+                                                        SZ::QoIEncoder<int>(), SZ::Lossless_zstd());
+            sz->decompress(cmpDataPos, cmpSize, decData);
+        }
+        else{
+            auto sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_qoi_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 2>(conf.absErrorBound), quantizer, quantizer_eb, qoi),
+                                                        SZ::QoIEncoder<int>(), SZ::Lossless_zstd());
+            sz->decompress(cmpDataPos, cmpSize, decData);           
+        }
+        return;
+    }    
     SZ::LinearQuantizer<T> quantizer;
     if (N == 3 && !conf.regression2) {
         // use fast version for 3D
