@@ -56,7 +56,7 @@ namespace SZ {
             quantizer.load(buffer_pos, remaining_length);
             std::cout << "load encoder, offset = " << buffer_pos - buffer << std::endl;
             encoder.load(buffer_pos, remaining_length);
-            quant_inds = encoder.decode(buffer_pos, 2 * num_elements);
+            quant_inds = encoder.decode(buffer_pos, num_elements);
 
             encoder.postprocess_decode();
             std::cout << "after encoder, offset = " << buffer_pos - buffer << std::endl;
@@ -72,11 +72,9 @@ namespace SZ {
             std::cout << "start decompressing data\n";
             for (uint level = interpolation_level; level > 0 && level <= interpolation_level; level--) {
                 // if (level >= 3) {
-                    // quantizer.set_eb(eb * eb_ratio);
-                    // qoi.set_global_eb(eb * eb_ratio);
+                //     quantizer.set_eb(eb * eb_ratio);
                 // } else {
-                    // quantizer.set_eb(eb);
-                    // qoi.set_global_eb(eb);
+                //     quantizer.set_eb(eb);
                 // }
                 size_t stride = 1U << (level - 1);
                 auto inter_block_range = std::make_shared<
@@ -120,7 +118,7 @@ namespace SZ {
             quant_index = 0;
             size_t interp_compressed_size = 0;
 
-            // double eb = qoi.get_global_eb();
+            double eb = qoi.get_global_eb();
 //            printf("Absolute error bound = %.5f\n", eb);
 
             // quant_inds.push_back(quantizer.quantize_and_overwrite(*data, 0));
@@ -130,13 +128,13 @@ namespace SZ {
             timer.start();
 
             for (uint level = interpolation_level; level > 0 && level <= interpolation_level; level--) {
-                // if (level >= 3) {
+                if (level >= 3) {
                     // quantizer.set_eb(eb * eb_ratio);
-                    // qoi.set_global_eb(eb * eb_ratio);
-                // } else {
+                    qoi.set_global_eb(eb * eb_ratio);
+                } else {
                     // quantizer.set_eb(eb);
-                //     qoi.set_global_eb(eb);
-                // }
+                    qoi.set_global_eb(eb);
+                }
                 uint stride = 1U << (level - 1);
 //                std::cout << "Level = " << level << ", stride = " << stride << std::endl;
 
@@ -179,6 +177,7 @@ namespace SZ {
 
             std::cout << "save quantizers, offset = " << buffer_pos - buffer << std::endl;
             quantizer_eb.save(buffer_pos);
+            quantizer_eb.postcompress_data();
             quantizer.save(buffer_pos);
             quantizer.postcompress_data();
 

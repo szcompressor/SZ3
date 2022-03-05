@@ -66,6 +66,7 @@ void SZ_decompress_Interp(const SZ::Config &conf, char *cmpData, size_t cmpSize,
         auto sz = SZ::SZQoIInterpolationCompressor<T, N, SZ::VariableEBLinearQuantizer<T, T>, SZ::EBLogQuantizer<T>, SZ::QoI_X_Square<T>, SZ::QoIEncoder<int>, SZ::Lossless_zstd>(
                 quantizer, quantizer_eb, qoi, SZ::QoIEncoder<int>(), SZ::Lossless_zstd());
         sz.decompress(cmpDataPos, cmpSize, decData);
+        return;
     }    
     auto sz = SZ::SZInterpolationCompressor<T, N, SZ::LinearQuantizer<T>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
             SZ::LinearQuantizer<T>(),
