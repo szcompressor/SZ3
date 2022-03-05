@@ -45,6 +45,10 @@ namespace SZ {
 
         void print(){}
 
+        T get_global_eb() const { return global_eb; }
+
+        void set_global_eb(T eb) {global_eb = eb;}
+
     private:
         T tolerance;
         T global_eb;

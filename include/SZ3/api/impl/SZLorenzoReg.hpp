@@ -88,25 +88,6 @@ char *SZ_compress_LorenzoReg(SZ::Config &conf, T *data, size_t &outSize) {
     char *cmpData;
     if(conf.qoi > 0){
         std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << std::endl;
-        // compute abs qoi eb
-        {
-            T max = data[0];
-            T min = data[0];
-            for (size_t i = 1; i < conf.num; i++) {
-                if (max < data[i]) max = data[i];
-                if (min > data[i]) min = data[i];
-            }
-            max = max * max;
-            min = min * min;
-            auto max_abs_val = (max > min) ? max : min;
-            conf.qoiEB *= max_abs_val;
-        }
-        // set eb base and log base if not set by config
-        if(conf.qoiEBBase == 0) 
-            conf.qoiEBBase = std::numeric_limits<T>::epsilon();
-        if(conf.qoiEBLogBase == 0)
-            conf.qoiEBLogBase = 2;
-        std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << std::endl;
         auto quantizer = SZ::VariableEBLinearQuantizer<T, T>(conf.quantbinCnt / 2);
         auto quantizer_eb = SZ::EBLogQuantizer<T>(conf.qoiEBBase, conf.qoiEBLogBase, conf.qoiQuantbinCnt / 2);
         // text x^2
