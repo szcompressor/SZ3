@@ -87,23 +87,27 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
     std::vector<T> sampling_data = SZ::sampling<T, N>(data, conf.dims, sampling_num, sample_dims, sampling_block);
 //    printf("%lu %lu %lu %lu %lu\n", sampling_data.size(), sampling_num, sample_dims[0], sample_dims[1], sample_dims[2]);
 
-    SZ::Config lorenzo_config = conf;
-    lorenzo_config.cmprAlgo = SZ::ALGO_LORENZO_REG;
-    lorenzo_config.setDims(sample_dims.begin(), sample_dims.end());
-    lorenzo_config.lorenzo = true;
-    lorenzo_config.lorenzo2 = true;
-    lorenzo_config.regression = false;
-    lorenzo_config.regression2 = false;
-    lorenzo_config.openmp = false;
-    lorenzo_config.blockSize = 5;
-    lorenzo_config.quantbinCnt = 65536 * 2;
+    double best_lorenzo_ratio = 0, best_interp_ratio = 0, ratio;
     size_t sampleOutSize;
-    auto cmprData = SZ_compress_LorenzoReg<T, N>(lorenzo_config, sampling_data.data(), sampleOutSize);
-    delete[]cmprData;
-    double ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;
+    char *cmprData;
+    SZ::Config lorenzo_config = conf;
+    {
+        //test lorenzo
+        lorenzo_config.cmprAlgo = SZ::ALGO_LORENZO_REG;
+        lorenzo_config.setDims(sample_dims.begin(), sample_dims.end());
+        lorenzo_config.lorenzo = true;
+        lorenzo_config.lorenzo2 = true;
+        lorenzo_config.regression = false;
+        lorenzo_config.regression2 = false;
+        lorenzo_config.openmp = false;
+        lorenzo_config.blockSize = 5;
+        lorenzo_config.quantbinCnt = 65536 * 2;
+        std::vector<T> data1(sampling_data);
+        cmprData = SZ_compress_LorenzoReg<T, N>(lorenzo_config, data1.data(), sampleOutSize);
+        delete[]cmprData;
 //    printf("Lorenzo ratio = %.2f\n", ratio);
-
-    double best_lorenzo_ratio = ratio, best_interp_ratio = 0;
+        best_lorenzo_ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;
+    }
 
     {
         //tune interp
