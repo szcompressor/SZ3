@@ -129,8 +129,6 @@ namespace SZ {
     }
 
 
-
-
     inline void int16ToBytes_bigEndian(unsigned char *b, int16_t num) {
         b[0] = (unsigned char) (num >> 8);
         b[1] = (unsigned char) (num);
@@ -232,5 +230,68 @@ namespace SZ {
         return lfBuf_cur.value;
     }
 
+
+    void encode1bit(const int8_t *ints, size_t intsLen, uchar *&bytes) {
+        size_t i, j, n = 0;
+        size_t bytesLen = intsLen / 8 + ((intsLen % 8 == 0) ? 0 : 1);
+        int tmp, type;
+        for (i = 0; i < bytesLen; i++) {
+            tmp = 0;
+            for (j = 0; j < 8 && n < intsLen; j++) {
+                type = ints[n];
+                tmp = (tmp | (type << (7 - j)));
+                n++;
+            }
+            *bytes = (int8_t) tmp;
+            bytes++;
+        }
+    }
+
+    std::vector<int8_t> decode1bit(size_t intsLen, uchar const *&bytes) {
+        std::vector<int8_t> ints(intsLen);
+        size_t bytesLen = intsLen / 8 + ((intsLen % 8 == 0) ? 0 : 1);
+        size_t n = 0, i;
+        int tmp;
+        for (i = 0; i < bytesLen - 1; i++) {
+            tmp = *bytes;
+            ints[n++] = (tmp & 0x80) >> 7;
+            ints[n++] = (tmp & 0x40) >> 6;
+            ints[n++] = (tmp & 0x20) >> 5;
+            ints[n++] = (tmp & 0x10) >> 4;
+            ints[n++] = (tmp & 0x08) >> 3;
+            ints[n++] = (tmp & 0x04) >> 2;
+            ints[n++] = (tmp & 0x02) >> 1;
+            ints[n++] = (tmp & 0x01) >> 0;
+            bytes++;
+        }
+
+        tmp = *bytes;
+        bytes++;
+        if (n == intsLen)
+            return ints;
+        ints[n++] = (tmp & 0x80) >> 7;
+        if (n == intsLen)
+            return ints;
+        ints[n++] = (tmp & 0x40) >> 6;
+        if (n == intsLen)
+            return ints;
+        ints[n++] = (tmp & 0x20) >> 5;
+        if (n == intsLen)
+            return ints;
+        ints[n++] = (tmp & 0x10) >> 4;
+        if (n == intsLen)
+            return ints;
+        ints[n++] = (tmp & 0x08) >> 3;
+        if (n == intsLen)
+            return ints;
+        ints[n++] = (tmp & 0x04) >> 2;
+        if (n == intsLen)
+            return ints;
+        ints[n++] = (tmp & 0x02) >> 1;
+        if (n == intsLen)
+            return ints;
+        ints[n++] = (tmp & 0x01) >> 0;
+        return ints;
+    }
 };
 #endif //SZ3_BYTEUTIL_HPP

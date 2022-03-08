@@ -14,6 +14,7 @@
 #include "SZ3/utils/Timer.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/utils/Config.hpp"
+#include "SZ3/utils/ByteUtil.hpp"
 #include <cstring>
 #include <cmath>
 
@@ -57,7 +58,7 @@ namespace SZ {
 
             encoder.postprocess_decode();
 
-            lossless.postdecompress_data(buffer);
+//            lossless.postdecompress_data(buffer);
             double eb = quantizer.get_eb();
 
             *decData = quantizer.recover(0, quant_inds[quant_index++]);
@@ -89,7 +90,30 @@ namespace SZ {
                 }
             }
             quantizer.postdecompress_data();
+
+            int block_size;
+            size_t block_cnt;
+            read(block_size, buffer_pos, remaining_length);
+            read(block_cnt, buffer_pos, remaining_length);
+            auto constant = decode1bit(block_cnt, buffer_pos);
+
+            auto block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
+                    decData, std::begin(global_dimensions), std::end(global_dimensions), block_size, 0);
+
+            auto element_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
+                    decData, std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
+
+            size_t block_idx = 0;
+            for (auto block = block_range->begin(); block != block_range->end(); ++block, ++block_idx) {
+                if (constant[block_idx]) {
+                    element_range->update_block_range(block, block_size);
+                    for (auto element = element_range->begin(); element != element_range->end(); ++element) {
+                        *element = 0;
+                    }
+                }
+            }
 //            timer.stop("Interpolation Decompress");
+            lossless.postdecompress_data(buffer);
 
             return decData;
         }
@@ -102,6 +126,36 @@ namespace SZ {
             direction_sequence_id = conf.interpDirection;
 
             init();
+
+            int block_size = 6;
+            auto block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
+                    data, std::begin(global_dimensions), std::end(global_dimensions), block_size, 0);
+
+            auto element_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
+                    data, std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
+
+            std::vector<int8_t> constant;
+            size_t constantN = 0;
+            for (auto block = block_range->begin(); block != block_range->end(); ++block) {
+                element_range->update_block_range(block, block_size);
+                T max = *(element_range->begin());
+                T min = max;
+                for (auto element = element_range->begin(); element != element_range->end(); ++element) {
+                    if (*element > max) {
+                        max = *element;
+                    }
+                    if (*element < min) {
+                        min = *element;
+                    }
+                }
+                if (max - min < conf.absErrorBound) {
+                    constant.push_back(1);
+                    constantN++;
+                } else {
+                    constant.push_back(0);
+                }
+            }
+//            printf("constant block=%lu, total = %lu\n", constantN, constant.size());
 
             quant_inds.reserve(num_elements);
             size_t interp_compressed_size = 0;
@@ -151,7 +205,7 @@ namespace SZ {
 
 //            writefile("pred.dat", preds.data(), num_elements);
 //            writefile("quant.dat", quant_inds.data(), num_elements);
-            size_t bufferSize = 1.5 * (quant_inds.size() * sizeof(T) + quantizer.size_est());
+            size_t bufferSize = 1.5 * (quant_inds.size() * sizeof(T) + quantizer.size_est() + constant.size() / 8);
             uchar *buffer = new uchar[bufferSize];
             uchar *buffer_pos = buffer;
 
@@ -170,6 +224,10 @@ namespace SZ {
             encoder.encode(quant_inds, buffer_pos);
             encoder.postprocess_encode();
 //            timer.stop("Coding");
+            write(block_size, buffer_pos);
+            write((size_t) constant.size(), buffer_pos);
+            encode1bit(constant.data(), constant.size(), buffer_pos);
+
             assert(buffer_pos - buffer < bufferSize);
 
             timer.start();
@@ -179,7 +237,7 @@ namespace SZ {
             lossless.postcompress_data(buffer);
 //            timer.stop("Lossless");
 
-            compressed_size += interp_compressed_size;
+//            compressed_size += interp_compressed_size;
             return lossless_data;
         }
 
