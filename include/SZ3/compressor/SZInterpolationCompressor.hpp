@@ -136,6 +136,7 @@ namespace SZ {
 
             std::vector<int8_t> constant;
             size_t constantN = 0;
+            size_t outlierblock = 0;
             for (auto block = block_range->begin(); block != block_range->end(); ++block) {
                 element_range->update_block_range(block, block_size);
                 T max = *(element_range->begin());
@@ -148,7 +149,7 @@ namespace SZ {
                         min = *element;
                     }
                 }
-                if (max - min < conf.absErrorBound) {
+                if (max - min < conf.absErrorBound && fabs(max) <= conf.absErrorBound && fabs(min) <= conf.absErrorBound) {
                     constant.push_back(1);
                     constantN++;
                 } else {
@@ -156,7 +157,7 @@ namespace SZ {
                 }
             }
 //            printf("constant block=%lu, total = %lu\n", constantN, constant.size());
-
+//            printf("outliers: block=%lu\n", outlierblock);
             quant_inds.reserve(num_elements);
             size_t interp_compressed_size = 0;
 
