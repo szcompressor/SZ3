@@ -87,6 +87,7 @@ namespace SZ {
         int quantize_and_overwrite(T ori, T pred, T_eb eb, T &dest) {
             if(eb == 0){
                 unpred.push_back(ori);
+                dest = ori;
                 return 0;
             }
             T diff = ori - pred;
@@ -165,6 +166,7 @@ namespace SZ {
             c += sizeof(size_t);
             memcpy(c, unpred.data(), unpred.size() * sizeof(T));
             c += unpred.size() * sizeof(T);
+            std::cout << "unpred size = " << unpred.size() << std::endl;
         };
 
         void load(const unsigned char *&c, size_t &remaining_length) {
@@ -181,6 +183,7 @@ namespace SZ {
         }
 
         void clear() {
+            std::cout << "unpred size = " << unpred.size() << std::endl;
             unpred.clear();
             index = 0;
         }
@@ -230,6 +233,11 @@ namespace SZ {
                 return 0;
             }
             int id = log2(eb * eb_base_reciprocal) * log_of_base_reciprocal;
+            // need to check if id = 0
+            if(id == 0){
+                eb = 0;
+                return 0;
+            }
             id = std::min(id, radius);
             eb = pow(log_base, id) * eb_base;
             return id;            
@@ -237,10 +245,10 @@ namespace SZ {
 
         // recover the error bound using the quantization index
         T recover(int quant_index) {
-            if (quant_index) {
-                return pow(log_base, quant_index) * eb_base;
-            } else {
+            if (quant_index == 0) {
                 return 0;
+            } else {
+                return pow(log_base, quant_index) * eb_base;
             }
         }
 

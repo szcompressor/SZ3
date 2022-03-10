@@ -8,6 +8,7 @@
 #include "SZ3/quantizer/QoIIntegerQuantizer.hpp"
 #include "SZ3/encoder/QoIEncoder.hpp"
 #include "SZ3/qoi/XSquare.hpp"
+#include "SZ3/qoi/LogX.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
 #include "SZ3/utils/Iterator.hpp"
 #include "SZ3/utils/Statistic.hpp"
@@ -38,8 +39,14 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
         auto quantizer = SZ::VariableEBLinearQuantizer<T, T>(conf.quantbinCnt / 2);
         auto quantizer_eb = SZ::EBLogQuantizer<T>(conf.qoiEBBase, conf.qoiEBLogBase, conf.qoiQuantbinCnt / 2);
         // text x^2
-        auto qoi = SZ::QoI_X_Square<T>(conf.qoiEB, conf.num, conf.absErrorBound);
-        auto sz = SZ::SZQoIInterpolationCompressor<T, N, SZ::VariableEBLinearQuantizer<T, T>, SZ::EBLogQuantizer<T>, SZ::QoI_X_Square<T>, SZ::QoIEncoder<int>, SZ::Lossless_zstd>(
+        // qoi_check(conf.qoi, 1);
+        // auto qoi = SZ::QoI_X_Square<T>(conf.qoiEB, conf.num, conf.absErrorBound);
+        // auto sz = SZ::SZQoIInterpolationCompressor<T, N, SZ::VariableEBLinearQuantizer<T, T>, SZ::EBLogQuantizer<T>, SZ::QoI_X_Square<T>, SZ::QoIEncoder<int>, SZ::Lossless_zstd>(
+        //         quantizer, quantizer_eb, qoi, SZ::QoIEncoder<int>(), SZ::Lossless_zstd());
+        // test log(x)
+        // qoi_check(conf.qoi, 2);
+        auto qoi = SZ::QoI_Log_X<T>(conf.qoiEB, conf.absErrorBound);
+        auto sz = SZ::SZQoIInterpolationCompressor<T, N, SZ::VariableEBLinearQuantizer<T, T>, SZ::EBLogQuantizer<T>, SZ::QoI_Log_X<T>, SZ::QoIEncoder<int>, SZ::Lossless_zstd>(
                 quantizer, quantizer_eb, qoi, SZ::QoIEncoder<int>(), SZ::Lossless_zstd());
         char *cmpData = (char *) sz.compress(conf, data, outSize);
         return cmpData;
@@ -111,7 +118,7 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
     int qoi = conf.qoi;
     if(qoi){
         // compute abs qoi eb
-        {
+        if(qoi == 1){
             T max = data[0];
             T min = data[0];
             for (size_t i = 1; i < conf.num; i++) {

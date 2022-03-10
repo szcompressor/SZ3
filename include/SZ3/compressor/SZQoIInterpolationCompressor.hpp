@@ -216,8 +216,11 @@ namespace SZ {
                 eb = 0;
                 data = ori_data;
                 quant_inds[quant_index] = quantizer_eb.quantize_and_overwrite(eb);
-                quant_inds[num_elements + quant_index] = quantizer.quantize_and_overwrite(
-                        data, 0, 0);
+                if(quant_inds[num_elements + quant_index] != 0){
+                    // avoiding push multiple data
+                    quant_inds[num_elements + quant_index] = quantizer.quantize_and_overwrite(
+                            data, 0, 0);                    
+                }
             }
             // update cumulative tolerance if needed 
             qoi.update_tolerance(ori_data, data);

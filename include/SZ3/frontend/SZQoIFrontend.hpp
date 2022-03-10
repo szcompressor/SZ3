@@ -63,15 +63,27 @@ namespace SZ {
                     quant_inds[num_elements + quant_count] = quantizer.quantize_and_overwrite(
                             *element, predictor_withfallback->predict(element), eb);
 
+                    // if(element.get_offset() == 19733396){
+                        // auto pred = predictor_withfallback->predict(element);
+                        // std::cout << element.get_offset() << "->" << quant_count << ": eb = " << eb << ", quant_inds = " << quant_inds[quant_count] << std::endl;
+                        // std::cout << "eb = " << eb << std::endl;
+                        // std::cout << quant_inds[quant_count] << " " << quant_inds[num_elements + quant_count] << std::endl;
+                        // std::cout << ori_data << " " << *element << std::endl;
+                        // std::cout << "pred = " << predictor_withfallback->predict(element) << std::endl;
+                    //     auto temp = qoi.check_compliance(ori_data, *element, true);
+                    //     std::cout << "check_compliance = " << temp << std::endl;
+                    // }
                     // check whether decompressed data is compliant with qoi tolerance
                     if(!qoi.check_compliance(ori_data, *element)){
-                        // std::cout << "exceed in " << element.get_offset() << std::endl;
+                        std::cout << "exceed in " << element.get_offset() << std::endl;
                         // save as unpredictable
                         eb = 0;
                         *element = ori_data;
                         quant_inds[quant_count] = quantizer_eb.quantize_and_overwrite(eb);
-                        quant_inds[num_elements + quant_count] = quantizer.quantize_and_overwrite(
-                                *element, 0, 0);
+                        if(quant_inds[num_elements + quant_count] != 0){
+                            // avoid push multiple elements
+                            quant_inds[num_elements + quant_count] = quantizer.quantize_and_overwrite(*element, 0, 0);                            
+                        }
                     }
                     quant_count ++;
                     // update cumulative tolerance if needed 
@@ -79,7 +91,6 @@ namespace SZ {
                 }
                 qoi.postcompress_block();
             }
-
             predictor.postcompress_data(block_range->begin());
             quantizer.postcompress_data();
             return quant_inds;
