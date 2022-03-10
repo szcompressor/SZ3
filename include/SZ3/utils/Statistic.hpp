@@ -76,8 +76,86 @@ namespace SZ {
         }
     }
 
+    // auxilliary functions for evaluating regional average
+    template <class T>
+    std::vector<T> compute_average(T const * data, uint32_t n1, uint32_t n2, uint32_t n3, int block_size){
+        uint32_t dim0_offset = n2 * n3;
+        uint32_t dim1_offset = n3;
+        uint32_t num_block_1 = (n1 - 1) / block_size + 1;
+        uint32_t num_block_2 = (n2 - 1) / block_size + 1;
+        uint32_t num_block_3 = (n3 - 1) / block_size + 1;
+        std::vector<T> aggregated = std::vector<T>();
+        uint32_t index = 0;
+        T const * data_x_pos = data;
+        for(int i=0; i<num_block_1; i++){
+            int size_1 = (i == num_block_1 - 1) ? n1 - i * block_size : block_size;
+            T const * data_y_pos = data_x_pos;
+            for(int j=0; j<num_block_2; j++){
+                int size_2 = (j == num_block_2 - 1) ? n2 - j * block_size : block_size;
+                T const * data_z_pos = data_y_pos;
+                for(int k=0; k<num_block_3; k++){
+                    int size_3 = (k == num_block_3 - 1) ? n3 - k * block_size : block_size;
+                    T const * cur_data_pos = data_z_pos;
+                    int n_block_elements = size_1 * size_2 * size_3;
+                    double sum = 0;
+                    for(int ii=0; ii<size_1; ii++){
+                        for(int jj=0; jj<size_2; jj++){
+                            for(int kk=0; kk<size_3; kk++){
+                                sum += *cur_data_pos;
+                                cur_data_pos ++;
+                            }
+                            cur_data_pos += dim1_offset - size_3;
+                        }
+                        cur_data_pos += dim0_offset - size_2 * dim1_offset;
+                    }
+                    aggregated.push_back(sum / n_block_elements);
+                    data_z_pos += size_3;
+                }
+                data_y_pos += dim1_offset * size_2;
+            }
+            data_x_pos += dim0_offset * size_1;
+        }    
+        return aggregated;
+    }
+
+    template<class T>
+    T evaluate_L_inf(T const * data, T const * dec_data, uint32_t num_elements, bool normalized=true, bool verbose=false){
+        T L_inf_error = 0;
+        T L_inf_data = 0;
+        for(int i=0; i<num_elements; i++){
+            if(L_inf_data < fabs(data[i])) L_inf_data = fabs(data[i]);
+            T error = data[i] - dec_data[i];
+            if(L_inf_error < fabs(error)) L_inf_error = fabs(error);
+        }
+        if(verbose){
+            std::cout << "Max absolute value = " << L_inf_data << std::endl;
+            std::cout << "L_inf error = " << L_inf_error << std::endl;
+            std::cout << "L_inf error (normalized) = " << L_inf_error / L_inf_data << std::endl;
+        }
+        return normalized ? L_inf_error / L_inf_data : L_inf_error;
+    }
+
+    template<class T>
+    void evaluate_average(T const * data, T const * dec_data, uint32_t n1, uint32_t n2, uint32_t n3, int block_size = 1){
+        if(block_size == 0){
+            double average = 0;
+            double average_dec = 0;
+            for(int i=0; i<n1 * n2 * n3; i++){
+                average += data[i];
+                average_dec += dec_data[i]; 
+            }
+            std::cout << "Error in global average = " << fabs(average - average_dec)/(n1*n2*n3) << std::endl;
+        }
+        else{
+            auto average = compute_average(data, n1, n2, n3, block_size);
+            auto average_dec = compute_average(dec_data, n1, n2, n3, block_size);        
+            std::cout << "L^infinity error of average with block size " << block_size << " = " << evaluate_L_inf(average.data(), average_dec.data(), average.size(), false, false) << std::endl;
+            // std::cout << "L^2 error of average with block size " << block_size << " = " << evaluate_L2(average.data(), average_dec.data(), average.size(), true, false) << std::endl;
+        }
+    }
+
     template<typename Type>
-    void verify(Type *ori_data, Type *data, size_t num_elements, double &psnr, double &nrmse) {
+    void verify(Type *ori_data, Type *data, size_t num_elements, double &psnr, double &nrmse, int blockSize=1) {
         size_t i = 0;
         double Max = ori_data[0];
         double Min = ori_data[0];
@@ -141,9 +219,10 @@ namespace SZ {
             //     std::cout << i << ": ori = " << ori_data[i] << ", dec = " << data[i] << ", err = " << x_square_diff / max_abs_val_sq << std::endl;
             // }
             if(ori_data[i] == 0){
-                if(data[i] != 0){
-                    std::cout << i << ": dec_data does not equal to 0\n";
-                }
+                // for log x only
+                // if(data[i] != 0){
+                //     std::cout << i << ": dec_data does not equal to 0\n";
+                // }
             }
             else{
                 if(ori_data[i] == data[i]) continue;
@@ -166,13 +245,16 @@ namespace SZ {
         printf("normError = %f, normErr_norm = %f\n", normErr, normErr_norm);
         printf("acEff=%f\n", acEff);
 //        printf("errAutoCorr=%.10f\n", autocorrelation1DLag1<double>(diff, num_elements, diff_sum / num_elements));
+        // compute regional average
+        evaluate_average(ori_data, data, 100, 500, 500, blockSize);
+
         free(diff);
     }
 
     template<typename Type>
-    void verify(Type *ori_data, Type *data, size_t num_elements) {
+    void verify(Type *ori_data, Type *data, size_t num_elements, int blockSize=1) {
         double psnr, nrmse;
-        verify(ori_data, data, num_elements, psnr, nrmse);
+        verify(ori_data, data, num_elements, psnr, nrmse, blockSize);
     }
 };
 

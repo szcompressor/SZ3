@@ -176,7 +176,7 @@ void decompress(char *inPath, char *cmpPath, char *decPath,
         size_t totalNbEle;
         auto ori_data = SZ::readfile<T>(inPath, totalNbEle);
         assert(totalNbEle == conf.num);
-        SZ::verify<T>(ori_data.get(), decData, conf.num);
+        SZ::verify<T>(ori_data.get(), decData, conf.num, conf.qoiRegionSize);
     }
     delete[]decData;
 

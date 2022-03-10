@@ -188,6 +188,8 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
     bool useInterp = !(best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 80 && best_interp_ratio < 80);
 //    printf("\nLorenzo compression ratio = %.2f\n", best_lorenzo_ratio);
 //    printf("Interp compression ratio = %.2f\n", best_interp_ratio);
+    useInterp = false;
+    lorenzo_config.lorenzo2 = false;
     printf("choose %s\n", useInterp ? "interp" : "Lorenzo");
 
     if (useInterp) {

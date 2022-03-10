@@ -14,6 +14,7 @@
 #include "SZ3/encoder/QoIEncoder.hpp"
 #include "SZ3/qoi/XSquare.hpp"
 #include "SZ3/qoi/LogX.hpp"
+#include "SZ3/qoi/RegionalAverage.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
 #include "SZ3/utils/Iterator.hpp"
 #include "SZ3/utils/Statistic.hpp"
@@ -94,20 +95,25 @@ char *SZ_compress_LorenzoReg(SZ::Config &conf, T *data, size_t &outSize) {
 
     char *cmpData;
     if(conf.qoi > 0){
-        std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << std::endl;
+        std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << " " << conf.qoiRegionSize << std::endl;
         auto quantizer = SZ::VariableEBLinearQuantizer<T, T>(conf.quantbinCnt / 2);
         auto quantizer_eb = SZ::EBLogQuantizer<T>(conf.qoiEBBase, conf.qoiEBLogBase, conf.qoiQuantbinCnt / 2);
         // text x^2
         // qoi_check(conf.qoi, 1);
         // auto qoi = SZ::QoI_X_Square<T>(conf.qoiEB, conf.num, conf.absErrorBound);
         // test log(x)
-        qoi_check(conf.qoi, 2);
-        auto qoi = SZ::QoI_Log_X<T>(conf.qoiEB, conf.absErrorBound);
+        // qoi_check(conf.qoi, 2);
+        // auto qoi = SZ::QoI_Log_X<T>(conf.qoiEB, conf.absErrorBound);
+        qoi_check(conf.qoi, 3);
+        auto qoi = SZ::QoI_RegionalAverage<T>(conf.qoiEB, conf.absErrorBound, pow(conf.qoiRegionSize, N));
         // will not have reg since SZ3 is used
         assert(conf.regression + conf.regression2 == 0);
         // will use both two Lorenzo predictors
         assert(conf.lorenzo);
         assert(conf.lorenzo2);
+        if(conf.qoi == 3){
+            conf.blockSize = conf.qoiRegionSize;
+        }
         // TODO: identify which one to use
         if(conf.lorenzo){
             auto sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_qoi_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 1>(conf.absErrorBound), quantizer, quantizer_eb, qoi),
@@ -143,7 +149,7 @@ void SZ_decompress_LorenzoReg(const SZ::Config &conf, char *cmpData, size_t cmpS
 
     SZ::uchar const *cmpDataPos = (SZ::uchar *) cmpData;
     if(conf.qoi > 0){
-        std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << std::endl;
+        std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << " " << conf.qoiRegionSize << std::endl;
         auto quantizer = SZ::VariableEBLinearQuantizer<T, T>(conf.quantbinCnt / 2);
         auto quantizer_eb = SZ::EBLogQuantizer<T>(conf.qoiEBBase, conf.qoiEBLogBase, conf.qoiQuantbinCnt / 2);
         // text x^2
@@ -151,7 +157,10 @@ void SZ_decompress_LorenzoReg(const SZ::Config &conf, char *cmpData, size_t cmpS
         // auto qoi = SZ::QoI_X_Square<T>(conf.qoiEB, conf.num, conf.absErrorBound);
         // test log(x)
         // qoi_check(conf.qoi, 2);
-        auto qoi = SZ::QoI_Log_X<T>(conf.qoiEB, conf.absErrorBound);
+        // auto qoi = SZ::QoI_Log_X<T>(conf.qoiEB, conf.absErrorBound);
+        // test regional average
+        qoi_check(conf.qoi, 3);
+        auto qoi = SZ::QoI_RegionalAverage<T>(conf.qoiEB, conf.absErrorBound, pow(conf.qoiRegionSize, N));
         // identify which one to use
         if(conf.lorenzo){
             auto sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_qoi_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 1>(conf.absErrorBound), quantizer, quantizer_eb, qoi),

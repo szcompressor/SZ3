@@ -47,6 +47,15 @@ namespace SZ {
             for (auto block = block_range->begin(); block != block_range->end(); ++block) {
 
                 element_range->update_block_range(block, block_size);
+                {
+                    // compute number of elements
+                    auto dims = element_range->get_dimensions();
+                    size_t num_elements = 1;
+                    for (const auto &dim: dims) {
+                        num_elements *= dim;
+                    }
+                    qoi.precompress_block(num_elements);
+                }
 
                 concepts::PredictorInterface<T, N> *predictor_withfallback = &predictor;
                 if (!predictor.precompress_block(element_range)) {

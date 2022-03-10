@@ -122,6 +122,7 @@ namespace SZ {
             qoiEBBase = cfg.GetReal("QoISettings", "qoiEBBase", 0);
             qoiEBLogBase = cfg.GetReal("QoISettings", "qoiEBLogBase", 0);
             qoiQuantbinCnt = cfg.GetInteger("QoISettings", "qoiQuantbinCnt", 64);
+            qoiRegionSize = cfg.GetInteger("QoISettings", "qoiRegionSize", blockSize);
         }
 
         void save(unsigned char *&c) {
@@ -152,6 +153,7 @@ namespace SZ {
             write(qoiEBBase, c);
             write(qoiEBLogBase, c);
             write(qoiQuantbinCnt, c);
+            write(qoiRegionSize, c);
         };
 
         void load(const unsigned char *&c) {
@@ -183,6 +185,7 @@ namespace SZ {
             read(qoiEBBase, c);
             read(qoiEBLogBase, c);
             read(qoiQuantbinCnt, c);
+            read(qoiRegionSize, c);
         }
 
         void print() {
@@ -217,6 +220,7 @@ namespace SZ {
         double qoiEBBase = std::numeric_limits<double>::epsilon();
         double qoiEBLogBase = 2;
         int qoiQuantbinCnt = 64;        
+        int qoiRegionSize = 1;        
     };
 
 
