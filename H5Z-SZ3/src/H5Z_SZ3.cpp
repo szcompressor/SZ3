@@ -3,14 +3,21 @@
 //
 
 #include "H5Z_SZ3.h"
+#include <fstream>
 #include "H5PLextern.h"
-#include <ByteToolkit.h>
+
+#define CONFIG_PATH "sz.config"
+
+using namespace SZ;
 
 //h5repack -f UD=32034,0,7,3,0,1,1,8,8,128 /home/arham23/Software/SZ3/test/testfloat_8_8_128.dat.h5 tf_8_8_128.dat.sz.h5
 
+//load from "sz.config" in local directory if 1 else use default values or cd values
+int loadConfigFile = 0;
+
 int MAX_CHUNK_SIZE = 2E32 - 1;
 
-//fitler definition
+//filter definition
 const H5Z_class2_t H5Z_SZ3[1] = {{
     H5Z_CLASS_T_VERS,              /* H5Z_class_t version */
     (H5Z_filter_t)H5Z_FILTER_SZ3, /* Filter id number */
@@ -18,7 +25,7 @@ const H5Z_class2_t H5Z_SZ3[1] = {{
     1,              /* decoder_present flag (set to true) */
     "SZ3 compressor/decompressor for floating-point data.", /* Filter name for debugging */
     NULL,                          /* The "can apply" callback */
-    NULL,                          /* The "set local" callback */
+    H5Z_sz3_set_local,                          /* The "set local" callback */
     (H5Z_func_t)H5Z_filter_sz3,   /* The actual filter function */
 }};
 
@@ -26,6 +33,157 @@ H5PL_type_t H5PLget_plugin_type(void) {return H5PL_TYPE_FILTER;}
 const void *H5PLget_plugin_info(void) {return H5Z_SZ3;}
 
 /*FILTER FUNCTIONS*/
+
+static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_id){
+
+	detectSysEndianType();
+
+	printf("start in H5Z_sz3_set_local, dcpl_id = %d\n", dcpl_id);
+	size_t r5=0,r4=0,r3=0,r2=0,r1=0, dsize;
+	static char const *_funcname_ = "H5Z_sz3_set_local";
+	int i, ndims, ndims_used = 0;	
+	hsize_t dims[H5S_MAX_RANK], dims_used[5] = {0,0,0,0,0};	
+	herr_t retval = 0;
+	H5T_class_t dclass;
+	H5T_sign_t dsign;
+	unsigned int flags = 0;
+	//conf_params = H5Z_SZ_Init_Default();
+	/*if(load_conffile_flag)
+		H5Z_SZ_Init(cfgFile);
+	else
+		H5Z_SZ_Init(NULL);*/
+	
+	int dataType = 0;//SZ_FLOAT;
+
+	//if sz.config in current directory, read config values from it
+	std::ifstream f(CONFIG_PATH);
+	if(f.good()){
+		printf("sz.config found!");
+		loadConfigFile = 1;
+	}
+	else
+		printf("sz.config not found");
+
+	f.close();
+
+	//herr_t ret = H5Zregister(H5Z_SZ3);
+	//printf("REGISTER: %i\n", ret);
+
+	printf("DC\n");
+	if (0 > (dclass = H5Tget_class(type_id)))
+		{return -1;}//H5Z_SZ_PUSH_AND_GOTO(H5E_ARGS, H5E_BADTYPE, -1, "not a datatype");
+
+	printf("DS\n");
+	if (0 == (dsize = H5Tget_size(type_id)))
+		{return -1;}///H5Z_SZ_PUSH_AND_GOTO(H5E_ARGS, H5E_BADTYPE, -1, "size is smaller than 0!");
+
+	printf("ND\n");
+	if (0 > (ndims = H5Sget_simple_extent_dims(chunk_space_id, dims, 0)))
+		{return -1;}///H5Z_SZ_PUSH_AND_GOTO(H5E_ARGS, H5E_BADTYPE, -1, "not a data space");
+		
+	for (i = 0; i < ndims; i++)
+	{
+		if (dims[i] <= 1) continue;
+		dims_used[ndims_used] = dims[i];
+		ndims_used++;
+	}
+
+
+	printf("NDIM: %i\n", ndims);
+	printf("N_USE: %i\n", ndims_used);
+	printf("DCLASS: %i\n", dclass);
+	printf("DSIZE: %zu\n", dsize);
+
+	for(i = 0; i < ndims_used; i++){
+		printf("DIMS[%i] : %zu\t", i, dims_used[i]);
+	}
+	printf("\nDCEQ\n");
+
+	if(dclass == H5T_FLOAT)
+	{
+		dataType = dsize == 4 ? 0 : 1; //set float or double
+	}
+	else{
+		printf("Invalid Data Class: %i\n", dclass);
+		return -1;
+	}
+
+	printf("GETFILT");
+
+	size_t mem_cd_nelmts = 0, cd_nelmts = 0;
+	unsigned int mem_cd_values[12];
+
+	if (0 > H5Pget_filter_by_id(dcpl_id, H5Z_FILTER_SZ3, &flags, &mem_cd_nelmts, mem_cd_values, 0, NULL, NULL)){
+		printf("Failed to get SZ3 filter in %s\n", _funcname_);
+		
+		return -1;
+	}
+
+	printf("GETCD");
+
+	int freshCdValues = 0;
+	switch(ndims_used)
+	{
+	case 1: 
+		r1 = dims_used[0];
+		if(mem_cd_nelmts<=4)
+			freshCdValues = 1;
+		break;
+	case 2:
+		r1 = dims_used[0];
+		r2 = dims_used[1];
+		if(mem_cd_nelmts<=4)
+			freshCdValues = 1;
+		break;
+	case 3:
+		r1 = dims_used[0];
+		r2 = dims_used[1];
+		r3 = dims_used[2];		
+		if(mem_cd_nelmts<=5)
+			freshCdValues = 1;
+		break;
+	case 4:
+		r1 = dims_used[0];
+		r2 = dims_used[1];
+		r3 = dims_used[2];	
+		r4 = dims_used[3];
+		if(mem_cd_nelmts<=6)
+			freshCdValues = 1;
+		break;
+	default: 
+		printf("Requires chunks w/1,2,3 or 4 non-unity dims\n");
+		return -1; 
+	}
+
+	printf("SETCD\n");
+
+	if(freshCdValues)
+	{
+		printf("SETCDVALS\n");
+		unsigned int* cd_values = NULL;
+		SZ_metaDataToCdArray(&cd_nelmts, &cd_values, dataType, r5, r4, r3, r2, r1);
+		/* Now, update cd_values for the filter */
+		if (0 > H5Pmodify_filter(dcpl_id, H5Z_FILTER_SZ3, flags, cd_nelmts, cd_values))
+			//H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, 0, "failed to modify cd_values");
+		{
+			printf("Failed to modify cd_values\n");
+			free(cd_values);
+			return -1;
+		}
+	}	
+	
+
+	printf("FINSETLOCAL\n");
+	retval = 1;
+
+	return retval;
+
+
+}
+
+
+
+
 
 static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[], size_t nbytes, size_t* buf_size, void** buf)
 {
@@ -38,13 +196,14 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
     //1 if error info included else 0
     int withErrInfo = checkCDValuesWithErrors(cd_nelmts, cd_values);
     int error_mode = 0;
-    int cmp_algo = 0;
-    int interp_algo = 0;
-    float abs_error = 0, rel_error = 0, l2norm_error = 0, psnr = 0;
+    //TODO read in from config in set_local, for now set defaults
+    int cmp_algo = 1;
+    int interp_algo = 1;
+    float abs_error = 1E-4, rel_error = 1E-3, l2norm_error = 1E-4, psnr = 1E-3;
     if(withErrInfo)
-        SZ_cdArrayToMetaDataErr(cd_nelmts, cd_values, &dimSize, &dataType, &cmp_algo, &interp_algo, &r5, &r4, &r3, &r2, &r1, &error_mode, &abs_error, &rel_error, &l2norm_error, &psnr);
+        SZ_cdArrayToMetaDataErr(cd_nelmts, cd_values, &dimSize, &dataType, &r5, &r4, &r3, &r2, &r1, &error_mode, &abs_error, &rel_error, &l2norm_error, &psnr);
     else
-        SZ_cdArrayToMetaData(cd_nelmts, cd_values, &dimSize, &dataType, &cmp_algo, &interp_algo,&r5, &r4, &r3, &r2, &r1);
+        SZ_cdArrayToMetaData(cd_nelmts, cd_values, &dimSize, &dataType, &r5, &r4, &r3, &r2, &r1);
 
 
     if(flags & H5Z_FLAG_REVERSE){
@@ -57,11 +216,13 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
         switch(dataType){
             case 0: //FLOAT
             {
-                float *f_decompressedData = new float[nbEle];
+                printf("\nDcF\n");
+		float *f_decompressedData = new float[nbEle];
                 SZ_decompress(conf, (char*) *buf, nbytes, f_decompressedData);
                 free(*buf);
                 *buf = f_decompressedData;
                 *buf_size = nbEle * sizeof(float);
+		printf("LDcF!!\n");
                 break;
             }
 
@@ -75,7 +236,7 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
                 break;
             }
 
-            case 2: //INT 8
+            /*case 2: //INT 8
             {
                 char *c_decompressedData = new char[nbEle];
                 SZ_decompress(conf, (char *) *buf, nbytes, c_decompressedData);
@@ -153,7 +314,7 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
                 *buf = ul_decompressedData;
                 *buf_size = nbEle * sizeof(unsigned long);
                 break;
-            }
+            }*/
 
             default:
             {
@@ -161,6 +322,8 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
                 exit(0);
             }
         }
+
+	printf("Leaving decompression routine");
 
     }
     else{
@@ -193,25 +356,33 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
             exit(0);
         }
 
-        conf.errorBoundMode = error_mode;
-        conf.absErrorBound = abs_error;
-        conf.relErrorBound = rel_error;
-        conf.l2normErrorBound = l2norm_error;
-        conf.psnrErrorBound = psnr;
+	//if config file found read config file
+	if(loadConfigFile){
+		conf.loadcfg(CONFIG_PATH);
+	}
+	else{
 
-        if(cmp_algo < 0 || cmp_algo > 2){
-            printf("Invalid compression algo: %i, should be in [0,2]", cmp_algo);
-            exit(0);
-        }
+		conf.errorBoundMode = error_mode;
+		conf.absErrorBound = abs_error;
+		conf.relErrorBound = rel_error;
+		conf.l2normErrorBound = l2norm_error;
+		conf.psnrErrorBound = psnr;
 
-        conf.cmprAlgo = cmp_algo;
+		if(cmp_algo < 0 || cmp_algo > 2){
+		    printf("Invalid compression algo: %i, should be in [0,2]", cmp_algo);
+		    exit(0);
+		}
 
-        if(interp_algo < 0 || interp_algo > 1){
-            printf("Invalid interpolation algo: %i, should be either 0 or 1", interp_algo);
-            exit(0);
-        }
+		conf.cmprAlgo = cmp_algo;
 
-        conf.interpAlgo = interp_algo;
+		if(interp_algo < 0 || interp_algo > 1){
+		    printf("Invalid interpolation algo: %i, should be either 0 or 1", interp_algo);
+		    exit(0);
+		}
+
+		conf.interpAlgo = interp_algo;
+
+	}
 
         size_t outSize = 0;
         char* compressedData = NULL;
@@ -221,11 +392,7 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
             case 0: //FLOAT
             {
                 printf("Compressing Float Data");
-                float* f_data = (float*) *buf;
-
-                if(f_data == NULL){
-                    printf("F_DATANULL");
-                }
+                float* f_data = (float*) (*buf);
 
                 compressedData = SZ_compress(conf, f_data, outSize);
                 printf("Leaving compress float case");
@@ -238,7 +405,7 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
                 break;
             }
 
-            case 2: //INT 8
+            /*case 2: //INT 8
             {
                 compressedData = SZ_compress(conf, (char*) *buf, outSize);
                 break;
@@ -264,7 +431,7 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
 
             case 6: //INT 32
             {
-                compressedData = SZ_compress(conf, (int*) *buf, outSize);
+                compressedData = SZ_compress(conf, (int32_t*) *buf, outSize);
                 break;
             }
 
@@ -284,7 +451,7 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
             {
                 compressedData = SZ_compress(conf, (unsigned long*) *buf, outSize);
                 break;
-            }
+            }*/
 
             default:
             {
@@ -293,6 +460,7 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
             }
         }
 
+	printf("\nOS: %u \n", outSize);
         free(*buf);
         *buf = compressedData;
         *buf_size = outSize;
@@ -309,143 +477,137 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
 
 /*HELPER FUNCTIONS*/
 //use to convert HDF5 cd_array to SZ params inside filter
-void SZ_cdArrayToMetaData(size_t cd_nelmts, const unsigned int cd_values[], int* dimSize, int* dataType, int* cmp_algo, int* interp_algo, size_t* r5, size_t* r4, size_t* r3, size_t* r2, size_t* r1){
-    assert(cd_nelmts >= 6);
+void SZ_cdArrayToMetaData(size_t cd_nelmts, const unsigned int cd_values[], int* dimSize, int* dataType, size_t* r5, size_t* r4, size_t* r3, size_t* r2, size_t* r1){
+    assert(cd_nelmts >= 4);
     unsigned char bytes[8];
     *dimSize = cd_values[0];
     *dataType = cd_values[1];
-    *cmp_algo = cd_values[2];
-    *interp_algo = cd_values[3];
 
     switch(*dimSize)
     {
         case 1:
-            intToBytes_bigEndian(bytes, cd_values[4]);
-            intToBytes_bigEndian(&bytes[4], cd_values[5]);
+            SZ::intToBytes_bigEndian(bytes, cd_values[2]);
+            SZ::intToBytes_bigEndian(&bytes[4], cd_values[3]);
             if(sizeof(size_t)==4)
-                *r1 = (unsigned int)bytesToLong_bigEndian(bytes);
+                *r1 = (unsigned int) SZ::bytesToLong_bigEndian(bytes);
             else
-                *r1 = (unsigned long)bytesToLong_bigEndian(bytes);
+                *r1 = (unsigned long) SZ::bytesToLong_bigEndian(bytes);
             *r2 = *r3 = *r4 = *r5 = 0;
             break;
         case 2:
             *r3 = *r4 = *r5 = 0;
-            *r2 = cd_values[5];
-            *r1 = cd_values[4];
+            *r2 = cd_values[3];
+            *r1 = cd_values[2];
             break;
         case 3:
             *r4 = *r5 = 0;
-            *r3 = cd_values[6];
-            *r2 = cd_values[5];
-            *r1 = cd_values[4];
+            *r3 = cd_values[4];
+            *r2 = cd_values[3];
+            *r1 = cd_values[2];
             break;
         case 4:
             *r5 = 0;
-            *r4 = cd_values[7];
-            *r3 = cd_values[6];
-            *r2 = cd_values[5];
-            *r1 = cd_values[4];
+            *r4 = cd_values[5];
+            *r3 = cd_values[4];
+            *r2 = cd_values[3];
+            *r1 = cd_values[2];
             break;
         default:
-            *r5 = cd_values[8];
-            *r4 = cd_values[7];
-            *r3 = cd_values[6];
-            *r2 = cd_values[5];
-            *r1 = cd_values[4];
+            *r5 = cd_values[6];
+            *r4 = cd_values[5];
+            *r3 = cd_values[4];
+            *r2 = cd_values[3];
+            *r1 = cd_values[2];
     }
 }
 
-void SZ_cdArrayToMetaDataErr(size_t cd_nelmts, const unsigned int cd_values[], int* dimSize, int* dataType, int* cmp_algo, int* interp_algo, size_t* r5, size_t* r4, size_t* r3, size_t* r2, size_t* r1,
-                             int* error_bound_mode, float* abs_error, float* rel_error, float* l2norm_error, float* psnr)
+void SZ_cdArrayToMetaDataErr(size_t cd_nelmts, const unsigned int cd_values[], int* dimSize, int* dataType, size_t* r5, size_t* r4, size_t* r3, size_t* r2, size_t* r1, int* error_bound_mode, float* abs_error, float* rel_error, float* l2norm_error, float* psnr)
 {
     //get dimension, datatype metadata from cd_values
-    SZ_cdArrayToMetaData(cd_nelmts, cd_values, dimSize, dataType, cmp_algo, interp_algo, r5, r4, r3, r2, r1);
+    SZ_cdArrayToMetaData(cd_nelmts, cd_values, dimSize, dataType, r5, r4, r3, r2, r1);
     //read in error bound value information
     int dim = *dimSize;
     int k = dim==1?4:dim+2;
     unsigned char b[4];
-    int32ToBytes_bigEndian(b, cd_values[k++]);
-    *error_bound_mode = bytesToInt32_bigEndian(b);
-    int32ToBytes_bigEndian(b, cd_values[k++]);
+    SZ::int32ToBytes_bigEndian(b, cd_values[k++]);
+    *error_bound_mode = SZ::bytesToInt32_bigEndian(b);
+    SZ::int32ToBytes_bigEndian(b, cd_values[k++]);
     *abs_error = bytesToFloat(b);
-    int32ToBytes_bigEndian(b, cd_values[k++]);
+    SZ::int32ToBytes_bigEndian(b, cd_values[k++]);
     *rel_error = bytesToFloat(b);
-    int32ToBytes_bigEndian(b, cd_values[k++]);
+    SZ::int32ToBytes_bigEndian(b, cd_values[k++]);
     *l2norm_error = bytesToFloat(b);
-    int32ToBytes_bigEndian(b, cd_values[k++]);
+    SZ::int32ToBytes_bigEndian(b, cd_values[k++]);
     *psnr = bytesToFloat(b);
 }
 
 //use to convert params for SZ into HDF5 cd_array
-void SZ_metaDataToCdArray(size_t* cd_nelmts, unsigned int **cd_values, int dataType, int cmp_algo, int interp_algo, size_t r5, size_t r4, size_t r3, size_t r2, size_t r1)
+void SZ_metaDataToCdArray(size_t* cd_nelmts, unsigned int **cd_values, int dataType, size_t r5, size_t r4, size_t r3, size_t r2, size_t r1)
 {
     *cd_values = (unsigned int*)malloc(sizeof(unsigned int)*7);
-    SZ_copymetaDataToCdArray(cd_nelmts, *cd_values, dataType, cmp_algo, interp_algo, r5, r4, r3, r2, r1);
+    SZ_copymetaDataToCdArray(cd_nelmts, *cd_values, dataType, r5, r4, r3, r2, r1);
 }
 
-void SZ_metaDataErrToCdArray(size_t* cd_nelmts, unsigned int **cd_values, int dataType, int cmp_algo, int interp_algo, size_t r5, size_t r4, size_t r3, size_t r2, size_t r1,
-                             int error_bound_mode, float abs_error, float rel_error, float pw_rel_error, float psnr)
+void SZ_metaDataErrToCdArray(size_t* cd_nelmts, unsigned int **cd_values, int dataType, size_t r5, size_t r4, size_t r3, size_t r2, size_t r1, int error_bound_mode, float abs_error, float rel_error, float l2norm_error, float psnr)
 {
     *cd_values = (unsigned int*)malloc(sizeof(unsigned int)*12);
-    SZ_copymetaDataToCdArray(cd_nelmts, *cd_values, dataType, cmp_algo, interp_algo, r5, r4, r3, r2, r1);
+    SZ_copymetaDataToCdArray(cd_nelmts, *cd_values, dataType, r5, r4, r3, r2, r1);
     int k = *cd_nelmts;
     (*cd_values)[k++] = error_bound_mode;
     unsigned char b[4];
     floatToBytes(b, abs_error);
-    (*cd_values)[k++] = bytesToInt32_bigEndian(b);
+    (*cd_values)[k++] = SZ::bytesToInt32_bigEndian(b);
     floatToBytes(b, rel_error);
-    (*cd_values)[k++] = bytesToInt32_bigEndian(b);
-    floatToBytes(b, pw_rel_error);
-    (*cd_values)[k++] = bytesToInt32_bigEndian(b);
+    (*cd_values)[k++] = SZ::bytesToInt32_bigEndian(b);
+    floatToBytes(b, l2norm_error);
+    (*cd_values)[k++] = SZ::bytesToInt32_bigEndian(b);
     floatToBytes(b, psnr);
-    (*cd_values)[k++] = bytesToInt32_bigEndian(b);
+    (*cd_values)[k++] = SZ::bytesToInt32_bigEndian(b);
     *cd_nelmts = k;
 }
 
-void SZ_copymetaDataToCdArray(size_t* cd_nelmts, unsigned int *cd_values, int dataType, int cmp_algo, int interp_algo, size_t r5, size_t r4, size_t r3, size_t r2, size_t r1)
+void SZ_copymetaDataToCdArray(size_t* cd_nelmts, unsigned int *cd_values, int dataType, size_t r5, size_t r4, size_t r3, size_t r2, size_t r1)
 {
     unsigned char bytes[8] = {0};
     unsigned long size;
     int dim = computeDimension(r5, r4, r3, r2, r1);
     cd_values[0] = dim;
     cd_values[1] = dataType;	//0: FLOAT ; 1: DOUBLE ; 2,3,4,....: INTEGER....
-    cd_values[2] = cmp_algo;
-    cd_values[3] = interp_algo;
 
     switch(dim)
     {
         case 1:
             size = (unsigned long)r1;
-            longToBytes_bigEndian(bytes, size);
-            cd_values[4] = bytesToInt_bigEndian(bytes);
-            cd_values[5] = bytesToInt_bigEndian(&bytes[4]);
-            *cd_nelmts = 6;
+            SZ::longToBytes_bigEndian(bytes, size);
+            cd_values[2] = SZ::bytesToInt_bigEndian(bytes);
+            cd_values[3] = SZ::bytesToInt_bigEndian(&bytes[4]);
+            *cd_nelmts = 4;
             break;
         case 2:
+            cd_values[2] = (unsigned int) r2;
+            cd_values[3] = (unsigned int) r1;
+            *cd_nelmts = 4;
+            break;
+        case 3:
+            cd_values[2] = (unsigned int) r3;
+            cd_values[3] = (unsigned int) r2;
+            cd_values[4] = (unsigned int) r1;
+            *cd_nelmts = 5;
+            break;
+        case 4:
+            cd_values[2] = (unsigned int) r4;
+            cd_values[3] = (unsigned int) r3;
             cd_values[4] = (unsigned int) r2;
             cd_values[5] = (unsigned int) r1;
             *cd_nelmts = 6;
             break;
-        case 3:
+        default:
+            cd_values[2] = (unsigned int) r5;
+            cd_values[3] = (unsigned int) r4;
             cd_values[4] = (unsigned int) r3;
             cd_values[5] = (unsigned int) r2;
             cd_values[6] = (unsigned int) r1;
             *cd_nelmts = 7;
-            break;
-        case 4:
-            cd_values[4] = (unsigned int) r4;
-            cd_values[5] = (unsigned int) r3;
-            cd_values[6] = (unsigned int) r2;
-            cd_values[7] = (unsigned int) r1;
-            *cd_nelmts = 8;
-            break;
-        default:
-            cd_values[4] = (unsigned int) r5;
-            cd_values[5] = (unsigned int) r4;
-            cd_values[6] = (unsigned int) r3;
-            cd_values[7] = (unsigned int) r2;
-            cd_values[8] = (unsigned int) r1;
-            *cd_nelmts = 9;
     }
 }
 
@@ -457,23 +619,23 @@ int checkCDValuesWithErrors(size_t cd_nelmts, const unsigned int cd_values[])
     switch(dimSize)
     {
         case 1:
-            if(cd_nelmts>6)
+            if(cd_nelmts>4)
                 result = 1;
             break;
         case 2:
-            if(cd_nelmts>6)
+            if(cd_nelmts>4)
                 result = 1;
             break;
         case 3:
-            if(cd_nelmts>7)
+            if(cd_nelmts>5)
                 result = 1;
             break;
         case 4:
-            if(cd_nelmts>8)
+            if(cd_nelmts>6)
                 result = 1;
             break;
         case 5:
-            if(cd_nelmts>9)
+            if(cd_nelmts>7)
                 result = 1;
             break;
     }
@@ -620,3 +782,35 @@ void init_dims_chunk(int dim, hsize_t dims[5], hsize_t chunk[5], size_t nbEle, s
             }
     }
 }
+
+//detect sys endian type
+void detectSysEndianType()
+{
+    //get sys endian type
+    int x_temp = 1;
+    char *y_temp = (char*)&x_temp;
+
+    if(*y_temp==1)
+        sysEndianType = LITTLE_ENDIAN_SYSTEM;
+    else //=0
+        sysEndianType = BIG_ENDIAN_SYSTEM;
+}
+
+
+//the byte to input is in the big-endian format
+inline float bytesToFloat(unsigned char* bytes)
+{
+	lfloat buf;
+		memcpy(buf.byte, bytes, 4);
+			if(sysEndianType==LITTLE_ENDIAN_SYSTEM)
+					symTransform_4bytes(buf.byte);	
+						return buf.value;
+						}
+
+						inline void floatToBytes(unsigned char *b, float num)
+						{
+							lfloat buf;
+								buf.value = num;
+									memcpy(b, buf.byte, 4);
+										if(sysEndianType==LITTLE_ENDIAN_SYSTEM)
+												symTransform_4bytes(b);								}

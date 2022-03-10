@@ -3,7 +3,7 @@ project(SZ3 VERSION 3.1.3.0)
 include(GNUInstallDirs)
 include(CTest)
 
-set(CMAKE_CXX_FLAGS "-g --param ggc-min-expand=20")
+set(CMAKE_CXX_FLAGS "-ggdb")
 
 option(BUILD_SHARED_LIBS "build shared libraries by default" ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

@@ -1,12 +1,23 @@
-find_package(HDF5 REQUIRED)
+#find_package(HDF5 1.12.1 REQUIRED PATHS "/home/ac.arhammkhan/hdf5-1.12.1")
+#message(STATUS "HDF5 Version: ${HDF5_VERSION}")
+
+
+set(HDF5_LIBRARIES "/home/ac.arhammkhan/hdf5-1.12.1/hdf5/lib/libhdf5.so")
+set(HDF5_INCLUDE_DIRS "/home/ac.arhammkhan/hdf5-1.12.1/hdf5/include")
+
+message("HDF5LIB PATH:" ${HDF5_LIBRARIES})
+message("HDF5INCLUDE PATH:" ${HDF5_INCLUDE_DIRS})
+
 add_library(
         hdf5sz3
         src/H5Z_SZ3.cpp
 )
+
 target_link_libraries(
         hdf5sz3
         PUBLIC SZ3 ${HDF5_LIBRARIES}
 )
+
 target_include_directories(
         hdf5sz3
         PUBLIC
