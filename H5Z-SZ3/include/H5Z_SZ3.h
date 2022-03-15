@@ -5,7 +5,7 @@
 #ifndef SZ3_H5Z_SZ3_H
 #define SZ3_H5Z_SZ3_H
 
-#define H5Z_FILTER_SZ3 32034
+#define H5Z_FILTER_SZ3 32024
 #include "SZ3/api/sz.hpp"
 #include "SZ3/utils/ByteUtil.hpp"
 #include "hdf5.h"

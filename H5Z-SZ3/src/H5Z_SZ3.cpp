@@ -10,7 +10,7 @@
 
 using namespace SZ;
 
-//h5repack -f UD=32034,0,7,3,0,1,1,8,8,128 /home/arham23/Software/SZ3/test/testfloat_8_8_128.dat.h5 tf_8_8_128.dat.sz.h5
+//h5repack -f UD=32024,0 /home/arham23/Software/SZ3/test/testfloat_8_8_128.dat.h5 tf_8_8_128.dat.sz.h5
 
 //load from "sz.config" in local directory if 1 else use default values or cd values
 int loadConfigFile = 0;
@@ -196,7 +196,6 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
     //1 if error info included else 0
     int withErrInfo = checkCDValuesWithErrors(cd_nelmts, cd_values);
     int error_mode = 0;
-    //TODO read in from config in set_local, for now set defaults
     int cmp_algo = 1;
     int interp_algo = 1;
     float abs_error = 1E-4, rel_error = 1E-3, l2norm_error = 1E-4, psnr = 1E-3;

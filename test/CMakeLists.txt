@@ -9,4 +9,7 @@ foreach (SRCFILE IN LISTS cpu_source_files)
 
     install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${EXE} TYPE BIN)
 endforeach ()
+
+add_subdirectory(compressor_analysis)
+
 install(FILES ${PROJECT_SOURCE_DIR}/test/testfloat_8_8_128.dat DESTINATION ${CMAKE_INSTALL_DATADIR}/SZ3)
