@@ -110,9 +110,9 @@ namespace SZ {
         //save the huffman Tree in the compressed data
         uint save(uchar *&c) {
             write(offset, c);
-            intToBytes_bigEndian(c, nodeCount);
+            int32ToBytes_bigEndian(c, nodeCount);
             c += sizeof(int);
-            intToBytes_bigEndian(c, huffmanTree->stateNum / 2);
+            int32ToBytes_bigEndian(c, huffmanTree->stateNum / 2);
             c += sizeof(int);
             uint totalSize = 0;// = convert_HuffTree_to_bytes_anyStates(nodeCount, c);
             // std::cout << "nodeCount = " << nodeCount << std::endl;
@@ -149,13 +149,13 @@ namespace SZ {
                                                                 1; //it's equal to the number of bytes involved (for *outSize)
                     byteSizep = bitSize / 8; //it's used to move the pointer p for next data
                     if (byteSize <= 8) {
-                        longToBytes_bigEndian(p, (huffmanTree->code[state])[0]);
+                        int64ToBytes_bigEndian(p, (huffmanTree->code[state])[0]);
                         p += byteSizep;
                     } else //byteSize>8
                     {
-                        longToBytes_bigEndian(p, (huffmanTree->code[state])[0]);
+                        int64ToBytes_bigEndian(p, (huffmanTree->code[state])[0]);
                         p += 8;
-                        longToBytes_bigEndian(p, (huffmanTree->code[state])[1]);
+                        int64ToBytes_bigEndian(p, (huffmanTree->code[state])[1]);
                         p += (byteSizep - 8);
                     }
                     outSize += byteSize;
@@ -165,7 +165,7 @@ namespace SZ {
                     if (lackBits < bitSize) {
                         p++;
                         long newCode = (huffmanTree->code[state])[0] << lackBits;
-                        longToBytes_bigEndian(p, newCode);
+                        int64ToBytes_bigEndian(p, newCode);
 
                         if (bitSize <= 64) {
                             bitSize -= lackBits;
@@ -185,7 +185,7 @@ namespace SZ {
                                 *p = (*p) | (unsigned char) ((huffmanTree->code[state])[0] >> (64 - lackBits));
                                 p++;
                                 newCode = (huffmanTree->code[state])[1] << lackBits;
-                                longToBytes_bigEndian(p, newCode);
+                                int64ToBytes_bigEndian(p, newCode);
                                 bitSize -= lackBits;
                                 byteSize = bitSize % 8 == 0 ? bitSize / 8 : bitSize / 8 + 1;
                                 byteSizep = bitSize / 8;
@@ -259,8 +259,8 @@ namespace SZ {
         //load Huffman tree
         void load(const uchar *&c, size_t &remaining_length) {
             read(offset, c, remaining_length);
-            nodeCount = bytesToInt_bigEndian(c);
-            int stateNum = bytesToInt_bigEndian(c + sizeof(int)) * 2;
+            nodeCount = bytesToInt32_bigEndian(c);
+            int stateNum = bytesToInt32_bigEndian(c + sizeof(int)) * 2;
             size_t encodeStartIndex;
             if (nodeCount <= 256)
                 encodeStartIndex = 1 + 3 * nodeCount * sizeof(unsigned char) + nodeCount * sizeof(T);

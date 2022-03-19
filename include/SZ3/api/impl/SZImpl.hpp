@@ -6,7 +6,7 @@
 #include "SZ3/api/impl/SZImplOMP.hpp"
 #include <cmath>
 
-template<class T, uint N>
+template<class T, SZ::uint N>
 char *SZ_compress_impl(SZ::Config &conf, T *data, size_t &outSize) {
 #ifndef _OPENMP
     conf.openmp=false;
@@ -19,7 +19,7 @@ char *SZ_compress_impl(SZ::Config &conf, T *data, size_t &outSize) {
 }
 
 
-template<class T, uint N>
+template<class T, SZ::uint N>
 void SZ_decompress_impl(SZ::Config &conf, char *cmpData, size_t cmpSize, T *decData) {
 #ifndef _OPENMP
     conf.openmp=false;

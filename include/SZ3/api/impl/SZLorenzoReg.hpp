@@ -15,11 +15,12 @@
 #include "SZ3/utils/Extraction.hpp"
 #include "SZ3/utils/QuantOptimizatioin.hpp"
 #include "SZ3/utils/Config.hpp"
+#include "SZ3/def.hpp"
 #include <cmath>
 #include <memory>
 
 
-template<class T, uint N, class Quantizer, class Encoder, class Lossless>
+template<class T, SZ::uint N, class Quantizer, class Encoder, class Lossless>
 std::shared_ptr<SZ::concepts::CompressorInterface<T>>
 make_lorenzo_regression_compressor(const SZ::Config &conf, Quantizer quantizer, Encoder encoder, Lossless lossless) {
     std::vector<std::shared_ptr<SZ::concepts::PredictorInterface<T, N>>> predictors;
@@ -73,7 +74,7 @@ make_lorenzo_regression_compressor(const SZ::Config &conf, Quantizer quantizer, 
 }
 
 
-template<class T, uint N>
+template<class T, SZ::uint N>
 char *SZ_compress_LorenzoReg(SZ::Config &conf, T *data, size_t &outSize) {
 
     assert(N == conf.N);
@@ -95,7 +96,7 @@ char *SZ_compress_LorenzoReg(SZ::Config &conf, T *data, size_t &outSize) {
 }
 
 
-template<class T, uint N>
+template<class T, SZ::uint N>
 void SZ_decompress_LorenzoReg(const SZ::Config &conf, char *cmpData, size_t cmpSize, T *decData) {
     assert(conf.cmprAlgo == SZ::ALGO_LORENZO_REG);
 

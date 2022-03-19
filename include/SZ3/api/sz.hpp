@@ -52,22 +52,23 @@ char *compressedData = SZ_compress(conf, data, outSize);
  */
 template<class T>
 char *SZ_compress(SZ::Config &conf, T *data, size_t &outSize) {
+    std::vector<T> inData(data, data + conf.num);
     char *cmpData;
     if (conf.N == 1) {
-        cmpData = SZ_compress_impl<T, 1>(conf, data, outSize);
+        cmpData = SZ_compress_impl<T, 1>(conf, inData.data(), outSize);
     } else if (conf.N == 2) {
-        cmpData = SZ_compress_impl<T, 2>(conf, data, outSize);
+        cmpData = SZ_compress_impl<T, 2>(conf, inData.data(), outSize);
     } else if (conf.N == 3) {
-        cmpData = SZ_compress_impl<T, 3>(conf, data, outSize);
+        cmpData = SZ_compress_impl<T, 3>(conf, inData.data(), outSize);
     } else if (conf.N == 4) {
-        cmpData = SZ_compress_impl<T, 4>(conf, data, outSize);
+        cmpData = SZ_compress_impl<T, 4>(conf, inData.data(), outSize);
     } else {
         for (int i = 4; i < conf.N; i++) {
             conf.dims[3] *= conf.dims[i];
         }
         conf.dims.resize(4);
         conf.N = 4;
-        cmpData = SZ_compress_impl<T, 4>(conf, data, outSize);
+        cmpData = SZ_compress_impl<T, 4>(conf, inData.data(), outSize);
     }
     {
         //save config

@@ -8,7 +8,7 @@
 
 #include "omp.h"
 
-template<class T, uint N>
+template<class T, SZ::uint N>
 char *SZ_compress_OMP(SZ::Config &conf, T *data, size_t &outSize) {
 #ifdef _OPENMP
 
@@ -99,7 +99,7 @@ char *SZ_compress_OMP(SZ::Config &conf, T *data, size_t &outSize) {
 }
 
 
-template<class T, uint N>
+template<class T, SZ::uint N>
 void SZ_decompress_OMP(const SZ::Config &conf, char *cmpData, size_t cmpSize, T *decData) {
 #ifdef _OPENMP
 
