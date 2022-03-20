@@ -49,7 +49,6 @@ namespace SZ {
             for (const auto &d: global_dimensions) {
                 num_elements *= d;
             }
-//            std::cout << std::endl;
             read(block_size, buffer_pos, remaining_length);
             read(interpolator_id, buffer_pos, remaining_length);
             read(direction_sequence_id, buffer_pos, remaining_length);

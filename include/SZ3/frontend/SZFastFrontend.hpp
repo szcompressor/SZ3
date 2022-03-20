@@ -327,7 +327,6 @@ namespace SZ {
             free(pred_buffer);
             free(reg_params);
 
-//    printf("block %ld; lorenzo %ld, lorenzo_2layer %ld, regression %ld, poly regression %ld\n", size.num_blocks,
 //        lorenzo_count, lorenzo_2layer_count, reg_count);
 
             return type;

@@ -32,7 +32,6 @@ namespace SZ {
             }
             write(bins[bins.size() - 1], bytes);
             write(int(bins.size() - s), bytes);
-            printf("RunLengthEncoder max length = %d\n", max);
             return 0;
         };
 

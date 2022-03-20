@@ -46,7 +46,6 @@ namespace SZ {
         }
 
         bool precompress_block(const std::shared_ptr<Range> &range) noexcept {
-            // std::cout << "precompress_block" << std::endl;
             auto dims = range->get_dimensions();
             size_t num_elements = 1;
             for (const auto &dim: dims) {
@@ -101,14 +100,12 @@ namespace SZ {
         }
 
         void save(uchar *&c) const {
-//            std::cout << "save regression predictor" << std::endl;
 
             c[0] = 0b00000010;
             c += sizeof(uint8_t);
             *reinterpret_cast<size_t *>(c) = regression_coeff_quant_inds.size();
             c += sizeof(size_t);
             if (!regression_coeff_quant_inds.empty()) {
-//                std::cout << "reg coeff = " << regression_coeff_quant_inds.size() << std::endl;
                 quantizer_independent.save(c);
                 quantizer_liner.save(c);
                 HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
@@ -131,7 +128,6 @@ namespace SZ {
 
         void load(const uchar *&c, size_t &remaining_length) {
             //TODO: adjust remaining_length
-//            std::cout << "load regression predictor" << std::endl;
             c += sizeof(uint8_t);
             remaining_length -= sizeof(uint8_t);
 
