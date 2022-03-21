@@ -9,7 +9,7 @@
 /**
  * API for compression
  * @tparam T source data type
- * @param conf compression configuration. Please update the config with 1). data dimension and shape and 2). desired settings.
+ * @param config compression configuration. Please update the config with 1). data dimension and shape and 2). desired settings.
  * @param data source data
  * @param outSize compressed data size in bytes
  * @return compressed data, remember to 'delete []' when the data is no longer needed.
@@ -51,7 +51,8 @@ conf.absErrorBound = 1E-3; // absolute error bound 1e-3
 char *compressedData = SZ_compress(conf, data, outSize);
  */
 template<class T>
-char *SZ_compress(SZ::Config &conf, T *data, size_t &outSize) {
+char *SZ_compress(const SZ::Config &config, const T *data, size_t &outSize) {
+    SZ::Config conf(config);
     std::vector<T> inData(data, data + conf.num);
     char *cmpData;
     if (conf.N == 1) {
@@ -87,8 +88,7 @@ char *SZ_compress(SZ::Config &conf, T *data, size_t &outSize) {
  * Similar with SZ_decompress(SZ::Config &conf, char *cmpData, size_t cmpSize)
  * The only difference is this one needs pre-allocated decData as input
  * @tparam T decompressed data type
- * @param conf compression configuration. Setting the correct config is NOT needed for decompression.
- * The correct config will be loaded from compressed data and returned.
+ * @param conf configuration placeholder. It will be overwritten by the compression configuration
  * @param cmpData compressed data
  * @param cmpSize compressed data size in bytes
  * @param decData pre-allocated memory space for decompressed data
@@ -127,8 +127,7 @@ void SZ_decompress(SZ::Config &conf, char *cmpData, size_t cmpSize, T *&decData)
 /**
  * API for decompression
  * @tparam T decompressed data type
- * @param conf compression configuration. Setting the correct config is NOT needed for decompression.
- * The correct config will be loaded from compressed data and returned.
+ * @param conf configuration placeholder. It will be overwritten by the compression configuration
  * @param cmpData compressed data
  * @param cmpSize compressed data size in bytes
  * @return decompressed data, remember to 'delete []' when the data is no longer needed.
