@@ -91,26 +91,32 @@ char *SZ_compress_LorenzoReg(SZ::Config &conf, T *data, size_t &outSize) {
         auto quantizer = SZ::VariableEBLinearQuantizer<T, T>(conf.quantbinCnt / 2);
         auto quantizer_eb = SZ::EBLogQuantizer<T>(conf.qoiEBBase, conf.qoiEBLogBase, conf.qoiQuantbinCnt / 2);
         auto qoi = SZ::GetQOI<T, N>(conf);
-        // will not have reg since SZ3 is used
-        assert(conf.regression + conf.regression2 == 0);
-        // will use only one of the two Lorenzo predictors
-        assert(conf.lorenzo + conf.lorenzo2 == 1);
         if(conf.qoi == 3){
             conf.blockSize = conf.qoiRegionSize;
         }
-        // TODO: identify which one to use
-        if(conf.lorenzo){
-            auto sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_qoi_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 1>(conf.absErrorBound), quantizer, quantizer_eb, qoi),
+        std::shared_ptr<SZ::concepts::CompressorInterface<T>> sz;
+
+        int methodCnt = (conf.lorenzo + conf.lorenzo2);
+        int use_single_predictor = (methodCnt == 1);
+
+        if(use_single_predictor){
+            if(conf.lorenzo){
+                sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_qoi_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 1>(conf.absErrorBound), quantizer, quantizer_eb, qoi),
                                                         SZ::QoIEncoder<int>(), SZ::Lossless_zstd());
-            cmpData = (char *) sz->compress(conf, data, outSize);
-            conf.lorenzo2 = false;
+            }
+            else if(conf.lorenzo2){
+                sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_qoi_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 2>(conf.absErrorBound), quantizer, quantizer_eb, qoi),
+                                                        SZ::QoIEncoder<int>(), SZ::Lossless_zstd());
+            }
         }
         else{
-            auto sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_qoi_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 2>(conf.absErrorBound), quantizer, quantizer_eb, qoi),
-                                                        SZ::QoIEncoder<int>(), SZ::Lossless_zstd());
-            cmpData = (char *) sz->compress(conf, data, outSize);            
-            conf.lorenzo = false;
+            std::vector<std::shared_ptr<SZ::concepts::PredictorInterface<T, N>>> predictors;
+            predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 1>>(conf.absErrorBound));
+            predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 2>>(conf.absErrorBound));
+            sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_qoi_frontend<T, N>(conf, SZ::ComposedPredictor<T, N>(predictors), quantizer, quantizer_eb, qoi),
+                                                    SZ::QoIEncoder<int>(), SZ::Lossless_zstd());
         }
+        cmpData = (char *) sz->compress(conf, data, outSize);
         return cmpData;
     }
     auto quantizer = SZ::LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2);
@@ -137,16 +143,29 @@ void SZ_decompress_LorenzoReg(const SZ::Config &conf, char *cmpData, size_t cmpS
         auto quantizer = SZ::VariableEBLinearQuantizer<T, T>(conf.quantbinCnt / 2);
         auto quantizer_eb = SZ::EBLogQuantizer<T>(conf.qoiEBBase, conf.qoiEBLogBase, conf.qoiQuantbinCnt / 2);
         auto qoi = SZ::GetQOI<T, N>(conf);
-        if(conf.lorenzo){
-            auto sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_qoi_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 1>(conf.absErrorBound), quantizer, quantizer_eb, qoi),
+        std::shared_ptr<SZ::concepts::CompressorInterface<T>> sz;
+
+        int methodCnt = (conf.lorenzo + conf.lorenzo2);
+        int use_single_predictor = (methodCnt == 1);
+
+        if(use_single_predictor){
+            if(conf.lorenzo){
+                sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_qoi_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 1>(conf.absErrorBound), quantizer, quantizer_eb, qoi),
                                                         SZ::QoIEncoder<int>(), SZ::Lossless_zstd());
-            sz->decompress(cmpDataPos, cmpSize, decData);
+            }
+            else if(conf.lorenzo2){
+                sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_qoi_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 2>(conf.absErrorBound), quantizer, quantizer_eb, qoi),
+                                                        SZ::QoIEncoder<int>(), SZ::Lossless_zstd());
+            }
         }
         else{
-            auto sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_qoi_frontend<T, N>(conf, SZ::LorenzoPredictor<T, N, 2>(conf.absErrorBound), quantizer, quantizer_eb, qoi),
-                                                        SZ::QoIEncoder<int>(), SZ::Lossless_zstd());
-            sz->decompress(cmpDataPos, cmpSize, decData);           
+            std::vector<std::shared_ptr<SZ::concepts::PredictorInterface<T, N>>> predictors;
+            predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 1>>(conf.absErrorBound));
+            predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 2>>(conf.absErrorBound));
+            sz = SZ::make_sz_general_compressor<T, N>(SZ::make_sz_qoi_frontend<T, N>(conf, SZ::ComposedPredictor<T, N>(predictors), quantizer, quantizer_eb, qoi),
+                                                    SZ::QoIEncoder<int>(), SZ::Lossless_zstd());
         }
+        sz->decompress(cmpDataPos, cmpSize, decData);
         return;
     }    
     SZ::LinearQuantizer<T> quantizer;

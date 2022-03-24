@@ -50,10 +50,6 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
         char *cmpData = (char *) sz.compress(conf, data, outSize);
         return cmpData;
     }
-    // set eb to qoi eb 
-    if(conf.qoi == 3){
-        conf.absErrorBound = conf.qoiEB;
-    }
     auto sz = SZ::SZInterpolationCompressor<T, N, SZ::LinearQuantizer<T>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
             SZ::LinearQuantizer<T>(conf.absErrorBound),
             SZ::HuffmanEncoder<int>(),
@@ -120,6 +116,7 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
     SZ::calAbsErrorBound(conf, data);
     // overwrite qoi for parameter exploration
     int qoi = conf.qoi;
+    auto tmp_abs_eb = conf.absErrorBound;
     if(qoi){
         // compute abs qoi eb
         T max = data[0];
@@ -138,6 +135,7 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
         else if(qoi == 3){
             // regional average
             conf.qoiEB *= max - min;
+            conf.absErrorBound = conf.qoiEB;
         }
         // set eb base and log base if not set by config
         if(conf.qoiEBBase == 0) 
@@ -151,7 +149,7 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
     size_t sampling_num, sampling_block;
     std::vector<size_t> sample_dims(N);
     std::vector<T> sampling_data = SZ::sampling<T, N>(data, conf.dims, sampling_num, sample_dims, sampling_block);
-//    printf("%lu %lu %lu %lu %lu\n", sampling_data.size(), sampling_num, sample_dims[0], sample_dims[1], sample_dims[2]);
+    // printf("%lu %lu %lu %lu %lu\n", sampling_data.size(), sampling_num, sample_dims[0], sample_dims[1], sample_dims[2]);
 
     SZ::Config lorenzo_config = conf;
     lorenzo_config.cmprAlgo = SZ::ALGO_LORENZO_REG;
@@ -208,29 +206,13 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
         conf.qoi = qoi;
         return SZ_compress_Interp<T, N>(conf, data, outSize);
     } else {
-        if(qoi){
-            // if qoi is enabled, sample between lorenzo and lorenzo2d
-            lorenzo_config.lorenzo = true;
-            lorenzo_config.lorenzo2 = false;
-            cmprData = SZ_compress_LorenzoReg<T, N>(lorenzo_config, sampling_data.data(), sampleOutSize);
-            delete[]cmprData;
-            lorenzo_config.lorenzo = false;
-            lorenzo_config.lorenzo2 = true;
-            size_t sampleOutSize2 = 0;
-            cmprData = SZ_compress_LorenzoReg<T, N>(lorenzo_config, sampling_data.data(), sampleOutSize2);
-            delete[]cmprData;
-            if(sampleOutSize < sampleOutSize2){
-                // lorenzo is better
-                lorenzo_config.lorenzo = true;
-                lorenzo_config.lorenzo2 = false;
-                printf("choose lorenzo\n");
-            }
-            else{
-                // lorenzo2 is better
-                printf("choose lorenzo2\n");
-            }
-        }
         //further tune lorenzo
+        if(qoi == 3){
+            // recover abs eb if qoi is regional average
+            // because we set abs eb to qoi eb for choosing between interp and lorenzo
+            lorenzo_config.absErrorBound = tmp_abs_eb;
+        }
+
         if (N == 3) {
             lorenzo_config.quantbinCnt = SZ::optimize_quant_invl_3d<T>(data, conf.dims[0], conf.dims[1], conf.dims[2], conf.absErrorBound);
             lorenzo_config.pred_dim = 2;
@@ -258,12 +240,36 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
                 lorenzo_config.quantbinCnt = quant_num;
             }
         }
+        // if(qoi){
+        //     // if qoi is enabled, sample between lorenzo and lorenzo2
+        //     lorenzo_config.lorenzo = true;
+        //     lorenzo_config.lorenzo2 = false;
+        //     cmprData = SZ_compress_LorenzoReg<T, N>(lorenzo_config, sampling_data.data(), sampleOutSize);
+        //     delete[]cmprData;
+        //     lorenzo_config.lorenzo = false;
+        //     lorenzo_config.lorenzo2 = true;
+        //     size_t sampleOutSize2 = 0;
+        //     cmprData = SZ_compress_LorenzoReg<T, N>(lorenzo_config, sampling_data.data(), sampleOutSize2);
+        //     delete[]cmprData;
+        //     printf("lorenzo size = %lu, lorenzo2 size = %lu\n", sampleOutSize, sampleOutSize2);
+        //     if(sampleOutSize < sampleOutSize2){
+        //         // lorenzo is better
+        //         lorenzo_config.lorenzo = true;
+        //         lorenzo_config.lorenzo2 = false;
+        //         printf("choose lorenzo\n");
+        //     }
+        //     else{
+        //         // lorenzo2 is better
+        //         printf("choose lorenzo2\n");
+        //     }
+        // }
         lorenzo_config.setDims(conf.dims.begin(), conf.dims.end());
         conf = lorenzo_config;
         // assign qoi back
         conf.qoi = qoi;
         double tuning_time = timer.stop();
 //        std::cout << "Tuning time = " << tuning_time << "s" << std::endl;
+        printf("lorenzo = %d, lorenzo2 = %d, block size = %d\n", conf.lorenzo, conf.lorenzo2, conf.blockSize);
         std::cout << "====================================== END TUNING ======================================" << std::endl;
         return SZ_compress_LorenzoReg<T, N>(conf, data, outSize);
     }
