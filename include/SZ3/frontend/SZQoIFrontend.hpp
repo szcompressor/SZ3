@@ -9,6 +9,7 @@
 #include "SZ3/predictor/Predictor.hpp"
 #include "SZ3/predictor/LorenzoPredictor.hpp"
 #include "SZ3/quantizer/Quantizer.hpp"
+#include "SZ3/qoi/QoI.hpp"
 #include "SZ3/utils/Iterator.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
@@ -16,10 +17,10 @@
 namespace SZ {
 
 
-    template<class T, uint N, class Predictor, class Quantizer, class Quantizer_EB, class QoI>
+    template<class T, uint N, class Predictor, class Quantizer, class Quantizer_EB>
     class SZQoIFrontend : public concepts::FrontendInterface<T, N> {
     public:
-        SZQoIFrontend(const Config &conf, Predictor predictor, Quantizer quantizer, Quantizer_EB quantizer_eb, QoI qoi) :
+        SZQoIFrontend(const Config &conf, Predictor predictor, Quantizer quantizer, Quantizer_EB quantizer_eb, std::shared_ptr<concepts::QoIInterface<T, N>> qoi) :
                 fallback_predictor(LorenzoPredictor<T, N, 1>(conf.absErrorBound)),
                 predictor(predictor),
                 quantizer(quantizer),
@@ -47,15 +48,7 @@ namespace SZ {
             for (auto block = block_range->begin(); block != block_range->end(); ++block) {
 
                 element_range->update_block_range(block, block_size);
-                {
-                    // compute number of elements
-                    auto dims = element_range->get_dimensions();
-                    size_t num_elements = 1;
-                    for (const auto &dim: dims) {
-                        num_elements *= dim;
-                    }
-                    qoi.precompress_block(num_elements);
-                }
+                qoi->precompress_block(element_range);
 
                 concepts::PredictorInterface<T, N> *predictor_withfallback = &predictor;
                 if (!predictor.precompress_block(element_range)) {
@@ -66,7 +59,7 @@ namespace SZ {
                 for (auto element = element_range->begin(); element != element_range->end(); ++element) {
                     auto ori_data = *element;
                     // interpret the error bound for current data based on qoi
-                    auto eb = qoi.interpret_eb(ori_data);
+                    auto eb = qoi->interpret_eb(element);
 
                     quant_inds[quant_count] = quantizer_eb.quantize_and_overwrite(eb);
                     quant_inds[num_elements + quant_count] = quantizer.quantize_and_overwrite(
@@ -83,7 +76,7 @@ namespace SZ {
                     //     std::cout << "check_compliance = " << temp << std::endl;
                     // }
                     // check whether decompressed data is compliant with qoi tolerance
-                    if(!qoi.check_compliance(ori_data, *element)){
+                    if(!qoi->check_compliance(ori_data, *element)){
                         std::cout << "exceed in " << element.get_offset() << std::endl;
                         // save as unpredictable
                         eb = 0;
@@ -96,9 +89,9 @@ namespace SZ {
                     }
                     quant_count ++;
                     // update cumulative tolerance if needed 
-                    qoi.update_tolerance(ori_data, *element);
+                    qoi->update_tolerance(ori_data, *element);
                 }
-                qoi.postcompress_block();
+                qoi->postcompress_block();
             }
             predictor.postcompress_data(block_range->begin());
             quantizer.postcompress_data();
@@ -183,16 +176,16 @@ namespace SZ {
         LorenzoPredictor<T, N, 1> fallback_predictor;
         Quantizer_EB quantizer_eb;
         Quantizer quantizer;
-        QoI qoi;
+        std::shared_ptr<concepts::QoIInterface<T, N>> qoi;
         uint block_size;
         size_t num_elements;
         std::array<size_t, N> global_dimensions;
     };
 
-    template<class T, uint N, class Predictor, class Quantizer, class Quantizer_EB, class QoI>
-    SZQoIFrontend<T, N, Predictor, Quantizer, Quantizer_EB, QoI>
-    make_sz_qoi_frontend(const Config &conf, Predictor predictor, Quantizer quantizer, Quantizer_EB quantizer_eb, QoI qoi) {
-        return SZQoIFrontend<T, N, Predictor, Quantizer, Quantizer_EB, QoI>(conf, predictor, quantizer, quantizer_eb, qoi);
+    template<class T, uint N, class Predictor, class Quantizer, class Quantizer_EB>
+    SZQoIFrontend<T, N, Predictor, Quantizer, Quantizer_EB>
+    make_sz_qoi_frontend(const Config &conf, Predictor predictor, Quantizer quantizer, Quantizer_EB quantizer_eb, std::shared_ptr<concepts::QoIInterface<T, N>> qoi) {
+        return SZQoIFrontend<T, N, Predictor, Quantizer, Quantizer_EB>(conf, predictor, quantizer, quantizer_eb, qoi);
     }
 }
 

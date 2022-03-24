@@ -136,7 +136,7 @@ namespace SZ {
     }
 
     template<class T>
-    void evaluate_average(T const * data, T const * dec_data, uint32_t n1, uint32_t n2, uint32_t n3, int block_size = 1){
+    void evaluate_average(T const * data, T const * dec_data, double value_range, uint32_t n1, uint32_t n2, uint32_t n3, int block_size = 1){
         if(block_size == 0){
             double average = 0;
             double average_dec = 0;
@@ -148,14 +148,15 @@ namespace SZ {
         }
         else{
             auto average = compute_average(data, n1, n2, n3, block_size);
-            auto average_dec = compute_average(dec_data, n1, n2, n3, block_size);        
-            std::cout << "L^infinity error of average with block size " << block_size << " = " << evaluate_L_inf(average.data(), average_dec.data(), average.size(), false, false) << std::endl;
+            auto average_dec = compute_average(dec_data, n1, n2, n3, block_size);
+            auto error = evaluate_L_inf(average.data(), average_dec.data(), average.size(), false, false);
+            std::cout << "L^infinity error of average with block size " << block_size << " = " << error << ", relative error = " << error * 1.0 / value_range << std::endl;
             // std::cout << "L^2 error of average with block size " << block_size << " = " << evaluate_L2(average.data(), average_dec.data(), average.size(), true, false) << std::endl;
         }
     }
 
     template<typename Type>
-    void verify(Type *ori_data, Type *data, size_t num_elements, double &psnr, double &nrmse, int blockSize=1) {
+    void verify(Type *ori_data, Type *data, size_t num_elements, double &psnr, double &nrmse) {
         size_t i = 0;
         double Max = ori_data[0];
         double Min = ori_data[0];
@@ -208,7 +209,34 @@ namespace SZ {
         double normErr = sqrt(sum);
         double normErr_norm = normErr / sqrt(l2sum);
 
-        double max_abs_val = std::max(fabs(Max), fabs(Min));
+        printf("Min=%.20G, Max=%.20G, range=%.20G\n", Min, Max, range);
+        printf("Max absolute error = %.2G\n", diffMax);
+        printf("Max relative error = %.2G\n", diffMax / (Max - Min));
+        printf("Max pw relative error = %.2G\n", maxpw_relerr);
+        printf("PSNR = %f, NRMSE= %.10G\n", psnr, nrmse);
+        printf("normError = %f, normErr_norm = %f\n", normErr, normErr_norm);
+        printf("acEff=%f\n", acEff);
+//        printf("errAutoCorr=%.10f\n", autocorrelation1DLag1<double>(diff, num_elements, diff_sum / num_elements));
+        free(diff);
+    }
+
+    template<typename Type>
+    void verifyQoI(Type *ori_data, Type *data, std::vector<size_t> dims, int blockSize=1) {
+        size_t num_elements = 1;
+        for(const auto d:dims){
+            num_elements *= d;
+        }
+        double psnr = 0;
+        double nrmse = 0;
+        verify(ori_data, data, num_elements, psnr, nrmse);
+        Type max = data[0];
+        Type min = data[0];
+        for (size_t i = 1; i < num_elements; i++) {
+            if (max < data[i]) max = data[i];
+            if (min > data[i]) min = data[i];
+        }
+
+        double max_abs_val = std::max(fabs(max), fabs(min));
         double max_abs_val_sq = max_abs_val * max_abs_val;
         double max_x_square_diff = 0;
         double max_log_diff = 0;
@@ -235,26 +263,17 @@ namespace SZ {
             }
         }
 
-        printf("Min=%.20G, Max=%.20G, range=%.20G\n", Min, Max, range);
-        printf("Max absolute error = %.2G\n", diffMax);
-        printf("Max relative error = %.2G\n", diffMax / (Max - Min));
-        printf("Max pw relative error = %.2G\n", maxpw_relerr);
+        printf("QoI error info:\n");
         printf("Max x^2 error = %.6G, relative x^2 error = %.6G\n", max_x_square_diff, max_x_square_diff / max_abs_val_sq);
         printf("Max log error = %.6G\n", max_log_diff);
-        printf("PSNR = %f, NRMSE= %.10G\n", psnr, nrmse);
-        printf("normError = %f, normErr_norm = %f\n", normErr, normErr_norm);
-        printf("acEff=%f\n", acEff);
-//        printf("errAutoCorr=%.10f\n", autocorrelation1DLag1<double>(diff, num_elements, diff_sum / num_elements));
-        // compute regional average
-        evaluate_average(ori_data, data, 100, 500, 500, blockSize);
+        if(dims.size() == 3) evaluate_average(ori_data, data, max - min, dims[0], dims[1], dims[2], blockSize);
 
-        free(diff);
     }
 
     template<typename Type>
-    void verify(Type *ori_data, Type *data, size_t num_elements, int blockSize=1) {
+    void verify(Type *ori_data, Type *data, size_t num_elements) {
         double psnr, nrmse;
-        verify(ori_data, data, num_elements, psnr, nrmse, blockSize);
+        verify(ori_data, data, num_elements, psnr, nrmse);
     }
 };
 

@@ -8,18 +8,23 @@
 #include <algorithm>
 #include "SZ3/def.hpp"
 #include "SZ3/qoi/QoI.hpp"
+#include "SZ3/utils/Iterator.hpp"
 
 namespace SZ {
-    template<class T>
-    class QoI_RegionalAverage : public concepts::QoIInterface<T, 1> {
+    template<class T, uint N>
+    class QoI_RegionalAverage : public concepts::QoIInterface<T, N> {
 
     public:
-        QoI_RegionalAverage(T tolerance, T global_eb, int block_elements=1) : 
+        QoI_RegionalAverage(T tolerance, T global_eb) : 
                 tolerance(tolerance),
                 global_eb(global_eb) {
             printf("tolerance = %.4f\n", (double) tolerance);
             printf("global_eb = %.4f\n", (double) global_eb);
+            concepts::QoIInterface<T, N>::id = 3;
         }
+
+        using Range = multi_dimensional_range<T, N>;
+        using iterator = typename multi_dimensional_range<T, N>::iterator;
 
         T interpret_eb(T data) const {
             // T eb = tolerance - fabs(error);
@@ -35,6 +40,10 @@ namespace SZ {
             return std::min(eb, global_eb);
         }
 
+        T interpret_eb(const iterator &iter) const {
+            return interpret_eb(*iter);
+        }
+
         void update_tolerance(T data, T dec_data){
             error += data - dec_data;
             rest_elements --;
@@ -44,7 +53,14 @@ namespace SZ {
             return true;
         }
 
-        void precompress_block(int num_elements){
+        void precompress_block(const std::shared_ptr<Range> &range){
+            // compute number of elements
+            auto dims = range->get_dimensions();
+            size_t num_elements = 1;
+            for (const auto &dim: dims) {
+                num_elements *= dim;
+            }
+            // assignment
             rest_elements = num_elements;
             block_elements = num_elements;
             aggregated_tolerance = tolerance * num_elements;
@@ -55,6 +71,10 @@ namespace SZ {
         }
 
         void print(){}
+
+        T get_global_eb() const { return global_eb; }
+
+        void set_global_eb(T eb) {global_eb = eb;}
 
     private:
         T tolerance;

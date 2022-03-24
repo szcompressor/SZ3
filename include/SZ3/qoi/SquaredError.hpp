@@ -7,10 +7,11 @@
 
 #include "SZ3/def.hpp"
 #include "SZ3/qoi/QoI.hpp"
+#include "SZ3/utils/Iterator.hpp"
 
 namespace SZ {
-    template<class T>
-    class QoI_SquaredError : public concepts::QoIInterface<T, 1> {
+    template<class T, uint N>
+    class QoI_SquaredError : public concepts::QoIInterface<T, N> {
 
     public:
         QoI_SquaredError(T tolerance, size_t num_elements, T global_eb) : 
@@ -22,7 +23,14 @@ namespace SZ {
             block_eb = compute_eb();
         }
 
+        using Range = multi_dimensional_range<T, N>;
+        using iterator = typename multi_dimensional_range<T, N>::iterator;
+
         T interpret_eb(T data) const {
+            return std::min(block_eb, global_eb);
+        }
+
+        T interpret_eb(const iterator &iter) const {
             // assume uniform distribution
             // printf("eb = %.4f\n", sqrt(3*tolerance / num_rest));
             // exit(0);
@@ -33,6 +41,8 @@ namespace SZ {
             tolerance = tolerance - (data - dec_data) * (data - dec_data);
             num_rest --;
         }
+
+        void precompress_block(const std::shared_ptr<Range> &range){}
 
         void postcompress_block(){
             block_eb = compute_eb();

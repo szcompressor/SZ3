@@ -9,10 +9,11 @@
 #include <algorithm>
 #include "SZ3/def.hpp"
 #include "SZ3/qoi/QoI.hpp"
+#include "SZ3/utils/Iterator.hpp"
 
 namespace SZ {
-    template<class T>
-    class QoI_Log_X : public concepts::QoIInterface<T, 1> {
+    template<class T, uint N>
+    class QoI_Log_X : public concepts::QoIInterface<T, N> {
 
     public:
         QoI_Log_X(T tolerance, T global_eb, T base=2) : 
@@ -29,7 +30,11 @@ namespace SZ {
             printf("coeff = %.4f\n", (double) coeff);
             log_b = log(base);
             printf("log base = %.4f\n", log_b);
+            concepts::QoIInterface<T, N>::id = 2;
         }
+
+        using Range = multi_dimensional_range<T, N>;
+        using iterator = typename multi_dimensional_range<T, N>::iterator;
 
         T interpret_eb(T data) const {
             // if b > 1
@@ -38,6 +43,10 @@ namespace SZ {
             if(data == 0) return 0;
             T eb = coeff * fabs(data);
             return std::min(eb, global_eb);
+        }
+
+        T interpret_eb(const iterator &iter) const {
+            return interpret_eb(*iter);
         }
 
         bool check_compliance(T data, T dec_data, bool verbose=false) const {
@@ -50,6 +59,8 @@ namespace SZ {
         }
 
         void update_tolerance(T data, T dec_data){}
+
+        void precompress_block(const std::shared_ptr<Range> &range){}
 
         void postcompress_block(){}
 

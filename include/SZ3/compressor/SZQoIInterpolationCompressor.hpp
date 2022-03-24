@@ -4,6 +4,7 @@
 #include "SZ3/predictor/Predictor.hpp"
 #include "SZ3/predictor/LorenzoPredictor.hpp"
 #include "SZ3/quantizer/Quantizer.hpp"
+#include "SZ3/qoi/QoI.hpp"
 #include "SZ3/encoder/Encoder.hpp"
 #include "SZ3/lossless/Lossless.hpp"
 #include "SZ3/utils/Iterator.hpp"
@@ -18,12 +19,12 @@
 #include <cmath>
 
 namespace SZ {
-    template<class T, uint N, class Quantizer, class Quantizer_EB, class QoI, class Encoder, class Lossless>
+    template<class T, uint N, class Quantizer, class Quantizer_EB, class Encoder, class Lossless>
     class SZQoIInterpolationCompressor {
     public:
 
 
-        SZQoIInterpolationCompressor(Quantizer quantizer, Quantizer_EB quantizer_eb, QoI qoi, Encoder encoder, Lossless lossless) :
+        SZQoIInterpolationCompressor(Quantizer quantizer, Quantizer_EB quantizer_eb, std::shared_ptr<concepts::QoIInterface<T, N>> qoi, Encoder encoder, Lossless lossless) :
                 quantizer(quantizer), quantizer_eb(quantizer_eb), qoi(qoi), encoder(encoder), lossless(lossless) {
 
             static_assert(std::is_base_of<concepts::QuantizerInterface<T>, Quantizer>::value,
@@ -62,7 +63,7 @@ namespace SZ {
             std::cout << "after encoder, offset = " << buffer_pos - buffer << std::endl;
 
             lossless.postdecompress_data(buffer);
-            // double eb = qoi.get_global_eb();
+            // double eb = qoi->get_global_eb();
 
             std::cout << "start with first data\n";
             // *decData = quantizer.recover(0, quant_inds[quant_index++]);
@@ -118,7 +119,7 @@ namespace SZ {
             quant_index = 0;
             size_t interp_compressed_size = 0;
 
-            double eb = qoi.get_global_eb();
+            double eb = qoi->get_global_eb();
 //            printf("Absolute error bound = %.5f\n", eb);
 
             // quant_inds.push_back(quantizer.quantize_and_overwrite(*data, 0));
@@ -130,10 +131,10 @@ namespace SZ {
             for (uint level = interpolation_level; level > 0 && level <= interpolation_level; level--) {
                 if (level >= 3) {
                     // quantizer.set_eb(eb * eb_ratio);
-                    qoi.set_global_eb(eb * eb_ratio);
+                    qoi->set_global_eb(eb * eb_ratio);
                 } else {
                     // quantizer.set_eb(eb);
-                    qoi.set_global_eb(eb);
+                    qoi->set_global_eb(eb);
                 }
                 uint stride = 1U << (level - 1);
 //                std::cout << "Level = " << level << ", stride = " << stride << std::endl;
@@ -207,11 +208,11 @@ namespace SZ {
 
         inline void quantize_data(size_t idx, T& data, T pred){
             auto ori_data = data;
-            auto eb = qoi.interpret_eb(data);
+            auto eb = qoi->interpret_eb(data);
             quant_inds[quant_index] = quantizer_eb.quantize_and_overwrite(eb);
             quant_inds[num_elements + quant_index] = quantizer.quantize_and_overwrite(
                     data, pred, eb);
-            if(!qoi.check_compliance(ori_data, data)){
+            if(!qoi->check_compliance(ori_data, data)){
                 // save as unpredictable
                 eb = 0;
                 data = ori_data;
@@ -223,7 +224,7 @@ namespace SZ {
                 }
             }
             // update cumulative tolerance if needed 
-            qoi.update_tolerance(ori_data, data);
+            qoi->update_tolerance(ori_data, data);
             quant_index ++;
         }
 
@@ -534,7 +535,7 @@ namespace SZ {
         double max_error;
         Quantizer_EB quantizer_eb;
         Quantizer quantizer;
-        QoI qoi;
+        std::shared_ptr<concepts::QoIInterface<T, N>> qoi;
         Encoder encoder;
         Lossless lossless;
         size_t num_elements;
