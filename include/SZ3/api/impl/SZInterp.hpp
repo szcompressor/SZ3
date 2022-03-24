@@ -197,7 +197,6 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
     bool useInterp = !(best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 80 && best_interp_ratio < 80);
 //    printf("\nLorenzo compression ratio = %.2f\n", best_lorenzo_ratio);
 //    printf("Interp compression ratio = %.2f\n", best_interp_ratio);
-    lorenzo_config.lorenzo2 = false;
     printf("choose %s\n", useInterp ? "interp" : "Lorenzo");
 
     if (useInterp) {
@@ -209,6 +208,28 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
         conf.qoi = qoi;
         return SZ_compress_Interp<T, N>(conf, data, outSize);
     } else {
+        if(qoi){
+            // if qoi is enabled, sample between lorenzo and lorenzo2d
+            lorenzo_config.lorenzo = true;
+            lorenzo_config.lorenzo2 = false;
+            cmprData = SZ_compress_LorenzoReg<T, N>(lorenzo_config, sampling_data.data(), sampleOutSize);
+            delete[]cmprData;
+            lorenzo_config.lorenzo = false;
+            lorenzo_config.lorenzo2 = true;
+            size_t sampleOutSize2 = 0;
+            cmprData = SZ_compress_LorenzoReg<T, N>(lorenzo_config, sampling_data.data(), sampleOutSize2);
+            delete[]cmprData;
+            if(sampleOutSize < sampleOutSize2){
+                // lorenzo is better
+                lorenzo_config.lorenzo = true;
+                lorenzo_config.lorenzo2 = false;
+                printf("choose lorenzo\n");
+            }
+            else{
+                // lorenzo2 is better
+                printf("choose lorenzo2\n");
+            }
+        }
         //further tune lorenzo
         if (N == 3) {
             lorenzo_config.quantbinCnt = SZ::optimize_quant_invl_3d<T>(data, conf.dims[0], conf.dims[1], conf.dims[2], conf.absErrorBound);

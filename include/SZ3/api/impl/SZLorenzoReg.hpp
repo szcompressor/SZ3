@@ -93,9 +93,8 @@ char *SZ_compress_LorenzoReg(SZ::Config &conf, T *data, size_t &outSize) {
         auto qoi = SZ::GetQOI<T, N>(conf);
         // will not have reg since SZ3 is used
         assert(conf.regression + conf.regression2 == 0);
-        // will use both two Lorenzo predictors
-        assert(conf.lorenzo);
-        assert(conf.lorenzo2);
+        // will use only one of the two Lorenzo predictors
+        assert(conf.lorenzo + conf.lorenzo2 == 1);
         if(conf.qoi == 3){
             conf.blockSize = conf.qoiRegionSize;
         }
