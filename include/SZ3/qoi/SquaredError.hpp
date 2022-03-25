@@ -37,6 +37,10 @@ namespace SZ {
             return std::min(block_eb, global_eb);
         }
 
+        T interpret_eb(const T * data, ptrdiff_t offset) const {
+            return interpret_eb(*data);
+        }
+
         void update_tolerance(T data, T dec_data){
             tolerance = tolerance - (data - dec_data) * (data - dec_data);
             num_rest --;

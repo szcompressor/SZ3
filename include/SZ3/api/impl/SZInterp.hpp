@@ -137,6 +137,15 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
             conf.qoiEB *= max - min;
             conf.absErrorBound = conf.qoiEB;
         }
+        else if(qoi == 4){
+            // compute isovalues
+            conf.isovalues.clear();
+            int num = conf.qoiIsoNum;
+            auto range = max - min;
+            for(int i=0; i<num; i++){
+                conf.isovalues.push_back(min + range / (num + 1));
+            }
+        }
         // set eb base and log base if not set by config
         if(conf.qoiEBBase == 0) 
             conf.qoiEBBase = std::numeric_limits<T>::epsilon();

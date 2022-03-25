@@ -58,6 +58,10 @@ namespace SZ {
             return interpret_eb(*iter);
         }
 
+        T interpret_eb(const T * data, ptrdiff_t offset) const {
+            return interpret_eb(*data);
+        }
+
         bool check_compliance(T data, T dec_data, bool verbose=false) const {
             return (fabs(data*data - dec_data*dec_data) < tolerance);
         }

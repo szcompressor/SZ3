@@ -123,7 +123,7 @@ namespace SZ {
 //            printf("Absolute error bound = %.5f\n", eb);
 
             // quant_inds.push_back(quantizer.quantize_and_overwrite(*data, 0));
-            quantize_data(0, *data, 0);
+            quantize_data(0, data, 0);
 
             Timer timer;
             timer.start();
@@ -206,25 +206,25 @@ namespace SZ {
 
     private:
 
-        inline void quantize_data(size_t idx, T& data, T pred){
-            auto ori_data = data;
-            auto eb = qoi->interpret_eb(data);
+        inline void quantize_data(size_t offset, T * data, T pred){
+            auto ori_data = *data;
+            auto eb = qoi->interpret_eb(data, offset);
             quant_inds[quant_index] = quantizer_eb.quantize_and_overwrite(eb);
             quant_inds[num_elements + quant_index] = quantizer.quantize_and_overwrite(
-                    data, pred, eb);
-            if(!qoi->check_compliance(ori_data, data)){
+                    *data, pred, eb);
+            if(!qoi->check_compliance(ori_data, *data)){
                 // save as unpredictable
                 eb = 0;
-                data = ori_data;
+                *data = ori_data;
                 quant_inds[quant_index] = quantizer_eb.quantize_and_overwrite(eb);
                 if(quant_inds[num_elements + quant_index] != 0){
                     // avoiding push multiple data
                     quant_inds[num_elements + quant_index] = quantizer.quantize_and_overwrite(
-                            data, 0, 0);                    
+                            *data, 0, 0);                    
                 }
             }
             // update cumulative tolerance if needed 
-            qoi->update_tolerance(ori_data, data);
+            qoi->update_tolerance(ori_data, *data);
             quant_index ++;
         }
 
@@ -300,14 +300,14 @@ namespace SZ {
                 if (pb == PB_predict_overwrite) {
                     for (size_t i = 1; i + 1 < n; i += 2) {
                         T *d = data + begin + i * stride;
-                        quantize_data(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
+                        quantize_data(d - data, d, interp_linear(*(d - stride), *(d + stride)));
                     }
                     if (n % 2 == 0) {
                         T *d = data + begin + (n - 1) * stride;
                         if (n < 4) {
-                            quantize_data(d - data, *d, *(d - stride));
+                            quantize_data(d - data, d, *(d - stride));
                         } else {
-                            quantize_data(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
+                            quantize_data(d - data, d, interp_linear1(*(d - stride3x), *(d - stride)));
                         }
                     }
                 } else {
@@ -331,17 +331,17 @@ namespace SZ {
                     size_t i;
                     for (i = 3; i + 3 < n; i += 2) {
                         d = data + begin + i * stride;
-                        quantize_data(d - data, *d,
+                        quantize_data(d - data, d,
                                  interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
                     }
                     d = data + begin + stride;
-                    quantize_data(d - data, *d, interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
+                    quantize_data(d - data, d, interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
 
                     d = data + begin + i * stride;
-                    quantize_data(d - data, *d, interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                    quantize_data(d - data, d, interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
                     if (n % 2 == 0) {
                         d = data + begin + (n - 1) * stride;
-                        quantize_data(d - data, *d, interp_quad_3(*(d - stride5x), *(d - stride3x), *(d - stride)));
+                        quantize_data(d - data, d, interp_quad_3(*(d - stride5x), *(d - stride3x), *(d - stride)));
                     }
 
                 } else {

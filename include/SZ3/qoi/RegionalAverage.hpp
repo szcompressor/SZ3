@@ -44,6 +44,10 @@ namespace SZ {
             return interpret_eb(*iter);
         }
 
+        T interpret_eb(const T * data, ptrdiff_t offset) const {
+            return interpret_eb(*data);
+        }
+
         void update_tolerance(T data, T dec_data){
             error += data - dec_data;
             rest_elements --;
