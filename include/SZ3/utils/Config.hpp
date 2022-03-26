@@ -155,8 +155,12 @@ namespace SZ {
             write(qoiEBLogBase, c);
             write(qoiQuantbinCnt, c);
             write(qoiRegionSize, c);
+            qoiIsoNum = isovalues.size();
             write(qoiIsoNum, c);
             write(isovalues.data(), isovalues.size(), c);
+            qoiNum = qoiEBs.size();
+            write(qoiNum, c);
+            write(qoiEBs.data(), qoiEBs.size(), c);
         };
 
         void load(const unsigned char *&c) {
@@ -192,6 +196,9 @@ namespace SZ {
             read(qoiIsoNum, c);
             isovalues.resize(qoiIsoNum);
             read(isovalues.data(), qoiIsoNum, c);
+            read(qoiNum, c);
+            qoiEBs.resize(qoiNum);
+            read(qoiEBs.data(), qoiNum, c);
         }
 
         void print() {
@@ -229,6 +236,8 @@ namespace SZ {
         int qoiRegionSize = 1;        
         int qoiIsoNum = 1;
         std::vector<double> isovalues;
+        int qoiNum = 0;
+        std::vector<double> qoiEBs;
     };
 
 

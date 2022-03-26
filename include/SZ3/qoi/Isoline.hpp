@@ -184,12 +184,12 @@ namespace SZ {
         //     return eb;
         // }
 
-        template<uint NN = N>
-        inline typename std::enable_if<NN == 4, T>::type do_interpret_eb_with_ptr(const T * data, ptrdiff_t offset) const noexcept {
-            std::cerr << "Isoline for 4D is not implemented\n";
-            exit(-1);
-            return 0;
-        }
+        // template<uint NN = N>
+        // inline typename std::enable_if<NN == 4, T>::type do_interpret_eb_with_ptr(const T * data, ptrdiff_t offset) const noexcept {
+        //     std::cerr << "Isoline for 4D is not implemented\n";
+        //     exit(-1);
+        //     return 0;
+        // }
 
         std::vector<size_t> dims;
         // std::vector<size_t> offsets;

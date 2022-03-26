@@ -37,16 +37,9 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
         std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << std::endl;
         auto quantizer = SZ::VariableEBLinearQuantizer<T, T>(conf.quantbinCnt / 2);
         auto quantizer_eb = SZ::EBLogQuantizer<T>(conf.qoiEBBase, conf.qoiEBLogBase, conf.qoiQuantbinCnt / 2);
-        // text x^2
-        // qoi_check(conf.qoi, 1);
         auto qoi = SZ::GetQOI<T, N>(conf);
         auto sz = SZ::SZQoIInterpolationCompressor<T, N, SZ::VariableEBLinearQuantizer<T, T>, SZ::EBLogQuantizer<T>, SZ::QoIEncoder<int>, SZ::Lossless_zstd>(
                 quantizer, quantizer_eb, qoi, SZ::QoIEncoder<int>(), SZ::Lossless_zstd());
-        // test log(x)
-        // qoi_check(conf.qoi, 2);
-        // auto qoi = SZ::QoI_Log_X<T>(conf.qoiEB, conf.absErrorBound);
-        // auto sz = SZ::SZQoIInterpolationCompressor<T, N, SZ::VariableEBLinearQuantizer<T, T>, SZ::EBLogQuantizer<T>, SZ::QoI_Log_X<T, N>, SZ::QoIEncoder<int>, SZ::Lossless_zstd>(
-        //         quantizer, quantizer_eb, qoi, SZ::QoIEncoder<int>(), SZ::Lossless_zstd());
         char *cmpData = (char *) sz.compress(conf, data, outSize);
         return cmpData;
     }
@@ -61,6 +54,7 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
 
 template<class T, SZ::uint N>
 void SZ_decompress_Interp(const SZ::Config &conf, char *cmpData, size_t cmpSize, T *decData) {
+    std::cout << "SZ_decompress_Interp" << std::endl;
     assert(conf.cmprAlgo == SZ::ALGO_INTERP);
     SZ::uchar const *cmpDataPos = (SZ::uchar *) cmpData;
     // directly use abs when qoi is regional average
@@ -68,7 +62,6 @@ void SZ_decompress_Interp(const SZ::Config &conf, char *cmpData, size_t cmpSize,
         std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << std::endl;
         auto quantizer = SZ::VariableEBLinearQuantizer<T, T>(conf.quantbinCnt / 2);
         auto quantizer_eb = SZ::EBLogQuantizer<T>(conf.qoiEBBase, conf.qoiEBLogBase, conf.qoiQuantbinCnt / 2);
-        // text x^2
         auto qoi = SZ::GetQOI<T, N>(conf);
         auto sz = SZ::SZQoIInterpolationCompressor<T, N, SZ::VariableEBLinearQuantizer<T, T>, SZ::EBLogQuantizer<T>, SZ::QoIEncoder<int>, SZ::Lossless_zstd>(
                 quantizer, quantizer_eb, qoi, SZ::QoIEncoder<int>(), SZ::Lossless_zstd());
@@ -146,6 +139,16 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
                 conf.isovalues.push_back(min + range / (num + 1));
             }
         }
+        else if(qoi >= 5){
+            // x^2 + log x/regional average + (isoline)
+            auto max_2 = max * max;
+            auto min_2 = min * min;
+            auto max_abs_val = (max_2 > min_2) ? max_2 : min_2;
+            conf.qoiEBs.push_back(conf.qoiEB * max_abs_val);
+            if(qoi == 5) conf.qoiEBs.push_back(conf.qoiEB);
+            else conf.qoiEBs.push_back(conf.qoiEB * (max - min));
+            if(qoi == 7) conf.qoiEBs.push_back(0);
+        }
         // set eb base and log base if not set by config
         if(conf.qoiEBBase == 0) 
             conf.qoiEBBase = std::numeric_limits<T>::epsilon();
@@ -213,6 +216,8 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
         std::cout << "====================================== END TUNING ======================================" << std::endl;
         // assign qoi back
         conf.qoi = qoi;
+        conf.lorenzo = false;
+        conf.lorenzo2 = false;
         return SZ_compress_Interp<T, N>(conf, data, outSize);
     } else {
         //further tune lorenzo

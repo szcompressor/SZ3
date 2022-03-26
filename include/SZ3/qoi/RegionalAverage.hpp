@@ -88,5 +88,55 @@ namespace SZ {
         int block_elements;
         double aggregated_tolerance;
     };
+
+    template<class T, uint N>
+    class QoI_RegionalAverageInterp : public concepts::QoIInterface<T, N> {
+
+    public:
+        QoI_RegionalAverageInterp(T tolerance, T global_eb) : 
+                tolerance(tolerance),
+                global_eb(global_eb) {
+            printf("tolerance = %.4f\n", (double) tolerance);
+            printf("global_eb = %.4f\n", (double) global_eb);
+            tolerance = std::min(tolerance, global_eb);
+            concepts::QoIInterface<T, N>::id = 3;
+        }
+
+        using Range = multi_dimensional_range<T, N>;
+        using iterator = typename multi_dimensional_range<T, N>::iterator;
+
+        T interpret_eb(T data) const {
+            return tolerance;
+        }
+
+        T interpret_eb(const iterator &iter) const {
+            return tolerance;
+        }
+
+        T interpret_eb(const T * data, ptrdiff_t offset) const {
+            return tolerance;
+        }
+
+        void update_tolerance(T data, T dec_data){}
+
+        bool check_compliance(T data, T dec_data, bool verbose=false) const {
+            return true;
+        }
+
+        void precompress_block(const std::shared_ptr<Range> &range){}
+
+        void postcompress_block(){}
+
+        void print(){}
+
+        T get_global_eb() const { return global_eb; }
+
+        void set_global_eb(T eb) {global_eb = eb;}
+
+    private:
+        T tolerance;
+        T global_eb;
+    };
+
 }
 #endif 
