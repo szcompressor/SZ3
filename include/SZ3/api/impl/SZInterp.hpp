@@ -156,6 +156,21 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
             conf.qoiEBLogBase = 2;        
         std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << std::endl;
     }
+    else{
+        // compute isovalues for comparison
+        T max = data[0];
+        T min = data[0];
+        for (size_t i = 1; i < conf.num; i++) {
+            if (max < data[i]) max = data[i];
+            if (min > data[i]) min = data[i];
+        }
+        conf.isovalues.clear();
+        int num = conf.qoiIsoNum;
+        auto range = max - min;
+        for(int i=0; i<num; i++){
+            conf.isovalues.push_back(min + range / (num + 1));
+        }        
+    }
     conf.qoi = 0;
 
     size_t sampling_num, sampling_block;
