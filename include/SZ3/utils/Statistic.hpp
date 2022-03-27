@@ -155,6 +155,75 @@ namespace SZ {
         }
     }
 
+    template<class T>
+    void evaluate_isoline(T const * data, T const * dec_data, const std::vector<size_t>& dims, const std::vector<T>& isovalues){
+        std::vector<int> count(isovalues.size(), 0);
+        for(int i=0; i<dims[0] - 1; i++){
+            for(int j=0; j<dims[1] - 1; j++){
+                // original
+                T x0 = data[i*dims[1] + j];
+                T x1 = data[i*dims[1] + j + 1];
+                T x2 = data[(i+1)*dims[1] + j];
+                T x3 = data[(i+1)*dims[1] + j + 1];
+                // decompressed
+                T x0_ = dec_data[i*dims[1] + j];
+                T x1_ = dec_data[i*dims[1] + j + 1];
+                T x2_ = dec_data[(i+1)*dims[1] + j];
+                T x3_ = dec_data[(i+1)*dims[1] + j + 1];
+                // compute marching square
+                for(int m=0; m<isovalues.size(); m++){
+                    T z = isovalues[m];
+                    int c1 = ((x0 > z) << 4) + ((x1 > z) << 3) + ((x2 > z) << 2) + (x3 > z);
+                    int c2 = ((x0_ > z) << 4) + ((x1_ > z) << 3) + ((x2_ > z) << 2) + (x3_ > z);
+                    count[m] += (c1 != c2);
+                }
+            }
+        }
+        for(int i=0; i<isovalues.size(); i++){
+            std::cout << "different cells for isovalue " << isovalues[i] << ": " << count[i] << std::endl;
+        }
+    }
+
+    template<class T>
+    void evaluate_isosurface(T const * data, T const * dec_data, const std::vector<size_t>& dims, const std::vector<T>& isovalues){
+        std::vector<int> count(isovalues.size(), 0);
+        for(int i=0; i<dims[0] - 1; i++){
+            for(int j=0; j<dims[1] - 1; j++){
+                for(int k=0; k<dims[2] - 1; k++){
+                    // original
+                    T x0 = data[i*dims[1]*dims[2] + j*dims[2] + k];
+                    T x1 = data[i*dims[1]*dims[2] + j*dims[2] + k + 1];
+                    T x2 = data[i*dims[1]*dims[2] + (j + 1)*dims[2] + k];
+                    T x3 = data[i*dims[1]*dims[2] + (j + 1)*dims[2] + k + 1];
+                    T x4 = data[(i + 1)*dims[1]*dims[2] + j*dims[2] + k];
+                    T x5 = data[(i + 1)*dims[1]*dims[2] + j*dims[2] + k + 1];
+                    T x6 = data[(i + 1)*dims[1]*dims[2] + (j + 1)*dims[2] + k];
+                    T x7 = data[(i + 1)*dims[1]*dims[2] + (j + 1)*dims[2] + k + 1];
+                    // decompressed
+                    T x0_ = dec_data[i*dims[1]*dims[2] + j*dims[2] + k];
+                    T x1_ = dec_data[i*dims[1]*dims[2] + j*dims[2] + k + 1];
+                    T x2_ = dec_data[i*dims[1]*dims[2] + (j + 1)*dims[2] + k];
+                    T x3_ = dec_data[i*dims[1]*dims[2] + (j + 1)*dims[2] + k + 1];
+                    T x4_ = dec_data[(i + 1)*dims[1]*dims[2] + j*dims[2] + k];
+                    T x5_ = dec_data[(i + 1)*dims[1]*dims[2] + j*dims[2] + k + 1];
+                    T x6_ = dec_data[(i + 1)*dims[1]*dims[2] + (j + 1)*dims[2] + k];
+                    T x7_ = dec_data[(i + 1)*dims[1]*dims[2] + (j + 1)*dims[2] + k + 1];
+                    // compute marching cube
+                    for(int m=0; m<isovalues.size(); m++){
+                        T z = isovalues[m];
+                        uint c1 = ((x0 > z) << 7) + ((x1 > z) << 6) + ((x2 > z) << 5) + ((x3 > z) << 4) + ((x4 > z) << 3) + ((x5 > z) << 2) + ((x6 > z) << 1) + (x7 > z);
+                        uint c2 = ((x0_ > z) << 7) + ((x1_ > z) << 6) + ((x2_ > z) << 5) + ((x3_ > z) << 4) + ((x4_ > z) << 3) + ((x5_ > z) << 2) + ((x6_ > z) << 1) + (x7_ > z);
+                        count[m] += (c1 != c2);
+                    }
+
+                }
+            }
+        }
+        for(int i=0; i<isovalues.size(); i++){
+            std::cout << "different cells for isovalue " << isovalues[i] << ": " << count[i] << std::endl;
+        }
+    }
+
     template<typename Type>
     void verify(Type *ori_data, Type *data, size_t num_elements, double &psnr, double &nrmse) {
         size_t i = 0;
@@ -266,7 +335,8 @@ namespace SZ {
         printf("QoI error info:\n");
         printf("Max x^2 error = %.6G, relative x^2 error = %.6G\n", max_x_square_diff, max_x_square_diff / max_abs_val_sq);
         printf("Max log error = %.6G\n", max_log_diff);
-        if(dims.size() == 3) evaluate_average(ori_data, data, max - min, dims[0], dims[1], dims[2], blockSize);
+        if(dims.size() == 2) evaluate_average(ori_data, data, max - min, 1, dims[0], dims[1], blockSize);
+        else if(dims.size() == 3) evaluate_average(ori_data, data, max - min, dims[0], dims[1], dims[2], blockSize);
 
     }
 
