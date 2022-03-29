@@ -54,10 +54,10 @@ namespace SZ {
         //perform encoding
         size_t encode(const std::vector<T> &bins, uchar *&bytes) {
             size_t num_elements = bins.size() / 2;
-            printf("%d %d %d %d\n", bins[0], bins[1], bins[2], bins[3]);
+            // printf("%d %d %d %d\n", bins[0], bins[1], bins[2], bins[3]);
             size_t s1 = eb_encoder.encode(bins.data(), num_elements, bytes);
             size_t s2 = data_encoder.encode(bins.data() + num_elements, num_elements, bytes);
-            printf("eb_size = %ld, data_size = %ld\n", s1, s2);
+            // printf("eb_size = %ld, data_size = %ld\n", s1, s2);
             return s1 + s2;
         }
 

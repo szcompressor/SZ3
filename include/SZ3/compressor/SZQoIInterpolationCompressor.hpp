@@ -125,8 +125,8 @@ namespace SZ {
             // quant_inds.push_back(quantizer.quantize_and_overwrite(*data, 0));
             quantize_data(0, data, 0);
 
-            Timer timer;
-            timer.start();
+            // Timer timer;
+            // timer.start();
 
             for (uint level = interpolation_level; level > 0 && level <= interpolation_level; level--) {
                 if (level >= 3) {
@@ -162,7 +162,7 @@ namespace SZ {
             }
 //            std::cout << "Number of data point = " << num_elements << std::endl;
 //            std::cout << "quantization element = " << quant_inds.size() << std::endl;
-            assert(quant_inds.size() == num_elements);
+            // assert(quant_inds.size() == num_elements);
 //            timer.stop("Prediction & Quantization");
 
 //            writefile("pred.dat", preds.data(), num_elements);
@@ -176,30 +176,30 @@ namespace SZ {
             write(interpolator_id, buffer_pos);
             write(direction_sequence_id, buffer_pos);
 
-            std::cout << "save quantizers, offset = " << buffer_pos - buffer << std::endl;
+            // std::cout << "save quantizers, offset = " << buffer_pos - buffer << std::endl;
             quantizer_eb.save(buffer_pos);
             quantizer_eb.postcompress_data();
             quantizer.save(buffer_pos);
             quantizer.postcompress_data();
 
 
-            timer.start();
-            std::cout << "save encoder, offset = " << buffer_pos - buffer << std::endl;
+            // timer.start();
+            // std::cout << "save encoder, offset = " << buffer_pos - buffer << std::endl;
             encoder.preprocess_encode(quant_inds, 0);
             encoder.save(buffer_pos);
             encoder.encode(quant_inds, buffer_pos);
             encoder.postprocess_encode();
-            std::cout << "after encoder, offset = " << buffer_pos - buffer << std::endl;
+            // std::cout << "after encoder, offset = " << buffer_pos - buffer << std::endl;
 //            timer.stop("Coding");
             assert(buffer_pos - buffer < bufferSize);
 
-            timer.start();
+            // timer.start();
             uchar *lossless_data = lossless.compress(buffer,
                                                      buffer_pos - buffer,
                                                      compressed_size);
             lossless.postcompress_data(buffer);
 //            timer.stop("Lossless");
-            std::cout << "quant_index = " << quant_index << ", num_elements = " << num_elements << std::endl;
+            // std::cout << "quant_index = " << quant_index << ", num_elements = " << num_elements << std::endl;
             compressed_size += interp_compressed_size;
             return lossless_data;
         }

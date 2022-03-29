@@ -166,7 +166,7 @@ namespace SZ {
             c += sizeof(size_t);
             memcpy(c, unpred.data(), unpred.size() * sizeof(T));
             c += unpred.size() * sizeof(T);
-            std::cout << "unpred size = " << unpred.size() << std::endl;
+            // std::cout << "unpred size = " << unpred.size() << std::endl;
         };
 
         void load(const unsigned char *&c, size_t &remaining_length) {
@@ -183,7 +183,7 @@ namespace SZ {
         }
 
         void clear() {
-            std::cout << "unpred size = " << unpred.size() << std::endl;
+            // std::cout << "unpred size = " << unpred.size() << std::endl;
             unpred.clear();
             index = 0;
         }

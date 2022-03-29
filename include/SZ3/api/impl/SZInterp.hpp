@@ -40,6 +40,59 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
         auto qoi = SZ::GetQOI<T, N>(conf);
         auto sz = SZ::SZQoIInterpolationCompressor<T, N, SZ::VariableEBLinearQuantizer<T, T>, SZ::EBLogQuantizer<T>, SZ::QoIEncoder<int>, SZ::Lossless_zstd>(
                 quantizer, quantizer_eb, qoi, SZ::QoIEncoder<int>(), SZ::Lossless_zstd());
+        // use sampling to determine abs bound
+        {
+            auto dims = conf.dims;
+            auto tmp_abs_eb = conf.absErrorBound;
+
+            size_t sampling_num, sampling_block;
+            std::vector<size_t> sample_dims(N);
+            std::vector<T> samples = SZ::sampling<T, N>(data, conf.dims, sampling_num, sample_dims, sampling_block);
+            conf.setDims(sample_dims.begin(), sample_dims.end());
+
+            T * sampling_data = (T *) malloc(sampling_num * sizeof(T));
+            // get current ratio
+            double ratio = 0;
+            {
+                size_t sampleOutSize;
+                memcpy(sampling_data, samples.data(), sampling_num * sizeof(T));
+                auto cmprData = sz.compress(conf, sampling_data, sampleOutSize);
+                delete[]cmprData;
+                ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;                
+                std::cout << "current_eb = " << conf.absErrorBound << ", current_ratio = " << ratio << std::endl;
+            }
+            double prev_ratio = 1;
+            double current_ratio = ratio;
+            double best_abs_eb = conf.absErrorBound;
+            double best_ratio = current_ratio;
+            // check smaller bounds
+            while(true){
+                auto prev_eb = conf.absErrorBound;
+                prev_ratio = current_ratio;
+                conf.absErrorBound /= 2;
+                qoi->set_global_eb(conf.absErrorBound);
+                size_t sampleOutSize;
+                memcpy(sampling_data, samples.data(), sampling_num * sizeof(T));
+                auto cmprData = sz.compress(conf, sampling_data, sampleOutSize);
+                delete[]cmprData;
+                current_ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;                
+                std::cout << "current_eb = " << conf.absErrorBound << ", current_ratio = " << current_ratio << std::endl;
+                if(current_ratio < prev_ratio){
+                    if(prev_ratio > best_ratio){
+                        best_abs_eb = prev_eb;
+                        best_ratio = prev_ratio;
+                    }
+                    break;
+                }
+            }
+            // set error bound
+            free(sampling_data);
+            std::cout << "Best abs eb / pre-set eb: " << best_abs_eb / tmp_abs_eb << std::endl; 
+            std::cout << best_abs_eb << " " << tmp_abs_eb << std::endl;
+            conf.absErrorBound = best_abs_eb;
+            qoi->set_global_eb(best_abs_eb);
+            conf.setDims(dims.begin(), dims.end());
+        }
         char *cmpData = (char *) sz.compress(conf, data, outSize);
         return cmpData;
     }

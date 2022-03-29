@@ -47,6 +47,7 @@ namespace SZ {
 //            timer.stop("Coding");
             assert(buffer_pos - buffer < bufferSize);
 
+            frontend.clear();
             timer.start();
             uchar *lossless_data = lossless.compress(buffer, buffer_pos - buffer, compressed_size);
             lossless.postcompress_data(buffer);
@@ -63,7 +64,7 @@ namespace SZ {
         T *decompress(uchar const *cmpData, const size_t &cmpSize, T *decData) {
             size_t remaining_length = cmpSize;
 
-            Timer timer(true);
+            // Timer timer(true);
             auto compressed_data = lossless.decompress(cmpData, remaining_length);
             uchar const *compressed_data_pos = compressed_data;
 //            timer.stop("Lossless");
@@ -72,14 +73,14 @@ namespace SZ {
 
             encoder.load(compressed_data_pos, remaining_length);
 
-            timer.start();
+            // timer.start();
             auto quant_inds = encoder.decode(compressed_data_pos, frontend.get_num_elements());
             encoder.postprocess_decode();
 //            timer.stop("Decoder");
 
             lossless.postdecompress_data(compressed_data);
 
-            timer.start();
+            // timer.start();
             frontend.decompress(quant_inds, decData);
 //            timer.stop("Prediction & Recover");
             return decData;
