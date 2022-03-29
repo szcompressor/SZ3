@@ -39,10 +39,9 @@ namespace SZ {
         return (num_intervals > 32) ? num_intervals : 32;
     }
 
-    float
-    static
-    estimate_mean_freq_and_position(const std::vector<size_t> &freq_intervals, double precision, size_t sample_count,
-                                    float &mean_guess) {
+    template<typename T>
+    float estimate_mean_freq_and_position(const std::vector<size_t> &freq_intervals, double precision, size_t sample_count,
+                                    T &mean_guess) {
         size_t max_sum = 0;
         size_t max_index = 0;
         size_t tmp_sum = 0;
@@ -86,7 +85,7 @@ namespace SZ {
     }
 
     template<typename T>
-    int optimize_quant_invl_3d(const T *data, size_t r1, size_t r2, size_t r3, double precision) {
+    int optimize_quant_invl_3d(const T *data, size_t r1, size_t r2, size_t r3, double precision, float &pred_freq, float &mean_freq, T &mean_guess) {
         float mean_rough = sample_rough_mean_3d(data, r1, r2, r3, sqrt(r1 * r2 * r3));
         std::vector<size_t> intervals = std::vector<size_t>(QuantIntvSampleCapacity, 0);
         std::vector<size_t> freq_intervals = std::vector<size_t>(QuantIntvMeanCapacity, 0);
@@ -140,9 +139,9 @@ namespace SZ {
             } else data_pos += sample_distance;
             sample_count++;
         }
-        float pred_freq = freq_count * 1.0 / sample_count;
-        float mean_guess = mean_rough;
-        float mean_freq = estimate_mean_freq_and_position(freq_intervals, precision, sample_count, mean_guess);
+        pred_freq = freq_count * 1.0 / sample_count;
+        mean_guess = mean_rough;
+        mean_freq = estimate_mean_freq_and_position(freq_intervals, precision, sample_count, mean_guess);
         return estimate_quantization_intervals(intervals, sample_count);
     }
 }

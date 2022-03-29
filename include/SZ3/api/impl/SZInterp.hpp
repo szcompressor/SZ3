@@ -130,7 +130,10 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
     } else {
         //further tune lorenzo
         if (N == 3) {
-            lorenzo_config.quantbinCnt = SZ::optimize_quant_invl_3d<T>(data, conf.dims[0], conf.dims[1], conf.dims[2], conf.absErrorBound);
+            float pred_freq, mean_freq;
+            T mean_guess;
+            lorenzo_config.quantbinCnt = SZ::optimize_quant_invl_3d<T>(data, conf.dims[0], conf.dims[1], conf.dims[2],
+                                                                       conf.absErrorBound, pred_freq, mean_freq, mean_guess);
             lorenzo_config.pred_dim = 2;
             cmprData = SZ_compress_LorenzoReg<T, N>(lorenzo_config, sampling_data.data(), sampleOutSize);
             delete[]cmprData;

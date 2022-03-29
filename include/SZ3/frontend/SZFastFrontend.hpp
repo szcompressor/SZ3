@@ -52,7 +52,8 @@ namespace SZ {
             write(params, c);
             write(precision, c);
 //            write(intv_radius, c);
-            write(mean_info, c);
+            write(mean_info.use_mean, c);
+            write(mean_info.mean, c);
             write(reg_count, c);
 //            write(unpred_count_buffer, size.block_size * size.block_size, c);
 //            T *unpred_data_buffer_pos = unpred_data_buffer;
@@ -90,7 +91,8 @@ namespace SZ {
             read(params, c, remaining_length);
             read(precision, c, remaining_length);
 //            read(intv_radius, c, remaining_length);
-            read(mean_info, c, remaining_length);
+            read(mean_info.use_mean, c, remaining_length);
+            read(mean_info.mean, c, remaining_length);
             read(reg_count, c, remaining_length);
 
             size_t r1 = conf.dims[0];
@@ -238,9 +240,30 @@ namespace SZ {
             memset(pred_buffer, 0,
                    (size.block_size + params.lorenzo_padding_layer) * (size.d2 + params.lorenzo_padding_layer) *
                    (size.d3 + params.lorenzo_padding_layer) * sizeof(T));
-            int capacity_lorenzo = mean_info.use_mean ? capacity - 2 : capacity;
+//            int capacity_lorenzo = mean_info.use_mean ? capacity - 2 : capacity;
             T recip_precision = (T) 1.0 / conf.absErrorBound;
-
+//          {
+//            float mean_freq, pred_freq;
+//            T mean_guess;
+//            optimize_quant_invl_3d(data, r1, r2, r3, precision, pred_freq, mean_freq, mean_guess);
+//            if (mean_freq > 0.5 || mean_freq > pred_freq) {
+//                // compute mean
+//                float sum = 0.0;
+//                size_t mean_count = 0;
+//                for (size_t i = 0; i < size.num_elements; i++) {
+//                    if (fabs(data[i] - mean_guess) < precision) {
+//                        sum += data[i];
+//                        mean_count++;
+//                    }
+//                }
+//                if (mean_count > 0) {
+//                    mean_info.use_mean = true;
+//                    mean_info.mean = sum / mean_count;
+//                    printf("\nuse mean %.5f\n", mean_info.mean);
+//                }
+//            }
+//        }
+            size_t block_cnt = 0;
             const T *x_data_pos = data;
             for (size_t i = 0; i < size.num_x; i++) {
                 const T *y_data_pos = x_data_pos;
@@ -274,12 +297,14 @@ namespace SZ {
                                                                            params.use_lorenzo_2layer,
                                                                            enable_regression);
                         *indicator_pos = selection_result;
+
                         if (selection_result == SELECTOR_REGRESSION) {
                             // regression
                             compress_regression_coefficient_3d(RegCoeffNum3d, reg_precisions, reg_recip_precisions,
                                                                reg_params_pos,
                                                                reg_params_type_pos,
                                                                reg_unpredictable_data_pos);
+
                             regression_predict_quantize_3d<T>(z_data_pos, reg_params_pos, pred_buffer_pos, precision,
                                                               recip_precision, capacity, intv_radius,
                                                               size_x, size_y, size_z, buffer_dim0_offset,
@@ -294,7 +319,7 @@ namespace SZ {
                             // Lorenzo
                             lorenzo_predict_quantize_3d<T>(mean_info, z_data_pos, pred_buffer_pos, precision,
                                                            recip_precision,
-                                                           capacity_lorenzo,
+                                                           capacity,
                                                            intv_radius,
                                                            size_x, size_y, size_z, buffer_dim0_offset,
                                                            buffer_dim1_offset,
@@ -327,7 +352,8 @@ namespace SZ {
             free(pred_buffer);
             free(reg_params);
 
-//        lorenzo_count, lorenzo_2layer_count, reg_count);
+
+//            printf("%lu %lu\n", reg_count, block_cnt);
 
             return type;
         }
@@ -411,6 +437,7 @@ namespace SZ {
 //            free(unpred_data_buffer);
             return dec_data;
         }
+
 
         inline void
         meta_block_error_estimation_3d(const T *data_pos, const float *reg_params_pos,
@@ -526,7 +553,7 @@ namespace SZ {
         float *reg_params = nullptr;
         float *reg_unpredictable_data_pos;
 
-        SZMETA::meanInfo<T> mean_info;  // not used
+        SZMETA::meanInfo<T> mean_info;
         int capacity = 0; // not used, capacity is controlled by quantizer
         int intv_radius = 0; //not used, capacity is controlled by quantizer
         int est_unpred_count_per_index = 0; // not used, unpredictable data is controlled by quantizer
