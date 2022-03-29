@@ -52,25 +52,25 @@ namespace SZ {
 
             init();
 
-            std::cout << "load quantizers, offset = " << buffer_pos - buffer << std::endl;
+            // std::cout << "load quantizers, offset = " << buffer_pos - buffer << std::endl;
             quantizer_eb.load(buffer_pos, remaining_length);
             quantizer.load(buffer_pos, remaining_length);
-            std::cout << "load encoder, offset = " << buffer_pos - buffer << std::endl;
+            // std::cout << "load encoder, offset = " << buffer_pos - buffer << std::endl;
             encoder.load(buffer_pos, remaining_length);
             quant_inds = encoder.decode(buffer_pos, num_elements);
 
             encoder.postprocess_decode();
-            std::cout << "after encoder, offset = " << buffer_pos - buffer << std::endl;
+            // std::cout << "after encoder, offset = " << buffer_pos - buffer << std::endl;
 
             lossless.postdecompress_data(buffer);
             // double eb = qoi->get_global_eb();
 
-            std::cout << "start with first data\n";
+            // std::cout << "start with first data\n";
             // *decData = quantizer.recover(0, quant_inds[quant_index++]);
             quant_index = 0;
             recover_data(0, *decData, 0);
 
-            std::cout << "start decompressing data\n";
+            // std::cout << "start decompressing data\n";
             for (uint level = interpolation_level; level > 0 && level <= interpolation_level; level--) {
                 // if (level >= 3) {
                 //     quantizer.set_eb(eb * eb_ratio);
@@ -204,6 +204,11 @@ namespace SZ {
             return lossless_data;
         }
 
+        void clear() {
+            quantizer.clear();
+            quantizer_eb.clear();
+        }
+
     private:
 
         inline void quantize_data(size_t offset, T * data, T pred){
@@ -213,6 +218,7 @@ namespace SZ {
             quant_inds[num_elements + quant_index] = quantizer.quantize_and_overwrite(
                     *data, pred, eb);
             if(!qoi->check_compliance(ori_data, *data)){
+                // std::cout << "not compliant" << std::endl;
                 // save as unpredictable
                 eb = 0;
                 *data = ori_data;

@@ -57,6 +57,7 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
                 size_t sampleOutSize;
                 memcpy(sampling_data, samples.data(), sampling_num * sizeof(T));
                 auto cmprData = sz.compress(conf, sampling_data, sampleOutSize);
+                sz.clear();
                 delete[]cmprData;
                 ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;                
                 std::cout << "current_eb = " << conf.absErrorBound << ", current_ratio = " << ratio << std::endl;
@@ -74,6 +75,7 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
                 size_t sampleOutSize;
                 memcpy(sampling_data, samples.data(), sampling_num * sizeof(T));
                 auto cmprData = sz.compress(conf, sampling_data, sampleOutSize);
+                sz.clear();
                 delete[]cmprData;
                 current_ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;                
                 std::cout << "current_eb = " << conf.absErrorBound << ", current_ratio = " << current_ratio << std::endl;
@@ -189,7 +191,7 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
             int num = conf.qoiIsoNum;
             auto range = max - min;
             for(int i=0; i<num; i++){
-                conf.isovalues.push_back(min + range / (num + 1));
+                conf.isovalues.push_back(min + (i + 1) * 1.0 / (num + 1) * range);
             }
         }
         else if(qoi >= 5){
