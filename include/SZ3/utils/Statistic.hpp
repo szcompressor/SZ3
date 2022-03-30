@@ -335,6 +335,17 @@ namespace SZ {
         printf("QoI error info:\n");
         printf("Max x^2 error = %.6G, relative x^2 error = %.6G\n", max_x_square_diff, max_x_square_diff / max_abs_val_sq);
         printf("Max log error = %.6G\n", max_log_diff);
+
+        for(int i=0; i<num_elements; i++){
+            ori_data[i] = ori_data[i] * ori_data[i];
+            data[i] = data[i] * data[i];
+        }
+        max = ori_data[0];
+        min = ori_data[0];
+        for (size_t i = 1; i < num_elements; i++) {
+            if (max < ori_data[i]) max = ori_data[i];
+            if (min > ori_data[i]) min = ori_data[i];
+        }
         if(dims.size() == 2) evaluate_average(ori_data, data, max - min, 1, dims[0], dims[1], blockSize);
         else if(dims.size() == 3) evaluate_average(ori_data, data, max - min, dims[0], dims[1], dims[2], blockSize);
 

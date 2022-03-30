@@ -146,7 +146,7 @@ char *SZ_compress_LorenzoReg(SZ::Config &conf, T *data, size_t &outSize) {
                 auto cmprData = sz->compress(conf, sampling_data, sampleOutSize);
                 delete[]cmprData;
                 ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;                
-                //std::cout << "current_eb = " << conf.absErrorBound << ", current_ratio = " << ratio << std::endl;
+                std::cout << "current_eb = " << conf.absErrorBound << ", current_ratio = " << ratio << std::endl;
             }
             double prev_ratio = 1;
             double current_ratio = ratio;
@@ -163,7 +163,7 @@ char *SZ_compress_LorenzoReg(SZ::Config &conf, T *data, size_t &outSize) {
                 auto cmprData = sz->compress(conf, sampling_data, sampleOutSize);
                 delete[]cmprData;
                 current_ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;                
-                //std::cout << "current_eb = " << conf.absErrorBound << ", current_ratio = " << current_ratio << std::endl;
+                std::cout << "current_eb = " << conf.absErrorBound << ", current_ratio = " << current_ratio << std::endl;
                 if(current_ratio < prev_ratio){
                     if(prev_ratio > best_ratio){
                         best_abs_eb = prev_eb;

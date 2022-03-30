@@ -33,7 +33,7 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
 
     // conf.print();
     // directly use abs when qoi is regional average
-    if(conf.qoi > 0 && conf.qoi != 3){
+    if(conf.qoi > 0){
         //std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << std::endl;
         auto quantizer = SZ::VariableEBLinearQuantizer<T, T>(conf.quantbinCnt / 2);
         auto quantizer_eb = SZ::EBLogQuantizer<T>(conf.qoiEBBase, conf.qoiEBLogBase, conf.qoiQuantbinCnt / 2);
@@ -60,7 +60,7 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
                 sz.clear();
                 delete[]cmprData;
                 ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;                
-                // std::cout << "current_eb = " << conf.absErrorBound << ", current_ratio = " << ratio << std::endl;
+                std::cout << "current_eb = " << conf.absErrorBound << ", current_ratio = " << ratio << std::endl;
             }
             double prev_ratio = 1;
             double current_ratio = ratio;
@@ -78,7 +78,7 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
                 sz.clear();
                 delete[]cmprData;
                 current_ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;                
-                // std::cout << "current_eb = " << conf.absErrorBound << ", current_ratio = " << current_ratio << std::endl;
+                std::cout << "current_eb = " << conf.absErrorBound << ", current_ratio = " << current_ratio << std::endl;
                 if(current_ratio < prev_ratio * 0.99){
                     if(prev_ratio > best_ratio){
                         best_abs_eb = prev_eb;
@@ -113,7 +113,7 @@ void SZ_decompress_Interp(const SZ::Config &conf, char *cmpData, size_t cmpSize,
     assert(conf.cmprAlgo == SZ::ALGO_INTERP);
     SZ::uchar const *cmpDataPos = (SZ::uchar *) cmpData;
     // directly use abs when qoi is regional average
-    if(conf.qoi > 0 && conf.qoi != 3){
+    if(conf.qoi > 0){
         //std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << std::endl;
         auto quantizer = SZ::VariableEBLinearQuantizer<T, T>(conf.quantbinCnt / 2);
         auto quantizer_eb = SZ::EBLogQuantizer<T>(conf.qoiEBBase, conf.qoiEBLogBase, conf.qoiQuantbinCnt / 2);
@@ -174,18 +174,18 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
             if (max < data[i]) max = data[i];
             if (min > data[i]) min = data[i];
         }
-        if(qoi == 1){
+        if(qoi == 1 || qoi == 3){
             // x^2
             auto max_2 = max * max;
             auto min_2 = min * min;
             auto max_abs_val = (max_2 > min_2) ? max_2 : min_2;
             conf.qoiEB *= max_abs_val;
         }
-        else if(qoi == 3){
-            // regional average
-            conf.qoiEB *= max - min;
-            conf.absErrorBound = conf.qoiEB;
-        }
+        // else if(qoi == 3){
+        //     // regional average
+        //     conf.qoiEB *= max - min;
+        //     conf.absErrorBound = conf.qoiEB;
+        // }
         else if(qoi == 4){
             // compute isovalues
             conf.isovalues.clear();
@@ -212,7 +212,7 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
             conf.qoiEBLogBase = 2;        
         // update eb base
         if(qoi != 4 && qoi != 7) conf.qoiEBBase = (max - min) * qoi_rel_eb / 1030;
-        // std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << std::endl;
+        std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << std::endl;
     }
     else{
         // compute isovalues for comparison
@@ -280,7 +280,7 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
     bool useInterp = !(best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 80 && best_interp_ratio < 80);
 //    printf("\nLorenzo compression ratio = %.2f\n", best_lorenzo_ratio);
 //    printf("Interp compression ratio = %.2f\n", best_interp_ratio);
-    //printf("choose %s\n", useInterp ? "interp" : "Lorenzo");
+    printf("choose %s\n", useInterp ? "interp" : "Lorenzo");
 
     if (useInterp) {
         conf.cmprAlgo = SZ::ALGO_INTERP;
@@ -294,12 +294,6 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
         return SZ_compress_Interp<T, N>(conf, data, outSize);
     } else {
         //further tune lorenzo
-        if(qoi == 3){
-            // recover abs eb if qoi is regional average
-            // because we set abs eb to qoi eb for choosing between interp and lorenzo
-            lorenzo_config.absErrorBound = tmp_abs_eb;
-        }
-
         if (N == 3) {
             lorenzo_config.quantbinCnt = SZ::optimize_quant_invl_3d<T>(data, conf.dims[0], conf.dims[1], conf.dims[2], conf.absErrorBound);
             lorenzo_config.pred_dim = 2;

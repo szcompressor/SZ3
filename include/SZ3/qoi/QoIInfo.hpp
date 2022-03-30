@@ -5,6 +5,7 @@
 #include "XSquare.hpp"
 #include "LogX.hpp"
 #include "RegionalAverage.hpp"
+#include "RegionalAverageOfSquare.hpp"
 #include "Isoline.hpp"
 #include "MultiQoIs.hpp"
 #include <vector>
@@ -19,7 +20,9 @@ namespace SZ {
             case 2:
                 return std::make_shared<SZ::QoI_Log_X<T, N>>(conf.qoiEB, conf.absErrorBound);
             case 3:{
-                return std::make_shared<SZ::QoI_RegionalAverage<T, N>>(conf.qoiEB, conf.absErrorBound);
+                if(!conf.lorenzo && !conf.lorenzo2) return std::make_shared<SZ::QoI_RegionalAverageOfSquareInterp<T, N>>(conf.qoiEB, conf.absErrorBound);
+                else return std::make_shared<SZ::QoI_RegionalAverageOfSquare<T, N>>(conf.qoiEB, conf.absErrorBound);
+                // return std::make_shared<SZ::QoI_RegionalAverage<T, N>>(conf.qoiEB, conf.absErrorBound);
             }
             case 4:{
             	std::vector<T> values;

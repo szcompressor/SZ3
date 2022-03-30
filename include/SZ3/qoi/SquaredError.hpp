@@ -18,8 +18,8 @@ namespace SZ {
                 tolerance(tolerance),
                 num_rest(num_elements),
                 global_eb(global_eb) {
-            printf("tolerance = %.4f\n", tolerance);
-            printf("global_eb = %.4f\n", global_eb);
+            printf("tolerance = %.4e\n", (double) tolerance);
+            printf("global_eb = %.4e\n", (double) global_eb);
             block_eb = compute_eb();
         }
 
