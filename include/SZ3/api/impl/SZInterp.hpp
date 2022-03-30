@@ -79,7 +79,7 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
                 delete[]cmprData;
                 current_ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;                
                 std::cout << "current_eb = " << conf.absErrorBound << ", current_ratio = " << current_ratio << std::endl;
-                if(current_ratio < prev_ratio){
+                if(current_ratio < prev_ratio * 0.99){
                     if(prev_ratio > best_ratio){
                         best_abs_eb = prev_eb;
                         best_ratio = prev_ratio;
@@ -167,6 +167,7 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
     auto tmp_abs_eb = conf.absErrorBound;
     if(qoi){
         // compute abs qoi eb
+        T qoi_rel_eb = conf.qoiEB;
         T max = data[0];
         T min = data[0];
         for (size_t i = 1; i < conf.num; i++) {
@@ -175,9 +176,9 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
         }
         if(qoi == 1){
             // x^2
-            max = max * max;
-            min = min * min;
-            auto max_abs_val = (max > min) ? max : min;
+            auto max_2 = max * max;
+            auto min_2 = min * min;
+            auto max_abs_val = (max_2 > min_2) ? max_2 : min_2;
             conf.qoiEB *= max_abs_val;
         }
         else if(qoi == 3){
@@ -209,6 +210,8 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
             conf.qoiEBBase = std::numeric_limits<T>::epsilon();
         if(conf.qoiEBLogBase == 0)
             conf.qoiEBLogBase = 2;        
+        // update eb base
+        if(qoi != 4 && qoi != 7) conf.qoiEBBase = (max - min) * qoi_rel_eb / 1030;
         std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << std::endl;
     }
     else{

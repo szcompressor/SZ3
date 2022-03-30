@@ -41,9 +41,14 @@ namespace SZ {
         }
 
         T *decompress(uchar const *cmpData, const size_t &cmpSize, T *decData) {
+            Timer timer(true);
+            timer.start();
             size_t remaining_length = cmpSize;
             uchar *buffer = lossless.decompress(cmpData, remaining_length);
             uchar const *buffer_pos = buffer;
+
+            // timer.stop("Lossless");
+            // timer.start();
 
             read(global_dimensions.data(), N, buffer_pos, remaining_length);
             read(blocksize, buffer_pos, remaining_length);
@@ -63,10 +68,12 @@ namespace SZ {
             // std::cout << "after encoder, offset = " << buffer_pos - buffer << std::endl;
 
             lossless.postdecompress_data(buffer);
+            // timer.stop("Decoding");
             // double eb = qoi->get_global_eb();
 
             // std::cout << "start with first data\n";
             // *decData = quantizer.recover(0, quant_inds[quant_index++]);
+            // timer.start();
             quant_index = 0;
             recover_data(0, *decData, 0);
 
@@ -98,7 +105,7 @@ namespace SZ {
                 }
             }
             quantizer.postdecompress_data();
-//            timer.stop("Interpolation Decompress");
+            // timer.stop("Interpolation Decompress");
 
             return decData;
         }
@@ -110,6 +117,8 @@ namespace SZ {
             interpolator_id = conf.interpAlgo;
             direction_sequence_id = conf.interpDirection;
 
+            // Timer timer(true);
+            // timer.start();
             init();
 
             // quant_inds.reserve(num_elements);
@@ -163,8 +172,8 @@ namespace SZ {
 //            std::cout << "Number of data point = " << num_elements << std::endl;
 //            std::cout << "quantization element = " << quant_inds.size() << std::endl;
             // assert(quant_inds.size() == num_elements);
-//            timer.stop("Prediction & Quantization");
-
+            // timer.stop("Prediction & Quantization");
+            // timer.start();
 //            writefile("pred.dat", preds.data(), num_elements);
 //            writefile("quant.dat", quant_inds.data(), num_elements);
             size_t bufferSize = 1.5 * (quant_inds.size() * sizeof(T) + quantizer.size_est());
@@ -190,7 +199,8 @@ namespace SZ {
             encoder.encode(quant_inds, buffer_pos);
             encoder.postprocess_encode();
             // std::cout << "after encoder, offset = " << buffer_pos - buffer << std::endl;
-//            timer.stop("Coding");
+            // timer.stop("Encoding");
+            // timer.start();
             assert(buffer_pos - buffer < bufferSize);
 
             // timer.start();
@@ -198,7 +208,7 @@ namespace SZ {
                                                      buffer_pos - buffer,
                                                      compressed_size);
             lossless.postcompress_data(buffer);
-//            timer.stop("Lossless");
+            // timer.stop("Lossless");
             // std::cout << "quant_index = " << quant_index << ", num_elements = " << num_elements << std::endl;
             compressed_size += interp_compressed_size;
             return lossless_data;

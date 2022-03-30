@@ -25,7 +25,8 @@ namespace SZ {
             std::sort(isovalues.begin(), isovalues.end());
             std::cout << "isovalues: ";
             for(int i=0; i<isovalues.size(); i++){
-                std::cout << isovalues[i] << " ";
+                // std::cout << isovalues[i] << " ";
+                printf("%.20f ", (float) isovalues[i]);
             }
             std::cout << "\n";            
         }
@@ -58,8 +59,18 @@ namespace SZ {
         }
 
         bool check_compliance(T data, T dec_data, bool verbose=false) const {
-            for(int i=0; i<isovalues.size(); i++){
-                if((data - isovalues[i])*(dec_data - isovalues[i]) < 0) return false;
+            if(isovalues.size() > 5){
+                // binary search
+                auto iter = std::lower_bound(isovalues.begin(), isovalues.end(), data);
+                if((data - *iter)*(dec_data - *iter) < 0) return false;
+                if(iter != isovalues.begin()){
+                    if((data - *(iter - 1))*(dec_data - *(iter - 1)) < 0) return false;
+                }
+            }
+            else{            
+                for(int i=0; i<isovalues.size(); i++){
+                    if((data - isovalues[i])*(dec_data - isovalues[i]) < 0) return false;
+                }
             }
             return true;
         }

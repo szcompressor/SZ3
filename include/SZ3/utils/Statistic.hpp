@@ -298,11 +298,11 @@ namespace SZ {
         double psnr = 0;
         double nrmse = 0;
         verify(ori_data, data, num_elements, psnr, nrmse);
-        Type max = data[0];
-        Type min = data[0];
+        Type max = ori_data[0];
+        Type min = ori_data[0];
         for (size_t i = 1; i < num_elements; i++) {
-            if (max < data[i]) max = data[i];
-            if (min > data[i]) min = data[i];
+            if (max < ori_data[i]) max = ori_data[i];
+            if (min > ori_data[i]) min = ori_data[i];
         }
 
         double max_abs_val = std::max(fabs(max), fabs(min));
