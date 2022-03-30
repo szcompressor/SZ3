@@ -210,7 +210,7 @@ namespace SZ {
                 eb_base(eb_base), log_base(log_base), radius(r) {
                     // TODO: adjust for int data
                     set_reciprocal();
-                    printf("eb_base = %.4f, log_base = %.4f\n", (double) eb_base, (double) log_base);
+                    //printf("eb_base = %.4f, log_base = %.4f\n", (double) eb_base, (double) log_base);
                 }
 
         int get_radius() const { return radius; }

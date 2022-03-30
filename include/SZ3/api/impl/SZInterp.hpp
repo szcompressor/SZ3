@@ -31,10 +31,10 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
     assert(conf.cmprAlgo == SZ::ALGO_INTERP);
     SZ::calAbsErrorBound(conf, data);
 
-    conf.print();
+    // conf.print();
     // directly use abs when qoi is regional average
     if(conf.qoi > 0 && conf.qoi != 3){
-        std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << std::endl;
+        //std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << std::endl;
         auto quantizer = SZ::VariableEBLinearQuantizer<T, T>(conf.quantbinCnt / 2);
         auto quantizer_eb = SZ::EBLogQuantizer<T>(conf.qoiEBBase, conf.qoiEBLogBase, conf.qoiQuantbinCnt / 2);
         auto qoi = SZ::GetQOI<T, N>(conf);
@@ -60,7 +60,7 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
                 sz.clear();
                 delete[]cmprData;
                 ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;                
-                std::cout << "current_eb = " << conf.absErrorBound << ", current_ratio = " << ratio << std::endl;
+                // std::cout << "current_eb = " << conf.absErrorBound << ", current_ratio = " << ratio << std::endl;
             }
             double prev_ratio = 1;
             double current_ratio = ratio;
@@ -78,7 +78,7 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
                 sz.clear();
                 delete[]cmprData;
                 current_ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;                
-                std::cout << "current_eb = " << conf.absErrorBound << ", current_ratio = " << current_ratio << std::endl;
+                // std::cout << "current_eb = " << conf.absErrorBound << ", current_ratio = " << current_ratio << std::endl;
                 if(current_ratio < prev_ratio * 0.99){
                     if(prev_ratio > best_ratio){
                         best_abs_eb = prev_eb;
@@ -89,8 +89,8 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
             }
             // set error bound
             free(sampling_data);
-            std::cout << "Best abs eb / pre-set eb: " << best_abs_eb / tmp_abs_eb << std::endl; 
-            std::cout << best_abs_eb << " " << tmp_abs_eb << std::endl;
+            //std::cout << "Best abs eb / pre-set eb: " << best_abs_eb / tmp_abs_eb << std::endl; 
+            //std::cout << best_abs_eb << " " << tmp_abs_eb << std::endl;
             conf.absErrorBound = best_abs_eb;
             qoi->set_global_eb(best_abs_eb);
             conf.setDims(dims.begin(), dims.end());
@@ -109,12 +109,12 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
 
 template<class T, SZ::uint N>
 void SZ_decompress_Interp(const SZ::Config &conf, char *cmpData, size_t cmpSize, T *decData) {
-    std::cout << "SZ_decompress_Interp" << std::endl;
+    //std::cout << "SZ_decompress_Interp" << std::endl;
     assert(conf.cmprAlgo == SZ::ALGO_INTERP);
     SZ::uchar const *cmpDataPos = (SZ::uchar *) cmpData;
     // directly use abs when qoi is regional average
     if(conf.qoi > 0 && conf.qoi != 3){
-        std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << std::endl;
+        //std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << std::endl;
         auto quantizer = SZ::VariableEBLinearQuantizer<T, T>(conf.quantbinCnt / 2);
         auto quantizer_eb = SZ::EBLogQuantizer<T>(conf.qoiEBBase, conf.qoiEBLogBase, conf.qoiQuantbinCnt / 2);
         auto qoi = SZ::GetQOI<T, N>(conf);
@@ -158,7 +158,7 @@ template<class T, SZ::uint N>
 char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
     assert(conf.cmprAlgo == SZ::ALGO_INTERP_LORENZO);
 
-    std::cout << "====================================== BEGIN TUNING ================================" << std::endl;
+    //std::cout << "====================================== BEGIN TUNING ================================" << std::endl;
     SZ::Timer timer(true);
 
     SZ::calAbsErrorBound(conf, data);
@@ -212,7 +212,7 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
             conf.qoiEBLogBase = 2;        
         // update eb base
         if(qoi != 4 && qoi != 7) conf.qoiEBBase = (max - min) * qoi_rel_eb / 1030;
-        std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << std::endl;
+        // std::cout << conf.qoi << " " << conf.qoiEB << " " << conf.qoiEBBase << " " << conf.qoiEBLogBase << " " << conf.qoiQuantbinCnt << std::endl;
     }
     else{
         // compute isovalues for comparison
@@ -264,7 +264,7 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
                 conf.interpAlgo = interp_op;
             }
         }
-        std::cout << "interp best interpAlgo = " << (conf.interpAlgo == 0 ? "LINEAR" : "CUBIC") << std::endl;
+        //std::cout << "interp best interpAlgo = " << (conf.interpAlgo == 0 ? "LINEAR" : "CUBIC") << std::endl;
 
         int direction_op = SZ::factorial(N) - 1;
         ratio = do_not_use_this_interp_compress_block_test<T, N>(sampling_data.data(), sample_dims, sampling_num, conf.absErrorBound,
@@ -273,20 +273,20 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
             best_interp_ratio = ratio;
             conf.interpDirection = direction_op;
         }
-        std::cout << "interp best direction = " << (unsigned) conf.interpDirection << std::endl;
+        //std::cout << "interp best direction = " << (unsigned) conf.interpDirection << std::endl;
 
     }
 
     bool useInterp = !(best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 80 && best_interp_ratio < 80);
 //    printf("\nLorenzo compression ratio = %.2f\n", best_lorenzo_ratio);
 //    printf("Interp compression ratio = %.2f\n", best_interp_ratio);
-    printf("choose %s\n", useInterp ? "interp" : "Lorenzo");
+    //printf("choose %s\n", useInterp ? "interp" : "Lorenzo");
 
     if (useInterp) {
         conf.cmprAlgo = SZ::ALGO_INTERP;
         double tuning_time = timer.stop();
 //        std::cout << "Tuning time = " << tuning_time << "s" << std::endl;
-        std::cout << "====================================== END TUNING ======================================" << std::endl;
+        //std::cout << "====================================== END TUNING ======================================" << std::endl;
         // assign qoi back
         conf.qoi = qoi;
         conf.lorenzo = false;
@@ -356,8 +356,8 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
         conf.qoi = qoi;
         double tuning_time = timer.stop();
 //        std::cout << "Tuning time = " << tuning_time << "s" << std::endl;
-        printf("lorenzo = %d, lorenzo2 = %d, block size = %d\n", conf.lorenzo, conf.lorenzo2, conf.blockSize);
-        std::cout << "====================================== END TUNING ======================================" << std::endl;
+        // printf("lorenzo = %d, lorenzo2 = %d, block size = %d\n", conf.lorenzo, conf.lorenzo2, conf.blockSize);
+        //std::cout << "====================================== END TUNING ======================================" << std::endl;
         return SZ_compress_LorenzoReg<T, N>(conf, data, outSize);
     }
 

@@ -10,6 +10,7 @@
 
 template<class T, SZ::uint N>
 char *SZ_compress_OMP(SZ::Config &conf, T *data, size_t &outSize) {
+    unsigned char *compressed, *compressed_pos;
 #ifdef _OPENMP
 
     assert(N == conf.N);
@@ -18,7 +19,6 @@ char *SZ_compress_OMP(SZ::Config &conf, T *data, size_t &outSize) {
         exit(0);
     }
 
-    unsigned char *compressed, *compressed_pos;
     std::vector<char *> compressed_t;
     std::vector<size_t> cmp_size_t, cmp_start_t;
     std::vector<T> min_t, max_t;

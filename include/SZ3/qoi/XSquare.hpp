@@ -19,7 +19,7 @@ namespace SZ {
                 tolerance(tolerance),
                 global_eb(global_eb) {
             // TODO: adjust type for int data
-            printf("global_eb = %.4f\n", (double) global_eb);
+            //printf("global_eb = %.4f\n", (double) global_eb);
             concepts::QoIInterface<T, N>::id = 1;
         }
 

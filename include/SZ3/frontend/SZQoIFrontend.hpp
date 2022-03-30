@@ -77,7 +77,7 @@ namespace SZ {
                     // }
                     // check whether decompressed data is compliant with qoi tolerance
                     if(!qoi->check_compliance(ori_data, *element)){
-                        std::cout << "exceed in " << element.get_offset() << std::endl;
+                        // std::cout << "exceed in " << element.get_offset() << std::endl;
                         // save as unpredictable
                         eb = 0;
                         *element = ori_data;
@@ -145,7 +145,7 @@ namespace SZ {
             num_elements = 1;
             for (const auto &d: global_dimensions) {
                 num_elements *= d;
-                std::cout << d << " ";
+                //std::cout << d << " ";
             }
             std::cout << std::endl;
             read(block_size, c, remaining_length);
