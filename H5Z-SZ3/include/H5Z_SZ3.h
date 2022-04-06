@@ -10,6 +10,8 @@
 #include "SZ3/utils/ByteUtil.hpp"
 #include "hdf5.h"
 
+static hid_t H5Z_SZ_ERRCLASS = -1;
+
 
 #define ERROR(FNAME)                                              \
 do {                                                              \
@@ -19,14 +21,12 @@ do {                                                              \
     return 1;                                                     \
 } while(0)
 
-/*#define H5Z_SZ_PUSH_AND_GOTO(MAJ, MIN, RET, MSG)     \
+#define H5Z_SZ_PUSH_AND_GOTO(MAJ, MIN, RET, MSG)     \
 do                                                    \
 {                                                     \
-//	H5Epush(H5E_DEFAULT,__FILE__,_funcname_,__LINE__, 
-//		H5Z_SZ_ERRCLASS,MAJ,MIN,MSG);                
-	retval = RET;                                     \
-	goto done;                                        \
-} while(0)*/
+	H5Epush(H5E_DEFAULT,__FILE__,_funcname_,__LINE__,H5Z_SZ_ERRCLASS,MAJ,MIN,MSG); \               
+	return RET;                                     \
+} while(0)
 
 
 #define LITTLE_ENDIAN_SYSTEM 0
