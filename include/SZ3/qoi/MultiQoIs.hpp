@@ -40,7 +40,7 @@ namespace SZ {
             return eb;
         }
 
-        T interpret_eb(const T * data, ptrdiff_t offset) const {
+        T interpret_eb(const T * data, ptrdiff_t offset) {
             T eb = qois[0]->interpret_eb(data, offset);
             for(int i=1; i<qois.size(); i++){
                 eb = std::min(eb, qois[i]->interpret_eb(data, offset));

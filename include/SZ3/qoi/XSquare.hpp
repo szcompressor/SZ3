@@ -58,7 +58,7 @@ namespace SZ {
             return interpret_eb(*iter);
         }
 
-        T interpret_eb(const T * data, ptrdiff_t offset) const {
+        T interpret_eb(const T * data, ptrdiff_t offset) {
             return interpret_eb(*data);
         }
 

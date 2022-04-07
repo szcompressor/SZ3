@@ -27,7 +27,7 @@ namespace SZ {
             virtual T interpret_eb(const iterator &iter) const = 0;
 
             // interpret eb with data pointer (Interpolation)
-            virtual T interpret_eb(const T * data, ptrdiff_t offset) const = 0;
+            virtual T interpret_eb(const T * data, ptrdiff_t offset) = 0;
 
             virtual void update_tolerance(T data, T dec_data) = 0;
 

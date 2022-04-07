@@ -20,7 +20,7 @@ namespace SZ {
             case 2:
                 return std::make_shared<SZ::QoI_Log_X<T, N>>(conf.qoiEB, conf.absErrorBound);
             case 3:{
-                if(!conf.lorenzo && !conf.lorenzo2) return std::make_shared<SZ::QoI_RegionalAverageOfSquareInterp<T, N>>(conf.qoiEB, conf.absErrorBound);
+                if(!conf.lorenzo && !conf.lorenzo2) return std::make_shared<SZ::QoI_RegionalAverageOfSquareInterp<T, N>>(conf.qoiEB, conf.absErrorBound, conf.qoiRegionSize, conf.dims);
                 else return std::make_shared<SZ::QoI_RegionalAverageOfSquare<T, N>>(conf.qoiEB, conf.absErrorBound);
                 // return std::make_shared<SZ::QoI_RegionalAverage<T, N>>(conf.qoiEB, conf.absErrorBound);
             }
@@ -42,16 +42,16 @@ namespace SZ {
             	// x^2 + average
             	std::vector<std::shared_ptr<concepts::QoIInterface< T, N>>> qois;
             	qois.push_back(std::make_shared<SZ::QoI_X_Square<T, N>>(conf.qoiEBs[0], conf.absErrorBound));
-				if(!conf.lorenzo && !conf.lorenzo2) qois.push_back(std::make_shared<SZ::QoI_RegionalAverageInterp<T, N>>(conf.qoiEBs[1], conf.absErrorBound));
-                else qois.push_back(std::make_shared<SZ::QoI_RegionalAverage<T, N>>(conf.qoiEBs[1], conf.absErrorBound));
+				if(!conf.lorenzo && !conf.lorenzo2) qois.push_back(std::make_shared<SZ::QoI_RegionalAverageOfSquareInterp<T, N>>(conf.qoiEBs[1], conf.absErrorBound, conf.qoiRegionSize, conf.dims));
+                else qois.push_back(std::make_shared<SZ::QoI_RegionalAverageOfSquare<T, N>>(conf.qoiEBs[1], conf.absErrorBound));
                 return std::make_shared<SZ::QoI_MultiQoIs<T, N>>(qois);            	
             }
             case 7:{
             	// x^2 + average + isoline
             	std::vector<std::shared_ptr<concepts::QoIInterface< T, N>>> qois;
             	qois.push_back(std::make_shared<SZ::QoI_X_Square<T, N>>(conf.qoiEBs[0], conf.absErrorBound));
-				if(!conf.lorenzo && !conf.lorenzo2) qois.push_back(std::make_shared<SZ::QoI_RegionalAverageInterp<T, N>>(conf.qoiEBs[1], conf.absErrorBound));
-                else qois.push_back(std::make_shared<SZ::QoI_RegionalAverage<T, N>>(conf.qoiEBs[1], conf.absErrorBound));
+				if(!conf.lorenzo && !conf.lorenzo2) qois.push_back(std::make_shared<SZ::QoI_RegionalAverageOfSquareInterp<T, N>>(conf.qoiEBs[1], conf.absErrorBound, conf.qoiRegionSize, conf.dims));
+                else qois.push_back(std::make_shared<SZ::QoI_RegionalAverageOfSquare<T, N>>(conf.qoiEBs[1], conf.absErrorBound));
             	std::vector<T> values;
             	for(int i=0; i<conf.isovalues.size(); i++){
             		values.push_back(conf.isovalues[i]);
