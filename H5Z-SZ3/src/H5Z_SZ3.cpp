@@ -73,17 +73,17 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
 	//herr_t ret = H5Zregister(H5Z_SZ3);
 	//printf("REGISTER: %i\n", ret);
 
-	//printf("DC\n");
-	if (true)//0 > (dclass = H5Tget_class(type_id)))
+	//printf("DC\n");/
+	if (0 > (dclass = H5Tget_class(type_id)))
 		H5Z_SZ_PUSH_AND_GOTO(H5E_ARGS, H5E_BADTYPE, -1, "not a datatype");
 
 	//printf("DS\n");
 	if (0 == (dsize = H5Tget_size(type_id)))
-		{return -1;}///H5Z_SZ_PUSH_AND_GOTO(H5E_ARGS, H5E_BADTYPE, -1, "size is smaller than 0!");
+		H5Z_SZ_PUSH_AND_GOTO(H5E_ARGS, H5E_BADTYPE, -1, "size is smaller than 0!");
 
 	//printf("ND\n");
 	if (0 > (ndims = H5Sget_simple_extent_dims(chunk_space_id, dims, 0)))
-		{return -1;}///H5Z_SZ_PUSH_AND_GOTO(H5E_ARGS, H5E_BADTYPE, -1, "not a data space");
+		H5Z_SZ_PUSH_AND_GOTO(H5E_ARGS, H5E_BADTYPE, -1, "not a data space");
 		
 	for (i = 0; i < ndims; i++)
 	{
@@ -110,7 +110,7 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
 	else if(dclass == H5T_INTEGER)
 	{
 		if (0 > (dsign = H5Tget_sign(type_id)))
-			return -1;//H5Z_SZ_PUSH_AND_GOTO(H5E_ARGS, H5E_BADTYPE, -1, "Error in calling H5Tget_sign(type_id)....");		
+			H5Z_SZ_PUSH_AND_GOTO(H5E_ARGS, H5E_BADTYPE, -1, "Error in calling H5Tget_sign(type_id)....");		
 		if(dsign == H5T_SGN_NONE) //unsigned
 		{
 			switch(dsize)
@@ -149,8 +149,7 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
 		}
 	}
 	else{
-		printf("Invalid Data Class: %i\n", dclass);
-		return -1;
+		H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_CANTGET, 0, "datatype class must be H5T_FLOAT or H5T_INTEGER");
 	}
 
 	//printf("GETFILT");
@@ -159,9 +158,7 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
 	unsigned int mem_cd_values[12];
 
 	if (0 > H5Pget_filter_by_id(dcpl_id, H5Z_FILTER_SZ3, &flags, &mem_cd_nelmts, mem_cd_values, 0, NULL, NULL)){
-		printf("Failed to get SZ3 filter in %s\n", _funcname_);
-		
-		return -1;
+		H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_CANTGET, 0, "unable to get current SZ3 cd_values");
 	}
 
 	//printf("GETCD");
@@ -196,8 +193,7 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
 			freshCdValues = 1;
 		break;
 	default: 
-		printf("Requires chunks w/1,2,3 or 4 non-unity dims\n");
-		return -1; 
+		H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, 0, "requires chunks w/1,2,3 or 4 non-unity dims"); 
 	}
 
 	//printf("SETCD\n");
@@ -209,18 +205,18 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
 		SZ_metaDataToCdArray(&cd_nelmts, &cd_values, dataType, r5, r4, r3, r2, r1);
 		/* Now, update cd_values for the filter */
 		if (0 > H5Pmodify_filter(dcpl_id, H5Z_FILTER_SZ3, flags, cd_nelmts, cd_values))
-			//H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, 0, "failed to modify cd_values");
 		{
-			printf("Failed to modify cd_values\n");
 			free(cd_values);
-			return -1;
+			H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, 0, "failed to modify cd_values");	
+			
 		}
+
+		free(cd_values);
 	}	
 	
 
-	printf("FINSETLOCAL\n");
+	//printf("FINSETLOCAL\n");
 	retval = 1;
-
 
 	return retval;
 
