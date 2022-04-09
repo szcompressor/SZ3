@@ -95,7 +95,7 @@ char *SZ_compress_OMP(SZ::Config &conf, T *data, size_t &outSize) {
 
     outSize = compressed_pos - compressed + cmp_start_t[nThreads];
 #endif
-    return (char *) compressed;
+    return (char *) nullptr;
 }
 
 
