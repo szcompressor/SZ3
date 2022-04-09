@@ -383,7 +383,7 @@ int main(int argc, char *argv[]) {
         cmpPath = cmpPathTmp;
         delCmpPath = true;
     }
-    if (inPath == nullptr) {
+    if (inPath == nullptr || errBoundMode == nullptr) {
         compression = false;
     }
     if (!compression && !decompression) {
