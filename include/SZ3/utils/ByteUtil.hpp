@@ -23,14 +23,14 @@ namespace SZ {
     } lint32;
 
     typedef union lint64 {
-        long lvalue;
-        unsigned long ulvalue;
+        int64_t lvalue;
+        uint64_t ulvalue;
         unsigned char byte[8];
     } lint64;
 
     typedef union ldouble {
         double value;
-        unsigned long lvalue;
+        uint64_t lvalue;
         unsigned char byte[8];
     } ldouble;
 

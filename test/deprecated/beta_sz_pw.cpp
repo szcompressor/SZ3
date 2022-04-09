@@ -85,7 +85,7 @@ float SZ_compress(std::unique_ptr<T[]> const &data,
               << ", minlogvalue=" << minLogValue << std::endl;
     if (!positive) {
         // compress signs
-//        unsigned long signSize = sz_lossless_compress(ZSTD_COMPRESSOR, 3, signs, dataLength, &comp_signs);
+//        uint64_t signSize = sz_lossless_compress(ZSTD_COMPRESSOR, 3, signs, dataLength, &comp_signs);
     }
 
 //    std::vector<T> data1 = std::vector<T>(data.get(), data.get() + conf.num);
