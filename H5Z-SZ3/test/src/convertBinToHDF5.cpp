@@ -132,7 +132,7 @@ int main(int argc, char* argv[]) {
         /* Create the dataset. */
         sprintf(database, "/%s", varName);
 
-	//if(strcmp(datatype, "-f") == 0){
+	if(strcmp(datatype, "-f") == 0){
 
 		FILE *f;
 		f = fopen(infile, "rb");
@@ -151,7 +151,7 @@ int main(int argc, char* argv[]) {
 		ndims = H5Sget_simple_extent_dims(dataspace_id, di_ms, 0);
 		printf("NDIMS: %i\n", ndims);
 
-/*	}
+	}
 	else if(strcmp(datatype, "-d") == 0){
 		FILE *f;                                          		
                 f = fopen(infile, "rb");
@@ -169,8 +169,8 @@ int main(int argc, char* argv[]) {
 	else if(strcmp(datatype, "-i32") == 0){
         	FILE *f;                                          		
                 f = fopen(infile, "rb");
-                int32_t *data = (int32_t*)malloc(nbEle*sizeof(int32_t));
-                fread(data, sizeof(int32_t), nbEle, f);
+                int *data = (int*)malloc(nbEle*sizeof(int));
+                fread(data, sizeof(int), nbEle, f);
                 fclose(f);
 
 		dataset_id = H5Dcreate2(file_id, database, H5T_STD_I32LE, dataspace_id, 
@@ -183,8 +183,8 @@ int main(int argc, char* argv[]) {
 	else if(strcmp(datatype, "-i64") == 0){
         	FILE *f;                                          		
                 f = fopen(infile, "rb");
-                int64_t *data = (int64_t*)malloc(nbEle*sizeof(int64_t));
-                fread(data, sizeof(int64_t), nbEle, f);
+                long *data = (long*)malloc(nbEle*sizeof(long));
+                fread(data, sizeof(long), nbEle, f);
                 fclose(f);
         
 		dataset_id = H5Dcreate2(file_id, database, H5T_STD_I64LE, dataspace_id, 
@@ -197,7 +197,7 @@ int main(int argc, char* argv[]) {
 	else{
 		printf("Invalid datatype, use ./convertBinToHDF5 to see usage");
 		exit(0);
-	}*/
+	}
 
 
 	/* End access to the dataset and release resources used by it. */

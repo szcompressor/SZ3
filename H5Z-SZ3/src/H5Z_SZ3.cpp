@@ -468,7 +468,7 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
 
             case SZ_INT32: //INT 32
             {
-                compressedData = SZ_compress(conf, (int32_t*) *buf, outSize);
+                compressedData = SZ_compress(conf, (int*) *buf, outSize);
                 break;
             }
 
