@@ -203,17 +203,6 @@ namespace SZ {
         return res;
     }
 
-    inline void longToBytes_bigEndian(unsigned char *b, unsigned long num) {
-        b[0] = (unsigned char) (num >> 56);
-        b[1] = (unsigned char) (num >> 48);
-        b[2] = (unsigned char) (num >> 40);
-        b[3] = (unsigned char) (num >> 32);
-        b[4] = (unsigned char) (num >> 24);
-        b[5] = (unsigned char) (num >> 16);
-        b[6] = (unsigned char) (num >> 8);
-        b[7] = (unsigned char) (num);
-    }
-
     inline void int16ToBytes_bigEndian(unsigned char *b, uint16_t num) {
         b[0] = (unsigned char) (num >> 8);
         b[1] = (unsigned char) (num);

@@ -605,7 +605,7 @@ void SZ_copymetaDataToCdArray(size_t* cd_nelmts, unsigned int *cd_values, int da
     {
         case 1:
             size = (unsigned long)r1;
-            SZ::longToBytes_bigEndian(bytes, size);
+            SZ::int64ToBytes_bigEndian(bytes, size);
             cd_values[2] = SZ::bytesToInt32_bigEndian(bytes);
             cd_values[3] = SZ::bytesToInt32_bigEndian(&bytes[4]);
             *cd_nelmts = 4;
