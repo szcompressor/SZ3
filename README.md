@@ -38,7 +38,7 @@ SZ3: A Modular Error-bounded Lossy Compression Framework for Scientific Datasets
 
 ## 3rd party libraries/tools
 
-* Zstandard (https://facebook.github.io/zstd/). Zstandard v1.3.5 is included and will be used if libzstd can not be found by
+* Zstandard (https://facebook.github.io/zstd/). Zstandard v1.4.5 is included and will be used if libzstd can not be found by
   pkg-config.
 
 ## Installation
