@@ -6,6 +6,17 @@
 #define SZ3_H5Z_SZ3_H
 
 #define H5Z_FILTER_SZ3 32024
+#define SZ_FLOAT 0
+#define SZ_DOUBLE 1
+#define SZ_UINT8 2
+#define SZ_INT8 3
+#define SZ_UINT16 4
+#define SZ_INT16 5
+#define SZ_UINT32 6
+#define SZ_INT32 7
+#define SZ_UINT64 8
+#define SZ_INT64 9
+
 #include "SZ3/api/sz.hpp"
 #include "SZ3/utils/ByteUtil.hpp"
 #include "hdf5.h"

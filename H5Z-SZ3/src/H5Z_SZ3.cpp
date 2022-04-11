@@ -7,16 +7,6 @@
 #include "H5PLextern.h"
 
 #define CONFIG_PATH "sz.config"
-#define SZ_FLOAT 0
-#define SZ_DOUBLE 1
-#define SZ_UINT8 2
-#define SZ_INT8 3
-#define SZ_UINT16 4
-#define SZ_INT16 5
-#define SZ_UINT32 6
-#define SZ_INT32 7
-#define SZ_UINT64 8
-#define SZ_INT64 9
 
 using namespace SZ;
 
@@ -73,7 +63,7 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
 	//herr_t ret = H5Zregister(H5Z_SZ3);
 	//printf("REGISTER: %i\n", ret);
 
-	//printf("DC\n");/
+	//printf("DC\n");
 	if (0 > (dclass = H5Tget_class(type_id)))
 		H5Z_SZ_PUSH_AND_GOTO(H5E_ARGS, H5E_BADTYPE, -1, "not a datatype");
 
@@ -526,9 +516,9 @@ void SZ_cdArrayToMetaData(size_t cd_nelmts, const unsigned int cd_values[], int*
             SZ::intToBytes_bigEndian(bytes, cd_values[2]);
             SZ::intToBytes_bigEndian(&bytes[4], cd_values[3]);
             if(sizeof(size_t)==4)
-                *r1 = (unsigned int) SZ::bytesToLong_bigEndian(bytes);
+                *r1 = (unsigned int) SZ::bytesToInt64_bigEndian(bytes);
             else
-                *r1 = (unsigned long) SZ::bytesToLong_bigEndian(bytes);
+                *r1 = (unsigned long) SZ::bytesToInt64_bigEndian(bytes);
             *r2 = *r3 = *r4 = *r5 = 0;
             break;
         case 2:
@@ -616,8 +606,8 @@ void SZ_copymetaDataToCdArray(size_t* cd_nelmts, unsigned int *cd_values, int da
         case 1:
             size = (unsigned long)r1;
             SZ::longToBytes_bigEndian(bytes, size);
-            cd_values[2] = SZ::bytesToInt_bigEndian(bytes);
-            cd_values[3] = SZ::bytesToInt_bigEndian(&bytes[4]);
+            cd_values[2] = SZ::bytesToInt32_bigEndian(bytes);
+            cd_values[3] = SZ::bytesToInt32_bigEndian(&bytes[4]);
             *cd_nelmts = 4;
             break;
         case 2:

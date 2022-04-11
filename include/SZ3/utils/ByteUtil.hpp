@@ -203,68 +203,6 @@ namespace SZ {
         return res;
     }
 
-    inline int bytesToInt_bigEndian(const unsigned char *bytes) {
-        int temp = 0;
-        int res = 0;
-
-        res <<= 8;
-        temp = bytes[0] & 0xff;
-        res |= temp;
-
-        res <<= 8;
-        temp = bytes[1] & 0xff;
-        res |= temp;
-
-        res <<= 8;
-        temp = bytes[2] & 0xff;
-        res |= temp;
-
-        res <<= 8;
-        temp = bytes[3] & 0xff;
-        res |= temp;
-
-        return res;
-    }
-
-    inline long bytesToLong_bigEndian(const uchar *b) {
-        long temp = 0;
-        long res = 0;
-
-        res <<= 8;
-        temp = b[0] & 0xff;
-        res |= temp;
-
-        res <<= 8;
-        temp = b[1] & 0xff;
-        res |= temp;
-
-        res <<= 8;
-        temp = b[2] & 0xff;
-        res |= temp;
-
-        res <<= 8;
-        temp = b[3] & 0xff;
-        res |= temp;
-
-        res <<= 8;
-        temp = b[4] & 0xff;
-        res |= temp;
-
-        res <<= 8;
-        temp = b[5] & 0xff;
-        res |= temp;
-
-        res <<= 8;
-        temp = b[6] & 0xff;
-        res |= temp;
-
-        res <<= 8;
-        temp = b[7] & 0xff;
-        res |= temp;
-
-        return res;
-    }
-
     inline void longToBytes_bigEndian(unsigned char *b, unsigned long num) {
         b[0] = (unsigned char) (num >> 56);
         b[1] = (unsigned char) (num >> 48);
