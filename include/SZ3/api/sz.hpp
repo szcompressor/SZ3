@@ -100,7 +100,8 @@ char *SZ_compress(const SZ::Config &config, const T *data, size_t &outSize) {
 
  */
 template<class T>
-void SZ_decompress(SZ::Config &conf, char *cmpData, size_t cmpSize, T *&decData) {
+void SZ_decompress(SZ::Config &config, char *cmpData, size_t cmpSize, T *&decData) {
+    SZ::Config conf(config);
     {
         //load config
         int confSize;
