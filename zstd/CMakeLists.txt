@@ -13,18 +13,12 @@ add_library(zstd SHARED
   ./compress/zstd_opt.c
   ./compress/zstd_double_fast.c
   ./compress/zstd_compress.c
-  ./compress/zstd_compress_superblock.c
-  ./compress/zstd_compress_sequences.c
-  ./compress/zstd_compress_literals.c
   ./compress/zstd_fast.c
   ./compress/fse_compress.c
   ./compress/zstdmt_compress.c
   ./compress/hist.c
   ./decompress/zstd_decompress.c
   ./decompress/huf_decompress.c
-  ./decompress/zstd_ddict.c
-  ./decompress/zstd_decompress.c
-  ./decompress/zstd_decompress_block.c
   ./deprecated/zbuff_common.c
   ./deprecated/zbuff_compress.c
   ./deprecated/zbuff_decompress.c
@@ -38,7 +32,6 @@ add_library(zstd SHARED
   ./dictBuilder/cover.c
   ./dictBuilder/divsufsort.c
   ./dictBuilder/zdict.c
-  ./dictBuilder/fastcover.c
   )
 
 target_include_directories(zstd
@@ -55,7 +48,7 @@ target_include_directories(zstd
   )
 
 
-install(TARGETS zstd EXPORT QoZTargets
+install(TARGETS zstd EXPORT SZ3Targets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} 
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
