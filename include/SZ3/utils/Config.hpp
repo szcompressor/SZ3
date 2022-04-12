@@ -52,7 +52,7 @@ namespace SZ {
         Config(Dims ... args) {
             dims = std::vector<size_t>{static_cast<size_t>(std::forward<Dims>(args))...};
             N = dims.size();
-            num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<>());
+            num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<size_t>());
             blockSize = (N == 1 ? 128 : (N == 2 ? 16 : 6));
             pred_dim = N;
             stride = blockSize;
@@ -62,7 +62,7 @@ namespace SZ {
         size_t setDims(Iter begin, Iter end) {
             dims = std::vector<size_t>(begin, end);
             N = dims.size();
-            num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<>());
+            num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<size_t>());
             return num;
         }
 
