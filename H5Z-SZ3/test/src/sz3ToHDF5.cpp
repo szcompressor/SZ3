@@ -24,17 +24,6 @@
 
 #define DATASET "testdata_compressed"
 
-#define SZ_FLOAT 0
-#define SZ_DOUBLE 1
-#define SZ_INT8 2
-#define SZ_UINT8 3
-#define SZ_INT16 4
-#define SZ_UINT16 5
-#define SZ_INT32 6
-#define SZ_UINT32 7
-#define SZ_INT64 8
-#define SZ_UINT64 9
-
 #define LITTLE_ENDIAN_DATA 0
 
 using namespace SZ;
@@ -95,6 +84,7 @@ int main(int argc, char * argv[])
         exit(0);
     }
 
+    printf("DTYPE: %i", dataType);
     sprintf(oriFilePath, "%s", argv[2]);
     if(argc>=4) {
         r1 = atoi(argv[3]); //8
@@ -114,7 +104,6 @@ int main(int argc, char * argv[])
 
     //read in compression and interp algo
     //for testing set these here as defaults in config
-    //TODO take in from cmd or config file
     cmp_algo = 1;
     interp_algo = 1;
 
@@ -181,10 +170,10 @@ int main(int argc, char * argv[])
 
     printf("....Writing SZ compressed data.............\n");
 
-    if(dataType == 0)//SZ_FLOAT)
+    if(dataType == SZ_FLOAT)
     {
         float *data = new float[nbEle];
-	readfile(oriFilePath, nbEle, data);		
+	    readfile(oriFilePath, nbEle, data);
 
         printf("original data = ");
         for(i=0;i<20;i++)
@@ -201,15 +190,15 @@ int main(int argc, char * argv[])
             if (0 > (idsid = H5Dcreate(fid, DATASET, H5T_IEEE_F32BE, sid, H5P_DEFAULT, cpid, H5P_DEFAULT))) { printf("Error in H5Dcreate"); exit(0); }
             if (0 > H5Dwrite(idsid, H5T_IEEE_F32BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data)) { printf("Error in H5Dwrite"); exit(0); }
         }
-        free(data);
+        delete[](data);
         if (0 > H5Dclose(idsid)) { printf("Error in H5Dclose"); exit(0); };
     }
-    else if(dataType == 1)//SZ_DOUBLE)
+    else if(dataType == SZ_DOUBLE)
     {
         double *data = new double[nbEle];  
         readfile(oriFilePath, nbEle, data);	
         
-	printf("original data = ");
+	    printf("original data = ");
         for(i=0;i<20;i++)
             printf("%f ", data[i]);
         printf("....\n");
@@ -224,7 +213,7 @@ int main(int argc, char * argv[])
             if (0 > (idsid = H5Dcreate(fid, DATASET, H5T_IEEE_F64BE, sid, H5P_DEFAULT, cpid, H5P_DEFAULT))) { printf("Error in H5Dcreate"); exit(0); }
             if (0 > H5Dwrite(idsid, H5T_IEEE_F64BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data)) { printf("Error in H5Dwrite"); exit(0); }
         }
-        free(data);
+        delete[](data);
         if (0 > H5Dclose(idsid)) { printf("Error in H5Dclose"); exit(0); };
     }
     else if(dataType == SZ_INT8)
@@ -247,7 +236,7 @@ int main(int argc, char * argv[])
             if (0 > (idsid = H5Dcreate(fid, DATASET, H5T_STD_I8BE, sid, H5P_DEFAULT, cpid, H5P_DEFAULT))) { printf("Error in H5Dcreate"); exit(0); }
             if (0 > H5Dwrite(idsid, H5T_STD_I8BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data)) { printf("Error in H5Dwrite"); exit(0); }
         }
-        free(data);
+        delete[](data);
         if (0 > H5Dclose(idsid)) { printf("Error in H5Dclose"); exit(0); }
     }
     else if(dataType == SZ_UINT8)
@@ -270,16 +259,16 @@ int main(int argc, char * argv[])
             if (0 > (idsid = H5Dcreate(fid, DATASET, H5T_STD_U8BE, sid, H5P_DEFAULT, cpid, H5P_DEFAULT))) { printf("Error in H5Dcreate"); exit(0); }
             if (0 > H5Dwrite(idsid, H5T_STD_U8BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data)) { printf("Error in H5Dwrite"); exit(0); }
         }
-        free(data);
+        delete[](data);
         if (0 > H5Dclose(idsid)) { printf("Error in H5Dclose"); exit(0); }
     }
     else if(dataType == SZ_INT16)
     {
 	
         short *data = new short[nbEle];
-	readfile(oriFilePath, nbEle, data);	
+	    readfile(oriFilePath, nbEle, data);
 	
-	printf("original data = ");
+	    printf("original data = ");
         for(i=0;i<20;i++)
             printf("%d ", data[i]);
         printf("....\n");
@@ -294,7 +283,7 @@ int main(int argc, char * argv[])
             if (0 > (idsid = H5Dcreate(fid, DATASET, H5T_STD_I16BE, sid, H5P_DEFAULT, cpid, H5P_DEFAULT))) { printf("Error in H5Dcreate"); exit(0); }
             if (0 > H5Dwrite(idsid, H5T_STD_I16BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data)) { printf("Error in H5Dwrite"); exit(0); }
         }
-        free(data);
+        delete[](data);
         if (0 > H5Dclose(idsid)) { printf("Error in H5Dclose"); exit(0); }
     }
     else if(dataType == SZ_UINT16)
@@ -302,7 +291,7 @@ int main(int argc, char * argv[])
         unsigned short *data = new unsigned short[nbEle];
         readfile(oriFilePath, nbEle, data);	
         
-	printf("original data = ");
+	    printf("original data = ");
         for(i=0;i<20;i++)
             printf("%d ", data[i]);
         printf("....\n");
@@ -317,12 +306,12 @@ int main(int argc, char * argv[])
             if (0 > (idsid = H5Dcreate(fid, DATASET, H5T_STD_U16BE, sid, H5P_DEFAULT, cpid, H5P_DEFAULT))) { printf("Error in H5Dcreate"); exit(0); }
             if (0 > H5Dwrite(idsid, H5T_STD_U16BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data)) { printf("Error in H5Dwrite"); exit(0); }
         }
-        free(data);
+        delete[](data);
         if (0 > H5Dclose(idsid)) { printf("Error in H5Dclose"); exit(0); }
     }
     else if(dataType == SZ_INT32)
     {
-       printf("%i \t %i", sizeof(int), sizeof(int32_t));
+       printf("%i \t %i\n", sizeof(int), sizeof(int32_t));
        int *data = new int[nbEle];
        readfile(oriFilePath, nbEle, data);
 
@@ -341,7 +330,7 @@ int main(int argc, char * argv[])
             if (0 > (idsid = H5Dcreate(fid, DATASET, H5T_STD_I32BE, sid, H5P_DEFAULT, cpid, H5P_DEFAULT))) { printf("Error in H5Dcreate"); exit(0); }
             if (0 > H5Dwrite(idsid, H5T_STD_I32BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data)) { printf("Error in H5Dwrite"); exit(0); }
         }
-        free(data);
+        delete[](data);
         if (0 > H5Dclose(idsid)) { printf("Error in H5Dclose"); exit(0); }
     }
     else if(dataType == SZ_UINT32)
@@ -364,7 +353,7 @@ int main(int argc, char * argv[])
             if (0 > (idsid = H5Dcreate(fid, DATASET, H5T_STD_U32BE, sid, H5P_DEFAULT, cpid, H5P_DEFAULT))) { printf("Error in H5Dcreate"); exit(0); }
             if (0 > H5Dwrite(idsid, H5T_STD_U32BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data)) { printf("Error in H5Dwrite"); exit(0); }
         }
-        free(data);
+        delete[](data);
         if (0 > H5Dclose(idsid)) { printf("Error in H5Dclose"); exit(0); }
     }
     else if(dataType == SZ_INT64)
@@ -387,7 +376,7 @@ int main(int argc, char * argv[])
             if (0 > (idsid = H5Dcreate(fid, DATASET, H5T_STD_I64BE, sid, H5P_DEFAULT, cpid, H5P_DEFAULT))) { printf("Error in H5Dcreate"); exit(0); }
             if (0 > H5Dwrite(idsid, H5T_STD_I64BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data)) { printf("Error in H5Dwrite"); exit(0); }
         }
-        free(data);
+        delete[](data);
         if (0 > H5Dclose(idsid)) { printf("Error in H5Dclose"); exit(0); }
     }
     else if(dataType == SZ_UINT64)
@@ -410,7 +399,7 @@ int main(int argc, char * argv[])
             if (0 > (idsid = H5Dcreate(fid, DATASET, H5T_STD_U64BE, sid, H5P_DEFAULT, cpid, H5P_DEFAULT))) { printf("Error in H5Dcreate"); exit(0); }
             if (0 > H5Dwrite(idsid, H5T_STD_U64BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data)) { printf("Error in H5Dwrite"); exit(0); }
         }
-        free(data);
+        delete[](data);
         if (0 > H5Dclose(idsid)) { printf("Error in H5Dclose"); exit(0); }
     }
     else

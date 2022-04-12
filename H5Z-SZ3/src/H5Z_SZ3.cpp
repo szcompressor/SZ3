@@ -513,8 +513,8 @@ void SZ_cdArrayToMetaData(size_t cd_nelmts, const unsigned int cd_values[], int*
     switch(*dimSize)
     {
         case 1:
-            SZ::intToBytes_bigEndian(bytes, cd_values[2]);
-            SZ::intToBytes_bigEndian(&bytes[4], cd_values[3]);
+            SZ::int32ToBytes_bigEndian(bytes, cd_values[2]);
+            SZ::int32ToBytes_bigEndian(&bytes[4], cd_values[3]);
             if(sizeof(size_t)==4)
                 *r1 = (unsigned int) SZ::bytesToInt64_bigEndian(bytes);
             else

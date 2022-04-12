@@ -141,7 +141,7 @@ namespace SZ {
         return res;
     }
 
-    inline int bytesToInt32_bigEndian(unsigned char *bytes) {
+    inline int bytesToInt32_bigEndian(const unsigned char *bytes) {
         int temp = 0;
         int res = 0;
 
@@ -209,13 +209,6 @@ namespace SZ {
     }
 
     inline void int32ToBytes_bigEndian(unsigned char *b, uint32_t num) {
-        b[0] = (unsigned char) (num >> 24);
-        b[1] = (unsigned char) (num >> 16);
-        b[2] = (unsigned char) (num >> 8);
-        b[3] = (unsigned char) (num);
-    }
-
-    inline void intToBytes_bigEndian(unsigned char *b, unsigned int num) {
         b[0] = (unsigned char) (num >> 24);
         b[1] = (unsigned char) (num >> 16);
         b[2] = (unsigned char) (num >> 8);
