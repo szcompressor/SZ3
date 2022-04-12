@@ -295,7 +295,7 @@ int main(int argc, char * argv[])
 		break;
 	default: 
 		printf("Error: H5Z-SZ3 supports only float, double or integers.\n");
-		exit(0);
+		exit(1);
 	}
 
 	//Close reading resources
