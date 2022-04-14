@@ -33,7 +33,6 @@ namespace SZ {
             double seconds = stop();
 #if SZ3_DEBUG_TIMINGS
             std::cout << msg << " time = " << seconds << "s" << std::endl;
-            fflush(stdout);
 #endif
             return seconds;
         }
