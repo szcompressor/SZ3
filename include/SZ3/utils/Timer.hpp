@@ -5,9 +5,9 @@
 #ifndef SZ_TIMER_HPP
 #define SZ_TIMER_HPP
 
-#include <ctime>
 #include <string>
 #include <iostream>
+#include <chrono>
 
 namespace SZ {
     class Timer {
@@ -21,12 +21,12 @@ namespace SZ {
         }
 
         void start() {
-            clock_gettime(CLOCK_REALTIME, &begin);
+            begin = std::chrono::steady_clock::now();
         }
 
         double stop() {
-            clock_gettime(CLOCK_REALTIME, &end);
-            return (double) (end.tv_sec - begin.tv_sec) + (double) (end.tv_nsec - begin.tv_nsec) / (double) 1000000000;
+            end = std::chrono::steady_clock::now();
+            return std::chrono::duration<double>(end - begin).count();
         }
 
         double stop(const std::string &msg) {
@@ -39,7 +39,7 @@ namespace SZ {
         }
 
     private:
-        struct timespec begin, end;
+        std::chrono::time_point<std::chrono::steady_clock> begin, end;
     };
 };
 
