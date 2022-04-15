@@ -6,13 +6,13 @@
 #include <fstream>
 #include "H5PLextern.h"
 
-#define CONFIG_PATH "sz.config"
+#define CONFIG_PATH "sz3.config"
 
 using namespace SZ;
 
 //h5repack -f UD=32024,0 /home/arham23/Software/SZ3/test/testfloat_8_8_128.dat.h5 tf_8_8_128.dat.sz.h5
 
-//load from "sz.config" in local directory if 1 else use default values or cd values
+//load from "sz3.config" in local directory if 1 else use default values or cd values
 int loadConfigFile = 0;
 
 int MAX_CHUNK_SIZE = 2E32 - 1;
@@ -49,14 +49,14 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
 	unsigned int flags = 0;	
 	int dataType = 0; //SZ_FLOAT;
 
-	//if sz.config in current directory, read config values from it
+	//if sz3.config in current directory, read config values from it
 	std::ifstream f(CONFIG_PATH);
 	if(f.good()){
-		printf("sz.config found!");
+		printf("sz3.config found!");
 		loadConfigFile = 1;
 	}
 	else
-		printf("sz.config not found");
+		printf("sz3.config not found");
 
 	f.close();
 
