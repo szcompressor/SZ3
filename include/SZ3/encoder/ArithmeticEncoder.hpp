@@ -72,7 +72,6 @@ namespace SZ {
                     if (x - ariCoder.numOfRealStates / 2 < 0) {
                         bins_transform[i] -= 1;
                     }
-//                    printf("%d %d\n", bins[i], bins_transform[i]);
                 }
 
                 s = bins_transform.data();
@@ -104,12 +103,6 @@ namespace SZ {
                         _sum = sum;
                         counter++;
                     }
-                }
-                if (ariCoder.numOfValidStates > ariCoder.numOfRealStates) {
-                    std::cout << "The stateNum should be changed from "
-                              << ariCoder.numOfRealStates << " to "
-                              << ariCoder.numOfValidStates
-                              << std::endl;
                 }
                 ariCoder.numOfValidStates = counter;
                 ariCoder.total_frequency = sum;
@@ -167,7 +160,6 @@ namespace SZ {
                             p += sizeof(uint16_t);
                             *(p++) = (unsigned char) cumulative_frequency[i].state;
                             //if(((unsigned char)cumulative_frequency[i].state)==129)
-                            //	printf("break i=%zu\n", i);
                         }
                     }
                     outSize =

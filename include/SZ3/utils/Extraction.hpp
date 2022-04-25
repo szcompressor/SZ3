@@ -24,7 +24,7 @@ namespace SZ {
         assert(dims.size() == N);
         assert(sample_dims.size() == N);
         SZ::Timer timer(true);
-        size_t num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<>());
+        size_t num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<size_t>());
 
         size_t dmin = *std::min_element(dims.begin(), dims.end());
         sampling_block = dmin;
@@ -33,6 +33,13 @@ namespace SZ {
         }
         if (sampling_block * 2 > dmin) {
             sampling_block = dmin / 2;
+        }
+        if (sampling_block < 9) {
+            sample_dims = dims;
+            sampling_block = dmin;
+            sample_num = num;
+            std::vector<T> sampling_data(data, data + num);
+            return sampling_data;
         }
         size_t b0 = dims[0] / dmin;
         size_t b1 = dims[1] / dmin;
@@ -58,14 +65,14 @@ namespace SZ {
                                         dj = j < sampling_block ? j + sampling_block : dmin - 3 * sampling_block + j;
                                         dk = k < sampling_block ? k + sampling_block : dmin - 3 * sampling_block + k;
                                         dt = t < sampling_block ? t + sampling_block : dmin - 3 * sampling_block + t;
-                                        auto d = data[(bi * dmin + di) * dims[1] * dims[2] * dims[3]
-                                                      + (bj * dmin + dj) * dims[1] * dims[2]
-                                                      + (bk * dmin + dk) * dims[2]
-                                                      + bt * dmin + dt];
+                                        size_t idx = (bi * dmin + di) * dims[1] * dims[2] * dims[3]
+                                                     + (bj * dmin + dj) * dims[2] * dims[3]
+                                                     + (bk * dmin + dk) * dims[3]
+                                                     + bt * dmin + dt;
                                         sampling_data[(bi * 2 * sampling_block + i) * sample_dims[1] * sample_dims[2] * sample_dims[3]
                                                       + (bj * 2 * sampling_block + j) * sample_dims[1] * sample_dims[2]
                                                       + (bk * 2 * sampling_block + k) * sample_dims[2]
-                                                      + bt * 2 * sampling_block + t] = d;
+                                                      + bt * 2 * sampling_block + t] = data[idx];
                                     }
                                 }
                             }
@@ -87,8 +94,7 @@ namespace SZ {
     sampling(T *data, std::vector<size_t> dims, size_t &sample_num, std::vector<size_t> &sample_dims, size_t &sampling_block) {
         assert(dims.size() == N);
         assert(sample_dims.size() == N);
-        SZ::Timer timer(true);
-        size_t num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<>());
+        size_t num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<size_t>());
 
         size_t dmin = *std::min_element(dims.begin(), dims.end());
         sampling_block = dmin;
@@ -97,6 +103,13 @@ namespace SZ {
         }
         if (sampling_block * 2 > dmin) {
             sampling_block = dmin / 2;
+        }
+        if (sampling_block < 9) {
+            sample_dims = dims;
+            sampling_block = dmin;
+            sample_num = num;
+            std::vector<T> sampling_data(data, data + num);
+            return sampling_data;
         }
         size_t b0 = dims[0] / dmin;
         size_t b1 = dims[1] / dmin;
@@ -140,7 +153,7 @@ namespace SZ {
         assert(dims.size() == N);
         assert(sample_dims.size() == N);
         SZ::Timer timer(true);
-        size_t num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<>());
+        size_t num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<size_t>());
 
         size_t dmin = *std::min_element(dims.begin(), dims.end());
         sampling_block = dmin;
@@ -149,6 +162,13 @@ namespace SZ {
         }
         if (sampling_block * 2 > dmin) {
             sampling_block = dmin / 2;
+        }
+        if (sampling_block < 9) {
+            sample_dims = dims;
+            sampling_block = dmin;
+            sample_num = num;
+            std::vector<T> sampling_data(data, data + num);
+            return sampling_data;
         }
         size_t b0 = dims[0] / dmin;
         size_t b1 = dims[1] / dmin;
@@ -183,7 +203,7 @@ namespace SZ {
         assert(dims.size() == N);
         assert(sample_dims.size() == N);
         SZ::Timer timer(true);
-        size_t num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<>());
+        size_t num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<size_t>());
 
         size_t dmin = *std::min_element(dims.begin(), dims.end());
         sampling_block = dmin;
@@ -192,6 +212,13 @@ namespace SZ {
         }
         if (sampling_block * 2 > dmin) {
             sampling_block = dmin / 2;
+        }
+        if (sampling_block < 9) {
+            sample_dims = dims;
+            sampling_block = dmin;
+            sample_num = num;
+            std::vector<T> sampling_data(data, data + num);
+            return sampling_data;
         }
         size_t b0 = dims[0] / dmin;
         sample_dims[0] = b0 * 2 * sampling_block;

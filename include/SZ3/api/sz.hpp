@@ -9,7 +9,7 @@
 /**
  * API for compression
  * @tparam T source data type
- * @param conf compression configuration. Please update the config with 1). data dimension and shape and 2). desired settings.
+ * @param config compression configuration. Please update the config with 1). data dimension and shape and 2). desired settings.
  * @param data source data
  * @param outSize compressed data size in bytes
  * @return compressed data, remember to 'delete []' when the data is no longer needed.
@@ -51,23 +51,25 @@ conf.absErrorBound = 1E-3; // absolute error bound 1e-3
 char *compressedData = SZ_compress(conf, data, outSize);
  */
 template<class T>
-char *SZ_compress(SZ::Config &conf, T *data, size_t &outSize) {
+char *SZ_compress(const SZ::Config &config, const T *data, size_t &outSize) {
+    SZ::Config conf(config);
+    std::vector<T> inData(data, data + conf.num);
     char *cmpData;
     if (conf.N == 1) {
-        cmpData = SZ_compress_impl<T, 1>(conf, data, outSize);
+        cmpData = SZ_compress_impl<T, 1>(conf, inData.data(), outSize);
     } else if (conf.N == 2) {
-        cmpData = SZ_compress_impl<T, 2>(conf, data, outSize);
+        cmpData = SZ_compress_impl<T, 2>(conf, inData.data(), outSize);
     } else if (conf.N == 3) {
-        cmpData = SZ_compress_impl<T, 3>(conf, data, outSize);
+        cmpData = SZ_compress_impl<T, 3>(conf, inData.data(), outSize);
     } else if (conf.N == 4) {
-        cmpData = SZ_compress_impl<T, 4>(conf, data, outSize);
+        cmpData = SZ_compress_impl<T, 4>(conf, inData.data(), outSize);
     } else {
         for (int i = 4; i < conf.N; i++) {
             conf.dims[3] *= conf.dims[i];
         }
         conf.dims.resize(4);
         conf.N = 4;
-        cmpData = SZ_compress_impl<T, 4>(conf, data, outSize);
+        cmpData = SZ_compress_impl<T, 4>(conf, inData.data(), outSize);
     }
     {
         //save config
@@ -86,8 +88,7 @@ char *SZ_compress(SZ::Config &conf, T *data, size_t &outSize) {
  * Similar with SZ_decompress(SZ::Config &conf, char *cmpData, size_t cmpSize)
  * The only difference is this one needs pre-allocated decData as input
  * @tparam T decompressed data type
- * @param conf compression configuration. Setting the correct config is NOT needed for decompression.
- * The correct config will be loaded from compressed data and returned.
+ * @param conf configuration placeholder. It will be overwritten by the compression configuration
  * @param cmpData compressed data
  * @param cmpSize compressed data size in bytes
  * @param decData pre-allocated memory space for decompressed data
@@ -100,6 +101,7 @@ char *SZ_compress(SZ::Config &conf, T *data, size_t &outSize) {
  */
 template<class T>
 void SZ_decompress(SZ::Config &conf, char *cmpData, size_t cmpSize, T *&decData) {
+    //SZ::Config conf(config);
     {
         //load config
         int confSize;
@@ -126,8 +128,7 @@ void SZ_decompress(SZ::Config &conf, char *cmpData, size_t cmpSize, T *&decData)
 /**
  * API for decompression
  * @tparam T decompressed data type
- * @param conf compression configuration. Setting the correct config is NOT needed for decompression.
- * The correct config will be loaded from compressed data and returned.
+ * @param conf configuration placeholder. It will be overwritten by the compression configuration
  * @param cmpData compressed data
  * @param cmpSize compressed data size in bytes
  * @return decompressed data, remember to 'delete []' when the data is no longer needed.

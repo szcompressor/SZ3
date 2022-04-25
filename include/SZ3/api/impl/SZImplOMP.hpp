@@ -8,17 +8,15 @@
 
 #include "omp.h"
 
-template<class T, uint N>
+template<class T, SZ::uint N>
 char *SZ_compress_OMP(SZ::Config &conf, T *data, size_t &outSize) {
+    unsigned char *compressed, *compressed_pos;
+
 #ifdef _OPENMP
 
     assert(N == conf.N);
-    if (conf.errorBoundMode != SZ::EB_ABS && conf.errorBoundMode != SZ::EB_REL) {
-        printf("Error, error bound mode not supported\n");
-        exit(0);
-    }
+    SZ::calAbsErrorBound(conf, data);
 
-    unsigned char *compressed, *compressed_pos;
     std::vector<char *> compressed_t;
     std::vector<size_t> cmp_size_t, cmp_start_t;
     std::vector<T> min_t, max_t;
@@ -34,7 +32,7 @@ char *SZ_compress_OMP(SZ::Config &conf, T *data, size_t &outSize) {
             if (conf.dims[0] < nThreads) {
                 nThreads = conf.dims[0];
             }
-            printf("nThreads = %d\n", nThreads);
+            printf("OpenMP threads = %d\n", nThreads);
             compressed_t.resize(nThreads);
             cmp_size_t.resize(nThreads);
             cmp_start_t.resize(nThreads + 1);
@@ -65,7 +63,6 @@ char *SZ_compress_OMP(SZ::Config &conf, T *data, size_t &outSize) {
                 double range = *std::max_element(max_t.begin(), max_t.end()) - *std::min_element(min_t.begin(), min_t.end());
                 conf.absErrorBound = conf.relErrorBound * range;
                 conf.errorBoundMode = SZ::EB_ABS;
-//                std::cout << "error bound = " << eb << ", range = " << range << std::endl;
             }
         }
 
@@ -95,13 +92,12 @@ char *SZ_compress_OMP(SZ::Config &conf, T *data, size_t &outSize) {
     }
 
     outSize = compressed_pos - compressed + cmp_start_t[nThreads];
-    std::cout << "Compressed size = " << outSize << std::endl;
 #endif
     return (char *) compressed;
 }
 
 
-template<class T, uint N>
+template<class T, SZ::uint N>
 void SZ_decompress_OMP(const SZ::Config &conf, char *cmpData, size_t cmpSize, T *decData) {
 #ifdef _OPENMP
 
@@ -109,7 +105,7 @@ void SZ_decompress_OMP(const SZ::Config &conf, char *cmpData, size_t cmpSize, T 
     int nThreads = 1;
     SZ::read(nThreads, cmpr_data_pos);
     omp_set_num_threads(nThreads);
-    printf("nThreads = %d\n", nThreads);
+    printf("OpenMP threads = %d\n", nThreads);
 
     std::vector<SZ::Config> conf_t(nThreads);
     for (int i = 0; i < nThreads; i++) {

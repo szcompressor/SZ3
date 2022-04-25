@@ -89,6 +89,7 @@ namespace SZMETA {
 
         const T *cur_data_pos = data_pos;
         T *buffer_pos = buffer + padding_layer * (buffer_dim0_offset + buffer_dim1_offset + 1);
+        int radius = quantizer.get_radius();
         for (int i = 0; i < size_x; i++) {
             for (int j = 0; j < size_y; j++) {
                 for (int k = 0; k < size_z; k++) {
@@ -96,27 +97,34 @@ namespace SZMETA {
                     T *cur_buffer_pos = buffer_pos + k;
                     T cur_data = cur_data_pos[k];
                     T pred;
-                    if (use_2layer) {
-                        if (pred_dim == 3) {
-                            pred = lorenzo_predict_3d_2layer(cur_buffer_pos, buffer_dim0_offset, buffer_dim1_offset);
-                        } else if (pred_dim == 2) {
-                            pred = lorenzo_predict_2d_2layer(cur_buffer_pos, buffer_dim0_offset, buffer_dim1_offset);
-                        } else {
-                            pred = lorenzo_predict_1d_2layer(cur_buffer_pos, buffer_dim0_offset);
-                        }
+                    if (mean_info.use_mean && fabs(cur_data - mean_info.mean) <= precision) {
+                        type_pos[k] = radius;
+                        *cur_buffer_pos = mean_info.mean;
                     } else {
-                        if (pred_dim == 3) {
-                            pred = lorenzo_predict_3d(cur_buffer_pos, buffer_dim0_offset, buffer_dim1_offset);
-                        } else if (pred_dim == 2) {
-                            pred = lorenzo_predict_2d(cur_buffer_pos, buffer_dim0_offset, buffer_dim1_offset);
+                        if (use_2layer) {
+                            if (pred_dim == 3) {
+                                pred = lorenzo_predict_3d_2layer(cur_buffer_pos, buffer_dim0_offset, buffer_dim1_offset);
+                            } else if (pred_dim == 2) {
+                                pred = lorenzo_predict_2d_2layer(cur_buffer_pos, buffer_dim0_offset, buffer_dim1_offset);
+                            } else {
+                                pred = lorenzo_predict_1d_2layer(cur_buffer_pos, buffer_dim0_offset);
+                            }
                         } else {
-                            pred = lorenzo_predict_1d(cur_buffer_pos, buffer_dim0_offset);
+                            if (pred_dim == 3) {
+                                pred = lorenzo_predict_3d(cur_buffer_pos, buffer_dim0_offset, buffer_dim1_offset);
+                            } else if (pred_dim == 2) {
+                                pred = lorenzo_predict_2d(cur_buffer_pos, buffer_dim0_offset, buffer_dim1_offset);
+                            } else {
+                                pred = lorenzo_predict_1d(cur_buffer_pos, buffer_dim0_offset);
+                            }
                         }
-                    }
 //                    *cur_buffer_pos = cur_data;
 //                    type_pos[k] = quantizer.quantize_and_overwrite(*cur_buffer_pos, pred);
-                    type_pos[k] = quantizer.quantize_and_overwrite(cur_data, pred, *cur_buffer_pos);
-
+                        type_pos[k] = quantizer.quantize_and_overwrite(cur_data, pred, *cur_buffer_pos);
+                        if (mean_info.use_mean && type_pos[k] >= radius) {
+                            type_pos[k] += 1;
+                        }
+                    }
                 }
                 type_pos += size_z;
                 buffer_pos += buffer_dim1_offset;
@@ -139,6 +147,7 @@ namespace SZMETA {
                                bool use_2layer, Quantizer &quantizer, int pred_dim) {
         T *cur_data_pos = dec_data_pos;
         T *buffer_pos = buffer + layer * (buffer_dim0_offset + buffer_dim1_offset + 1);
+        int radius = quantizer.get_radius();
         for (int i = 0; i < size_x; i++) {
             for (int j = 0; j < size_y; j++) {
                 for (int k = 0; k < size_z; k++) {
@@ -147,6 +156,8 @@ namespace SZMETA {
                     T *cur_buffer_pos = buffer_pos + k;
                     if (type_val == 0) {
                         cur_data_pos[k] = *cur_buffer_pos = quantizer.recover_unpred();
+                    } else if (mean_info.use_mean && type_val == radius) {
+                        cur_data_pos[k] = *cur_buffer_pos = mean_info.mean;
                     } else {
                         T pred;
 //                        pred = predict(cur_buffer_pos, buffer_dim1_offset, buffer_dim0_offset);
@@ -168,6 +179,9 @@ namespace SZMETA {
                             } else {
                                 pred = lorenzo_predict_1d(cur_buffer_pos, buffer_dim0_offset);
                             }
+                        }
+                        if (mean_info.use_mean && type_val > radius) {
+                            type_val -= 1;
                         }
                         cur_data_pos[k] = *cur_buffer_pos = quantizer.recover_pred(pred, type_val);
                     }

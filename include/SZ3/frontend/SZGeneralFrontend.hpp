@@ -25,7 +25,6 @@ namespace SZ {
                 predictor(predictor),
                 quantizer(quantizer),
                 block_size(conf.blockSize),
-                stride(conf.stride),
                 num_elements(conf.num) {
             std::copy_n(conf.dims.begin(), N, global_dimensions.begin());
         }
@@ -35,7 +34,7 @@ namespace SZ {
         std::vector<int> compress(T *data) {
             std::vector<int> quant_inds(num_elements);
             auto block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
-                    data, std::begin(global_dimensions), std::end(global_dimensions), stride, 0);
+                    data, std::begin(global_dimensions), std::end(global_dimensions), block_size, 0);
 
             auto element_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
                     data, std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
@@ -70,7 +69,7 @@ namespace SZ {
             std::array<size_t, N> intra_block_dims;
 //            auto dec_data = new T[num_elements];
             auto block_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
-                    dec_data, std::begin(global_dimensions), std::end(global_dimensions), stride, 0);
+                    dec_data, std::begin(global_dimensions), std::end(global_dimensions), block_size, 0);
 
             auto element_range = std::make_shared<SZ::multi_dimensional_range<T, N>>(
                     dec_data, std::begin(global_dimensions), std::end(global_dimensions), 1, 0);
@@ -110,7 +109,6 @@ namespace SZ {
                 num_elements *= d;
             }
             read(block_size, c, remaining_length);
-            stride = block_size;
             predictor.load(c, remaining_length);
             quantizer.load(c, remaining_length);
         }
@@ -139,7 +137,6 @@ namespace SZ {
         LorenzoPredictor<T, N, 1> fallback_predictor;
         Quantizer quantizer;
         uint block_size;
-        uint stride;
         size_t num_elements;
         std::array<size_t, N> global_dimensions;
 

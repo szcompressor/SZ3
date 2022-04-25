@@ -23,14 +23,14 @@ namespace SZ {
     } lint32;
 
     typedef union lint64 {
-        long lvalue;
-        unsigned long ulvalue;
+        int64_t lvalue;
+        uint64_t ulvalue;
         unsigned char byte[8];
     } lint64;
 
     typedef union ldouble {
         double value;
-        unsigned long lvalue;
+        uint64_t lvalue;
         unsigned char byte[8];
     } ldouble;
 
@@ -51,9 +51,9 @@ namespace SZ {
         data[2] = tmp;
     }
 
-    inline unsigned short bytesToUInt16_bigEndian(const uchar *bytes) {
-        int temp = 0;
-        unsigned short res = 0;
+    inline int16_t bytesToInt16_bigEndian(unsigned char *bytes) {
+        int16_t temp = 0;
+        int16_t res = 0;
 
         temp = bytes[0] & 0xff;
         res |= temp;
@@ -65,9 +65,9 @@ namespace SZ {
         return res;
     }
 
-    inline unsigned int bytesToUInt32_bigEndian(const uchar *bytes) {
-        unsigned int temp = 0;
-        unsigned int res = 0;
+    inline int32_t bytesToInt32_bigEndian(const unsigned char *bytes) {
+        int32_t temp = 0;
+        int32_t res = 0;
 
         res <<= 8;
         temp = bytes[0] & 0xff;
@@ -88,9 +88,9 @@ namespace SZ {
         return res;
     }
 
-    inline unsigned long bytesToUInt64_bigEndian(const uchar *b) {
-        unsigned long temp = 0;
-        unsigned long res = 0;
+    inline int64_t bytesToInt64_bigEndian(const unsigned char *b) {
+        int64_t temp = 0;
+        int64_t res = 0;
 
         res <<= 8;
         temp = b[0] & 0xff;
@@ -127,95 +127,21 @@ namespace SZ {
         return res;
     }
 
-    inline short bytesToInt16_bigEndian(unsigned char *bytes) {
-        int temp = 0;
-        short res = 0;
 
-        temp = bytes[0] & 0xff;
-        res |= temp;
-
-        res <<= 8;
-        temp = bytes[1] & 0xff;
-        res |= temp;
-
-        return res;
-    }
-
-    inline int bytesToInt32_bigEndian(const unsigned char *bytes) {
-        int temp = 0;
-        int res = 0;
-
-        res <<= 8;
-        temp = bytes[0] & 0xff;
-        res |= temp;
-
-        res <<= 8;
-        temp = bytes[1] & 0xff;
-        res |= temp;
-
-        res <<= 8;
-        temp = bytes[2] & 0xff;
-        res |= temp;
-
-        res <<= 8;
-        temp = bytes[3] & 0xff;
-        res |= temp;
-
-        return res;
-    }
-
-    inline long bytesToInt64_bigEndian(const unsigned char *b) {
-        long temp = 0;
-        long res = 0;
-
-        res <<= 8;
-        temp = b[0] & 0xff;
-        res |= temp;
-
-        res <<= 8;
-        temp = b[1] & 0xff;
-        res |= temp;
-
-        res <<= 8;
-        temp = b[2] & 0xff;
-        res |= temp;
-
-        res <<= 8;
-        temp = b[3] & 0xff;
-        res |= temp;
-
-        res <<= 8;
-        temp = b[4] & 0xff;
-        res |= temp;
-
-        res <<= 8;
-        temp = b[5] & 0xff;
-        res |= temp;
-
-        res <<= 8;
-        temp = b[6] & 0xff;
-        res |= temp;
-
-        res <<= 8;
-        temp = b[7] & 0xff;
-        res |= temp;
-
-        return res;
-    }
-
-    inline void int16ToBytes_bigEndian(unsigned char *b, uint16_t num) {
+    inline void int16ToBytes_bigEndian(unsigned char *b, int16_t num) {
         b[0] = (unsigned char) (num >> 8);
         b[1] = (unsigned char) (num);
     }
 
-    inline void int32ToBytes_bigEndian(unsigned char *b, uint32_t num) {
+    inline void int32ToBytes_bigEndian(unsigned char *b, int32_t num) {
         b[0] = (unsigned char) (num >> 24);
         b[1] = (unsigned char) (num >> 16);
         b[2] = (unsigned char) (num >> 8);
         b[3] = (unsigned char) (num);
     }
 
-    inline void int64ToBytes_bigEndian(unsigned char *b, uint64_t num) {
+
+    inline void int64ToBytes_bigEndian(unsigned char *b, int64_t num) {
         b[0] = (unsigned char) (num >> 56);
         b[1] = (unsigned char) (num >> 48);
         b[2] = (unsigned char) (num >> 40);
@@ -224,12 +150,6 @@ namespace SZ {
         b[5] = (unsigned char) (num >> 16);
         b[6] = (unsigned char) (num >> 8);
         b[7] = (unsigned char) (num);
-    }
-
-    int bytesToInt(const unsigned char *bytes) {
-        lfloat buf;
-        memcpy(buf.byte, bytes, 4);
-        return buf.ivalue;
     }
 
     std::string floatToBinary(float f) {
@@ -252,7 +172,6 @@ namespace SZ {
             for (b = 4 - byteLen; b < 4; b++) {
                 *binary++ = bytes.byte[b];
             }
-//            std::cout << std::bitset<32>(data[i]) << " " << std::bitset<16>(*binary) << '\n';
         }
     }
 

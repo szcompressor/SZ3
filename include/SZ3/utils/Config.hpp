@@ -17,17 +17,20 @@ namespace SZ {
     enum EB {
         EB_ABS, EB_REL, EB_PSNR, EB_L2NORM, EB_ABS_AND_REL, EB_ABS_OR_REL
     };
-    const char *EB_STR[] = {"ABS", "REL", "PSNR", "NORM", "ABS_AND_REL", "ABS_OR_REL"};
+    constexpr const char *EB_STR[] = {"ABS", "REL", "PSNR", "NORM", "ABS_AND_REL", "ABS_OR_REL"};
+    constexpr EB EB_OPTIONS[] = {EB_ABS, EB_REL, EB_PSNR, EB_L2NORM, EB_ABS_AND_REL, EB_ABS_OR_REL};
 
     enum ALGO {
         ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP
     };
-    const char *ALGO_STR[] = {"ALGO_LORENZO_REG", "ALGO_INTERP_LORENZO", "ALGO_INTERP"};
+    constexpr const char *ALGO_STR[] = {"ALGO_LORENZO_REG", "ALGO_INTERP_LORENZO", "ALGO_INTERP"};
+    constexpr const ALGO ALGO_OPTIONS[] = {ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP};
 
     enum INTERP_ALGO {
         INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC
     };
-    const char *INTERP_ALGO_STR[] = {"INTERP_ALGO_LINEAR", "INTERP_ALGO_CUBIC"};
+    constexpr const char *INTERP_ALGO_STR[] = {"INTERP_ALGO_LINEAR", "INTERP_ALGO_CUBIC"};
+    constexpr INTERP_ALGO INTERP_ALGO_OPTIONS[] = { INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC };
 
     template<class T>
     const char *enum2Str(T e) {
@@ -49,7 +52,7 @@ namespace SZ {
         Config(Dims ... args) {
             dims = std::vector<size_t>{static_cast<size_t>(std::forward<Dims>(args))...};
             N = dims.size();
-            num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<>());
+            num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<size_t>());
             blockSize = (N == 1 ? 128 : (N == 2 ? 16 : 6));
             pred_dim = N;
             stride = blockSize;
@@ -59,7 +62,7 @@ namespace SZ {
         size_t setDims(Iter begin, Iter end) {
             dims = std::vector<size_t>(begin, end);
             N = dims.size();
-            num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<>());
+            num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<size_t>());
             return num;
         }
 
@@ -69,9 +72,7 @@ namespace SZ {
             if (cfg.ParseError() != 0) {
                 std::cout << "Can't load cfg file  <<" << cfgpath << std::endl;
                 exit(0);
-            } else {
-                std::cout << "Load cfg from " << cfgpath << std::endl;
-            }
+            } 
 
             auto cmprAlgoStr = cfg.Get("GlobalSettings", "CmprAlgo", "");
             if (cmprAlgoStr == ALGO_STR[ALGO_LORENZO_REG]) {
@@ -193,7 +194,9 @@ namespace SZ {
         uint8_t interpDirection = 0;
         int interpBlockSize = 32;
         int quantbinCnt = 65536;
-        int blockSize, stride, pred_dim;
+        int blockSize;
+        int stride; //not used now
+        int pred_dim; // not used now
 
     };
 

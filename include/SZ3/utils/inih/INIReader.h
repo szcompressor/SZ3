@@ -336,7 +336,7 @@ public:
 
     // Get an integer (long) value from INI file, returning default_value if
     // not found or not a valid integer (decimal "1234", "-1234", or hex "0x4d2").
-    long GetInteger(std::string section, std::string name, long default_value) const;
+    int32_t GetInteger(std::string section, std::string name, int32_t default_value) const;
 
     // Get a real (floating point double) value from INI file, returning
     // default_value if not found or not a valid floating point value
@@ -398,13 +398,13 @@ inline std::string INIReader::Get(std::string section, std::string name, std::st
     return _values.count(key) ? _values.at(key) : default_value;
 }
 
-inline long INIReader::GetInteger(std::string section, std::string name, long default_value) const
+inline int32_t INIReader::GetInteger(std::string section, std::string name, int32_t default_value) const
 {
     std::string valstr = Get(section, name, "");
     const char* value = valstr.c_str();
     char* end;
     // This parses "1234" (decimal) and also "0x4D2" (hex)
-    long n = strtol(value, &end, 0);
+    int32_t n = strtol(value, &end, 0);
     return end > value ? n : default_value;
 }
 

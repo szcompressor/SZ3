@@ -53,7 +53,6 @@ namespace SZ {
         }
 
         bool precompress_block(const std::shared_ptr<Range> &range) noexcept {
-            // std::cout << "precompress_block" << std::endl;
             auto dims = range->get_dimensions();
             for (const auto &dim : dims) {
                 if (dim <= 2) {
@@ -122,7 +121,6 @@ namespace SZ {
         }
 
         void save(uchar *&c) const {
-//            std::cout << "save 2-Layer Regression Predictor" << std::endl;
             c[0] = predictor_id;
             c += 1;
             quantizer_independent.save(c);
@@ -148,8 +146,6 @@ namespace SZ {
         }
 
         void load(const uchar *&c, size_t &remaining_length) {
-            //TODO: adjust remaining_length
-//            std::cout << "load predictor" << std::endl;
             c += sizeof(uint8_t);
             remaining_length -= sizeof(uint8_t);
             quantizer_independent.load(c, remaining_length);

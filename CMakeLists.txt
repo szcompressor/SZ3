@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
-project(SZ3 VERSION 3.1.3.0)
+project(SZ3 VERSION 3.1.4.0)
 include(GNUInstallDirs)
 include(CTest)
 
@@ -20,12 +20,13 @@ endif()
 find_package(PkgConfig)
 find_package(OpenMP)
 
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/SZ3/version.hpp.in ${CMAKE_CURRENT_SOURCE_DIR}/include/SZ3/version.hpp)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/include/SZ3/version.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/include/SZ3/version.hpp)
 
 add_library(${PROJECT_NAME} INTERFACE)
 target_include_directories(
         ${PROJECT_NAME} INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
         )
 target_compile_features(${PROJECT_NAME}
@@ -67,6 +68,10 @@ install(TARGETS ${PROJECT_NAME}
   INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   )
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/include/SZ3/version.hpp"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/SZ3/"
+  )
 install(EXPORT SZ3Targets NAMESPACE SZ3:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3)
 include(CMakePackageConfigHelpers)
 configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/SZ3Config.cmake.in

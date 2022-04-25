@@ -9,7 +9,7 @@
 #include <cmath>
 
 
-template<class T, uint N>
+template<class T, SZ::uint N>
 char *SZ_compress_dispatcher(SZ::Config &conf, T *data, size_t &outSize) {
 
     assert(N == conf.N);
@@ -27,7 +27,7 @@ char *SZ_compress_dispatcher(SZ::Config &conf, T *data, size_t &outSize) {
 }
 
 
-template<class T, uint N>
+template<class T, SZ::uint N>
 void SZ_decompress_dispatcher(SZ::Config &conf, char *cmpData, size_t cmpSize, T *decData) {
     if (conf.cmprAlgo == SZ::ALGO_LORENZO_REG) {
         SZ_decompress_LorenzoReg<T, N>(conf, cmpData, cmpSize, decData);

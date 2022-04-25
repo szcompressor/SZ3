@@ -85,7 +85,7 @@ float SZ_compress(std::unique_ptr<T[]> const &data,
               << ", minlogvalue=" << minLogValue << std::endl;
     if (!positive) {
         // compress signs
-//        unsigned long signSize = sz_lossless_compress(ZSTD_COMPRESSOR, 3, signs, dataLength, &comp_signs);
+//        uint64_t signSize = sz_lossless_compress(ZSTD_COMPRESSOR, 3, signs, dataLength, &comp_signs);
     }
 
 //    std::vector<T> data1 = std::vector<T>(data.get(), data.get() + conf.num);
@@ -262,7 +262,7 @@ float SZ_compress_parse_args(int argc, char **argv, int argp, std::unique_ptr<T[
 
 int main(int argc, char **argv) {
     if (argc < 2) {
-        std::cout << "SZ v" << PROJECT_VER << std::endl;
+        std::cout << "SZ v" << SZ3_VER << std::endl;
         std::cout << "usage: " << argv[0] <<
                   " data_file -num_dim dim0 .. dimn relative_eb [blocksize lorenzo_op regression_op encoder lossless quantbinCnt]"
                   << std::endl;

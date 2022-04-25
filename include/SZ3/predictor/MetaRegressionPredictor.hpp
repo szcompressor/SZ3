@@ -204,7 +204,6 @@ namespace SZMETA {
 //                                                                                                k] = cur_data;
 //                        unpred_count_buffer[index]++;
 //                    }
-//			 	printf("element %.3f, predicted %.3f, quant %d\n", cur_data, pred, type_pos[j*size_z+k]);
                 }
             }
             type_pos += size_y * size_z;

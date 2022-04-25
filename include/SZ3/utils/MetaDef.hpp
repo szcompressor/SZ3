@@ -21,7 +21,7 @@ namespace SZMETA {
 #define SELECTOR_REGRESSION 1
 #define SELECTOR_LORENZO_2LAYER 2
 #define RegCoeffNum3d 4
-#define RegErrThreshold 1
+#define RegErrThreshold 0.1
 #define RegCoeffRadius 32768
 #define RegCoeffCapacity 65536
 #define LorenzeNoise1d 0.5

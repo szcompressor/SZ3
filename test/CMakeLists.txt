@@ -6,8 +6,8 @@ foreach (SRCFILE IN LISTS cpu_source_files)
     message(STATUS "Target = ${EXE}")
     add_executable(${EXE} ${EXE}.cpp)
     target_link_libraries(${EXE} PRIVATE SZ3)
+    install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${EXE}$<TARGET_FILE_SUFFIX:${EXE}> TYPE BIN)
 
-    install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${EXE} TYPE BIN)
 endforeach ()
 
 #add_subdirectory(compressor_analysis)
