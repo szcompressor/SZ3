@@ -119,7 +119,8 @@ int main(int argc, char * argv[])
     printf("Dimension sizes: n5=%u, n4=%u, n3=%u, n2=%u, n1=%u\n", r5, r4, r3, r2, r1);
     SZ_metaDataToCdArray(&cd_nelmts, &cd_values, dataType, r5, r4, r3, r2, r1);
     //load_conffile_flag = 0;
-    //SZ_metaDataErrToCdArray(&cd_nelmts, &cd_values, dataType, r5, r4, r3, r2, r1, REL, 0.01, 0.01, 0, 0); //SZ_FLOAT or SZ_DOUBLE or SZ_INT 100x500x500 : 0, 0, 100, 500, 500, ABS, REL (0.01, 0.01*(max-min), PW_REL (0.01, 5, 6, 7, 8, 9 --> 5*0.01, 6*0.01, ...), PSNR (mean squared error)).
+    //										 REL
+    //SZ_metaDataErrToCdArray(&cd_nelmts, &cd_values, dataType, r5, r4, r3, r2, r1, 1, 0.01, 0.01, 0, 0); //SZ_FLOAT or SZ_DOUBLE or SZ_INT 100x500x500 : 0, 0, 100, 500, 500, ABS, REL (0.01, 0.01*(max-min), PW_REL (0.01, 5, 6, 7, 8, 9 --> 5*0.01, 6*0.01, ...), PSNR (mean squared error)).
     /*cd_nelmts = 5;
     cd_values[0] = 3;
     cd_values[1] = 0;
@@ -154,7 +155,8 @@ int main(int argc, char * argv[])
     if(avail)
     {
         status = H5Zget_filter_info(H5Z_FILTER_SZ3, &filter_config);
-        if(filter_config & H5Z_FILTER_CONFIG_ENCODE_ENABLED)
+    
+    if(filter_config & H5Z_FILTER_CONFIG_ENCODE_ENABLED)
             printf("sz filter is available for encoding and decoding.\n");
     }
     if (0 > H5Pset_chunk(cpid, dim, chunk)) { printf("Error in H5Pcreate"); exit(0); }
@@ -173,7 +175,7 @@ int main(int argc, char * argv[])
     if(dataType == SZ_FLOAT)
     {
         float *data = new float[nbEle];
-	    readfile(oriFilePath, nbEle, data);
+	readfile(oriFilePath, nbEle, data);
 
         printf("original data = ");
         for(i=0;i<20;i++)

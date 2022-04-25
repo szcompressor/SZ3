@@ -6,15 +6,16 @@
 #include <fstream>
 #include "H5PLextern.h"
 
-#define CONFIG_PATH "sz.config"
+#define CONFIG_PATH "sz3.config"
 
 using namespace SZ;
 
 //h5repack -f UD=32024,0 /home/arham23/Software/SZ3/test/testfloat_8_8_128.dat.h5 tf_8_8_128.dat.sz.h5
 
-//load from "sz.config" in local directory if 1 else use default values or cd values
-int loadConfigFile = 0;
+//load from "sz3.config" in local directory if 1 else use default values or cd values
 
+int loadConfigFile = 0;
+int freshCdValues = 0;
 int MAX_CHUNK_SIZE = 2E32 - 1;
 
 //filter definition
@@ -46,17 +47,17 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
 	herr_t retval = 0;
 	H5T_class_t dclass;
 	H5T_sign_t dsign;
-	unsigned int flags = 0;	
+	unsigned int flags = 0;
 	int dataType = 0; //SZ_FLOAT;
 
-	//if sz.config in current directory, read config values from it
+	//check if sz3.config in current directory
 	std::ifstream f(CONFIG_PATH);
 	if(f.good()){
-		printf("sz.config found!");
+		printf("sz3.config found!");
 		loadConfigFile = 1;
 	}
 	else
-		printf("sz.config not found");
+		printf("sz3.config not found");
 
 	f.close();
 
@@ -144,16 +145,23 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
 
 	//printf("GETFILT");
 
-	size_t mem_cd_nelmts = 0, cd_nelmts = 0;
-	unsigned int mem_cd_values[12];
+	size_t mem_cd_nelmts = 12*sizeof(unsigned int), cd_nelmts = 0;
+	unsigned int *mem_cd_values = (unsigned int*) malloc(12*sizeof(unsigned int));
+
+	printf("MEM\n");
 
 	if (0 > H5Pget_filter_by_id(dcpl_id, H5Z_FILTER_SZ3, &flags, &mem_cd_nelmts, mem_cd_values, 0, NULL, NULL)){
 		H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_CANTGET, 0, "unable to get current SZ3 cd_values");
 	}
 
+	for(int i = 0; i < mem_cd_nelmts; i++)
+		printf("%u ", mem_cd_values[i]);
+
+	printf("\n");
+
 	//printf("GETCD");
 
-	int freshCdValues = 0;
+	freshCdValues = 0;
 	switch(ndims_used)
 	{
 	case 1: 
@@ -186,11 +194,15 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
 		H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, 0, "requires chunks w/1,2,3 or 4 non-unity dims"); 
 	}
 
+	printf("set_local dims: %i, %i, %i, %i, %i\n", r1,r2,r3,r4,r5); 
+
 	//printf("SETCD\n");
 
 	if(freshCdValues)
 	{
 		printf("SETCDVALS\n");
+		
+
 		unsigned int* cd_values = NULL;
 		SZ_metaDataToCdArray(&cd_nelmts, &cd_values, dataType, r5, r4, r3, r2, r1);
 		/* Now, update cd_values for the filter */
@@ -201,11 +213,54 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
 			
 		}
 
+		
 		free(cd_values);
-	}	
+			
+	}
+	else
+	{
 	
+		printf("REPCDVALS\n");
+		unsigned int* cd_values = NULL;
+		unsigned int* final_cd_values = (unsigned int*) malloc(mem_cd_nelmts * sizeof(unsigned int));
+		size_t tmp = 0;
+		SZ_metaDataToCdArray(&tmp, &cd_values, dataType, r5, r4, r3, r2, r1);
+		std::memcpy(final_cd_values, cd_values, tmp * sizeof(unsigned int));
+		std::memcpy(final_cd_values+tmp, mem_cd_values+tmp, (mem_cd_nelmts-tmp) * sizeof(unsigned int)); 
 
-	//printf("FINSETLOCAL\n");
+		printf("%u %u\nCD\n", tmp, mem_cd_nelmts);
+
+		for(int i =0; i < tmp; i++)
+			printf("%u ", cd_values[i]);
+		
+		printf("\n");
+
+		for(int i = 0; i < mem_cd_nelmts; i++)
+			printf("%u ", mem_cd_values[i]);
+
+		printf("\n");
+
+		for(int i = 0; i < mem_cd_nelmts; i++)
+			printf("%u ", final_cd_values[i]);
+
+		printf("\n");
+
+		if(0 > H5Pmodify_filter(dcpl_id, H5Z_FILTER_SZ3, flags, mem_cd_nelmts, final_cd_values))
+		{
+
+			free(final_cd_values);
+			free(cd_values);
+			H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, 0, "failed to modify cd_values");
+
+		}
+		
+		free(final_cd_values);
+		free(cd_values);
+
+	}
+
+
+	
 	retval = 1;
 
 	return retval;
@@ -236,6 +291,7 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
     else
         SZ_cdArrayToMetaData(cd_nelmts, cd_values, &dimSize, &dataType, &r5, &r4, &r3, &r2, &r1);
 
+    printf("\nwithErr: %i\n", withErrInfo);
 
     if(flags & H5Z_FLAG_REVERSE){
         /*decompress data*/
@@ -387,8 +443,9 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
             exit(0);
         }
 
-	//if config file found read config file
-	if(loadConfigFile){
+	//if config file found and no user defined params, read the config file
+	if(loadConfigFile && freshCdValues){
+		printf("Loading sz3.config ...\n");
 		conf.loadcfg(CONFIG_PATH);
 	}
 	else{
@@ -398,6 +455,8 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
 		conf.relErrorBound = rel_error;
 		conf.l2normErrorBound = l2norm_error;
 		conf.psnrErrorBound = psnr;
+
+		printf("PARAMS: mode|%i, abs_eb|%f, rel_eb|%f, l2_eb|%f, psnr_eb|%f\n", error_mode, abs_error, rel_error, l2norm_error, psnr);
 
 		if(cmp_algo < 0 || cmp_algo > 2){
 		    printf("Invalid compression algo: %i, should be in [0,2]", cmp_algo);
