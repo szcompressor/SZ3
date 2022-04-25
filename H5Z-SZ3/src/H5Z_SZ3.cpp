@@ -209,12 +209,14 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
 		if (0 > H5Pmodify_filter(dcpl_id, H5Z_FILTER_SZ3, flags, cd_nelmts, cd_values))
 		{
 			free(cd_values);
+			free(mem_cd_values);
 			H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, 0, "failed to modify cd_values");	
 			
 		}
 
 		
 		free(cd_values);
+		free(mem_cd_values);
 			
 	}
 	else
@@ -254,6 +256,7 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
 
 		}
 		
+		free(mem_cd_values);
 		free(final_cd_values);
 		free(cd_values);
 
