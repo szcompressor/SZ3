@@ -322,81 +322,81 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
 
             case SZ_INT8: //INT 8
             {
-                char *c_decompressedData = new char[nbEle];
+                int8_t *c_decompressedData = new int8_t[nbEle];
                 SZ_decompress(conf, (char *) *buf, nbytes, c_decompressedData);
                 free(*buf);
                 *buf = c_decompressedData;
-                *buf_size = nbEle * sizeof(char);
+                *buf_size = nbEle * sizeof(int8_t);
                 break;
             }
 
             case SZ_UINT8: //UINT 8
             {
-                unsigned char *uc_decompressedData = new unsigned char[nbEle];
+                uint8_t *uc_decompressedData = new uint8_t[nbEle];
                 SZ_decompress(conf, (char *) *buf, nbytes, uc_decompressedData);
                 free(*buf);
                 *buf = uc_decompressedData;
-                *buf_size = nbEle * sizeof(unsigned char);
+                *buf_size = nbEle * sizeof(uint8_t);
                 break;
             }
 
             case SZ_INT16: //INT 16
             {
-                short *s_decompressedData = new short[nbEle];
+                int16_t *s_decompressedData = new int16_t[nbEle];
                 SZ_decompress(conf, (char *) *buf, nbytes, s_decompressedData);
                 free(*buf);
                 *buf = s_decompressedData;
-                *buf_size = nbEle * sizeof(short);
+                *buf_size = nbEle * sizeof(int16_t);
                 break;
             }
 
             case SZ_UINT16: //UINT 16
             {
-                unsigned short *us_decompressedData = new unsigned short[nbEle];
+                uint16_t *us_decompressedData = new uint16_t[nbEle];
                 SZ_decompress(conf, (char *) *buf, nbytes, us_decompressedData);
                 free(*buf);
                 *buf = us_decompressedData;
-                *buf_size = nbEle * sizeof(unsigned short);
+                *buf_size = nbEle * sizeof(uint16_t);
                 break;
             }
 
             case SZ_INT32: //INT 32
             {
-                int *i_decompressedData = new int[nbEle];
+                int32_t *i_decompressedData = new int32_t[nbEle];
                 SZ_decompress(conf, (char *) *buf, nbytes, i_decompressedData);
                 free(*buf);
                 *buf = i_decompressedData;
-                *buf_size = nbEle * sizeof(int);
+                *buf_size = nbEle * sizeof(int32_t);
                 break;
             }
 
             case SZ_UINT32: //UINT 32
             {
-                unsigned int *ui_decompressedData = new unsigned int[nbEle];
+                uint32_t *ui_decompressedData = new uint32_t[nbEle];
                 SZ_decompress(conf, (char *) *buf, nbytes, ui_decompressedData);
                 free(*buf);
                 *buf = ui_decompressedData;
-                *buf_size = nbEle * sizeof(unsigned int);
+                *buf_size = nbEle * sizeof(uint32_t);
                 break;
             }
 
             case SZ_INT64: //INT 64
             {
-                long *l_decompressedData = new long[nbEle];
+                int64_t *l_decompressedData = new int64_t[nbEle];
                 SZ_decompress(conf, (char *) *buf, nbytes, l_decompressedData);
                 free(*buf);
                 *buf = l_decompressedData;
-                *buf_size = nbEle * sizeof(long);
+                *buf_size = nbEle * sizeof(int64_t);
                 break;
             }
 
             case SZ_UINT64: //UINT 64
             {
-                unsigned long *ul_decompressedData = new unsigned long[nbEle];
+                uint64_t *ul_decompressedData = new uint64_t[nbEle];
                 SZ_decompress(conf, (char *) *buf, nbytes, ul_decompressedData);
                 free(*buf);
                 *buf = ul_decompressedData;
-                *buf_size = nbEle * sizeof(unsigned long);
+                *buf_size = nbEle * sizeof(uint64_t);
                 break;
             }
 
@@ -488,49 +488,49 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
 
             case SZ_INT8: //INT 8
             {
-                compressedData = SZ_compress(conf, (char*) *buf, outSize);
+                compressedData = SZ_compress(conf, (int8_t*) *buf, outSize);
                 break;
             }
 
             case SZ_UINT8: //UINT 8
             {
-                compressedData = SZ_compress(conf, (unsigned char*) *buf, outSize);
+                compressedData = SZ_compress(conf, (uint8_t*) *buf, outSize);
                 break;
             }
 
             case SZ_INT16: //INT 16
             {
-                compressedData = SZ_compress(conf, (short*) *buf, outSize);
+                compressedData = SZ_compress(conf, (int16_t*) *buf, outSize);
                 break;
             }
 
             case SZ_UINT16: //UINT 16
             {
-                compressedData = SZ_compress(conf, (unsigned short*) *buf, outSize);
+                compressedData = SZ_compress(conf, (uint16_t*) *buf, outSize);
                 break;
             }
 
             case SZ_INT32: //INT 32
             {
-                compressedData = SZ_compress(conf, (int*) *buf, outSize);
+                compressedData = SZ_compress(conf, (int32_t*) *buf, outSize);
                 break;
             }
 
             case SZ_UINT32: //UINT 32
             {
-                compressedData = SZ_compress(conf, (unsigned int*) *buf, outSize);
+                compressedData = SZ_compress(conf, (uint32_t*) *buf, outSize);
                 break;
             }
 
             case SZ_INT64: //INT 64
             {
-                compressedData = SZ_compress(conf, (long*) *buf, outSize);
+                compressedData = SZ_compress(conf, (int64_t*) *buf, outSize);
                 break;
             }
 
             case SZ_UINT64: //UINT 64
             {
-                compressedData = SZ_compress(conf, (unsigned long*) *buf, outSize);
+                compressedData = SZ_compress(conf, (uint64_t*) *buf, outSize);
                 break;
             }
 
