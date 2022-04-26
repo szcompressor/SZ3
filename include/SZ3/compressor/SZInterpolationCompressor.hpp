@@ -119,7 +119,7 @@ namespace SZ {
                 } else {
                     quantizer.set_eb(eb);
                 }
-                uint stride = 1U << (level - 1);
+                size_t stride = 1U << (level - 1);
 
                 auto inter_block_range = std::make_shared<
                         SZ::multi_dimensional_range<T, N>>(data, std::begin(global_dimensions),
