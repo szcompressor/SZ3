@@ -211,19 +211,7 @@ namespace SZ {
             } while (std::next_permutation(sequence.begin(), sequence.end()));
         }
 
-        inline void quantize1(size_t idx, T &d, T pred) {
-            if (idx >= 2 * 449 * 449 * 235 && idx < 3 * 449 * 449 * 235 &&
-                fabs(d - pred) > max_error) {
-                max_error = fabs(d - pred);
-            }
-            auto quant = quantizer.quantize_and_overwrite(d, pred);
-//            quant_inds.push_back(quant);
-            quant_inds[idx] = quant;
-        }
-
         inline void quantize(size_t idx, T &d, T pred) {
-//            preds[idx] = pred;
-//            quant_inds[idx] = quantizer.quantize_and_overwrite(d, pred);
             quant_inds.push_back(quantizer.quantize_and_overwrite(d, pred));
         }
 
