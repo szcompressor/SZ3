@@ -42,9 +42,12 @@ do                                                    \
 
 #define LITTLE_ENDIAN_SYSTEM 0
 #define BIG_ENDIAN_SYSTEM 1
+#define LITTLE_ENDIAN_DATA 0
+#define BIG_ENDIAN_DATA 1
+
 
 int sysEndianType = LITTLE_ENDIAN_SYSTEM;
-int dataEndianType = LITTLE_ENDIAN_SYSTEM;
+int dataEndianType = LITTLE_ENDIAN_DATA;
 
 static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_id);
 static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[], size_t nbytes, size_t* buf_size, void** buf);

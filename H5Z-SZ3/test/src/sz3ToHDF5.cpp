@@ -24,16 +24,17 @@
 
 #define DATASET "testdata_compressed"
 
-#define LITTLE_ENDIAN_DATA 0
 
 using namespace SZ;
 
 int main(int argc, char * argv[])
 {
 
-    //rw.cpp helper fn to set sysEndianType
-   // detectSysEndianType();
-
+    //(void) helper fn to detect system endian type
+    //detectSysEndianType();
+    //by default sysEndianType and dataEndianType are little endian, can set them manually here
+    //dataEndianType = BIG_ENDIAN_DATA;
+    
     size_t r5=0,r4=0,r3=0,r2=0,r1=0;
     int cmp_algo, interp_algo; //select compression and interpolation for SZ3
     char outDir[640], oriFilePath[640], outputFilePath[640];
