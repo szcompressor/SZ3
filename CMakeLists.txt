@@ -3,8 +3,6 @@ project(SZ3 VERSION 3.1.4.0)
 include(GNUInstallDirs)
 include(CTest)
 
-set(CMAKE_CXX_FLAGS "-ggdb")
-
 option(BUILD_SHARED_LIBS "build shared libraries by default" ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -59,8 +57,10 @@ endif()
 
 add_subdirectory(test)
 
-#add hdf5 filter dir
-add_subdirectory(H5Z-SZ3)
+option(BUILD_H5Z_FILTER "build the H5Z-SZ3 filter" OFF)
+if(BUILD_H5Z_FILTER)
+	add_subdirectory(H5Z-SZ3)
+endif()
 
 install(TARGETS ${PROJECT_NAME} 
   EXPORT SZ3Targets
