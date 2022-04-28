@@ -9,7 +9,7 @@
 ##   PLEASE SET THESE VARIABLES BEFORE COMPILING
 ##=======================================================================
 
-SZPATH		= /home/arham23/Software/SZ3/include/SZ3
+SZPATH		= /home/arham23/Software/SZ3/include/
 HDF5PATH	= /home/arham23/Software/hdf5-1.12.1/hdf5
 
 ##=======================================================================
@@ -32,7 +32,7 @@ MPICC 		= mpicc
 ##   FLAGS
 ##=======================================================================
 
-SZFLAGS         = -I$(SZPATH)/api -L$(SZPATH) -Wl,-rpath,$(SZPATH)
+SZFLAGS         = -I$(SZPATH) -L$(SZPATH) -Wl,-rpath,$(SZPATH)
 
 HDF5FLAGS	= -I$(HDF5PATH)/include #$(HDF5PATH)/lib/libhdf5.a
 
