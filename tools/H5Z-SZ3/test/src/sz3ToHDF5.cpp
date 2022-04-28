@@ -13,7 +13,7 @@
 #include <dlfcn.h>
 #include "hdf5.h"
 #include "H5Z_SZ3.hpp"
-#include "utils/FileUtil.hpp"
+#include "SZ3/utils/FileUtil.hpp"
 
 
 #define DATASET "testdata_compressed"

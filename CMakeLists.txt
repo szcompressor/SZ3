@@ -46,7 +46,7 @@ pkg_search_module(ZSTD IMPORTED_TARGET libzstd)
 if(ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
   target_link_libraries(${PROJECT_NAME} INTERFACE PkgConfig::ZSTD)
 else()
-  add_subdirectory(zstd)
+  add_subdirectory(tools/zstd)
   target_link_libraries(${PROJECT_NAME} INTERFACE zstd)
 endif()
 
@@ -55,11 +55,11 @@ if (GSL_FOUND)
   target_compile_definitions(${PROJECT_NAME} INTERFACE -DENABLE_GSL="TRUE")
 endif()
 
-add_subdirectory(test)
+add_subdirectory(examples)
 
 option(BUILD_H5Z_FILTER "build the H5Z-SZ3 filter" OFF)
 if(BUILD_H5Z_FILTER)
-	add_subdirectory(H5Z-SZ3)
+	add_subdirectory(tools/H5Z-SZ3)
 endif()
 
 install(TARGETS ${PROJECT_NAME} 

@@ -83,6 +83,6 @@ Version New features
 * SZ 3.0.2 Support point-wise relative error bound mode.
 * SZ 3.1.0 The default algorithm is now interpolation+Lorenzo.
 * SZ 3.1.1 Add OpenMP support. Works for all algorithms.
-* SZ 3.1.2 Support configuration file (INI format). Example can be found in 'test/sz.config'.
+* SZ 3.1.2 Support configuration file (INI format). Example can be found in 'test/sz3.config'.
 * SZ 3.1.3 Support more error control mode: PSNR, L2Norm, ABS_AND_REL, ABS_OR_REL. Support INT32 and INT64 datatype.
 * SZ 3.1.4 Support running on Windows. Please refer to https://github.com/szcompressor/SZ3/issues/5#issuecomment-1094039224 for instructions.
