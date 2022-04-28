@@ -2,7 +2,7 @@
 // Created by arham23 on 2/8/22.
 //
 
-#include "H5Z_SZ3.h"
+#include "H5Z_SZ3.hpp"
 #include <fstream>
 #include "H5PLextern.h"
 

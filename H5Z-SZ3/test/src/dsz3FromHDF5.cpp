@@ -12,8 +12,7 @@
 #include <stdlib.h>
 #include <dlfcn.h>
 #include "hdf5.h"
-//#include "sz.h"
-#include "H5Z_SZ3.h"
+#include "H5Z_SZ3.hpp"
 
 #define DATASET "testdata_compressed"
 #define MAX_CHUNK_SIZE 4294967295 //2^32-1

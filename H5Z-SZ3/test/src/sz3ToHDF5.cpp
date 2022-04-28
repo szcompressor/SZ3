@@ -1,9 +1,3 @@
-//
-// Created by arham23 on 2/9/22.
-//
-
-
-
 /**
  *  @file szToHDF5.c
  *  @author Sheng Di
@@ -18,7 +12,7 @@
 #include <stdlib.h>
 #include <dlfcn.h>
 #include "hdf5.h"
-#include "H5Z_SZ3.h"
+#include "H5Z_SZ3.hpp"
 #include "utils/FileUtil.hpp"
 
 
