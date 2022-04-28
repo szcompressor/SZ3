@@ -88,7 +88,6 @@ namespace SZ {
         return res;
     }
 
-
     inline int64_t bytesToInt64_bigEndian(const unsigned char *b) {
         int64_t temp = 0;
         int64_t res = 0;
@@ -129,8 +128,6 @@ namespace SZ {
     }
 
 
-
-
     inline void int16ToBytes_bigEndian(unsigned char *b, int16_t num) {
         b[0] = (unsigned char) (num >> 8);
         b[1] = (unsigned char) (num);
@@ -142,6 +139,7 @@ namespace SZ {
         b[2] = (unsigned char) (num >> 8);
         b[3] = (unsigned char) (num);
     }
+
 
     inline void int64ToBytes_bigEndian(unsigned char *b, int64_t num) {
         b[0] = (unsigned char) (num >> 56);

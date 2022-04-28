@@ -57,6 +57,11 @@ endif()
 
 add_subdirectory(test)
 
+option(BUILD_H5Z_FILTER "build the H5Z-SZ3 filter" OFF)
+if(BUILD_H5Z_FILTER)
+	add_subdirectory(H5Z-SZ3)
+endif()
+
 install(TARGETS ${PROJECT_NAME} 
   EXPORT SZ3Targets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -83,3 +88,5 @@ install(FILES
   ${CMAKE_CURRENT_BINARY_DIR}/SZ3ConfigVersion.cmake
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3
   )
+#export sz3 target for external use
+export(TARGETS SZ3 FILE SZ3.cmake)

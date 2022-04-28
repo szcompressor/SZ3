@@ -164,6 +164,7 @@ namespace SZ {
                     *p = (*p) | (unsigned char) ((huffmanTree->code[state])[0] >> (64 - lackBits));
                     if (lackBits < bitSize) {
                         p++;
+
                         int64_t newCode = (huffmanTree->code[state])[0] << lackBits;
                         int64ToBytes_bigEndian(p, newCode);
 
