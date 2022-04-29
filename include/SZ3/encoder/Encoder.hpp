@@ -26,6 +26,11 @@ namespace SZ {
 
             virtual void load(const uchar *&c, size_t &remaining_length) = 0;
 
+            // return the size of the encoder itself (such as the tree size of the huffman encoder)
+            virtual size_t size_est() {
+                return 0;
+            }
+
         };
     }
 }
