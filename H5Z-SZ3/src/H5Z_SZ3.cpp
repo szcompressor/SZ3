@@ -16,7 +16,7 @@ using namespace SZ;
 
 int loadConfigFile = 0;
 int freshCdValues = 0;
-int MAX_CHUNK_SIZE = 2E32 - 1;
+int MAX_CHUNK_SIZE = INT_MAX;
 
 //filter definition
 const H5Z_class2_t H5Z_SZ3[1] = {{
