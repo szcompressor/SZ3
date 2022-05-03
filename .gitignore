@@ -2,6 +2,7 @@ test.dat
 compressed.out
 perf.data*
 build
+debug
 cmake-build-debug
 cmake-build-release
 .idea

@@ -19,23 +19,23 @@ namespace SZ {
     public:
         static const uint8_t predictor_id = 0b00000011;
 
-        PolyRegressionPredictor() : quantizer_independent(0), quantizer_liner(0), quantizer_poly(0), current_coeffs{0} {
-            init_poly();
-        }
+//        PolyRegressionPredictor() : quantizer_independent(0), quantizer_liner(0), quantizer_poly(0), current_coeffs{0} {
+//            init_poly();
+//        }
 
         PolyRegressionPredictor(uint block_size, T eb) : quantizer_independent(eb / 5 / block_size),
                                                          quantizer_liner(eb / 20 / block_size),
                                                          quantizer_poly(eb / 100 / block_size),
                                                          prev_coeffs{0}, current_coeffs{0} {
-            init_poly();
+            init_poly(block_size);
         }
 
-        PolyRegressionPredictor(T eb1, T eb2, T eb3) : quantizer_independent(eb1),
-                                                       quantizer_liner(eb2),
-                                                       quantizer_poly(eb3),
-                                                       prev_coeffs{0}, current_coeffs{0} {
-            init_poly();
-        }
+//        PolyRegressionPredictor(T eb1, T eb2, T eb3) : quantizer_independent(eb1),
+//                                                       quantizer_liner(eb2),
+//                                                       quantizer_poly(eb3),
+//                                                       prev_coeffs{0}, current_coeffs{0} {
+//            init_poly();
+//        }
 
         using Range = multi_dimensional_range<T, N>;
         using iterator = typename multi_dimensional_range<T, N>::iterator;
@@ -189,10 +189,9 @@ namespace SZ {
         std::array<T, M> current_coeffs;
         std::array<T, M> prev_coeffs;
         std::vector<std::array<T, M * M>> coef_aux_list;
-        const std::vector<int> COEF_AUX_MAX_BLOCK =
-                {5000, 4096, 64, 16};//The block size in PolyRegressionCoeffAux.hpp. It has nothing to do with the blocksize in SZ::Config, and please do not modify the value.
+        const std::vector<int> COEF_AUX_MAX_BLOCK = {5000, 4096, 64, 16};//The maximum block size supported by PolyReg.
 
-        void init_poly() {
+        void init_poly(size_t block_size) {
             float *data;
             size_t num;
             if (N == 1) {
@@ -205,7 +204,11 @@ namespace SZ {
                 data = COEFF_3D;
                 num = sizeof(COEFF_3D) / sizeof(float);
             } else {
-                printf("Poly regression only supports 1D, 2D, and 3D datasets.");
+                printf("Poly regression only supports 1D, 2D, and 3D datasets.\n");
+                exit(1);
+            }
+            if (block_size > COEF_AUX_MAX_BLOCK[N]) {
+                printf("%dD Poly regression supports block size upto %d\n.", N, COEF_AUX_MAX_BLOCK[N]);
                 exit(1);
             }
 
