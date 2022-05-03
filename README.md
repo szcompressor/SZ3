@@ -52,7 +52,7 @@ Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [
 
 ## Testing Examples
 
-You can use the executable 'sz' command to do the compression/decompression.
+You can use the executable 'sz3' command to do the compression/decompression.
 
 SZ3 simplifies command line arguments in the previous version. If you are a new user, please follow the instructions
 given by the executable.
