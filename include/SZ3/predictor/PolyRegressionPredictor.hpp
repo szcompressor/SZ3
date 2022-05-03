@@ -190,7 +190,7 @@ namespace SZ {
         std::array<T, M> prev_coeffs;
         std::vector<std::array<T, M * M>> coef_aux_list;
         const std::vector<int> COEF_AUX_MAX_BLOCK =
-                {5000, 4096, 64, 16};//Please do not modify the value. This has nothing to do with the blocksize in SZ::Config.
+                {5000, 4096, 64, 16};//The block size in PolyRegressionCoeffAux.hpp. It has nothing to do with the blocksize in SZ::Config, and please do not modify the value.
 
         void init_poly() {
             float *data;
