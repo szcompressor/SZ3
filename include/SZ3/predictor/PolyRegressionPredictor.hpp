@@ -54,7 +54,7 @@ namespace SZ {
 
         bool precompress_block(const std::shared_ptr<Range> &range) noexcept {
             auto dims = range->get_dimensions();
-            for (const auto &dim : dims) {
+            for (const auto &dim: dims) {
                 if (dim <= 2) {
                     return false;
                 }
@@ -123,20 +123,22 @@ namespace SZ {
         void save(uchar *&c) const {
             c[0] = predictor_id;
             c += 1;
-            quantizer_independent.save(c);
-            quantizer_liner.save(c);
-            quantizer_poly.save(c);
             *reinterpret_cast<size_t *>(c) = regression_coeff_quant_inds.size();
             c += sizeof(size_t);
-            HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
-            encoder.preprocess_encode(regression_coeff_quant_inds, 0);
-            encoder.save(c);
-            encoder.encode(regression_coeff_quant_inds, c);
-            encoder.postprocess_encode();
+            if (!regression_coeff_quant_inds.empty()) {
+                quantizer_independent.save(c);
+                quantizer_liner.save(c);
+                quantizer_poly.save(c);
+                HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
+                encoder.preprocess_encode(regression_coeff_quant_inds, 0);
+                encoder.save(c);
+                encoder.encode(regression_coeff_quant_inds, c);
+                encoder.postprocess_encode();
+            }
         }
 
         bool predecompress_block(const std::shared_ptr<Range> &range) noexcept {
-            for (const auto &dim :  range->get_dimensions()) {
+            for (const auto &dim: range->get_dimensions()) {
                 if (dim <= 2) {
                     return false;
                 }
@@ -148,17 +150,18 @@ namespace SZ {
         void load(const uchar *&c, size_t &remaining_length) {
             c += sizeof(uint8_t);
             remaining_length -= sizeof(uint8_t);
-            quantizer_independent.load(c, remaining_length);
-            quantizer_liner.load(c, remaining_length);
-            quantizer_poly.load(c, remaining_length);
             size_t coeff_size = *reinterpret_cast<const size_t *>(c);
             c += sizeof(size_t);
             remaining_length -= sizeof(size_t);
-            HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
-            encoder.load(c, remaining_length);
-            regression_coeff_quant_inds = encoder.decode(c, coeff_size);
-            encoder.postprocess_decode();
-            remaining_length -= coeff_size * sizeof(int);
+            if (coeff_size != 0) {
+                quantizer_independent.load(c, remaining_length);
+                quantizer_liner.load(c, remaining_length);
+                quantizer_poly.load(c, remaining_length);
+                HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
+                encoder.load(c, remaining_length);
+                regression_coeff_quant_inds = encoder.decode(c, coeff_size);
+                encoder.postprocess_decode();
+            }
             std::fill(current_coeffs.begin(), current_coeffs.end(), 0);
             regression_coeff_index = 0;
         }
@@ -186,7 +189,8 @@ namespace SZ {
         std::array<T, M> current_coeffs;
         std::array<T, M> prev_coeffs;
         std::vector<std::array<T, M * M>> coef_aux_list;
-        std::vector<int> COEF_AUX_MAX_BLOCK = {5000, 4096, 64, 16};
+        const std::vector<int> COEF_AUX_MAX_BLOCK =
+                {5000, 4096, 64, 16};//Please do not modify the value. This has nothing to do with the blocksize in SZ::Config.
 
         void init_poly() {
             float *data;
@@ -209,7 +213,7 @@ namespace SZ {
             coef_aux_list = std::vector<std::array<T, M * M>>(COEF_AUX_MAX_BLOCK[0], {0});
             while (coef_aux_p < &data[0] + num) {
                 std::array<size_t, N> dims;
-                for (auto &idx:dims) {
+                for (auto &idx: dims) {
                     idx = *coef_aux_p++;
                 }
                 std::copy_n(coef_aux_p, M * M, coef_aux_list[get_coef_aux_list_idx(dims)].begin());
@@ -282,7 +286,7 @@ namespace SZ {
 
         inline size_t get_coef_aux_list_idx(const std::array<size_t, N> &dims) const {
             auto coef_aux_index = 0;
-            for (auto &dim:dims) {
+            for (auto &dim: dims) {
                 coef_aux_index = coef_aux_index * COEF_AUX_MAX_BLOCK[N] + dim;
             }
             return coef_aux_index;
