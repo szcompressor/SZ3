@@ -119,20 +119,10 @@ namespace SZ {
         }
 
         T interpret_eb(const T * data, ptrdiff_t offset) {
-            // 3D data
-            int i = offset / (dims[1] * dims[2]);
-            offset = offset % (dims[1] * dims[2]);
-            int j = offset / dims[2];
-            int k = offset % dims[2];
-            block_id = (i / block_size) * block_dims[1] * block_dims[2] + (j / block_size) * block_dims[2] + (k / block_size);
-
+            block_id = compute_block_id(offset);
             double eb_x2 = (aggregated_tolerance[block_id] - fabs(accumulated_error[block_id])) / rest_elements[block_id];
             T data_val = *data;
             T eb = - fabs(data_val) + sqrt(data_val * data_val + eb_x2);
-            // printf("%d, %d, %d: %.4e\n", i, j, k, eb);
-            // if(block_id == 8171){
-            //     printf("%.4e / %.4e: %.4e\n", accumulated_error[block_id], aggregated_tolerance[block_id], (double)eb);
-            // }
             return std::min(eb, global_eb);
         }
 
@@ -172,20 +162,39 @@ namespace SZ {
             aggregated_tolerance = std::vector<double>(num_blocks);
             block_elements = std::vector<int>(num_blocks, 0);
             rest_elements = std::vector<int>(num_blocks, 0);
-            for(int i=0; i<block_dims[0]; i++){
-                int size_x = (i < block_dims[0] - 1) ? block_size : dims[0] - i * block_size;
-                for(int j=0; j<block_dims[1]; j++){
-                    int size_y = (j < block_dims[1] - 1) ? block_size : dims[1] - j * block_size;
-                    for(int k=0; k<block_dims[2]; k++){
-                        int size_z = (k < block_dims[2] - 1) ? block_size : dims[2] - k * block_size;
-                        int num_block_elements = size_x * size_y * size_z;
-                        // printf("%d, %d, %d: %d * %d * %d = %d\n", i, j, k, size_x, size_y, size_z, num_block_elements);
-                        aggregated_tolerance[i * block_dims[1] * block_dims[2] + j * block_dims[2] + k] = num_block_elements * tolerance;
-                        block_elements[i * block_dims[1] * block_dims[2] + j * block_dims[2] + k] = num_block_elements;
-                        rest_elements[i * block_dims[1] * block_dims[2] + j * block_dims[2] + k] = num_block_elements;
+            if(dims.size() == 2){
+                for(int i=0; i<block_dims[0]; i++){
+                    int size_x = (i < block_dims[0] - 1) ? block_size : dims[0] - i * block_size;
+                    for(int j=0; j<block_dims[1]; j++){
+                        int size_y = (j < block_dims[1] - 1) ? block_size : dims[1] - j * block_size;
+                        int num_block_elements = size_x * size_y;
+                        aggregated_tolerance[i * block_dims[1] + j] = num_block_elements * tolerance;
+                        block_elements[i * block_dims[1] + j] = num_block_elements;
+                        rest_elements[i * block_dims[1] + j] = num_block_elements;
                     }
                 }
             }
+            else if(dims.size() == 3){
+                for(int i=0; i<block_dims[0]; i++){
+                    int size_x = (i < block_dims[0] - 1) ? block_size : dims[0] - i * block_size;
+                    for(int j=0; j<block_dims[1]; j++){
+                        int size_y = (j < block_dims[1] - 1) ? block_size : dims[1] - j * block_size;
+                        for(int k=0; k<block_dims[2]; k++){
+                            int size_z = (k < block_dims[2] - 1) ? block_size : dims[2] - k * block_size;
+                            int num_block_elements = size_x * size_y * size_z;
+                            // printf("%d, %d, %d: %d * %d * %d = %d\n", i, j, k, size_x, size_y, size_z, num_block_elements);
+                            aggregated_tolerance[i * block_dims[1] * block_dims[2] + j * block_dims[2] + k] = num_block_elements * tolerance;
+                            block_elements[i * block_dims[1] * block_dims[2] + j * block_dims[2] + k] = num_block_elements;
+                            rest_elements[i * block_dims[1] * block_dims[2] + j * block_dims[2] + k] = num_block_elements;
+                        }
+                    }
+                }
+            }
+            else{
+                std::cerr << "dims other than 2 or 3 are not implemented" << std::endl;
+                exit(-1);
+            }
+
             accumulated_error = std::vector<double>(num_blocks, 0);
             std::cout << "end of init\n";            
         }
@@ -195,6 +204,38 @@ namespace SZ {
         }
 
     private:
+        template<uint NN = N>
+        inline typename std::enable_if<NN == 1, int>::type compute_block_id(ptrdiff_t offset) const noexcept {
+            // 1D data
+            return offset / block_size;
+        }
+
+        template<uint NN = N>
+        inline typename std::enable_if<NN == 2, int>::type compute_block_id(ptrdiff_t offset) const noexcept {
+            // 3D data
+            int i = offset / dims[1];
+            int j = offset % dims[1];
+            return (i / block_size) * block_dims[1] + (j / block_size);
+        }
+
+        template<uint NN = N>
+        inline typename std::enable_if<NN == 3, int>::type compute_block_id(ptrdiff_t offset) const noexcept {
+            // 3D data
+            int i = offset / (dims[1] * dims[2]);
+            offset = offset % (dims[1] * dims[2]);
+            int j = offset / dims[2];
+            int k = offset % dims[2];
+            return (i / block_size) * block_dims[1] * block_dims[2] + (j / block_size) * block_dims[2] + (k / block_size);
+        }
+
+        template<uint NN = N>
+        inline typename std::enable_if<NN == 4, int>::type compute_block_id(ptrdiff_t offset) const noexcept {
+            // 4D data
+            std::cerr << "Not implemented!\n";
+            exit(-1);
+            return 0;
+        }
+
         T tolerance;
         T global_eb;
         int block_id;
