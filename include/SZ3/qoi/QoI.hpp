@@ -44,6 +44,10 @@ namespace SZ {
 
             virtual void set_global_eb(T eb) = 0;
 
+            virtual void init() = 0;
+
+            virtual void set_dims(const std::vector<size_t>& new_dims) = 0;
+
             int id = 0;
         };
 

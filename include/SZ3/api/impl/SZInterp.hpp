@@ -51,11 +51,15 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
             conf.setDims(sample_dims.begin(), sample_dims.end());
 
             T * sampling_data = (T *) malloc(sampling_num * sizeof(T));
+            // reset dimensions for average of square
+            if(conf.qoi == 3) qoi->set_dims(sample_dims);
             // get current ratio
             double ratio = 0;
             {
                 size_t sampleOutSize;
                 memcpy(sampling_data, samples.data(), sampling_num * sizeof(T));
+                // reset variables for average of square
+                if(conf.qoi == 3) qoi->init();
                 auto cmprData = sz.compress(conf, sampling_data, sampleOutSize);
                 sz.clear();
                 delete[]cmprData;
@@ -74,6 +78,8 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
                 qoi->set_global_eb(conf.absErrorBound);
                 size_t sampleOutSize;
                 memcpy(sampling_data, samples.data(), sampling_num * sizeof(T));
+                // reset variables for average of square
+                if(conf.qoi == 3) qoi->init();
                 auto cmprData = sz.compress(conf, sampling_data, sampleOutSize);
                 sz.clear();
                 delete[]cmprData;
@@ -94,6 +100,11 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
             conf.absErrorBound = best_abs_eb;
             qoi->set_global_eb(best_abs_eb);
             conf.setDims(dims.begin(), dims.end());
+            // reset dimensions and variables for average of square
+            if(conf.qoi == 3){
+                qoi->set_dims(dims);
+                qoi->init();
+            }
         }
         char *cmpData = (char *) sz.compress(conf, data, outSize);
         return cmpData;

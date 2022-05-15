@@ -75,6 +75,10 @@ namespace SZ {
 
         void set_global_eb(T eb) {global_eb = eb;}
 
+        void init(){}
+
+        void set_dims(const std::vector<size_t>& new_dims){}
+
     private:
         T tolerance;
         T global_eb;
@@ -96,33 +100,7 @@ namespace SZ {
             printf("tolerance = %.4e\n", (double) tolerance);
             printf("global_eb = %.4e\n", (double) global_eb);
             concepts::QoIInterface<T, N>::id = 3;
-            block_dims = std::vector<size_t>(dims.size());
-            size_t num_blocks = 1;
-            for(int i=0; i<dims.size(); i++){
-                block_dims[i] = (dims[i] - 1) / block_size + 1;
-                num_blocks *= block_dims[i];
-                std::cout << block_dims[i] << " ";
-            }
-            std::cout << std::endl;
-            aggregated_tolerance = std::vector<double>(num_blocks);
-            block_elements = std::vector<int>(num_blocks, 0);
-            rest_elements = std::vector<int>(num_blocks, 0);
-            for(int i=0; i<block_dims[0]; i++){
-                int size_x = (i < block_dims[0] - 1) ? block_size : dims[0] - i * block_size;
-                for(int j=0; j<block_dims[1]; j++){
-                    int size_y = (j < block_dims[1] - 1) ? block_size : dims[1] - j * block_size;
-                    for(int k=0; k<block_dims[2]; k++){
-                        int size_z = (k < block_dims[2] - 1) ? block_size : dims[2] - k * block_size;
-                        int num_block_elements = size_x * size_y * size_z;
-                        // printf("%d, %d, %d: %d * %d * %d = %d\n", i, j, k, size_x, size_y, size_z, num_block_elements);
-                        aggregated_tolerance[i * block_dims[1] * block_dims[2] + j * block_dims[2] + k] = num_block_elements * tolerance;
-                        block_elements[i * block_dims[1] * block_dims[2] + j * block_dims[2] + k] = num_block_elements;
-                        rest_elements[i * block_dims[1] * block_dims[2] + j * block_dims[2] + k] = num_block_elements;
-                    }
-                }
-            }
-            accumulated_error = std::vector<double>(num_blocks, 0);
-            std::cout << "end of init\n";
+            init();
         }
 
         using Range = multi_dimensional_range<T, N>;
@@ -181,6 +159,40 @@ namespace SZ {
         T get_global_eb() const { return global_eb; }
 
         void set_global_eb(T eb) {global_eb = eb;}
+
+        void init(){
+            block_dims = std::vector<size_t>(dims.size());
+            size_t num_blocks = 1;
+            for(int i=0; i<dims.size(); i++){
+                block_dims[i] = (dims[i] - 1) / block_size + 1;
+                num_blocks *= block_dims[i];
+                std::cout << block_dims[i] << " ";
+            }
+            std::cout << std::endl;
+            aggregated_tolerance = std::vector<double>(num_blocks);
+            block_elements = std::vector<int>(num_blocks, 0);
+            rest_elements = std::vector<int>(num_blocks, 0);
+            for(int i=0; i<block_dims[0]; i++){
+                int size_x = (i < block_dims[0] - 1) ? block_size : dims[0] - i * block_size;
+                for(int j=0; j<block_dims[1]; j++){
+                    int size_y = (j < block_dims[1] - 1) ? block_size : dims[1] - j * block_size;
+                    for(int k=0; k<block_dims[2]; k++){
+                        int size_z = (k < block_dims[2] - 1) ? block_size : dims[2] - k * block_size;
+                        int num_block_elements = size_x * size_y * size_z;
+                        // printf("%d, %d, %d: %d * %d * %d = %d\n", i, j, k, size_x, size_y, size_z, num_block_elements);
+                        aggregated_tolerance[i * block_dims[1] * block_dims[2] + j * block_dims[2] + k] = num_block_elements * tolerance;
+                        block_elements[i * block_dims[1] * block_dims[2] + j * block_dims[2] + k] = num_block_elements;
+                        rest_elements[i * block_dims[1] * block_dims[2] + j * block_dims[2] + k] = num_block_elements;
+                    }
+                }
+            }
+            accumulated_error = std::vector<double>(num_blocks, 0);
+            std::cout << "end of init\n";            
+        }
+
+        void set_dims(const std::vector<size_t>& new_dims){
+            dims = new_dims;
+        }
 
     private:
         T tolerance;

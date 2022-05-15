@@ -87,6 +87,10 @@ namespace SZ {
 
         void set_global_eb(T eb) {global_eb = eb;}
 
+        void init(){}
+
+        void set_dims(const std::vector<size_t>& new_dims){}
+
     private:
         inline float min(float a, float b) const noexcept{
             return std::min(a, b);

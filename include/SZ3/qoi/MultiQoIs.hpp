@@ -85,6 +85,18 @@ namespace SZ {
             }                                    
         }
 
+        void init(){
+            for(int i=0; i<qois.size(); i++){
+                qois[i]->init();
+            }                                                
+        }
+
+        void set_dims(const std::vector<size_t>& new_dims){
+            for(int i=0; i<qois.size(); i++){
+                qois[i]->set_dims(new_dims);
+            }                                                            
+        }
+
     private:
         std::vector<std::shared_ptr<concepts::QoIInterface< T, N>>> qois;
     };
