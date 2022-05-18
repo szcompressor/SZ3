@@ -7,6 +7,7 @@ set(exes sz_demo
         sz_interp
         sz_pinterp
         sz_pinterp_mquant
+        sz_pinterp_mquant_v1
         sz_pinterp_savememory
         sz_rtm
         sz_interp_double

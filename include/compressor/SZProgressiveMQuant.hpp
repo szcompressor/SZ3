@@ -187,14 +187,8 @@ namespace SZ {
                                     lossless_decode_bitgroup(b, bg_data, bg_len);
                                 }
                                 if (bsum[lid] == 0) {
-                                    if (lid == 1) {
-
-                                        block_interpolation(dec_data, dec_data, global_begin, global_end, &SZProgressiveMQuant::recover,
-                                                            interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
-                                    } else {
-                                        block_interpolation(dec_data, dec_data, global_begin, global_end, &SZProgressiveMQuant::recover,
-                                                            interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
-                                    }
+                                    block_interpolation(dec_data, dec_data, global_begin, global_end, &SZProgressiveMQuant::recover,
+                                                        interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
                                 } else {
                                     block_interpolation(dec_data, dec_delta.data(), global_begin, global_end,
                                                         &SZProgressiveMQuant::recover_set_delta,
