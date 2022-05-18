@@ -396,8 +396,8 @@ namespace SZ {
 //        std::vector<int> bitgroup = {8, 8, 8, 2, 2, 2, 1, 1};
 //TODO quantization bins in different levels have different distribution.
 // a dynamic bitgroup should be used for each level
-//        std::vector<int> bitgroup = {16, 1, 1, 1, 1, 1, 1, 1, 1, 4, 2, 2};
-        std::vector<int> bitgroup = {30,2};
+        std::vector<int> bitgroup = {16, 8, 4, 2, 1, 1};
+//        std::vector<int> bitgroup = {30, 2};
 //        std::vector<int> bitgroup = {16, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1};
         std::vector<T> dec_delta;
         size_t retrieved_size = 0;
@@ -440,7 +440,7 @@ namespace SZ {
             }
             quant_inds.resize(quant_size, 0);
             for (size_t i = 0; i < quant_size; i++) {
-                quant_inds[i] += (uint32_t((quant_ind_truncated[i] << bitshift)) ^ 0xaaaaaaaau) - 0xaaaaaaaau;
+                quant_inds[i] += (((uint32_t) quant_ind_truncated[i] << bitshift) ^ 0xaaaaaaaau) - 0xaaaaaaaau;
             }
         }
 
@@ -472,7 +472,7 @@ namespace SZ {
                 for (size_t i = 0; i < qsize; i++) {
                     quants[i] = quant_inds[i] & (((uint64_t) 1 << bitgroup[b]) - 1);
                     quant_inds[i] >>= bitgroup[b];
-                    int qu = (uint32_t((quants[i] << shift)) ^ 0xaaaaaaaau) - 0xaaaaaaaau;
+                    int qu = (((uint32_t) quants[i] << shift) ^ 0xaaaaaaaau) - 0xaaaaaaaau;
                     error[i] += qu * 2.0 * eb;
                     l2_error += error[i] * error[i];
                 }
