@@ -158,6 +158,15 @@ namespace SZ {
 
         }
 
+
+        void setunpred(T *data) {
+            for (size_t i = 0; i < num; i++) {
+                if (isunpred[i]) {
+                    data[i] = unpred_map[i];
+                }
+            }
+        }
+
         void clear() {
         }
 

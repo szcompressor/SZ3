@@ -141,6 +141,7 @@ namespace SZ {
         psnr = 20 * log10(range) - 10 * log10(mse);
         nrmse = sqrt(mse) / range;
 
+        printf("L2 error = %.10G\n", sum);
         printf("Min=%.20G, Max=%.20G, range=%.20G\n", Min, Max, range);
         printf("Max absolute error = %.2G\n", max_err);
         printf("Max relative error = %.2G\n", max_err / (Max - Min));

@@ -34,7 +34,7 @@ namespace SZ {
             size_t outSize = ZSTD_compress(dataOutPos, estimatedCompressedSize,
                                            dataIn, inSize, compression_level);
             outSize += sizeof(size_t);
-            printf("[ZSTD] ratio = %.2f inSize = %lu outSize = %lu\n", inSize * 1.0 / outSize, inSize, outSize);
+//            printf("[ZSTD] ratio = %.2f inSize = %lu outSize = %lu\n", inSize * 1.0 / outSize, inSize, outSize);
             return outSize;
         }
 
