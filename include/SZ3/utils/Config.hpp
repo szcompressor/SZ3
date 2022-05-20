@@ -70,7 +70,7 @@ namespace SZ {
             INIReader cfg(cfgpath);
 
             if (cfg.ParseError() != 0) {
-                std::cout << "Can't load cfg file  <<" << cfgpath << std::endl;
+                std::cout << "Can't load cfg file " << cfgpath << std::endl;
                 exit(0);
             } 
 

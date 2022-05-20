@@ -19,23 +19,23 @@ namespace SZ {
     public:
         static const uint8_t predictor_id = 0b00000011;
 
-        PolyRegressionPredictor() : quantizer_independent(0), quantizer_liner(0), quantizer_poly(0), current_coeffs{0} {
-            init_poly();
-        }
+//        PolyRegressionPredictor() : quantizer_independent(0), quantizer_liner(0), quantizer_poly(0), current_coeffs{0} {
+//            init_poly();
+//        }
 
         PolyRegressionPredictor(uint block_size, T eb) : quantizer_independent(eb / 5 / block_size),
                                                          quantizer_liner(eb / 20 / block_size),
                                                          quantizer_poly(eb / 100 / block_size),
                                                          prev_coeffs{0}, current_coeffs{0} {
-            init_poly();
+            init_poly(block_size);
         }
 
-        PolyRegressionPredictor(T eb1, T eb2, T eb3) : quantizer_independent(eb1),
-                                                       quantizer_liner(eb2),
-                                                       quantizer_poly(eb3),
-                                                       prev_coeffs{0}, current_coeffs{0} {
-            init_poly();
-        }
+//        PolyRegressionPredictor(T eb1, T eb2, T eb3) : quantizer_independent(eb1),
+//                                                       quantizer_liner(eb2),
+//                                                       quantizer_poly(eb3),
+//                                                       prev_coeffs{0}, current_coeffs{0} {
+//            init_poly();
+//        }
 
         using Range = multi_dimensional_range<T, N>;
         using iterator = typename multi_dimensional_range<T, N>::iterator;
@@ -54,7 +54,7 @@ namespace SZ {
 
         bool precompress_block(const std::shared_ptr<Range> &range) noexcept {
             auto dims = range->get_dimensions();
-            for (const auto &dim : dims) {
+            for (const auto &dim: dims) {
                 if (dim <= 2) {
                     return false;
                 }
@@ -87,28 +87,28 @@ namespace SZ {
         }
 
         template<uint NN = N>
-        inline typename std::enable_if<NN == 1, std::array<T, M>>::type get_poly_index(const iterator &iter) const {
-            T i = iter.get_local_index(0);
+        inline typename std::enable_if<NN == 1, std::array<double, M>>::type get_poly_index(const iterator &iter) const {
+            double i = iter.get_local_index(0);
 
-            return std::array<T, M>{1, i, i * i};
+            return std::array<double, M>{1, i, i * i};
         }
 
         template<uint NN = N>
-        inline typename std::enable_if<NN == 2, std::array<T, M>>::type get_poly_index(const iterator &iter) const {
-            T i = iter.get_local_index(0);
-            T j = iter.get_local_index(1);
+        inline typename std::enable_if<NN == 2, std::array<double, M>>::type get_poly_index(const iterator &iter) const {
+            double i = iter.get_local_index(0);
+            double j = iter.get_local_index(1);
 
-            return std::array<T, M>{1, i, j, i * i, i * j, j * j};
+            return std::array<double, M>{1, i, j, i * i, i * j, j * j};
         }
 
         template<uint NN = N>
-        inline typename std::enable_if<NN != 1 && NN != 2, std::array<T, M>>::type
+        inline typename std::enable_if<NN != 1 && NN != 2, std::array<double, M>>::type
         get_poly_index(const iterator &iter) const {
-            T i = iter.get_local_index(0);
-            T j = iter.get_local_index(1);
-            T k = iter.get_local_index(2);
+            double i = iter.get_local_index(0);
+            double j = iter.get_local_index(1);
+            double k = iter.get_local_index(2);
 
-            return std::array<T, M>{1, i, j, k, i * i, i * j, i * k, j * j, j * k, k * k};
+            return std::array<double, M>{1, i, j, k, i * i, i * j, i * k, j * j, j * k, k * k};
         }
 
         inline T predict(const iterator &iter) const noexcept {
@@ -123,20 +123,22 @@ namespace SZ {
         void save(uchar *&c) const {
             c[0] = predictor_id;
             c += 1;
-            quantizer_independent.save(c);
-            quantizer_liner.save(c);
-            quantizer_poly.save(c);
             *reinterpret_cast<size_t *>(c) = regression_coeff_quant_inds.size();
             c += sizeof(size_t);
-            HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
-            encoder.preprocess_encode(regression_coeff_quant_inds, 0);
-            encoder.save(c);
-            encoder.encode(regression_coeff_quant_inds, c);
-            encoder.postprocess_encode();
+            if (!regression_coeff_quant_inds.empty()) {
+                quantizer_independent.save(c);
+                quantizer_liner.save(c);
+                quantizer_poly.save(c);
+                HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
+                encoder.preprocess_encode(regression_coeff_quant_inds, 0);
+                encoder.save(c);
+                encoder.encode(regression_coeff_quant_inds, c);
+                encoder.postprocess_encode();
+            }
         }
 
         bool predecompress_block(const std::shared_ptr<Range> &range) noexcept {
-            for (const auto &dim :  range->get_dimensions()) {
+            for (const auto &dim: range->get_dimensions()) {
                 if (dim <= 2) {
                     return false;
                 }
@@ -148,17 +150,18 @@ namespace SZ {
         void load(const uchar *&c, size_t &remaining_length) {
             c += sizeof(uint8_t);
             remaining_length -= sizeof(uint8_t);
-            quantizer_independent.load(c, remaining_length);
-            quantizer_liner.load(c, remaining_length);
-            quantizer_poly.load(c, remaining_length);
             size_t coeff_size = *reinterpret_cast<const size_t *>(c);
             c += sizeof(size_t);
             remaining_length -= sizeof(size_t);
-            HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
-            encoder.load(c, remaining_length);
-            regression_coeff_quant_inds = encoder.decode(c, coeff_size);
-            encoder.postprocess_decode();
-            remaining_length -= coeff_size * sizeof(int);
+            if (coeff_size != 0) {
+                quantizer_independent.load(c, remaining_length);
+                quantizer_liner.load(c, remaining_length);
+                quantizer_poly.load(c, remaining_length);
+                HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
+                encoder.load(c, remaining_length);
+                regression_coeff_quant_inds = encoder.decode(c, coeff_size);
+                encoder.postprocess_decode();
+            }
             std::fill(current_coeffs.begin(), current_coeffs.end(), 0);
             regression_coeff_index = 0;
         }
@@ -186,9 +189,9 @@ namespace SZ {
         std::array<T, M> current_coeffs;
         std::array<T, M> prev_coeffs;
         std::vector<std::array<T, M * M>> coef_aux_list;
-        std::vector<int> COEF_AUX_MAX_BLOCK = {5000, 4096, 64, 16};
+        const std::vector<int> COEF_AUX_MAX_BLOCK = {5000, 4096, 64, 16};//The maximum block size supported by PolyReg.
 
-        void init_poly() {
+        void init_poly(size_t block_size) {
             float *data;
             size_t num;
             if (N == 1) {
@@ -201,7 +204,11 @@ namespace SZ {
                 data = COEFF_3D;
                 num = sizeof(COEFF_3D) / sizeof(float);
             } else {
-                printf("Poly regression only supports 1D, 2D, and 3D datasets.");
+                printf("Poly regression only supports 1D, 2D, and 3D datasets.\n");
+                exit(1);
+            }
+            if (block_size > COEF_AUX_MAX_BLOCK[N]) {
+                printf("%dD Poly regression supports block size upto %d\n.", N, COEF_AUX_MAX_BLOCK[N]);
                 exit(1);
             }
 
@@ -209,7 +216,7 @@ namespace SZ {
             coef_aux_list = std::vector<std::array<T, M * M>>(COEF_AUX_MAX_BLOCK[0], {0});
             while (coef_aux_p < &data[0] + num) {
                 std::array<size_t, N> dims;
-                for (auto &idx:dims) {
+                for (auto &idx: dims) {
                     idx = *coef_aux_p++;
                 }
                 std::copy_n(coef_aux_p, M * M, coef_aux_list[get_coef_aux_list_idx(dims)].begin());
@@ -282,7 +289,7 @@ namespace SZ {
 
         inline size_t get_coef_aux_list_idx(const std::array<size_t, N> &dims) const {
             auto coef_aux_index = 0;
-            for (auto &dim:dims) {
+            for (auto &dim: dims) {
                 coef_aux_index = coef_aux_index * COEF_AUX_MAX_BLOCK[N] + dim;
             }
             return coef_aux_index;

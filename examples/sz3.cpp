@@ -18,7 +18,7 @@
 void usage() {
     printf("Note: SZ3 command line arguments are backward compatible with SZ2, \n");
     printf("      use -h2 to show the supported SZ2 command line arguments. \n");
-    printf("Usage: sz <options>\n");
+    printf("Usage: sz3 <options>\n");
     printf("Options:\n");
     printf("* general options:\n");
     printf("	-h: print the help information\n");

@@ -52,7 +52,7 @@ Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [
 
 ## Testing Examples
 
-You can use the executable 'sz' command to do the compression/decompression.
+You can use the executable 'sz3' command to do the compression/decompression.
 
 SZ3 simplifies command line arguments in the previous version. If you are a new user, please follow the instructions
 given by the executable.
@@ -83,6 +83,7 @@ Version New features
 * SZ 3.0.2 Support point-wise relative error bound mode.
 * SZ 3.1.0 The default algorithm is now interpolation+Lorenzo.
 * SZ 3.1.1 Add OpenMP support. Works for all algorithms.
-* SZ 3.1.2 Support configuration file (INI format). Example can be found in 'test/sz.config'.
+* SZ 3.1.2 Support configuration file (INI format). Example can be found in 'test/sz3.config'.
 * SZ 3.1.3 Support more error control mode: PSNR, L2Norm, ABS_AND_REL, ABS_OR_REL. Support INT32 and INT64 datatype.
 * SZ 3.1.4 Support running on Windows. Please refer to https://github.com/szcompressor/SZ3/issues/5#issuecomment-1094039224 for instructions.
+* SZ 3.1.5 Support HDF5 by H5Z-SZ3. Please add "-DBUILD_H5Z_FILTER=ON" to enable this function for CMake.
