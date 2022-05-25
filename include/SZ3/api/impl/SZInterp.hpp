@@ -200,21 +200,47 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
         else if(qoi == 4){
             // compute isovalues
             conf.isovalues.clear();
-            int num = conf.qoiIsoNum;
+            int isonum = conf.qoiIsoNum;
             auto range = max - min;
-            for(int i=0; i<num; i++){
-                conf.isovalues.push_back(min + (i + 1) * 1.0 / (num + 1) * range);
+            for(int i=0; i<isonum; i++){
+                conf.isovalues.push_back(min + (i + 1) * 1.0 / (isonum + 1) * range);
             }
         }
         else if(qoi >= 5){
-            // x^2 + log x/regional average + (isoline)
+            // (x^2) + (log x) + (isoline)
             auto max_2 = max * max;
             auto min_2 = min * min;
             auto max_abs_val = (max_2 > min_2) ? max_2 : min_2;
-            conf.qoiEBs.push_back(conf.qoiEB * max_abs_val);
-            if(qoi == 5) conf.qoiEBs.push_back(conf.qoiEB);
-            else conf.qoiEBs.push_back(conf.qoiEB * (max - min));
-            if(qoi == 7) conf.qoiEBs.push_back(0);
+            auto eb_x2 = conf.qoiEB * max_abs_val;
+            auto eb_logx = conf.qoiEB * 10;
+            auto eb_isoline = 0;
+            conf.isovalues.clear();
+            int isonum = conf.qoiIsoNum;
+            auto range = max - min;
+            for(int i=0; i<isonum; i++){
+                conf.isovalues.push_back(min + (i + 1) * 1.0 / (isonum + 1) * range);
+            }
+            if(qoi == 5){
+                // x^2 + log x
+                conf.qoiEBs.push_back(eb_x2);
+                conf.qoiEBs.push_back(eb_logx);
+            }
+            else if(qoi == 6){
+                // x^2 + isoline
+                conf.qoiEBs.push_back(eb_x2);
+                conf.qoiEBs.push_back(eb_isoline);                
+            }
+            else if(qoi == 7){
+                // log x + isoline
+                conf.qoiEBs.push_back(eb_logx);
+                conf.qoiEBs.push_back(eb_isoline);                
+            }
+            else if(qoi == 8){
+                // x^2 + log x + isoline
+                conf.qoiEBs.push_back(eb_x2);
+                conf.qoiEBs.push_back(eb_logx);
+                conf.qoiEBs.push_back(eb_isoline);                                
+            }
         }
         // set eb base and log base if not set by config
         if(conf.qoiEBBase == 0) 
