@@ -30,7 +30,7 @@ namespace SZ {
         INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC
     };
     constexpr const char *INTERP_ALGO_STR[] = {"INTERP_ALGO_LINEAR", "INTERP_ALGO_CUBIC"};
-    constexpr INTERP_ALGO INTERP_ALGO_OPTIONS[] = { INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC };
+    constexpr INTERP_ALGO INTERP_ALGO_OPTIONS[] = {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC};
 
     template<class T>
     const char *enum2Str(T e) {
@@ -72,7 +72,7 @@ namespace SZ {
             if (cfg.ParseError() != 0) {
                 std::cout << "Can't load cfg file " << cfgpath << std::endl;
                 exit(0);
-            } 
+            }
 
             auto cmprAlgoStr = cfg.Get("GlobalSettings", "CmprAlgo", "");
             if (cmprAlgoStr == ALGO_STR[ALGO_LORENZO_REG]) {
@@ -120,6 +120,7 @@ namespace SZ {
 
 
         }
+
 
         void save(unsigned char *&c) {
             write(N, c);
@@ -172,6 +173,10 @@ namespace SZ {
 
         void print() {
             printf("CmprAlgo = %s\n", enum2Str((ALGO) cmprAlgo));
+        }
+
+        static size_t size_est() {
+            return sizeof(size_t) * 5 + sizeof(double) * 4 + sizeof(bool) * 5 + sizeof(uint8_t) * 6 + sizeof(int) * 5 + 50; //50 is for redundancy
         }
 
         char N;

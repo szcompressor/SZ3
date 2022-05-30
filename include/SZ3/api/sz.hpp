@@ -51,30 +51,25 @@ conf.absErrorBound = 1E-3; // absolute error bound 1e-3
 char *compressedData = SZ_compress(conf, data, outSize);
  */
 template<class T>
-char *SZ_compress(const SZ::Config &config, const T *data, size_t &outSize) {
-    SZ::Config conf(config);
-    std::vector<T> inData(data, data + conf.num);
+char *SZ_compress(const SZ::Config &conf, const T *data, size_t &outSize) {
+    SZ::Config confCopy(conf);
     char *cmpData;
     if (conf.N == 1) {
-        cmpData = SZ_compress_impl<T, 1>(conf, inData.data(), outSize);
+        cmpData = SZ_compress_impl<T, 1>(confCopy, data, outSize);
     } else if (conf.N == 2) {
-        cmpData = SZ_compress_impl<T, 2>(conf, inData.data(), outSize);
+        cmpData = SZ_compress_impl<T, 2>(confCopy, data, outSize);
     } else if (conf.N == 3) {
-        cmpData = SZ_compress_impl<T, 3>(conf, inData.data(), outSize);
+        cmpData = SZ_compress_impl<T, 3>(confCopy, data, outSize);
     } else if (conf.N == 4) {
-        cmpData = SZ_compress_impl<T, 4>(conf, inData.data(), outSize);
+        cmpData = SZ_compress_impl<T, 4>(confCopy, data, outSize);
     } else {
-        for (int i = 4; i < conf.N; i++) {
-            conf.dims[3] *= conf.dims[i];
-        }
-        conf.dims.resize(4);
-        conf.N = 4;
-        cmpData = SZ_compress_impl<T, 4>(conf, inData.data(), outSize);
+        printf("Data dimension higher than 4 is not supported.\n");
+        exit(0);
     }
     {
         //save config
         SZ::uchar *cmpDataPos = (SZ::uchar *) cmpData + outSize;
-        conf.save(cmpDataPos);
+        confCopy.save(cmpDataPos);
         size_t newSize = (char *) cmpDataPos - cmpData;
         SZ::write(int(newSize - outSize), cmpDataPos);
         outSize = (char *) cmpDataPos - cmpData;
@@ -101,7 +96,6 @@ char *SZ_compress(const SZ::Config &config, const T *data, size_t &outSize) {
  */
 template<class T>
 void SZ_decompress(SZ::Config &conf, char *cmpData, size_t cmpSize, T *&decData) {
-    //SZ::Config conf(config);
     {
         //load config
         int confSize;
@@ -121,7 +115,8 @@ void SZ_decompress(SZ::Config &conf, char *cmpData, size_t cmpSize, T *&decData)
     } else if (conf.N == 4) {
         SZ_decompress_impl<T, 4>(conf, cmpData, cmpSize, decData);
     } else {
-        SZ_decompress_impl<T, 4>(conf, cmpData, cmpSize, decData);
+        printf("Data dimension higher than 4 is not supported.\n");
+        exit(0);
     }
 }
 
