@@ -12,6 +12,7 @@ char *SZ_compress_impl(SZ::Config &conf, const T *data, size_t &outSize) {
     conf.openmp=false;
 #endif
     if (conf.openmp) {
+        //dataCopy for openMP is handled by each thread
         return SZ_compress_OMP<T, N>(conf, data, outSize);
     } else {
         std::vector<T> dataCopy(data, data + conf.num);
