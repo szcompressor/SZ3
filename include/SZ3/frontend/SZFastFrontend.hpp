@@ -371,9 +371,11 @@ namespace SZ {
             free(pred_buffer);
             free(reg_params);
 
-            reg_huffman = HuffmanEncoder<int>();
+            if (reg_count) {
+                reg_huffman = HuffmanEncoder<int>();
+                reg_huffman.preprocess_encode(reg_params_type, RegCoeffNum3d * reg_count, 0);
+            }
             indicator_huffman = HuffmanEncoder<int>();
-            reg_huffman.preprocess_encode(reg_params_type, RegCoeffNum3d * reg_count, 0);
             indicator_huffman.preprocess_encode(indicator, SELECTOR_RADIUS);
 
 //            printf("%lu %lu\n", reg_count, block_cnt);
