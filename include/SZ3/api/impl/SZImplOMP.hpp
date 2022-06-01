@@ -20,7 +20,7 @@ char *SZ_compress_OMP(SZ::Config &conf, const T *data, size_t &outSize) {
     std::vector<size_t> cmp_size_t, cmp_start_t;
     std::vector<T> min_t, max_t;
     std::vector<SZ::Config> conf_t;
-    SZ::Timer timer(true);
+//    SZ::Timer timer(true);
     int nThreads = 1;
     double eb;
 #pragma omp parallel
@@ -62,8 +62,8 @@ char *SZ_compress_OMP(SZ::Config &conf, const T *data, size_t &outSize) {
             {
                 T range = *std::max_element(max_t.begin(), max_t.end()) - *std::min_element(min_t.begin(), min_t.end());
                 SZ::calAbsErrorBound<T>(conf, data, range);
-                timer.stop("OMP init");
-                timer.start();
+//                timer.stop("OMP init");
+//                timer.start();
             }
         }
 
