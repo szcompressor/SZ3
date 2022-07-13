@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(SZ3 VERSION 3.1.5.3)
+project(SZ3 VERSION 3.1.5.4)
 include(GNUInstallDirs)
 include(CTest)
 

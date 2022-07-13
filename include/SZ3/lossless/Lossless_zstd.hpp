@@ -20,7 +20,7 @@ namespace SZ {
         Lossless_zstd(int comp_level) : compression_level(comp_level) {};
 
         uchar *compress(uchar *data, size_t dataLength, size_t &outSize) {
-            size_t estimatedCompressedSize = dataLength < 100 ? 200 : dataLength * 1.2;
+            size_t estimatedCompressedSize = (dataLength < 100 ? 200 : size_t(dataLength * 1.2)) + SZ::Config::size_est();
             uchar *compressBytes = new uchar[estimatedCompressedSize];
             uchar *compressBytesPos = compressBytes;
             write(dataLength, compressBytesPos);
