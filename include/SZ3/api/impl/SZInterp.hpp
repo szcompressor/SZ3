@@ -24,7 +24,7 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
     SZ::calAbsErrorBound(conf, data);
 
     auto sz = SZ::SZInterpolationCompressor<T, N, SZ::LinearQuantizer<T>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
-`            SZ::LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2),
+            SZ::LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2),
             SZ::HuffmanEncoder<int>(),
             SZ::Lossless_zstd());
     char *cmpData = (char *) sz.compress(conf, data, outSize);
