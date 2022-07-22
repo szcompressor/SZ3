@@ -24,7 +24,7 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
     SZ::calAbsErrorBound(conf, data);
 
     auto sz = SZ::SZInterpolationCompressor<T, N, SZ::LinearQuantizer<T>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
-            SZ::LinearQuantizer<T>(conf.absErrorBound),
+`            SZ::LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2),
             SZ::HuffmanEncoder<int>(),
             SZ::Lossless_zstd());
     char *cmpData = (char *) sz.compress(conf, data, outSize);
@@ -93,7 +93,7 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
         lorenzo_config.regression2 = false;
         lorenzo_config.openmp = false;
         lorenzo_config.blockSize = 5;
-        lorenzo_config.quantbinCnt = 65536 * 2;
+//        lorenzo_config.quantbinCnt = 65536 * 2;
         std::vector<T> data1(sampling_data);
         cmprData = SZ_compress_LorenzoReg<T, N>(lorenzo_config, data1.data(), sampleOutSize);
         delete[]cmprData;
@@ -145,7 +145,7 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
             }
         }
 
-        if (conf.relErrorBound < 1.01e-6 && best_lorenzo_ratio > 5) {
+        if (conf.relErrorBound < 1.01e-6 && best_lorenzo_ratio > 5 && lorenzo_config.quantbinCnt != 16384) {
             auto quant_num = lorenzo_config.quantbinCnt;
             lorenzo_config.quantbinCnt = 16384;
             cmprData = SZ_compress_LorenzoReg<T, N>(lorenzo_config, sampling_data.data(), sampleOutSize);
