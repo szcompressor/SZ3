@@ -35,7 +35,7 @@ do {                                                              \
 #define H5Z_SZ_PUSH_AND_GOTO(MAJ, MIN, RET, MSG)     \
 do                                                    \
 {                                                     \
-	H5Epush(H5E_DEFAULT,__FILE__,_funcname_,__LINE__,H5Z_SZ_ERRCLASS,MAJ,MIN,MSG); \               
+	H5Epush(H5E_DEFAULT,__FILE__,_funcname_,__LINE__,H5Z_SZ_ERRCLASS,MAJ,MIN,MSG); \
 	return RET;                                     \
 } while(0)
 
