@@ -53,6 +53,7 @@ endif()
 find_package(GSL)
 if (GSL_FOUND)
   target_compile_definitions(${PROJECT_NAME} INTERFACE -DENABLE_GSL="TRUE")
+  target_link_libraries(${PROJECT_NAME} INTERFACE GSL::gsl)
 endif()
 
 add_subdirectory(examples)
