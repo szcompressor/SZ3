@@ -1,0 +1,341 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CodeLite_Project Name="SZ3" Version="10.0.0" InternalType="">
+  <VirtualDirectory Name="SZ3">
+    <File Name="tmp.cpp"/>
+  </VirtualDirectory>
+  <VirtualDirectory Name="build">
+    <VirtualDirectory Name="CMakeFiles">
+      <VirtualDirectory Name="3.16.3">
+        <VirtualDirectory Name="CompilerIdCXX">
+          <File Name="build/CMakeFiles/3.16.3/CompilerIdCXX/CMakeCXXCompilerId.cpp"/>
+        </VirtualDirectory>
+        <VirtualDirectory Name="CompilerIdC">
+          <File Name="build/CMakeFiles/3.16.3/CompilerIdC/CMakeCCompilerId.c"/>
+        </VirtualDirectory>
+      </VirtualDirectory>
+      <VirtualDirectory Name="FindOpenMP">
+        <File Name="build/CMakeFiles/FindOpenMP/OpenMPTryFlag.cpp"/>
+        <File Name="build/CMakeFiles/FindOpenMP/OpenMPTryFlag.c"/>
+        <File Name="build/CMakeFiles/FindOpenMP/OpenMPCheckVersion.c"/>
+        <File Name="build/CMakeFiles/FindOpenMP/OpenMPCheckVersion.cpp"/>
+      </VirtualDirectory>
+    </VirtualDirectory>
+  </VirtualDirectory>
+  <VirtualDirectory Name="include">
+    <VirtualDirectory Name="SZ3">
+      <File Name="include/SZ3/version.hpp"/>
+      <File Name="include/SZ3/def.hpp"/>
+      <VirtualDirectory Name="quantizer">
+        <File Name="include/SZ3/quantizer/Quantizer.hpp"/>
+        <File Name="include/SZ3/quantizer/IntegerQuantizer.hpp"/>
+      </VirtualDirectory>
+      <VirtualDirectory Name="encoder">
+        <File Name="include/SZ3/encoder/ArithmeticEncoder.hpp"/>
+        <File Name="include/SZ3/encoder/HuffmanEncoder.hpp"/>
+        <File Name="include/SZ3/encoder/RunlengthEncoder.hpp"/>
+        <File Name="include/SZ3/encoder/BypassEncoder.hpp"/>
+        <File Name="include/SZ3/encoder/Encoder.hpp"/>
+      </VirtualDirectory>
+      <VirtualDirectory Name="predictor">
+        <File Name="include/SZ3/predictor/LorenzoPredictor.hpp"/>
+        <File Name="include/SZ3/predictor/Predictor.hpp"/>
+        <File Name="include/SZ3/predictor/PolyRegressionPredictor.hpp"/>
+        <File Name="include/SZ3/predictor/PolyRegressionCoeffAux.hpp"/>
+        <File Name="include/SZ3/predictor/RegressionPredictor.hpp"/>
+        <File Name="include/SZ3/predictor/ComposedPredictor.hpp"/>
+        <File Name="include/SZ3/predictor/MetaRegressionPredictor.hpp"/>
+        <File Name="include/SZ3/predictor/MetaLorenzoPredictor.hpp"/>
+      </VirtualDirectory>
+      <VirtualDirectory Name="frontend">
+        <File Name="include/SZ3/frontend/SZFastFrontend.hpp"/>
+        <File Name="include/SZ3/frontend/SZGeneralFrontend.hpp"/>
+        <File Name="include/SZ3/frontend/Frontend.hpp"/>
+      </VirtualDirectory>
+      <VirtualDirectory Name="compressor">
+        <File Name="include/SZ3/compressor/SZGeneralCompressor.hpp"/>
+        <File Name="include/SZ3/compressor/SZInterpolationCompressor.hpp"/>
+        <File Name="include/SZ3/compressor/SZTruncateCompressor.hpp"/>
+        <File Name="include/SZ3/compressor/Compressor.hpp"/>
+        <VirtualDirectory Name="deprecated">
+          <File Name="include/SZ3/compressor/deprecated/SZBlockInterpolationCompressor.hpp"/>
+        </VirtualDirectory>
+      </VirtualDirectory>
+      <VirtualDirectory Name="api">
+        <File Name="include/SZ3/api/sz.hpp"/>
+        <VirtualDirectory Name="impl">
+          <File Name="include/SZ3/api/impl/SZImpl.hpp"/>
+          <File Name="include/SZ3/api/impl/SZImplOMP.hpp"/>
+          <File Name="include/SZ3/api/impl/SZLorenzoReg.hpp"/>
+          <File Name="include/SZ3/api/impl/SZInterp.hpp"/>
+          <File Name="include/SZ3/api/impl/SZDispatcher.hpp"/>
+        </VirtualDirectory>
+      </VirtualDirectory>
+      <VirtualDirectory Name="lossless">
+        <File Name="include/SZ3/lossless/Lossless_zstd.hpp"/>
+        <File Name="include/SZ3/lossless/Lossless.hpp"/>
+        <File Name="include/SZ3/lossless/Lossless_bypass.hpp"/>
+      </VirtualDirectory>
+      <VirtualDirectory Name="preprocessor">
+        <File Name="include/SZ3/preprocessor/Wavelet.hpp"/>
+        <File Name="include/SZ3/preprocessor/PreProcessor.hpp"/>
+        <File Name="include/SZ3/preprocessor/PreFilter.hpp"/>
+        <File Name="include/SZ3/preprocessor/Transpose.hpp"/>
+      </VirtualDirectory>
+      <VirtualDirectory Name="utils">
+        <File Name="include/SZ3/utils/Extraction.hpp"/>
+        <File Name="include/SZ3/utils/MemoryUtil.hpp"/>
+        <File Name="include/SZ3/utils/ByteUtil.hpp"/>
+        <File Name="include/SZ3/utils/Config.hpp"/>
+        <File Name="include/SZ3/utils/MetaDef.hpp"/>
+        <File Name="include/SZ3/utils/Iterator.hpp"/>
+        <File Name="include/SZ3/utils/Statistic.hpp"/>
+        <File Name="include/SZ3/utils/QuantOptimizatioin.hpp"/>
+        <File Name="include/SZ3/utils/Interpolators.hpp"/>
+        <File Name="include/SZ3/utils/FileUtil.hpp"/>
+        <File Name="include/SZ3/utils/Timer.hpp"/>
+        <VirtualDirectory Name="inih">
+          <File Name="include/SZ3/utils/inih/INIReader.h"/>
+        </VirtualDirectory>
+        <VirtualDirectory Name="ska_hash">
+          <File Name="include/SZ3/utils/ska_hash/unordered_map.hpp"/>
+          <File Name="include/SZ3/utils/ska_hash/bytell_hash_map.hpp"/>
+          <File Name="include/SZ3/utils/ska_hash/flat_hash_map.hpp"/>
+        </VirtualDirectory>
+      </VirtualDirectory>
+    </VirtualDirectory>
+  </VirtualDirectory>
+  <VirtualDirectory Name="install">
+    <VirtualDirectory Name="include">
+      <File Name="install/include/zstd_errors.h"/>
+      <File Name="install/include/zbuff.h"/>
+      <File Name="install/include/zstd.h"/>
+      <File Name="install/include/zdict.h"/>
+      <VirtualDirectory Name="SZ3">
+        <File Name="install/include/SZ3/version.hpp"/>
+        <File Name="install/include/SZ3/def.hpp"/>
+        <VirtualDirectory Name="quantizer">
+          <File Name="install/include/SZ3/quantizer/Quantizer.hpp"/>
+          <File Name="install/include/SZ3/quantizer/IntegerQuantizer.hpp"/>
+        </VirtualDirectory>
+        <VirtualDirectory Name="encoder">
+          <File Name="install/include/SZ3/encoder/ArithmeticEncoder.hpp"/>
+          <File Name="install/include/SZ3/encoder/HuffmanEncoder.hpp"/>
+          <File Name="install/include/SZ3/encoder/RunlengthEncoder.hpp"/>
+          <File Name="install/include/SZ3/encoder/BypassEncoder.hpp"/>
+          <File Name="install/include/SZ3/encoder/Encoder.hpp"/>
+        </VirtualDirectory>
+        <VirtualDirectory Name="predictor">
+          <File Name="install/include/SZ3/predictor/LorenzoPredictor.hpp"/>
+          <File Name="install/include/SZ3/predictor/Predictor.hpp"/>
+          <File Name="install/include/SZ3/predictor/PolyRegressionPredictor.hpp"/>
+          <File Name="install/include/SZ3/predictor/PolyRegressionCoeffAux.hpp"/>
+          <File Name="install/include/SZ3/predictor/RegressionPredictor.hpp"/>
+          <File Name="install/include/SZ3/predictor/ComposedPredictor.hpp"/>
+          <File Name="install/include/SZ3/predictor/MetaRegressionPredictor.hpp"/>
+          <File Name="install/include/SZ3/predictor/MetaLorenzoPredictor.hpp"/>
+        </VirtualDirectory>
+        <VirtualDirectory Name="frontend">
+          <File Name="install/include/SZ3/frontend/SZFastFrontend.hpp"/>
+          <File Name="install/include/SZ3/frontend/SZGeneralFrontend.hpp"/>
+          <File Name="install/include/SZ3/frontend/Frontend.hpp"/>
+        </VirtualDirectory>
+        <VirtualDirectory Name="compressor">
+          <File Name="install/include/SZ3/compressor/SZGeneralCompressor.hpp"/>
+          <File Name="install/include/SZ3/compressor/SZInterpolationCompressor.hpp"/>
+          <File Name="install/include/SZ3/compressor/SZTruncateCompressor.hpp"/>
+          <File Name="install/include/SZ3/compressor/Compressor.hpp"/>
+          <VirtualDirectory Name="deprecated">
+            <File Name="install/include/SZ3/compressor/deprecated/SZBlockInterpolationCompressor.hpp"/>
+          </VirtualDirectory>
+        </VirtualDirectory>
+        <VirtualDirectory Name="api">
+          <File Name="install/include/SZ3/api/sz.hpp"/>
+          <VirtualDirectory Name="impl">
+            <File Name="install/include/SZ3/api/impl/SZImpl.hpp"/>
+            <File Name="install/include/SZ3/api/impl/SZImplOMP.hpp"/>
+            <File Name="install/include/SZ3/api/impl/SZLorenzoReg.hpp"/>
+            <File Name="install/include/SZ3/api/impl/SZInterp.hpp"/>
+            <File Name="install/include/SZ3/api/impl/SZDispatcher.hpp"/>
+          </VirtualDirectory>
+        </VirtualDirectory>
+        <VirtualDirectory Name="lossless">
+          <File Name="install/include/SZ3/lossless/Lossless_zstd.hpp"/>
+          <File Name="install/include/SZ3/lossless/Lossless.hpp"/>
+          <File Name="install/include/SZ3/lossless/Lossless_bypass.hpp"/>
+        </VirtualDirectory>
+        <VirtualDirectory Name="preprocessor">
+          <File Name="install/include/SZ3/preprocessor/Wavelet.hpp"/>
+          <File Name="install/include/SZ3/preprocessor/PreProcessor.hpp"/>
+          <File Name="install/include/SZ3/preprocessor/PreFilter.hpp"/>
+          <File Name="install/include/SZ3/preprocessor/Transpose.hpp"/>
+        </VirtualDirectory>
+        <VirtualDirectory Name="utils">
+          <File Name="install/include/SZ3/utils/Extraction.hpp"/>
+          <File Name="install/include/SZ3/utils/MemoryUtil.hpp"/>
+          <File Name="install/include/SZ3/utils/ByteUtil.hpp"/>
+          <File Name="install/include/SZ3/utils/Config.hpp"/>
+          <File Name="install/include/SZ3/utils/MetaDef.hpp"/>
+          <File Name="install/include/SZ3/utils/Iterator.hpp"/>
+          <File Name="install/include/SZ3/utils/Statistic.hpp"/>
+          <File Name="install/include/SZ3/utils/QuantOptimizatioin.hpp"/>
+          <File Name="install/include/SZ3/utils/Interpolators.hpp"/>
+          <File Name="install/include/SZ3/utils/FileUtil.hpp"/>
+          <File Name="install/include/SZ3/utils/Timer.hpp"/>
+          <VirtualDirectory Name="inih">
+            <File Name="install/include/SZ3/utils/inih/INIReader.h"/>
+          </VirtualDirectory>
+          <VirtualDirectory Name="ska_hash">
+            <File Name="install/include/SZ3/utils/ska_hash/unordered_map.hpp"/>
+            <File Name="install/include/SZ3/utils/ska_hash/bytell_hash_map.hpp"/>
+            <File Name="install/include/SZ3/utils/ska_hash/flat_hash_map.hpp"/>
+          </VirtualDirectory>
+        </VirtualDirectory>
+      </VirtualDirectory>
+    </VirtualDirectory>
+  </VirtualDirectory>
+  <VirtualDirectory Name="zstd">
+    <File Name="zstd/zstd.h"/>
+    <VirtualDirectory Name="deprecated">
+      <File Name="zstd/deprecated/zbuff_decompress.c"/>
+      <File Name="zstd/deprecated/zbuff_common.c"/>
+      <File Name="zstd/deprecated/zbuff.h"/>
+      <File Name="zstd/deprecated/zbuff_compress.c"/>
+    </VirtualDirectory>
+    <VirtualDirectory Name="common">
+      <File Name="zstd/common/zstd_errors.h"/>
+      <File Name="zstd/common/zstd_internal.h"/>
+      <File Name="zstd/common/debug.h"/>
+      <File Name="zstd/common/fse.h"/>
+      <File Name="zstd/common/fse_decompress.c"/>
+      <File Name="zstd/common/entropy_common.c"/>
+      <File Name="zstd/common/xxhash.c"/>
+      <File Name="zstd/common/compiler.h"/>
+      <File Name="zstd/common/error_private.c"/>
+      <File Name="zstd/common/huf.h"/>
+      <File Name="zstd/common/threading.c"/>
+      <File Name="zstd/common/cpu.h"/>
+      <File Name="zstd/common/xxhash.h"/>
+      <File Name="zstd/common/pool.c"/>
+      <File Name="zstd/common/bitstream.h"/>
+      <File Name="zstd/common/pool.h"/>
+      <File Name="zstd/common/zstd_common.c"/>
+      <File Name="zstd/common/threading.h"/>
+      <File Name="zstd/common/mem.h"/>
+      <File Name="zstd/common/debug.c"/>
+      <File Name="zstd/common/error_private.h"/>
+    </VirtualDirectory>
+    <VirtualDirectory Name="legacy">
+      <File Name="zstd/legacy/zstd_v01.c"/>
+      <File Name="zstd/legacy/zstd_v07.h"/>
+      <File Name="zstd/legacy/zstd_v01.h"/>
+      <File Name="zstd/legacy/zstd_v02.c"/>
+      <File Name="zstd/legacy/zstd_v06.c"/>
+      <File Name="zstd/legacy/zstd_v02.h"/>
+      <File Name="zstd/legacy/zstd_v05.c"/>
+      <File Name="zstd/legacy/zstd_legacy.h"/>
+      <File Name="zstd/legacy/zstd_v04.h"/>
+      <File Name="zstd/legacy/zstd_v04.c"/>
+      <File Name="zstd/legacy/zstd_v03.h"/>
+      <File Name="zstd/legacy/zstd_v03.c"/>
+      <File Name="zstd/legacy/zstd_v05.h"/>
+      <File Name="zstd/legacy/zstd_v06.h"/>
+      <File Name="zstd/legacy/zstd_v07.c"/>
+    </VirtualDirectory>
+    <VirtualDirectory Name="decompress">
+      <File Name="zstd/decompress/huf_decompress.c"/>
+      <File Name="zstd/decompress/zstd_decompress.c"/>
+    </VirtualDirectory>
+    <VirtualDirectory Name="compress">
+      <File Name="zstd/compress/zstdmt_compress.c"/>
+      <File Name="zstd/compress/zstd_compress.c"/>
+      <File Name="zstd/compress/zstd_opt.c"/>
+      <File Name="zstd/compress/huf_compress.c"/>
+      <File Name="zstd/compress/zstd_lazy.h"/>
+      <File Name="zstd/compress/fse_compress.c"/>
+      <File Name="zstd/compress/zstd_double_fast.h"/>
+      <File Name="zstd/compress/zstd_fast.h"/>
+      <File Name="zstd/compress/zstd_ldm.h"/>
+      <File Name="zstd/compress/hist.h"/>
+      <File Name="zstd/compress/hist.c"/>
+      <File Name="zstd/compress/zstd_compress_internal.h"/>
+      <File Name="zstd/compress/zstd_double_fast.c"/>
+      <File Name="zstd/compress/zstd_fast.c"/>
+      <File Name="zstd/compress/zstd_ldm.c"/>
+      <File Name="zstd/compress/zstdmt_compress.h"/>
+      <File Name="zstd/compress/zstd_lazy.c"/>
+      <File Name="zstd/compress/zstd_opt.h"/>
+    </VirtualDirectory>
+    <VirtualDirectory Name="dictBuilder">
+      <File Name="zstd/dictBuilder/divsufsort.c"/>
+      <File Name="zstd/dictBuilder/divsufsort.h"/>
+      <File Name="zstd/dictBuilder/zdict.c"/>
+      <File Name="zstd/dictBuilder/zdict.h"/>
+      <File Name="zstd/dictBuilder/cover.c"/>
+    </VirtualDirectory>
+  </VirtualDirectory>
+  <VirtualDirectory Name="test">
+    <File Name="test/sz_block.cpp"/>
+    <File Name="test/sz.cpp"/>
+    <VirtualDirectory Name="deprecated">
+      <File Name="test/deprecated/beta_sz_pw.cpp"/>
+      <File Name="test/deprecated/beta_sz_truncate.cpp"/>
+      <File Name="test/deprecated/test_huffman_coding.cpp"/>
+      <File Name="test/deprecated/test_arithmetic_coding.cpp"/>
+    </VirtualDirectory>
+  </VirtualDirectory>
+  <Description/>
+  <Dependencies/>
+  <Settings Type="Executable">
+    <GlobalSettings>
+      <Compiler Options="" C_Options="" Assembler="">
+        <IncludePath Value="."/>
+      </Compiler>
+      <Linker Options="">
+        <LibraryPath Value="."/>
+      </Linker>
+      <ResourceCompiler Options=""/>
+    </GlobalSettings>
+    <Configuration Name="Debug" CompilerType="Cross GCC ( x86_64-linux-gnu )" DebuggerType="GNU gdb debugger" Type="Executable" BuildCmpWithGlobalSettings="append" BuildLnkWithGlobalSettings="append" BuildResWithGlobalSettings="append">
+      <Compiler Options="-g -Wall" C_Options="" Assembler="" Required="yes" PreCompiledHeader="" PCHInCommandLine="no" PCHFlags="" PCHFlagsPolicy="0">
+        <IncludePath Value="."/>
+      </Compiler>
+      <Linker Options="-O0" Required="yes">
+        <LibraryPath Value="."/>
+        <LibraryPath Value="Debug"/>
+      </Linker>
+      <ResourceCompiler Options="" Required="no"/>
+      <General OutputFile="$(IntermediateDirectory)/$(ProjectName)" IntermediateDirectory="./Debug" Command="./$(ProjectName)" CommandArguments="" UseSeparateDebugArgs="no" DebugArguments="" WorkingDirectory="./Debug" PauseExecWhenProcTerminates="yes" IsGUIProgram="no" IsEnabled="yes"/>
+      <BuildSystem Name="Default"/>
+      <Environment EnvVarSetName="&lt;Use Workspace Settings&gt;" DbgSetName="&lt;Use Global Settings&gt;">
+        <![CDATA[]]>
+      </Environment>
+      <Debugger IsRemote="no" RemoteHostName="" RemoteHostPort="" DebuggerPath="" IsExtended="no">
+        <DebuggerSearchPaths/>
+        <PostConnectCommands/>
+        <StartupCommands/>
+      </Debugger>
+      <PreBuild/>
+      <PostBuild/>
+      <CustomBuild Enabled="no">
+        <RebuildCommand/>
+        <CleanCommand/>
+        <BuildCommand/>
+        <PreprocessFileCommand/>
+        <SingleFileCommand/>
+        <MakefileGenerationCommand/>
+        <ThirdPartyToolName/>
+        <WorkingDirectory/>
+      </CustomBuild>
+      <AdditionalRules>
+        <CustomPostBuild/>
+        <CustomPreBuild/>
+      </AdditionalRules>
+      <Completion EnableCpp11="no" EnableCpp14="no">
+        <ClangCmpFlagsC/>
+        <ClangCmpFlags/>
+        <ClangPP/>
+        <SearchPaths/>
+      </Completion>
+    </Configuration>
+  </Settings>
+</CodeLite_Project>

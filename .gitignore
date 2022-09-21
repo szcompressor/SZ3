@@ -6,3 +6,4 @@ build*
 cmake-build-debug
 cmake-build-release
 .idea
+zstd/libs
