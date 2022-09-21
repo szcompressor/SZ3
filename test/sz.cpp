@@ -127,6 +127,8 @@ void compress(char *inPath, char *cmpPath, SZ::Config conf) {
     T *data = new T[conf.num];
     SZ::readfile<T>(inPath, conf.num, data);
 
+    strcpy(conf.input_path, inPath );
+
     size_t outSize;
     SZ::Timer timer(true);
     char *bytes = SZ_compress<T>(conf, data, outSize);
@@ -140,10 +142,9 @@ void compress(char *inPath, char *cmpPath, SZ::Config conf) {
     }
     SZ::writefile(outputFilePath, bytes, outSize);
 
-    printf("compression ratio = %.2f \n", conf.num * 1.0 * sizeof(T) / outSize);
+   // printf("compressionRatio = %.2f \n", conf.num * 1.0 * sizeof(T) / outSize);
     printf("compression time = %f\n", compress_time);
     printf("compressed data file = %s\n", outputFilePath);
-
     delete[]data;
     delete[]bytes;
 }
@@ -161,6 +162,7 @@ void decompress(char *inPath, char *cmpPath, char *decPath,
     double compress_time = timer.stop();
 
     char outputFilePath[1024];
+
     if (decPath == nullptr) {
         sprintf(outputFilePath, "%s.out", cmpPath);
     } else {
@@ -180,8 +182,8 @@ void decompress(char *inPath, char *cmpPath, char *decPath,
     }
     delete[]decData;
 
-    printf("compression ratio = %f\n", conf.num * sizeof(T) * 1.0 / cmpSize);
-    printf("decompression time = %f seconds.\n", compress_time);
+    printf("compressionRatio= %f\n", conf.num * sizeof(T) * 1.0 / cmpSize);
+    printf("decompression time = %f\n", compress_time);
     printf("decompressed file = %s\n", outputFilePath);
 }
 

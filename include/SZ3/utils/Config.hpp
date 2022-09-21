@@ -107,6 +107,7 @@ namespace SZ {
             regression2 = cfg.GetBoolean("AlgoSettings", "Regression2ndOrder", regression2);
 
             auto interpAlgoStr = cfg.Get("AlgoSettings", "InterpolationAlgo", "");
+            std::cout<<interpAlgoStr<<std::endl;
             if (interpAlgoStr == INTERP_ALGO_STR[INTERP_ALGO_LINEAR]) {
                 interpAlgo = INTERP_ALGO_LINEAR;
             } else if (interpAlgoStr == INTERP_ALGO_STR[INTERP_ALGO_CUBIC]) {
@@ -116,6 +117,8 @@ namespace SZ {
             interpBlockSize = cfg.GetInteger("AlgoSettings", "InterpolationBlockSize", interpBlockSize);
             blockSize = cfg.GetInteger("AlgoSettings", "BlockSize", blockSize);
             quantbinCnt = cfg.GetInteger("AlgoSettings", "QuantizationBinTotal", quantbinCnt);
+            data_id = cfg.GetInteger("AlgoSettings", "data_id", data_id);
+
 
 
         }
@@ -196,6 +199,8 @@ namespace SZ {
         int blockSize;
         int stride; //not used now
         int pred_dim; // not used now
+        char input_path[1024];
+        int data_id;
 
     };
 

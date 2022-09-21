@@ -9,6 +9,7 @@
 #include <iostream>
 #include <memory>
 
+
 namespace SZ {
 
     template<class T, uint N>
@@ -45,6 +46,7 @@ namespace SZ {
         bool precompress_block(const std::shared_ptr<Range> &range) {
             std::vector<bool> precompress_block_result;
             for (const auto &p:predictors) {
+                p->pass_input_path(input_path);
                 precompress_block_result.push_back(p->precompress_block(range));
             }
             const auto &dims = range->get_dimensions();
@@ -67,6 +69,22 @@ namespace SZ {
             return predictors[sid]->predecompress_block(range);
         }
 
+        void pass_input_path(char* path)  {
+            strcpy(input_path, path);
+        }
+
+        void write_block_info(char* path) const {
+            char tmp_path[1400];
+            sprintf(tmp_path, "%s.blockinfo", path);
+            std::vector<float> tmp;
+            for (int i=0; i<selection.size();i++){
+                    tmp.push_back(selection[i]);
+            }
+            std::cout<<tmp.size()<<std::endl;
+            writefile("blockinfo.dat",tmp.data(),tmp.size());
+
+        }
+
         void save(uchar *&c) const {
             auto tmp = c;
             for (const auto &p:predictors) {
@@ -84,6 +102,14 @@ namespace SZ {
                 selection_encoder.save(c);
                 selection_encoder.encode(selection, c);
                 selection_encoder.postprocess_encode();
+
+                // std::vector<float> tmp;
+                // for (int i=0; i<selection.size();i++){
+                //     tmp.push_back(selection[i]);
+                // }
+
+                //writefile("blockinfo.dat",tmp.data(),tmp.size());
+                //writefile("blockinfo_int.dat",selection.data(),selection.size());
             }
 //            *reinterpret_cast<size_t *>(c) = (size_t) selection.size();
 //            c += sizeof(size_t);
@@ -188,6 +214,7 @@ namespace SZ {
         int sid = 0;                            // selected index
         size_t current_index = 0;            // for decompression only
         std::vector<double> predict_error;
+        char input_path[1400];
 
         template<uint NN = N>
         inline typename std::enable_if<NN == 1, void>::type

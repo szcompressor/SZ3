@@ -100,16 +100,30 @@ namespace SZ {
             blocksize = conf.interpBlockSize;
             interpolator_id = conf.interpAlgo;
             direction_sequence_id = conf.interpDirection;
+            data_id = conf.data_id;
 
             init();
 
+            // for (int k=0; k<num_elements;k++)
+            // {
+            //     data[k]=0;
+            // }
+
             quant_inds.reserve(num_elements);
+            my_pred.reserve(num_elements);
+            my_quant.reserve(num_elements);
+            my_level.reserve(num_elements);
+            my_algo.reserve(num_elements);
             size_t interp_compressed_size = 0;
 
             double eb = quantizer.get_eb();
 //            printf("Absolute error bound = %.5f\n", eb);
+            int tmp=quantizer.quantize_and_overwrite(*data, 0);
+            quant_inds.push_back(tmp);
+            my_quant.push_back(tmp);
+            my_pred.push_back(0);
+            my_level.push_back( interpolation_level);
 
-            quant_inds.push_back(quantizer.quantize_and_overwrite(*data, 0));
 
             Timer timer;
             timer.start();
@@ -120,6 +134,7 @@ namespace SZ {
                 } else {
                     quantizer.set_eb(eb);
                 }
+                current_level=level;
                 uint stride = 1U << (level - 1);
 //                std::cout << "Level = " << level << ", stride = " << stride << std::endl;
 
@@ -127,7 +142,7 @@ namespace SZ {
                         SZ::multi_dimensional_range<T, N>>(data, std::begin(global_dimensions),
                                                            std::end(global_dimensions),
                                                            blocksize * stride, 0);
-
+                
                 auto inter_begin = inter_block_range->begin();
                 auto inter_end = inter_block_range->end();
 
@@ -142,6 +157,8 @@ namespace SZ {
 
                     block_interpolation(data, block.get_global_index(), end_idx, PB_predict_overwrite,
                                         interpolators[interpolator_id], direction_sequence_id, stride);
+
+
                 }
             }
 //            std::cout << "Number of data point = " << num_elements << std::endl;
@@ -149,8 +166,12 @@ namespace SZ {
             assert(quant_inds.size() == num_elements);
 //            timer.stop("Prediction & Quantization");
 
-//            writefile("pred.dat", preds.data(), num_elements);
-//            writefile("quant.dat", quant_inds.data(), num_elements);
+           writefile("pred.dat", my_pred.data(), num_elements);
+           writefile("level.dat", my_level.data(), num_elements);
+           writefile("quant.dat", my_quant.data(), num_elements);
+           writefile("algo.dat", my_algo.data(), num_elements);
+           writefile("my_n.dat", my_n.data(), my_n.size());
+        //    writefile("decompress_bycompress.dat", data, num_elements);
             size_t bufferSize = 1.5 * (quant_inds.size() * sizeof(T) + quantizer.size_est());
             uchar *buffer = new uchar[bufferSize];
             uchar *buffer_pos = buffer;
@@ -226,9 +247,23 @@ namespace SZ {
         }
 
         inline void quantize(size_t idx, T &d, T pred) {
-//            preds[idx] = pred;
-//            quant_inds[idx] = quantizer.quantize_and_overwrite(d, pred);
-            quant_inds.push_back(quantizer.quantize_and_overwrite(d, pred));
+            int tmp=quantizer.quantize_and_overwrite(d, pred);
+            my_pred[idx]=pred;
+            my_quant[idx]=tmp;
+            my_level[idx] = current_level;
+            quant_inds.push_back(tmp);
+            
+            // if (idx == 1928)
+            // {
+            //     d+=1;
+            // }
+
+
+
+        // //    preds[idx] = pred;
+        //    quant_inds[idx] = quantizer.quantize_and_overwrite(d, pred);
+
+        //     quant_inds.push_back(quantizer.quantize_and_overwrite(d, pred));
         }
 
         inline void recover(size_t idx, T &d, T pred) {
@@ -240,6 +275,8 @@ namespace SZ {
                                       const std::string &interp_func,
                                       const PredictorBehavior pb) {
             size_t n = (end - begin) / stride + 1;
+            my_n.push_back(begin);
+
             if (n <= 1) {
                 return 0;
             }
@@ -251,14 +288,17 @@ namespace SZ {
                 if (pb == PB_predict_overwrite) {
                     for (size_t i = 1; i + 1 < n; i += 2) {
                         T *d = data + begin + i * stride;
+                        my_algo[d - data]=0; // linaer
                         quantize(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
                     }
                     if (n % 2 == 0) {
                         T *d = data + begin + (n - 1) * stride;
                         if (n < 4) {
                             quantize(d - data, *d, *(d - stride));
+                            my_algo[d - data]=1; // lorenzo
                         } else {
                             quantize(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
+                            my_algo[d - data]=2; // linear 
                         }
                     }
                 } else {
@@ -282,17 +322,22 @@ namespace SZ {
                     size_t i;
                     for (i = 3; i + 3 < n; i += 2) {
                         d = data + begin + i * stride;
+                        my_algo[d - data]=3;
                         quantize(d - data, *d,
                                  interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
                     }
                     d = data + begin + stride;
+                    my_algo[d - data]=4;
                     quantize(d - data, *d, interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
 
                     d = data + begin + i * stride;
+                    my_algo[d - data]=5;
                     quantize(d - data, *d, interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
                     if (n % 2 == 0) {
                         d = data + begin + (n - 1) * stride;
-                        quantize(d - data, *d, interp_quad_3(*(d - stride5x), *(d - stride3x), *(d - stride)));
+                        my_algo[d - data]=6;
+                        quantize(d - data, *d, *(d - stride));
+                        // quantize(d - data, *d, interp_quad_3(*(d - stride5x), *(d - stride3x), *(d - stride)));
                     }
 
                 } else {
@@ -312,7 +357,8 @@ namespace SZ {
 
                     if (n % 2 == 0) {
                         d = data + begin + (n - 1) * stride;
-                        recover(d - data, *d, interp_quad_3(*(d - stride5x), *(d - stride3x), *(d - stride)));
+                        recover(d - data, *d, *(d - stride));
+                        // recover(d - data, *d, interp_quad_3(*(d - stride5x), *(d - stride3x), *(d - stride)));
                     }
                 }
             }
@@ -482,6 +528,12 @@ namespace SZ {
         double eb_ratio = 0.5;
         std::vector<std::string> interpolators = {"linear", "cubic"};
         std::vector<int> quant_inds;
+        std::vector<T> my_pred;
+        std::vector<int> my_quant;
+        std::vector<int> my_level;
+        std::vector<int> my_algo;
+        std::vector<size_t> my_n;
+        int current_level;
         size_t quant_index = 0; // for decompress
         double max_error;
         Quantizer quantizer;
@@ -492,6 +544,7 @@ namespace SZ {
         std::array<size_t, N> dimension_offsets;
         std::vector<std::array<int, N>> dimension_sequences;
         int direction_sequence_id;
+        int data_id;
     };
 
 

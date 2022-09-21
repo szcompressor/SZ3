@@ -103,7 +103,7 @@ float SZ_compress(std::unique_ptr<T[]> const &data,
     compression_time = timer.stop("Compression");
 
     auto ratio = conf.num * sizeof(T) * 1.0 / compressed_size;
-    std::cout << "Compression Ratio = " << ratio << std::endl;
+    std::cout << "compressionRatio= " << ratio << std::endl;
     std::cout << "Compressed size = " << compressed_size << std::endl;
 
     std::random_device rd;  //Will be used to obtain a seed for the random number engine

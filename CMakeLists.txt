@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.13)
 project(SZ3 VERSION 3.1.3.0)
 include(GNUInstallDirs)
 include(CTest)
+set( CMAKE_CXX_FLAGS "-g -O3" )
+
 
 option(BUILD_SHARED_LIBS "build shared libraries by default" ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -40,7 +42,7 @@ if(SZ3_DEBUG_TIMINGS)
 else()
   target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_DEBUG_TIMINGS=0)
 endif()
-
+set(ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH}:/home/jp/.local/lib/pkgconfig")
 pkg_search_module(ZSTD IMPORTED_TARGET libzstd)
 if(ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
   target_link_libraries(${PROJECT_NAME} INTERFACE PkgConfig::ZSTD)

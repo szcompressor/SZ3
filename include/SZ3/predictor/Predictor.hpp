@@ -42,6 +42,11 @@ namespace SZ {
             virtual void print() const = 0;
 
             virtual void clear() = 0;
+
+            virtual void write_block_info(char* path) const {}
+
+            virtual void pass_input_path(char* path) {}
+            
         };
 
         /**

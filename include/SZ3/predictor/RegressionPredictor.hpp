@@ -45,7 +45,15 @@ namespace SZ {
             return fabs(*iter - predict(iter));
         }
 
+
+        void pass_input_path(char* path)  {
+            strcpy(input_path, path);
+            //std::cout<< input_path<<std::endl;
+        }
+
+
         bool precompress_block(const std::shared_ptr<Range> &range) noexcept {
+            target = false;
             // std::cout << "precompress_block" << std::endl;
             auto dims = range->get_dimensions();
             size_t num_elements = 1;
@@ -58,9 +66,15 @@ namespace SZ {
 
             T num_elements_recip = 1.0 / num_elements;
             std::array<double, N + 1> sum{0};
-
+            
             {
                 auto range_begin = range->begin();
+                auto tmp = range_begin.get_global_index();
+                // for (int i=0; i<tmp.size();i++){
+                //     std::cout<<tmp[i]<<" "; 
+                // }
+                // std::cout<<std::endl;
+
                 auto range_end = range->end();
                 for (auto iter = range_begin; iter != range_end; ++iter) {
                     double sum_cumulative = 0;
@@ -83,12 +97,27 @@ namespace SZ {
                 current_coeffs[i] = (2 * sum[i] / (dims[i] - 1) - sum[N]) * 6 * num_elements_recip / (dims[i] + 1);
                 current_coeffs[N] -= (dims[i] - 1) * current_coeffs[i] / 2;
             }
+            // print coeff before quant 
+            
             return true;
         }
 
-        void precompress_block_commit() noexcept {
+        void precompress_block_commit() noexcept {   
+
+            for (const auto &c: current_coeffs) {
+                //std::cout << c << " ";
+                coeff_reg_pre_quant.push_back( c);
+            }
+            //std::cout << std::endl;
+ 
             pred_and_quantize_coefficients();
             std::copy(current_coeffs.begin(), current_coeffs.end(), prev_coeffs.begin());
+            
+            for (const auto &c: current_coeffs) {
+               // std::cout << c << " ";
+                coeff_reg_post_quant.push_back( c);
+            }
+            //std::cout << std::endl;
         }
 
         inline T predict(const iterator &iter) const noexcept {
@@ -116,6 +145,13 @@ namespace SZ {
                 encoder.save(c);
                 encoder.encode(regression_coeff_quant_inds, c);
                 encoder.postprocess_encode();
+                
+                char tmp_path[1400];
+                sprintf(tmp_path, "%s.Rcoeff_pre_quant", input_path);
+                writefile("reg_coeff_pre_quant.dat", coeff_reg_pre_quant.data(),coeff_reg_pre_quant.size());
+                sprintf(tmp_path, "%s.Rcoeff_post_quant", input_path);
+                writefile("reg_coeff_post_quant.dat", coeff_reg_post_quant.data(),coeff_reg_post_quant.size());
+
             }
         }
 
@@ -191,6 +227,13 @@ namespace SZ {
         size_t regression_coeff_index = 0;
         std::array<T, N + 1> current_coeffs;
         std::array<T, N + 1> prev_coeffs;
+        int px;
+        int py;
+        bool target = false;
+        std::vector<float> coeff_reg_pre_quant;
+        std::vector<float> coeff_reg_post_quant;
+        char input_path[1040];
+
 
 //        template<uint NN = N>
 //        inline typename std::enable_if<NN == 3, std::array<double, N + 1>>::type
@@ -226,8 +269,15 @@ namespace SZ {
             for (int i = 0; i < N; i++) {
                 regression_coeff_quant_inds.push_back(quantizer_liner.quantize_and_overwrite(current_coeffs[i], prev_coeffs[i]));
             }
+
             regression_coeff_quant_inds.push_back(
                     quantizer_independent.quantize_and_overwrite(current_coeffs[N], prev_coeffs[N]));
+
+            // for (auto i: current_coeffs){
+            //     printf("%.6f ",i);
+            // }
+            // std::cout<<std::endl;
+
         }
 
         void pred_and_recover_coefficients() {

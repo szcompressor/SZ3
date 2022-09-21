@@ -17,9 +17,10 @@ char *SZ_compress_dispatcher(SZ::Config &conf, T *data, size_t &outSize) {
 
     char *cmpData;
     if (conf.cmprAlgo == SZ::ALGO_LORENZO_REG) {
-        cmpData = (char *) SZ_compress_LorenzoReg<T, N>(conf, data, outSize);
+        //std::cout<<"Dispatcher choose SZ2.1 mode:"<< conf.cmprAlgo << std::endl; 
+        cmpData = (char *) SZ_compress_LorenzoReg<T, N>(conf, data, outSize); //sz2.1
     } else if (conf.cmprAlgo == SZ::ALGO_INTERP) {
-        cmpData = (char *) SZ_compress_Interp<T, N>(conf, data, outSize);
+        cmpData = (char *) SZ_compress_Interp<T, N>(conf, data, outSize); //sz3 
     } else if (conf.cmprAlgo == SZ::ALGO_INTERP_LORENZO) {
         cmpData = (char *) SZ_compress_Interp_lorenzo<T, N>(conf, data, outSize);
     }

@@ -211,6 +211,13 @@ namespace SZ {
             int *indicator_pos = indicator.data();
 
             float *reg_params = (float *) malloc(RegCoeffNum3d * (size.num_blocks + 1) * sizeof(float));
+        //             std::vector<float> regCoeffPreQuant;
+        // std::vector<float> regCoeffPostQuant;
+        // std::vector<float> pred;
+        // std::vector<int> quant;
+            
+
+
             for (int i = 0; i < RegCoeffNum3d; i++) {
                 reg_params[i] = 0;
             }
@@ -536,6 +543,11 @@ namespace SZ {
 
         Quantizer quantizer;
         Config conf;
+
+        // std::vector<float> regCoeffPreQuant;
+        // std::vector<float> regCoeffPostQuant;
+        // std::vector<float> pred;
+        // std::vector<int> quant;
 
     };
 
