@@ -70,7 +70,7 @@ Tabld of QoI index
 | 5 | $x^2$ and $log(x)$ | `qoi=5`|
 | 6 | $x^2$ abd isoline | `qoi=6`, `qoiIsoNum=k`|
 | 7 | $\log(x)$ and isoline | `qoi=7`, `qoiIsoNum=k`|
-| 8 | $\x^2$, $\log(x)$ isoline | `qoi=8`, `qoiIsoNum=k`|
+| 8 | $x^2$, $\log(x)$ and isoline | `qoi=8`, `qoiIsoNum=k`|
 
 
 
