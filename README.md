@@ -48,7 +48,7 @@ For example, at the end of `test/sz.config`, add the follwing lines to test $ x^
 
 `qoi=1` # index of QoI, see the table below for a full list of supported QoIs. 
 
-`qoiEB=1E-1`  # This is a relative value.
+`qoiEB=1E-1`  # This is a value-range based relative value.
 
 To run a case, for example `Uf48.bin.f32` in Hurricane dataset.
 
