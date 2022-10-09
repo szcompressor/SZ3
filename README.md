@@ -67,7 +67,7 @@ Tabld of QoI index
 | 2 | $\log(x)$:logrithm of single value(base 2) | `qoi=2`
 | 3 | $\frac{1}{k} \displaystyle\sum_{i=1}^{i=k} x^i $: Regional average of $x_i^2$| `qoi=3`, `qoiRegionSize=k`|
 | 4 | Isoline(specify the number of isolines/isosuraces. By defalt, only extract $1$ isovalue, the mean of data.)| `qoi=4`, `qoiIsoNum=k`|
-| 5 | $x^2$ and $log(x)$ | `qoi=5`|
+| 5 | $x^2$ and $\log(x)$ | `qoi=5`|
 | 6 | $x^2$ abd isoline | `qoi=6`, `qoiIsoNum=k`|
 | 7 | $\log(x)$ and isoline | `qoi=7`, `qoiIsoNum=k`|
 | 8 | $x^2$, $\log(x)$ and isoline | `qoi=8`, `qoiIsoNum=k`|
