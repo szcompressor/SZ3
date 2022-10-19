@@ -51,7 +51,7 @@ int dataEndianType = LITTLE_ENDIAN_DATA;
 
 void SZ_refreshDimForCdArray(int dataType, size_t old_cd_nelmts, unsigned int *old_cd_values, size_t* new_cd_nelmts, unsigned int **new_cd_values, size_t r5, size_t r4, size_t r3, size_t r2, size_t r1);
 
-void SZ_errConfigToCdArray(size_t* cd_nelmts, unsigned int **cd_values, int error_bound_mode, float abs_error, float rel_error, float l2normErrorBound, float psnr);
+void SZ_errConfigToCdArray(size_t* cd_nelmts, unsigned int **cd_values, int error_bound_mode, double abs_error, double rel_error, double l2normErrorBound, double psnr);
 
 static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_id);
 
@@ -60,7 +60,7 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
 void SZ_cdArrayToMetaData(size_t cd_nelmts, const unsigned int cd_values[], int* dimSize, int* dataType, size_t* r5, size_t* r4, size_t* r3, size_t* r2, size_t* r1);
 
 void SZ_cdArrayToMetaDataErr(size_t cd_nelmts, const unsigned int cd_values[], int* dimSize, int* dataType, size_t* r5, size_t* r4, size_t* r3, size_t* r2, size_t* r1,
-                            int* error_bound_mode, float* abs_error, float* rel_error, float* l2norm_error, float* psnr);
+                            int* error_bound_mode, double* abs_error, double* rel_error, double* l2norm_error, double* psnr);
 
 void SZ_copymetaDataToCdArray(size_t* cd_nelmts, unsigned int *cd_values, int dataType, size_t r5, size_t r4, size_t r3, size_t r2, size_t r1);
 
@@ -70,11 +70,16 @@ size_t computeDataLength(size_t r5, size_t r4, size_t r3, size_t r2, size_t r1);
 int computeDimension(size_t r5, size_t r4, size_t r3, size_t r2, size_t r1);
 void init_dims_chunk(int dim, hsize_t dims[5], hsize_t chunk[5], size_t nbEle, size_t r5, size_t r4, size_t r3, size_t r2, size_t r1);
 
-extern float bytesToFloat(unsigned char* bytes);
-extern void floatToBytes(unsigned char *b, float num);
+extern double bytesToDouble(unsigned char* bytes);
+extern void doubleToBytes(unsigned char *b, double num);
+
 extern void longToBytes_bigEndian(unsigned char *b, unsigned long num) ;
+
 extern int bytesToInt_bigEndian(unsigned char* bytes);
-void detectSysEndianType();
+extern long bytesToLong_bigEndian(unsigned char* b);
+
+extern void detectSysEndianType();
+extern void symTransform_8bytes(unsigned char data[8]);
 
 int filterDimension(size_t r5, size_t r4, size_t r3, size_t r2, size_t r1, size_t* correctedDimension);
 

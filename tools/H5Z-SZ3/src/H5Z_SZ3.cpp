@@ -43,147 +43,174 @@ const void *H5PLget_plugin_info(void) {
 /**
  * to be used in compression, and to be called outside H5Z_filter_sz().
  * */
+ 
+ void SZ_refreshDimForCdArray(int dataType, size_t old_cd_nelmts, unsigned int *old_cd_values, size_t* new_cd_nelmts, unsigned int **new_cd_values, size_t r5, size_t r4, size_t r3, size_t r2, size_t r1)
+ {
+	 unsigned char bytes[8] = {0};
+	 *new_cd_values = (unsigned int*)malloc(sizeof(unsigned int)*16);
+	 memset(*new_cd_values, 0, sizeof(unsigned int)*16);
+	 
+	//correct dimension if needed
+	size_t _r[5];
+	filterDimension(r5, r4, r3, r2, r1, _r);
+	size_t _r5 = _r[4];
+	size_t _r4 = _r[3];
+	size_t _r3 = _r[2];
+	size_t _r2 = _r[1];
+	size_t _r1 = _r[0];	
+ 
+	int i =0;
+	int oldDim = computeDimension(r5, r4, r3, r2, r1);
+	int newDim = computeDimension(_r5, _r4, _r3, _r2, _r1);
+	(*new_cd_values)[0] = newDim;
+	(*new_cd_values)[1] = dataType;
 
-void SZ_refreshDimForCdArray(int dataType, size_t old_cd_nelmts, unsigned int *old_cd_values, size_t* new_cd_nelmts, unsigned int **new_cd_values, size_t r5, size_t r4, size_t r3, size_t r2, size_t r1)
+	
+	switch(newDim)
+	{		
+		case 1:
+			longToBytes_bigEndian(bytes, (unsigned long)r1);
+			(*new_cd_values)[2] = bytesToInt_bigEndian(bytes);
+			(*new_cd_values)[3] = bytesToInt_bigEndian(&bytes[4]);	
+			if(old_cd_nelmts==0)
+				*new_cd_nelmts = 4;
+			else
+			{
+				(*new_cd_values)[4] = old_cd_values[0];
+				(*new_cd_values)[5] = old_cd_values[1];
+				(*new_cd_values)[6] = old_cd_values[2];
+				(*new_cd_values)[7] = old_cd_values[3];
+				(*new_cd_values)[8] = old_cd_values[4];
+				(*new_cd_values)[9] = old_cd_values[5];
+				(*new_cd_values)[10] = old_cd_values[6];
+				(*new_cd_values)[11] = old_cd_values[7];
+				(*new_cd_values)[12] = old_cd_values[8];
+				*new_cd_nelmts = 13;
+			}
+			break;		
+		case 2:
+			(*new_cd_values)[2] = (unsigned int) _r2;
+			(*new_cd_values)[3] = (unsigned int) _r1;	
+			if(old_cd_nelmts==0)
+				*new_cd_nelmts = 4;
+			else
+			{
+				(*new_cd_values)[4] = old_cd_values[0];
+				(*new_cd_values)[5] = old_cd_values[1];
+				(*new_cd_values)[6] = old_cd_values[2];
+				(*new_cd_values)[7] = old_cd_values[3];
+				(*new_cd_values)[8] = old_cd_values[4];
+				(*new_cd_values)[9] = old_cd_values[5];
+				(*new_cd_values)[10] = old_cd_values[6];
+				(*new_cd_values)[11] = old_cd_values[7];
+				(*new_cd_values)[12] = old_cd_values[8];
+				*new_cd_nelmts = 13;
+			}
+			break;
+		case 3:
+			(*new_cd_values)[2] = (unsigned int) _r3;
+			(*new_cd_values)[3] = (unsigned int) _r2;
+			(*new_cd_values)[4] = (unsigned int) _r1;	
+			if(old_cd_nelmts==0)
+				*new_cd_nelmts = 5;
+			else
+			{
+				(*new_cd_values)[5] = old_cd_values[0];
+				(*new_cd_values)[6] = old_cd_values[1];
+				(*new_cd_values)[7] = old_cd_values[2];
+				(*new_cd_values)[8] = old_cd_values[3];
+				(*new_cd_values)[9] = old_cd_values[4];
+				(*new_cd_values)[10] = old_cd_values[5];
+				(*new_cd_values)[11] = old_cd_values[6];
+				(*new_cd_values)[12] = old_cd_values[7];
+				(*new_cd_values)[13] = old_cd_values[8];
+				*new_cd_nelmts = 14;
+			}
+			break;
+		case 4:
+			(*new_cd_values)[2] = (unsigned int) _r4;	
+			(*new_cd_values)[3] = (unsigned int) _r3;
+			(*new_cd_values)[4] = (unsigned int) _r2;
+			(*new_cd_values)[5] = (unsigned int) _r1;	
+			if(old_cd_nelmts==0)
+				*new_cd_nelmts = 6;
+			else
+			{
+				(*new_cd_values)[6] = old_cd_values[0];
+				(*new_cd_values)[7] = old_cd_values[1];
+				(*new_cd_values)[8] = old_cd_values[2];
+				(*new_cd_values)[9] = old_cd_values[3];
+				(*new_cd_values)[10] = old_cd_values[4];
+				(*new_cd_values)[11] = old_cd_values[5];
+				(*new_cd_values)[12] = old_cd_values[6];
+				(*new_cd_values)[13] = old_cd_values[7];
+				(*new_cd_values)[14] = old_cd_values[8];
+				*new_cd_nelmts = 15;
+				break;
+			}
+		default:
+			(*new_cd_values)[2] = (unsigned int) _r5;		
+			(*new_cd_values)[3] = (unsigned int) _r4;	
+			(*new_cd_values)[4] = (unsigned int) _r3;
+			(*new_cd_values)[5] = (unsigned int) _r2;
+			(*new_cd_values)[6] = (unsigned int) _r1;
+			if(old_cd_nelmts==0)
+				*new_cd_nelmts = 7;
+			else
+			{
+				(*new_cd_values)[7] = old_cd_values[0];
+				(*new_cd_values)[8] = old_cd_values[1];
+				(*new_cd_values)[9] = old_cd_values[2];
+				(*new_cd_values)[10] = old_cd_values[3];
+				(*new_cd_values)[11] = old_cd_values[4];						
+				(*new_cd_values)[12] = old_cd_values[5];
+				(*new_cd_values)[13] = old_cd_values[6];
+				(*new_cd_values)[14] = old_cd_values[7];
+				(*new_cd_values)[15] = old_cd_values[8];
+				*new_cd_nelmts = 16;
+			}
+	}
+ }
+
+
+void SZ_errConfigToCdArray(size_t* cd_nelmts, unsigned int **cd_values, int error_bound_mode, double abs_error, double rel_error, double l2normErrorBound, double psnr)
 {
-    unsigned char bytes[8] = {0};
-    *new_cd_values = (unsigned int*)malloc(sizeof(unsigned int)*12);
-
-    //correct dimension if needed
-    size_t _r[5];
-    filterDimension(r5, r4, r3, r2, r1, _r);
-    size_t _r5 = _r[4];
-    size_t _r4 = _r[3];
-    size_t _r3 = _r[2];
-    size_t _r2 = _r[1];
-    size_t _r1 = _r[0];
-
-    int i =0;
-    int oldDim = computeDimension(r5, r4, r3, r2, r1);
-    int newDim = computeDimension(_r5, _r4, _r3, _r2, _r1);
-    (*new_cd_values)[0] = newDim;
-    (*new_cd_values)[1] = dataType;
-
-
-    switch(newDim)
-    {
-    case 1:
-        longToBytes_bigEndian(bytes, (unsigned long)r1);
-        (*new_cd_values)[2] = bytesToInt_bigEndian(bytes);
-        (*new_cd_values)[3] = bytesToInt_bigEndian(&bytes[4]);
-        if(old_cd_nelmts==0)
-            *new_cd_nelmts = 4;
-        else
-        {
-            (*new_cd_values)[4] = old_cd_values[0];
-            (*new_cd_values)[5] = old_cd_values[1];
-            (*new_cd_values)[6] = old_cd_values[2];
-            (*new_cd_values)[7] = old_cd_values[3];
-            (*new_cd_values)[8] = old_cd_values[4];
-            *new_cd_nelmts = 9;
-        }
-        break;
-    case 2:
-        (*new_cd_values)[2] = (unsigned int) _r2;
-        (*new_cd_values)[3] = (unsigned int) _r1;
-        if(old_cd_nelmts==0)
-            *new_cd_nelmts = 4;
-        else
-        {
-            (*new_cd_values)[4] = old_cd_values[0];
-            (*new_cd_values)[5] = old_cd_values[1];
-            (*new_cd_values)[6] = old_cd_values[2];
-            (*new_cd_values)[7] = old_cd_values[3];
-            (*new_cd_values)[8] = old_cd_values[4];
-            *new_cd_nelmts = 9;
-        }
-        break;
-    case 3:
-        (*new_cd_values)[2] = (unsigned int) _r3;
-        (*new_cd_values)[3] = (unsigned int) _r2;
-        (*new_cd_values)[4] = (unsigned int) _r1;
-        if(old_cd_nelmts==0)
-            *new_cd_nelmts = 5;
-        else
-        {
-            (*new_cd_values)[5] = old_cd_values[0];
-            (*new_cd_values)[6] = old_cd_values[1];
-            (*new_cd_values)[7] = old_cd_values[2];
-            (*new_cd_values)[8] = old_cd_values[3];
-            (*new_cd_values)[9] = old_cd_values[4];
-            *new_cd_nelmts = 10;
-        }
-        break;
-    case 4:
-        (*new_cd_values)[2] = (unsigned int) _r4;
-        (*new_cd_values)[3] = (unsigned int) _r3;
-        (*new_cd_values)[4] = (unsigned int) _r2;
-        (*new_cd_values)[5] = (unsigned int) _r1;
-        if(old_cd_nelmts==0)
-            *new_cd_nelmts = 6;
-        else
-        {
-            (*new_cd_values)[6] = old_cd_values[0];
-            (*new_cd_values)[7] = old_cd_values[1];
-            (*new_cd_values)[8] = old_cd_values[2];
-            (*new_cd_values)[9] = old_cd_values[3];
-            (*new_cd_values)[10] = old_cd_values[4];
-            *new_cd_nelmts = 11;
-            break;
-        }
-    default:
-        (*new_cd_values)[2] = (unsigned int) _r5;
-        (*new_cd_values)[3] = (unsigned int) _r4;
-        (*new_cd_values)[4] = (unsigned int) _r3;
-        (*new_cd_values)[5] = (unsigned int) _r2;
-        (*new_cd_values)[6] = (unsigned int) _r1;
-        if(old_cd_nelmts==0)
-            *new_cd_nelmts = 7;
-        else
-        {
-            (*new_cd_values)[7] = old_cd_values[0];
-            (*new_cd_values)[8] = old_cd_values[1];
-            (*new_cd_values)[9] = old_cd_values[2];
-            (*new_cd_values)[10] = old_cd_values[3];
-            (*new_cd_values)[11] = old_cd_values[4];
-            *new_cd_nelmts = 12;
-        }
-    }
-}
-
-void SZ_errConfigToCdArray(size_t* cd_nelmts, unsigned int **cd_values, int error_bound_mode, float abs_error, float rel_error, float l2normErrorBound, float psnr)
-{
-    *cd_values = (unsigned int*)malloc(sizeof(unsigned int)*5);
-    int k = 0;
-    (*cd_values)[k++] = error_bound_mode;
-    unsigned char b[4];
-    floatToBytes(b, abs_error);
-    (*cd_values)[k++] = bytesToInt32_bigEndian(b);
-    floatToBytes(b, rel_error);
-    (*cd_values)[k++] = bytesToInt32_bigEndian(b);
-    floatToBytes(b, l2normErrorBound);
-    (*cd_values)[k++] = bytesToInt32_bigEndian(b);
-    floatToBytes(b, psnr);
-    (*cd_values)[k++] = bytesToInt32_bigEndian(b);
-    *cd_nelmts = k;
+	*cd_values = (unsigned int*)malloc(sizeof(unsigned int)*9);
+	int k = 0;
+	(*cd_values)[k++] = error_bound_mode;
+	unsigned char b[8];
+	doubleToBytes(b, abs_error);
+	(*cd_values)[k++] = bytesToInt32_bigEndian(b);
+	(*cd_values)[k++] = bytesToInt32_bigEndian(b+4);
+	doubleToBytes(b, rel_error);
+	(*cd_values)[k++] = bytesToInt32_bigEndian(b);	
+	(*cd_values)[k++] = bytesToInt32_bigEndian(b+4);
+	doubleToBytes(b, l2normErrorBound);
+	(*cd_values)[k++] = bytesToInt32_bigEndian(b);		
+	(*cd_values)[k++] = bytesToInt32_bigEndian(b+4);
+	doubleToBytes(b, psnr);
+	(*cd_values)[k++] = bytesToInt32_bigEndian(b);
+	(*cd_values)[k++] = bytesToInt32_bigEndian(b+4);
+	*cd_nelmts = k;
 }
 
 static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_id) {
 
-	printf("get into H5Z_sz3_set_local\n");
+	//printf("get into H5Z_sz3_set_local\n");
     detectSysEndianType();
 
     //printf("start in H5Z_sz3_set_local, dcpl_id = %d\n", dcpl_id);
-    size_t r5=0,r4=0,r3=0,r2=0,r1=0, dsize;
     static char const *_funcname_ = "H5Z_sz3_set_local";
+    size_t r5=0,r4=0,r3=0,r2=0,r1=0, dsize;
+
     int i, ndims, ndims_used = 0;
     hsize_t dims[H5S_MAX_RANK], dims_used[5] = {0,0,0,0,0};
     herr_t retval = 0;
     H5T_class_t dclass;
     H5T_sign_t dsign;
     unsigned int flags = 0;
-    size_t mem_cd_nelmts = 5, cd_nelmts = 0;
-    unsigned int mem_cd_values[12]= {0,0,0,0,0,0,0,0,0,0,0,0};
+    size_t mem_cd_nelmts = 9, cd_nelmts = 0;
+    unsigned int mem_cd_values[16]= {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
     //H5Z_FILTER_SZ
     //note that mem_cd_nelmts must be non-zero, otherwise, mem_cd_values cannot be filled.
@@ -193,7 +220,7 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
 
     if(mem_cd_nelmts==0) //this means that the error information is missing from the cd_values
     {
-        printf("mem_cd_nelmets is 0, so let's try using sz3.config to load error configuration....\n");
+        //printf("mem_cd_nelmets is 0, so let's try using sz3.config to load error configuration....\n");
         std::ifstream f(CONFIG_PATH);
         if(f.good()) {
             printf("sz3.config found!\n");
@@ -206,7 +233,7 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
     else //this means that the error information is included in the cd_values
     {
         loadConfigFile = 0;
-        printf("mem_cd_nelmets is non-zero, so let's use the parameters set through cd_values.....\n");
+        //printf("mem_cd_nelmets is non-zero, so let's use the parameters set through cd_values.....\n");
     }
     herr_t ret = H5Zregister(H5Z_SZ3);
 
@@ -286,6 +313,12 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
     }
 
     unsigned int* cd_values = NULL;
+	if(mem_cd_nelmts!=0 && mem_cd_nelmts!=9)
+	{
+		H5Epush(H5E_DEFAULT,__FILE__, "H5Z_sz3_set_local", __LINE__, H5E_ERR_CLS, H5E_ARGS, H5E_BADVALUE, "Wrong number of cd_values: The new version has 9 integer elements in cd_values. Please check 'test/print_h5repack_args' to get the correct cd_values.");
+		H5Eprint(H5E_DEFAULT, stderr);
+		return -1;
+	}
     SZ_refreshDimForCdArray(dataType, mem_cd_nelmts, mem_cd_values, &cd_nelmts, &cd_values, dims_used[4], dims_used[3], dims_used[2], dims_used[1], dims_used[0]);
 
     /* Now, update cd_values for the filter */
@@ -302,7 +335,7 @@ done:
 
 static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[], size_t nbytes, size_t* buf_size, void** buf)
 {
-	printf("get into H5Z_filter_sz3\n");
+	//printf("get into H5Z_filter_sz3\n");
     size_t r1 = 0, r2 = 0, r3 = 0, r4 = 0, r5 = 0;
     int dimSize = 0, dataType = 0;
 
@@ -313,7 +346,7 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
     int error_mode = 0;
     int cmp_algo = 1;
     int interp_algo = 1;
-    float abs_error = 0, rel_error = 0, l2norm_error = 0, psnr = 0;
+    double abs_error = 0, rel_error = 0, l2norm_error = 0, psnr = 0;
     if(withErrInfo)
         SZ_cdArrayToMetaDataErr(cd_nelmts, cd_values, &dimSize, &dataType, &r5, &r4, &r3, &r2, &r1, &error_mode, &abs_error, &rel_error, &l2norm_error, &psnr);
     else
@@ -588,8 +621,6 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
     return *buf_size;
 }
 
-
-
 /*HELPER FUNCTIONS*/
 //use to convert HDF5 cd_array to SZ params inside filter
 void SZ_cdArrayToMetaData(size_t cd_nelmts, const unsigned int cd_values[], int* dimSize, int* dataType, size_t* r5, size_t* r4, size_t* r3, size_t* r2, size_t* r1) {
@@ -636,24 +667,28 @@ void SZ_cdArrayToMetaData(size_t cd_nelmts, const unsigned int cd_values[], int*
     }
 }
 
-void SZ_cdArrayToMetaDataErr(size_t cd_nelmts, const unsigned int cd_values[], int* dimSize, int* dataType, size_t* r5, size_t* r4, size_t* r3, size_t* r2, size_t* r1, int* error_bound_mode, float* abs_error, float* rel_error, float* l2norm_error, float* psnr)
+void SZ_cdArrayToMetaDataErr(size_t cd_nelmts, const unsigned int cd_values[], int* dimSize, int* dataType, size_t* r5, size_t* r4, size_t* r3, size_t* r2, size_t* r1, int* error_bound_mode, double* abs_error, double* rel_error, double* l2norm_error, double* psnr)
 {
     //get dimension, datatype metadata from cd_values
     SZ_cdArrayToMetaData(cd_nelmts, cd_values, dimSize, dataType, r5, r4, r3, r2, r1);
     //read in error bound value information
     int dim = *dimSize;
     int k = dim==1?4:dim+2;
-    unsigned char b[4];
-    SZ::int32ToBytes_bigEndian(b, cd_values[k++]);
-    *error_bound_mode = SZ::bytesToInt32_bigEndian(b);
-    SZ::int32ToBytes_bigEndian(b, cd_values[k++]);
-    *abs_error = bytesToFloat(b);
-    SZ::int32ToBytes_bigEndian(b, cd_values[k++]);
-    *rel_error = bytesToFloat(b);
-    SZ::int32ToBytes_bigEndian(b, cd_values[k++]);
-    *l2norm_error = bytesToFloat(b);
-    SZ::int32ToBytes_bigEndian(b, cd_values[k++]);
-    *psnr = bytesToFloat(b);
+	unsigned char b[8];
+	int32ToBytes_bigEndian(b, cd_values[k++]);
+	*error_bound_mode = bytesToInt32_bigEndian(b);
+	int32ToBytes_bigEndian(b, cd_values[k++]);
+	int32ToBytes_bigEndian(b+4, cd_values[k++]);
+	*abs_error = bytesToDouble(b);
+	int32ToBytes_bigEndian(b, cd_values[k++]);
+	int32ToBytes_bigEndian(b+4, cd_values[k++]);
+	*rel_error = bytesToDouble(b);	
+	int32ToBytes_bigEndian(b, cd_values[k++]);
+	int32ToBytes_bigEndian(b+4, cd_values[k++]);
+	*l2norm_error = bytesToDouble(b);
+	int32ToBytes_bigEndian(b, cd_values[k++]);
+	int32ToBytes_bigEndian(b+4, cd_values[k++]);
+	*psnr = bytesToDouble(b);
 }
 
 void SZ_copymetaDataToCdArray(size_t* cd_nelmts, unsigned int *cd_values, int dataType, size_t r5, size_t r4, size_t r3, size_t r2, size_t r1)
@@ -874,7 +909,7 @@ void init_dims_chunk(int dim, hsize_t dims[5], hsize_t chunk[5], size_t nbEle, s
 }
 
 //detect sys endian type
-void detectSysEndianType()
+inline void detectSysEndianType()
 {
     //get sys endian type
     int x_temp = 1;
@@ -886,24 +921,42 @@ void detectSysEndianType()
         sysEndianType = BIG_ENDIAN_SYSTEM;
 }
 
-
-//the byte to input is in the big-endian format
-inline float bytesToFloat(unsigned char* bytes)
+inline void symTransform_8bytes(unsigned char data[8])
 {
-    lfloat buf;
-    memcpy(buf.byte, bytes, 4);
-    if(sysEndianType==LITTLE_ENDIAN_SYSTEM)
-        symTransform_4bytes(buf.byte);
-    return buf.value;
+	unsigned char tmp = data[0];
+	data[0] = data[7];
+	data[7] = tmp;
+
+	tmp = data[1];
+	data[1] = data[6];
+	data[6] = tmp;
+	
+	tmp = data[2];
+	data[2] = data[5];
+	data[5] = tmp;
+	
+	tmp = data[3];
+	data[3] = data[4];
+	data[4] = tmp;
 }
 
-inline void floatToBytes(unsigned char *b, float num)
+//the byte to input is in the big-endian format
+inline double bytesToDouble(unsigned char* bytes)
 {
-    lfloat buf;
-    buf.value = num;
-    memcpy(b, buf.byte, 4);
-    if(sysEndianType==LITTLE_ENDIAN_SYSTEM)
-        symTransform_4bytes(b);
+	ldouble buf;
+	memcpy(buf.byte, bytes, 8);
+	if(sysEndianType==LITTLE_ENDIAN_SYSTEM)
+		symTransform_8bytes(buf.byte);
+	return buf.value;
+}
+
+inline void doubleToBytes(unsigned char *b, double num)
+{
+	ldouble buf;
+	buf.value = num;
+	memcpy(b, buf.byte, 8);
+	if(sysEndianType==LITTLE_ENDIAN_SYSTEM)
+		symTransform_8bytes(b);
 }
 
 
@@ -1069,6 +1122,48 @@ inline int bytesToInt_bigEndian(unsigned char* bytes)
 	res <<= 8;
 	temp = bytes[3] & 0xff;
 	res |= temp;
+	
+	return res;
+}
+
+/**
+ * @endianType: refers to the endian_type of unsigned char* b.
+ * */
+inline long bytesToLong_bigEndian(unsigned char* b) {
+	long temp = 0;
+	long res = 0;
+
+	res <<= 8;
+	temp = b[0] & 0xff;
+	res |= temp;
+
+	res <<= 8;
+	temp = b[1] & 0xff;
+	res |= temp;
+	
+	res <<= 8;
+	temp = b[2] & 0xff;
+	res |= temp;
+	
+	res <<= 8;
+	temp = b[3] & 0xff;
+	res |= temp;
+	
+	res <<= 8;
+	temp = b[4] & 0xff;
+	res |= temp;
+	
+	res <<= 8;
+	temp = b[5] & 0xff;
+	res |= temp;
+	
+	res <<= 8;
+	temp = b[6] & 0xff;
+	res |= temp;
+	
+	res <<= 8;
+	temp = b[7] & 0xff;
+	res |= temp;						
 	
 	return res;
 }
