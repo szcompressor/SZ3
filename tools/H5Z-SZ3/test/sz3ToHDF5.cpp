@@ -15,6 +15,8 @@
 #include "H5Z_SZ3.hpp"
 #include "SZ3/utils/FileUtil.hpp"
 
+int sysEndianType = LITTLE_ENDIAN_SYSTEM;
+int dataEndianType = LITTLE_ENDIAN_DATA;
 
 #define DATASET "testdata_compressed"
 

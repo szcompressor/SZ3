@@ -17,13 +17,25 @@
 #define SZ_UINT64 8
 #define SZ_INT64 9
 
-#include "SZ3/api/sz.hpp"
-#include "SZ3/utils/ByteUtil.hpp"
 #include "hdf5.h"
+#include <errno.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 
-static hid_t H5Z_SZ_ERRCLASS = -1;
 
 
+
+#define LITTLE_ENDIAN_SYSTEM 0
+#define BIG_ENDIAN_SYSTEM 1
+#define LITTLE_ENDIAN_DATA 0
+#define BIG_ENDIAN_DATA 1
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern hid_t H5Z_SZ_ERRCLASS;
 #define ERROR(FNAME)                                              \
 do {                                                              \
     int _errno = errno;                                           \
@@ -38,16 +50,8 @@ do                                                    \
 	H5Epush(H5E_DEFAULT,__FILE__,_funcname_,__LINE__,H5Z_SZ_ERRCLASS,MAJ,MIN,MSG); \
 	return RET;                                     \
 } while(0)
-
-
-#define LITTLE_ENDIAN_SYSTEM 0
-#define BIG_ENDIAN_SYSTEM 1
-#define LITTLE_ENDIAN_DATA 0
-#define BIG_ENDIAN_DATA 1
-
-
-int sysEndianType = LITTLE_ENDIAN_SYSTEM;
-int dataEndianType = LITTLE_ENDIAN_DATA;
+extern int sysEndianType;
+extern int dataEndianType;
 
 void SZ_refreshDimForCdArray(int dataType, size_t old_cd_nelmts, unsigned int *old_cd_values, size_t* new_cd_nelmts, unsigned int **new_cd_values, size_t r5, size_t r4, size_t r3, size_t r2, size_t r1);
 
@@ -70,17 +74,21 @@ size_t computeDataLength(size_t r5, size_t r4, size_t r3, size_t r2, size_t r1);
 int computeDimension(size_t r5, size_t r4, size_t r3, size_t r2, size_t r1);
 void init_dims_chunk(int dim, hsize_t dims[5], hsize_t chunk[5], size_t nbEle, size_t r5, size_t r4, size_t r3, size_t r2, size_t r1);
 
-extern double bytesToDouble(unsigned char* bytes);
-extern void doubleToBytes(unsigned char *b, double num);
+double bytesToDouble(unsigned char* bytes);
+void doubleToBytes(unsigned char *b, double num);
 
-extern void longToBytes_bigEndian(unsigned char *b, unsigned long num) ;
+void longToBytes_bigEndian(unsigned char *b, unsigned long num) ;
 
-extern int bytesToInt_bigEndian(unsigned char* bytes);
-extern long bytesToLong_bigEndian(unsigned char* b);
+int bytesToInt_bigEndian(unsigned char* bytes);
+long bytesToLong_bigEndian(unsigned char* b);
 
-extern void detectSysEndianType();
-extern void symTransform_8bytes(unsigned char data[8]);
+void detectSysEndianType();
+void symTransform_8bytes(unsigned char data[8]);
 
 int filterDimension(size_t r5, size_t r4, size_t r3, size_t r2, size_t r1, size_t* correctedDimension);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //SZ3_H5Z_SZ3_H

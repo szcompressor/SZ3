@@ -2,11 +2,18 @@
 // Created by arham23 on 2/8/22.
 //
 
+#include <memory>
 #include "H5Z_SZ3.hpp"
 #include <fstream>
 #include "H5PLextern.h"
+#include "SZ3/api/sz.hpp"
+#include "SZ3/utils/ByteUtil.hpp"
 
 #define CONFIG_PATH "sz3.config"
+
+int sysEndianType = LITTLE_ENDIAN_SYSTEM;
+int dataEndianType = LITTLE_ENDIAN_DATA;
+hid_t H5Z_SZ_ERRCLASS = -1;
 
 using namespace SZ;
 
