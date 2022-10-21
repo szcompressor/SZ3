@@ -11,6 +11,7 @@
 #include <cassert>
 #include <random>
 #include <sstream>
+#include <memory>
 
 namespace SZ {
 
