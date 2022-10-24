@@ -1,8 +1,0 @@
-examples export-ignore
-include  export-ignore
-tools    export-ignore
-.git*    export-ignore
-CMakeLists.txt export-ignore
-README.md      export-ignore
-SZ3Config.cmake.in export-ignore
-copyright-and-BSD-license.txt export-ignore
