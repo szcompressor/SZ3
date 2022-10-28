@@ -63,6 +63,8 @@ if(BUILD_H5Z_FILTER)
 	add_subdirectory(tools/H5Z-SZ3)
 endif()
 
+add_subdirectory(tools/sz3c)
+
 install(TARGETS ${PROJECT_NAME} 
   EXPORT SZ3Targets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
