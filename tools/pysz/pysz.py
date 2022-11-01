@@ -1,7 +1,9 @@
 import ctypes
 from ctypes.util import find_library
 import numpy as np
-
+"""
+Python API for SZ2/SZ3
+"""
 
 class SZ:
     def __init__(self, szpath):
