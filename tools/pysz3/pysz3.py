@@ -26,7 +26,7 @@ def verify(src_data, dec_data):
 
 def decompress(data_cmpr, original_shape):
     """
-    Decompress
+    Decompress FP32 data
     :param data_cmpr: compressed data, numpy array format, dtype should be np.int8
     :param original_shape: the shape of original data
     :return: decompressed data,numpy array format
@@ -47,7 +47,7 @@ def decompress(data_cmpr, original_shape):
 
 def compress(data, eb_mode, eb_abs, eb_rel, eb_pwr):
     """
-    Compress
+    Compress FP32 data
     :param data: original data, numpy array format
     :param eb_mode:# error bound mode, integer (0: ABS, 1:REL, 2:ABS_AND_REL, 3:ABS_OR_REL, 4:PSNR, 5:NORM, 10:PW_REL)
     :param eb_abs: optional, abs error bound, double
