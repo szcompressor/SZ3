@@ -56,14 +56,15 @@ if (GSL_FOUND)
   target_link_libraries(${PROJECT_NAME} INTERFACE GSL::gsl)
 endif()
 
-add_subdirectory(examples)
+add_subdirectory(tools/sz3)
+add_subdirectory(tools/sz3c)
 
 option(BUILD_H5Z_FILTER "build the H5Z-SZ3 filter" OFF)
 if(BUILD_H5Z_FILTER)
 	add_subdirectory(tools/H5Z-SZ3)
 endif()
 
-add_subdirectory(tools/sz3c)
+
 
 install(TARGETS ${PROJECT_NAME} 
   EXPORT SZ3Targets

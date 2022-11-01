@@ -1,4 +1,4 @@
-file(GLOB cpu_source_files "${CMAKE_SOURCE_DIR}/examples/*.cpp")
+file(GLOB cpu_source_files "${CMAKE_SOURCE_DIR}/tools/sz3/*.cpp")
 
 foreach (SRCFILE IN LISTS cpu_source_files)
     get_filename_component(EXE ${SRCFILE} NAME_WLE)
@@ -9,4 +9,4 @@ foreach (SRCFILE IN LISTS cpu_source_files)
 
 endforeach ()
 
-install(FILES ${PROJECT_SOURCE_DIR}/examples/testfloat_8_8_128.dat DESTINATION ${CMAKE_INSTALL_DATADIR}/SZ3)
+install(FILES testfloat_8_8_128.dat DESTINATION ${CMAKE_INSTALL_DATADIR}/SZ3)
