@@ -1,9 +1,6 @@
-from pathlib import Path
 import ctypes
 from ctypes.util import find_library
 import numpy as np
-
-HOME = str(Path.home())
 
 sz = ctypes.cdll.LoadLibrary("../../build/tools/sz3c/libsz3c.dylib")
 libc = ctypes.CDLL(ctypes.util.find_library('c'))
@@ -11,6 +8,12 @@ libc.free.argtypes = (ctypes.c_void_p,)
 
 
 def verify(src_data, dec_data):
+    """
+    Compare the decompressed data with original data
+    :param src_data: original data, numpy array
+    :param dec_data: decompressed data, numpy array
+    :return: max_diff, psnr, nrmse
+    """
     data_range = np.max(src_data) - np.min(src_data)
     diff = src_data - dec_data
     max_diff = np.max(abs(diff))
@@ -22,6 +25,12 @@ def verify(src_data, dec_data):
 
 
 def decompress(data_cmpr, original_shape):
+    """
+    Decompress
+    :param data_cmpr: compressed data, numpy array format, dtype should be np.int8
+    :param original_shape: the shape of original data
+    :return: decompressed data,numpy array format
+    """
     sz.SZ_decompress.argtypes = (ctypes.c_int, ctypes.POINTER(ctypes.c_ubyte), ctypes.c_size_t,
                                  ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t,
                                  ctypes.c_size_t)
@@ -37,6 +46,15 @@ def decompress(data_cmpr, original_shape):
 
 
 def compress(data, eb_mode, eb_abs, eb_rel, eb_pwr):
+    """
+    Compress
+    :param data: original data, numpy array format
+    :param eb_mode:# error bound mode, integer (0: ABS, 1:REL, 2:ABS_AND_REL, 3:ABS_OR_REL, 4:PSNR, 5:NORM, 10:PW_REL)
+    :param eb_abs: optional, abs error bound, double
+    :param eb_rel: optional, rel error bound, double
+    :param eb_pwr: optional, pwr error bound, double
+    :return: compressed data, numpy array format, dtype=np.int8
+    """
     sz.SZ_compress_args.argtypes = (ctypes.c_int, ctypes.c_void_p, ctypes.POINTER(ctypes.c_size_t),
                                     ctypes.c_int, ctypes.c_double, ctypes.c_double, ctypes.c_double,
                                     ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t,
@@ -53,13 +71,3 @@ def compress(data, eb_mode, eb_abs, eb_rel, eb_pwr):
     data_cmpr = np.array(data_cmpr_c[:cmpr_size.value], dtype=np.int8)
     libc.free(data_cmpr_c)
     return data_cmpr
-
-
-data = np.fromfile(HOME + '/data/hurricane-100x500x500/Uf48.bin.dat', dtype=np.float32)
-data = np.reshape(data, (100, 500, 500))
-
-data_cmpr = compress(data, 0, 1e-5, 0, 0)
-
-data_dec = decompress(data_cmpr, data.shape)
-
-verify(data, data_dec)
