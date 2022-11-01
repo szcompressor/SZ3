@@ -10,7 +10,7 @@ data = np.reshape(data, (100, 500, 500))
 # init SZ with the c dynamic library path
 sz3 = SZ("../../build/tools/sz3c/libSZ3c.dylib")
 sz2 = SZ("../../../sz2/build/sz/libSZ.dylib")
-sz = sz2
+sz = sz3
 
 # compress, both input and output data are numpy array
 data_cmpr, cmpr_ratio = sz.compress(data, 0, 1e-3, 0, 0)
