@@ -3,7 +3,7 @@ from ctypes.util import find_library
 import numpy as np
 
 
-class SZ3:
+class SZ:
     def __init__(self, szpath):
         """
         init SZ

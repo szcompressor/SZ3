@@ -1,24 +1,24 @@
 add_library(
-        sz3c
+        SZ3c
         src/sz3c.cpp
 )
 
 target_link_libraries(
-        sz3c
+        SZ3c
         PUBLIC SZ3
 )
 
 target_include_directories(
-        sz3c
+        SZ3c
         PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:sz3c>
+        $<INSTALL_INTERFACE:SZ3c>
 )
 
-install(TARGETS sz3c EXPORT SZ3C
+install(TARGETS SZ3c EXPORT SZ3C
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         )
-install(DIRECTORY include DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/sz3c)
-export(TARGETS sz3c FILE sz3c.cmake)
+install(DIRECTORY include DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/SZ3c)
+export(TARGETS SZ3c FILE SZ3c.cmake)
