@@ -11,7 +11,7 @@ data = np.reshape(data, (100, 500, 500))
 lib_extention = "so" if platform.system() == 'Linux' else "dylib"
 # init SZ with the c dynamic library. Please change the path based on your system
 sz3 = SZ("../../build/tools/sz3c/libSZ3c.{}".format(lib_extention))
-sz2 = SZ("../../../sz2/build/sz/libSZ.{}".format(lib_extention))
+# sz2 = SZ("../../../sz2/build/sz/libSZ.{}".format(lib_extention))
 sz = sz3
 
 # compress, both input and output data are numpy array
