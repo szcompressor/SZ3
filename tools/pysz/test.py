@@ -3,16 +3,18 @@ from pathlib import Path
 from pysz import SZ
 import platform
 
+
 # prepare your data
 HOME = str(Path.home())
 data = np.fromfile(HOME + '/data/hurricane-100x500x500/Uf48.bin.dat', dtype=np.float32)
 data = np.reshape(data, (100, 500, 500))
 
+
+# init SZ with the c dynamic library. Please change the path to your so/dylib file
+# Both SZ2 and SZ3 are supported
 lib_extention = "so" if platform.system() == 'Linux' else "dylib"
-# init SZ with the c dynamic library. Please change the path based on your system
-sz3 = SZ("../../build/tools/sz3c/libSZ3c.{}".format(lib_extention))
-# sz2 = SZ("../../../sz2/build/sz/libSZ.{}".format(lib_extention))
-sz = sz3
+sz = SZ("../../build/tools/sz3c/libSZ3c.{}".format(lib_extention))
+# sz = SZ("../../../sz2/build/sz/libSZ.{}".format(lib_extention))
 
 # compress, both input and output data are numpy array
 data_cmpr, cmpr_ratio = sz.compress(data, 0, 1e-3, 0, 0)
