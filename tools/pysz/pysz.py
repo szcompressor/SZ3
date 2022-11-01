@@ -1,9 +1,11 @@
 import ctypes
 from ctypes.util import find_library
 import numpy as np
+
 """
 Python API for SZ2/SZ3
 """
+
 
 class SZ:
     def __init__(self, szpath):
@@ -84,7 +86,7 @@ class SZ:
         :return: compressed data, numpy array format, dtype is np.uint8
                  compression ratio
         """
-
+        assert len(data.shape) <= 5, "SZ only supports 1D to 5D input data"
         cmpr_size = ctypes.c_size_t()
         r5, r4, r3, r2, r1 = [0] * (5 - len(data.shape)) + list(data.shape)
         datatype, datap = self.__sz_datatype(data.dtype, data)
