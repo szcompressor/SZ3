@@ -4,7 +4,6 @@
 
 #include "sz3c.h"
 #include "SZ3/api/sz.hpp"
-
 /** Begin errorbound mode in SZ2 (defines.h) **/
 #define ABS 0
 #define REL 1
@@ -36,7 +35,7 @@
 
 using namespace SZ;
 
-unsigned char *SZ_compress_args(int dataType, void *data, size_t *outSize,
+unsigned char* SZ_compress_args(int dataType, void *data, size_t *outSize,
                                 int errBoundMode, double absErrBound, double relBoundRatio, double pwrBoundRatio,
                                 size_t r5, size_t r4, size_t r3, size_t r2, size_t r1) {
 
@@ -69,76 +68,50 @@ unsigned char *SZ_compress_args(int dataType, void *data, size_t *outSize,
         exit(0);
     }
 
+    unsigned char *cmpr_data = NULL;
     if (dataType == SZ_FLOAT) {
-        return (unsigned char *) SZ_compress<float>(conf, (float *) data, *outSize);
+        cmpr_data = (unsigned char *) SZ_compress<float>(conf, (float *) data, *outSize);
     } else if (dataType == SZ_DOUBLE) {
-        return (unsigned char *) SZ_compress<double>(conf, (double *) data, *outSize);
+        cmpr_data = (unsigned char *) SZ_compress<double>(conf, (double *) data, *outSize);
     } else {
         printf("dataType %d not support\n", dataType);
         exit(0);
     }
 
+    auto *cmpr = (unsigned char *) malloc(*outSize);
+    memcpy(cmpr, cmpr_data, *outSize);
+    delete[]cmpr_data;
+
+    return cmpr;
+
 }
 
-//template<class T>
-//void compress(char *inPath, char *cmpPath, SZ::Config conf) {
-//    T *data = new T[conf.num];
-//    SZ::readfile<T>(inPath, conf.num, data);
-//
-//    size_t outSize;
-//    SZ::Timer timer(true);
-//    char *bytes = SZ_compress<T>(conf, data, outSize);
-//    double compress_time = timer.stop();
-//
-//    char outputFilePath[1024];
-//    if (cmpPath == nullptr) {
-//        sprintf(outputFilePath, "%s.sz", inPath);
-//    } else {
-//        strcpy(outputFilePath, cmpPath);
-//    }
-//    SZ::writefile(outputFilePath, bytes, outSize);
-//
-//    printf("compression ratio = %.2f \n", conf.num * 1.0 * sizeof(T) / outSize);
-//    printf("compression time = %f\n", compress_time);
-//    printf("compressed data file = %s\n", outputFilePath);
-//
-//    delete[]data;
-//    delete[]bytes;
-//}
-//
-//template<class T>
-//void decompress(char *inPath, char *cmpPath, char *decPath,
-//                SZ::Config conf,
-//                int binaryOutput, int printCmpResults) {
-//
-//    size_t cmpSize;
-//    auto cmpData = SZ::readfile<char>(cmpPath, cmpSize);
-//
-//    SZ::Timer timer(true);
-//    T *decData = SZ_decompress<T>(conf, cmpData.get(), cmpSize);
-//    double compress_time = timer.stop();
-//
-//    char outputFilePath[1024];
-//    if (decPath == nullptr) {
-//        sprintf(outputFilePath, "%s.out", cmpPath);
-//    } else {
-//        strcpy(outputFilePath, decPath);
-//    }
-//    if (binaryOutput == 1) {
-//        SZ::writefile<T>(outputFilePath, decData, conf.num);
-//    } else {
-//        SZ::writeTextFile<T>(outputFilePath, decData, conf.num);
-//    }
-//    if (printCmpResults) {
-//        //compute the distortion / compression errors...
-//        size_t totalNbEle;
-//        auto ori_data = SZ::readfile<T>(inPath, totalNbEle);
-//        assert(totalNbEle == conf.num);
-//        SZ::verify<T>(ori_data.get(), decData, conf.num);
-//    }
-//    delete[]decData;
-//
-//    printf("compression ratio = %f\n", conf.num * sizeof(T) * 1.0 / cmpSize);
-//    printf("decompression time = %f seconds.\n", compress_time);
-//    printf("decompressed file = %s\n", outputFilePath);
-//}
+void *SZ_decompress(int dataType, unsigned char *bytes, size_t byteLength,
+                    size_t r5, size_t r4, size_t r3, size_t r2, size_t r1) {
+    size_t n = 0;
+    if (r2 == 0) {
+        n = r1;
+    } else if (r3 == 0) {
+        n = r1 * r2;
+    } else if (r4 == 0) {
+        n = r1 * r2 * r3;
+    } else if (r5 == 0) {
+        n = r1 * r2 * r3 * r4;
+    } else {
+        n = r1 * r2 * r3 * r4 * r5;
+    }
+
+    SZ::Config conf;
+    if (dataType == SZ_FLOAT) {
+        auto dec_data = (float *) malloc(n * sizeof(float));
+        SZ_decompress<float>(conf, (char *) bytes, byteLength, dec_data);
+        return dec_data;
+    } else if (dataType == SZ_DOUBLE) {
+        auto dec_data = (double *) malloc(n * sizeof(double));
+        return SZ_decompress<double>(conf, (char *) bytes, byteLength);
+        return dec_data;
+    } else {
+        printf("dataType %d not support\n", dataType);
+        exit(0);
+    }
+}
