@@ -114,7 +114,6 @@ Version New features
 
 * SZ 3.0.0 SZ3 is the C++ version of SZ with modular and composable design.
 * SZ 3.0.1 Improve the build process.
-* SZ 3.0.2 Support point-wise relative error bound mode.
 * SZ 3.1.0 The default algorithm is now interpolation+Lorenzo.
 * SZ 3.1.1 Add OpenMP support. Works for all algorithms. Please enable it using the config file. 
 * SZ 3.1.2 Support configuration file (INI format). Example can be found in 'tools/sz3/sz3.config'.
