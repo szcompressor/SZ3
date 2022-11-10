@@ -29,20 +29,12 @@ int main(int argc, char **argv) {
         conf.relErrorBound = atof(argv[argp++]);
     }
     size_t batch_size = 0;
-
     if (argp < argc) {
         batch_size = atoi(argv[argp++]);
     }
-    int method = 9;
-    method_batch = 50; //method_batch >0 indicates ADP
+    int method = -1;
     if (argp < argc) {
-        int tmp = atoi(argv[argp++]);
-        if (tmp <= 0) {
-            method = -tmp;
-            method_batch = 0;
-        } else {
-            method_batch = tmp;
-        }
+        method = atoi(argv[argp++]);
     }
 
     conf.blockSize = 128;

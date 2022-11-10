@@ -16,18 +16,16 @@ Build SZ3 with the cmake option "-DBUILD_MDZ=ON"
 You'll find all the executables in [INSTALL_DIR]/tools/mdz and header files in [INSTALL_DIR]/include
 
 ## Testing Examples
-mdz datafile -2 dim1 dim2 -r reb buffer_size cmpr_opt
+mdz datafile -2 dim1 dim2 -r reb buffer_size compressor
 #### options:
 * datafile: FP32 binary format. Contains single axis (X or Y or Z) only.
 * dim1: number of timesteps
 * dim2: number of atoms 
 * reb: relative error bound, for example, 1E-3
-* buffer_size: default 10
-* cmpr_opt: cmpr_opt<=0 means manually choose a compressor from 0: VQ, -1:VQT, -2:MT, -3: Lorenzo+Regression; cmpr_opt>0 controls the interval to automatically update the best compressor 
+* buffer_size (optional): default 10
+* compressor (optional): -1:ADP, 0: VQ, 1:VQT, 2:MT, 3: Lorenzo+Regression;  
 
 #### examples:
+* mdz helium-mode-b-7852x1037/x.f32.dat -2 7852 1037 -r 1E-3
 * mdz helium-mode-b-7852x1037/x.f32.dat -2 7852 1037 -r 1E-3 10
-* mdz helium-mode-b-7852x1037/x.f32.dat -2 7852 1037 -r 1E-3 10 0
-* mdz helium-mode-b-7852x1037/x.f32.dat -2 7852 1037 -r 1E-3 10 -1
-* mdz helium-mode-b-7852x1037/x.f32.dat -2 7852 1037 -r 1E-3 10 -2
-* mdz helium-mode-b-7852x1037/x.f32.dat -2 7852 1037 -r 1E-3 10 10
+* mdz helium-mode-b-7852x1037/x.f32.dat -2 7852 1037 -r 1E-3 10 1

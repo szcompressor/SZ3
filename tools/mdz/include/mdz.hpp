@@ -25,8 +25,6 @@
 
 double total_compress_time = 0;
 double total_decompress_time = 0;
-int ts_last_select = -1;
-int method_batch = 0;
 const char *compressor_names[] = {"VQ", "VQT", "MT", "LR", "TS"};
 
 
@@ -214,9 +212,6 @@ SZ2(SZ::Config conf, size_t ts, T *data, size_t &compressed_size, bool decom) {
 template<typename T, uint N>
 void select(SZ::Config conf, int &method, size_t ts, T *data_all,
             float level_start, float level_offset, int level_num, T *data_ts0, size_t timestep_batch) {
-    if (method_batch <= 0) {
-        return;
-    }
 //        && (ts_last_select == -1 || t - ts_last_select >= conf.timestep_batch * 10)) {
     std::cout << "****************** BEGIN Selection ****************" << std::endl;
 //        ts_last_select = ts;
@@ -253,10 +248,9 @@ void select(SZ::Config conf, int &method, size_t ts, T *data_all,
 
     method = std::distance(compressed_size.begin(),
                            std::min_element(compressed_size.begin(), compressed_size.end()));
-    printf("Select %s as Compressor, timestep=%lu, method=%d, %lu %lu %lu %lu %lu\n",
+    printf("Select %s as Compressor, timestep=%lu, method=%d\n",
            compressor_names[method],
-           ts, method, compressed_size[0], compressed_size[1], compressed_size[2], compressed_size[3],
-           compressed_size[4]);
+           ts, method);
     std::cout << "****************** END Selection ****************" << std::endl;
 }
 
@@ -354,10 +348,16 @@ int LAMMPS_select_compressor(SZ::Config conf, T *data, bool firsttime,
 }
 
 template<typename T, uint N>
-size_t MDZ_Compress(SZ::Config conf, T *input_data, T *dec_data, size_t batch_size, int method = 9) {
-    assert(N == 2);
+size_t MDZ_Compress(SZ::Config conf, T *input_data, T *dec_data, size_t batch_size, int method = -1) {
+    if (N != 2) {
+        throw std::invalid_argument("dimension should be 2");
+    }
     if (batch_size == 0) {
         batch_size = conf.dims[0];
+    }
+    int method_batch = 0;
+    if (method == -1) {
+        method_batch = 50;
     }
     std::cout << "****************** Options ********************" << std::endl;
     std::cout << "dimension = " << N
@@ -386,7 +386,7 @@ size_t MDZ_Compress(SZ::Config conf, T *input_data, T *dec_data, size_t batch_si
             level_num = 0;
         }
         if (level_num != 0) {
-            printf("start = %.3f , level_offset = %.3f, nlevel=%d\n", level_start, level_offset, level_num);
+//            printf("start = %.3f , level_offset = %.3f, nlevel=%d\n", level_start, level_offset, level_num);
         }
     }
 

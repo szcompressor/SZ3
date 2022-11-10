@@ -360,17 +360,17 @@ namespace SZ {
 //            exit(0);
         }
 
-        std::cout << "centers : ";
-        for (size_t i = 0; i < k; i++) {
-            std::cout << cents[i] << " ";
-        }
-        std::cout << std::endl;
+//        std::cout << "centers : ";
+//        for (size_t i = 0; i < k; i++) {
+//            std::cout << cents[i] << " ";
+//        }
+//        std::cout << std::endl;
 
-        std::cout << "center diff : ";
-        for (size_t i = 1; i < k; i++) {
-            std::cout << cents[i] - cents[i - 1] << " ";
-        }
-        std::cout << std::endl;
+//        std::cout << "center diff : ";
+//        for (size_t i = 1; i < k; i++) {
+//            std::cout << cents[i] - cents[i - 1] << " ";
+//        }
+//        std::cout << std::endl;
 
 //        std::vector<float> boundary(k);
 //        boundary[0] = std::numeric_limits<float>::min();
