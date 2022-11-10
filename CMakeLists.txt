@@ -65,10 +65,10 @@ if(BUILD_H5Z_FILTER)
 	add_subdirectory(tools/H5Z-SZ3)
 endif()
 
-#option(BUILD_MDZ "build MDZ (MMD-SZ)" OFF)
-#if(BUILD_MDZ)
+option(BUILD_MDZ "build MDZ (MMD-SZ)" OFF)
+if(BUILD_MDZ)
   add_subdirectory(tools/mdz)
-#endif()
+endif()
 
 
 install(TARGETS ${PROJECT_NAME} 

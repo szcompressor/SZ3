@@ -393,7 +393,7 @@ float MDZ_Compress(SZ::Config conf, int method, size_t timestep_batch, std::stri
 }
 
 template<typename T, uint N>
-SZ::uchar *compress(SZ::Config conf, T *data, int method, size_t &compressed_size,
+SZ::uchar *LAMMPS_compress(SZ::Config conf, T *data, int method, size_t &compressed_size,
                     float level_start, float level_offset, int level_num, T *ts0) {
     if ((method == 0 || method == 1) && level_num == 0) {
         printf("VQ/VQT not available on current dataset, please use ADP or MT\n");
@@ -420,7 +420,7 @@ SZ::uchar *compress(SZ::Config conf, T *data, int method, size_t &compressed_siz
 }
 
 template<typename T, uint N>
-int select_compressor(SZ::Config conf, T *data, bool firsttime,
+int LAMMPS_select_compressor(SZ::Config conf, T *data, bool firsttime,
                       float level_start, float level_offset, int level_num, T *data_ts0) {
     std::cout << "****************** BEGIN Selection ****************" << std::endl;
 
@@ -441,20 +441,20 @@ int select_compressor(SZ::Config conf, T *data, bool firsttime,
     if (level_num > 0) {
 
         data1 = std::vector<T>(data, data + conf.num);
-        cmpr = compress<T,N>(conf, data1.data(), 0, compressed_size[0], level_start, level_offset, level_num, data_ts0);
+        cmpr = LAMMPS_compress<T,N>(conf, data1.data(), 0, compressed_size[0], level_start, level_offset, level_num, data_ts0);
         delete[] cmpr;
 
         data1 = std::vector<T>(data, data + conf.num);
-        cmpr = compress<T,N>(conf, data1.data(), 1, compressed_size[1], level_start, level_offset, level_num, data_ts0);
+        cmpr = LAMMPS_compress<T,N>(conf, data1.data(), 1, compressed_size[1], level_start, level_offset, level_num, data_ts0);
         delete[] cmpr;
     } else {
         data1 = std::vector<T>(data, data + conf.num);
-        cmpr = compress<T,N>(conf, data1.data(), 3, compressed_size[3], level_start, level_offset, level_num, data_ts0);
+        cmpr = LAMMPS_compress<T,N>(conf, data1.data(), 3, compressed_size[3], level_start, level_offset, level_num, data_ts0);
         delete[] cmpr;
     }
 
     data1 = std::vector<T>(data, data + conf.num);
-    cmpr = compress<T,N>(conf, data1.data(), 2, compressed_size[2], level_start, level_offset, level_num, data_ts0);
+    cmpr = LAMMPS_compress<T,N>(conf, data1.data(), 2, compressed_size[2], level_start, level_offset, level_num, data_ts0);
     delete[] cmpr;
 
 //    data1 = std::vector(&data[t * conf.dims[1]], &data[t * conf.dims[1]] + conf.num);
