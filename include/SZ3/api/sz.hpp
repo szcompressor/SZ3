@@ -11,7 +11,7 @@
  * @tparam T source data type
  * @param config compression configuration. Please update the config with 1). data dimension and shape and 2). desired settings.
  * @param data source data
- * @param outSize compressed data size in bytes
+ * @param cmpSize compressed data size in bytes
  * @return compressed data, remember to 'delete []' when the data is no longer needed.
 
 The compression algorithms are:
@@ -51,28 +51,28 @@ conf.absErrorBound = 1E-3; // absolute error bound 1e-3
 char *compressedData = SZ_compress(conf, data, outSize);
  */
 template<class T>
-char *SZ_compress(const SZ::Config &conf, const T *data, size_t &outSize) {
+char *SZ_compress(const SZ::Config &conf, const T *data, size_t &cmpSize) {
     SZ::Config confCopy(conf);
     char *cmpData;
     if (conf.N == 1) {
-        cmpData = SZ_compress_impl<T, 1>(confCopy, data, outSize);
+        cmpData = SZ_compress_impl<T, 1>(confCopy, data, cmpSize);
     } else if (conf.N == 2) {
-        cmpData = SZ_compress_impl<T, 2>(confCopy, data, outSize);
+        cmpData = SZ_compress_impl<T, 2>(confCopy, data, cmpSize);
     } else if (conf.N == 3) {
-        cmpData = SZ_compress_impl<T, 3>(confCopy, data, outSize);
+        cmpData = SZ_compress_impl<T, 3>(confCopy, data, cmpSize);
     } else if (conf.N == 4) {
-        cmpData = SZ_compress_impl<T, 4>(confCopy, data, outSize);
+        cmpData = SZ_compress_impl<T, 4>(confCopy, data, cmpSize);
     } else {
         printf("Data dimension higher than 4 is not supported.\n");
         exit(0);
     }
     {
         //save config
-        SZ::uchar *cmpDataPos = (SZ::uchar *) cmpData + outSize;
+        SZ::uchar *cmpDataPos = (SZ::uchar *) cmpData + cmpSize;
         confCopy.save(cmpDataPos);
         size_t newSize = (char *) cmpDataPos - cmpData;
-        SZ::write(int(newSize - outSize), cmpDataPos);
-        outSize = (char *) cmpDataPos - cmpData;
+        SZ::write(int(newSize - cmpSize), cmpDataPos);
+        cmpSize = (char *) cmpDataPos - cmpData;
     }
     return cmpData;
 }
@@ -89,9 +89,9 @@ char *SZ_compress(const SZ::Config &conf, const T *data, size_t &outSize) {
  * @param decData pre-allocated memory space for decompressed data
 
  example:
- auto decompressedData = new float[100x200x300];
+ auto decData = new float[100*200*300];
  SZ::Config conf;
- SZ_decompress(conf, char *cmpData, size_t cmpSize, decompressedData);
+ SZ_decompress(conf, cmpData, cmpSize, decData);
 
  */
 template<class T>
@@ -130,7 +130,7 @@ void SZ_decompress(SZ::Config &conf, char *cmpData, size_t cmpSize, T *&decData)
 
  example:
  SZ::Config conf;
- float decompressedData = SZ_decompress(conf, char *cmpData, size_t cmpSize)
+ float decompressedData = SZ_decompress(conf, cmpData, cmpSize)
  */
 template<class T>
 T *SZ_decompress(SZ::Config &conf, char *cmpData, size_t cmpSize) {
