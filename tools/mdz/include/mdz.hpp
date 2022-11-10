@@ -277,8 +277,84 @@ std::unique_ptr<Type[]> readfile(const char *file, size_t start, size_t num) {
     return data;
 }
 
+
 template<typename T, uint N>
-float MDZ_Compress(SZ::Config conf, int method, size_t batch_size, std::string input_path) {
+SZ::uchar *LAMMPS_compress(SZ::Config conf, T *data, int method, size_t &compressed_size,
+                           float level_start, float level_offset, int level_num, T *ts0) {
+    if ((method == 0 || method == 1) && level_num == 0) {
+        printf("VQ/VQT not available on current dataset, please use ADP or MT\n");
+        exit(0);
+    }
+    SZ::uchar *compressed_data;
+    if (method == 0 || method == 1) {
+        auto sz = SZ::SZ_Exaalt_Compressor<T, N, SZ::LinearQuantizer<float>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
+                conf, SZ::LinearQuantizer<float>(conf.absErrorBound, conf.quantbinCnt / 2),
+                SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd(), method);
+        sz.set_level(level_start, level_offset, level_num);
+        compressed_data = sz.compress(data, compressed_size);
+    } else if (method == 2 || method == 4) {
+        auto sz = make_sz_timebased<T, N>(conf, ts0);
+        compressed_data = sz->compress(conf, data, compressed_size);
+    } else {
+        auto sz = make_sz<T, N>(conf);
+        compressed_data = sz->compress(conf, data, compressed_size);
+    }
+//    auto ratio = conf.num * sizeof(T) * 1.0 / compressed_size;
+//    std::cout << "Compression Ratio = " << ratio << std::endl;
+//    std::cout << "Compressed size = " << compressed_size << std::endl;
+    return compressed_data;
+}
+
+template<typename T, uint N>
+int LAMMPS_select_compressor(SZ::Config conf, T *data, bool firsttime,
+                             float level_start, float level_offset, int level_num, T *data_ts0) {
+    std::cout << "****************** BEGIN Selection ****************" << std::endl;
+
+    std::vector<size_t> compressed_size(10, std::numeric_limits<size_t>::max());
+
+    if (firsttime) {
+        conf.dims[0] /= 2;
+        conf.num = conf.dims[0] * conf.dims[1];
+        data += conf.num;
+    }
+    if (conf.dims[0] > 10) {
+        conf.dims[0] = 10;
+        conf.num = conf.dims[0] * conf.dims[1];
+    }
+
+    std::vector<T> data1;
+    SZ::uchar *cmpr;
+    if (level_num > 0) {
+
+        data1 = std::vector<T>(data, data + conf.num);
+        cmpr = LAMMPS_compress<T, N>(conf, data1.data(), 0, compressed_size[0], level_start, level_offset, level_num, data_ts0);
+        delete[] cmpr;
+
+        data1 = std::vector<T>(data, data + conf.num);
+        cmpr = LAMMPS_compress<T, N>(conf, data1.data(), 1, compressed_size[1], level_start, level_offset, level_num, data_ts0);
+        delete[] cmpr;
+    } else {
+        data1 = std::vector<T>(data, data + conf.num);
+        cmpr = LAMMPS_compress<T, N>(conf, data1.data(), 3, compressed_size[3], level_start, level_offset, level_num, data_ts0);
+        delete[] cmpr;
+    }
+
+    data1 = std::vector<T>(data, data + conf.num);
+    cmpr = LAMMPS_compress<T, N>(conf, data1.data(), 2, compressed_size[2], level_start, level_offset, level_num, data_ts0);
+    delete[] cmpr;
+
+//    data1 = std::vector(&data[t * conf.dims[1]], &data[t * conf.dims[1]] + conf.num);
+//    MT(conf, t, data1.data(), compressed_size[4], false, (T *) nullptr);
+
+    int method = std::distance(compressed_size.begin(),
+                               std::min_element(compressed_size.begin(), compressed_size.end()));
+    printf("Select %s as Compressor, method=%d\n", compressor_names[method], method);
+    std::cout << "****************** END Selection ****************" << std::endl;
+    return method;
+}
+
+template<typename T, uint N>
+size_t MDZ_Compress(SZ::Config conf, T *input_data, T *dec_data, size_t batch_size, int method = 9) {
     assert(N == 2);
     if (batch_size == 0) {
         batch_size = conf.dims[0];
@@ -294,8 +370,9 @@ float MDZ_Compress(SZ::Config conf, int method, size_t batch_size, std::string i
               //              << ", lossless = " << conf.lossless_op
               << std::endl;
 
-    auto data_all = readfile<T>(input_path.data(), 0, conf.num);
-    auto data_ts0 = std::vector<T>(data_all.get(), data_all.get() + conf.dims[1]);
+//    auto data_all = readfile<T>(input_path.data(), 0, conf.num);
+//    auto data_all = input_data;
+    auto data_ts0 = std::vector<T>(input_data, input_data + conf.dims[1]);
 
     float level_start, level_offset;
     int level_num = 0;
@@ -303,7 +380,7 @@ float MDZ_Compress(SZ::Config conf, int method, size_t batch_size, std::string i
         size_t sample_num = 0.1 * conf.dims[1];
         sample_num = std::min(sample_num, (size_t) 20000);
         sample_num = std::max(sample_num, std::min((size_t) 5000, conf.dims[1]));
-        SZ::get_cluster(data_all.get(), conf.dims[1], level_start, level_offset, level_num,
+        SZ::get_cluster(input_data, conf.dims[1], level_start, level_offset, level_num,
                         sample_num);
         if (level_num > conf.dims[1] * 0.25) {
             level_num = 0;
@@ -315,8 +392,8 @@ float MDZ_Compress(SZ::Config conf, int method, size_t batch_size, std::string i
 
     auto dims = conf.dims;
     auto total_num = conf.num;
-    std::vector<T> dec_data(total_num);
-    double total_compressed_size = 0;
+//    std::vector<T> dec_data(total_num);
+    size_t total_compressed_size = 0;
     double compressed_size_pre = total_num * sizeof(T);
     int current_method = method;
 
@@ -325,7 +402,7 @@ float MDZ_Compress(SZ::Config conf, int method, size_t batch_size, std::string i
         conf.num = conf.dims[0] * conf.dims[1];
 
 //        auto data = SZ::readfile<T>(conf.input_path.data(), ts * conf.dims[1], conf.num);
-        T *data = &data_all[ts * conf.dims[1]];
+        T *data = &input_data[ts * conf.dims[1]];
 
         T max = *std::max_element(data, data + conf.num);
         T min = *std::min_element(data, data + conf.num);
@@ -339,7 +416,7 @@ float MDZ_Compress(SZ::Config conf, int method, size_t batch_size, std::string i
                   << " ******************" << std::endl;
 //        std::cout<<method_batch<<" "<<ts<<" "<<conf.batch_size<<" "<<method_batch<<std::endl;
         if (method_batch > 0 && ts / batch_size % method_batch == 0) {
-            select<T, N>(conf, current_method, ts, data_all.get(), level_start, level_offset, level_num, data_ts0.data(), batch_size);
+            select<T, N>(conf, current_method, ts, input_data, level_start, level_offset, level_num, data_ts0.data(), batch_size);
         }
         printf("Compressor = %s\n", compressor_names[current_method]);
 
@@ -366,105 +443,8 @@ float MDZ_Compress(SZ::Config conf, int method, size_t batch_size, std::string i
         memcpy(&dec_data[ts * conf.dims[1]], ts_dec_data, conf.num * sizeof(T));
     }
 
-    std::cout << "****************** Final ****************" << std::endl;
 
-    float ratio = total_num * sizeof(T) / total_compressed_size;
-    auto data = readfile<T>(input_path.data(), 0, total_num);
-
-//    std::stringstream ss;
-//    ss << input_path.substr(input_path.rfind('/') + 1)
-//       << ".b" << batch_size
-//       << "." << conf.relErrorBound << ".md-" << method << ".out";
-//    std::cout << "Decompressed file = " << ss.str() << std::endl;
-//    SZ::writefile(ss.str().data(), dec_data.data(), total_num);
-
-    double max_diff, psnr, nrmse;
-    SZ::verify<T>(data.get(), dec_data.data(), total_num, psnr, nrmse, max_diff);
-
-    printf("method=md, file=%s, block=%lu, compression_ratio=%.3f, reb=%.1e, eb=%.6f, psnr=%.3f, nsmse=%e, compress_time=%.3f, decompress_time=%.3f, timestep_op=%d\n",
-           input_path.data(), batch_size,
-           ratio,
-           conf.relErrorBound,
-           max_diff, psnr, nrmse,
-           total_compress_time, total_decompress_time,
-           method);
-
-    return ratio;
-}
-
-template<typename T, uint N>
-SZ::uchar *LAMMPS_compress(SZ::Config conf, T *data, int method, size_t &compressed_size,
-                    float level_start, float level_offset, int level_num, T *ts0) {
-    if ((method == 0 || method == 1) && level_num == 0) {
-        printf("VQ/VQT not available on current dataset, please use ADP or MT\n");
-        exit(0);
-    }
-    SZ::uchar *compressed_data;
-    if (method == 0 || method == 1) {
-        auto sz = SZ::SZ_Exaalt_Compressor<T, N, SZ::LinearQuantizer<float>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
-                conf, SZ::LinearQuantizer<float>(conf.absErrorBound, conf.quantbinCnt / 2),
-                SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd(), method);
-        sz.set_level(level_start, level_offset, level_num);
-        compressed_data = sz.compress(data, compressed_size);
-    } else if (method == 2 || method == 4) {
-        auto sz = make_sz_timebased<T,N>(conf, ts0);
-        compressed_data = sz->compress(conf, data, compressed_size);
-    } else {
-        auto sz = make_sz<T, N>(conf);
-        compressed_data = sz->compress(conf, data, compressed_size);
-    }
-//    auto ratio = conf.num * sizeof(T) * 1.0 / compressed_size;
-//    std::cout << "Compression Ratio = " << ratio << std::endl;
-//    std::cout << "Compressed size = " << compressed_size << std::endl;
-    return compressed_data;
-}
-
-template<typename T, uint N>
-int LAMMPS_select_compressor(SZ::Config conf, T *data, bool firsttime,
-                      float level_start, float level_offset, int level_num, T *data_ts0) {
-    std::cout << "****************** BEGIN Selection ****************" << std::endl;
-
-    std::vector<size_t> compressed_size(10, std::numeric_limits<size_t>::max());
-
-    if (firsttime) {
-        conf.dims[0] /= 2;
-        conf.num = conf.dims[0] * conf.dims[1];
-        data += conf.num;
-    }
-    if (conf.dims[0] > 10) {
-        conf.dims[0] = 10;
-        conf.num = conf.dims[0] * conf.dims[1];
-    }
-
-    std::vector<T> data1;
-    SZ::uchar *cmpr;
-    if (level_num > 0) {
-
-        data1 = std::vector<T>(data, data + conf.num);
-        cmpr = LAMMPS_compress<T,N>(conf, data1.data(), 0, compressed_size[0], level_start, level_offset, level_num, data_ts0);
-        delete[] cmpr;
-
-        data1 = std::vector<T>(data, data + conf.num);
-        cmpr = LAMMPS_compress<T,N>(conf, data1.data(), 1, compressed_size[1], level_start, level_offset, level_num, data_ts0);
-        delete[] cmpr;
-    } else {
-        data1 = std::vector<T>(data, data + conf.num);
-        cmpr = LAMMPS_compress<T,N>(conf, data1.data(), 3, compressed_size[3], level_start, level_offset, level_num, data_ts0);
-        delete[] cmpr;
-    }
-
-    data1 = std::vector<T>(data, data + conf.num);
-    cmpr = LAMMPS_compress<T,N>(conf, data1.data(), 2, compressed_size[2], level_start, level_offset, level_num, data_ts0);
-    delete[] cmpr;
-
-//    data1 = std::vector(&data[t * conf.dims[1]], &data[t * conf.dims[1]] + conf.num);
-//    MT(conf, t, data1.data(), compressed_size[4], false, (T *) nullptr);
-
-    int method = std::distance(compressed_size.begin(),
-                               std::min_element(compressed_size.begin(), compressed_size.end()));
-    printf("Select %s as Compressor, method=%d\n", compressor_names[method], method);
-    std::cout << "****************** END Selection ****************" << std::endl;
-    return method;
+    return total_compressed_size;
 }
 
 #endif //SZ3_MDZ_H

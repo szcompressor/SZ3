@@ -53,6 +53,28 @@ int main(int argc, char **argv) {
     if (argp < argc) {
         conf.quantbinCnt = atoi(argv[argp++]);
     }
-    MDZ_Compress<float, 2>(conf, method, batch_size, input_path);
+    auto input_data = readfile<float>(input_path.data(), 0, conf.num);
+    std::vector<float> input2(input_data.get(), input_data.get() + conf.num);
+    std::vector<float> dec_data(conf.num);
 
+    size_t compressed_size = MDZ_Compress<float, 2>(conf, input_data.get(), dec_data.data(), batch_size, method);
+    float ratio = conf.num * 1.0 * sizeof(float) / compressed_size;
+
+//    std::stringstream ss;
+//    ss << input_path.substr(input_path.rfind('/') + 1)
+//       << ".b" << batch_size
+//       << "." << conf.relErrorBound << ".md-" << method << ".out";
+//    std::cout << "Decompressed file = " << ss.str() << std::endl;
+//    SZ::writefile(ss.str().data(), dec_data.data(), total_num);
+
+    double max_diff, psnr, nrmse;
+    SZ::verify<float>(input2.data(), dec_data.data(), conf.num, psnr, nrmse, max_diff);
+    std::cout << "****************** Final ****************" << std::endl;
+    printf("method=md, file=%s, block=%lu, compression_ratio=%.3f, reb=%.1e, eb=%.6f, psnr=%.3f, nsmse=%e, compress_time=%.3f, decompress_time=%.3f, timestep_op=%d\n",
+           input_path.data(), batch_size,
+           ratio,
+           conf.relErrorBound,
+           max_diff, psnr, nrmse,
+           total_compress_time, total_decompress_time,
+           method);
 }
