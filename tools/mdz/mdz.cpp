@@ -1,6 +1,6 @@
 #include <vector>
 
-#include "mdz/mdz.hpp"
+#include <mdz.hpp>
 
 
 int main(int argc, char **argv) {

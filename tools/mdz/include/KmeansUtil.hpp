@@ -231,7 +231,7 @@ namespace SZ {
         // * Extract cluster assignments by backtracking
         // ***************************************************
 
-        // TODO: This step requires O(kn) memory usage due to saving the entire
+        // Note:  This step requires O(kn) memory usage due to saving the entire
         //       T matrix. However, it can be modified so that the memory usage is O(n).
         //       D and T would not need to be retained in full (D already doesn't need
         //       to be fully retained, although it currently is).
