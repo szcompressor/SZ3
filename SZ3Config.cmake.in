@@ -3,5 +3,8 @@
 include("${CMAKE_CURRENT_LIST_DIR}/SZ3Targets.cmake")
 
 find_package(OpenMP)
+if(@GSL_FOUND@)
+  find_package(GSL REQUIRED)
+endif()
 check_required_components(SZ3)
 
