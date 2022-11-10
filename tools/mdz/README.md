@@ -7,18 +7,16 @@ See COPYRIGHT in top-level directory.
 * Supervisor: Franck Cappello
 
 ## Citations
-
+* Kai Zhao, Sheng Di, Danny Perez, Zizhong Chen, and Franck Cappello. "[MDZ: An Efficient Error-bounded Lossy Compressor for Molecular Dynamics Simulations](https://ieeexplore.ieee.org/document/9835212)", Proceeding of the 38th IEEE International Conference on Data Engineering (ICDE 22), Kuala Lumpur, Malaysia, May 9 -
+  12, 2022.
+ 
 ## Installation
 
-* mkdir build && cd build
-* cmake .. -DCMAKE_INSTALL_PREFIX:PATH=[INSTALL_DIR]
-* make
-* make install
-
-Then, you'll find all the executables in [INSTALL_DIR]/tools/mdz and header files in [INSTALL_DIR]/include
+Build SZ3 with the cmake option "-DBUILD_MDZ=ON"
+You'll find all the executables in [INSTALL_DIR]/tools/mdz and header files in [INSTALL_DIR]/include
 
 ## Testing Examples
-build/test/mdz datafile -2 dim1 dim2 -r reb buffer_size cmpr_opt
+mdz datafile -2 dim1 dim2 -r reb buffer_size cmpr_opt
 #### options:
 * datafile: FP32 binary format. Contains single axis (X or Y or Z) only.
 * dim1: number of timesteps
