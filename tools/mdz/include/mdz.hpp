@@ -36,7 +36,8 @@ make_sz_timebased2(const SZ::Config &conf, Predictor predictor, T *data_ts0) {
     return new SZ::SZGeneralCompressor<T, N, SZ::TimeBasedFrontend<T, N, Predictor, SZ::LinearQuantizer<T>>,
             SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
             SZ::TimeBasedFrontend<T, N, Predictor, SZ::LinearQuantizer<T>>(conf, predictor,
-                                                                       SZ::LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2), data_ts0),
+                                                                           SZ::LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2),
+                                                                           data_ts0),
             SZ::HuffmanEncoder<int>(),
             SZ::Lossless_zstd());
 }
@@ -79,7 +80,8 @@ make_sz2(const SZ::Config &conf, Predictor predictor) {
 
     return new SZ::SZGeneralCompressor<T, N, SZ::SZGeneralFrontend<T, N, Predictor, SZ::LinearQuantizer<T>>,
             SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
-            SZ::SZGeneralFrontend<T,N, Predictor, SZ::LinearQuantizer<T>>(conf, predictor, SZ::LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
+            SZ::SZGeneralFrontend<T, N, Predictor, SZ::LinearQuantizer<T>>(conf, predictor,
+                                                                           SZ::LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
             SZ::HuffmanEncoder<int>(),
             SZ::Lossless_zstd());
 }
@@ -388,6 +390,81 @@ float MDZ_Compress(SZ::Config conf, int method, size_t timestep_batch, std::stri
            method);
 
     return ratio;
+}
+
+template<typename T, uint N>
+SZ::uchar *compress(SZ::Config conf, T *data, int method, size_t &compressed_size,
+                    float level_start, float level_offset, int level_num, T *ts0) {
+    if ((method == 0 || method == 1) && level_num == 0) {
+        printf("VQ/VQT not available on current dataset, please use ADP or MT\n");
+        exit(0);
+    }
+    SZ::uchar *compressed_data;
+    if (method == 0 || method == 1) {
+        auto sz = SZ::SZ_Exaalt_Compressor<T, N, SZ::LinearQuantizer<float>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd>(
+                conf, SZ::LinearQuantizer<float>(conf.absErrorBound, conf.quantbinCnt / 2),
+                SZ::HuffmanEncoder<int>(), SZ::Lossless_zstd(), method);
+        sz.set_level(level_start, level_offset, level_num);
+        compressed_data = sz.compress(data, compressed_size);
+    } else if (method == 2 || method == 4) {
+        auto sz = make_sz_timebased<T,N>(conf, ts0);
+        compressed_data = sz->compress(conf, data, compressed_size);
+    } else {
+        auto sz = make_sz<T, N>(conf);
+        compressed_data = sz->compress(conf, data, compressed_size);
+    }
+//    auto ratio = conf.num * sizeof(T) * 1.0 / compressed_size;
+//    std::cout << "Compression Ratio = " << ratio << std::endl;
+//    std::cout << "Compressed size = " << compressed_size << std::endl;
+    return compressed_data;
+}
+
+template<typename T, uint N>
+int select_compressor(SZ::Config conf, T *data, bool firsttime,
+                      float level_start, float level_offset, int level_num, T *data_ts0) {
+    std::cout << "****************** BEGIN Selection ****************" << std::endl;
+
+    std::vector<size_t> compressed_size(10, std::numeric_limits<size_t>::max());
+
+    if (firsttime) {
+        conf.dims[0] /= 2;
+        conf.num = conf.dims[0] * conf.dims[1];
+        data += conf.num;
+    }
+    if (conf.dims[0] > 10) {
+        conf.dims[0] = 10;
+        conf.num = conf.dims[0] * conf.dims[1];
+    }
+
+    std::vector<T> data1;
+    SZ::uchar *cmpr;
+    if (level_num > 0) {
+
+        data1 = std::vector<T>(data, data + conf.num);
+        cmpr = compress<T,N>(conf, data1.data(), 0, compressed_size[0], level_start, level_offset, level_num, data_ts0);
+        delete[] cmpr;
+
+        data1 = std::vector<T>(data, data + conf.num);
+        cmpr = compress<T,N>(conf, data1.data(), 1, compressed_size[1], level_start, level_offset, level_num, data_ts0);
+        delete[] cmpr;
+    } else {
+        data1 = std::vector<T>(data, data + conf.num);
+        cmpr = compress<T,N>(conf, data1.data(), 3, compressed_size[3], level_start, level_offset, level_num, data_ts0);
+        delete[] cmpr;
+    }
+
+    data1 = std::vector<T>(data, data + conf.num);
+    cmpr = compress<T,N>(conf, data1.data(), 2, compressed_size[2], level_start, level_offset, level_num, data_ts0);
+    delete[] cmpr;
+
+//    data1 = std::vector(&data[t * conf.dims[1]], &data[t * conf.dims[1]] + conf.num);
+//    MT(conf, t, data1.data(), compressed_size[4], false, (T *) nullptr);
+
+    int method = std::distance(compressed_size.begin(),
+                               std::min_element(compressed_size.begin(), compressed_size.end()));
+    printf("Select %s as Compressor, method=%d\n", compressor_names[method], method);
+    std::cout << "****************** END Selection ****************" << std::endl;
+    return method;
 }
 
 #endif //SZ3_MDZ_H
