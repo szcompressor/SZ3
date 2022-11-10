@@ -12,7 +12,7 @@ target_include_directories(
         SZ3c
         PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:SZ3c>
+        $<INSTALL_INTERFACE:include/SZ3c>
 )
 
 install(TARGETS SZ3c EXPORT SZ3c
