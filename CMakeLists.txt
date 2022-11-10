@@ -59,11 +59,16 @@ endif()
 add_subdirectory(tools/sz3)
 add_subdirectory(tools/sz3c)
 
+
 option(BUILD_H5Z_FILTER "build the H5Z-SZ3 filter" OFF)
 if(BUILD_H5Z_FILTER)
 	add_subdirectory(tools/H5Z-SZ3)
 endif()
 
+option(BUILD_MDZ "build MDZ (MMD-SZ)" OFF)
+if(BUILD_MDZ)
+  add_subdirectory(tools/mdz)
+endif()
 
 
 install(TARGETS ${PROJECT_NAME} 
