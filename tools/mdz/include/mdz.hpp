@@ -278,23 +278,23 @@ std::unique_ptr<Type[]> readfile(const char *file, size_t start, size_t num) {
 }
 
 template<typename T, uint N>
-float MDZ_Compress(SZ::Config conf, int method, size_t timestep_batch, std::string src_file_name) {
+float MDZ_Compress(SZ::Config conf, int method, size_t batch_size, std::string input_path) {
     assert(N == 2);
-    if (timestep_batch == 0) {
-        timestep_batch = conf.dims[0];
+    if (batch_size == 0) {
+        batch_size = conf.dims[0];
     }
     std::cout << "****************** Options ********************" << std::endl;
     std::cout << "dimension = " << N
               << ", error bound = " << conf.absErrorBound
               << ", method = " << method
               << ", method_update_batch = " << method_batch
-              << ", timestep_batch = " << timestep_batch
+              << ", batch_size = " << batch_size
               << ", quan_state_num = " << conf.quantbinCnt
               //              << ", encoder = " << conf.encoder_op
               //              << ", lossless = " << conf.lossless_op
               << std::endl;
 
-    auto data_all = readfile<T>(src_file_name.data(), 0, conf.num);
+    auto data_all = readfile<T>(input_path.data(), 0, conf.num);
     auto data_ts0 = std::vector<T>(data_all.get(), data_all.get() + conf.dims[1]);
 
     float level_start, level_offset;
@@ -320,11 +320,11 @@ float MDZ_Compress(SZ::Config conf, int method, size_t timestep_batch, std::stri
     double compressed_size_pre = total_num * sizeof(T);
     int current_method = method;
 
-    for (size_t ts = 0; ts < dims[0]; ts += timestep_batch) {
-        conf.dims[0] = (ts + timestep_batch > dims[0] ? dims[0] - ts : timestep_batch);
+    for (size_t ts = 0; ts < dims[0]; ts += batch_size) {
+        conf.dims[0] = (ts + batch_size > dims[0] ? dims[0] - ts : batch_size);
         conf.num = conf.dims[0] * conf.dims[1];
 
-//        auto data = SZ::readfile<T>(conf.src_file_name.data(), ts * conf.dims[1], conf.num);
+//        auto data = SZ::readfile<T>(conf.input_path.data(), ts * conf.dims[1], conf.num);
         T *data = &data_all[ts * conf.dims[1]];
 
         T max = *std::max_element(data, data + conf.num);
@@ -337,9 +337,9 @@ float MDZ_Compress(SZ::Config conf, int method, size_t timestep_batch, std::stri
 
         std::cout << "****************** Compression From " << ts << " to " << ts + conf.dims[0] - 1
                   << " ******************" << std::endl;
-//        std::cout<<method_batch<<" "<<ts<<" "<<conf.timestep_batch<<" "<<method_batch<<std::endl;
-        if (method_batch > 0 && ts / timestep_batch % method_batch == 0) {
-            select<T, N>(conf, current_method, ts, data_all.get(), level_start, level_offset, level_num, data_ts0.data(), timestep_batch);
+//        std::cout<<method_batch<<" "<<ts<<" "<<conf.batch_size<<" "<<method_batch<<std::endl;
+        if (method_batch > 0 && ts / batch_size % method_batch == 0) {
+            select<T, N>(conf, current_method, ts, data_all.get(), level_start, level_offset, level_num, data_ts0.data(), batch_size);
         }
         printf("Compressor = %s\n", compressor_names[current_method]);
 
@@ -369,20 +369,20 @@ float MDZ_Compress(SZ::Config conf, int method, size_t timestep_batch, std::stri
     std::cout << "****************** Final ****************" << std::endl;
 
     float ratio = total_num * sizeof(T) / total_compressed_size;
-    auto data = readfile<T>(src_file_name.data(), 0, total_num);
+    auto data = readfile<T>(input_path.data(), 0, total_num);
 
-    std::stringstream ss;
-    ss << src_file_name.substr(src_file_name.rfind('/') + 1)
-       << ".b" << timestep_batch
-       << "." << conf.relErrorBound << ".md-" << method << ".out";
-    std::cout << "Decompressed file = " << ss.str() << std::endl;
-    SZ::writefile(ss.str().data(), dec_data.data(), total_num);
+//    std::stringstream ss;
+//    ss << input_path.substr(input_path.rfind('/') + 1)
+//       << ".b" << batch_size
+//       << "." << conf.relErrorBound << ".md-" << method << ".out";
+//    std::cout << "Decompressed file = " << ss.str() << std::endl;
+//    SZ::writefile(ss.str().data(), dec_data.data(), total_num);
 
     double max_diff, psnr, nrmse;
     SZ::verify<T>(data.get(), dec_data.data(), total_num, psnr, nrmse, max_diff);
 
     printf("method=md, file=%s, block=%lu, compression_ratio=%.3f, reb=%.1e, eb=%.6f, psnr=%.3f, nsmse=%e, compress_time=%.3f, decompress_time=%.3f, timestep_op=%d\n",
-           src_file_name.data(), timestep_batch,
+           input_path.data(), batch_size,
            ratio,
            conf.relErrorBound,
            max_diff, psnr, nrmse,

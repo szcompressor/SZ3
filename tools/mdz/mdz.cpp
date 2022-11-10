@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
     if (dim == 2) {
         conf = SZ::Config({dims[0], dims[1]});
     }
-    std::string src_file_name = argv[1];
+    std::string input_path = argv[1];
 
     char *eb_op = argv[argp++] + 1;
     if (*eb_op == 'a') {
@@ -28,10 +28,10 @@ int main(int argc, char **argv) {
         conf.errorBoundMode = SZ::EB_REL;
         conf.relErrorBound = atof(argv[argp++]);
     }
-    size_t timestep_batch = 0;
+    size_t batch_size = 0;
 
     if (argp < argc) {
-        timestep_batch = atoi(argv[argp++]);
+        batch_size = atoi(argv[argp++]);
     }
     int method = 9;
     method_batch = 50; //method_batch >0 indicates ADP
@@ -53,6 +53,6 @@ int main(int argc, char **argv) {
     if (argp < argc) {
         conf.quantbinCnt = atoi(argv[argp++]);
     }
-    MDZ_Compress<float, 2>(conf, method, timestep_batch, src_file_name);
+    MDZ_Compress<float, 2>(conf, method, batch_size, input_path);
 
 }
