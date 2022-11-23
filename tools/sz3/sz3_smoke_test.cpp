@@ -29,11 +29,21 @@ int main(int argc, char **argv) {
         }
     }
 
+    std::vector<float> input_data_copy(input_data);
+
     size_t cmpSize;
     char *cmpData = SZ_compress(conf, input_data.data(), cmpSize);
     auto dec_data_p = dec_data.data();
     SZ_decompress(conf, cmpData, cmpSize, dec_data_p);
-    printf("%lu ", conf.num);
+
+    double max_err;
+    for (size_t i = 0; i < conf.num; i++) {
+        if (fabs(dec_data[i] - input_data_copy[i]) > max_err) {
+            max_err = fabs(dec_data[i] - input_data_copy[i]);
+        }
+    }
+    printf("Smoke test %s", max_err <= conf.absErrorBound ? "passed" : "failed");
+//    printf("%lu ", conf.num);
     return 0;
 
 
