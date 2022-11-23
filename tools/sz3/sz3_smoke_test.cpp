@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
     auto dec_data_p = dec_data.data();
     SZ_decompress(conf, cmpData, cmpSize, dec_data_p);
 
-    double max_err;
+    double max_err=0.0;
     for (size_t i = 0; i < conf.num; i++) {
         if (fabs(dec_data[i] - input_data_copy[i]) > max_err) {
             max_err = fabs(dec_data[i] - input_data_copy[i]);
