@@ -5,7 +5,9 @@ include(CTest)
 
 option(BUILD_SHARED_LIBS "build shared libraries by default" ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
+if (MSVC)
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
+endif()
 set(default_build_type "Release")
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   message(STATUS "No build type was set. Setting build type to ${default_build_type}.")
@@ -33,7 +35,11 @@ target_compile_features(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME} INTERFACE OpenMP::OpenMP_CXX)
 
-option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" OFF)
+if (MSVC)
+    option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" ON)
+else()
+    option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" OFF)
+endif()
 option(SZ3_DEBUG_TIMINGS "print debug timing information" ON)
 
 if(SZ3_DEBUG_TIMINGS)
