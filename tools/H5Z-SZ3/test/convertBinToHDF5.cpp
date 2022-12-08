@@ -1,6 +1,7 @@
 #include <stdio.h> 
 #include <stdlib.h>
 #include <string.h>
+#include <cstdint>
 #include "hdf5.h"
 
 
@@ -183,8 +184,8 @@ int main(int argc, char* argv[]) {
 	else if(strcmp(datatype, "-i64") == 0){
         	FILE *f;                                          		
                 f = fopen(infile, "rb");
-                long *data = (long*)malloc(nbEle*sizeof(long));
-                fread(data, sizeof(long), nbEle, f);
+                int64_t *data = (int64_t*)malloc(nbEle*sizeof(int64_t));
+                fread(data, sizeof(int64_t), nbEle, f);
                 fclose(f);
         
 		dataset_id = H5Dcreate2(file_id, database, H5T_STD_I64LE, dataspace_id, 

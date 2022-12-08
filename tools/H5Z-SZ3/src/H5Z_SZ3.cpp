@@ -76,7 +76,7 @@ const void *H5PLget_plugin_info(void) {
 	switch(newDim)
 	{		
 		case 1:
-			longToBytes_bigEndian(bytes, (unsigned long)r1);
+			longToBytes_bigEndian(bytes, (uint64_t) r1);
 			(*new_cd_values)[2] = bytesToInt_bigEndian(bytes);
 			(*new_cd_values)[3] = bytesToInt_bigEndian(&bytes[4]);	
 			if(old_cd_nelmts==0)
@@ -644,7 +644,7 @@ void SZ_cdArrayToMetaData(size_t cd_nelmts, const unsigned int cd_values[], int*
         if(sizeof(size_t)==4)
             *r1 = (unsigned int) SZ::bytesToInt64_bigEndian(bytes);
         else
-            *r1 = (unsigned long) SZ::bytesToInt64_bigEndian(bytes);
+            *r1 = (uint64_t) SZ::bytesToInt64_bigEndian(bytes);
         *r2 = *r3 = *r4 = *r5 = 0;
         break;
     case 2:
@@ -701,7 +701,7 @@ void SZ_cdArrayToMetaDataErr(size_t cd_nelmts, const unsigned int cd_values[], i
 void SZ_copymetaDataToCdArray(size_t* cd_nelmts, unsigned int *cd_values, int dataType, size_t r5, size_t r4, size_t r3, size_t r2, size_t r1)
 {
     unsigned char bytes[8] = {0};
-    unsigned long size;
+    uint64_t size;
     int dim = computeDimension(r5, r4, r3, r2, r1);
     cd_values[0] = dim;
     cd_values[1] = dataType;	//0: FLOAT ; 1: DOUBLE ; 2,3,4,....: INTEGER....
@@ -709,7 +709,7 @@ void SZ_copymetaDataToCdArray(size_t* cd_nelmts, unsigned int *cd_values, int da
     switch(dim)
     {
     case 1:
-        size = (unsigned long)r1;
+        size = (uint64_t) r1;
         SZ::int64ToBytes_bigEndian(bytes, size);
         cd_values[2] = SZ::bytesToInt32_bigEndian(bytes);
         cd_values[3] = SZ::bytesToInt32_bigEndian(&bytes[4]);
@@ -1095,7 +1095,7 @@ int filterDimension(size_t r5, size_t r4, size_t r3, size_t r2, size_t r1, size_
 	
 }
 
-inline void longToBytes_bigEndian(unsigned char *b, unsigned long num) 
+inline void longToBytes_bigEndian(unsigned char *b, uint64_t num) 
 {
 	b[0] = (unsigned char)(num>>56);
 	b[1] = (unsigned char)(num>>48);
@@ -1136,9 +1136,9 @@ inline int bytesToInt_bigEndian(unsigned char* bytes)
 /**
  * @endianType: refers to the endian_type of unsigned char* b.
  * */
-inline long bytesToLong_bigEndian(unsigned char* b) {
-	long temp = 0;
-	long res = 0;
+inline int64_t bytesToLong_bigEndian(unsigned char* b) {
+	int64_t temp = 0;
+	int64_t res = 0;
 
 	res <<= 8;
 	temp = b[0] & 0xff;
