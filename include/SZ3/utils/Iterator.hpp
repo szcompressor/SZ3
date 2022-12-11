@@ -48,10 +48,10 @@ namespace SZ {
             multi_dimensional_iterator &operator--() {
                 size_t i = N - 1;
                 local_index[i]--;
-                ptrdiff_t offset = range->global_dim_strides[i];
+                ptrdiff_t offset = -range->global_dim_strides[i];
                 while (i && (local_index[i] < 0)) {
                     offset += range->dimensions[i] * range->global_dim_strides[i];
-                    local_index[i--] = range->dimensions[i];
+                    local_index[i--] = range->dimensions[i] - 1;
                     offset -= range->global_dim_strides[i];
                     local_index[i]--;
                 }
