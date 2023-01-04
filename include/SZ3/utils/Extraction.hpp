@@ -36,10 +36,8 @@ namespace SZ {
         }
         if (sampling_block < 9) {
             sample_dims = dims;
-            sampling_block = dmin;
             sample_num = num;
-            std::vector<T> sampling_data(data, data + num);
-            return sampling_data;
+            return std::vector<T>();
         }
         size_t b0 = dims[0] / dmin;
         size_t b1 = dims[1] / dmin;
@@ -106,10 +104,8 @@ namespace SZ {
         }
         if (sampling_block < 9) {
             sample_dims = dims;
-            sampling_block = dmin;
             sample_num = num;
-            std::vector<T> sampling_data(data, data + num);
-            return sampling_data;
+            return std::vector<T>();
         }
         size_t b0 = dims[0] / dmin;
         size_t b1 = dims[1] / dmin;
@@ -165,10 +161,8 @@ namespace SZ {
         }
         if (sampling_block < 9) {
             sample_dims = dims;
-            sampling_block = dmin;
             sample_num = num;
-            std::vector<T> sampling_data(data, data + num);
-            return sampling_data;
+            return std::vector<T>();
         }
         size_t b0 = dims[0] / dmin;
         size_t b1 = dims[1] / dmin;
@@ -215,10 +209,8 @@ namespace SZ {
         }
         if (sampling_block < 9) {
             sample_dims = dims;
-            sampling_block = dmin;
             sample_num = num;
-            std::vector<T> sampling_data(data, data + num);
-            return sampling_data;
+            return std::vector<T>();
         }
         size_t b0 = dims[0] / dmin;
         sample_dims[0] = b0 * 2 * sampling_block;

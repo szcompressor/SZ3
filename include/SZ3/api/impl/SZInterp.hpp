@@ -78,6 +78,10 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
     size_t sampling_num, sampling_block;
     std::vector<size_t> sample_dims(N);
     std::vector<T> sampling_data = SZ::sampling<T, N>(data, conf.dims, sampling_num, sample_dims, sampling_block);
+    if (sampling_num == conf.num) {
+        conf.cmprAlgo = SZ::ALGO_INTERP;
+        return SZ_compress_Interp<T, N>(conf, data, outSize);
+    }
 
     double best_lorenzo_ratio = 0, best_interp_ratio = 0, ratio;
     size_t sampleOutSize;
