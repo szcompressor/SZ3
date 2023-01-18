@@ -176,8 +176,6 @@ void decompress(char *inPath, char *cmpPath, char *decPath,
         size_t totalNbEle;
         auto ori_data = SZ::readfile<T>(inPath, totalNbEle);
         assert(totalNbEle == conf.num);
-        // SZ::verify<T>(ori_data.get(), decData, conf.num);
-        SZ::verifyQoI<T>(ori_data.get(), decData, conf.dims, conf.qoiRegionSize);
         std::vector<T> isovalues(conf.isovalues.size());
         for(int i=0; i<conf.isovalues.size(); i++){
             isovalues[i] = conf.isovalues[i];
@@ -188,6 +186,8 @@ void decompress(char *inPath, char *cmpPath, char *decPath,
         else if(conf.dims.size() == 3){
             SZ::evaluate_isosurface(ori_data.get(), decData, conf.dims, isovalues);
         }
+        // SZ::verify<T>(ori_data.get(), decData, conf.num);
+        SZ::verifyQoI<T>(ori_data.get(), decData, conf.dims, conf.qoiRegionSize);
     }
     delete[]decData;
 
