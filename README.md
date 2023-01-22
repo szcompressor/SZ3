@@ -24,7 +24,7 @@ Please Install the following dependencies before running the evaluation experime
 
 Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [INSTALL_DIR]/include. A Cmake version >= 3.13.0 is needed and we recommend to use gcc version 8.x to compile the code. 
 
-## Single compression/decompression testing Examples
+## Single compression/decompression testing examples
 
 You can use the executable 'sz' command to do the compression/decompression. Just run "sz" command to check the instructions for its arguments.
 Currently you need to add a configuration file to the argument line (-c) to ebable QoI error control. 
@@ -42,9 +42,9 @@ Step 1: Download the dataset from the following links,then unzip them:
 
 Step 2: Run test on different QoIs
 
-This is achieved with qoi.config file. With different QoI, we need to tell the compressor what is the the target QoI as well as the target tolrence. 
+This is achieved with sz.config file. This file can be found under folder ./test. With different QoI, we need to tell the compressor what is the the target QoI as well as the target tolrence. 
 
-For example, at the end of `test/sz.config`, add the follwing lines to test $ x^2 $ whith its a tolrence of $1E-1$
+For example, at the end of `test/sz.config`, modify the follwing lines to test $ x^2 $ whith its a tolrence of $1E-1$
 
 `qoi=1` # index of QoI, see the table below for a full list of supported QoIs. 
 
@@ -63,12 +63,12 @@ Tabld of QoI index
 
 | Index | Description | Config |
 | --- | ---- |----| 
-| 1 | $x^2$: Square of single value | `qoi=1` |
+| 1 | $x^2$: square of single value | `qoi=1` |
 | 2 | $\log(x)$:logrithm of single value(base 2) | `qoi=2`
-| 3 | $\frac{1}{k} \displaystyle\sum_{i=1}^{i=k} x^i $: Regional average of $x_i^2$| `qoi=3`, `qoiRegionSize=k`|
+| 3 | $\frac{1}{k} \displaystyle\sum_{i=1}^{i=k} x^i $: regional average of $x_i^2$| `qoi=3`, `qoiRegionSize=k`|
 | 4 | Isoline(specify the number of isolines/isosuraces. By defalt, only extract $1$ isovalue, the mean of data.)| `qoi=4`, `qoiIsoNum=k`|
 | 5 | $x^2$ and $\log(x)$ | `qoi=5`|
-| 6 | $x^2$ abd isoline | `qoi=6`, `qoiIsoNum=k`|
+| 6 | $x^2$ and isoline | `qoi=6`, `qoiIsoNum=k`|
 | 7 | $\log(x)$ and isoline | `qoi=7`, `qoiIsoNum=k`|
 | 8 | $x^2$, $\log(x)$ and isoline | `qoi=8`, `qoiIsoNum=k`|
 
