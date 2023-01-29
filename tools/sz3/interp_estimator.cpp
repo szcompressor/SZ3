@@ -31,7 +31,7 @@ public:
                       "must implement the lossless interface");
     }
 
-    double estimate(const Config &conf, T *data, double &cr) {
+    double estimate(const Config &conf, T *data) {
 
         dimension_offsets[N - 1] = 1;
         for (int i = N - 2; i >= 0; i--) {
@@ -82,9 +82,7 @@ public:
                                                  compressed_size);
         lossless.postcompress_data(buffer);
 
-        printf("est per = %.5f, avg pred error = %.5G \n", quant_inds.size() * 1.0 / conf.num, pred_error / quant_inds.size());
-        cr = quant_inds.size() * sizeof(T) * 1.0 / compressed_size;
-        return pred_error;
+        return quant_inds.size() * sizeof(T) * 1.0 / compressed_size;
     }
 
 private:
@@ -93,9 +91,10 @@ private:
         PB_predict_overwrite, PB_predict, PB_recover
     };
 
+    int estStride = 10;
 
     inline double quantize(size_t idx, T &d, T pred) {
-        quant_inds.push_back(quantizer.quantize_and_overwrite(d, pred));
+        quant_inds.push_back(quantizer.quantize(d, pred));
         return fabs(d - pred);
     }
 
@@ -112,7 +111,7 @@ private:
         size_t stride3x = 3 * stride;
         size_t stride5x = 5 * stride;
         if (interp_func == "linear" || n < 5) {
-            for (size_t i = 1; i + 1 < n; i += 2) {
+            for (size_t i = 1; i + 1 < n; i += 2 * estStride) {
                 T *d = data + begin + i * stride;
                 predict_error += quantize(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
             }
@@ -128,7 +127,7 @@ private:
 
             T *d;
             size_t i;
-            for (i = 3; i + 3 < n; i += 2) {
+            for (i = 3; i + 3 < n; i += 2 * estStride) {
                 d = data + begin + i * stride;
                 predict_error += quantize(d - data, *d,
                                           interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
@@ -136,7 +135,8 @@ private:
             d = data + begin + stride;
             predict_error += quantize(d - data, *d, interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
 
-            d = data + begin + i * stride;
+
+            d = data + begin + ((n % 2 == 0) ? n - 3 : n - 2) * stride;
             predict_error += quantize(d - data, *d, interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
             if (n % 2 == 0) {
                 d = data + begin + (n - 1) * stride;
@@ -162,14 +162,14 @@ private:
         double predict_error = 0;
         size_t stride2x = stride * 2;
         const std::array<int, N> dims = dimension_sequences[direction];
-        for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride2x : 0); j <= end[dims[1]]; j += stride2x) {
+        for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride2x : 0); j <= end[dims[1]]; j += stride2x * estStride) {
             size_t begin_offset = begin[dims[0]] * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]];
             predict_error += block_interpolation_1d(data, begin_offset,
                                                     begin_offset +
                                                     (end[dims[0]] - begin[dims[0]]) * dimension_offsets[dims[0]],
                                                     stride * dimension_offsets[dims[0]], interp_func, pb);
         }
-        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride) {
+        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride * estStride) {
             size_t begin_offset = i * dimension_offsets[dims[0]] + begin[dims[1]] * dimension_offsets[dims[1]];
             predict_error += block_interpolation_1d(data, begin_offset,
                                                     begin_offset +
@@ -186,8 +186,8 @@ private:
         double predict_error = 0;
         size_t stride2x = stride * 2;
         const std::array<int, N> dims = dimension_sequences[direction];
-        for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride2x : 0); j <= end[dims[1]]; j += stride2x) {
-            for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride2x : 0); k <= end[dims[2]]; k += stride2x) {
+        for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride2x : 0); j <= end[dims[1]]; j += stride2x * estStride) {
+            for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride2x : 0); k <= end[dims[2]]; k += stride2x * estStride) {
                 size_t begin_offset = begin[dims[0]] * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]] +
                                       k * dimension_offsets[dims[2]];
                 predict_error += block_interpolation_1d(data, begin_offset,
@@ -197,8 +197,8 @@ private:
                                                         stride * dimension_offsets[dims[0]], interp_func, pb);
             }
         }
-        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride) {
-            for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride2x : 0); k <= end[dims[2]]; k += stride2x) {
+        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride * estStride) {
+            for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride2x : 0); k <= end[dims[2]]; k += stride2x * estStride) {
                 size_t begin_offset = i * dimension_offsets[dims[0]] + begin[dims[1]] * dimension_offsets[dims[1]] +
                                       k * dimension_offsets[dims[2]];
                 predict_error += block_interpolation_1d(data, begin_offset,
@@ -208,8 +208,8 @@ private:
                                                         stride * dimension_offsets[dims[1]], interp_func, pb);
             }
         }
-        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride) {
-            for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride : 0); j <= end[dims[1]]; j += stride) {
+        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride * estStride) {
+            for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride : 0); j <= end[dims[1]]; j += stride * estStride) {
                 size_t begin_offset = i * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]] +
                                       begin[dims[2]] * dimension_offsets[dims[2]];
                 predict_error += block_interpolation_1d(data, begin_offset,
@@ -230,10 +230,10 @@ private:
         double predict_error = 0;
         size_t stride2x = stride * 2;
         const std::array<int, N> dims = dimension_sequences[direction];
-        for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride2x : 0); j <= end[dims[1]]; j += stride2x) {
-            for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride2x : 0); k <= end[dims[2]]; k += stride2x) {
+        for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride2x : 0); j <= end[dims[1]]; j += stride2x * estStride) {
+            for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride2x : 0); k <= end[dims[2]]; k += stride2x * estStride) {
                 for (size_t t = (begin[dims[3]] ? begin[dims[3]] + stride2x : 0);
-                     t <= end[dims[3]]; t += stride2x) {
+                     t <= end[dims[3]]; t += stride2x * estStride) {
                     size_t begin_offset =
                             begin[dims[0]] * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]] +
                             k * dimension_offsets[dims[2]] +
@@ -246,10 +246,10 @@ private:
                 }
             }
         }
-        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride) {
-            for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride2x : 0); k <= end[dims[2]]; k += stride2x) {
+        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride * estStride) {
+            for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride2x : 0); k <= end[dims[2]]; k += stride2x * estStride) {
                 for (size_t t = (begin[dims[3]] ? begin[dims[3]] + stride2x : 0);
-                     t <= end[dims[3]]; t += stride2x) {
+                     t <= end[dims[3]]; t += stride2x * estStride) {
                     size_t begin_offset =
                             i * dimension_offsets[dims[0]] + begin[dims[1]] * dimension_offsets[dims[1]] +
                             k * dimension_offsets[dims[2]] +
@@ -262,10 +262,10 @@ private:
                 }
             }
         }
-        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride) {
-            for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride : 0); j <= end[dims[1]]; j += stride) {
+        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride * estStride) {
+            for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride : 0); j <= end[dims[1]]; j += stride * estStride) {
                 for (size_t t = (begin[dims[3]] ? begin[dims[3]] + stride2x : 0);
-                     t <= end[dims[3]]; t += stride2x) {
+                     t <= end[dims[3]]; t += stride2x * estStride) {
                     size_t begin_offset = i * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]] +
                                           begin[dims[2]] * dimension_offsets[dims[2]] +
                                           t * dimension_offsets[dims[3]];
@@ -278,9 +278,9 @@ private:
             }
         }
 
-        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride) {
-            for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride : 0); j <= end[dims[1]]; j += stride) {
-                for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride : 0); k <= end[dims[2]]; k += stride) {
+        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride * estStride) {
+            for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride : 0); j <= end[dims[1]]; j += stride * estStride) {
+                for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride : 0); k <= end[dims[2]]; k += stride * estStride) {
                     size_t begin_offset =
                             i * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]] +
                             k * dimension_offsets[dims[2]] +
@@ -313,14 +313,12 @@ void estimate_compress(Config conf, T *data, double abs) {
     conf.errorBoundMode = SZ::EB_ABS;
     conf.absErrorBound = abs;
 
-
     Timer timer(true);
-    double CR = 0;
     SZInterpolationEstimator<T, N, SZ::LinearQuantizer<T>, SZ::HuffmanEncoder<int>, SZ::Lossless_zstd> estimator(
             SZ::LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2),
             SZ::HuffmanEncoder<int>(),
             SZ::Lossless_zstd());
-    double pred_error = estimator.estimate(conf, data, CR);
+    double estCR = estimator.estimate(conf, data);
     timer.stop("estimator");
 
     timer.start();
@@ -329,7 +327,7 @@ void estimate_compress(Config conf, T *data, double abs) {
     timer.stop("compressor");
     delete[] cmpdata;
 
-    printf("Est CR=%.5f, Real CR = %.3f\n", CR, conf.num * sizeof(T) * 1.0 / cmpSize);
+    printf("Est CR=%.5f, Real CR = %.3f\n", estCR, conf.num * sizeof(T) * 1.0 / cmpSize);
 }
 
 int main(int argc, char *argv[]) {
