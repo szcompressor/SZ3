@@ -33,6 +33,7 @@ public:
 
     double estimate(const Config &conf, T *data) {
 
+
         dimension_offsets[N - 1] = 1;
         for (int i = N - 2; i >= 0; i--) {
             dimension_offsets[i] = dimension_offsets[i + 1] * conf.dims[i + 1];
@@ -48,18 +49,52 @@ public:
         } while (std::next_permutation(sequence.begin(), sequence.end()));
 
 
-        double pred_error = 0;
-
         std::array<size_t, N> begin_idx, end_idx;
         for (int i = 0; i < N; i++) {
             begin_idx[i] = 0;
             end_idx[i] = conf.dims[i] - 1;
         }
 
-        quant_inds.reserve(conf.num);
-        quant_inds.clear();
-        pred_error += block_interpolation(data, begin_idx, end_idx, PB_predict_overwrite,
-                                          interpolators[conf.interpAlgo], conf.interpDirection, 1);
+        int interpolation_level = -1;
+        for (int i = 0; i < N; i++) {
+            if (interpolation_level < ceil(log2(conf.dims[i]))) {
+                interpolation_level = (int) ceil(log2(conf.dims[i]));
+            }
+        }
+
+        {
+            // This code block collects compression errors from a higher level into cmpr_err
+            // it is observed that most levels have similar error distribution
+            sample_stride = 1;
+            cmpr_err.clear();
+            cmpr_err.reserve(1000);
+            for (uint level = interpolation_level; level > 1 && level <= interpolation_level; level--) {
+                size_t stride = 1U << (level - 1);
+                block_interpolation(data, begin_idx, end_idx, PB_predict_collect_err,
+                                    interpolators[conf.interpAlgo], conf.interpDirection, stride);
+                if (cmpr_err.size() > 1000) {
+                    break;
+                }
+                cmpr_err.clear();
+            }
+        }
+
+        {
+            // the sampling process is done only on first level, because first level cover 87.5% of data points for 3D (and 75% for 2D).
+            // sample_stride controls the distance of the data points covered in the sampling process.
+            // original data points are used during sampling, to simulate the error impact/to make them as decompressed data,
+            // errors are randomly select from cmpr_err and added for interpolation calculation.
+            // TODO
+            // Because sample_stride is used, the sampled quant_inds may not have same CR as the original quant_inds.
+            // One possible solution is to add some zeros manually to simulate the original quant_inds
+            gen = std::mt19937(rd());
+            dist = std::uniform_int_distribution<>(0, cmpr_err.size());
+            sample_stride = 5;
+            quant_inds.clear();
+            quant_inds.reserve(conf.num);
+            block_interpolation(data, begin_idx, end_idx, PB_predict,
+                                interpolators[conf.interpAlgo], conf.interpDirection, 1);
+        }
 
         encoder.preprocess_encode(quant_inds, 0);
         size_t bufferSize = 1.2 * (quantizer.size_est() + encoder.size_est() + sizeof(T) * quant_inds.size());
@@ -88,16 +123,34 @@ public:
 private:
 
     enum PredictorBehavior {
-        PB_predict_overwrite, PB_predict, PB_recover
+        PB_predict_collect_err, PB_predict, PB_recover
     };
 
-    int estStride = 10;
+    std::uniform_int_distribution<> dist;
+    std::random_device rd;
+    std::mt19937 gen;
 
-    inline double quantize(size_t idx, T &d, T pred) {
+    std::vector<T> cmpr_err;
+    int sample_stride = 5;
+
+    //quantize and record the quantization bins
+    inline void quantize(size_t idx, T &d, T pred) {
         quant_inds.push_back(quantizer.quantize(d, pred));
-        return fabs(d - pred);
     }
 
+
+    //quantize and record compression error
+    inline void quantize2(size_t idx, T &d, T pred) {
+        T d0 = d;
+        quantizer.quantize_and_overwrite(d, pred);
+        cmpr_err.push_back(d0 - d);
+        d = d0;
+    }
+
+    //Add noise/compression error to original data, to simulate it as decompressed data
+    inline T s(T d) {
+        return d + cmpr_err[dist(gen)];
+    }
 
     double block_interpolation_1d(T *data, size_t begin, size_t end, size_t stride,
                                   const std::string &interp_func,
@@ -106,46 +159,80 @@ private:
         if (n <= 1) {
             return 0;
         }
-        double predict_error = 0;
 
         size_t stride3x = 3 * stride;
         size_t stride5x = 5 * stride;
-        if (interp_func == "linear" || n < 5) {
-            for (size_t i = 1; i + 1 < n; i += 2 * estStride) {
-                T *d = data + begin + i * stride;
-                predict_error += quantize(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
-            }
-            if (n % 2 == 0) {
-                T *d = data + begin + (n - 1) * stride;
-                if (n < 4) {
-                    predict_error += quantize(d - data, *d, *(d - stride));
-                } else {
-                    predict_error += quantize(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
+
+        if (pb == PB_predict_collect_err) {
+            if (interp_func == "linear" || n < 5) {
+                for (size_t i = 1; i + 1 < n; i += 2 * sample_stride) {
+                    T *d = data + begin + i * stride;
+                    quantize2(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
                 }
+                if (n % 2 == 0) {
+                    T *d = data + begin + (n - 1) * stride;
+                    if (n < 4) {
+                        quantize2(d - data, *d, *(d - stride));
+                    } else {
+                        quantize2(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
+                    }
+                }
+            } else {
+                T *d;
+                size_t i;
+                for (i = 3; i + 3 < n; i += 2 * sample_stride) {
+                    d = data + begin + i * stride;
+                    quantize2(d - data, *d,
+                                               interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                }
+                d = data + begin + stride;
+                quantize2(d - data, *d, interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
+
+
+                d = data + begin + ((n % 2 == 0) ? n - 3 : n - 2) * stride;
+                quantize2(d - data, *d, interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                if (n % 2 == 0) {
+                    d = data + begin + (n - 1) * stride;
+                    quantize2(d - data, *d, interp_quad_3(*(d - stride5x), *(d - stride3x), *(d - stride)));
+                }
+
             }
         } else {
+            if (interp_func == "linear" || n < 5) {
+                for (size_t i = 1; i + 1 < n; i += 2 * sample_stride) {
+                    T *d = data + begin + i * stride;
+                    quantize(d - data, *d, interp_linear(s(*(d - stride)), s(*(d + stride))));
+                }
+                if (n % 2 == 0) {
+                    T *d = data + begin + (n - 1) * stride;
+                    if (n < 4) {
+                        quantize(d - data, *d, s(*(d - stride)));
+                    } else {
+                        quantize(d - data, *d, interp_linear1(s(*(d - stride3x)), s(*(d - stride))));
+                    }
+                }
+            } else {
+                T *d;
+                size_t i;
+                for (i = 3; i + 3 < n; i += 2 * sample_stride) {
+                    d = data + begin + i * stride;
+                    quantize(d - data, *d,
+                                              interp_cubic(s(*(d - stride3x)), s(*(d - stride)), s(*(d + stride)), s(*(d + stride3x))));
+                }
+                d = data + begin + stride;
+                quantize(d - data, *d, interp_quad_1(s(*(d - stride)), s(*(d + stride)), s(*(d + stride3x))));
 
-            T *d;
-            size_t i;
-            for (i = 3; i + 3 < n; i += 2 * estStride) {
-                d = data + begin + i * stride;
-                predict_error += quantize(d - data, *d,
-                                          interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+
+                d = data + begin + ((n % 2 == 0) ? n - 3 : n - 2) * stride;
+                quantize(d - data, *d, interp_quad_2(s(*(d - stride3x)), s(*(d - stride)), s(*(d + stride))));
+                if (n % 2 == 0) {
+                    d = data + begin + (n - 1) * stride;
+                    quantize(d - data, *d, interp_quad_3(s(*(d - stride5x)), s(*(d - stride3x)), s(*(d - stride))));
+                }
             }
-            d = data + begin + stride;
-            predict_error += quantize(d - data, *d, interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
-
-
-            d = data + begin + ((n % 2 == 0) ? n - 3 : n - 2) * stride;
-            predict_error += quantize(d - data, *d, interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
-            if (n % 2 == 0) {
-                d = data + begin + (n - 1) * stride;
-                predict_error += quantize(d - data, *d, interp_quad_3(*(d - stride5x), *(d - stride3x), *(d - stride)));
-            }
-
         }
 
-        return predict_error;
+        return 0;
     }
 
     template<uint NN = N>
@@ -162,14 +249,14 @@ private:
         double predict_error = 0;
         size_t stride2x = stride * 2;
         const std::array<int, N> dims = dimension_sequences[direction];
-        for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride2x : 0); j <= end[dims[1]]; j += stride2x * estStride) {
+        for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride2x : 0); j <= end[dims[1]]; j += stride2x * sample_stride) {
             size_t begin_offset = begin[dims[0]] * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]];
             predict_error += block_interpolation_1d(data, begin_offset,
                                                     begin_offset +
                                                     (end[dims[0]] - begin[dims[0]]) * dimension_offsets[dims[0]],
                                                     stride * dimension_offsets[dims[0]], interp_func, pb);
         }
-        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride * estStride) {
+        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride * sample_stride) {
             size_t begin_offset = i * dimension_offsets[dims[0]] + begin[dims[1]] * dimension_offsets[dims[1]];
             predict_error += block_interpolation_1d(data, begin_offset,
                                                     begin_offset +
@@ -186,8 +273,8 @@ private:
         double predict_error = 0;
         size_t stride2x = stride * 2;
         const std::array<int, N> dims = dimension_sequences[direction];
-        for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride2x : 0); j <= end[dims[1]]; j += stride2x * estStride) {
-            for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride2x : 0); k <= end[dims[2]]; k += stride2x * estStride) {
+        for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride2x : 0); j <= end[dims[1]]; j += stride2x * sample_stride) {
+            for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride2x : 0); k <= end[dims[2]]; k += stride2x * sample_stride) {
                 size_t begin_offset = begin[dims[0]] * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]] +
                                       k * dimension_offsets[dims[2]];
                 predict_error += block_interpolation_1d(data, begin_offset,
@@ -197,8 +284,8 @@ private:
                                                         stride * dimension_offsets[dims[0]], interp_func, pb);
             }
         }
-        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride * estStride) {
-            for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride2x : 0); k <= end[dims[2]]; k += stride2x * estStride) {
+        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride * sample_stride) {
+            for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride2x : 0); k <= end[dims[2]]; k += stride2x * sample_stride) {
                 size_t begin_offset = i * dimension_offsets[dims[0]] + begin[dims[1]] * dimension_offsets[dims[1]] +
                                       k * dimension_offsets[dims[2]];
                 predict_error += block_interpolation_1d(data, begin_offset,
@@ -208,8 +295,8 @@ private:
                                                         stride * dimension_offsets[dims[1]], interp_func, pb);
             }
         }
-        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride * estStride) {
-            for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride : 0); j <= end[dims[1]]; j += stride * estStride) {
+        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride * sample_stride) {
+            for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride : 0); j <= end[dims[1]]; j += stride * sample_stride) {
                 size_t begin_offset = i * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]] +
                                       begin[dims[2]] * dimension_offsets[dims[2]];
                 predict_error += block_interpolation_1d(data, begin_offset,
@@ -230,10 +317,10 @@ private:
         double predict_error = 0;
         size_t stride2x = stride * 2;
         const std::array<int, N> dims = dimension_sequences[direction];
-        for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride2x : 0); j <= end[dims[1]]; j += stride2x * estStride) {
-            for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride2x : 0); k <= end[dims[2]]; k += stride2x * estStride) {
+        for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride2x : 0); j <= end[dims[1]]; j += stride2x * sample_stride) {
+            for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride2x : 0); k <= end[dims[2]]; k += stride2x * sample_stride) {
                 for (size_t t = (begin[dims[3]] ? begin[dims[3]] + stride2x : 0);
-                     t <= end[dims[3]]; t += stride2x * estStride) {
+                     t <= end[dims[3]]; t += stride2x * sample_stride) {
                     size_t begin_offset =
                             begin[dims[0]] * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]] +
                             k * dimension_offsets[dims[2]] +
@@ -246,10 +333,10 @@ private:
                 }
             }
         }
-        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride * estStride) {
-            for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride2x : 0); k <= end[dims[2]]; k += stride2x * estStride) {
+        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride * sample_stride) {
+            for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride2x : 0); k <= end[dims[2]]; k += stride2x * sample_stride) {
                 for (size_t t = (begin[dims[3]] ? begin[dims[3]] + stride2x : 0);
-                     t <= end[dims[3]]; t += stride2x * estStride) {
+                     t <= end[dims[3]]; t += stride2x * sample_stride) {
                     size_t begin_offset =
                             i * dimension_offsets[dims[0]] + begin[dims[1]] * dimension_offsets[dims[1]] +
                             k * dimension_offsets[dims[2]] +
@@ -262,10 +349,10 @@ private:
                 }
             }
         }
-        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride * estStride) {
-            for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride : 0); j <= end[dims[1]]; j += stride * estStride) {
+        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride * sample_stride) {
+            for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride : 0); j <= end[dims[1]]; j += stride * sample_stride) {
                 for (size_t t = (begin[dims[3]] ? begin[dims[3]] + stride2x : 0);
-                     t <= end[dims[3]]; t += stride2x * estStride) {
+                     t <= end[dims[3]]; t += stride2x * sample_stride) {
                     size_t begin_offset = i * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]] +
                                           begin[dims[2]] * dimension_offsets[dims[2]] +
                                           t * dimension_offsets[dims[3]];
@@ -278,9 +365,9 @@ private:
             }
         }
 
-        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride * estStride) {
-            for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride : 0); j <= end[dims[1]]; j += stride * estStride) {
-                for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride : 0); k <= end[dims[2]]; k += stride * estStride) {
+        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride * sample_stride) {
+            for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride : 0); j <= end[dims[1]]; j += stride * sample_stride) {
+                for (size_t k = (begin[dims[2]] ? begin[dims[2]] + stride : 0); k <= end[dims[2]]; k += stride * sample_stride) {
                     size_t begin_offset =
                             i * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]] +
                             k * dimension_offsets[dims[2]] +
