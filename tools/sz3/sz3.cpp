@@ -134,7 +134,7 @@ void compress(char *inPath, char *cmpPath, SZ::Config conf) {
 
     char outputFilePath[1024];
     if (cmpPath == nullptr) {
-        sprintf(outputFilePath, "%s.sz", inPath);
+        snprintf(outputFilePath, 1024, "%s.sz", inPath);
     } else {
         strcpy(outputFilePath, cmpPath);
     }
@@ -162,7 +162,7 @@ void decompress(char *inPath, char *cmpPath, char *decPath,
 
     char outputFilePath[1024];
     if (decPath == nullptr) {
-        sprintf(outputFilePath, "%s.out", cmpPath);
+        snprintf(outputFilePath, 1024, "%s.out", cmpPath);
     } else {
         strcpy(outputFilePath, decPath);
     }
@@ -379,7 +379,7 @@ int main(int argc, char *argv[]) {
     if (inPath != nullptr && cmpPath == nullptr && decPath != nullptr) {
         compression = true;
         decompression = true;
-        sprintf(cmpPathTmp, "%s.sz.tmp", inPath);
+        snprintf(cmpPathTmp, 1024, "%s.sz.tmp", inPath);
         cmpPath = cmpPathTmp;
         delCmpPath = true;
     }

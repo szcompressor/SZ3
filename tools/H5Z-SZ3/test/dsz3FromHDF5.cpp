@@ -49,8 +49,8 @@ int main(int argc, char * argv[])
 		exit(0);
 	}
 
-	sprintf(hdf5FilePath, "%s", argv[1]);
-	sprintf(outputFilePath, "%s.out.h5", hdf5FilePath);
+	snprintf(hdf5FilePath, 640, "%s", argv[1]);
+	snprintf(outputFilePath, 640, "%s.out.h5", hdf5FilePath);
 
 	/*Open the hdf5 file with SZ-compressed data*/
     file = H5Fopen(hdf5FilePath, H5F_ACC_RDONLY, H5P_DEFAULT);
