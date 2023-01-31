@@ -104,7 +104,7 @@ int main(int argc, char* argv[]) {
 	int dim = computeDimension(r5, r4, r3, r2, r1);
 	size_t nbEle = computeDataLength(r5, r4, r3, r2, r1);
 
-	sprintf(outfile, "%s.h5", infile);
+	snprintf(outfile, 100, "%s.h5", infile);
 
 	/* Create a new file using default properties. */
 	file_id = H5Fcreate(outfile, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
@@ -131,7 +131,7 @@ int main(int argc, char* argv[]) {
         dataspace_id = H5Screate_simple(dim, dims, NULL);
                                                                                
         /* Create the dataset. */
-        sprintf(database, "/%s", varName);
+        snprintf(database, 100, "/%s", varName);
 
 	if(strcmp(datatype, "-f") == 0){
 
