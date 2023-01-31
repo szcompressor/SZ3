@@ -63,7 +63,7 @@ void estimate_compress(Config conf, T *data) {
         LinearQuantizer<T> quantizer;
 
         Timer timer(true);
-        size_t bsize = 5;
+        size_t bsize = 6;
         auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(
                 data, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
         for (auto block = blocks->begin(); block != blocks->end(); ++block) {
