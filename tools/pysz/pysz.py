@@ -3,7 +3,6 @@ import ctypes
 from ctypes.util import find_library
 import numpy as np
 
-
 """
 Python API for SZ2/SZ3
 """
@@ -18,9 +17,10 @@ class SZ:
 
         if szpath is None:
             szpath = {
-             "darwin": "libSZ3c.dylib",
-             "windows": "SZ3c.dll",
+                "darwin": "libSZ3c.dylib",
+                "windows": "SZ3c.dll",
             }.get(sys.platform, "libSZ3c.so")
+
 
         self.sz = ctypes.cdll.LoadLibrary(szpath)
 
