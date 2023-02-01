@@ -144,7 +144,6 @@ void estimate_compress(Config conf, T *data) {
         double error_bound = quantizer.get_eb();
         double error_bound_reciprocal = 1 / quantizer.get_eb();
         int radius = quantizer.get_radius();
-        unpred3.reserve(conf.num);
         auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(
                 data3, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
         for (auto block = blocks->begin(); block != blocks->end(); ++block) {
@@ -180,7 +179,6 @@ void estimate_compress(Config conf, T *data) {
                             quant_inds_3[offset] = 0;
                         }
                     }
-
                 }
             }
         }
