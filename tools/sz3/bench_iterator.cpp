@@ -76,9 +76,9 @@ void estimate_compress(Config conf, T *data) {
 
         Timer timer(true);
         size_t bsize = 6;
-        auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(
+        auto blocks = SZ::multi_dimensional_range<T, N>(
                 data, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
-        for (auto block = blocks->begin(); block != blocks->end(); ++block) {
+        for (auto block = blocks.begin(); block != blocks.end(); ++block) {
             auto idx = block.get_global_index();
             for (size_t i = idx[0]; i < ((idx[0] + bsize >= conf.dims[0]) ? conf.dims[0] : idx[0] + bsize); i++) {
                 for (size_t j = idx[1]; j < ((idx[1] + bsize >= conf.dims[1]) ? conf.dims[1] : idx[1] + bsize); j++) {
