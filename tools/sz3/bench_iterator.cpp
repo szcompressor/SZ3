@@ -48,6 +48,7 @@ void estimate_compress(Config conf, T *data) {
     std::vector<int> quant_inds_5(conf.num);
     std::vector<int> quant_inds_6(conf.num);
     std::vector<int> quant_inds_7(conf.num);
+    std::vector<int> quant_inds_8(conf.num);
 
     {
         LinearQuantizer<T> quantizer;
@@ -234,14 +235,14 @@ void estimate_compress(Config conf, T *data) {
                     for (size_t k = idx[2]; k < ((idx[2] + bsize >= conf.dims[2]) ? conf.dims[2] : idx[2] + bsize); k++) {
                         size_t offset = i * conf.dims[1] * conf.dims[2] + j * conf.dims[2] + k;
                         //TODO force substitution for the function call, make it as fast as Hybrid (block iterator, function substituted)
-                        quant_inds_6[offset] = quantizer.quantize_and_overwrite_unpred(data[offset], 0, unpred);
+                        quant_inds_6[offset] = quantizer.quantize_and_overwrite_no_this(data[offset], 0, unpred);
 //                        quant_inds_3[offset] = quantize_and_overwrite<T>(data[offset], 0, unpred, error_bound, error_bound_reciprocal, radius);
                     }
                 }
             }
         }
 
-        timer.stop("V4 Hybrid (block iterator, inline member function unpred)");
+        timer.stop("V4 Hybrid (block iterator, inline member function param)");
     }
 
     {
@@ -251,6 +252,11 @@ void estimate_compress(Config conf, T *data) {
         size_t bsize = 6;
         auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(
                 data, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
+        double error_bound = quantizer.get_eb();
+        double error_bound_reciprocal = 1 / quantizer.get_eb();
+        int radius = quantizer.get_radius();
+        std::vector<T> unpred;
+        unpred.reserve(conf.num);
         for (auto block = blocks->begin(); block != blocks->end(); ++block) {
             auto idx = block.get_global_index();
             for (size_t i = idx[0]; i < ((idx[0] + bsize >= conf.dims[0]) ? conf.dims[0] : idx[0] + bsize); i++) {
@@ -258,22 +264,17 @@ void estimate_compress(Config conf, T *data) {
                     for (size_t k = idx[2]; k < ((idx[2] + bsize >= conf.dims[2]) ? conf.dims[2] : idx[2] + bsize); k++) {
                         size_t offset = i * conf.dims[1] * conf.dims[2] + j * conf.dims[2] + k;
                         //TODO force substitution for the function call, make it as fast as Hybrid (block iterator, function substituted)
-                        quant_inds_7[offset] = quantizer.quantize_and_overwrite_unpred2(data[offset], 0);
+                        quant_inds_7[offset] = quantizer.quantize_and_overwrite_no_this2(data[offset], 0, unpred, error_bound, error_bound_reciprocal,
+                                                                                       radius);
 //                        quant_inds_3[offset] = quantize_and_overwrite<T>(data[offset], 0, unpred, error_bound, error_bound_reciprocal, radius);
                     }
                 }
             }
         }
-        std::vector<T> unpred;
-        unpred.reserve(conf.num);
-        for (size_t i = 0; i < conf.num; i++) {
-            if (quant_inds_7[i] == 0) {
-                unpred.push_back(data[i]);
-            }
-        }
 
-        timer.stop("V5 Hybrid (block iterator, inline member function unpred2)");
+        timer.stop("V5 Hybrid (block iterator, inline member function param2)");
     }
+
 
     for (size_t i = 0; i < conf.num; i++) {
         if (quant_inds_1[i] != quant_inds_2[i] || quant_inds_2[i] != quant_inds_3[i] || quant_inds_3[i] != quant_inds_4[i] ||
