@@ -7,6 +7,7 @@
 
 using namespace SZ;
 
+
 template<class T>
 inline __attribute__((always_inline)) int quantize_and_overwrite(T &data, T pred, std::vector<T> &unpred, double error_bound,
                                                                  double error_bound_reciprocal, int radius) {
@@ -58,7 +59,7 @@ void estimate_compress(Config conf, T *data) {
         for (auto element = element_range->begin(); element != element_range->end(); ++element) {
             quant_inds_1[quant_count++] = quantizer.quantize_and_overwrite(*element, 0);
         }
-        timer.stop("SZ3 style (iterator, inline member function)");
+        timer.stop("Baseline SZ3 style (iterator, inline member function)");
     }
 
     {
@@ -103,7 +104,7 @@ void estimate_compress(Config conf, T *data) {
                 }
             }
         }
-        timer.stop("SZ2 style (nested loop, function substituted)");
+        timer.stop("Baseline SZ2 style (nested loop, function substituted)");
     }
 
     {
@@ -156,7 +157,7 @@ void estimate_compress(Config conf, T *data) {
             }
         }
 
-        timer.stop("Hybrid (block iterator, function substituted)");
+        timer.stop("V1 Hybrid (block iterator, function substituted)");
     }
 
     {
@@ -185,7 +186,7 @@ void estimate_compress(Config conf, T *data) {
             }
         }
 
-        timer.stop("Hybrid (block iterator, inline function)");
+        timer.stop("V2 Hybrid (block iterator, inline function)");
     }
 
     {
@@ -214,7 +215,7 @@ void estimate_compress(Config conf, T *data) {
             }
         }
 
-        timer.stop("Hybrid (block iterator, inline member function)");
+        timer.stop("V3 Hybrid (block iterator, inline member function)");
     }
 
     {
@@ -222,9 +223,6 @@ void estimate_compress(Config conf, T *data) {
 
         Timer timer(true);
         size_t bsize = 6;
-        double error_bound = quantizer.get_eb();
-        double error_bound_reciprocal = 1 / quantizer.get_eb();
-        int radius = quantizer.get_radius();
         std::vector<T> unpred;
         unpred.reserve(conf.num);
         auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(
@@ -243,12 +241,43 @@ void estimate_compress(Config conf, T *data) {
             }
         }
 
-        timer.stop("Hybrid (block iterator, inline member function unpred)");
+        timer.stop("V4 Hybrid (block iterator, inline member function unpred)");
+    }
+
+    {
+        LinearQuantizer<T> quantizer;
+
+        Timer timer(true);
+        size_t bsize = 6;
+        auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(
+                data, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
+        for (auto block = blocks->begin(); block != blocks->end(); ++block) {
+            auto idx = block.get_global_index();
+            for (size_t i = idx[0]; i < ((idx[0] + bsize >= conf.dims[0]) ? conf.dims[0] : idx[0] + bsize); i++) {
+                for (size_t j = idx[1]; j < ((idx[1] + bsize >= conf.dims[1]) ? conf.dims[1] : idx[1] + bsize); j++) {
+                    for (size_t k = idx[2]; k < ((idx[2] + bsize >= conf.dims[2]) ? conf.dims[2] : idx[2] + bsize); k++) {
+                        size_t offset = i * conf.dims[1] * conf.dims[2] + j * conf.dims[2] + k;
+                        //TODO force substitution for the function call, make it as fast as Hybrid (block iterator, function substituted)
+                        quant_inds_7[offset] = quantizer.quantize_and_overwrite_unpred2(data[offset], 0);
+//                        quant_inds_3[offset] = quantize_and_overwrite<T>(data[offset], 0, unpred, error_bound, error_bound_reciprocal, radius);
+                    }
+                }
+            }
+        }
+        std::vector<T> unpred;
+        unpred.reserve(conf.num);
+        for (size_t i = 0; i < conf.num; i++) {
+            if (quant_inds_7[i] == 0) {
+                unpred.push_back(data[i]);
+            }
+        }
+
+        timer.stop("V5 Hybrid (block iterator, inline member function unpred2)");
     }
 
     for (size_t i = 0; i < conf.num; i++) {
         if (quant_inds_1[i] != quant_inds_2[i] || quant_inds_2[i] != quant_inds_3[i] || quant_inds_3[i] != quant_inds_4[i] ||
-            quant_inds_4[i] != quant_inds_5[i] || quant_inds_5[i] != quant_inds_6[i]) {
+            quant_inds_4[i] != quant_inds_5[i] || quant_inds_5[i] != quant_inds_6[i] || quant_inds_6[i] != quant_inds_7[i]) {
             printf("Mismatch at %lu\n", i);
             exit(0);
         }
