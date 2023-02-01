@@ -137,6 +137,7 @@ void estimate_compress(Config conf, T *data) {
                 for (size_t j = idx[1]; j < ((idx[1] + bsize >= conf.dims[1]) ? conf.dims[1] : idx[1] + bsize); j++) {
                     for (size_t k = idx[2]; k < ((idx[2] + bsize >= conf.dims[2]) ? conf.dims[2] : idx[2] + bsize); k++) {
                         size_t offset = i * conf.dims[1] * conf.dims[2] + j * conf.dims[2] + k;
+                        //TODO force substitution for the function call, make it as fast as Hybrid (block iterator, no function call)
                         quant_inds_3[offset] = quantizer.quantize_and_overwrite(data[offset], 0);
                     }
                 }
