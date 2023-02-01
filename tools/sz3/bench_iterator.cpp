@@ -7,6 +7,36 @@
 
 using namespace SZ;
 
+template<class T>
+inline __attribute__((always_inline)) int quantize_and_overwrite(T &data, T pred, std::vector<T> &unpred, double error_bound,
+                                                                 double error_bound_reciprocal, int radius) {
+    T diff = data - pred;
+    int quant_index = (int) (fabs(diff) * error_bound_reciprocal) + 1;
+    if (quant_index < radius * 2) {
+        quant_index >>= 1;
+        int half_index = quant_index;
+        quant_index <<= 1;
+        int quant_index_shifted;
+        if (diff < 0) {
+            quant_index = -quant_index;
+            quant_index_shifted = radius - half_index;
+        } else {
+            quant_index_shifted = radius + half_index;
+        }
+        T decompressed_data = pred + quant_index * error_bound;
+        if (fabs(decompressed_data - data) > error_bound) {
+            unpred.push_back(data);
+            return 0;
+        } else {
+            data = decompressed_data;
+            return quant_index_shifted;
+        }
+    } else {
+        unpred.push_back(data);
+        return 0;
+    }
+}
+
 template<class T, uint N>
 void estimate_compress(Config conf, T *data) {
 
@@ -36,6 +66,7 @@ void estimate_compress(Config conf, T *data) {
         double error_bound_reciprocal = 1 / quantizer.get_eb();
         int radius = quantizer.get_radius();
         std::vector<T> unpred;
+        unpred.reserve(conf.num);
 
         for (size_t i = 0; i < conf.dims[0]; i++) {
             for (size_t j = 0; j < conf.dims[1]; j++) {
@@ -81,6 +112,7 @@ void estimate_compress(Config conf, T *data) {
         double error_bound_reciprocal = 1 / quantizer.get_eb();
         int radius = quantizer.get_radius();
         std::vector<T> unpred;
+        unpred.reserve(conf.num);
         auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(
                 data, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
         for (auto block = blocks->begin(); block != blocks->end(); ++block) {
@@ -129,6 +161,11 @@ void estimate_compress(Config conf, T *data) {
 
         Timer timer(true);
         size_t bsize = 6;
+        double error_bound = quantizer.get_eb();
+        double error_bound_reciprocal = 1 / quantizer.get_eb();
+        int radius = quantizer.get_radius();
+        std::vector<T> unpred;
+        unpred.reserve(conf.num);
         auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(
                 data, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
         for (auto block = blocks->begin(); block != blocks->end(); ++block) {
@@ -138,7 +175,8 @@ void estimate_compress(Config conf, T *data) {
                     for (size_t k = idx[2]; k < ((idx[2] + bsize >= conf.dims[2]) ? conf.dims[2] : idx[2] + bsize); k++) {
                         size_t offset = i * conf.dims[1] * conf.dims[2] + j * conf.dims[2] + k;
                         //TODO force substitution for the function call, make it as fast as Hybrid (block iterator, function substituted)
-                        quant_inds_3[offset] = quantizer.quantize_and_overwrite(data[offset], 0);
+//                        quant_inds_3[offset] = quantizer.quantize_and_overwrite(data[offset], 0);
+                        quant_inds_3[offset] = quantize_and_overwrite<T>(data[offset], 0, unpred, error_bound, error_bound_reciprocal, radius);
                     }
                 }
             }
