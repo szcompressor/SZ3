@@ -118,7 +118,7 @@ namespace SZ {
 
         // quantize the data with a prediction value, and returns the quantization index and the decompressed data
         // int quantize(T data, T pred, T& dec_data);
-        static inline __attribute__((always_inline)) int
+        inline __attribute__((always_inline)) int
         quantize_and_overwrite_no_this2(T &data, T pred, std::vector<T> &unpred_, double error_bound_, double error_bound_reciprocal, int radius_) {
             T diff = data - pred;
             int quant_index = (int) (fabs(diff) * error_bound_reciprocal) + 1;

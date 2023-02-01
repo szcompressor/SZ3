@@ -242,7 +242,7 @@ void estimate_compress(Config conf, T *data) {
             }
         }
 
-        timer.stop("V4 Hybrid (block iterator, inline member function param)");
+        timer.stop("V4 Hybrid (block iterator, inline member function half static )");
     }
 
     {
@@ -272,7 +272,7 @@ void estimate_compress(Config conf, T *data) {
             }
         }
 
-        timer.stop("V5 Hybrid (block iterator, inline member function param2)");
+        timer.stop("V5 Hybrid (block iterator, inline member function)");
     }
 
 
