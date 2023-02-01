@@ -99,6 +99,18 @@ void estimate_compress(Config conf, T *data) {
             exit(0);
         }
     }
+    {
+        conf.cmprAlgo = ALGO_LORENZO_REG;
+        conf.errorBoundMode = SZ::EB_ABS;
+        conf.absErrorBound = 1e-2;
+
+        Timer timer(true);
+        size_t cmpSize = 0;
+        auto cmpdata = SZ_compress(conf, data, cmpSize);
+        timer.stop("Compression (SZ3 fast Lorenzo+Reg, ABS 1e-2)");
+        delete[] cmpdata;
+
+    }
 
 }
 
