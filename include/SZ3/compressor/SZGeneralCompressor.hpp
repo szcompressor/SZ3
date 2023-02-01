@@ -29,11 +29,11 @@ namespace SZ {
 
         uchar *compress(const Config &conf, T *data, size_t &compressed_size) {
 
-            Timer timer(true);
+//            Timer timer(true);
             std::vector<int> quant_inds = frontend.compress(data);
-            timer.stop("frontend");
+//            timer.stop("frontend");
 
-            timer.start();
+//            timer.start();
             encoder.preprocess_encode(quant_inds, 0);
             size_t bufferSize = 1.2 * (frontend.size_est() + encoder.size_est() + sizeof(T) * quant_inds.size());
 
@@ -45,12 +45,12 @@ namespace SZ {
             encoder.encode(quant_inds, buffer_pos);
             encoder.postprocess_encode();
             assert(buffer_pos - buffer < bufferSize);
-            timer.stop("huffman");
+//            timer.stop("huffman");
 
-            timer.start();
+//            timer.start();
             uchar *lossless_data = lossless.compress(buffer, buffer_pos - buffer, compressed_size);
             lossless.postcompress_data(buffer);
-            timer.stop("lossless");
+//            timer.stop("lossless");
 
             return lossless_data;
         }
