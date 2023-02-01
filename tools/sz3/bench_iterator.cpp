@@ -9,7 +9,7 @@ using namespace SZ;
 
 
 template<class T>
-inline __attribute__((always_inline)) int quantize_and_overwrite(T &data, T pred, std::vector<T> &unpred, double error_bound,
+static inline __attribute__((always_inline)) int quantize_and_overwrite(T &data, T pred, std::vector<T> &unpred, double error_bound,
                                                                  double error_bound_reciprocal, int radius) {
     T diff = data - pred;
     int quant_index = (int) (fabs(diff) * error_bound_reciprocal) + 1;
