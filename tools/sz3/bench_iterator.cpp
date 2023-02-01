@@ -25,7 +25,7 @@ void estimate_compress(Config conf, T *data) {
         for (auto element = element_range->begin(); element != element_range->end(); ++element) {
             quant_inds_1[quant_count++] = quantizer.quantize_and_overwrite(*element, 0);
         }
-        timer.stop("SZ3 style (iterator)");
+        timer.stop("SZ3 style (iterator, inline function call)");
     }
 
     {
@@ -69,31 +69,8 @@ void estimate_compress(Config conf, T *data) {
                 }
             }
         }
-        timer.stop("SZ2 style (nested loop)");
+        timer.stop("SZ2 style (nested loop, no function call)");
     }
-
-    {
-        LinearQuantizer<T> quantizer;
-
-        Timer timer(true);
-        size_t bsize = 6;
-        auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(
-                data, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
-        for (auto block = blocks->begin(); block != blocks->end(); ++block) {
-            auto idx = block.get_global_index();
-            for (size_t i = idx[0]; i < ((idx[0] + bsize >= conf.dims[0]) ? conf.dims[0] : idx[0] + bsize); i++) {
-                for (size_t j = idx[1]; j < ((idx[1] + bsize >= conf.dims[1]) ? conf.dims[1] : idx[1] + bsize); j++) {
-                    for (size_t k = idx[2]; k < ((idx[2] + bsize >= conf.dims[2]) ? conf.dims[2] : idx[2] + bsize); k++) {
-                        size_t offset = i * conf.dims[1] * conf.dims[2] + j * conf.dims[2] + k;
-                        quant_inds_3[offset] = quantizer.quantize_and_overwrite(data[offset], 0);
-                    }
-                }
-            }
-        }
-
-        timer.stop("Hybrid (block iterator)");
-    }
-
 
     {
         LinearQuantizer<T> quantizer;
@@ -144,7 +121,29 @@ void estimate_compress(Config conf, T *data) {
             }
         }
 
-        timer.stop("Hybrid (block iterator, manually inline)");
+        timer.stop("Hybrid (block iterator, no function call)");
+    }
+
+    {
+        LinearQuantizer<T> quantizer;
+
+        Timer timer(true);
+        size_t bsize = 6;
+        auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(
+                data, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
+        for (auto block = blocks->begin(); block != blocks->end(); ++block) {
+            auto idx = block.get_global_index();
+            for (size_t i = idx[0]; i < ((idx[0] + bsize >= conf.dims[0]) ? conf.dims[0] : idx[0] + bsize); i++) {
+                for (size_t j = idx[1]; j < ((idx[1] + bsize >= conf.dims[1]) ? conf.dims[1] : idx[1] + bsize); j++) {
+                    for (size_t k = idx[2]; k < ((idx[2] + bsize >= conf.dims[2]) ? conf.dims[2] : idx[2] + bsize); k++) {
+                        size_t offset = i * conf.dims[1] * conf.dims[2] + j * conf.dims[2] + k;
+                        quant_inds_3[offset] = quantizer.quantize_and_overwrite(data[offset], 0);
+                    }
+                }
+            }
+        }
+
+        timer.stop("Hybrid (block iterator, inline function call)");
     }
 
     for (size_t i = 0; i < conf.num; i++) {
