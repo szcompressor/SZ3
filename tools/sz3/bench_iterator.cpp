@@ -10,7 +10,7 @@ using namespace SZ;
 
 template<class T>
 static inline __attribute__((always_inline)) int quantize_and_overwrite(T &data, T pred, std::vector<T> &unpred, double error_bound,
-                                                                 double error_bound_reciprocal, int radius) {
+                                                                        double error_bound_reciprocal, int radius) {
     T diff = data - pred;
     int quant_index = (int) (fabs(diff) * error_bound_reciprocal) + 1;
     if (quant_index < radius * 2) {
@@ -49,6 +49,22 @@ void estimate_compress(Config conf, T *data) {
     std::vector<int> quant_inds_6(conf.num);
     std::vector<int> quant_inds_7(conf.num);
     std::vector<int> quant_inds_8(conf.num);
+    std::vector<T> unpred1;
+    std::vector<T> unpred2;
+    std::vector<T> unpred3;
+    std::vector<T> unpred4;
+    std::vector<T> unpred5;
+    std::vector<T> unpred6;
+    std::vector<T> unpred7;
+    std::vector<T> unpred8;
+    unpred1.reserve(conf.num);
+    unpred2.reserve(conf.num);
+    unpred3.reserve(conf.num);
+    unpred4.reserve(conf.num);
+    unpred5.reserve(conf.num);
+    unpred6.reserve(conf.num);
+    unpred7.reserve(conf.num);
+    unpred8.reserve(conf.num);
 
     {
         LinearQuantizer<T> quantizer;
@@ -70,8 +86,6 @@ void estimate_compress(Config conf, T *data) {
         double error_bound = quantizer.get_eb();
         double error_bound_reciprocal = 1 / quantizer.get_eb();
         int radius = quantizer.get_radius();
-        std::vector<T> unpred;
-        unpred.reserve(conf.num);
 
         for (size_t i = 0; i < conf.dims[0]; i++) {
             for (size_t j = 0; j < conf.dims[1]; j++) {
@@ -92,14 +106,14 @@ void estimate_compress(Config conf, T *data) {
                         }
                         T decompressed_data = 0 + quant_index * error_bound;
                         if (fabs(decompressed_data - data[offset]) > error_bound) {
-                            unpred.push_back(data[offset]);
+                            unpred2.push_back(data[offset]);
                             quant_inds_2[offset] = 0;
                         } else {
                             data[offset] = decompressed_data;
                             quant_inds_2[offset] = quant_index_shifted;
                         }
                     } else {
-                        unpred.push_back(data[offset]);
+                        unpred2.push_back(data[offset]);
                         quant_inds_2[offset] = 0;
                     }
                 }
@@ -116,8 +130,7 @@ void estimate_compress(Config conf, T *data) {
         double error_bound = quantizer.get_eb();
         double error_bound_reciprocal = 1 / quantizer.get_eb();
         int radius = quantizer.get_radius();
-        std::vector<T> unpred;
-        unpred.reserve(conf.num);
+        unpred3.reserve(conf.num);
         auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(
                 data, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
         for (auto block = blocks->begin(); block != blocks->end(); ++block) {
@@ -142,15 +155,15 @@ void estimate_compress(Config conf, T *data) {
                             }
                             T decompressed_data = 0 + quant_index * error_bound;
                             if (fabs(decompressed_data - data[offset]) > error_bound) {
-                                unpred.push_back(data[offset]);
-                                quant_inds_4[offset] = 0;
+                                unpred3.push_back(data[offset]);
+                                quant_inds_3[offset] = 0;
                             } else {
                                 data[offset] = decompressed_data;
-                                quant_inds_4[offset] = quant_index_shifted;
+                                quant_inds_3[offset] = quant_index_shifted;
                             }
                         } else {
-                            unpred.push_back(data[offset]);
-                            quant_inds_4[offset] = 0;
+                            unpred3.push_back(data[offset]);
+                            quant_inds_3[offset] = 0;
                         }
                     }
 
@@ -169,8 +182,6 @@ void estimate_compress(Config conf, T *data) {
         double error_bound = quantizer.get_eb();
         double error_bound_reciprocal = 1 / quantizer.get_eb();
         int radius = quantizer.get_radius();
-        std::vector<T> unpred;
-        unpred.reserve(conf.num);
         auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(
                 data, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
         for (auto block = blocks->begin(); block != blocks->end(); ++block) {
@@ -181,7 +192,7 @@ void estimate_compress(Config conf, T *data) {
                         size_t offset = i * conf.dims[1] * conf.dims[2] + j * conf.dims[2] + k;
                         //TODO force substitution for the function call, make it as fast as Hybrid (block iterator, function substituted)
 //                        quant_inds_3[offset] = quantizer.quantize_and_overwrite(data[offset], 0);
-                        quant_inds_3[offset] = quantize_and_overwrite<T>(data[offset], 0, unpred, error_bound, error_bound_reciprocal, radius);
+                        quant_inds_4[offset] = quantize_and_overwrite<T>(data[offset], 0, unpred4, error_bound, error_bound_reciprocal, radius);
                     }
                 }
             }
@@ -195,11 +206,6 @@ void estimate_compress(Config conf, T *data) {
 
         Timer timer(true);
         size_t bsize = 6;
-        double error_bound = quantizer.get_eb();
-        double error_bound_reciprocal = 1 / quantizer.get_eb();
-        int radius = quantizer.get_radius();
-        std::vector<T> unpred;
-        unpred.reserve(conf.num);
         auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(
                 data, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
         for (auto block = blocks->begin(); block != blocks->end(); ++block) {
@@ -224,8 +230,6 @@ void estimate_compress(Config conf, T *data) {
 
         Timer timer(true);
         size_t bsize = 6;
-        std::vector<T> unpred;
-        unpred.reserve(conf.num);
         auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(
                 data, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
         for (auto block = blocks->begin(); block != blocks->end(); ++block) {
@@ -235,14 +239,14 @@ void estimate_compress(Config conf, T *data) {
                     for (size_t k = idx[2]; k < ((idx[2] + bsize >= conf.dims[2]) ? conf.dims[2] : idx[2] + bsize); k++) {
                         size_t offset = i * conf.dims[1] * conf.dims[2] + j * conf.dims[2] + k;
                         //TODO force substitution for the function call, make it as fast as Hybrid (block iterator, function substituted)
-                        quant_inds_6[offset] = quantizer.quantize_and_overwrite_no_this(data[offset], 0, unpred);
+                        quant_inds_6[offset] = quantizer.quantize_and_overwrite_no_this(data[offset], 0, unpred6);
 //                        quant_inds_3[offset] = quantize_and_overwrite<T>(data[offset], 0, unpred, error_bound, error_bound_reciprocal, radius);
                     }
                 }
             }
         }
 
-        timer.stop("V4 Hybrid (block iterator, inline member function half static )");
+        timer.stop("V4 Hybrid (block iterator, inline member function no this )");
     }
 
     {
@@ -255,8 +259,6 @@ void estimate_compress(Config conf, T *data) {
         double error_bound = quantizer.get_eb();
         double error_bound_reciprocal = 1 / quantizer.get_eb();
         int radius = quantizer.get_radius();
-        std::vector<T> unpred;
-        unpred.reserve(conf.num);
         for (auto block = blocks->begin(); block != blocks->end(); ++block) {
             auto idx = block.get_global_index();
             for (size_t i = idx[0]; i < ((idx[0] + bsize >= conf.dims[0]) ? conf.dims[0] : idx[0] + bsize); i++) {
@@ -264,21 +266,51 @@ void estimate_compress(Config conf, T *data) {
                     for (size_t k = idx[2]; k < ((idx[2] + bsize >= conf.dims[2]) ? conf.dims[2] : idx[2] + bsize); k++) {
                         size_t offset = i * conf.dims[1] * conf.dims[2] + j * conf.dims[2] + k;
                         //TODO force substitution for the function call, make it as fast as Hybrid (block iterator, function substituted)
-                        quant_inds_7[offset] = quantizer.quantize_and_overwrite_no_this2(data[offset], 0, unpred, error_bound, error_bound_reciprocal,
-                                                                                       radius);
+                        quant_inds_7[offset] = quantizer.quantize_and_overwrite_no_this2(data[offset], 0, unpred7, error_bound, error_bound_reciprocal,
+                                                                                         radius);
 //                        quant_inds_3[offset] = quantize_and_overwrite<T>(data[offset], 0, unpred, error_bound, error_bound_reciprocal, radius);
                     }
                 }
             }
         }
 
-        timer.stop("V5 Hybrid (block iterator, inline member function)");
+        timer.stop("V5 Hybrid (block iterator, inline member function no this 2)");
+    }
+
+    {
+        LinearQuantizer<T> quantizer;
+
+        Timer timer(true);
+        size_t bsize = 6;
+        auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(
+                data, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
+        double error_bound = quantizer.get_eb();
+        double error_bound_reciprocal = 1 / quantizer.get_eb();
+        int radius = quantizer.get_radius();
+        for (auto block = blocks->begin(); block != blocks->end(); ++block) {
+            auto idx = block.get_global_index();
+            for (size_t i = idx[0]; i < ((idx[0] + bsize >= conf.dims[0]) ? conf.dims[0] : idx[0] + bsize); i++) {
+                for (size_t j = idx[1]; j < ((idx[1] + bsize >= conf.dims[1]) ? conf.dims[1] : idx[1] + bsize); j++) {
+                    for (size_t k = idx[2]; k < ((idx[2] + bsize >= conf.dims[2]) ? conf.dims[2] : idx[2] + bsize); k++) {
+                        size_t offset = i * conf.dims[1] * conf.dims[2] + j * conf.dims[2] + k;
+                        //TODO force substitution for the function call, make it as fast as Hybrid (block iterator, function substituted)
+                        quant_inds_8[offset] = quantizer.quantize_and_overwrite_no_this2_static(data[offset], 0, unpred8, error_bound,
+                                                                                                error_bound_reciprocal,
+                                                                                                radius);
+//                        quant_inds_3[offset] = quantize_and_overwrite<T>(data[offset], 0, unpred, error_bound, error_bound_reciprocal, radius);
+                    }
+                }
+            }
+        }
+
+        timer.stop("V6 Hybrid (block iterator, inline member function no this 2 static)");
     }
 
 
     for (size_t i = 0; i < conf.num; i++) {
         if (quant_inds_1[i] != quant_inds_2[i] || quant_inds_2[i] != quant_inds_3[i] || quant_inds_3[i] != quant_inds_4[i] ||
-            quant_inds_4[i] != quant_inds_5[i] || quant_inds_5[i] != quant_inds_6[i] || quant_inds_6[i] != quant_inds_7[i]) {
+            quant_inds_4[i] != quant_inds_5[i] || quant_inds_5[i] != quant_inds_6[i] || quant_inds_6[i] != quant_inds_7[i] ||
+            quant_inds_7[i] != quant_inds_8[i]) {
             printf("Mismatch at %lu\n", i);
             exit(0);
         }
