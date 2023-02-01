@@ -135,14 +135,14 @@ namespace SZ {
                 }
                 T decompressed_data = pred + quant_index * error_bound_;
                 if (fabs(decompressed_data - data) > error_bound_) {
-//                    unpred_.push_back(data);
+                    unpred_.push_back(data);
                     return 0;
                 } else {
                     data = decompressed_data;
                     return quant_index_shifted;
                 }
             } else {
-//                unpred_.push_back(data);
+                unpred_.push_back(data);
                 return 0;
             }
         }
