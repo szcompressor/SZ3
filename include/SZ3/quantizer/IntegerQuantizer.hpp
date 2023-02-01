@@ -86,6 +86,36 @@ namespace SZ {
             }
         }
 
+        // quantize the data with a prediction value, and returns the quantization index and the decompressed data
+        // int quantize(T data, T pred, T& dec_data);
+        inline __attribute__((always_inline)) int quantize_and_overwrite_unpred(T &data, T pred, std::vector<T>& unpred_) {
+            T diff = data - pred;
+            int quant_index = (int) (fabs(diff) * this->error_bound_reciprocal) + 1;
+            if (quant_index < this->radius * 2) {
+                quant_index >>= 1;
+                int half_index = quant_index;
+                quant_index <<= 1;
+                int quant_index_shifted;
+                if (diff < 0) {
+                    quant_index = -quant_index;
+                    quant_index_shifted = this->radius - half_index;
+                } else {
+                    quant_index_shifted = this->radius + half_index;
+                }
+                T decompressed_data = pred + quant_index * this->error_bound;
+                if (fabs(decompressed_data - data) > this->error_bound) {
+                    unpred_.push_back(data);
+                    return 0;
+                } else {
+                    data = decompressed_data;
+                    return quant_index_shifted;
+                }
+            } else {
+                unpred_.push_back(data);
+                return 0;
+            }
+        }
+
         inline int quantize_and_overwrite(T ori, T pred, T &dest) {
             T diff = ori - pred;
             int quant_index = (int) (fabs(diff) * this->error_bound_reciprocal) + 1;
