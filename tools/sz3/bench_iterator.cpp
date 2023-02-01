@@ -65,14 +65,7 @@ void estimate_compress(Config conf, T *data) {
     std::vector<T> unpred6;
     std::vector<T> unpred7;
     std::vector<T> unpred8;
-    unpred1.reserve(conf.num);
-    unpred2.reserve(conf.num);
-    unpred3.reserve(conf.num);
-    unpred4.reserve(conf.num);
-    unpred5.reserve(conf.num);
-    unpred6.reserve(conf.num);
-    unpred7.reserve(conf.num);
-    unpred8.reserve(conf.num);
+
 
     {
         LinearQuantizer<T> quantizer;
@@ -91,6 +84,7 @@ void estimate_compress(Config conf, T *data) {
         LinearQuantizer<T> quantizer;
 
         Timer timer(true);
+        unpred2.reserve(conf.num);
         double error_bound = quantizer.get_eb();
         double error_bound_reciprocal = 1 / quantizer.get_eb();
         int radius = quantizer.get_radius();
@@ -134,6 +128,8 @@ void estimate_compress(Config conf, T *data) {
         LinearQuantizer<T> quantizer;
 
         Timer timer(true);
+        unpred3.reserve(conf.num);
+
         size_t bsize = 6;
         double error_bound = quantizer.get_eb();
         double error_bound_reciprocal = 1 / quantizer.get_eb();
@@ -184,6 +180,7 @@ void estimate_compress(Config conf, T *data) {
 
     {
         LinearQuantizer<T> quantizer;
+        unpred4.reserve(conf.num);
 
         Timer timer(true);
         size_t bsize = 6;
@@ -237,6 +234,8 @@ void estimate_compress(Config conf, T *data) {
         LinearQuantizer<T> quantizer;
 
         Timer timer(true);
+        unpred6.reserve(conf.num);
+
         size_t bsize = 6;
         auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(
                 data6.data(), std::begin(conf.dims), std::end(conf.dims), bsize, 0);
@@ -262,6 +261,8 @@ void estimate_compress(Config conf, T *data) {
 
         Timer timer(true);
         size_t bsize = 6;
+        unpred7.reserve(conf.num);
+
         auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(
                 data7.data(), std::begin(conf.dims), std::end(conf.dims), bsize, 0);
         double error_bound = quantizer.get_eb();
@@ -290,6 +291,8 @@ void estimate_compress(Config conf, T *data) {
         LinearQuantizer<T> quantizer;
 
         Timer timer(true);
+        unpred8.reserve(conf.num);
+
         size_t bsize = 6;
         auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(
                 data8.data(), std::begin(conf.dims), std::end(conf.dims), bsize, 0);
