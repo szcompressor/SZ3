@@ -350,6 +350,15 @@ void estimate_compress(Config conf, T *data) {
 
     }
 
+    free(data1);
+    free(data2);
+    free(data3);
+    free(data4);
+    free(data5);
+    free(data6);
+    free(data7);
+    free(data8);
+
 }
 
 int main(int argc, char *argv[]) {
