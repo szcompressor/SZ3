@@ -11,11 +11,11 @@ namespace SZ {
 
             virtual ~QuantizerInterface() = default;
 
-            virtual inline int quantize(T data, T pred) = 0;
+            virtual inline __attribute__((always_inline)) int quantize(T data, T pred) = 0;
 
-            virtual inline int quantize_and_overwrite(T &data, T pred) = 0;
+            virtual inline __attribute__((always_inline)) int quantize_and_overwrite(T &data, T pred) = 0;
 
-            virtual inline T recover(T pred, int quant_index) = 0;
+            virtual inline __attribute__((always_inline)) T recover(T pred, int quant_index) = 0;
 
             /**
              * reset quantizer to initial state
