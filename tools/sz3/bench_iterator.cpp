@@ -25,7 +25,7 @@ void estimate_compress(Config conf, T *data) {
         for (auto element = element_range->begin(); element != element_range->end(); ++element) {
             quant_inds_1[quant_count++] = quantizer.quantize_and_overwrite(*element, 0);
         }
-        timer.stop("SZ3 style (iterator, inline function call)");
+        timer.stop("SZ3 style (iterator, inline function)");
     }
 
     {
@@ -69,7 +69,7 @@ void estimate_compress(Config conf, T *data) {
                 }
             }
         }
-        timer.stop("SZ2 style (nested loop, no function call)");
+        timer.stop("SZ2 style (nested loop, function substituted)");
     }
 
     {
@@ -121,7 +121,7 @@ void estimate_compress(Config conf, T *data) {
             }
         }
 
-        timer.stop("Hybrid (block iterator, no function call)");
+        timer.stop("Hybrid (block iterator, function substituted)");
     }
 
     {
@@ -137,14 +137,14 @@ void estimate_compress(Config conf, T *data) {
                 for (size_t j = idx[1]; j < ((idx[1] + bsize >= conf.dims[1]) ? conf.dims[1] : idx[1] + bsize); j++) {
                     for (size_t k = idx[2]; k < ((idx[2] + bsize >= conf.dims[2]) ? conf.dims[2] : idx[2] + bsize); k++) {
                         size_t offset = i * conf.dims[1] * conf.dims[2] + j * conf.dims[2] + k;
-                        //TODO force substitution for the function call, make it as fast as Hybrid (block iterator, no function call)
+                        //TODO force substitution for the function call, make it as fast as Hybrid (block iterator, function substituted)
                         quant_inds_3[offset] = quantizer.quantize_and_overwrite(data[offset], 0);
                     }
                 }
             }
         }
 
-        timer.stop("Hybrid (block iterator, inline function call)");
+        timer.stop("Hybrid (block iterator, inline function)");
     }
 
     for (size_t i = 0; i < conf.num; i++) {
