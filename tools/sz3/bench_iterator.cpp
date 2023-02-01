@@ -13,6 +13,7 @@ void estimate_compress(Config conf, T *data) {
     std::vector<int> quant_inds_1(conf.num);
     std::vector<int> quant_inds_2(conf.num);
     std::vector<int> quant_inds_3(conf.num);
+    std::vector<int> quant_inds_4(conf.num);
 
     {
         LinearQuantizer<T> quantizer;
@@ -90,11 +91,64 @@ void estimate_compress(Config conf, T *data) {
             }
         }
 
-        timer.stop("Hybrid (block iterator + nested loop)");
+        timer.stop("Hybrid (block iterator)");
+    }
+
+
+    {
+        LinearQuantizer<T> quantizer;
+
+        Timer timer(true);
+        size_t bsize = 6;
+        double error_bound = quantizer.get_eb();
+        double error_bound_reciprocal = 1 / quantizer.get_eb();
+        int radius = quantizer.get_radius();
+        std::vector<T> unpred;
+        auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(
+                data, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
+        for (auto block = blocks->begin(); block != blocks->end(); ++block) {
+            auto idx = block.get_global_index();
+            for (size_t i = idx[0]; i < ((idx[0] + bsize >= conf.dims[0]) ? conf.dims[0] : idx[0] + bsize); i++) {
+                for (size_t j = idx[1]; j < ((idx[1] + bsize >= conf.dims[1]) ? conf.dims[1] : idx[1] + bsize); j++) {
+                    for (size_t k = idx[2]; k < ((idx[2] + bsize >= conf.dims[2]) ? conf.dims[2] : idx[2] + bsize); k++) {
+                        size_t offset = i * conf.dims[1] * conf.dims[2] + j * conf.dims[2] + k;
+//                        quant_inds_3[offset] = quantizer.quantize_and_overwrite(data[offset], 0);
+                        T diff = data[offset] - 0;
+                        int quant_index = (int) (fabs(diff) * error_bound_reciprocal) + 1;
+                        if (quant_index < radius * 2) {
+                            quant_index >>= 1;
+                            int half_index = quant_index;
+                            quant_index <<= 1;
+                            int quant_index_shifted;
+                            if (diff < 0) {
+                                quant_index = -quant_index;
+                                quant_index_shifted = radius - half_index;
+                            } else {
+                                quant_index_shifted = radius + half_index;
+                            }
+                            T decompressed_data = 0 + quant_index * error_bound;
+                            if (fabs(decompressed_data - data[offset]) > error_bound) {
+                                unpred.push_back(data[offset]);
+                                quant_inds_4[offset] = 0;
+                            } else {
+                                data[offset] = decompressed_data;
+                                quant_inds_4[offset] = quant_index_shifted;
+                            }
+                        } else {
+                            unpred.push_back(data[offset]);
+                            quant_inds_4[offset] = 0;
+                        }
+                    }
+
+                }
+            }
+        }
+
+        timer.stop("Hybrid (block iterator, manually inline)");
     }
 
     for (size_t i = 0; i < conf.num; i++) {
-        if (quant_inds_1[i] != quant_inds_2[i] || quant_inds_2[i] != quant_inds_3[i]) {
+        if (quant_inds_1[i] != quant_inds_2[i] || quant_inds_2[i] != quant_inds_3[i] || quant_inds_3[i] != quant_inds_4[i]) {
             printf("Mismatch at %lu\n", i);
             exit(0);
         }
