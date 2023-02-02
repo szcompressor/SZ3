@@ -14,8 +14,8 @@ echo $dataset $dim $r1 $r2 $r3
 $exefolder/bench_iterator_sz2 $dataset $dim $r1 $r2 $r3
 $exefolder/bench_iterator_sz2 $dataset $dim $r1 $r2 $r3
 
-$exefolder/bench_iterator_sz3 $dataset $dim $r1 $r2 $r3
-$exefolder/bench_iterator_sz3 $dataset $dim $r1 $r2 $r3
+#$exefolder/bench_iterator_sz3 $dataset $dim $r1 $r2 $r3
+#$exefolder/bench_iterator_sz3 $dataset $dim $r1 $r2 $r3
 
 $exefolder/bench_iterator_hybrid1 $dataset $dim $r1 $r2 $r3
 $exefolder/bench_iterator_hybrid1 $dataset $dim $r1 $r2 $r3
