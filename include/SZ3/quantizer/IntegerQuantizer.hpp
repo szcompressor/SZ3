@@ -282,9 +282,9 @@ namespace SZ {
 
         virtual void predecompress_data() {};
 
-
-    private:
         std::vector<T> unpred;
+    private:
+
         size_t index = 0; // used in decompression only
 
         double error_bound;

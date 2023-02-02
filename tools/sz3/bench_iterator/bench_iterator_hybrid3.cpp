@@ -16,8 +16,7 @@ void estimate_compress(Config conf, T *data) {
     LinearQuantizer<T> quantizer;
 
     Timer timer(true);
-    std::vector<T> unpred;
-    unpred.reserve(conf.num);
+    quantizer.unpred.reserve(conf.num);
     size_t bsize = 6;
     auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(
             data, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
@@ -29,7 +28,6 @@ void estimate_compress(Config conf, T *data) {
                     size_t offset = i * conf.dims[1] * conf.dims[2] + j * conf.dims[2] + k;
                     //TODO force substitution for the function call, make it as fast as Hybrid (block iterator, function substituted)
                     quant_inds[offset] = quantizer.quantize_and_overwrite(data[offset], 0);
-//                        quant_inds_3[offset] = quantize_and_overwrite<T>(data[offset], 0, unpred, error_bound, error_bound_reciprocal, radius);
                 }
             }
         }
