@@ -6,50 +6,49 @@
 
 using namespace SZ;
 
-template<class T>
-inline __attribute__((always_inline)) T d(T *data, size_t ds0, size_t ds1, int i, int j, int k) {
-    if (i < 0 || j < 0 || k < 0) {
-        return 0;
-    } else {
-        return data[i * ds0 + j * ds1 + k];
-    }
-}
 
 template<class T, uint N>
-uchar *compress(Config &conf, T *data_, size_t &compressed_size) {
+uchar *compress(Config &conf, T *data, size_t &compressed_size) {
 
-    std::vector<T> data1(data_, data_ + conf.num);
-    T *data = data1.data();
     std::vector<int> quant_inds;
     quant_inds.reserve(conf.num);
     LinearQuantizer<T> quantizer(conf.absErrorBound);
 
+    int padding = 2;
+
+    size_t ds0_ = (conf.dims[2] + padding) * (conf.dims[1] + padding);
+    size_t ds1_ = (conf.dims[2] + padding);
     size_t ds0 = conf.dims[2] * conf.dims[1];
     size_t ds1 = conf.dims[2];
 
+    size_t num_ = 1;
+    for (auto &dim: conf.dims) {
+        num_ *= (dim + padding);
+    }
+    std::vector<T> data_(num_);
+    for (size_t i = 0; i < conf.dims[0]; i++) {
+        for (size_t j = 0; j < conf.dims[1]; j++) {
+            memcpy(&data_[(i + padding) * ds0_ + (j + padding) * ds1_ + padding], &data[i * ds0 + j * ds1], ds1 * sizeof(T));
+        }
+    }
+
+    T *datap = &data_[padding * ds0_ + padding * ds1_ + padding];
     std::vector<T> unpred;
     unpred.reserve(conf.num);
     size_t bsize = 6;
-    auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(data, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
+    auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(datap, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
     for (auto block = blocks->begin(); block != blocks->end(); ++block) {
         {
             auto idx = block.get_global_index();
-            for (int i = idx[0]; i < std::min(conf.dims[0], idx[0] + bsize); i++) {
-                for (int j = idx[1]; j < std::min(conf.dims[1], idx[1] + bsize); j++) {
-                    for (int k = idx[2]; k < std::min(conf.dims[2], idx[2] + bsize); k++) {
-                        size_t offset = i * ds0 + j * ds1 + k;
-                        T pred = 0;
-                        if (i == 0 || j == 0 || k == 0) {
-                            pred = d(data, ds0, ds1, i, j, k - 1) + d(data, ds0, ds1, i, j - 1, k) + d(data, ds0, ds1, i - 1, j, k)
-                                   - d(data, ds0, ds1, i, j - 1, k - 1) - d(data, ds0, ds1, i - 1, j, k - 1) - d(data, ds0, ds1, i - 1, j - 1, k)
-                                   + d(data, ds0, ds1, i - 1, j - 1, k - 1);
-                        } else {
-                            T *data_pos = &data[offset];
-                            pred = data_pos[-1] + data_pos[-ds1] + data_pos[-ds0]
-                                   - data_pos[-ds1 - 1] - data_pos[-ds0 - 1]
-                                   - data_pos[-ds0 - ds1] + data_pos[-ds0 - ds1 - 1];
-                        }
-                        quant_inds.push_back(quantizer.quantize_and_overwrite_no_this(data[offset], pred, unpred));
+            for (size_t i = idx[0]; i < std::min(conf.dims[0], idx[0] + bsize); i++) {
+                for (size_t j = idx[1]; j < std::min(conf.dims[1], idx[1] + bsize); j++) {
+                    for (size_t k = idx[2]; k < std::min(conf.dims[2], idx[2] + bsize); k++) {
+                        size_t offset_ = i * ds0_ + j * ds1_ + k;
+                        T *data_pos = &datap[offset_];
+                        T pred = data_pos[-1] + data_pos[-ds1_] + data_pos[-ds0_]
+                                 - data_pos[-ds1_ - 1] - data_pos[-ds0_ - 1]
+                                 - data_pos[-ds0_ - ds1_] + data_pos[-ds0_ - ds1_ - 1];
+                        quant_inds.push_back(quantizer.quantize_and_overwrite_no_this(datap[offset_], pred, unpred));
 //                        quant_inds.push_back(quantizer.quantize_and_overwrite(datap[offset_], pred));
                         //                        quant_inds_3[offset] = quantize_and_overwrite<T>(data_[offset], 0, unpred, error_bound, error_bound_reciprocal, radius);
                     }
@@ -58,6 +57,10 @@ uchar *compress(Config &conf, T *data_, size_t &compressed_size) {
         }
     }
 
+    if (quant_inds.size() < conf.num) {
+        printf("quant error");
+        exit(0);
+    }
     HuffmanEncoder<int> encoder;
     encoder.preprocess_encode(quant_inds, 0);
 //    size_t bufferSize = 1.2 * (encoder.size_est() + sizeof(T) * quant_inds.size() + unpred.size() * sizeof(T));
@@ -89,7 +92,7 @@ uchar *compress(Config &conf, T *data_, size_t &compressed_size) {
 }
 
 template<class T, uint N>
-void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *data) {
+void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *decData) {
     size_t remaining_length = cmpSize;
     LinearQuantizer<T> quantizer(conf.absErrorBound);
 
@@ -115,40 +118,51 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *da
 
     lossless.postdecompress_data(compressed_data);
 
+    int padding = 2;
+    size_t ds0_ = (conf.dims[2] + padding) * (conf.dims[1] + padding);
+    size_t ds1_ = (conf.dims[2] + padding);
     size_t ds0 = conf.dims[2] * conf.dims[1];
     size_t ds1 = conf.dims[2];
 
+    size_t num_ = 1;
+    for (auto &dim: conf.dims) {
+        num_ *= (dim + padding);
+    }
+    std::vector<T> data_(num_);
+    T *datap = &data_[padding * ds0_ + padding * ds1_ + padding];
     int *quant_inds_pos = &quant_inds[0];
 
     size_t bsize = 6;
-    auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(data, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
+    auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(datap, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
     for (auto block = blocks->begin(); block != blocks->end(); ++block) {
         {
             auto idx = block.get_global_index();
             for (size_t i = idx[0]; i < std::min(conf.dims[0], idx[0] + bsize); i++) {
                 for (size_t j = idx[1]; j < std::min(conf.dims[1], idx[1] + bsize); j++) {
                     for (size_t k = idx[2]; k < std::min(conf.dims[2], idx[2] + bsize); k++) {
+                        size_t offset_ = i * ds0_ + j * ds1_ + k;
                         size_t offset = i * ds0 + j * ds1 + k;
-                        T pred = 0;
-                        if (i == 0 || j == 0 || k == 0) {
-                            pred = d(data, ds0, ds1, i, j, k - 1) + d(data, ds0, ds1, i, j - 1, k) + d(data, ds0, ds1, i - 1, j, k)
-                                   - d(data, ds0, ds1, i, j - 1, k - 1) - d(data, ds0, ds1, i - 1, j, k - 1) - d(data, ds0, ds1, i - 1, j - 1, k)
-                                   + d(data, ds0, ds1, i - 1, j - 1, k - 1);
-                        } else {
-                            T *data_pos = &data[offset];
-                            pred = data_pos[-1] + data_pos[-ds1] + data_pos[-ds0]
-                                   - data_pos[-ds1 - 1] - data_pos[-ds0 - 1]
-                                   - data_pos[-ds0 - ds1] + data_pos[-ds0 - ds1 - 1];
-                        }
+                        T *data_pos = &datap[offset_];
+                        T pred = data_pos[-1] + data_pos[-ds1_] + data_pos[-ds0_]
+                                 - data_pos[-ds1_ - 1] - data_pos[-ds0_ - 1]
+                                 - data_pos[-ds0_ - ds1_] + data_pos[-ds0_ - ds1_ - 1];
+//                        *data_pos = quantizer.recover(pred, *(quant_inds_pos++));
                         if (*quant_inds_pos) {
-                            data[offset] = quantizer.recover_pred(pred, *quant_inds_pos);
+                            *data_pos = quantizer.recover_pred(pred, *quant_inds_pos);
+//                            decData[offset] = *data_pos;
                         } else {
-                            data[offset] = unpred[unpred_index++];
+                            *data_pos = unpred[unpred_index++];
+//                            decData[offset] = *data_pos;
                         }
                         quant_inds_pos++;
                     }
                 }
             }
+        }
+    }
+    for (size_t i = 0; i < conf.dims[0]; i++) {
+        for (size_t j = 0; j < conf.dims[1]; j++) {
+            memcpy(&decData[i * ds0 + j * ds1], &data_[(i + padding) * ds0_ + (j + padding) * ds1_ + padding], ds1 * sizeof(T));
         }
     }
 }
