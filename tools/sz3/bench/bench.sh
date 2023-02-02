@@ -2,7 +2,7 @@
 
 exefolder=$1
 dataset=$2
-dim=$r3
+dim=$3
 r1=$4
 r2=$5
 r3=$6
