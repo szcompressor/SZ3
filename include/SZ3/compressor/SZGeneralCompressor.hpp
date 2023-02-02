@@ -29,9 +29,9 @@ namespace SZ {
 
         uchar *compress(const Config &conf, T *data, size_t &compressed_size) {
 
-//            Timer timer(true);
+            Timer timer(true);
             std::vector<int> quant_inds = frontend.compress(data);
-//            timer.stop("frontend");
+            timer.stop("frontend");
 
 //            timer.start();
             encoder.preprocess_encode(quant_inds, 0);
@@ -81,7 +81,7 @@ namespace SZ {
 
             timer.start();
             frontend.decompress(quant_inds, decData);
-//            timer.stop("Prediction & Recover");
+            timer.stop("frontend");
             return decData;
         }
 

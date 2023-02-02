@@ -9,6 +9,10 @@ using namespace SZ;
 
 template<class T, uint N>
 uchar *compress(Config &conf, T *data, size_t &compressed_size) {
+    std::vector<T> unpred;
+    unpred.reserve(conf.num);
+
+    Timer timer(true);
 
     std::vector<int> quant_inds;
     quant_inds.reserve(conf.num);
@@ -33,8 +37,7 @@ uchar *compress(Config &conf, T *data, size_t &compressed_size) {
     }
 
     T *datap = &data_[padding * ds0_ + padding * ds1_ + padding];
-    std::vector<T> unpred;
-    unpred.reserve(conf.num);
+
     size_t bsize = 6;
     auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(datap, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
     for (auto block = blocks->begin(); block != blocks->end(); ++block) {
@@ -56,11 +59,8 @@ uchar *compress(Config &conf, T *data, size_t &compressed_size) {
             }
         }
     }
+    timer.stop("frondend compress");
 
-    if (quant_inds.size() < conf.num) {
-        printf("quant error");
-        exit(0);
-    }
     HuffmanEncoder<int> encoder;
     encoder.preprocess_encode(quant_inds, 0);
 //    size_t bufferSize = 1.2 * (encoder.size_est() + sizeof(T) * quant_inds.size() + unpred.size() * sizeof(T));
@@ -118,6 +118,8 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *de
 
     lossless.postdecompress_data(compressed_data);
 
+    Timer timer(true);
+
     int padding = 2;
     size_t ds0_ = (conf.dims[2] + padding) * (conf.dims[1] + padding);
     size_t ds1_ = (conf.dims[2] + padding);
@@ -128,6 +130,7 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *de
     for (auto &dim: conf.dims) {
         num_ *= (dim + padding);
     }
+
     std::vector<T> data_(num_);
     T *datap = &data_[padding * ds0_ + padding * ds1_ + padding];
     int *quant_inds_pos = &quant_inds[0];
@@ -165,6 +168,7 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *de
             memcpy(&decData[i * ds0 + j * ds1], &data_[(i + padding) * ds0_ + (j + padding) * ds1_ + padding], ds1 * sizeof(T));
         }
     }
+    timer.stop("frontend decompress");
 }
 
 template<class T, uint N>

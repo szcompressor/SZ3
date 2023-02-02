@@ -18,8 +18,10 @@ inline __attribute__((always_inline)) T d(T *data, size_t ds0, size_t ds1, int i
 template<class T, uint N>
 uchar *compress(Config &conf, T *data_, size_t &compressed_size) {
 
-    std::vector<T> data1(data_, data_ + conf.num);
-    T *data = data1.data();
+    std::vector<T> unpred;
+    unpred.reserve(conf.num);
+
+    Timer timer(true);
     std::vector<int> quant_inds;
     quant_inds.reserve(conf.num);
     LinearQuantizer<T> quantizer(conf.absErrorBound);
@@ -27,9 +29,10 @@ uchar *compress(Config &conf, T *data_, size_t &compressed_size) {
     size_t ds0 = conf.dims[2] * conf.dims[1];
     size_t ds1 = conf.dims[2];
 
-    std::vector<T> unpred;
-    unpred.reserve(conf.num);
     size_t bsize = 6;
+    std::vector<T> data1(data_, data_ + conf.num);
+    T *data = data1.data();
+
     auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(data, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
     for (auto block = blocks->begin(); block != blocks->end(); ++block) {
         {
@@ -57,6 +60,7 @@ uchar *compress(Config &conf, T *data_, size_t &compressed_size) {
             }
         }
     }
+    timer.stop("frondend compress");
 
     HuffmanEncoder<int> encoder;
     encoder.preprocess_encode(quant_inds, 0);
@@ -120,6 +124,7 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *da
 
     int *quant_inds_pos = &quant_inds[0];
 
+    Timer timer(true);
     size_t bsize = 6;
     auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(data, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
     for (auto block = blocks->begin(); block != blocks->end(); ++block) {
@@ -151,6 +156,7 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *da
             }
         }
     }
+    timer.stop("frondend decompress");
 }
 
 template<class T, uint N>
