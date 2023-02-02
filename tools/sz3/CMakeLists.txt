@@ -13,7 +13,7 @@ endforeach ()
 foreach (SRCFILE IN LISTS bench_files)
     get_filename_component(EXE ${SRCFILE} NAME_WLE)
     message(STATUS "Target = ${EXE}")
-    add_executable(${EXE} bench/${EXE}.cpp)
+    add_executable(${EXE} bench_iterator/${EXE}.cpp)
     target_link_libraries(${EXE} PRIVATE SZ3)
     install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${EXE}$<TARGET_FILE_SUFFIX:${EXE}> TYPE BIN)
 
