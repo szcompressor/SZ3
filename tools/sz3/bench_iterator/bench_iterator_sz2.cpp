@@ -18,35 +18,44 @@ void estimate_compress(Config conf, T *data) {
     double error_bound = quantizer.get_eb();
     double error_bound_reciprocal = 1 / quantizer.get_eb();
     int radius = quantizer.get_radius();
+    size_t bsize = 6;
 
-    for (size_t i = 0; i < conf.dims[0]; i++) {
-        for (size_t j = 0; j < conf.dims[1]; j++) {
-            for (size_t k = 0; k < conf.dims[2]; k++) {
-                size_t offset = i * conf.dims[1] * conf.dims[2] + j * conf.dims[2] + k;
-                T diff = data[offset] - 0;
-                int quant_index = (int) (fabs(diff) * error_bound_reciprocal) + 1;
-                if (quant_index < radius * 2) {
-                    quant_index >>= 1;
-                    int half_index = quant_index;
-                    quant_index <<= 1;
-                    int quant_index_shifted;
-                    if (diff < 0) {
-                        quant_index = -quant_index;
-                        quant_index_shifted = radius - half_index;
-                    } else {
-                        quant_index_shifted = radius + half_index;
+    for (size_t ii = 0; ii < conf.dims[0]; ii += bsize) {
+        for (size_t jj = 0; jj < conf.dims[1]; jj += bsize) {
+            for (size_t kk = 0; kk < conf.dims[2]; kk += bsize) {
+
+                for (size_t i = ii; i < std::min(ii + bsize, conf.dims[0]); i++) {
+                    for (size_t j = jj; j < std::min(jj + bsize, conf.dims[1]); j++) {
+                        for (size_t k = kk; k < std::min(kk + bsize, conf.dims[2]); k++) {
+
+                            size_t offset = i * conf.dims[1] * conf.dims[2] + j * conf.dims[2] + k;
+                            T diff = data[offset] - 0;
+                            int quant_index = (int) (fabs(diff) * error_bound_reciprocal) + 1;
+                            if (quant_index < radius * 2) {
+                                quant_index >>= 1;
+                                int half_index = quant_index;
+                                quant_index <<= 1;
+                                int quant_index_shifted;
+                                if (diff < 0) {
+                                    quant_index = -quant_index;
+                                    quant_index_shifted = radius - half_index;
+                                } else {
+                                    quant_index_shifted = radius + half_index;
+                                }
+                                T decompressed_data = 0 + quant_index * error_bound;
+                                if (fabs(decompressed_data - data[offset]) > error_bound) {
+                                    unpred.push_back(data[offset]);
+                                    quant_inds[offset] = 0;
+                                } else {
+                                    data[offset] = decompressed_data;
+                                    quant_inds[offset] = quant_index_shifted;
+                                }
+                            } else {
+                                unpred.push_back(data[offset]);
+                                quant_inds[offset] = 0;
+                            }
+                        }
                     }
-                    T decompressed_data = 0 + quant_index * error_bound;
-                    if (fabs(decompressed_data - data[offset]) > error_bound) {
-                        unpred.push_back(data[offset]);
-                        quant_inds[offset] = 0;
-                    } else {
-                        data[offset] = decompressed_data;
-                        quant_inds[offset] = quant_index_shifted;
-                    }
-                } else {
-                    unpred.push_back(data[offset]);
-                    quant_inds[offset] = 0;
                 }
             }
         }
