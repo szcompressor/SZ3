@@ -33,8 +33,8 @@ uchar *compress(Config &conf, T *data, size_t &compressed_size) {
     }
 
     T *datap = &data_[padding * ds0_ + padding * ds1_ + padding];
-//    std::vector<T> unpred;
-//    unpred.reserve(conf.num);
+    std::vector<T> unpred;
+    unpred.reserve(conf.num);
     size_t bsize = 6;
     auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(datap, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
     for (auto block = blocks->begin(); block != blocks->end(); ++block) {
@@ -48,8 +48,8 @@ uchar *compress(Config &conf, T *data, size_t &compressed_size) {
                         T pred = data_pos[-1] + data_pos[-ds1_] + data_pos[-ds0_]
                                  - data_pos[-ds1_ - 1] - data_pos[-ds0_ - 1]
                                  - data_pos[-ds0_ - ds1_] + data_pos[-ds0_ - ds1_ - 1];
-//                        quant_inds.push_back(quantizer.quantize_and_overwrite_no_this(datap[offset], pred, unpred));
-                        quant_inds.push_back(quantizer.quantize_and_overwrite(datap[offset_], pred));
+                        quant_inds.push_back(quantizer.quantize_and_overwrite_no_this(datap[offset_], pred, unpred));
+//                        quant_inds.push_back(quantizer.quantize_and_overwrite(datap[offset_], pred));
                         //                        quant_inds_3[offset] = quantize_and_overwrite<T>(data_[offset], 0, unpred, error_bound, error_bound_reciprocal, radius);
                     }
                 }
@@ -69,11 +69,11 @@ uchar *compress(Config &conf, T *data, size_t &compressed_size) {
     uchar *buffer = new uchar[bufferSize];
     uchar *buffer_pos = buffer;
 
-    quantizer.save(buffer_pos);
-//    *reinterpret_cast<size_t *>(buffer_pos) = unpred.size();
-//    buffer_pos += sizeof(size_t);
-//    memcpy(buffer_pos, unpred.data(), unpred.size() * sizeof(T));
-//    buffer_pos += unpred.size() * sizeof(T);
+//    quantizer.save(buffer_pos);
+    *reinterpret_cast<size_t *>(buffer_pos) = unpred.size();
+    buffer_pos += sizeof(size_t);
+    memcpy(buffer_pos, unpred.data(), unpred.size() * sizeof(T));
+    buffer_pos += unpred.size() * sizeof(T);
 
     encoder.save(buffer_pos);
     encoder.encode(quant_inds, buffer_pos);
@@ -101,11 +101,12 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *de
     uchar const *compressed_data_pos = compressed_data;
 //            timer.stop("Lossless");
 
-    quantizer.load(compressed_data_pos, remaining_length);
-//    size_t unpred_size = *reinterpret_cast<const size_t *>(compressed_data_pos);
-//    compressed_data_pos += sizeof(size_t);
-//    auto unpred = std::vector<T>(reinterpret_cast<const T *>(compressed_data_pos), reinterpret_cast<const T *>(compressed_data_pos) + unpred_size);
-//    compressed_data_pos += unpred_size * sizeof(T);
+//    quantizer.load(compressed_data_pos, remaining_length);
+    size_t unpred_size = *reinterpret_cast<const size_t *>(compressed_data_pos);
+    compressed_data_pos += sizeof(size_t);
+    auto unpred = std::vector<T>(reinterpret_cast<const T *>(compressed_data_pos), reinterpret_cast<const T *>(compressed_data_pos) + unpred_size);
+    compressed_data_pos += unpred_size * sizeof(T);
+    size_t unpred_index = 0;
 
 
     HuffmanEncoder<int> encoder;
@@ -145,8 +146,15 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *de
                         T pred = data_pos[-1] + data_pos[-ds1_] + data_pos[-ds0_]
                                  - data_pos[-ds1_ - 1] - data_pos[-ds0_ - 1]
                                  - data_pos[-ds0_ - ds1_] + data_pos[-ds0_ - ds1_ - 1];
-                        *data_pos = quantizer.recover(pred, *(quant_inds_pos++));
-                        decData[offset] = *data_pos;
+//                        *data_pos = quantizer.recover(pred, *(quant_inds_pos++));
+                        if (*quant_inds_pos) {
+                            *data_pos = quantizer.recover_pred(pred, *quant_inds_pos);
+                            decData[offset] = *data_pos;
+                        } else {
+                            *data_pos = unpred[unpred_index++];
+                            decData[offset] = *data_pos;
+                        }
+                        quant_inds_pos++;
                     }
                 }
             }
