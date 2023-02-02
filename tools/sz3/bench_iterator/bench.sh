@@ -18,22 +18,25 @@ $exefolder/bench_iterator_sz2 $data $dim $r1 $r2 $r3
 #$exefolder/bench_iterator_sz3 $data $dim $r1 $r2 $r3
 #$exefolder/bench_iterator_sz3 $data $dim $r1 $r2 $r3
 
-$exefolder/bench_iterator_hybrid1 $data $dim $r1 $r2 $r3
-$exefolder/bench_iterator_hybrid1 $data $dim $r1 $r2 $r3
+#$exefolder/bench_iterator_hybrid1 $data $dim $r1 $r2 $r3
+#$exefolder/bench_iterator_hybrid1 $data $dim $r1 $r2 $r3
+##
+#$exefolder/bench_iterator_hybrid2 $data $dim $r1 $r2 $r3
+#$exefolder/bench_iterator_hybrid2 $data $dim $r1 $r2 $r3
 #
-$exefolder/bench_iterator_hybrid2 $data $dim $r1 $r2 $r3
-$exefolder/bench_iterator_hybrid2 $data $dim $r1 $r2 $r3
-
-$exefolder/bench_iterator_hybrid3 $data $dim $r1 $r2 $r3
-$exefolder/bench_iterator_hybrid3 $data $dim $r1 $r2 $r3
+#$exefolder/bench_iterator_hybrid3 $data $dim $r1 $r2 $r3
+#$exefolder/bench_iterator_hybrid3 $data $dim $r1 $r2 $r3
 
 $exefolder/bench_iterator_hybrid4 $data $dim $r1 $r2 $r3
 $exefolder/bench_iterator_hybrid4 $data $dim $r1 $r2 $r3
 
-$exefolder/bench_iterator_hybrid5 $data $dim $r1 $r2 $r3
-$exefolder/bench_iterator_hybrid5 $data $dim $r1 $r2 $r3
+$exefolder/bench_iterator_lorenzo $data $dim $r1 $r2 $r3
+$exefolder/bench_iterator_lorenzo $data $dim $r1 $r2 $r3
 
-$exefolder/bench_iterator_hybrid6 $data $dim $r1 $r2 $r3
-$exefolder/bench_iterator_hybrid6 $data $dim $r1 $r2 $r3
+#$exefolder/bench_iterator_hybrid5 $data $dim $r1 $r2 $r3
+#$exefolder/bench_iterator_hybrid5 $data $dim $r1 $r2 $r3
+#
+#$exefolder/bench_iterator_hybrid6 $data $dim $r1 $r2 $r3
+#$exefolder/bench_iterator_hybrid6 $data $dim $r1 $r2 $r3
 
 echo ''
