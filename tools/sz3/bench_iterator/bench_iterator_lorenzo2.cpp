@@ -42,16 +42,27 @@ uchar *compress(Config &conf, T *data_, size_t &compressed_size) {
                     for (int k = idx[2]; k < std::min(conf.dims[2], idx[2] + bsize); k++) {
                         size_t offset = i * ds0 + j * ds1 + k;
                         T pred = 0;
-                        if (i == 0 || j == 0 || k == 0) {
-                            pred = d(data, ds0, ds1, i, j, k - 1) + d(data, ds0, ds1, i, j - 1, k) + d(data, ds0, ds1, i - 1, j, k)
-                                   - d(data, ds0, ds1, i, j - 1, k - 1) - d(data, ds0, ds1, i - 1, j, k - 1) - d(data, ds0, ds1, i - 1, j - 1, k)
-                                   + d(data, ds0, ds1, i - 1, j - 1, k - 1);
+                        T *data_pos = &data[offset];
+                        if (i != 0) {
+                            pred += +data_pos[-ds0];
+                            if (j != 0) {
+                                pred += data_pos[-ds1] - data_pos[-ds0 - ds1];
+                                if (k != 0) {
+                                    pred += data_pos[-1] + data_pos[-ds0 - ds1 - 1] - data_pos[-ds1 - 1];;
+                                }
+                            }
+                            if (k != 0) {
+                                pred -= data_pos[-ds0 - 1];
+                            }
                         } else {
-                            T *data_pos = &data[offset];
-                            pred = data_pos[-1] + data_pos[-ds1] + data_pos[-ds0]
-                                   - data_pos[-ds1 - 1] - data_pos[-ds0 - 1]
-                                   - data_pos[-ds0 - ds1] + data_pos[-ds0 - ds1 - 1];
+                            if (j != 0) {
+                                pred += data_pos[-ds1];
+                                if (k != 0) {
+                                    pred += data_pos[-1] - data_pos[-ds1 - 1];;
+                                }
+                            }
                         }
+
                         quant_inds.push_back(quantizer.quantize_and_overwrite_no_this(data[offset], pred, unpred));
 //                        quant_inds.push_back(quantizer.quantize_and_overwrite(datap[offset_], pred));
                         //                        quant_inds_3[offset] = quantize_and_overwrite<T>(data_[offset], 0, unpred, error_bound, error_bound_reciprocal, radius);
@@ -135,15 +146,25 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *da
                     for (size_t k = idx[2]; k < std::min(conf.dims[2], idx[2] + bsize); k++) {
                         size_t offset = i * ds0 + j * ds1 + k;
                         T pred = 0;
-                        if (i == 0 || j == 0 || k == 0) {
-                            pred = d(data, ds0, ds1, i, j, k - 1) + d(data, ds0, ds1, i, j - 1, k) + d(data, ds0, ds1, i - 1, j, k)
-                                   - d(data, ds0, ds1, i, j - 1, k - 1) - d(data, ds0, ds1, i - 1, j, k - 1) - d(data, ds0, ds1, i - 1, j - 1, k)
-                                   + d(data, ds0, ds1, i - 1, j - 1, k - 1);
+                        T *data_pos = &data[offset];
+                        if (i != 0) {
+                            pred += +data_pos[-ds0];
+                            if (j != 0) {
+                                pred += data_pos[-ds1] - data_pos[-ds0 - ds1];
+                                if (k != 0) {
+                                    pred += data_pos[-1] + data_pos[-ds0 - ds1 - 1] - data_pos[-ds1 - 1];;
+                                }
+                            }
+                            if (k != 0) {
+                                pred -= data_pos[-ds0 - 1];
+                            }
                         } else {
-                            T *data_pos = &data[offset];
-                            pred = data_pos[-1] + data_pos[-ds1] + data_pos[-ds0]
-                                   - data_pos[-ds1 - 1] - data_pos[-ds0 - 1]
-                                   - data_pos[-ds0 - ds1] + data_pos[-ds0 - ds1 - 1];
+                            if (j != 0) {
+                                pred += data_pos[-ds1];
+                                if (k != 0) {
+                                    pred += data_pos[-1] - data_pos[-ds1 - 1];;
+                                }
+                            }
                         }
                         if (*quant_inds_pos) {
                             data[offset] = quantizer.recover_pred(pred, *quant_inds_pos);
