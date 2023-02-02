@@ -149,15 +149,20 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *de
 //                        *data_pos = quantizer.recover(pred, *(quant_inds_pos++));
                         if (*quant_inds_pos) {
                             *data_pos = quantizer.recover_pred(pred, *quant_inds_pos);
-                            decData[offset] = *data_pos;
+//                            decData[offset] = *data_pos;
                         } else {
                             *data_pos = unpred[unpred_index++];
-                            decData[offset] = *data_pos;
+//                            decData[offset] = *data_pos;
                         }
                         quant_inds_pos++;
                     }
                 }
             }
+        }
+    }
+    for (size_t i = 0; i < conf.dims[0]; i++) {
+        for (size_t j = 0; j < conf.dims[1]; j++) {
+            memcpy(&decData[i * ds0 + j * ds1], &data_[(i + padding) * ds0_ + (j + padding) * ds1_ + padding], ds1 * sizeof(T));
         }
     }
 }
