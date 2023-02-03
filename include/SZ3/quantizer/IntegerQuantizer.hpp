@@ -218,11 +218,11 @@ namespace SZ {
         }
 
 
-        T recover_pred(T pred, int quant_index) {
+        inline T recover_pred(T pred, int quant_index) {
             return pred + 2 * (quant_index - this->radius) * this->error_bound;
         }
 
-        T recover_unpred() {
+        inline T recover_unpred() {
             return unpred[index++];
         }
 
