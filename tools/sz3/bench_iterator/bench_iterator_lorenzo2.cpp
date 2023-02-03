@@ -147,12 +147,10 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *de
                         *data_pos = quantizer.recover(pred, *(quant_inds_pos++));
 //                        if (*quant_inds_pos) {
 //                            *data_pos = quantizer.recover_pred(pred, *quant_inds_pos);
-////                            decData[offset] = *data_pos;
 //                        } else {
 //                            *data_pos = unpred[unpred_index++];
-////                            decData[offset] = *data_pos;
 //                        }
-                        quant_inds_pos++;
+//                        quant_inds_pos++;
                     }
                 }
             }
