@@ -15,6 +15,7 @@ uchar *compress(Config &conf, T *data, size_t &compressed_size) {
     std::vector<int> quant_inds;
     quant_inds.reserve(conf.num);
     LinearQuantizer<T> quantizer(conf.absErrorBound);
+    quantizer.unpred.reserve(conf.num);
 
     int padding = 2;
 
