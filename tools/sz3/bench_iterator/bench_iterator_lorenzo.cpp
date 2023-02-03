@@ -12,8 +12,6 @@ uchar *compress(Config &conf, T *data, size_t &compressed_size) {
     std::vector<T> unpred;
     unpred.reserve(conf.num);
 
-    Timer timer(true);
-
     std::vector<int> quant_inds;
     quant_inds.reserve(conf.num);
     LinearQuantizer<T> quantizer(conf.absErrorBound);
@@ -59,7 +57,6 @@ uchar *compress(Config &conf, T *data, size_t &compressed_size) {
             }
         }
     }
-    timer.stop("frondend compress");
 
     HuffmanEncoder<int> encoder;
     encoder.preprocess_encode(quant_inds, 0);
@@ -118,8 +115,6 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *de
 
     lossless.postdecompress_data(compressed_data);
 
-    Timer timer(true);
-
     int padding = 2;
     size_t ds0_ = (conf.dims[2] + padding) * (conf.dims[1] + padding);
     size_t ds1_ = (conf.dims[2] + padding);
@@ -168,7 +163,6 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *de
             memcpy(&decData[i * ds0 + j * ds1], &data_[(i + padding) * ds0_ + (j + padding) * ds1_ + padding], ds1 * sizeof(T));
         }
     }
-    timer.stop("frontend decompress");
 }
 
 template<class T, uint N>
