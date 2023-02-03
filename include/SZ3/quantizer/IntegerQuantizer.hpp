@@ -209,7 +209,7 @@ namespace SZ {
         }
 
         // recover the data using the quantization index
-        T recover(T pred, int quant_index) {
+        inline __attribute__((always_inline)) T recover(T pred, int quant_index) {
             if (quant_index) {
                 return recover_pred(pred, quant_index);
             } else {

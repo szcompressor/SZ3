@@ -50,8 +50,8 @@ uchar *compress(Config &conf, T *data, size_t &compressed_size) {
                         T pred = data_pos[-1] + data_pos[-ds1_] + data_pos[-ds0_]
                                  - data_pos[-ds1_ - 1] - data_pos[-ds0_ - 1]
                                  - data_pos[-ds0_ - ds1_] + data_pos[-ds0_ - ds1_ - 1];
-//                        quant_inds.push_back(quantizer.quantize_and_overwrite_no_this(datap[offset_], pred, unpred));
-                        quant_inds.push_back(quantizer.quantize_and_overwrite(datap[offset_], pred));
+                        quant_inds.push_back(quantizer.quantize_and_overwrite_no_this(datap[offset_], pred, quantizer.unpred));
+//                        quant_inds.push_back(quantizer.quantize_and_overwrite(datap[offset_], pred));
                         //                        quant_inds_3[offset] = quantize_and_overwrite<T>(data_[offset], 0, unpred, error_bound, error_bound_reciprocal, radius);
                     }
                 }
