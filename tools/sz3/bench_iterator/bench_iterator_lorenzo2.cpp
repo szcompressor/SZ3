@@ -36,11 +36,11 @@ uchar *compress(Config &conf, T *data, size_t &compressed_size) {
             for (int i = idx[0] - padding; i < std::min(conf.dims[0], idx[0] + bsize); i++) {
                 for (int j = idx[1] - padding; j < std::min(conf.dims[1], idx[1] + bsize); j++) {
                     for (int k = idx[2] - padding; k < std::min(conf.dims[2], idx[2] + bsize); k++) {
-                        size_t offset_ = (i - idx[0]) * ds0_ + (j - idx[1]) * ds1_ + k - idx[2];
+                        size_t offset_ = (i - idx[0] + padding) * ds0_ + (j - idx[1] + padding) * ds1_ + (k - idx[2] + padding);
                         if (i < 0 || j < 0 || k < 0) {
-                            buffp[offset_] = 0;
+                            buffer1[offset_] = 0;
                         } else {
-                            buffp[offset_] = data[i * ds0 + j * ds1 + k];
+                            buffer1[offset_] = data[i * ds0 + j * ds1 + k];
                         }
                     }
                 }
@@ -54,8 +54,6 @@ uchar *compress(Config &conf, T *data, size_t &compressed_size) {
                                  - data_pos[-ds1_ - 1] - data_pos[-ds0_ - 1]
                                  - data_pos[-ds0_ - ds1_] + data_pos[-ds0_ - ds1_ - 1];
                         quant_inds.push_back(quantizer.quantize_and_overwrite_no_this(buffp[offset_], pred, unpred));
-//                        quant_inds.push_back(quantizer.quantize_and_overwrite(datap[offset_], pred));
-                        //                        quant_inds_3[offset] = quantize_and_overwrite<T>(data_[offset], 0, unpred, error_bound, error_bound_reciprocal, radius);
                     }
                 }
             }
