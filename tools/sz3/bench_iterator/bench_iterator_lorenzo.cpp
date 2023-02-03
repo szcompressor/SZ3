@@ -5,7 +5,12 @@
 #include "SZ3/api/sz.hpp"
 
 using namespace SZ;
-
+/*
+ * global padding
+ * inline quantization
+ * pros: fast
+ * cons: need to provide two Compressor interface, one with padding and one without padding
+ */
 
 template<class T, uint N>
 uchar *compress(Config &conf, T *data, size_t &compressed_size) {

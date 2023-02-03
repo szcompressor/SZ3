@@ -37,10 +37,11 @@ echo $data $dim $r1 $r2 $r3
 #$exefolder/bench_iterator_hybrid6 $data $dim $r1 $r2 $r3
 #$exefolder/bench_iterator_hybrid6 $data $dim $r1 $r2 $r3
 
-echo "============Hybrid1=========="
+
+echo "============Lorenzo1=========="
 $exefolder/bench_iterator_lorenzo $data $dim $r1 $r2 $r3
 
-#echo "============Hybrid2=========="
+#echo "============Lorenzo2=========="
 #$exefolder/bench_iterator_lorenzo2 $data $dim $r1 $r2 $r3
 
 

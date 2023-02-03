@@ -4,6 +4,12 @@
 
 #include "SZ3/api/sz.hpp"
 
+/*
+ * no padding
+ * inline quantization
+ * slower than global or local padding
+ */
+
 using namespace SZ;
 
 template<class T>

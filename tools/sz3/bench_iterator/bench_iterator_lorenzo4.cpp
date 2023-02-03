@@ -6,6 +6,10 @@
 
 using namespace SZ;
 
+/*
+ * global padding
+ * not inline quantization
+ */
 
 template<class T, uint N>
 uchar *compress(Config &conf, T *data, size_t &compressed_size) {

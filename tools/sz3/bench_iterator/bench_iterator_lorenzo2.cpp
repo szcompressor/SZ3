@@ -6,6 +6,12 @@
 
 using namespace SZ;
 
+/*
+ * local padding
+ * benefit: no need to deal with global stride if the predictor does not do cross-block reference (such as regression)
+ * inline quantization
+ * slower than global padding
+ */
 
 template<class T, uint N>
 uchar *compress(Config &conf, T *data_, size_t &compressed_size) {
