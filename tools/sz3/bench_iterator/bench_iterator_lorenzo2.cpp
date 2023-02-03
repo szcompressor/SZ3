@@ -18,8 +18,10 @@ inline __attribute__((always_inline)) T d(T *data, size_t ds0, size_t ds1, int i
 template<class T, uint N>
 uchar *compress(Config &conf, T *data_, size_t &compressed_size) {
 
-    std::vector<T> data1(data_, data_ + conf.num);
-    T *data = data1.data();
+    std::vector<T> unpred;
+    unpred.reserve(conf.num);
+
+    Timer timer(true);
     std::vector<int> quant_inds;
     quant_inds.reserve(conf.num);
     LinearQuantizer<T> quantizer(conf.absErrorBound);
@@ -27,9 +29,10 @@ uchar *compress(Config &conf, T *data_, size_t &compressed_size) {
     size_t ds0 = conf.dims[2] * conf.dims[1];
     size_t ds1 = conf.dims[2];
 
-    std::vector<T> unpred;
-    unpred.reserve(conf.num);
     size_t bsize = 6;
+    std::vector<T> data1(data_, data_ + conf.num);
+    T *data = data1.data();
+
     auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(data, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
     for (auto block = blocks->begin(); block != blocks->end(); ++block) {
         {
@@ -38,9 +41,32 @@ uchar *compress(Config &conf, T *data_, size_t &compressed_size) {
                 for (int j = idx[1]; j < std::min(conf.dims[1], idx[1] + bsize); j++) {
                     for (int k = idx[2]; k < std::min(conf.dims[2], idx[2] + bsize); k++) {
                         size_t offset = i * ds0 + j * ds1 + k;
-                        T pred = d(data, ds0, ds1, i, j, k - 1) + d(data, ds0, ds1, i, j - 1, k) + d(data, ds0, ds1, i - 1, j, k)
-                                 - d(data, ds0, ds1, i, j - 1, k - 1) - d(data, ds0, ds1, i - 1, j, k - 1) - d(data, ds0, ds1, i - 1, j - 1, k)
-                                 + d(data, ds0, ds1, i - 1, j - 1, k - 1);
+                        T *data_pos = &data[offset];
+                        bool ii = (i != 0);
+                        bool jj = (j != 0);
+                        bool kk = (k != 0);
+                        T pred = 0;
+                        if (ii) {
+                            pred += data_pos[-ds0];
+                        }
+                        if (jj) {
+                            pred += data_pos[-ds1];
+                        }
+                        if (kk) {
+                            pred += data_pos[-1];
+                        }
+                        if (ii && jj) {
+                            pred -= data_pos[-ds0 - ds1];
+                        }
+                        if (jj && kk) {
+                            pred -= data_pos[-ds1 - 1];
+                        }
+                        if (ii && kk) {
+                            pred -= data_pos[-ds0 - 1];
+                        }
+                        if (ii && jj && kk) {
+                            pred += data_pos[-ds0 - ds1 - 1];
+                        }
                         quant_inds.push_back(quantizer.quantize_and_overwrite_no_this(data[offset], pred, unpred));
 //                        quant_inds.push_back(quantizer.quantize_and_overwrite(datap[offset_], pred));
                         //                        quant_inds_3[offset] = quantize_and_overwrite<T>(data_[offset], 0, unpred, error_bound, error_bound_reciprocal, radius);
@@ -49,6 +75,7 @@ uchar *compress(Config &conf, T *data_, size_t &compressed_size) {
             }
         }
     }
+    timer.stop("frondend compress");
 
     HuffmanEncoder<int> encoder;
     encoder.preprocess_encode(quant_inds, 0);
@@ -112,6 +139,7 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *da
 
     int *quant_inds_pos = &quant_inds[0];
 
+    Timer timer(true);
     size_t bsize = 6;
     auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(data, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
     for (auto block = blocks->begin(); block != blocks->end(); ++block) {
@@ -121,9 +149,32 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *da
                 for (size_t j = idx[1]; j < std::min(conf.dims[1], idx[1] + bsize); j++) {
                     for (size_t k = idx[2]; k < std::min(conf.dims[2], idx[2] + bsize); k++) {
                         size_t offset = i * ds0 + j * ds1 + k;
-                        T  pred = d(data, ds0, ds1, i, j, k - 1) + d(data, ds0, ds1, i, j - 1, k) + d(data, ds0, ds1, i - 1, j, k)
-                                   - d(data, ds0, ds1, i, j - 1, k - 1) - d(data, ds0, ds1, i - 1, j, k - 1) - d(data, ds0, ds1, i - 1, j - 1, k)
-                                   + d(data, ds0, ds1, i - 1, j - 1, k - 1);
+                        T *data_pos = &data[offset];
+                        bool ii = (i != 0);
+                        bool jj = (j != 0);
+                        bool kk = (k != 0);
+                        T pred = 0;
+                        if (ii) {
+                            pred += data_pos[-ds0];
+                        }
+                        if (jj) {
+                            pred += data_pos[-ds1];
+                        }
+                        if (kk) {
+                            pred += data_pos[-1];
+                        }
+                        if (ii && jj) {
+                            pred -= data_pos[-ds0 - ds1];
+                        }
+                        if (jj && kk) {
+                            pred -= data_pos[-ds1 - 1];
+                        }
+                        if (ii && kk) {
+                            pred -= data_pos[-ds0 - 1];
+                        }
+                        if (ii && jj && kk) {
+                            pred += data_pos[-ds0 - ds1 - 1];
+                        }
                         if (*quant_inds_pos) {
                             data[offset] = quantizer.recover_pred(pred, *quant_inds_pos);
                         } else {
@@ -135,6 +186,7 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *da
             }
         }
     }
+    timer.stop("frondend decompress");
 }
 
 template<class T, uint N>
