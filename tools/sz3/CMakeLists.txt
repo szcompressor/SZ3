@@ -15,7 +15,7 @@ foreach (SRCFILE IN LISTS bench_files)
     message(STATUS "Target = ${EXE}")
     add_executable(${EXE} bench_iterator/${EXE}.cpp)
     target_link_libraries(${EXE} PRIVATE SZ3)
-    target_compile_options(${EXE} PRIVATE -Winline)
+#    target_compile_options(${EXE} PRIVATE -Winline)
     install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${EXE}$<TARGET_FILE_SUFFIX:${EXE}> TYPE BIN)
 
 endforeach ()
