@@ -44,6 +44,8 @@ $exefolder/bench_iterator_lorenzo $data $dim $r1 $r2 $r3
 echo "============Lorenzo4=========="
 $exefolder/bench_iterator_lorenzo4 $data $dim $r1 $r2 $r3
 
+echo "============Lorenzo5=========="
+$exefolder/bench_iterator_lorenzo5 $data $dim $r1 $r2 $r3
 
 echo "===========SZ2=============="
 sz -z -f -i $data -$dim $r3 $r2 $r1 -M ABS -A 1e-2 -c ~/code/sz2/example/sz.config
