@@ -40,11 +40,14 @@ echo $data $dim $r1 $r2 $r3
 
 echo "============Lorenzo1=========="
 $exefolder/bench_iterator_lorenzo $data $dim $r1 $r2 $r3
+$exefolder/bench_iterator_lorenzo $data $dim $r1 $r2 $r3
 
 echo "============Lorenzo4=========="
 $exefolder/bench_iterator_lorenzo4 $data $dim $r1 $r2 $r3
+$exefolder/bench_iterator_lorenzo4 $data $dim $r1 $r2 $r3
 
 echo "============Lorenzo5=========="
+$exefolder/bench_iterator_lorenzo5 $data $dim $r1 $r2 $r3
 $exefolder/bench_iterator_lorenzo5 $data $dim $r1 $r2 $r3
 #
 #echo "===========SZ2=============="
