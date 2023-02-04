@@ -41,8 +41,8 @@ echo $data $dim $r1 $r2 $r3
 echo "============Lorenzo1=========="
 $exefolder/bench_iterator_lorenzo $data $dim $r1 $r2 $r3
 
-#echo "============Lorenzo2=========="
-#$exefolder/bench_iterator_lorenzo2 $data $dim $r1 $r2 $r3
+echo "============Lorenzo4=========="
+$exefolder/bench_iterator_lorenzo4 $data $dim $r1 $r2 $r3
 
 
 echo "===========SZ2=============="
