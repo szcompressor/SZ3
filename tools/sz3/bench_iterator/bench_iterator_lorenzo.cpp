@@ -18,7 +18,6 @@ uchar *compress(Config &conf, T *data, size_t &compressed_size) {
     LinearQuantizer<T> quantizer(conf.absErrorBound);
 
     int padding = 2;
-
     size_t ds0_ = (conf.dims[2] + padding) * (conf.dims[1] + padding);
     size_t ds1_ = (conf.dims[2] + padding);
     size_t ds0 = conf.dims[2] * conf.dims[1];
