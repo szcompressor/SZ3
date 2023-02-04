@@ -9,7 +9,6 @@ using namespace SZ;
 /*
  * local padding
  * benefit: no need to deal with global stride if the predictor does not do cross-block reference (such as regression)
- * inline quantization
  * slower than global padding
  */
 
@@ -63,7 +62,7 @@ uchar *compress(Config &conf, T *data_, size_t &compressed_size) {
                         T pred = data_pos[-1] + data_pos[-ds1_] + data_pos[-ds0_]
                                  - data_pos[-ds1_ - 1] - data_pos[-ds0_ - 1]
                                  - data_pos[-ds0_ - ds1_] + data_pos[-ds0_ - ds1_ - 1];
-                        quant_inds.push_back(quantizer.quantize_and_overwrite_no_this(buffp[offset_], pred, unpred));
+                        quant_inds.push_back(quantizer.quantize_and_overwrite(buffp[offset_], pred));
                         data[offset] = buffp[offset_];
                     }
                 }

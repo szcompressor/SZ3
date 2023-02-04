@@ -6,7 +6,6 @@
 
 /*
  * no padding
- * inline quantization
  * slower than global or local padding
  */
 
@@ -73,7 +72,7 @@ uchar *compress(Config &conf, T *data_, size_t &compressed_size) {
                         if (ii && jj && kk) {
                             pred += data_pos[-ds0 - ds1 - 1];
                         }
-                        quant_inds.push_back(quantizer.quantize_and_overwrite_no_this(data[offset], pred, unpred));
+                        quant_inds.push_back(quantizer.quantize_and_overwrite(data[offset], pred));
 //                        quant_inds.push_back(quantizer.quantize_and_overwrite(datap[offset_], pred));
                         //                        quant_inds_3[offset] = quantize_and_overwrite<T>(data_[offset], 0, unpred, error_bound, error_bound_reciprocal, radius);
                     }
