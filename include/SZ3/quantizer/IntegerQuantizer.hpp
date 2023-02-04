@@ -31,7 +31,7 @@ namespace SZ {
         }
 
         // quantize the data with a prediction value, and returns the quantization index
-        inline int quantize(T data, T pred) {
+        inline int quantize(T data, T pred) __attribute__((always_inline)) {
             T diff = data - pred;
             int quant_index = (int) (fabs(diff) * this->error_bound_reciprocal) + 1;
             if (quant_index < this->radius * 2) {
@@ -58,7 +58,7 @@ namespace SZ {
 
         // quantize the data with a prediction value, and returns the quantization index and the decompressed data
         // int quantize(T data, T pred, T& dec_data);
-        inline __attribute__((always_inline)) int quantize_and_overwrite(T &data, T pred) {
+        inline int quantize_and_overwrite(T &data, T pred) __attribute__((always_inline)) {
             T diff = data - pred;
             int quant_index = (int) (fabs(diff) * this->error_bound_reciprocal) + 1;
             if (quant_index < this->radius * 2) {
@@ -88,7 +88,7 @@ namespace SZ {
 
         // quantize the data with a prediction value, and returns the quantization index and the decompressed data
         // int quantize(T data, T pred, T& dec_data);
-        inline __attribute__((always_inline)) int quantize_and_overwrite_no_this(T &data, T pred, std::vector<T> &unpred_) {
+        inline int quantize_and_overwrite_no_this(T &data, T pred, std::vector<T> &unpred_) __attribute__((always_inline)) {
             T diff = data - pred;
             int quant_index = (int) (fabs(diff) * this->error_bound_reciprocal) + 1;
             if (quant_index < this->radius * 2) {
@@ -150,7 +150,8 @@ namespace SZ {
         // quantize the data with a prediction value, and returns the quantization index and the decompressed data
         // int quantize(T data, T pred, T& dec_data);
         static inline __attribute__((always_inline)) int
-        quantize_and_overwrite_no_this2_static(T &data, T pred, std::vector<T> &unpred_, double error_bound_, double error_bound_reciprocal, int radius_) {
+        quantize_and_overwrite_no_this2_static(T &data, T pred, std::vector<T> &unpred_, double error_bound_, double error_bound_reciprocal,
+                                               int radius_) {
             T diff = data - pred;
             int quant_index = (int) (fabs(diff) * error_bound_reciprocal) + 1;
             if (quant_index < radius_ * 2) {
@@ -209,7 +210,7 @@ namespace SZ {
         }
 
         // recover the data using the quantization index
-        inline __attribute__((always_inline)) T recover(T pred, int quant_index) {
+        inline T recover(T pred, int quant_index) __attribute__((always_inline)) {
             if (quant_index) {
                 return recover_pred(pred, quant_index);
             } else {
@@ -218,11 +219,11 @@ namespace SZ {
         }
 
 
-        inline T recover_pred(T pred, int quant_index) {
+        inline T recover_pred(T pred, int quant_index) __attribute__((always_inline)) {
             return pred + 2 * (quant_index - this->radius) * this->error_bound;
         }
 
-        inline T recover_unpred() {
+        inline T recover_unpred() __attribute__((always_inline)) {
             return unpred[index++];
         }
 
