@@ -28,11 +28,6 @@ echo $data $dim $r1 $r2 $r3
 #$exefolder/bench_iterator_hybrid3 $data $dim $r1 $r2 $r3
 #$exefolder/bench_iterator_hybrid3 $data $dim $r1 $r2 $r3
 
-#$exefolder/bench_iterator_hybrid4 $data $dim $r1 $r2 $r3
-#$exefolder/bench_iterator_hybrid4 $data $dim $r1 $r2 $r3
-
-
-
 echo "============Lorenzo1=========="
 $exefolder/bench_iterator_lorenzo $data $dim $r1 $r2 $r3
 
