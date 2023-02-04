@@ -1,5 +1,5 @@
-file(GLOB cpu_source_files "${CMAKE_SOURCE_DIR}/tools/sz3/*.cpp")
-file(GLOB bench_files "${CMAKE_SOURCE_DIR}/tools/sz3/bench_iterator/*.cpp")
+#file(GLOB cpu_source_files "${CMAKE_SOURCE_DIR}/tools/sz3/*.cpp")
+file(GLOB bench_files "${CMAKE_SOURCE_DIR}/tools/sz3/bench_iterator/bench_iterator_lorenzo4.cpp")
 
 foreach (SRCFILE IN LISTS cpu_source_files)
     get_filename_component(EXE ${SRCFILE} NAME_WLE)
