@@ -17,6 +17,7 @@ uchar *compress(Config &conf, T *data, size_t &compressed_size) {
     quant_inds.reserve(conf.num);
     LinearQuantizer<T> quantizer(conf.absErrorBound);
 
+    //====================== create a copy of the input data with padding ==================
     int padding = 2;
     size_t ds0_ = (conf.dims[2] + padding) * (conf.dims[1] + padding);
     size_t ds1_ = (conf.dims[2] + padding);
@@ -36,10 +37,14 @@ uchar *compress(Config &conf, T *data, size_t &compressed_size) {
 
     T *datap = &data_[padding * ds0_ + padding * ds1_ + padding];
 
+    //=====================================================================================
+
     size_t bsize = 6;
     auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(datap, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
     for (auto block = blocks->begin(); block != blocks->end(); ++block) {
         {
+            // ================================================================
+            //          This part will be in the Lorenzo predictor
             auto idx = block.get_global_index();
             for (size_t i = idx[0]; i < std::min(conf.dims[0], idx[0] + bsize); i++) {
                 for (size_t j = idx[1]; j < std::min(conf.dims[1], idx[1] + bsize); j++) {
@@ -53,6 +58,7 @@ uchar *compress(Config &conf, T *data, size_t &compressed_size) {
                     }
                 }
             }
+            // ================================================================
         }
     }
 
@@ -88,15 +94,14 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *de
 
     quantizer.load(compressed_data_pos, remaining_length);
 
-
     HuffmanEncoder<int> encoder;
     encoder.load(compressed_data_pos, remaining_length);
-
     auto quant_inds = encoder.decode(compressed_data_pos, conf.num);
     encoder.postprocess_decode();
 
     lossless.postdecompress_data(compressed_data);
 
+    //====================== create a copy of the input data with padding ==================
     int padding = 2;
     size_t ds0_ = (conf.dims[2] + padding) * (conf.dims[1] + padding);
     size_t ds1_ = (conf.dims[2] + padding);
@@ -111,11 +116,14 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *de
     std::vector<T> data_(num_);
     T *datap = &data_[padding * ds0_ + padding * ds1_ + padding];
     int *quant_inds_pos = &quant_inds[0];
+    //=======================================================================================
 
     size_t bsize = 6;
     auto blocks = std::make_shared<SZ::multi_dimensional_range<T, N>>(datap, std::begin(conf.dims), std::end(conf.dims), bsize, 0);
     for (auto block = blocks->begin(); block != blocks->end(); ++block) {
         {
+            // ================================================================
+            //          This part will be in the Lorenzo predictor
             auto idx = block.get_global_index();
             for (size_t i = idx[0]; i < std::min(conf.dims[0], idx[0] + bsize); i++) {
                 for (size_t j = idx[1]; j < std::min(conf.dims[1], idx[1] + bsize); j++) {
@@ -129,8 +137,10 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *de
                     }
                 }
             }
+            // ================================================================
         }
     }
+
     for (size_t i = 0; i < conf.dims[0]; i++) {
         for (size_t j = 0; j < conf.dims[1]; j++) {
             memcpy(&decData[i * ds0 + j * ds1], &data_[(i + padding) * ds0_ + (j + padding) * ds1_ + padding], ds1 * sizeof(T));
