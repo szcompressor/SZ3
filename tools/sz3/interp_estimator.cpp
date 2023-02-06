@@ -80,7 +80,7 @@ public:
         }
 
         {
-            // the sampling process is done only on first level, because first level cover 87.5% of data points for 3D (and 75% for 2D).
+            // the sampling process is done only on the last level, because it covers 87.5% of data points for 3D (and 75% for 2D).
             // sample_stride controls the distance of the data points covered in the sampling process.
             // original data points are used during sampling, to simulate the error impact/to make them as decompressed data,
             // errors are randomly select from cmpr_err and added for interpolation calculation.
