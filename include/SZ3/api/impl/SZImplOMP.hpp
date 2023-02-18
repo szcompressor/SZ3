@@ -5,8 +5,9 @@
 #include <cmath>
 #include <memory>
 
-
-#include "omp.h"
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 template<class T, SZ::uint N>
 char *SZ_compress_OMP(SZ::Config &conf, const T *data, size_t &outSize) {
