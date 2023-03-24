@@ -175,6 +175,10 @@ namespace SZ {
             printf("CmprAlgo = %s\n", enum2Str((ALGO) cmprAlgo));
         }
 
+        static size_t size_est() {
+            return sizeof(size_t) * 5 + sizeof(double) * 4 + sizeof(bool) * 5 + sizeof(uint8_t) * 6 + sizeof(int) * 5 + 50; //50 is for redundancy
+        }
+
         char N;
         std::vector<size_t> dims;
         size_t num;
