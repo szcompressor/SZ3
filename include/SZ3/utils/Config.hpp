@@ -8,6 +8,7 @@
 #include <iostream>
 #include <vector>
 #include <numeric>
+#include <cstdint>
 #include "SZ3/def.hpp"
 #include "MemoryUtil.hpp"
 #include "SZ3/utils/inih/INIReader.h"
