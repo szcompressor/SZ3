@@ -55,6 +55,7 @@ namespace SZ {
         /**Begin**/
         multi_dimensional_data(T *data_,
                                const std::vector<size_t> &dims_,
+                               bool copy_data_in_ = true,
                                size_t padding_ = 0
         ) : padding(padding_) {
             if (dims_.size() != N) {
@@ -64,15 +65,22 @@ namespace SZ {
             cal_dim_strides();
 
             if (padding > 0) {
-                padding_buffer.resize(num_padding);
-                size_t offset = std::accumulate(ds_padding.begin(), ds_padding.end(), (size_t)(0));
-                data = &padding_buffer[padding * offset];
-                if (data_ != nullptr) {
+                internal_buffer.resize(num_padding);
+                size_t offset = std::accumulate(ds_padding.begin(), ds_padding.end(), (size_t) (0));
+                data = &internal_buffer[padding * offset];
+                if (copy_data_in_) {
                     copy_data_in(data_);
                 }
             } else {
-                data = data_;
+                if (copy_data_in_) {
+                    internal_buffer.resize(num);
+                    data = internal_buffer.data();
+                    copy_data_in(data_);
+                } else {
+                    data = data_;
+                }
             }
+
         }
 
         std::shared_ptr<block_iterator> block_iter(size_t block_size) {
@@ -110,16 +118,20 @@ namespace SZ {
         }
 
         void copy_data_in(T *input) {
+            if (padding == 0) {
+                std::copy(input, input + num, internal_buffer.begin());
+                return;
+            }
             if (N == 1) {
-                memcpy(&padding_buffer[padding], &input[0], dims[0] * sizeof(T));
+                memcpy(&internal_buffer[padding], &input[0], dims[0] * sizeof(T));
             } else if (N == 2) {
                 for (size_t i = 0; i < dims[0]; i++) {
-                    memcpy(&padding_buffer[(i + padding) * ds_padding[0] + padding], &input[i * ds[0]], dims[1] * sizeof(T));
+                    memcpy(&internal_buffer[(i + padding) * ds_padding[0] + padding], &input[i * ds[0]], dims[1] * sizeof(T));
                 }
             } else if (N == 3) {
                 for (size_t i = 0; i < dims[0]; i++) {
                     for (size_t j = 0; j < dims[1]; j++) {
-                        memcpy(&padding_buffer[(i + padding) * ds_padding[0] + (j + padding) * ds_padding[1] + padding],
+                        memcpy(&internal_buffer[(i + padding) * ds_padding[0] + (j + padding) * ds_padding[1] + padding],
                                &input[i * ds[0] + j * ds[1]], dims[2] * sizeof(T));
                     }
                 }
@@ -127,8 +139,8 @@ namespace SZ {
                 for (size_t i = 0; i < dims[0]; i++) {
                     for (size_t j = 0; j < dims[1]; j++) {
                         for (size_t k = 0; j < dims[2]; k++) {
-                            memcpy(&padding_buffer[(i + padding) * ds_padding[0] + (j + padding) * ds_padding[1] + (k + padding) * ds_padding[2] +
-                                                   padding],
+                            memcpy(&internal_buffer[(i + padding) * ds_padding[0] + (j + padding) * ds_padding[1] + (k + padding) * ds_padding[2] +
+                                                    padding],
                                    &input[i * ds[0] + j * ds[1] + k * ds[2]], dims[3] * sizeof(T));
                         }
                     }
@@ -168,7 +180,7 @@ namespace SZ {
     private:
         std::array<size_t, N> dims;            // dimension
         std::array<size_t, N> ds, ds_padding; // stride
-        std::vector<T> padding_buffer;
+        std::vector<T> internal_buffer;
         T *data;                                  // data pointer
         size_t padding;
         size_t num, num_padding;

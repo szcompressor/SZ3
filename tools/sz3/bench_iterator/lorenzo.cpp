@@ -22,7 +22,7 @@ uchar *compress(Config &conf, T *data, size_t &compressed_size) {
 
     size_t bsize = 6;
     size_t padding = 2;
-    auto mddata = std::make_shared<SZ::multi_dimensional_data<T, N>>(data, conf.dims, padding);
+    auto mddata = std::make_shared<SZ::multi_dimensional_data<T, N>>(data, conf.dims, true, padding);
     auto block = mddata->block_iter(bsize);
     do {
         auto range = block->get_block_range();
@@ -87,7 +87,7 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *de
 
     size_t bsize = 6;
     size_t padding = 2;
-    auto mddata = std::make_shared<SZ::multi_dimensional_data<T, N>>(nullptr, conf.dims, padding);
+    auto mddata = std::make_shared<SZ::multi_dimensional_data<T, N>>(decData, conf.dims, false, padding);
     auto block = mddata->block_iter(bsize);
     do {
         auto range = block->get_block_range();

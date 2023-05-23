@@ -193,8 +193,7 @@ public:
 
         int *quant_inds_pos = &quant_inds[0];
 
-        size_t padding = 2;
-        auto mddata = std::make_shared<SZ::multi_dimensional_data<T, N>>(nullptr, conf.dims, padding);
+        auto mddata = std::make_shared<SZ::multi_dimensional_data<T, N>>(decData, conf.dims, false);
         auto block = mddata->block_iter(conf.blockSize);
         do {
             auto range = block->get_block_range();
@@ -214,7 +213,6 @@ public:
             }
         } while (block->next());
 
-        mddata->copy_data_out(decData);
     }
 };
 
