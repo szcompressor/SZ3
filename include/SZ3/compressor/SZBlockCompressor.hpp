@@ -1,5 +1,5 @@
-#ifndef SZ_GENERAL_COMPRESSOR_HPP
-#define SZ_GENERAL_COMPRESSOR_HPP
+#ifndef SZ_BLOCK_COMPRESSOR_HPP
+#define SZ_BLOCK_COMPRESSOR_HPP
 
 #include "SZ3/predictor/Predictor.hpp"
 #include "SZ3/compressor/Compressor.hpp"
@@ -13,11 +13,11 @@
 
 namespace SZ {
     template<class T, uint N, class Predictor, class Encoder, class Lossless>
-    class SZGeneralCompressor : public concepts::CompressorInterface<T> {
+    class SZBlockCompressor : public concepts::CompressorInterface<T> {
     public:
 
 
-        SZGeneralCompressor(const Config &conf, Predictor predictor, Encoder encoder, Lossless lossless) :
+        SZBlockCompressor(const Config &conf, Predictor predictor, Encoder encoder, Lossless lossless) :
                 predictor(predictor), encoder(encoder), lossless(lossless),
                 block_size(conf.blockSize), num(conf.num), dims(conf.dims) {
             static_assert(std::is_base_of<concepts::PredictorInterface<T, N>, Predictor>::value,
@@ -108,9 +108,9 @@ namespace SZ {
     };
 
     template<class T, uint N, class Predictor, class Encoder, class Lossless>
-    std::shared_ptr<SZGeneralCompressor<T, N, Predictor, Encoder, Lossless>>
-    make_sz_general_compressor(const Config &conf, Predictor predictor, Encoder encoder, Lossless lossless) {
-        return std::make_shared<SZGeneralCompressor<T, N, Predictor, Encoder, Lossless>>(conf, predictor, encoder, lossless);
+    std::shared_ptr<SZBlockCompressor<T, N, Predictor, Encoder, Lossless>>
+    make_sz_block_compressor(const Config &conf, Predictor predictor, Encoder encoder, Lossless lossless) {
+        return std::make_shared<SZBlockCompressor<T, N, Predictor, Encoder, Lossless>>(conf, predictor, encoder, lossless);
     }
 
 
