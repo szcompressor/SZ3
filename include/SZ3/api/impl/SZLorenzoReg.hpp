@@ -8,7 +8,6 @@
 //#include "SZ3/predictor/ComposedPredictor.hpp"
 #include "SZ3/predictor/RegressionPredictor.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
-#include "SZ3/utils/Iterator.hpp"
 #include "SZ3/utils/Statistic.hpp"
 #include "SZ3/utils/Extraction.hpp"
 #include "SZ3/utils/QuantOptimizatioin.hpp"
@@ -26,8 +25,7 @@ make_lorenzo_regression_compressor(const SZ::Config &conf, Quantizer quantizer, 
     int methodCnt = (conf.lorenzo + conf.lorenzo2 + conf.regression);
     int use_single_predictor = (methodCnt == 1);
     if (methodCnt == 0) {
-        printf("All lorenzo and regression methods are disabled.\n");
-        exit(0);
+        throw std::invalid_argument("All lorenzo and regression methods are disabled");
     }
 
     if (conf.lorenzo) {
@@ -38,14 +36,14 @@ make_lorenzo_regression_compressor(const SZ::Config &conf, Quantizer quantizer, 
             predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 1, Quantizer>>(quantizer, conf.absErrorBound));
         }
     }
-//    if (conf.lorenzo2) {
-//        if (use_single_predictor) {
-//            return SZ::make_sz_general_compressor<T, N>(conf, SZ::LorenzoPredictor<T, N, 2>(conf.absErrorBound),
-//                                                        quantizer, encoder, lossless);
-//        } else {
-//            predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 2>>(conf.absErrorBound));
-//        }
-//    }
+    if (conf.lorenzo) {
+        if (use_single_predictor) {
+            return SZ::make_sz_general_compressor<T, N>(conf, SZ::LorenzoPredictor<T, N, 2, Quantizer>(quantizer, conf.absErrorBound),
+                                                        encoder, lossless);
+        } else {
+            predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 2, Quantizer>>(quantizer, conf.absErrorBound));
+        }
+    }
     if (conf.regression) {
         if (use_single_predictor) {
             return SZ::make_sz_general_compressor<T, N>(conf, SZ::RegressionPredictor<T, N, Quantizer>(quantizer, conf.blockSize, conf.absErrorBound),

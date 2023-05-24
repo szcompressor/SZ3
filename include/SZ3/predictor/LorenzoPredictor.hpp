@@ -3,7 +3,6 @@
 
 #include "SZ3/def.hpp"
 #include "SZ3/predictor/Predictor.hpp"
-#include "SZ3/utils/Iterator.hpp"
 #include <cassert>
 
 namespace SZ {

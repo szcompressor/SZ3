@@ -5,7 +5,6 @@
 #include "SZ3/predictor/Predictor.hpp"
 #include "SZ3/quantizer/IntegerQuantizer.hpp"
 #include "SZ3/encoder/HuffmanEncoder.hpp"
-#include "SZ3/utils/Iterator.hpp"
 #include <cassert>
 
 namespace SZ {
