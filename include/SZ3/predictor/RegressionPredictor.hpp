@@ -38,7 +38,7 @@ namespace SZ {
                 int size_y = range[1].second - range[1].first;
                 int size_z = range[2].second - range[2].first;
                 if (size_x <= 1 || size_y <= 1 || size_z <= 1) {
-                    throw std::invalid_argument("Regression does not support block length in any dimension equal to 1");
+                    return false;
                 }
                 for (int i = 0; i < size_x; i++) {
                     sum_x = 0;
@@ -67,9 +67,8 @@ namespace SZ {
             } else {
                 throw std::invalid_argument("regression only support 3D right now");
             }
+            return true;
         }
-
-        bool predecompress(const block_iter &) { return true; }
 
         void load(const uchar *&c, size_t &remaining_length) {
 
@@ -98,7 +97,7 @@ namespace SZ {
 
         void save(uchar *&c) const {
 
-            c[0] = 0b00000010;
+            c[0] = predictor_id;
             c += sizeof(uint8_t);
 
             quantizer.save(c);
@@ -122,18 +121,13 @@ namespace SZ {
         }
 
         inline T est_error(const block_iter &iter) {
+            return 0;
 //            return fabs(*iter - predict(iter)) + this->noise;
         }
 
         size_t size_est() {
-            return quantizer.size_est();
+            return quantizer.size_est() + regression_coeff_quant_inds.size() * sizeof(int16_t);
         }
-
-
-        size_t get_padding() {
-            return 0;
-        }
-
 
         inline void compress(const block_iter &block, std::vector<int> &quant_inds) {
             pred_and_quantize_coefficients();
@@ -228,10 +222,14 @@ namespace SZ {
             }
         }
 
-        void clear() {}
-
-    protected:
-        T noise = 0;
+        void clear() {
+            quantizer_liner.clear();
+            quantizer_independent.clear();
+            regression_coeff_quant_inds.clear();
+            regression_coeff_index = 0;
+            current_coeffs = {0};
+            prev_coeffs = {0};
+        }
 
     private:
         Quantizer quantizer;

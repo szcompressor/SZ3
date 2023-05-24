@@ -16,19 +16,21 @@ namespace SZ {
 
             virtual ~PredictorInterface() = default;
 
-            virtual inline bool precompress(const block_iter &) = 0;
+            virtual inline bool precompress(const block_iter &) { return true; };
 
             virtual inline void compress(const block_iter &, std::vector<int> &) = 0;
 
-            virtual inline bool predecompress(const block_iter &) = 0;
+            virtual inline bool predecompress(const block_iter &) { return true; };
 
             virtual inline void decompress(const block_iter &, int *&) = 0;
 
             virtual inline void save(uchar *&c) const = 0;
 
-            virtual inline void load(const uchar *&c, size_t &remaining_length)  = 0;
+            virtual inline void load(const uchar *&c, size_t &remaining_length) = 0;
 
             virtual inline T est_error(const block_iter &) = 0;
+
+            virtual inline size_t get_padding() { return 0; };
 
             virtual inline size_t size_est() = 0;
 

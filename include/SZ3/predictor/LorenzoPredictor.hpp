@@ -42,27 +42,24 @@ namespace SZ {
             }
         }
 
-        bool precompress(const block_iter &)  { return true; }
-
-        bool predecompress(const block_iter &)  { return true; }
-
         inline void save(uchar *&c) const {
             c[0] = predictor_id;
             c += sizeof(uint8_t);
             quantizer.save(c);
         }
 
-        inline void load(const uchar *&c, size_t &remaining_length){
+        inline void load(const uchar *&c, size_t &remaining_length) {
             c += sizeof(uint8_t);
             remaining_length -= sizeof(uint8_t);
             quantizer.load(c, remaining_length);
         }
 
-        void print()  {
+        void print() {
             std::cout << L << "-Layer " << N << "D Lorenzo predictor, noise = " << noise << "\n";
         }
 
-        inline T est_error(const block_iter &iter)  {
+        inline T est_error(const block_iter &iter) {
+            return 1;
 //            return fabs(*iter - predict(iter)) + this->noise;
         }
 

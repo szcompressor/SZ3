@@ -5,7 +5,7 @@
 #include "SZ3/quantizer/IntegerQuantizer.hpp"
 #include "SZ3/predictor/LorenzoPredictor.hpp"
 #include "SZ3/predictor/RegressionPredictor.hpp"
-//#include "SZ3/predictor/ComposedPredictor.hpp"
+#include "SZ3/predictor/ComposedPredictor.hpp"
 #include "SZ3/encoder/HuffmanEncoder.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
 #include "SZ3/utils/Statistic.hpp"
@@ -36,7 +36,7 @@ make_lorenzo_regression_compressor(const SZ::Config &conf, Quantizer quantizer, 
             predictors.push_back(std::make_shared<SZ::LorenzoPredictor<T, N, 1, Quantizer>>(quantizer, conf.absErrorBound));
         }
     }
-    if (conf.lorenzo) {
+    if (conf.lorenzo2) {
         if (use_single_predictor) {
             return SZ::make_sz_general_compressor<T, N>(conf, SZ::LorenzoPredictor<T, N, 2, Quantizer>(quantizer, conf.absErrorBound),
                                                         encoder, lossless);
@@ -52,9 +52,8 @@ make_lorenzo_regression_compressor(const SZ::Config &conf, Quantizer quantizer, 
             predictors.push_back(std::make_shared<SZ::RegressionPredictor<T, N, Quantizer>>(quantizer, conf.blockSize, conf.absErrorBound));
         }
     }
-//
-//    return SZ::make_sz_general_compressor<T, N>(conf, SZ::ComposedPredictor<T, N>(predictors),
-//                                                quantizer, encoder, lossless);
+
+    return SZ::make_sz_general_compressor<T, N>(conf, SZ::ComposedPredictor<T, N>(predictors), encoder, lossless);
 }
 
 
