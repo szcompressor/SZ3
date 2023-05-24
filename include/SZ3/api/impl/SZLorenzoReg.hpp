@@ -3,10 +3,10 @@
 
 #include "SZ3/compressor/SZGeneralCompressor.hpp"
 #include "SZ3/quantizer/IntegerQuantizer.hpp"
-#include "SZ3/encoder/HuffmanEncoder.hpp"
 #include "SZ3/predictor/LorenzoPredictor.hpp"
-//#include "SZ3/predictor/ComposedPredictor.hpp"
 #include "SZ3/predictor/RegressionPredictor.hpp"
+//#include "SZ3/predictor/ComposedPredictor.hpp"
+#include "SZ3/encoder/HuffmanEncoder.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
 #include "SZ3/utils/Statistic.hpp"
 #include "SZ3/utils/Extraction.hpp"

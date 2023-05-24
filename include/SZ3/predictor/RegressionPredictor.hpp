@@ -31,10 +31,7 @@ namespace SZ {
             auto range = block.get_block_range();
             auto d = block.mddata;
             auto ds = d->get_dim_strides();
-
-//            auto dims = mddata->get_dims();
             if (N == 3) {
-                //preprocess
                 T *cur_data_pos = d->get_data(range[0].first, range[1].first, range[2].first);
                 double fx = 0.0, fy = 0.0, fz = 0.0, f = 0, sum_x, sum_y;
                 int size_x = range[0].second - range[0].first;
@@ -67,6 +64,8 @@ namespace SZ {
                 current_coeffs[2] = (2 * fz / (size_z - 1) - f) * 6 * coeff / (size_z + 1);
                 current_coeffs[3] = f * coeff - ((size_x - 1) * current_coeffs[0] / 2 + (size_y - 1) * current_coeffs[1] / 2 +
                                                  (size_z - 1) * current_coeffs[2] / 2);
+            } else {
+                throw std::invalid_argument("regression only support 3D right now");
             }
         }
 
@@ -142,12 +141,42 @@ namespace SZ {
 
             auto range = block.get_block_range();
             auto d = block.mddata;
-            for (size_t i = 0; i < range[0].second - range[0].first; i++) {
-                for (size_t j = 0; j < range[1].second - range[1].first; j++) {
-                    for (size_t k = 0; k < range[2].second - range[2].first; k++) {
-                        T pred = current_coeffs[0] * i + current_coeffs[1] * j + current_coeffs[2] * k + current_coeffs[3];
-                        T *c = d->get_data(i + range[0].first, j + range[1].first, k + range[2].first);
+            if (N == 1) {
+                for (size_t i = 0; i < range[0].second - range[0].first; i++) {
+                    T pred = current_coeffs[0] * i + current_coeffs[1];
+                    T *c = d->get_data(i + range[0].first);
+                    quant_inds.push_back(quantizer.quantize_and_overwrite(*c, pred));
+                }
+
+            } else if (N == 2) {
+                for (size_t i = 0; i < range[0].second - range[0].first; i++) {
+                    for (size_t j = 0; j < range[1].second - range[1].first; j++) {
+                        T pred = current_coeffs[0] * i + current_coeffs[1] * j + current_coeffs[2];
+                        T *c = d->get_data(i + range[0].first, j + range[1].first);
                         quant_inds.push_back(quantizer.quantize_and_overwrite(*c, pred));
+                    }
+                }
+            } else if (N == 3) {
+                for (size_t i = 0; i < range[0].second - range[0].first; i++) {
+                    for (size_t j = 0; j < range[1].second - range[1].first; j++) {
+                        for (size_t k = 0; k < range[2].second - range[2].first; k++) {
+                            T pred = current_coeffs[0] * i + current_coeffs[1] * j + current_coeffs[2] * k + current_coeffs[3];
+                            T *c = d->get_data(i + range[0].first, j + range[1].first, k + range[2].first);
+                            quant_inds.push_back(quantizer.quantize_and_overwrite(*c, pred));
+                        }
+                    }
+                }
+            } else if (N == 4) {
+                for (size_t i = 0; i < range[0].second - range[0].first; i++) {
+                    for (size_t j = 0; j < range[1].second - range[1].first; j++) {
+                        for (size_t k = 0; k < range[2].second - range[2].first; k++) {
+                            for (size_t t = 0; t < range[3].second - range[3].first; t++) {
+                                T pred = current_coeffs[0] * i + current_coeffs[1] * j + current_coeffs[2] * k + current_coeffs[3] * t +
+                                         current_coeffs[4];
+                                T *c = d->get_data(i + range[0].first, j + range[1].first, k + range[2].first, t + range[3].first);
+                                quant_inds.push_back(quantizer.quantize_and_overwrite(*c, pred));
+                            }
+                        }
                     }
                 }
             }
@@ -157,12 +186,43 @@ namespace SZ {
             pred_and_recover_coefficients();
             auto range = block.get_block_range();
             auto d = block.mddata;
-            for (size_t i = 0; i < range[0].second - range[0].first; i++) {
-                for (size_t j = 0; j < range[1].second - range[1].first; j++) {
-                    for (size_t k = 0; k < range[2].second - range[2].first; k++) {
-                        T pred = current_coeffs[0] * i + current_coeffs[1] * j + current_coeffs[2] * k + current_coeffs[3];
-                        T *c = d->get_data(i + range[0].first, j + range[1].first, k + range[2].first);
+
+            if (N == 1) {
+                for (size_t i = 0; i < range[0].second - range[0].first; i++) {
+                    T pred = current_coeffs[0] * i + current_coeffs[1];
+                    T *c = d->get_data(i + range[0].first);
+                    *c = quantizer.recover(pred, *(quant_inds_pos++));
+                }
+
+            } else if (N == 2) {
+                for (size_t i = 0; i < range[0].second - range[0].first; i++) {
+                    for (size_t j = 0; j < range[1].second - range[1].first; j++) {
+                        T pred = current_coeffs[0] * i + current_coeffs[1] * j + current_coeffs[2];
+                        T *c = d->get_data(i + range[0].first, j + range[1].first);
                         *c = quantizer.recover(pred, *(quant_inds_pos++));
+                    }
+                }
+            } else if (N == 3) {
+                for (size_t i = 0; i < range[0].second - range[0].first; i++) {
+                    for (size_t j = 0; j < range[1].second - range[1].first; j++) {
+                        for (size_t k = 0; k < range[2].second - range[2].first; k++) {
+                            T pred = current_coeffs[0] * i + current_coeffs[1] * j + current_coeffs[2] * k + current_coeffs[3];
+                            T *c = d->get_data(i + range[0].first, j + range[1].first, k + range[2].first);
+                            *c = quantizer.recover(pred, *(quant_inds_pos++));
+                        }
+                    }
+                }
+            } else if (N == 4) {
+                for (size_t i = 0; i < range[0].second - range[0].first; i++) {
+                    for (size_t j = 0; j < range[1].second - range[1].first; j++) {
+                        for (size_t k = 0; k < range[2].second - range[2].first; k++) {
+                            for (size_t t = 0; t < range[3].second - range[3].first; t++) {
+                                T pred = current_coeffs[0] * i + current_coeffs[1] * j + current_coeffs[2] * k + current_coeffs[3] * t +
+                                         current_coeffs[4];
+                                T *c = d->get_data(i + range[0].first, j + range[1].first, k + range[2].first, t + range[3].first);
+                                *c = quantizer.recover(pred, *(quant_inds_pos++));
+                            }
+                        }
                     }
                 }
             }
