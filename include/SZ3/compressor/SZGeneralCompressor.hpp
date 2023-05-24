@@ -1,8 +1,8 @@
 #ifndef SZ_GENERAL_COMPRESSOR_HPP
 #define SZ_GENERAL_COMPRESSOR_HPP
 
+#include "SZ3/predictor/Predictor.hpp"
 #include "SZ3/compressor/Compressor.hpp"
-#include "SZ3/frontend/Frontend.hpp"
 #include "SZ3/encoder/Encoder.hpp"
 #include "SZ3/lossless/Lossless.hpp"
 #include "SZ3/utils/FileUtil.hpp"
@@ -12,45 +12,53 @@
 #include <cstring>
 
 namespace SZ {
-    template<class T, uint N, class Frontend, class Encoder, class Lossless>
+    template<class T, uint N, class Predictor, class Encoder, class Lossless>
     class SZGeneralCompressor : public concepts::CompressorInterface<T> {
     public:
 
 
-        SZGeneralCompressor(Frontend frontend, Encoder encoder, Lossless lossless) :
-                frontend(frontend), encoder(encoder), lossless(lossless) {
-            static_assert(std::is_base_of<concepts::FrontendInterface<T, N>, Frontend>::value,
-                          "must implement the frontend interface");
+        SZGeneralCompressor(const Config &conf, Predictor predictor, Encoder encoder, Lossless lossless) :
+                predictor(predictor), encoder(encoder), lossless(lossless),
+                block_size(conf.blockSize), num(conf.num), dims(conf.dims) {
+            static_assert(std::is_base_of<concepts::PredictorInterface<T, N>, Predictor>::value,
+                          "must implement the Predictor interface");
             static_assert(std::is_base_of<concepts::EncoderInterface<int>, Encoder>::value,
-                          "must implement the encoder interface");
+                          "must implement the Encoder interface");
             static_assert(std::is_base_of<concepts::LosslessInterface, Lossless>::value,
-                          "must implement the lossless interface");
+                          "must implement the Lossless interface");
+
+//            std::copy_n(conf.dims.begin(), N, dims.begin());
         }
 
         uchar *compress(const Config &conf, T *data, size_t &compressed_size) {
 
-//            Timer timer(true);
-            std::vector<int> quant_inds = frontend.compress(data);
-//            timer.stop("frontend");
 
-//            timer.start();
+            auto mddata = std::make_shared<SZ::multi_dimensional_data<T, N>>(data, dims, true, predictor.get_padding());
+            auto block = mddata->block_iter(block_size);
+            std::vector<int> quant_inds;
+            quant_inds.reserve(num);
+
+            do {
+                predictor.precompress(block);
+                predictor.compress(block, quant_inds);
+            } while (block.next());
+
+
             encoder.preprocess_encode(quant_inds, 0);
-            size_t bufferSize = 1.2 * (frontend.size_est() + encoder.size_est() + sizeof(T) * quant_inds.size());
+            size_t bufferSize = 1.2 * (encoder.size_est() + sizeof(T) * quant_inds.size() + predictor.size_est());
 
             uchar *buffer = new uchar[bufferSize];
             uchar *buffer_pos = buffer;
 
-            frontend.save(buffer_pos);
+            predictor.save(buffer_pos);
+
             encoder.save(buffer_pos);
             encoder.encode(quant_inds, buffer_pos);
             encoder.postprocess_encode();
             assert(buffer_pos - buffer < bufferSize);
-//            timer.stop("huffman");
 
-//            timer.start();
             uchar *lossless_data = lossless.compress(buffer, buffer_pos - buffer, compressed_size);
             lossless.postcompress_data(buffer);
-//            timer.stop("lossless");
 
             return lossless_data;
         }
@@ -63,39 +71,46 @@ namespace SZ {
         T *decompress(uchar const *cmpData, const size_t &cmpSize, T *decData) {
             size_t remaining_length = cmpSize;
 
-//            Timer timer(true);
             auto compressed_data = lossless.decompress(cmpData, remaining_length);
             uchar const *compressed_data_pos = compressed_data;
-//            timer.stop("Lossless");
 
-            frontend.load(compressed_data_pos, remaining_length);
+            predictor.load(compressed_data_pos, remaining_length);
 
             encoder.load(compressed_data_pos, remaining_length);
-
-//            timer.start();
-            auto quant_inds = encoder.decode(compressed_data_pos, frontend.get_num_elements());
+            auto quant_inds = encoder.decode(compressed_data_pos, num);
             encoder.postprocess_decode();
-//            timer.stop("Decoder");
 
             lossless.postdecompress_data(compressed_data);
 
-//            timer.start();
-            frontend.decompress(quant_inds, decData);
-//            timer.stop("frontend");
+            int *quant_inds_pos = &quant_inds[0];
+
+            auto mddata = std::make_shared<SZ::multi_dimensional_data<T, N>>(decData, dims, false, predictor.get_padding());
+            auto block = mddata->block_iter(block_size);
+            do {
+                //            *c = quantizer.recover(pred, *(quant_inds_pos++));
+                predictor.decompress(block, quant_inds_pos);
+            } while (block.next());
+
+            mddata->copy_data_out(decData);
+
             return decData;
         }
 
 
     private:
-        Frontend frontend;
+        Predictor predictor;
+//        LorenzoPredictor<T, N, 1> fallback_predictor;
         Encoder encoder;
         Lossless lossless;
+        uint block_size;
+        size_t num;
+        std::vector<size_t> dims;
     };
 
-    template<class T, uint N, class Frontend, class Encoder, class Lossless>
-    std::shared_ptr<SZGeneralCompressor<T, N, Frontend, Encoder, Lossless>>
-    make_sz_general_compressor(Frontend frontend, Encoder encoder, Lossless lossless) {
-        return std::make_shared<SZGeneralCompressor<T, N, Frontend, Encoder, Lossless>>(frontend, encoder, lossless);
+    template<class T, uint N, class Predictor, class Encoder, class Lossless>
+    std::shared_ptr<SZGeneralCompressor<T, N, Predictor, Encoder, Lossless>>
+    make_sz_general_compressor(const Config &conf, Predictor predictor, Encoder encoder, Lossless lossless) {
+        return std::make_shared<SZGeneralCompressor<T, N, Predictor, Encoder, Lossless>>(conf, predictor, encoder, lossless);
     }
 
 

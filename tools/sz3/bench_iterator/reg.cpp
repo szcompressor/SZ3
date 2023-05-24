@@ -3,7 +3,7 @@
 //
 
 #include "SZ3/api/sz.hpp"
-#include "SZ3/utils/mddata.hpp"
+#include "SZ3/utils/MDdata.hpp"
 
 using namespace SZ;
 
@@ -89,8 +89,8 @@ public:
         auto mddata = std::make_shared<SZ::multi_dimensional_data<T, N>>(data, conf.dims);
         auto block = mddata->block_iter(conf.blockSize);
         do {
-            auto range = block->get_block_range();
-            auto d = block->mddata;
+            auto range = block.get_block_range();
+            auto d = block.mddata;
             auto ds = mddata->get_dim_strides();
 
 //            auto dims = mddata->get_dims();
@@ -145,7 +145,7 @@ public:
                     }
                 }
             }
-        } while (block->next());
+        } while (block.next());
 
 
         HuffmanEncoder<int> encoder;
@@ -196,8 +196,8 @@ public:
         auto mddata = std::make_shared<SZ::multi_dimensional_data<T, N>>(decData, conf.dims, false);
         auto block = mddata->block_iter(conf.blockSize);
         do {
-            auto range = block->get_block_range();
-            auto d = block->mddata;
+            auto range = block.get_block_range();
+            auto d = block.mddata;
             auto ds = mddata->get_dim_strides();
             if (N == 3) {
                 pred_and_recover_coefficients();
@@ -211,7 +211,7 @@ public:
                     }
                 }
             }
-        } while (block->next());
+        } while (block.next());
 
     }
 };

@@ -3,7 +3,7 @@
 //
 
 #include "SZ3/api/sz.hpp"
-#include "SZ3/utils/mddata.hpp"
+#include "SZ3/utils/MDdata.hpp"
 
 using namespace SZ;
 
@@ -25,8 +25,8 @@ uchar *compress(Config &conf, T *data, size_t &compressed_size) {
     auto mddata = std::make_shared<SZ::multi_dimensional_data<T, N>>(data, conf.dims, true, padding);
     auto block = mddata->block_iter(bsize);
     do {
-        auto range = block->get_block_range();
-        auto d = block->mddata;
+        auto range = block.get_block_range();
+        auto d = block.mddata;
         auto ds = mddata->get_dim_strides();
         if (N == 3) {
             for (size_t i = range[0].first; i < range[0].second; i++) {
@@ -41,7 +41,7 @@ uchar *compress(Config &conf, T *data, size_t &compressed_size) {
                 }
             }
         }
-    } while (block->next());
+    } while (block.next());
 
 
     HuffmanEncoder<int> encoder;
@@ -90,8 +90,8 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *de
     auto mddata = std::make_shared<SZ::multi_dimensional_data<T, N>>(decData, conf.dims, false, padding);
     auto block = mddata->block_iter(bsize);
     do {
-        auto range = block->get_block_range();
-        auto d = block->mddata;
+        auto range = block.get_block_range();
+        auto d = block.mddata;
         auto ds = mddata->get_dim_strides();
         if (N == 3) {
             for (size_t i = range[0].first; i < range[0].second; i++) {
@@ -106,7 +106,7 @@ void decompress(Config &conf, uchar const *cmpData, const size_t &cmpSize, T *de
                 }
             }
         }
-    } while (block->next());
+    } while (block.next());
 
     mddata->copy_data_out(decData);
 }

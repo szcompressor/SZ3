@@ -2,7 +2,6 @@
 #define SZ_optimize_quant_intervals_hpp
 
 #include <vector>
-#include "SZ3/predictor/MetaLorenzoPredictor.hpp"
 
 namespace SZ {
 
@@ -85,6 +84,13 @@ namespace SZ {
     }
 
     template<typename T>
+    inline T lorenzo_predict_3d(const T *data_pos, size_t dim0_offset, size_t dim1_offset) {
+        return data_pos[-1] + data_pos[-dim1_offset] + data_pos[-dim0_offset]
+               - data_pos[-dim1_offset - 1] - data_pos[-dim0_offset - 1]
+               - data_pos[-dim0_offset - dim1_offset] + data_pos[-dim0_offset - dim1_offset - 1];
+    }
+
+    template<typename T>
     int optimize_quant_invl_3d(const T *data, size_t r1, size_t r2, size_t r3, double precision, float &pred_freq, float &mean_freq, T &mean_guess) {
         float mean_rough = sample_rough_mean_3d(data, r1, r2, r3, sqrt(r1 * r2 * r3));
         std::vector<size_t> intervals = std::vector<size_t>(QuantIntvSampleCapacity, 0);
@@ -105,7 +111,7 @@ namespace SZ {
         float pred_err = 0;
         int radius = (QuantIntvMeanCapacity >> 1);
         while (data_pos - data < len) {
-            pred_value = SZMETA::lorenzo_predict_3d(data_pos, r23, r3);
+            pred_value = lorenzo_predict_3d(data_pos, r23, r3);
             pred_err = fabs(pred_value - *data_pos);
             if (pred_err < precision) freq_count++;
             pred_index = (pred_err / precision + 1) / 2;
