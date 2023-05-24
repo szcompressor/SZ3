@@ -18,6 +18,7 @@ namespace SZ {
 
 
         SZBlockCompressor(const Config &conf, Predictor predictor, Encoder encoder, Lossless lossless) :
+                fallback_predictor(LinearQuantizer<T>(conf.absErrorBound)),
                 predictor(predictor), encoder(encoder), lossless(lossless),
                 block_size(conf.blockSize), num(conf.num), dims(conf.dims) {
             static_assert(std::is_base_of<concepts::PredictorInterface<T, N>, Predictor>::value,
@@ -39,8 +40,13 @@ namespace SZ {
             quant_inds.reserve(num);
 
             do {
-                predictor.precompress(block);
-                predictor.compress(block, quant_inds);
+                auto isvalid = predictor.precompress(block);
+                if (isvalid) {
+                    predictor.compress(block, quant_inds);
+                } else {
+                    fallback_predictor.compress(block, quant_inds);
+                }
+
             } while (block.next());
 
 
@@ -50,6 +56,7 @@ namespace SZ {
             uchar *buffer = new uchar[bufferSize];
             uchar *buffer_pos = buffer;
 
+            fallback_predictor.save(buffer_pos);
             predictor.save(buffer_pos);
 
             encoder.save(buffer_pos);
@@ -74,6 +81,8 @@ namespace SZ {
             auto compressed_data = lossless.decompress(cmpData, remaining_length);
             uchar const *compressed_data_pos = compressed_data;
 
+            fallback_predictor.load(compressed_data_pos, remaining_length);
+
             predictor.load(compressed_data_pos, remaining_length);
 
             encoder.load(compressed_data_pos, remaining_length);
@@ -87,8 +96,12 @@ namespace SZ {
             auto mddata = std::make_shared<SZ::multi_dimensional_data<T, N>>(decData, dims, false, predictor.get_padding());
             auto block = mddata->block_iter(block_size);
             do {
-                predictor.predecompress(block);
-                predictor.decompress(block, quant_inds_pos);
+                auto isvalid = predictor.predecompress(block);
+                if (isvalid) {
+                    predictor.decompress(block, quant_inds_pos);
+                } else {
+                    fallback_predictor.decompress(block, quant_inds_pos);
+                }
             } while (block.next());
 
             mddata->copy_data_out(decData);
@@ -99,7 +112,7 @@ namespace SZ {
 
     private:
         Predictor predictor;
-//        LorenzoPredictor<T, N, 1> fallback_predictor;
+        LorenzoPredictor<T, N, 1, LinearQuantizer<T>> fallback_predictor;
         Encoder encoder;
         Lossless lossless;
         uint block_size;

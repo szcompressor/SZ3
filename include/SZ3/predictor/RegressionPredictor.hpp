@@ -31,15 +31,19 @@ namespace SZ {
             auto range = block.get_block_range();
             auto d = block.mddata;
             auto ds = d->get_dim_strides();
+
+            for (const auto &r: range) {
+                if (r.second - r.first <= 1) {
+                    return false;
+                }
+            }
+
             if (N == 3) {
                 T *cur_data_pos = d->get_data(range[0].first, range[1].first, range[2].first);
                 double fx = 0.0, fy = 0.0, fz = 0.0, f = 0, sum_x, sum_y;
                 int size_x = range[0].second - range[0].first;
                 int size_y = range[1].second - range[1].first;
                 int size_z = range[2].second - range[2].first;
-                if (size_x <= 1 || size_y <= 1 || size_z <= 1) {
-                    return false;
-                }
                 for (int i = 0; i < size_x; i++) {
                     sum_x = 0;
                     for (int j = 0; j < size_y; j++) {
@@ -69,6 +73,16 @@ namespace SZ {
             }
             return true;
         }
+
+        inline bool predecompress(const block_iter &block) {
+            auto range = block.get_block_range();
+            for (const auto &r: range) {
+                if (r.second - r.first <= 1) {
+                    return false;
+                }
+            }
+            return true;
+        };
 
         void load(const uchar *&c, size_t &remaining_length) {
 
