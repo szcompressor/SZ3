@@ -87,7 +87,7 @@ namespace SZ {
             auto mddata = std::make_shared<SZ::multi_dimensional_data<T, N>>(decData, dims, false, predictor.get_padding());
             auto block = mddata->block_iter(block_size);
             do {
-                //            *c = quantizer.recover(pred, *(quant_inds_pos++));
+                predictor.predecompress(block);
                 predictor.decompress(block, quant_inds_pos);
             } while (block.next());
 
