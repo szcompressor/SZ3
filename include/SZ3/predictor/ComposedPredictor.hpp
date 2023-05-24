@@ -2,9 +2,7 @@
 #define _SZ_COMPOSED_PREDICTOR_HPP
 
 #include "SZ3/def.hpp"
-#include "SZ3/utils/Iterator.hpp"
 #include "SZ3/predictor/Predictor.hpp"
-#include "SZ3/encoder/HuffmanEncoder.hpp"
 #include <cassert>
 #include <iostream>
 #include <memory>
