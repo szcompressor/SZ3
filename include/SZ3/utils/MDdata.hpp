@@ -45,6 +45,21 @@ namespace SZ {
                 return range;
             }
 
+            template<class ... Idx>
+            inline T *get_data(Idx ... args) const {
+                auto ds = get_dim_strides();
+                auto idx = std::vector<size_t>{static_cast<size_t>(std::forward<Idx>(args))...};
+                size_t offset = 0;
+                for (int i = 0; i < N; i++) {
+                    offset += (idx[i] + l[i]) * ds[i];
+                }
+                return mddata->dataptr() + offset;
+            }
+
+            inline std::array<size_t, N> get_dim_strides() const {
+                return mddata->get_dim_strides();
+            }
+
             friend multi_dimensional_data;
             std::shared_ptr<multi_dimensional_data> mddata;
         private:
@@ -109,14 +124,15 @@ namespace SZ {
         }
 
         template<class ... Idx>
-        T *get_data(Idx ... args) {
+        inline T *get_data(Idx ... args) {
             auto idx = std::vector<size_t>{static_cast<size_t>(std::forward<Idx>(args))...};
             size_t offset = 0;
             for (int i = 0; i < N; i++) {
                 offset += idx[i] * ds_padding[i];
             }
-            return data + offset;
+            return dataptr() + offset;
         }
+
 
         void copy_data_in(T *input) {
             if (padding == 0) {
@@ -176,6 +192,11 @@ namespace SZ {
             } else {
                 throw std::invalid_argument("N (dimension) should be less than 5");
             }
+        }
+
+    protected:
+        inline T *dataptr() {
+            return data;
         }
 
     private:

@@ -134,9 +134,38 @@ namespace SZ {
 //            std::cout << L << "-Layer " << N << "D regression predictor, noise = " << noise << "\n";
         }
 
-        inline T est_error(const block_iter &iter) {
-            return 0;
-//            return fabs(*iter - predict(iter)) + this->noise;
+        inline T est_error(const block_iter &block) {
+            auto range = block.get_block_range();
+//            auto d = block.mddata;
+            auto ds = block.get_dim_strides();
+
+            size_t min_size = std::numeric_limits<size_t>::max();
+            for (const auto &r: range) {
+                min_size = std::min(min_size, r.second - r.first);
+            }
+
+            T err = 0;
+            for (size_t i = 2; i < min_size; i++) {
+                size_t bmi = min_size - i;
+                if (N == 3) {
+                    T *c = block.get_data(i, i, i);
+                    T pred = current_coeffs[0] * i + current_coeffs[1] * i + current_coeffs[2] * i + current_coeffs[3];
+                    err += fabs(*c - pred);
+
+                    c = block.get_data(i, i, bmi);
+                    pred = current_coeffs[0] * i + current_coeffs[1] * i + current_coeffs[2] * bmi + current_coeffs[3];
+                    err += fabs(*c - pred);
+
+                    c = block.get_data(i, bmi, i);
+                    pred = current_coeffs[0] * i + current_coeffs[1] * bmi + current_coeffs[2] * i + current_coeffs[3];
+                    err += fabs(*c - pred);
+
+                    c = block.get_data(i, bmi, bmi);
+                    pred = current_coeffs[0] * i + current_coeffs[1] * bmi + current_coeffs[2] * bmi + current_coeffs[3];
+                    err += fabs(*c - pred);
+                }
+            }
+            return err;//            return fabs(*iter - predict(iter)) + this->noise;
         }
 
         size_t size_est() {
@@ -152,7 +181,7 @@ namespace SZ {
             if (N == 1) {
                 for (size_t i = 0; i < range[0].second - range[0].first; i++) {
                     T pred = current_coeffs[0] * i + current_coeffs[1];
-                    T *c = d->get_data(i + range[0].first);
+                    T *c = block.get_data(i);
                     quant_inds.push_back(quantizer.quantize_and_overwrite(*c, pred));
                 }
 
@@ -160,7 +189,7 @@ namespace SZ {
                 for (size_t i = 0; i < range[0].second - range[0].first; i++) {
                     for (size_t j = 0; j < range[1].second - range[1].first; j++) {
                         T pred = current_coeffs[0] * i + current_coeffs[1] * j + current_coeffs[2];
-                        T *c = d->get_data(i + range[0].first, j + range[1].first);
+                        T *c = block.get_data(i, j);
                         quant_inds.push_back(quantizer.quantize_and_overwrite(*c, pred));
                     }
                 }
@@ -169,7 +198,7 @@ namespace SZ {
                     for (size_t j = 0; j < range[1].second - range[1].first; j++) {
                         for (size_t k = 0; k < range[2].second - range[2].first; k++) {
                             T pred = current_coeffs[0] * i + current_coeffs[1] * j + current_coeffs[2] * k + current_coeffs[3];
-                            T *c = d->get_data(i + range[0].first, j + range[1].first, k + range[2].first);
+                            T *c = block.get_data(i, j, k);
                             quant_inds.push_back(quantizer.quantize_and_overwrite(*c, pred));
                         }
                     }
@@ -181,7 +210,7 @@ namespace SZ {
                             for (size_t t = 0; t < range[3].second - range[3].first; t++) {
                                 T pred = current_coeffs[0] * i + current_coeffs[1] * j + current_coeffs[2] * k + current_coeffs[3] * t +
                                          current_coeffs[4];
-                                T *c = d->get_data(i + range[0].first, j + range[1].first, k + range[2].first, t + range[3].first);
+                                T *c = block.get_data(i, j, k, t);
                                 quant_inds.push_back(quantizer.quantize_and_overwrite(*c, pred));
                             }
                         }
@@ -193,12 +222,11 @@ namespace SZ {
         inline void decompress(const block_iter &block, int *&quant_inds_pos) {
             pred_and_recover_coefficients();
             auto range = block.get_block_range();
-            auto d = block.mddata;
 
             if (N == 1) {
                 for (size_t i = 0; i < range[0].second - range[0].first; i++) {
                     T pred = current_coeffs[0] * i + current_coeffs[1];
-                    T *c = d->get_data(i + range[0].first);
+                    T *c = block.get_data(i);
                     *c = quantizer.recover(pred, *(quant_inds_pos++));
                 }
 
@@ -206,7 +234,7 @@ namespace SZ {
                 for (size_t i = 0; i < range[0].second - range[0].first; i++) {
                     for (size_t j = 0; j < range[1].second - range[1].first; j++) {
                         T pred = current_coeffs[0] * i + current_coeffs[1] * j + current_coeffs[2];
-                        T *c = d->get_data(i + range[0].first, j + range[1].first);
+                        T *c = block.get_data(i, j);
                         *c = quantizer.recover(pred, *(quant_inds_pos++));
                     }
                 }
@@ -215,7 +243,7 @@ namespace SZ {
                     for (size_t j = 0; j < range[1].second - range[1].first; j++) {
                         for (size_t k = 0; k < range[2].second - range[2].first; k++) {
                             T pred = current_coeffs[0] * i + current_coeffs[1] * j + current_coeffs[2] * k + current_coeffs[3];
-                            T *c = d->get_data(i + range[0].first, j + range[1].first, k + range[2].first);
+                            T *c = block.get_data(i, j, k);
                             *c = quantizer.recover(pred, *(quant_inds_pos++));
                         }
                     }
@@ -227,7 +255,7 @@ namespace SZ {
                             for (size_t t = 0; t < range[3].second - range[3].first; t++) {
                                 T pred = current_coeffs[0] * i + current_coeffs[1] * j + current_coeffs[2] * k + current_coeffs[3] * t +
                                          current_coeffs[4];
-                                T *c = d->get_data(i + range[0].first, j + range[1].first, k + range[2].first, t + range[3].first);
+                                T *c = block.get_data(i, j, k, t);
                                 *c = quantizer.recover(pred, *(quant_inds_pos++));
                             }
                         }
