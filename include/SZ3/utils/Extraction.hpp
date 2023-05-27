@@ -20,7 +20,7 @@ namespace SZ {
 
     template<class T, uint N>
     inline typename std::enable_if<N == 4, std::vector<T>>::type
-    sampling(T *data, std::vector<size_t> dims, size_t &sample_num, std::vector<size_t> &sample_dims, size_t &sampling_block) {
+    sampling(const T *data, std::vector<size_t> dims, size_t &sample_num, std::vector<size_t> &sample_dims, size_t &sampling_block) {
         assert(dims.size() == N);
         assert(sample_dims.size() == N);
         SZ::Timer timer(true);
@@ -89,7 +89,7 @@ namespace SZ {
 
     template<class T, uint N>
     inline typename std::enable_if<N == 3, std::vector<T>>::type
-    sampling(T *data, std::vector<size_t> dims, size_t &sample_num, std::vector<size_t> &sample_dims, size_t &sampling_block) {
+    sampling(const T *data, std::vector<size_t> dims, size_t &sample_num, std::vector<size_t> &sample_dims, size_t &sampling_block) {
         assert(dims.size() == N);
         assert(sample_dims.size() == N);
         size_t num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<size_t>());
@@ -145,7 +145,7 @@ namespace SZ {
 
     template<class T, uint N>
     inline typename std::enable_if<N == 2, std::vector<T>>::type
-    sampling(T *data, std::vector<size_t> dims, size_t &sample_num, std::vector<size_t> &sample_dims, size_t &sampling_block) {
+    sampling(const T *data, std::vector<size_t> dims, size_t &sample_num, std::vector<size_t> &sample_dims, size_t &sampling_block) {
         assert(dims.size() == N);
         assert(sample_dims.size() == N);
         SZ::Timer timer(true);
@@ -193,7 +193,7 @@ namespace SZ {
 
     template<class T, uint N>
     inline typename std::enable_if<N == 1, std::vector<T>>::type
-    sampling(T *data, std::vector<size_t> dims, size_t &sample_num, std::vector<size_t> &sample_dims, size_t &sampling_block) {
+    sampling(const T *data, std::vector<size_t> dims, size_t &sample_num, std::vector<size_t> &sample_dims, size_t &sampling_block) {
         assert(dims.size() == N);
         assert(sample_dims.size() == N);
         SZ::Timer timer(true);

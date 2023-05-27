@@ -58,7 +58,7 @@ make_lorenzo_regression_compressor(const SZ::Config &conf, Quantizer quantizer, 
 
 
 template<class T, SZ::uint N>
-char *SZ_compress_LorenzoReg(SZ::Config &conf, T *data, size_t &outSize) {
+char *SZ_compress_LorenzoReg(SZ::Config &conf, const T *data, size_t &outSize) {
 
     assert(N == conf.N);
     assert(conf.cmprAlgo == SZ::ALGO_LORENZO_REG);

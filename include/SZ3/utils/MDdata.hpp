@@ -69,9 +69,8 @@ namespace SZ {
 
 
         /**Begin**/
-        multi_dimensional_data(T *data_,
+        multi_dimensional_data(const T *data_,
                                const std::vector<size_t> &dims_,
-                               bool copy_data_in_ = true,
                                size_t padding_ = 0
         ) : padding(padding_) {
             if (dims_.size() != N) {
@@ -82,21 +81,33 @@ namespace SZ {
 
             if (padding > 0) {
                 internal_buffer.resize(num_padding);
-                size_t offset = std::accumulate(ds_padding.begin(), ds_padding.end(), (size_t) (0));
+                size_t offset = std::accumulate(ds_padding.begin(), ds_padding.end(), (size_t)(0));
                 data = &internal_buffer[padding * offset];
-                if (copy_data_in_) {
-                    copy_data_in(data_);
-                }
+                copy_data_in(data_);
             } else {
-                if (copy_data_in_) {
-                    internal_buffer.resize(num);
-                    data = internal_buffer.data();
-                    copy_data_in(data_);
-                } else {
-                    data = data_;
-                }
+                internal_buffer.resize(num);
+                data = internal_buffer.data();
+                copy_data_in(data_);
             }
+        }
 
+        multi_dimensional_data(T *data_,
+                               const std::vector<size_t> &dims_,
+                               size_t padding_ = 0
+        ) : padding(padding_) {
+            if (dims_.size() != N) {
+                throw std::invalid_argument("#dims does not match!");
+            }
+            std::copy_n(dims_.begin(), N, dims.begin());
+            cal_dim_strides();
+
+            if (padding > 0) {
+                internal_buffer.resize(num_padding);
+                size_t offset = std::accumulate(ds_padding.begin(), ds_padding.end(), (size_t)(0));
+                data = &internal_buffer[padding * offset];
+            } else {
+                data = data_;
+            }
         }
 
         block_iterator block_iter(size_t block_size) {
@@ -134,7 +145,7 @@ namespace SZ {
         }
 
 
-        void copy_data_in(T *input) {
+        void copy_data_in(const T *input) {
             if (padding == 0) {
                 std::copy(input, input + num, internal_buffer.begin());
                 return;

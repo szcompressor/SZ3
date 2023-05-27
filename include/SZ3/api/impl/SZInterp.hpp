@@ -16,7 +16,7 @@
 
 
 template<class T, SZ::uint N>
-char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
+char *SZ_compress_Interp(SZ::Config &conf, const T *data, size_t &outSize) {
 
 
     assert(N == conf.N);
@@ -68,7 +68,7 @@ double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> d
 }
 
 template<class T, SZ::uint N>
-char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
+char *SZ_compress_Interp_lorenzo(SZ::Config &conf, const T *data, size_t &outSize) {
     assert(conf.cmprAlgo == SZ::ALGO_INTERP_LORENZO);
 
     SZ::Timer timer(true);

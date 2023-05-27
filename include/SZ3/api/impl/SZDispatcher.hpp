@@ -10,7 +10,7 @@
 
 
 template<class T, SZ::uint N>
-char *SZ_compress_dispatcher(SZ::Config &conf, T *data, size_t &outSize) {
+char *SZ_compress_dispatcher(SZ::Config &conf, const T *data, size_t &outSize) {
 
     assert(N == conf.N);
     SZ::calAbsErrorBound(conf, data);

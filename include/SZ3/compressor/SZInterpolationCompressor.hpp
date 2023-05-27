@@ -95,7 +95,10 @@ namespace SZ {
         }
 
         // compress given the error bound
-        uchar *compress(const Config &conf, T *data, size_t &compressed_size) {
+        uchar *compress(const Config &conf, const T *data_in, size_t &compressed_size) {
+            std::vector<T> data_copy(data_in, data_in + conf.num);
+            T *data = data_copy.data();
+
             std::copy_n(conf.dims.begin(), N, global_dimensions.begin());
             blocksize = conf.interpBlockSize;
             interpolator_id = conf.interpAlgo;
