@@ -32,13 +32,14 @@ namespace SZ {
         }
 
         uchar *compress(const Config &conf, const T *data, size_t &compressed_size) {
-
-
+            Timer timer(true);
             auto mddata = std::make_shared<SZ::multi_dimensional_data<T, N>>(data, dims, predictor.get_padding());
             auto block = mddata->block_iter(block_size);
             std::vector<int> quant_inds;
             quant_inds.reserve(num);
+            timer.stop("init");
 
+            timer.start();
             do {
                 auto isvalid = predictor.precompress(block);
                 if (isvalid) {
@@ -48,8 +49,9 @@ namespace SZ {
                 }
 
             } while (block.next());
+            timer.stop("pred+quant");
 
-
+            timer.start();
             encoder.preprocess_encode(quant_inds, 0);
             size_t bufferSize = 1.2 * (encoder.size_est() + sizeof(T) * quant_inds.size() + predictor.size_est());
 
@@ -63,9 +65,12 @@ namespace SZ {
             encoder.encode(quant_inds, buffer_pos);
             encoder.postprocess_encode();
             assert(buffer_pos - buffer < bufferSize);
+            timer.stop("encode");
 
+            timer.start();
             uchar *lossless_data = lossless.compress(buffer, buffer_pos - buffer, compressed_size);
             lossless.postcompress_data(buffer);
+            timer.stop("lossless");
 
             return lossless_data;
         }

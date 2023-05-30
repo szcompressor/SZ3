@@ -114,7 +114,7 @@ namespace SZ {
             return block_iterator(this->shared_from_this(), block_size);
         }
 
-        void cal_dim_strides() {
+        inline void cal_dim_strides() {
             size_t cur_stride = 1, cur_stride_pading = 1;
             for (int i = N - 1; i >= 0; i--) {
                 ds[i] = cur_stride;
