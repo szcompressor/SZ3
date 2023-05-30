@@ -177,7 +177,8 @@ namespace SZ {
             std::copy(current_coeffs.begin(), current_coeffs.end(), prev_coeffs.begin());
 
             auto range = block.get_block_range();
-            auto d = block.mddata;
+            auto ds = block.get_dim_strides();
+//            auto d = block.mddata;
             if (N == 1) {
                 for (size_t i = 0; i < range[0].second - range[0].first; i++) {
                     T pred = current_coeffs[0] * i + current_coeffs[1];
@@ -194,14 +195,20 @@ namespace SZ {
                     }
                 }
             } else if (N == 3) {
+                int size_y = range[1].second - range[1].first;
+                int size_z = range[2].second - range[2].first;
+                T *c = block.get_data(0, 0, 0);
                 for (size_t i = 0; i < range[0].second - range[0].first; i++) {
                     for (size_t j = 0; j < range[1].second - range[1].first; j++) {
                         for (size_t k = 0; k < range[2].second - range[2].first; k++) {
                             T pred = current_coeffs[0] * i + current_coeffs[1] * j + current_coeffs[2] * k + current_coeffs[3];
-                            T *c = block.get_data(i, j, k);
+//                            T *c = block.get_data(i, j, k);
                             quant_inds.push_back(quantizer.quantize_and_overwrite(*c, pred));
+                            c++;
                         }
+                        c += (ds[1] - size_z);
                     }
+                    c += (ds[0] - size_y * ds[1]);
                 }
             } else if (N == 4) {
                 for (size_t i = 0; i < range[0].second - range[0].first; i++) {
