@@ -22,7 +22,7 @@ namespace SZ {
 
             virtual void postprocess_decode() = 0;
 
-            virtual uint save(uchar *&c) = 0;
+            virtual void save(uchar *&c) = 0;
 
             virtual void load(const uchar *&c, size_t &remaining_length) = 0;
 

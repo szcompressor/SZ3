@@ -112,7 +112,7 @@ namespace SZ {
         }
 
         //save the huffman Tree in the compressed data
-        uint save(uchar *&c) {
+        void save(uchar *&c) {
             auto cc = c;
             write(offset, c);
             int32ToBytes_bigEndian(c, nodeCount);
@@ -128,7 +128,7 @@ namespace SZ {
             else
                 totalSize = convert_HuffTree_to_bytes_anyStates<unsigned int>(nodeCount, c);
             c += totalSize;
-            return c - cc;
+//            return c - cc;
         }
 
         size_t size_est() {
