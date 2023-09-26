@@ -175,9 +175,9 @@ namespace SZ {
             num_elements = 1;
             for (const auto &d: global_dimensions) {
                 num_elements *= d;
-                std::cout << d << " ";
+//                std::cout << d << " ";
             }
-            std::cout << std::endl;
+//            std::cout << std::endl;
             read(block_size, c, remaining_length);
             stride = block_size;
             predictor.load(c, remaining_length);

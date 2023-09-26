@@ -143,9 +143,9 @@ namespace SZ {
             num_elements = 1;
             for (const auto &d: global_dimensions) {
                 num_elements *= d;
-                std::cout << d << " ";
+//                std::cout << d << " ";
             }
-            std::cout << std::endl;
+//            std::cout << std::endl;
             quantizer.load(compressed_data_pos, remaining_length);
             encoder.load(compressed_data_pos, remaining_length);
             auto quant_inds = encoder.decode(compressed_data_pos, num_elements);
