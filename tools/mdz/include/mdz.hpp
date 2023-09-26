@@ -347,11 +347,13 @@ int LAMMPS_select_compressor(SZ::Config conf, T *data, bool firsttime,
     return method;
 }
 
+
 template<typename T, uint N>
-size_t MDZ_Compress(SZ::Config conf, T *input_data, T *dec_data, size_t batch_size, int method = -1) {
-    if (N != 2) {
-        throw std::invalid_argument("dimension should be 2");
-    }
+inline typename std::enable_if<N == 1 || N == 2, size_t>::type
+MDZ_Compress(SZ::Config conf, T *input_data, T *dec_data, size_t batch_size, int method = -1) {
+//    if (N != 2) {
+//        throw std::invalid_argument("dimension should be 2");
+//    }
     if (batch_size == 0) {
         batch_size = conf.dims[0];
     }
@@ -359,16 +361,16 @@ size_t MDZ_Compress(SZ::Config conf, T *input_data, T *dec_data, size_t batch_si
     if (method == -1) {
         method_batch = 50;
     }
-    std::cout << "****************** Options ********************" << std::endl;
-    std::cout << "dimension = " << N
-              << ", error bound = " << conf.absErrorBound
-              << ", method = " << method
-              << ", method_update_batch = " << method_batch
-              << ", batch_size = " << batch_size
-              << ", quan_state_num = " << conf.quantbinCnt
-              //              << ", encoder = " << conf.encoder_op
-              //              << ", lossless = " << conf.lossless_op
-              << std::endl;
+//    std::cout << "****************** Options ********************" << std::endl;
+//    std::cout << "dimension = " << N
+//              << ", error bound = " << conf.absErrorBound
+//              << ", method = " << method
+//              << ", method_update_batch = " << method_batch
+//              << ", batch_size = " << batch_size
+//              << ", quan_state_num = " << conf.quantbinCnt
+//              //              << ", encoder = " << conf.encoder_op
+//              //              << ", lossless = " << conf.lossless_op
+//              << std::endl;
 
 //    auto data_all = readfile<T>(input_path.data(), 0, conf.num);
 //    auto data_all = input_data;
@@ -385,23 +387,20 @@ size_t MDZ_Compress(SZ::Config conf, T *input_data, T *dec_data, size_t batch_si
         if (level_num > conf.dims[1] * 0.25) {
             level_num = 0;
         }
-        if (level_num != 0) {
+//        if (level_num != 0) {
 //            printf("start = %.3f , level_offset = %.3f, nlevel=%d\n", level_start, level_offset, level_num);
-        }
+//        }
     }
 
     auto dims = conf.dims;
     auto total_num = conf.num;
-//    std::vector<T> dec_data(total_num);
     size_t total_compressed_size = 0;
-    double compressed_size_pre = total_num * sizeof(T);
     int current_method = method;
 
     for (size_t ts = 0; ts < dims[0]; ts += batch_size) {
         conf.dims[0] = (ts + batch_size > dims[0] ? dims[0] - ts : batch_size);
         conf.num = conf.dims[0] * conf.dims[1];
 
-//        auto data = SZ::readfile<T>(conf.input_path.data(), ts * conf.dims[1], conf.num);
         T *data = &input_data[ts * conf.dims[1]];
 
         T max = *std::max_element(data, data + conf.num);
@@ -436,14 +435,39 @@ size_t MDZ_Compress(SZ::Config conf, T *input_data, T *dec_data, size_t batch_si
             ts_dec_data = SZ2<T, N>(conf, ts, data, compressed_size, true);
         }
         total_compressed_size += compressed_size;
-//        if (compressed_size > 4.0 * compressed_size_pre) {
-//            select(conf, current_method, ts, data_all.get(), level_start, level_offset, level_num, data_ts0.get());
-//        }
-        compressed_size_pre = compressed_size;
         memcpy(&dec_data[ts * conf.dims[1]], ts_dec_data, conf.num * sizeof(T));
     }
 
 
+    return total_compressed_size;
+}
+
+template<typename T, uint N>
+inline typename std::enable_if<N == 3, size_t>::type MDZ_Compress(SZ::Config conf, T *input_data, T *dec_data, size_t batch_size, int method = -1) {
+    size_t total_compressed_size = 0;
+    auto dims = conf.dims;
+    std::vector<T> input(conf.num), output(conf.num);
+    for (size_t frame = 0; frame < conf.dims[0]; frame++) {
+        for (size_t atom = 0; atom < conf.dims[1]; atom++) {
+            for (size_t xyz = 0; xyz < conf.dims[2]; xyz++) {
+                input[xyz * dims[0] * dims[1] + frame * dims[1] + atom] = input_data[frame * dims[1] * dims[2] + atom * dims[2] + xyz];
+            }
+        }
+    }
+    for (int i = 0; i < conf.dims[2]; i++) {
+        SZ::Config conf_2D(conf);
+        conf_2D.dims = {conf.dims[0], conf.dims[1]};
+        conf_2D.num = conf.dims[0] * conf.dims[1];
+        total_compressed_size += MDZ_Compress<T, 2>(conf_2D, input.data() + i * conf.dims[0] * conf.dims[1],
+                                                    output.data() + i * conf.dims[0] * conf.dims[1], batch_size, method);
+    }
+    for (size_t frame = 0; frame < conf.dims[0]; frame++) {
+        for (size_t atom = 0; atom < conf.dims[1]; atom++) {
+            for (size_t xyz = 0; xyz < conf.dims[2]; xyz++) {
+                dec_data[frame * dims[1] * dims[2] + atom * dims[2] + xyz] = output[xyz * dims[0] * dims[1] + frame * dims[1] + atom];
+            }
+        }
+    }
     return total_compressed_size;
 }
 
