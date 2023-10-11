@@ -7,6 +7,7 @@
 
 #include "SZ3/def.hpp"
 #include <cstring>
+#include <string>
 
 namespace SZ {
 
