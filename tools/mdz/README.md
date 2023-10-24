@@ -17,7 +17,9 @@ You'll find all the executables in [INSTALL_DIR]/tools/mdz and header files in [
 
 ## Testing Examples
 mdz datafile -2 dim1 dim2 -r reb buffer_size compressor
+
 mdz datafile -3 dim1 dim2 dim3 -r reb buffer_size compressor
+
 #### options:
 * datafile: FP32 binary format. Contains single axis (X or Y or Z) only.
 * dim1: number of timesteps
