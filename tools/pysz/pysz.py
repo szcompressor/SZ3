@@ -80,7 +80,7 @@ class SZ:
                                            data_cmpr.size,
                                            r5, r4, r3, r2, r1)
 
-        data_dec = np.array(data_dec_c[:np.prod(original_shape)]).reshape(original_shape)
+        data_dec = np.array(data_dec_c[:np.prod(original_shape)], dtype=original_dtype).reshape(original_shape)
         self.libc.free(data_dec_c)
         return data_dec
 
