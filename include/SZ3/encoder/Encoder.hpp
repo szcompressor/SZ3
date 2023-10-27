@@ -11,6 +11,12 @@ namespace SZ {
 
             virtual ~EncoderInterface() = default;
 
+            /**
+             * init the encoder
+             * E.g., Huffman will build tree in this step
+             * @param bins to-be-encoded integers
+             * @param stateNum stateNum > 0 indicates the bins has a range of [0, stateNum). stateNum == 0 means no such guarantee
+             */
             virtual void preprocess_encode(const std::vector<T> &bins, int stateNum) = 0;
 
             /**

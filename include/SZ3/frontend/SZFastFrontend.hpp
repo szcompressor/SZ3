@@ -374,7 +374,7 @@ namespace SZ {
 
             if (reg_count) {
                 reg_huffman = HuffmanEncoder<int>();
-                reg_huffman.preprocess_encode(reg_params_type, RegCoeffNum3d * reg_count, 0);
+                reg_huffman.preprocess_encode(reg_params_type, RegCoeffNum3d * reg_count, RegCoeffRadius * 2);
             }
             indicator_huffman = HuffmanEncoder<int>();
             indicator_huffman.preprocess_encode(indicator, SELECTOR_RADIUS);

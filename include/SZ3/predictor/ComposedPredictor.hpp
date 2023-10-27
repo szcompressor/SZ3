@@ -77,7 +77,7 @@ namespace SZ {
             c += sizeof(size_t);
             if (selection.size()) {
                 HuffmanEncoder<int> selection_encoder;
-                selection_encoder.preprocess_encode(selection, 0);
+                selection_encoder.preprocess_encode(selection, predict_error.size());
                 selection_encoder.save(c);
                 selection_encoder.encode(selection, c);
                 selection_encoder.postprocess_encode();

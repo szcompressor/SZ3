@@ -87,7 +87,7 @@ namespace SZ {
         /**
          * build huffman tree using bins
          * @param bins
-         * @param stateNum is no longer needed
+         * @param stateNum
          */
         void preprocess_encode(const std::vector<T> &bins, int stateNum) {
             preprocess_encode(bins.data(), bins.size(), stateNum);
@@ -97,7 +97,7 @@ namespace SZ {
          * build huffman tree using bins
          * @param bins
          * @param num_bin
-         * @param stateNum is no longer needed
+         * @param stateNum
          */
         void preprocess_encode(const T *bins, size_t num_bin, int stateNum) {
             nodeCount = 0;

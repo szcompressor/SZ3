@@ -147,7 +147,7 @@ namespace SZ {
 
 //            writefile("pred.dat", preds.data(), num_elements);
 //            writefile("quant.dat", quant_inds.data(), num_elements);
-            encoder.preprocess_encode(quant_inds, 0);
+            encoder.preprocess_encode(quant_inds, quantizer.get_radius() * 2);
             size_t bufferSize = 1.2 * (quantizer.size_est() + encoder.size_est() + sizeof(T) * quant_inds.size());
 
             uchar *buffer = new uchar[bufferSize];
