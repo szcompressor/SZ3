@@ -308,7 +308,7 @@ namespace SZ3 {
                      size_t sample_num) {
         T max = *std::max_element(data, data + num);
         T min = *std::min_element(data, data + num);
-        SZ::Timer timer;
+        SZ3::Timer timer;
         timer.start();
         std::vector<T> sample;
         if (num == sample_num) {

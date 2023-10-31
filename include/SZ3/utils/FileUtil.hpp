@@ -40,7 +40,7 @@ namespace SZ3 {
         fin.seekg(0, std::ios::end);
         const size_t num_elements = fin.tellg() / sizeof(Type);
         fin.seekg(0, std::ios::beg);
-//        auto data = SZ::compat::make_unique<Type[]>(num_elements);
+//        auto data = SZ3::compat::make_unique<Type[]>(num_elements);
         auto data = std::make_unique<Type[]>(num_elements);
         fin.read(reinterpret_cast<char *>(&data[0]), num_elements * sizeof(Type));
         fin.close();

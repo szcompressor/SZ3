@@ -373,7 +373,7 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
     {
 
         /* decompress data */
-        SZ::Config conf;
+        SZ3::Config conf;
 
         switch(dataType) {
         case SZ_FLOAT: //FLOAT
@@ -493,20 +493,20 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
             exit(0);
         }
 
-        SZ::Config conf;
+        SZ3::Config conf;
         //printf("\nDIMS_CMP:\n");
         //printf("r1 %u r2 %u r3 %u r4 %u r5 %u\n", r1,r2,r3,r4,r5);
         if (r2 == 0) {
-            conf = SZ::Config(r1);
+            conf = SZ3::Config(r1);
         } else if (r3 == 0) {
-            conf = SZ::Config(r2, r1);
+            conf = SZ3::Config(r2, r1);
         } else if (r4 == 0) {
-            conf = SZ::Config(r3, r2, r1);
+            conf = SZ3::Config(r3, r2, r1);
         } else if (r5 == 0) {
-            conf = SZ::Config(r4, r3, r2, r1);
+            conf = SZ3::Config(r4, r3, r2, r1);
         }
         else {
-            conf = SZ::Config(r5, r4, r3, r2, r1);
+            conf = SZ3::Config(r5, r4, r3, r2, r1);
         }
 
         if(error_mode < 0 || error_mode > 5) {
@@ -639,12 +639,12 @@ void SZ_cdArrayToMetaData(size_t cd_nelmts, const unsigned int cd_values[], int*
     switch(*dimSize)
     {
     case 1:
-        SZ::int32ToBytes_bigEndian(bytes, cd_values[2]);
-        SZ::int32ToBytes_bigEndian(&bytes[4], cd_values[3]);
+        SZ3::int32ToBytes_bigEndian(bytes, cd_values[2]);
+        SZ3::int32ToBytes_bigEndian(&bytes[4], cd_values[3]);
         if(sizeof(size_t)==4)
-            *r1 = (unsigned int) SZ::bytesToInt64_bigEndian(bytes);
+            *r1 = (unsigned int) SZ3::bytesToInt64_bigEndian(bytes);
         else
-            *r1 = (uint64_t) SZ::bytesToInt64_bigEndian(bytes);
+            *r1 = (uint64_t) SZ3::bytesToInt64_bigEndian(bytes);
         *r2 = *r3 = *r4 = *r5 = 0;
         break;
     case 2:
@@ -710,9 +710,9 @@ void SZ_copymetaDataToCdArray(size_t* cd_nelmts, unsigned int *cd_values, int da
     {
     case 1:
         size = (uint64_t) r1;
-        SZ::int64ToBytes_bigEndian(bytes, size);
-        cd_values[2] = SZ::bytesToInt32_bigEndian(bytes);
-        cd_values[3] = SZ::bytesToInt32_bigEndian(&bytes[4]);
+        SZ3::int64ToBytes_bigEndian(bytes, size);
+        cd_values[2] = SZ3::bytesToInt32_bigEndian(bytes);
+        cd_values[3] = SZ3::bytesToInt32_bigEndian(&bytes[4]);
         *cd_nelmts = 4;
         break;
     case 2:
