@@ -10,7 +10,7 @@
 #include <SZ3/utils/Config.hpp>
 #include <SZ3/utils/MemoryUtil.hpp>
 
-namespace SZ {
+namespace SZ3 {
 
 
     template<class T, uint N, class Predictor, class Quantizer>

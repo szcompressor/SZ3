@@ -16,7 +16,7 @@
 #include <vector>
 #include <queue>
 
-namespace SZ{
+namespace SZ3{
 
     template<class T>
     class HuffmanEncoder:public concepts::EncoderInterface<T>{

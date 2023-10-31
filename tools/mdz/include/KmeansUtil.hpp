@@ -16,7 +16,7 @@
 #include <SZ3/def.hpp>
 
 
-namespace SZ {
+namespace SZ3 {
 
 /*
  *  Internal implementation of the SMAWK algorithm.

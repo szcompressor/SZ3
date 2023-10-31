@@ -9,7 +9,7 @@
 #include <iostream>
 #include <memory>
 
-namespace SZ {
+namespace SZ3 {
 
     template<class T, uint N>
     class ComposedPredictor : public concepts::PredictorInterface<T, N> {

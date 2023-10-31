@@ -11,7 +11,7 @@
 #include "SZ3/def.hpp"
 #include <cstring>
 
-namespace SZ {
+namespace SZ3 {
     template<class T, uint N, class Frontend, class Encoder, class Lossless>
     class SZGeneralCompressor : public concepts::CompressorInterface<T> {
     public:

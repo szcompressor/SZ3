@@ -6,7 +6,7 @@
 #define SZ_EXTRACTION_HPP
 
 
-namespace SZ {
+namespace SZ3 {
 
     template<uint N>
     float cal_sampling_ratio(size_t block, size_t n, size_t dmin, std::vector<size_t> dims) {
@@ -23,7 +23,7 @@ namespace SZ {
     sampling(T *data, std::vector<size_t> dims, size_t &sample_num, std::vector<size_t> &sample_dims, size_t &sampling_block) {
         assert(dims.size() == N);
         assert(sample_dims.size() == N);
-        SZ::Timer timer(true);
+        Timer timer(true);
         size_t num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<size_t>());
 
         size_t dmin = *std::min_element(dims.begin(), dims.end());
@@ -148,7 +148,7 @@ namespace SZ {
     sampling(T *data, std::vector<size_t> dims, size_t &sample_num, std::vector<size_t> &sample_dims, size_t &sampling_block) {
         assert(dims.size() == N);
         assert(sample_dims.size() == N);
-        SZ::Timer timer(true);
+        Timer timer(true);
         size_t num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<size_t>());
 
         size_t dmin = *std::min_element(dims.begin(), dims.end());
@@ -196,7 +196,7 @@ namespace SZ {
     sampling(T *data, std::vector<size_t> dims, size_t &sample_num, std::vector<size_t> &sample_dims, size_t &sampling_block) {
         assert(dims.size() == N);
         assert(sample_dims.size() == N);
-        SZ::Timer timer(true);
+        Timer timer(true);
         size_t num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<size_t>());
 
         size_t dmin = *std::min_element(dims.begin(), dims.end());

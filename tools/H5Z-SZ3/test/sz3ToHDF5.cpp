@@ -21,7 +21,7 @@ int dataEndianType = LITTLE_ENDIAN_DATA;
 #define DATASET "testdata_compressed"
 
 
-using namespace SZ;
+using namespace SZ3;
 
 int main(int argc, char *argv[]) {
 

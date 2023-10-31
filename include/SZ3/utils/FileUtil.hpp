@@ -13,7 +13,7 @@
 #include <sstream>
 #include <memory>
 
-namespace SZ {
+namespace SZ3 {
 
     template<typename Type>
     void readfile(const char *file, const size_t num, Type *data) {

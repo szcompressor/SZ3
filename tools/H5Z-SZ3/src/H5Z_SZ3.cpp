@@ -15,7 +15,7 @@ int sysEndianType = LITTLE_ENDIAN_SYSTEM;
 int dataEndianType = LITTLE_ENDIAN_DATA;
 hid_t H5Z_SZ_ERRCLASS = -1;
 
-using namespace SZ;
+using namespace SZ3;
 
 //h5repack -f UD=32024,0 /home/arham23/Software/SZ3/test/testfloat_8_8_128.dat.h5 tf_8_8_128.dat.sz.h5
 
