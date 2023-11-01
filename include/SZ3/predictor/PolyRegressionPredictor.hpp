@@ -11,7 +11,7 @@
 #include <cstring>
 #include <iostream>
 
-namespace SZ {
+namespace SZ3 {
 
     // N-d regression predictor
     template<class T, uint N, uint M = (N + 1) * (N + 2) / 2>

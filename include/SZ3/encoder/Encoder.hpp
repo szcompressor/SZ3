@@ -2,7 +2,7 @@
 #define _SZ_ENCODER_HPP
 
 #include <vector>
-namespace SZ {
+namespace SZ3 {
     namespace concepts {
 
         template<class T>

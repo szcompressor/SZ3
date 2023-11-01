@@ -14,7 +14,7 @@
 #include <cstring>
 #include <cmath>
 
-namespace SZ {
+namespace SZ3 {
     template<class T, uint N, class Quantizer, class Encoder, class Lossless>
     class SZBlockInterpolationCompressor {
     public:
@@ -61,7 +61,7 @@ namespace SZ {
 
             lossless.postdecompress_data(buffer);
 
-            auto range = std::make_shared<SZ::multi_dimensional_range<T, N>>(decData,
+            auto range = std::make_shared<multi_dimensional_range<T, N>>(decData,
                                                                              std::begin(global_dimensions),
                                                                              std::end(global_dimensions),
                                                                              block_size,
@@ -117,7 +117,7 @@ namespace SZ {
             std::copy_n(conf.dims.begin(), N, global_dimensions.begin());
 
             quant_inds.clear();
-            auto range = std::make_shared<SZ::multi_dimensional_range<T, N>>(data,
+            auto range = std::make_shared<multi_dimensional_range<T, N>>(data,
                                                                              std::begin(global_dimensions),
                                                                              std::end(global_dimensions),
                                                                              block_size, 0);
