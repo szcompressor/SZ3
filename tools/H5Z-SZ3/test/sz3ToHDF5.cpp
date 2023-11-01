@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
     size_t r5 = 0, r4 = 0, r3 = 0, r2 = 0, r1 = 0;
     int cmp_algo, interp_algo; //select compression and interpolation for SZ3
     char outDir[640], oriFilePath[640], outputFilePath[640];
-    size_t cd_nelmts, nbEle;
+    size_t cd_nelmts=0, nbEle;
     unsigned int *cd_values = NULL;
     //unsigned int cd_values[7];
 
@@ -111,7 +111,7 @@ int main(int argc, char *argv[]) {
 
     //Create cd_values
     printf("Dimension sizes: n5=%u, n4=%u, n3=%u, n2=%u, n1=%u\n", r5, r4, r3, r2, r1);
-    int mode = 1; //0: ABS, 1: REL, ...
+    int mode = 0; //0: ABS, 1: REL, ...
     SZ_errConfigToCdArray(&cd_nelmts, &cd_values, mode, 0.001, 0.001, 0,
                           0); //SZ_FLOAT or SZ_DOUBLE or SZ_INT 100x500x500 : 0, 0, 100, 500, 500, ABS, REL (0.01, 0.01*(max-min), PW_REL (0.01, 5, 6, 7, 8, 9 --> 5*0.01, 6*0.01, ...), PSNR (mean squared error)).
     //load_conffile_flag = 0;
