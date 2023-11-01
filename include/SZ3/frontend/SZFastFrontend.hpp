@@ -16,7 +16,7 @@
 #include "SZ3/utils/Config.hpp"
 #include <list>
 
-namespace SZ {
+namespace SZ3 {
     using namespace SZMETA;
 
     template<class T, uint N, class Quantizer>

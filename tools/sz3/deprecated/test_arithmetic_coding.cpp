@@ -50,7 +50,7 @@ void writeByteData(unsigned char *bytes, size_t byteLength, char *tgtFilePath, i
     *status = 0;
 }
 
-using namespace SZ;
+using namespace SZ3;
 
 int main(int argc, char *argv[]) {
     int status = 0;

@@ -13,7 +13,7 @@
 #include "MemoryUtil.hpp"
 #include "SZ3/utils/inih/INIReader.h"
 
-namespace SZ {
+namespace SZ3 {
 
     enum EB {
         EB_ABS, EB_REL, EB_PSNR, EB_L2NORM, EB_ABS_AND_REL, EB_ABS_OR_REL

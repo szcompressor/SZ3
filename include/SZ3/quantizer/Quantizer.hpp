@@ -2,7 +2,7 @@
 #define _SZ_QUANTIZER_HPP
 
 
-namespace SZ {
+namespace SZ3 {
     namespace concepts {
 
         template<class T>

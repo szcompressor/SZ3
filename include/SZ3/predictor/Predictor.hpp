@@ -4,7 +4,7 @@
 #include "SZ3/utils/Iterator.hpp"
 #include "SZ3/def.hpp"
 
-namespace SZ {
+namespace SZ3 {
 
 
     namespace concepts {

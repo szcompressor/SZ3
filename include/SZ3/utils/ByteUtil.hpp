@@ -9,7 +9,7 @@
 #include <cstring>
 #include <string>
 
-namespace SZ {
+namespace SZ3 {
 
     typedef union lint16 {
         unsigned short usvalue;

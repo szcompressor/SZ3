@@ -6,7 +6,7 @@
 #define SZ_LOSSLESS_HPP
 
 
-namespace SZ {
+namespace SZ3 {
     namespace concepts {
 
         class LosslessInterface {

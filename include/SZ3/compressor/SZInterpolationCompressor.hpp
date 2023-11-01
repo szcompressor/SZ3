@@ -17,7 +17,7 @@
 #include <cstring>
 #include <cmath>
 
-namespace SZ {
+namespace SZ3 {
     template<class T, uint N, class Quantizer, class Encoder, class Lossless>
     class SZInterpolationCompressor {
     public:
@@ -70,7 +70,7 @@ namespace SZ {
                 }
                 size_t stride = 1U << (level - 1);
                 auto inter_block_range = std::make_shared<
-                        SZ::multi_dimensional_range<T, N>>(decData,
+                        multi_dimensional_range<T, N>>(decData,
                                                            std::begin(global_dimensions), std::end(global_dimensions),
                                                            stride * blocksize, 0);
                 auto inter_begin = inter_block_range->begin();
@@ -122,7 +122,7 @@ namespace SZ {
                 size_t stride = 1U << (level - 1);
 
                 auto inter_block_range = std::make_shared<
-                        SZ::multi_dimensional_range<T, N>>(data, std::begin(global_dimensions),
+                        multi_dimensional_range<T, N>>(data, std::begin(global_dimensions),
                                                            std::end(global_dimensions),
                                                            blocksize * stride, 0);
 

@@ -9,9 +9,9 @@ int main(int argc, char **argv) {
 
 
     std::vector<size_t> dims({100, 200, 300});
-    SZ::Config conf({dims[0], dims[1], dims[2]});
-    conf.cmprAlgo = SZ::ALGO_INTERP_LORENZO;
-    conf.errorBoundMode = SZ::EB_ABS; // refer to def.hpp for all supported error bound mode
+    SZ3::Config conf({dims[0], dims[1], dims[2]});
+    conf.cmprAlgo = SZ3::ALGO_INTERP_LORENZO;
+    conf.errorBoundMode = SZ3::EB_ABS; // refer to def.hpp for all supported error bound mode
     conf.absErrorBound = 1E-3; // absolute error bound 1e-3
 
 

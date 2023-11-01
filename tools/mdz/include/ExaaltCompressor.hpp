@@ -11,7 +11,7 @@
 #include <SZ3/utils/Config.hpp>
 #include <SZ3/def.hpp>
 
-namespace SZ {
+namespace SZ3 {
     template<class T, uint N, class Quantizer, class Encoder, class Lossless>
     class SZ_Exaalt_Compressor {
     public:

@@ -18,7 +18,7 @@
 #include <set>
 
 
-namespace SZ {
+namespace SZ3 {
 
 
     template<class T>

@@ -126,3 +126,4 @@ Version New features
 * SZ 3.1.5 Support HDF5 by H5Z-SZ3. Please add "-DBUILD_H5Z_FILTER=ON" to enable this function for CMake.
 * SZ 3.1.6 Support C API and Python API.
 * SZ 3.1.7 Initial MDZ(https://github.com/szcompressor/SZ3/tree/master/tools/mdz) support.
+* SZ 3.1.8 namespace changed from SZ to SZ3. H5Z-SZ3 supports configuration file now.
