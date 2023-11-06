@@ -28,7 +28,9 @@ namespace SZ3 {
                        conf.regression, conf.absErrorBound),
                 precision(conf.absErrorBound),
                 conf(conf) {
-            assert((N == 1 || N == 3) && "SZMeta Front only support 1D or 3D data");
+            if (N != 1 && N != 3){
+                throw std::invalid_argument("SZMeta Front only support 1D or 3D data");
+            }
         }
 
         ~SZFastFrontend() {
@@ -41,7 +43,7 @@ namespace SZ3 {
         std::vector<int> compress(T *data) {
             if (N == 1) {
                 return compress_1d(data);
-            } else if (N == 3) {
+            } else {
                 return compress_3d(data);
             }
         };
@@ -104,6 +106,13 @@ namespace SZ3 {
                 read(mean_info.use_mean, c, remaining_length);
                 read(mean_info.mean, c, remaining_length);
                 read(reg_count, c, remaining_length);
+
+                size_t r1 = conf.dims[0];
+                size_t r2 = conf.dims[1];
+                size_t r3 = conf.dims[2];
+                size = SZMETA::DSize_3d(r1, r2, r3, params.block_size);
+                // prepare unpred buffer for vectorization
+                est_unpred_count_per_index = size.num_blocks * size.block_size * 1;
 
                 indicator_huffman = HuffmanEncoder<int>();
                 indicator_huffman.load(c, remaining_length);
@@ -383,7 +392,7 @@ namespace SZ3 {
 
             if (reg_count) {
                 reg_huffman = HuffmanEncoder<int>();
-                reg_huffman.preprocess_encode(reg_params_type, RegCoeffNum3d * reg_count, 0);
+                reg_huffman.preprocess_encode(reg_params_type, RegCoeffNum3d * reg_count, RegCoeffRadius * 2);
             }
             indicator_huffman = HuffmanEncoder<int>();
             indicator_huffman.preprocess_encode(indicator, SELECTOR_RADIUS);
@@ -397,12 +406,6 @@ namespace SZ3 {
 //        meta_decompress_3d(const unsigned char *compressed, size_t r1, size_t r2, size_t r3) {
         T *decompress_3d(std::vector<int> &quant_inds, T *dec_data) {
 
-            size_t r1 = conf.dims[0];
-            size_t r2 = conf.dims[1];
-            size_t r3 = conf.dims[2];
-            size = SZMETA::DSize_3d(r1, r2, r3, params.block_size);
-            // prepare unpred buffer for vectorization
-            est_unpred_count_per_index = size.num_blocks * size.block_size * 1;
 
             int *type = quant_inds.data();
 //            T *dec_data = new T[size.num_elements];
