@@ -52,7 +52,7 @@ namespace SZ3{
             uchar len=0;
             int vec=0;
 
-            void dfs(Node* u){
+            void dfs_mp(Node* u){
 
                 if(u->isLeaf()){
 
@@ -65,11 +65,32 @@ namespace SZ3{
                 }
 
                 ++len;
-                dfs(u->p[0]);
+                dfs_mp(u->p[0]);
                 --len;
 
                 vec^=1<<len++;
-                dfs(u->p[1]);
+                dfs_mp(u->p[1]);
+                vec^=1<<--len;
+            }
+
+            void dfs_vec(Node* u){
+
+                if(u->isLeaf()){
+
+                    veclen[u->c]=len;
+                    veccode[u->c]=vec;
+
+                    limit=std::max(limit,len);
+
+                    return;
+                }
+
+                ++len;
+                dfs_vec(u->p[0]);
+                --len;
+
+                vec^=1<<len++;
+                dfs_vec(u->p[1]);
                 vec^=1<<--len;
             }
 
@@ -82,8 +103,16 @@ namespace SZ3{
 
         public:
 
-            std::vector<uchar> mplen;
-            std::vector<int> mpcode;
+            uchar usemp;
+            // 0 : vec
+            // 1 : mp
+
+            std::vector<uchar> veclen;
+            std::vector<int> veccode;
+//            ska::unordered_map<size_t,uchar> mplen;
+//            ska::unordered_map<size_t,int> mpcode;
+            std::unordered_map<size_t,uchar> mplen;
+            std::unordered_map<size_t,int> mpcode;
 
             T offset;
             // minimum bits for T
@@ -94,9 +123,12 @@ namespace SZ3{
 
                 _constructed=0;
                 ht.clear();
+                veclen.clear();
+                veccode.clear();
                 mplen.clear();
                 mpcode.clear();
-                freq.clear();
+                vecfreq.clear();
+                mpfreq.clear();
 
                 offset=0;
                 mbft=0;
@@ -115,28 +147,44 @@ namespace SZ3{
             int n;
             int maxval;
             std::vector<Node> ht;
-            std::vector<size_t> freq;
+            std::vector<size_t> vecfreq;
+//            ska::unordered_map<size_t,size_t> mpfreq;
+            std::unordered_map<size_t,size_t> mpfreq;
 
-            void addElement(T c,size_t freqc){
+            void addElementInMap(T c,size_t freqc){
 
                 assert(!_constructed);
 
                 ht.push_back(Node(c));
-                freq[c]=freqc;
+                mpfreq[c]=freqc;
+                ++n;
+            }
+
+            void addElementInVector(T c,size_t freqc){
+
+                assert(!_constructed);
+
+                ht.push_back(Node(c));
+                vecfreq[c]=freqc;
                 ++n;
             }
 
             void constructHuffmanTree(){
 
                 assert(!_constructed);
-                assert(ht.size()>1);
 
                 if(maxval==1){
 
                     mbft=1;
                     ht.push_back(Node(0,&ht[0],nullptr));
-                    mplen[0]=1;
-                    mpcode[0]=0;
+                    if(usemp){
+                        mplen[0]=1;
+                        mpcode[0]=0;
+                    }
+                    else {
+                        veclen[0]=1;
+                        veccode[0]=0;
+                    }
                     limit=1;
                     setConstructed();
                     return;
@@ -149,9 +197,15 @@ namespace SZ3{
 
                 std::priority_queue<std::pair<int,size_t>,std::vector<std::pair<int,size_t>>,cmp> q;
 
-                for(int i=0;i<ht.size();i++){
-
-                    q.push({i,freq[ht[i].c]});
+                if(usemp){
+                    for(int i=0;i<ht.size();i++){
+                        q.push({i,mpfreq[ht[i].c]});
+                    }
+                }
+                else{
+                    for(int i=0;i<ht.size();i++){
+                        q.push({i,vecfreq[ht[i].c]});
+                    }
                 }
 
                 while(q.size()>1){
@@ -170,7 +224,8 @@ namespace SZ3{
 
                 root=ht.size()-1;
 
-                dfs(&ht[root]);
+                if(usemp) dfs_mp(&ht[root]);
+                else dfs_vec(&ht[root]);
 
                 setConstructed();
 
@@ -196,12 +251,14 @@ namespace SZ3{
 
             Timer timer(true);
 
+            tree.usemp=stateNum>=(1<<12)&&num_bin<2*stateNum?1:0;
+
             tree.init();
 
             T __minval,__maxval;
 
             if(stateNum==0){
-
+                printf("please input the stateNum\n");
                 __minval=*bins;
                 __maxval=*bins;
                 for(int i=1;i<num_bin;i++){
@@ -217,27 +274,57 @@ namespace SZ3{
 
             tree.offset=__minval;
             tree.maxval=__maxval-__minval+1;
-            tree.freq.resize(tree.maxval);
-            tree.mplen.resize(tree.maxval);
-            tree.mpcode.resize(tree.maxval);
+            if(tree.usemp){
 
-            // printf("begins to cal freq\n");
+//                tree.mpfreq.reserve(num_bin);
+//                tree.mplen.reserve(num_bin);
+//                tree.mpcode.reserve(num_bin);
 
-            // ska::unordered_map<T,size_t> freq;
-            std::vector<size_t> freq(tree.maxval);
-            // freq.reserve(4*stateNum);
+//                ska::unordered_map<size_t,size_t> freq;
+                std::unordered_map<size_t,size_t> freq;
+//                freq.reserve(num_bin);
 
-            for(int i=0;i<num_bin;i++){
+                if(tree.offset==0){
+                    for(int i=0;i<num_bin;i++){
+                        ++freq[bins[i]];
+                    }
+                }
+                else{
+                    for(int i=0;i<num_bin;i++){
+                        ++freq[bins[i]-tree.offset];
+                    }
+                }
 
-                const T& it=*(bins+i);
-                ++freq[it-tree.offset];
+                tree.ht.reserve(freq.size()<<1);
+
+                for(auto it:freq){
+                    tree.addElementInMap(it.first,it.second);
+                }
             }
+            else{
 
-            tree.ht.reserve(freq.size()<<1);
+                tree.vecfreq.resize(tree.maxval);
+                tree.veclen.resize(tree.maxval);
+                tree.veccode.resize(tree.maxval);
 
-            for(int i=0;i<tree.maxval;i++){
+                std::vector<size_t> freq(tree.maxval);
 
-                if(freq[i]) tree.addElement(i,freq[i]);
+                if(tree.offset==0){
+                    for(int i=0;i<num_bin;i++){
+                        ++freq[bins[i]];
+                    }
+                }
+                else{
+                    for(int i=0;i<num_bin;i++){
+                        ++freq[bins[i]-tree.offset];
+                    }
+                }
+
+                tree.ht.reserve(freq.size()<<1);
+
+                for(int i=0;i<tree.maxval;i++){
+                    if(freq[i]) tree.addElementInVector(i,freq[i]);
+                }
             }
 
             // printf("begins to construct huffman tree\n");
@@ -264,9 +351,15 @@ namespace SZ3{
 
             std::vector<std::deque<T>> mp(limit+1);
 
-            for(int i=0;i<tree.maxval;i++){
-
-                mp[tree.mplen[i]].push_back(i);
+            if(tree.usemp){
+                for(auto it:tree.mplen){
+                    mp[it.second].push_back(it.first);
+                }
+            }
+            else{
+                for(int i=0;i<tree.maxval;i++){
+                    mp[tree.veclen[i]].push_back(i);
+                }
             }
 
             uchar mask=0;
@@ -297,7 +390,7 @@ namespace SZ3{
 
                     writeBytes(c,it,tree.mbft,mask,index);
 
-                    const int code=tree.mpcode[it];
+                    const int code=tree.usemp?tree.mpcode[it]:tree.veccode[it];
 
                     writeBytes(c,code,logcnt,mask,index);
                 }
@@ -328,7 +421,7 @@ namespace SZ3{
 
                         writeBytes(c,it,tree.mbft,mask,index);
 
-                        const int code=tree.mpcode[it];
+                        const int code=tree.usemp?tree.mpcode[it]:tree.veccode[it];
 
                         writeBytes(c,code,len,mask,index);
                     }
@@ -377,10 +470,20 @@ namespace SZ3{
             tree.maxval=bytesToInt32_bigEndian(bytes);
             bytes+=4;
 
-            tree.ht.reserve(tree.maxval<<1);
-            tree.freq.resize(tree.maxval);
-            tree.mplen.resize(tree.maxval);
-            tree.mpcode.resize(tree.maxval);
+            tree.usemp=tree.maxval>=(1<<12)&&(1<<(tree.limit-1))<tree.maxval?1:0;
+
+            if(tree.usemp){
+                tree.ht.reserve(2<<tree.limit);
+//                tree.mpfreq.reserve(1<<tree.limit);
+//                tree.mplen.reserve(1<<tree.limit);
+//                tree.mpcode.reserve(1<<tree.limit);
+            }
+            else{
+                tree.ht.reserve(tree.maxval<<1);
+                tree.vecfreq.resize(tree.maxval);
+                tree.veclen.resize(tree.maxval);
+                tree.veccode.resize(tree.maxval);
+            }
 
             tree.ht.push_back(Node());
 
@@ -417,9 +520,14 @@ namespace SZ3{
                     }
 
                     u->c=c;
-                    assert(c<tree.mplen.size());
-                    tree.mplen[c]=tree.limit;
-                    tree.mpcode[c]=vec;
+                    if(tree.usemp){
+                        tree.mplen[c]=tree.limit;
+                        tree.mpcode[c]=vec;
+                    }
+                    else{
+                        tree.veclen[c]=tree.limit;
+                        tree.veccode[c]=vec;
+                    }
                 }
 
                 bytes+=(i+7)>>3;
@@ -467,8 +575,14 @@ namespace SZ3{
 
                     u->c=c;
                     ++tree.n;
-                    tree.mplen[c]=len;
-                    tree.mpcode[c]=vec;
+                    if(tree.usemp){
+                        tree.mplen[c]=len;
+                        tree.mpcode[c]=vec;
+                    }
+                    else {
+                        tree.veclen[c]=len;
+                        tree.veccode[c]=vec;
+                    }
                 }
             }
 
@@ -500,16 +614,45 @@ namespace SZ3{
             uchar mask=0;
             uchar index=0;
 
-            for(int i=0;i<num_bin;i++){
-
-                const T& it=*(bins+i);
-
-                const uchar len_i=tree.mplen[it-tree.offset];
-                const int code_i=tree.mpcode[it-tree.offset];
-
-                len+=len_i;
-
-                writeBytes(bytes,code_i,len_i,mask,index);
+            if(tree.offset==0){
+                if(tree.usemp){
+                    for(int i=0;i<num_bin;i++){
+                        const T& it=bins[i];
+                        const uchar& len_i=tree.mplen[it];
+                        const int& code_i=tree.mpcode[it];
+                        len+=len_i;
+                        writeBytes(bytes,code_i,len_i,mask,index);
+                    }
+                }
+                else{
+                    for(int i=0;i<num_bin;i++){
+                        const T& it=bins[i];
+                        const uchar& len_i=tree.veclen[it];
+                        const int& code_i=tree.veccode[it];
+                        len+=len_i;
+                        writeBytes(bytes,code_i,len_i,mask,index);
+                    }
+                }
+            }
+            else{
+                if(tree.usemp){
+                    for(int i=0;i<num_bin;i++){
+                        const T& it=bins[i];
+                        const uchar& len_i=tree.mplen[it-tree.offset];
+                        const int& code_i=tree.mpcode[it-tree.offset];
+                        len+=len_i;
+                        writeBytes(bytes,code_i,len_i,mask,index);
+                    }
+                }
+                else{
+                    for(int i=0;i<num_bin;i++){
+                        const T& it=bins[i];
+                        const uchar& len_i=tree.veclen[it-tree.offset];
+                        const int& code_i=tree.veccode[it-tree.offset];
+                        len+=len_i;
+                        writeBytes(bytes,code_i,len_i,mask,index);
+                    }
+                }
             }
 
             writeBytesClearMask(bytes,mask,index);
@@ -557,8 +700,6 @@ namespace SZ3{
 
             assert(tree.isConstructed());
 
-            assert(targetLength>4);
-
             Node *u=&tree.ht[tree.root];
 
             int len=bytesToInt32_bigEndian(bytes)^0x1234abcd;
@@ -584,49 +725,100 @@ namespace SZ3{
             int byteIndex=0;
             int i=0;
             uchar b;
-            for(;i+8<len;i+=8,byteIndex++){
+            if(tree.offset==0){
 
-                b=bytes[byteIndex];
+                for(;i+8<len;i+=8,byteIndex++){
 
-                u=u->p[b&1];
-                if(u->isLeaf()){
-                    a[sza++]=u->c+tree.offset;
-                    u=&tree.ht[tree.root];
+                    b=bytes[byteIndex];
+
+                    u=u->p[b&1];
+                    if(u->isLeaf()){
+                        a[sza++]=u->c;
+                        u=&tree.ht[tree.root];
+                    }
+                    u=u->p[(b>>1)&1];
+                    if(u->isLeaf()){
+                        a[sza++]=u->c;
+                        u=&tree.ht[tree.root];
+                    }
+                    u=u->p[(b>>2)&1];
+                    if(u->isLeaf()){
+                        a[sza++]=u->c;
+                        u=&tree.ht[tree.root];
+                    }
+                    u=u->p[(b>>3)&1];
+                    if(u->isLeaf()){
+                        a[sza++]=u->c;
+                        u=&tree.ht[tree.root];
+                    }
+                    u=u->p[(b>>4)&1];
+                    if(u->isLeaf()){
+                        a[sza++]=u->c;
+                        u=&tree.ht[tree.root];
+                    }
+                    u=u->p[(b>>5)&1];
+                    if(u->isLeaf()){
+                        a[sza++]=u->c;
+                        u=&tree.ht[tree.root];
+                    }
+                    u=u->p[(b>>6)&1];
+                    if(u->isLeaf()){
+                        a[sza++]=u->c;
+                        u=&tree.ht[tree.root];
+                    }
+                    u=u->p[(b>>7)&1];
+                    if(u->isLeaf()){
+                        a[sza++]=u->c;
+                        u=&tree.ht[tree.root];
+                    }
                 }
-                u=u->p[(b>>1)&1];
-                if(u->isLeaf()){
-                    a[sza++]=u->c+tree.offset;
-                    u=&tree.ht[tree.root];
-                }
-                u=u->p[(b>>2)&1];
-                if(u->isLeaf()){
-                    a[sza++]=u->c+tree.offset;
-                    u=&tree.ht[tree.root];
-                }
-                u=u->p[(b>>3)&1];
-                if(u->isLeaf()){
-                    a[sza++]=u->c+tree.offset;
-                    u=&tree.ht[tree.root];
-                }
-                u=u->p[(b>>4)&1];
-                if(u->isLeaf()){
-                    a[sza++]=u->c+tree.offset;
-                    u=&tree.ht[tree.root];
-                }
-                u=u->p[(b>>5)&1];
-                if(u->isLeaf()){
-                    a[sza++]=u->c+tree.offset;
-                    u=&tree.ht[tree.root];
-                }
-                u=u->p[(b>>6)&1];
-                if(u->isLeaf()){
-                    a[sza++]=u->c+tree.offset;
-                    u=&tree.ht[tree.root];
-                }
-                u=u->p[(b>>7)&1];
-                if(u->isLeaf()){
-                    a[sza++]=u->c+tree.offset;
-                    u=&tree.ht[tree.root];
+            }
+            else{
+
+                for(;i+8<len;i+=8,byteIndex++){
+
+                    b=bytes[byteIndex];
+
+                    u=u->p[b&1];
+                    if(u->isLeaf()){
+                        a[sza++]=u->c+tree.offset;
+                        u=&tree.ht[tree.root];
+                    }
+                    u=u->p[(b>>1)&1];
+                    if(u->isLeaf()){
+                        a[sza++]=u->c+tree.offset;
+                        u=&tree.ht[tree.root];
+                    }
+                    u=u->p[(b>>2)&1];
+                    if(u->isLeaf()){
+                        a[sza++]=u->c+tree.offset;
+                        u=&tree.ht[tree.root];
+                    }
+                    u=u->p[(b>>3)&1];
+                    if(u->isLeaf()){
+                        a[sza++]=u->c+tree.offset;
+                        u=&tree.ht[tree.root];
+                    }
+                    u=u->p[(b>>4)&1];
+                    if(u->isLeaf()){
+                        a[sza++]=u->c+tree.offset;
+                        u=&tree.ht[tree.root];
+                    }
+                    u=u->p[(b>>5)&1];
+                    if(u->isLeaf()){
+                        a[sza++]=u->c+tree.offset;
+                        u=&tree.ht[tree.root];
+                    }
+                    u=u->p[(b>>6)&1];
+                    if(u->isLeaf()){
+                        a[sza++]=u->c+tree.offset;
+                        u=&tree.ht[tree.root];
+                    }
+                    u=u->p[(b>>7)&1];
+                    if(u->isLeaf()){
+                        a[sza++]=u->c+tree.offset;
+                        u=&tree.ht[tree.root];
+                    }
                 }
             }
 
