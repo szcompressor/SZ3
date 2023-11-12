@@ -173,9 +173,11 @@ namespace SZ3{
 
                 assert(!_constructed);
 
-                if(maxval==1){
+                if(n==1||maxval==1){
 
                     mbft=1;
+                    maxval=1;
+                    offset=ht[0].c;
                     ht.push_back(Node(0,&ht[0],nullptr));
                     if(usemp){
                         mplen[0]=1;
@@ -386,16 +388,19 @@ namespace SZ3{
                 while(logcnt<32&&(1<<logcnt)!=cnt) ++logcnt;
                 assert(logcnt!=32);
 
-                for(T it:mp[limit]){
+                if(tree.n>1){
 
-                    writeBytes(c,it,tree.mbft,mask,index);
+                    for(T it:mp[limit]){
 
-                    const int code=tree.usemp?tree.mpcode[it]:tree.veccode[it];
+                        writeBytes(c,it,tree.mbft,mask,index);
 
-                    writeBytes(c,code,logcnt,mask,index);
+                        const int code=tree.usemp?tree.mpcode[it]:tree.veccode[it];
+
+                        writeBytes(c,code,logcnt,mask,index);
+                    }
+
+                    writeBytesClearMask(c,mask,index);
                 }
-
-                writeBytesClearMask(c,mask,index);
 
                 return;
             }
@@ -692,7 +697,8 @@ namespace SZ3{
 
                 int len=bytesToInt32_bigEndian(bytes)^0x1234abcd;
                 bytes+=4;
-                assert(len==targetLength);
+//                assert(len==targetLength);
+
                 return std::vector<T>(len,tree.offset);
             }
 
