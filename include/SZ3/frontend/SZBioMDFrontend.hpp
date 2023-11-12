@@ -47,12 +47,14 @@ namespace SZ3 {
 
 
         void save(uchar *&c) {
+            write(site, c);
             quantizer.save(c);
         }
 
         void load(const uchar *&c, size_t &remaining_length) {
             clear();
             const uchar *c_pos = c;
+            read(site, c, remaining_length);
             quantizer.load(c, remaining_length);
             remaining_length -= c_pos - c;
         }
@@ -124,12 +126,11 @@ namespace SZ3 {
         }
 
         std::vector<int> compress_3d(T *data) {
-
             std::vector<int> quant_bins(conf.num);
             auto dims = conf.dims;
             std::vector<size_t> stride({dims[1] * dims[2], dims[2], 1});
             int site = cal_site_3d(data + stride[0], conf.dims);
-            printf("#of site = %d\n", site);
+            printf("# of site in the MD simulation guessed by SZ3 = %d\n", site);
             //TODO determine the # of system
             //i==0 & j==0
             for (size_t k = 0; k < dims[2]; k++) { //xyz
@@ -153,7 +154,7 @@ namespace SZ3 {
                         size_t idx1 = (i - 1) * stride[0] + j * stride[1] + k;
                         size_t idx2 = i * stride[0] + (j - 1) * stride[1] + k;
                         size_t idx3 = (i - 1) * stride[0] + (j - 1) * stride[1] + k;
-                        if (site != 0 && j % site == 0) {// time -1
+                        if (j == 0 || (site != 0 && j % site == 0)) {// time -1
                             quant_bins[idx] =
                                     quantizer.quantize_and_overwrite(data[idx], data[idx1]);
                         } else { // time -1 & atom -1
@@ -196,7 +197,7 @@ namespace SZ3 {
                         size_t idx1 = (i - 1) * stride[0] + j * stride[1] + k;
                         size_t idx2 = i * stride[0] + (j - 1) * stride[1] + k;
                         size_t idx3 = (i - 1) * stride[0] + (j - 1) * stride[1] + k;
-                        if (j % 3 == 0) {// time -1
+                        if (j == 0 || (site != 0 && j % site == 0)) {// time -1
                             dec_data[idx] = quantizer.recover(dec_data[idx1], quant_inds[idx]);
                         } else { // time -1 & atom -1
                             dec_data[idx] = quantizer.recover(dec_data[idx1] + dec_data[idx2] - dec_data[idx3], quant_inds[idx]);
@@ -209,6 +210,7 @@ namespace SZ3 {
 
         Quantizer quantizer;
         Config conf;
+        int site = 0;
 
     };
 
