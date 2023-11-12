@@ -64,6 +64,7 @@ namespace SZ3 {
             dims = std::vector<size_t>(begin, end);
             N = dims.size();
             num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<size_t>());
+            pred_dim = N;
             return num;
         }
 
