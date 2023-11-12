@@ -92,10 +92,44 @@ namespace SZ3 {
             return dec_data;
         }
 
+
+        int cal_site_3d(T *data, std::vector<size_t> dims) {
+            std::vector<int> sites;
+            for (int j = 0; j < std::min<size_t>(dims[2], 5); j++) {
+                size_t lprev = 0, lavg = 0, lcnt = 0;
+                for (size_t i = 1; i < std::min<size_t>(dims[1], 100); i++) {
+                    auto c = data[i * dims[2] + j], p = data[(i - 1) * dims[2] + j];
+                    if (fabs(c - p) / c > 0.5) {
+                        sites.push_back(i - lprev);
+//                        printf("%d %d\n", i, i - lprev);
+                        lprev = i;
+                    }
+                }
+            }
+            ska::unordered_map<int, size_t> frequency;
+            for (size_t i = 0; i < sites.size(); i++) {
+                frequency[sites[i]]++;
+            }
+            int maxCount = 0, res = 0;
+            for (const auto &kv: frequency) {
+                auto k = kv.first;
+                auto f = kv.second;
+//                printf("k %d f %d\n", k ,f);
+                if (maxCount < f) {
+                    res = k;
+                    maxCount = f;
+                }
+            }
+            return (res <= 1 || res > 20) ? 0 : res;
+        }
+
         std::vector<int> compress_3d(T *data) {
+
             std::vector<int> quant_bins(conf.num);
             auto dims = conf.dims;
             std::vector<size_t> stride({dims[1] * dims[2], dims[2], 1});
+            int site = cal_site_3d(data + stride[0], conf.dims);
+            printf("#of site = %d\n", site);
             //TODO determine the # of system
             //i==0 & j==0
             for (size_t k = 0; k < dims[2]; k++) { //xyz
@@ -119,7 +153,7 @@ namespace SZ3 {
                         size_t idx1 = (i - 1) * stride[0] + j * stride[1] + k;
                         size_t idx2 = i * stride[0] + (j - 1) * stride[1] + k;
                         size_t idx3 = (i - 1) * stride[0] + (j - 1) * stride[1] + k;
-                        if (j % 3 == 0) {// time -1
+                        if (site != 0 && j % site == 0) {// time -1
                             quant_bins[idx] =
                                     quantizer.quantize_and_overwrite(data[idx], data[idx1]);
                         } else { // time -1 & atom -1
