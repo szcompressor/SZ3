@@ -111,8 +111,10 @@ namespace SZ3{
             std::vector<int> veccode;
 //            ska::unordered_map<size_t,uchar> mplen;
 //            ska::unordered_map<size_t,int> mpcode;
-            std::unordered_map<size_t,uchar> mplen;
-            std::unordered_map<size_t,int> mpcode;
+//            std::unordered_map<size_t,uchar> mplen;
+//            std::unordered_map<size_t,int> mpcode;
+            std::map<size_t,uchar> mplen;
+            std::map<size_t,int> mpcode;
 
             T offset;
             // minimum bits for T
@@ -149,7 +151,8 @@ namespace SZ3{
             std::vector<Node> ht;
             std::vector<size_t> vecfreq;
 //            ska::unordered_map<size_t,size_t> mpfreq;
-            std::unordered_map<size_t,size_t> mpfreq;
+//            std::unordered_map<size_t,size_t> mpfreq;
+            std::map<size_t,size_t> mpfreq;
 
             void addElementInMap(T c,size_t freqc){
 
@@ -283,7 +286,8 @@ namespace SZ3{
 //                tree.mpcode.reserve(num_bin);
 
 //                ska::unordered_map<size_t,size_t> freq;
-                std::unordered_map<size_t,size_t> freq;
+//                std::unordered_map<size_t,size_t> freq;
+                std::map<size_t,size_t> freq;
 //                freq.reserve(num_bin);
 
                 if(tree.offset==0){
@@ -496,7 +500,16 @@ namespace SZ3{
 
                 int i=0;
                 tree.n=1<<tree.limit;
-                if(feature==0x02) tree.n=1;
+                if(feature==0x02) {
+                    tree.n=1;
+                    tree.ht.resize(2);
+                    tree.root=0;
+                    tree.ht[0]=Node(0,&tree.ht[1]);
+                    tree.ht[1]=Node(0);
+                    tree.mplen[0]=1;
+                    tree.mpcode[0]=0;
+                    return;
+                }
 
                 for(int j=0;j<tree.n;j++){
 
@@ -861,7 +874,6 @@ namespace SZ3{
         }
 
     };
-
 }
 
 #endif
