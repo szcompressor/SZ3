@@ -82,6 +82,8 @@ namespace SZ3 {
                 cmprAlgo = ALGO_INTERP_LORENZO;
             } else if (cmprAlgoStr == ALGO_STR[ALGO_INTERP]) {
                 cmprAlgo = ALGO_INTERP;
+            } else if (cmprAlgoStr == ALGO_STR[ALGO_BIOMD]) {
+                cmprAlgo = ALGO_BIOMD;
             }
             auto ebModeStr = cfg.Get("GlobalSettings", "ErrorBoundMode", "");
             if (ebModeStr == EB_STR[EB_ABS]) {
