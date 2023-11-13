@@ -139,6 +139,7 @@ namespace SZ3 {
             if (reg_unpredictable_data != nullptr) {
                 free(reg_unpredictable_data);
                 reg_unpredictable_data = nullptr;
+                reg_unpredictable_data_pos = nullptr;
             }
 //            if (unpred_data_buffer != nullptr) {
 //                free(unpred_data_buffer);
@@ -596,7 +597,7 @@ namespace SZ3 {
         int *reg_params_type = nullptr;
         float *reg_unpredictable_data = nullptr;
         float *reg_params = nullptr;
-        float *reg_unpredictable_data_pos;
+        float *reg_unpredictable_data_pos = nullptr;
 
         SZMETA::meanInfo<T> mean_info;
         int capacity = 0; // not used, capacity is controlled by quantizer
