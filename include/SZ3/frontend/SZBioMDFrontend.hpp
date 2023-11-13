@@ -122,7 +122,7 @@ namespace SZ3 {
                     maxCount = f;
                 }
             }
-            return (res <= 1 || res > 20) ? 0 : res;
+            return (res <= 2 || res > 10) ? 0 : res;
         }
 
         std::vector<int> compress_3d(T *data) {
