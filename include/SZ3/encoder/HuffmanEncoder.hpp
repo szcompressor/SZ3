@@ -15,6 +15,7 @@
 #include <unordered_set>
 #include <vector>
 #include <queue>
+#include <stack>
 
 namespace SZ3{
 
@@ -51,6 +52,15 @@ namespace SZ3{
 
             uchar len=0;
             int vec=0;
+
+            class cmp{
+            public:
+                bool operator()(const std::pair<int,size_t>& u, const std::pair<int,size_t>& v) {
+                    return u.second==v.second?u.first>v.first:u.second>v.second;
+                }
+            };
+
+        public:
 
             void dfs_mp(Node* u){
 
@@ -93,15 +103,6 @@ namespace SZ3{
                 dfs_vec(u->p[1]);
                 vec^=1<<--len;
             }
-
-            class cmp{
-            public:
-                bool operator()(const std::pair<int,size_t>& u, const std::pair<int,size_t>& v) {
-                    return u.second==v.second?u.first>v.first:u.second>v.second;
-                }
-            };
-
-        public:
 
             uchar usemp;
             // 0 : vec
@@ -180,7 +181,8 @@ namespace SZ3{
 
                     mbft=1;
                     maxval=1;
-                    offset=ht[0].c;
+                    offset+=ht[0].c;
+                    ht[0].c=0;
                     ht.push_back(Node(0,&ht[0],nullptr));
                     if(usemp){
                         mplen[0]=1;
@@ -441,17 +443,74 @@ namespace SZ3{
 
             timer.stop("saveAsCode");
 
-            // printf("huffman tree size = %d\n",(int)(c-head));
-
-            // Lossless_zstd zstd;
-            // size_t compressed_tree_size;
-
-            // // uchar *compressed_tree = zstd.compress(head,c-head,compressed_tree_size);
-            // delete[] zstd.compress(head,c-head,compressed_tree_size);
-
-            // printf("compressed huffman tree size = %d\n",(int)compressed_tree_size);
+//            printf("n = %d\n",tree.n);
+//
+//            printf("huffman tree size = %d\n",(int)(c-head));
+//
+//            Lossless_zstd zstd;
+//            size_t compressed_tree_size;
+//
+//            // uchar *compressed_tree = zstd.compress(head,c-head,compressed_tree_size);
+//            delete[] zstd.compress(head,c-head,compressed_tree_size);
+//
+//            printf("compressed huffman tree size = %d\n",(int)compressed_tree_size);
 
             return;
+        }
+
+        void saveAsDFSOrder(uchar *&c){
+
+            uchar* head=c;
+
+            uchar mask=0,index=0;
+
+            writeBytesByte(c,(tree.usemp<<7)|((tree.n==1)<<6)|tree.mbft);
+            writeBytes(c,tree.offset,sizeof(T)<<3,mask,index);
+            int32ToBytes_bigEndian(c,tree.n);
+            c+=4;
+            if(tree.usemp==0x00){
+                int32ToBytes_bigEndian(c,tree.maxval);
+                c+=4;
+            }
+
+            if(tree.n==1){
+
+                writeBytesClearMask(c,mask,index);
+                return;
+            }
+
+            std::stack<Node*> stk;
+
+            stk.push(&tree.ht[tree.root]);
+
+            while(!stk.empty()){
+
+                Node *u=stk.top();
+                stk.pop();
+                if(u->isLeaf()){
+                    writeBytesBit(c,0x01,mask,index);
+                    writeBytes(c,u->c,tree.mbft,mask,index);
+                }
+                else{
+                    writeBytesBit(c,0x00,mask,index);
+                    stk.push(u->p[1]);
+                    stk.push(u->p[0]);
+                }
+            }
+
+            writeBytesClearMask(c,mask,index);
+
+//            printf("n = %d\n",tree.n);
+//
+//            printf("huffman tree size = %d\n",(int)(c-head));
+//
+//            Lossless_zstd zstd;
+//            size_t compressed_tree_size;
+//
+//            // uchar *compressed_tree = zstd.compress(head,c-head,compressed_tree_size);
+//            delete[] zstd.compress(head,c-head,compressed_tree_size);
+//
+//            printf("compressed huffman tree size = %d\n",(int)compressed_tree_size);
         }
 
         void loadAsCode(const uchar *&bytes,size_t &remaining_length){
@@ -508,6 +567,7 @@ namespace SZ3{
                     tree.ht[1]=Node(0);
                     tree.mplen[0]=1;
                     tree.mpcode[0]=0;
+                    tree.setConstructed();
                     return;
                 }
 
@@ -549,6 +609,8 @@ namespace SZ3{
                 }
 
                 bytes+=(i+7)>>3;
+
+                tree.setConstructed();
 
                 return;
             }
@@ -606,7 +668,100 @@ namespace SZ3{
 
             bytes+=(i+7)>>3;
 
+            tree.setConstructed();
+
             timer.stop("loadAsCode");
+        }
+
+        void loadAsDFSOrder(const uchar *&bytes,size_t &remaining_length){
+
+            tree.init();
+
+            tree.usemp=(*bytes)>>7;
+            tree.mbft=(*bytes)&0x3f;
+            ++bytes;
+
+            for(int i=0;i<sizeof(T);i++){
+                tree.offset|=(T)(*bytes)<<(i<<3);
+                ++bytes;
+            }
+
+            tree.n=bytesToInt32_bigEndian(bytes);
+            bytes+=4;
+            tree.ht.reserve(tree.n<<1);
+
+            if(tree.usemp==0x00){
+
+                tree.maxval= bytesToInt32_bigEndian(bytes);
+                bytes+=4;
+                tree.veccode.resize(tree.maxval);
+                tree.veclen.resize(tree.maxval);
+            }
+
+            if(tree.n==1) {
+
+                tree.ht.resize(2);
+                tree.root=0;
+                tree.ht[0]=Node(0, &tree.ht[1]);
+                tree.ht[1]=Node(0);
+                if (tree.usemp) {
+                    tree.mplen[0]=1;
+                    tree.mpcode[0]=0;
+                } else {
+                    tree.veclen[0]=1;
+                    tree.veccode[0]=0;
+                }
+                tree.setConstructed();
+                return;
+            }
+
+            tree.root=0;
+            tree.ht.push_back(Node());
+            std::stack<Node*> stk;
+            stk.push(&tree.ht[0]);
+            int i=1;
+
+            while(!stk.empty()){
+
+                Node *u=stk.top();
+
+                if(readBit(bytes,i++)==0x00){
+
+                    tree.ht.push_back(Node());
+                    if(u->p[0]==nullptr){
+                        u->p[0]=&tree.ht[tree.ht.size()-1];
+                    }
+                    else{
+                        u->p[1]=&tree.ht[tree.ht.size()-1];
+                    }
+                    stk.push(&tree.ht[tree.ht.size()-1]);
+                }
+                else{
+
+                    T c=0;
+                    for(int j=0;j<tree.mbft;j++) c|=((T)readBit(bytes,i++))<<j;
+                    tree.ht.push_back(Node(c));
+                    if(u->p[0]==nullptr) u->p[0]=&tree.ht[tree.ht.size()-1];
+                    else u->p[1]=&tree.ht[tree.ht.size()-1];
+                    while(!stk.empty()&&stk.top()->p[1]!=nullptr){
+//                        Node *tem=stk.top();
+                        stk.pop();
+//                        if(!stk.empty()){
+//                            if(stk.top()->p[0]==nullptr) stk.top()->p[0]=tem;
+//                            else stk.top()->p[1]=tem;
+//                        }
+                    }
+                }
+            }
+
+            bytes+=(i+7)>>3;
+
+            if(tree.usemp){
+                tree.dfs_mp(&tree.ht[tree.root]);
+            }
+            else{
+                tree.dfs_vec(&tree.ht[tree.root]);
+            }
 
             tree.setConstructed();
         }
@@ -865,12 +1020,14 @@ namespace SZ3{
 
         void save(uchar *&c){
 
-            saveAsCode(c);
+//            saveAsCode(c);
+            saveAsDFSOrder(c);
         }
 
         void load(const uchar *&c,size_t &remaining_length){
 
-            loadAsCode(c,remaining_length);
+//            loadAsCode(c,remaining_length);
+            loadAsDFSOrder(c,remaining_length);
         }
 
     };
