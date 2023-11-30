@@ -181,15 +181,15 @@ namespace SZ3 {
             return sizeof(size_t) * 5 + sizeof(double) * 4 + sizeof(bool) * 5 + sizeof(uint8_t) * 6 + sizeof(int) * 5 + 50; //50 is for redundancy
         }
 
-        char N;
+        char N = 0;
         std::vector<size_t> dims;
-        size_t num;
+        size_t num = 0;
         uint8_t cmprAlgo = ALGO_INTERP_LORENZO;
         uint8_t errorBoundMode = EB_ABS;
-        double absErrorBound;
-        double relErrorBound;
-        double psnrErrorBound;
-        double l2normErrorBound;
+        double absErrorBound = 0.0;
+        double relErrorBound = 0.0;
+        double psnrErrorBound = 0.0;
+        double l2normErrorBound = 0.0;
         bool lorenzo = true;
         bool lorenzo2 = false;
         bool regression = true;
@@ -201,9 +201,9 @@ namespace SZ3 {
         uint8_t interpDirection = 0;
         int interpBlockSize = 32;
         int quantbinCnt = 65536;
-        int blockSize;
-        int stride; //not used now
-        int pred_dim; // not used now
+        int blockSize = 0;
+        int stride = 0;//not used now
+        int pred_dim = 0; // not used now
 
     };
 
