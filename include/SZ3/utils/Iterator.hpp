@@ -14,7 +14,7 @@
 #include <array>
 #include <typeinfo>
 
-namespace SZ {
+namespace SZ3 {
 // N-dimensional multi_dimensional_range
     template<class T, uint N>
     class multi_dimensional_range : public std::enable_shared_from_this<multi_dimensional_range<T, N>> {

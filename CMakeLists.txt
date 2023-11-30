@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(SZ3 VERSION 3.1.7)
+project(SZ3 VERSION 3.1.8)
 include(GNUInstallDirs)
 include(CTest)
 
@@ -43,8 +43,8 @@ if (MSVC)
 else ()
     option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" OFF)
 endif ()
-option(SZ3_DEBUG_TIMINGS "print debug timing information" ON)
 
+option(SZ3_DEBUG_TIMINGS "print debug timing information" OFF)
 if (SZ3_DEBUG_TIMINGS)
     target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_DEBUG_TIMINGS=1)
 else ()
