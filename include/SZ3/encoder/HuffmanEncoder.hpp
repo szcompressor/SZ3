@@ -151,9 +151,9 @@ namespace SZ3{
             int maxval;
             std::vector<Node> ht;
             std::vector<size_t> vecfreq;
-//            ska::unordered_map<size_t,size_t> mpfreq;
-//            std::unordered_map<size_t,size_t> mpfreq;
-            std::map<size_t,size_t> mpfreq;
+//            ska::unordered_map<T,size_t> mpfreq;
+//            std::unordered_map<T,size_t> mpfreq;
+            std::map<T,size_t> mpfreq;
 
             void addElementInMap(T c,size_t freqc){
 
@@ -258,8 +258,6 @@ namespace SZ3{
 
             Timer timer(true);
 
-            tree.usemp=stateNum>=(1<<12)&&num_bin<2*stateNum?1:0;
-
             tree.init();
 
             T __minval,__maxval;
@@ -281,15 +279,18 @@ namespace SZ3{
 
             tree.offset=__minval;
             tree.maxval=__maxval-__minval+1;
+
+            tree.usemp=__maxval>=(1<<12)&&num_bin<2*stateNum||__maxval>=(1<<16)?1:0;
+
             if(tree.usemp){
 
 //                tree.mpfreq.reserve(num_bin);
 //                tree.mplen.reserve(num_bin);
 //                tree.mpcode.reserve(num_bin);
 
-//                ska::unordered_map<size_t,size_t> freq;
-//                std::unordered_map<size_t,size_t> freq;
-                std::map<size_t,size_t> freq;
+//                ska::unordered_map<T,size_t> freq;
+//                std::unordered_map<T,size_t> freq;
+                std::map<T,size_t> freq;
 //                freq.reserve(num_bin);
 
                 if(tree.offset==0){
