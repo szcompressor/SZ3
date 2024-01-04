@@ -771,9 +771,9 @@ namespace SZ3{
 
             if(tree.maxval==1){
 
-                int32ToBytes_bigEndian(bytes,num_bin^0x1234abcd);
-                bytes+=4;
-                return 4;
+                int64ToBytes_bigEndian(bytes,num_bin^0x1234abcd);
+                bytes+=8;
+                return 8;
             }
 
             Timer timer(true);
@@ -781,16 +781,16 @@ namespace SZ3{
             assert(tree.isConstructed());
 
             uchar *head=bytes;
-            bytes+=4;
+            bytes+=8;
 
-            int len=0;
+            size_t len=0;
 
             uchar mask=0;
             uchar index=0;
 
             if(tree.offset==0){
                 if(tree.usemp){
-                    for(int i=0;i<num_bin;i++){
+                    for(size_t i=0;i<num_bin;i++){
                         const T& it=bins[i];
                         const uchar& len_i=tree.mplen[it];
                         const int& code_i=tree.mpcode[it];
@@ -799,7 +799,7 @@ namespace SZ3{
                     }
                 }
                 else{
-                    for(int i=0;i<num_bin;i++){
+                    for(size_t i=0;i<num_bin;i++){
                         const T& it=bins[i];
                         const uchar& len_i=tree.veclen[it];
                         const int& code_i=tree.veccode[it];
@@ -810,7 +810,7 @@ namespace SZ3{
             }
             else{
                 if(tree.usemp){
-                    for(int i=0;i<num_bin;i++){
+                    for(size_t i=0;i<num_bin;i++){
                         const T& it=bins[i];
                         const uchar& len_i=tree.mplen[it-tree.offset];
                         const int& code_i=tree.mpcode[it-tree.offset];
@@ -819,7 +819,7 @@ namespace SZ3{
                     }
                 }
                 else{
-                    for(int i=0;i<num_bin;i++){
+                    for(size_t i=0;i<num_bin;i++){
                         const T& it=bins[i];
                         const uchar& len_i=tree.veclen[it-tree.offset];
                         const int& code_i=tree.veccode[it-tree.offset];
@@ -831,7 +831,7 @@ namespace SZ3{
 
             writeBytesClearMask(bytes,mask,index);
 
-            int32ToBytes_bigEndian(head,len^0x1234abcd);
+            int64ToBytes_bigEndian(head,len^0x1234abcd);
 
             timer.stop("encode");
 
@@ -864,8 +864,8 @@ namespace SZ3{
 
             if(tree.maxval==1){
 
-                int len=bytesToInt32_bigEndian(bytes)^0x1234abcd;
-                bytes+=4;
+                size_t len=bytesToInt64_bigEndian(bytes)^0x1234abcd;
+                bytes+=8;
 //                assert(len==targetLength);
 
                 return std::vector<T>(len,tree.offset);
@@ -877,11 +877,10 @@ namespace SZ3{
 
             Node *u=&tree.ht[tree.root];
 
-            int len=bytesToInt32_bigEndian(bytes)^0x1234abcd;
-            bytes+=4;
-
+            size_t len=bytesToInt64_bigEndian(bytes)^0x1234abcd;
+            bytes+=8;
             std::vector<T> a(targetLength);
-            int sza=0;
+            size_t sza=0;
             // a.reserve(targetLength);
 
             // for(int i=0;i<len;){
@@ -897,8 +896,8 @@ namespace SZ3{
 
             // use unroll loops to optimize the above code
 
-            int byteIndex=0;
-            int i=0;
+            size_t byteIndex=0;
+            size_t i=0;
             uchar b;
             if(tree.offset==0){
 
@@ -999,7 +998,7 @@ namespace SZ3{
 
             b=bytes[byteIndex];
 
-            for(int j=0;j<len-i;j++){
+            for(size_t j=0;j<len-i;j++){
 
                 u=u->p[(b>>j)&1];
                 if(u->isLeaf()){
@@ -1025,7 +1024,7 @@ namespace SZ3{
             saveAsDFSOrder(c);
         }
 
-        void load(const uchar *&c,size_t &remaining_length){
+        void load(const uchar *&c, size_t &remaining_length){
 
 //            loadAsCode(c,remaining_length);
             loadAsDFSOrder(c,remaining_length);
