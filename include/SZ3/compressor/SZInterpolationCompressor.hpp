@@ -71,8 +71,8 @@ namespace SZ3 {
                 size_t stride = 1U << (level - 1);
                 auto inter_block_range = std::make_shared<
                         multi_dimensional_range<T, N>>(decData,
-                                                           std::begin(global_dimensions), std::end(global_dimensions),
-                                                           stride * blocksize, 0);
+                                                       std::begin(global_dimensions), std::end(global_dimensions),
+                                                       stride * blocksize, 0);
                 auto inter_begin = inter_block_range->begin();
                 auto inter_end = inter_block_range->end();
                 for (auto block = inter_begin; block != inter_end; ++block) {
@@ -123,8 +123,8 @@ namespace SZ3 {
 
                 auto inter_block_range = std::make_shared<
                         multi_dimensional_range<T, N>>(data, std::begin(global_dimensions),
-                                                           std::end(global_dimensions),
-                                                           blocksize * stride, 0);
+                                                       std::end(global_dimensions),
+                                                       blocksize * stride, 0);
 
                 auto inter_begin = inter_block_range->begin();
                 auto inter_end = inter_block_range->end();
@@ -148,7 +148,7 @@ namespace SZ3 {
 //            writefile("pred.dat", preds.data(), num_elements);
 //            writefile("quant.dat", quant_inds.data(), num_elements);
             encoder.preprocess_encode(quant_inds, quantizer.get_radius() * 2);
-            size_t bufferSize = 1.2 * (quantizer.size_est() + encoder.size_est() + sizeof(T) * quant_inds.size());
+            auto bufferSize = (size_t) std::max(1000.0, 1.2 * (quantizer.size_est() + encoder.size_est() + sizeof(T) * quant_inds.size()));
 
             uchar *buffer = new uchar[bufferSize];
             uchar *buffer_pos = buffer;
@@ -160,7 +160,6 @@ namespace SZ3 {
 
             quantizer.save(buffer_pos);
             quantizer.postcompress_data();
-
 
             timer.start();
             encoder.save(buffer_pos);
