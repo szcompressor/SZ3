@@ -11,9 +11,16 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HDF5_HOME/lib:$<PATH_TO_YOUR_SZ3_INSTAL
 
 Now, you have finished the installation of H5Z-SZ3 filter.
 
-Note:
 
-The filter will use default compression settings if non-empty parameters (cd_values) are provided during filter registration.
+H5Z-SZ3 parameter loading priority:
+1. (lowest priority) default setting:
+   error bound mode = ABS
+   absolute error bound = 1e-3
+   compression algorithm = ALGO_INTERP_LORENZO
 
-If you want to change compression settings, one way is to provide empty parameters (0 for cd_nelmts and NULL for cd_values) during registration.
-The filter will try to read configuration file with a name of 'sz3.config'. Compression settings can be adjusted in the configuration file.
+2. configuration file
+   The filter will read configuration file if its path is defined in the SZ3_CONFIG_PATH environment variable.
+   You can set the environment variable by "export SZ3_CONFIG_PATH=<PATH_TO_YOUR_SZ3_CONFIG_FILE>"
+
+3. (highest priority) cd_values
+   You can set error bound mode and error bound values through cd_values
