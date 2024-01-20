@@ -28,7 +28,7 @@ double total_decompress_time = 0;
 const char *compressor_names[] = {"VQ", "VQT", "MT", "LR", "TS"};
 
 
-template<typename T, uint N, class Predictor>
+template<typename T, SZ3::uint N, class Predictor>
 SZ3::concepts::CompressorInterface<T> *
 make_sz_timebased2(const SZ3::Config &conf, Predictor predictor, T *data_ts0) {
     return new SZ3::SZGeneralCompressor<T, N, SZ3::TimeBasedFrontend<T, N, Predictor, SZ3::LinearQuantizer<T>>,
@@ -40,7 +40,7 @@ make_sz_timebased2(const SZ3::Config &conf, Predictor predictor, T *data_ts0) {
             SZ3::Lossless_zstd());
 }
 
-template<typename T, uint N>
+template<typename T, SZ3::uint N>
 SZ3::concepts::CompressorInterface<T> *
 make_sz_timebased(const SZ3::Config &conf, T *data_ts0) {
     std::vector<std::shared_ptr<SZ3::concepts::PredictorInterface<T, N - 1>>> predictors;
@@ -72,7 +72,7 @@ make_sz_timebased(const SZ3::Config &conf, T *data_ts0) {
     return make_sz_timebased2<T, N>(conf, SZ3::ComposedPredictor<T, N - 1>(predictors), data_ts0);
 }
 
-template<typename T, uint N, class Predictor>
+template<typename T, SZ3::uint N, class Predictor>
 SZ3::concepts::CompressorInterface<T> *
 make_sz2(const SZ3::Config &conf, Predictor predictor) {
 
@@ -84,7 +84,7 @@ make_sz2(const SZ3::Config &conf, Predictor predictor) {
             SZ3::Lossless_zstd());
 }
 
-template<typename T, uint N>
+template<typename T, SZ3::uint N>
 SZ3::concepts::CompressorInterface<T> *
 make_sz(const SZ3::Config &conf) {
     std::vector<std::shared_ptr<SZ3::concepts::PredictorInterface<T, N>>> predictors;
@@ -117,7 +117,7 @@ make_sz(const SZ3::Config &conf) {
 }
 
 
-template<typename T, uint N>
+template<typename T, SZ3::uint N>
 float *
 VQ(SZ3::Config conf, size_t ts, T *data, size_t &compressed_size, bool decom,
    int method, float level_start, float level_offset, int level_num) {
@@ -152,7 +152,7 @@ VQ(SZ3::Config conf, size_t ts, T *data, size_t &compressed_size, bool decom,
 }
 
 
-template<typename T, uint N>
+template<typename T, SZ3::uint N>
 float *
 MT(SZ3::Config conf, size_t ts, T *data, size_t &compressed_size, bool decom, T *ts0) {
 //    printf("eb=%.8f\n", conf.eb);
@@ -181,7 +181,7 @@ MT(SZ3::Config conf, size_t ts, T *data, size_t &compressed_size, bool decom, T 
     return ts_dec_data;
 }
 
-template<typename T, uint N>
+template<typename T, SZ3::uint N>
 float *
 SZ2(SZ3::Config conf, size_t ts, T *data, size_t &compressed_size, bool decom) {
     auto sz = make_sz<T, N>(conf);
@@ -209,7 +209,7 @@ SZ2(SZ3::Config conf, size_t ts, T *data, size_t &compressed_size, bool decom) {
 }
 
 
-template<typename T, uint N>
+template<typename T, SZ3::uint N>
 void select(SZ3::Config conf, int &method, size_t ts, T *data_all,
             float level_start, float level_offset, int level_num, T *data_ts0, size_t timestep_batch) {
 //        && (ts_last_select == -1 || t - ts_last_select >= conf.timestep_batch * 10)) {
@@ -272,7 +272,7 @@ std::unique_ptr<Type[]> readfile(const char *file, size_t start, size_t num) {
 }
 
 
-template<typename T, uint N>
+template<typename T, SZ3::uint N>
 SZ3::uchar *LAMMPS_compress(SZ3::Config conf, T *data, int method, size_t &compressed_size,
                            float level_start, float level_offset, int level_num, T *ts0) {
     if ((method == 0 || method == 1) && level_num == 0) {
@@ -299,7 +299,7 @@ SZ3::uchar *LAMMPS_compress(SZ3::Config conf, T *data, int method, size_t &compr
     return compressed_data;
 }
 
-template<typename T, uint N>
+template<typename T, SZ3::uint N>
 int LAMMPS_select_compressor(SZ3::Config conf, T *data, bool firsttime,
                              float level_start, float level_offset, int level_num, T *data_ts0) {
 //    std::cout << "****************** BEGIN Selection ****************" << std::endl;
@@ -348,7 +348,7 @@ int LAMMPS_select_compressor(SZ3::Config conf, T *data, bool firsttime,
 }
 
 
-template<typename T, uint N>
+template<typename T, SZ3::uint N>
 inline typename std::enable_if<N == 1 || N == 2, size_t>::type
 MDZ_Compress(SZ3::Config conf, T *input_data, T *dec_data, size_t batch_size, int method = -1) {
 //    if (N != 2) {
@@ -445,7 +445,7 @@ MDZ_Compress(SZ3::Config conf, T *input_data, T *dec_data, size_t batch_size, in
     return total_compressed_size;
 }
 
-template<typename T, uint N>
+template<typename T, SZ3::uint N>
 inline typename std::enable_if<N == 3, size_t>::type MDZ_Compress(SZ3::Config conf, T *input_data, T *dec_data, size_t batch_size, int method = -1) {
     size_t total_compressed_size = 0;
     auto dims = conf.dims;
