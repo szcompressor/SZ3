@@ -15,7 +15,6 @@ namespace SZ3 {
 
             virtual uchar *compress(const Config &conf, T *data, size_t &compressed_size) = 0;
 
-            virtual ~CompressorInterface() = default;
         };
     }
 }

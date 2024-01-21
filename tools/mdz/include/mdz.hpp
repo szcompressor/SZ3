@@ -27,21 +27,42 @@ double total_compress_time = 0;
 double total_decompress_time = 0;
 const char *compressor_names[] = {"VQ", "VQT", "MT", "LR", "TS"};
 
-
 template<typename T, SZ3::uint N, class Predictor>
-SZ3::concepts::CompressorInterface<T> *
-make_sz_timebased2(const SZ3::Config &conf, Predictor predictor, T *data_ts0) {
-    return new SZ3::SZGeneralCompressor<T, N, SZ3::TimeBasedFrontend<T, N, Predictor, SZ3::LinearQuantizer<T>>,
-            SZ3::HuffmanEncoder<int>, SZ3::Lossless_zstd>(
-            SZ3::TimeBasedFrontend<T, N, Predictor, SZ3::LinearQuantizer<T>>(conf, predictor,
-                                                                           SZ3::LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2),
-                                                                           data_ts0),
+std::shared_ptr<SZ3::concepts::CompressorInterface<T>>
+make_sz2(const SZ3::Config &conf, Predictor predictor) {
+    return SZ3::make_sz_general_compressor<T, N>(
+            SZ3::SZGeneralFrontend<T, N, Predictor, SZ3::LinearQuantizer<T>>(conf, predictor,
+                                                                             SZ3::LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
             SZ3::HuffmanEncoder<int>(),
             SZ3::Lossless_zstd());
+//    return new SZ3::SZGeneralCompressor<T, N, SZ3::SZGeneralFrontend<T, N, Predictor, SZ3::LinearQuantizer<T>>,
+//            SZ3::HuffmanEncoder<int>, SZ3::Lossless_zstd>(
+//            SZ3::SZGeneralFrontend<T, N, Predictor, SZ3::LinearQuantizer<T>>(conf, predictor,
+//                                                                             SZ3::LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
+//            SZ3::HuffmanEncoder<int>(),
+//            SZ3::Lossless_zstd());
+}
+
+template<typename T, SZ3::uint N, class Predictor>
+std::shared_ptr<SZ3::concepts::CompressorInterface<T>>
+make_sz_timebased2(const SZ3::Config &conf, Predictor predictor, T *data_ts0) {
+    return SZ3::make_sz_general_compressor<T, N>(
+            SZ3::TimeBasedFrontend<T, N, Predictor, SZ3::LinearQuantizer<T>>(conf, predictor,
+                                                                             SZ3::LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2),
+                                                                             data_ts0),
+            SZ3::HuffmanEncoder<int>(),
+            SZ3::Lossless_zstd());
+//    return std::make_shared<SZGeneralCompressor SZ3::SZGeneralCompressor<T, N, SZ3::TimeBasedFrontend<T, N, Predictor, SZ3::LinearQuantizer<T>>,
+//            SZ3::HuffmanEncoder<int>, SZ3::Lossless_zstd>(
+//            SZ3::TimeBasedFrontend<T, N, Predictor, SZ3::LinearQuantizer<T>>(conf, predictor,
+//                                                                           SZ3::LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2),
+//                                                                           data_ts0),
+//            SZ3::HuffmanEncoder<int>(),
+//            SZ3::Lossless_zstd());
 }
 
 template<typename T, SZ3::uint N>
-SZ3::concepts::CompressorInterface<T> *
+std::shared_ptr<SZ3::concepts::CompressorInterface<T>>
 make_sz_timebased(const SZ3::Config &conf, T *data_ts0) {
     std::vector<std::shared_ptr<SZ3::concepts::PredictorInterface<T, N - 1>>> predictors;
 
@@ -72,20 +93,10 @@ make_sz_timebased(const SZ3::Config &conf, T *data_ts0) {
     return make_sz_timebased2<T, N>(conf, SZ3::ComposedPredictor<T, N - 1>(predictors), data_ts0);
 }
 
-template<typename T, SZ3::uint N, class Predictor>
-SZ3::concepts::CompressorInterface<T> *
-make_sz2(const SZ3::Config &conf, Predictor predictor) {
 
-    return new SZ3::SZGeneralCompressor<T, N, SZ3::SZGeneralFrontend<T, N, Predictor, SZ3::LinearQuantizer<T>>,
-            SZ3::HuffmanEncoder<int>, SZ3::Lossless_zstd>(
-            SZ3::SZGeneralFrontend<T, N, Predictor, SZ3::LinearQuantizer<T>>(conf, predictor,
-                                                                           SZ3::LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
-            SZ3::HuffmanEncoder<int>(),
-            SZ3::Lossless_zstd());
-}
 
 template<typename T, SZ3::uint N>
-SZ3::concepts::CompressorInterface<T> *
+std::shared_ptr<SZ3::concepts::CompressorInterface<T>>
 make_sz(const SZ3::Config &conf) {
     std::vector<std::shared_ptr<SZ3::concepts::PredictorInterface<T, N>>> predictors;
 
@@ -128,7 +139,7 @@ VQ(SZ3::Config conf, size_t ts, T *data, size_t &compressed_size, bool decom,
 
     auto sz = SZ3::SZ_Exaalt_Compressor<float, N, SZ3::LinearQuantizer<float>, SZ3::HuffmanEncoder<int>,
             SZ3::Lossless_zstd>(conf, SZ3::LinearQuantizer<float>(conf.absErrorBound, conf.quantbinCnt / 2),
-                               SZ3::HuffmanEncoder<int>(), SZ3::Lossless_zstd(), method);
+                                SZ3::HuffmanEncoder<int>(), SZ3::Lossless_zstd(), method);
     sz.set_level(level_start, level_offset, level_num);
 
     SZ3::Timer timer(true);
@@ -176,7 +187,7 @@ MT(SZ3::Config conf, size_t ts, T *data, size_t &compressed_size, bool decom, T 
     auto ts_dec_data = sz->decompress(compressed, compressed_size, conf.num);
     total_decompress_time += timer.stop("Decompression");
 
-    delete sz;
+//    delete sz;
     delete[] compressed;
     return ts_dec_data;
 }
@@ -203,7 +214,7 @@ SZ2(SZ3::Config conf, size_t ts, T *data, size_t &compressed_size, bool decom) {
     auto ts_dec_data = sz->decompress(compressed, compressed_size, conf.num);
     total_decompress_time += timer.stop("Decompression");
 
-    delete sz;
+//    delete sz;
     delete[] compressed;
     return ts_dec_data;
 }
@@ -274,7 +285,7 @@ std::unique_ptr<Type[]> readfile(const char *file, size_t start, size_t num) {
 
 template<typename T, SZ3::uint N>
 SZ3::uchar *LAMMPS_compress(SZ3::Config conf, T *data, int method, size_t &compressed_size,
-                           float level_start, float level_offset, int level_num, T *ts0) {
+                            float level_start, float level_offset, int level_num, T *ts0) {
     if ((method == 0 || method == 1) && level_num == 0) {
         printf("VQ/VQT not available on current dataset, please use ADP or MT\n");
         exit(0);
@@ -383,7 +394,7 @@ MDZ_Compress(SZ3::Config conf, T *input_data, T *dec_data, size_t batch_size, in
         sample_num = std::min(sample_num, (size_t) 20000);
         sample_num = std::max(sample_num, std::min((size_t) 5000, conf.dims[1]));
         SZ3::get_cluster(input_data, conf.dims[1], level_start, level_offset, level_num,
-                        sample_num);
+                         sample_num);
         if (level_num > conf.dims[1] * 0.25) {
             level_num = 0;
         }
