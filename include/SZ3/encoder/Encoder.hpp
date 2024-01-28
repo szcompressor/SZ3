@@ -2,9 +2,16 @@
 #define _SZ_ENCODER_HPP
 
 #include <vector>
+
 namespace SZ3 {
     namespace concepts {
 
+        /**
+         * Encoder changes the input to a more compact representative
+         * Usually this step is lossless instead of lossy
+         * Examples: huffman, runlenth, etc.
+         * @tparam T
+         */
         template<class T>
         class EncoderInterface {
         public:
@@ -27,9 +34,6 @@ namespace SZ3 {
              */
             virtual size_t encode(const std::vector<T> &bins, uchar *&bytes) = 0;
 
-            virtual void postprocess_encode() = 0;
-
-            virtual void preprocess_decode() = 0;
 
             /**
              * reverse of encode()
@@ -38,8 +42,6 @@ namespace SZ3 {
              * @return output in vector
              */
             virtual std::vector<T> decode(const uchar *&bytes, size_t targetLength) = 0;
-
-            virtual void postprocess_decode() = 0;
 
             /**
              * serialize the encoder and store it to a buffer
@@ -54,6 +56,14 @@ namespace SZ3 {
              * @param remaining_length the remaining length of the buffer
              */
             virtual void load(const uchar *&c, size_t &remaining_length) = 0;
+
+
+            virtual void postprocess_decode() = 0;
+
+            virtual void postprocess_encode() = 0;
+
+            virtual void preprocess_decode() = 0;
+
 
             // return the size of the encoder itself (such as the tree size of the huffman encoder)
             virtual size_t size_est() {

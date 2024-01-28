@@ -28,7 +28,7 @@ namespace SZ3 {
                        conf.regression, conf.absErrorBound),
                 precision(conf.absErrorBound),
                 conf(conf) {
-            if (N != 1 && N != 3){
+            if (N != 1 && N != 3) {
                 throw std::invalid_argument("SZMeta Front only support 1D or 3D data");
             }
         }
@@ -163,14 +163,10 @@ namespace SZ3 {
                    + (reg_unpredictable_data_pos - reg_unpredictable_data) * sizeof(float); //reg coeff unpred
         }
 
-        int get_radius() const {
+        int get_radius() {
 //            return capacity;
             return quantizer.get_radius();
         }
-
-        size_t get_num_elements() const {
-            return conf.num;
-        };
 
     private:
         std::vector<int> compress_1d(T *data) {

@@ -37,6 +37,8 @@ namespace SZ3 {
             uchar *buffer = new uchar[bufferSize];
             uchar *buffer_pos = buffer;
 
+            write(conf.num, buffer_pos);
+
             frontend.save(buffer_pos);
 
             encoder.save(buffer_pos);
@@ -59,23 +61,25 @@ namespace SZ3 {
         T *decompress(uchar const *cmpData, const size_t &cmpSize, T *decData) {
             size_t remaining_length = cmpSize;
 
-            Timer timer(true);
-            auto compressed_data = lossless.decompress(cmpData, remaining_length);
-            uchar const *compressed_data_pos = compressed_data;
+//            Timer timer(true);
+            auto buffer = lossless.decompress(cmpData, remaining_length);
+            uchar const *buffer_pos = buffer;
 //            timer.stop("Lossless");
+            size_t num = 0;
+            read(num, buffer_pos, remaining_length);
 
-            frontend.load(compressed_data_pos, remaining_length);
+            frontend.load(buffer_pos, remaining_length);
 
-            encoder.load(compressed_data_pos, remaining_length);
+            encoder.load(buffer_pos, remaining_length);
 
-            timer.start();
-            auto quant_inds = encoder.decode(compressed_data_pos, frontend.get_num_elements());
+//            timer.start();
+            auto quant_inds = encoder.decode(buffer_pos, num);
             encoder.postprocess_decode();
 //            timer.stop("Decoder");
 
-            lossless.postdecompress_data(compressed_data);
+            lossless.postdecompress_data(buffer);
 
-            timer.start();
+//            timer.start();
             frontend.decompress(quant_inds, decData);
 //            timer.stop("Prediction & Recover");
             return decData;

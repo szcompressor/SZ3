@@ -128,9 +128,7 @@ namespace SZ3 {
             quantizer.clear();
         }
 
-        int get_radius() const { return quantizer.get_radius(); }
-
-        size_t get_num_elements() const { return num_elements; };
+        int get_radius() { return quantizer.get_radius(); }
 
     private:
         Predictor predictor;
