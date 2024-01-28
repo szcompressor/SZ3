@@ -7,7 +7,9 @@
 
 
 #ifdef _OPENMP
+
 #include <omp.h>
+
 #endif
 namespace SZ3 {
     template<class T, uint N>
@@ -26,22 +28,23 @@ namespace SZ3 {
         int nThreads = 1;
         double eb;
 #pragma omp parallel
-        {
 #pragma omp single
-            {
-                nThreads = omp_get_num_threads();
-                if (conf.dims[0] < nThreads) {
-                    nThreads = conf.dims[0];
-                }
-                //printf("OpenMP threads = %d\n", nThreads);
-                compressed_t.resize(nThreads);
-                cmp_size_t.resize(nThreads + 1);
-                cmp_start_t.resize(nThreads + 1);
-                conf_t.resize(nThreads);
-                min_t.resize(nThreads);
-                max_t.resize(nThreads);
-            }
-
+        {
+            nThreads = omp_get_num_threads();
+        }
+        if (conf.dims[0] < nThreads) {
+            nThreads = conf.dims[0];
+            omp_set_num_threads(nThreads);
+        }
+//        printf("OpenMP threads = %d\n", nThreads);
+        compressed_t.resize(nThreads);
+        cmp_size_t.resize(nThreads + 1);
+        cmp_start_t.resize(nThreads + 1);
+        conf_t.resize(nThreads);
+        min_t.resize(nThreads);
+        max_t.resize(nThreads);
+#pragma omp parallel
+        {
 
             int tid = omp_get_thread_num();
 
