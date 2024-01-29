@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
     }
 
     std::vector<float> input_data_copy(input_data);
-
+    conf.openmp = true;
     size_t cmpSize;
     char *cmpData = SZ_compress(conf, input_data.data(), cmpSize);
     auto dec_data_p = dec_data.data();

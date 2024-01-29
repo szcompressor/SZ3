@@ -7,10 +7,11 @@
  * Currently only 3D data is supported.
  */
 
-#include "Frontend.hpp"
+#include "Decomposition.hpp"
 #include "SZ3/predictor/MetaLorenzoPredictor.hpp"
 #include "SZ3/predictor/MetaRegressionPredictor.hpp"
 #include "SZ3/utils/MetaDef.hpp"
+#include "SZ3/quantizer/Quantizer.hpp"
 #include "SZ3/encoder/HuffmanEncoder.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
 #include "SZ3/utils/Config.hpp"
@@ -20,9 +21,9 @@ namespace SZ3 {
     using namespace SZMETA;
 
     template<class T, uint N, class Quantizer>
-    class SZFastFrontend : public concepts::FrontendInterface<T, N> {
+    class LorenzoRegressionDecomposition : public concepts::DecompositionInterface<T, N> {
     public:
-        SZFastFrontend(const Config &conf, Quantizer quantizer) :
+        LorenzoRegressionDecomposition(const Config &conf, Quantizer quantizer) :
                 quantizer(quantizer),
                 params(false, conf.blockSize, conf.pred_dim, 0, conf.lorenzo, conf.lorenzo2,
                        conf.regression, conf.absErrorBound),
@@ -31,16 +32,18 @@ namespace SZ3 {
             if (N != 1 && N != 3) {
                 throw std::invalid_argument("SZMeta Front only support 1D or 3D data");
             }
+            static_assert(std::is_base_of<concepts::QuantizerInterface<T>, Quantizer>::value,
+                          "must implement the quatizer interface");
         }
 
-        ~SZFastFrontend() {
+        ~LorenzoRegressionDecomposition() {
             clear();
         }
 
         void print() {};
 
 
-        std::vector<int> compress(T *data) {
+        std::vector<int> compress(const Config &conf, T *data) {
             if (N == 1) {
                 return compress_1d(data);
             } else {
@@ -48,7 +51,7 @@ namespace SZ3 {
             }
         };
 
-        T *decompress(std::vector<int> &quant_inds, T *dec_data) {
+        T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) {
             if (N == 1) {
                 return decompress_1d(quant_inds, dec_data);
             } else {
@@ -610,10 +613,10 @@ namespace SZ3 {
 
     };
 
-    template<class T, uint N, class Predictor>
-    SZFastFrontend<T, N, Predictor>
-    make_sz_fast_frontend(const Config &conf, Predictor predictor) {
-        return SZFastFrontend<T, N, Predictor>(conf, predictor);
+    template<class T, uint N, class Quantizer>
+    LorenzoRegressionDecomposition<T, N, Quantizer>
+    make_sz_lorenzo_regression_quantization(const Config &conf, Quantizer quantizer) {
+        return LorenzoRegressionDecomposition<T, N, Quantizer>(conf, quantizer);
     }
 }
 

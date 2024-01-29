@@ -10,32 +10,32 @@
 
 namespace SZ3 {
     template<class T, uint N>
-    char *SZ_compress_dispatcher(Config &conf, T *data, size_t &outSize) {
+    void SZ_compress_dispatcher(Config &conf, T *data, uchar *dst, size_t &outSize) {
 
         assert(N == conf.N);
         calAbsErrorBound(conf, data);
 
-        char *cmpData;
+//        char *cmpData;
         if (conf.absErrorBound == 0) {
             auto zstd = Lossless_zstd();
-            cmpData = (char *) zstd.compress((uchar *) data, conf.num * sizeof(T), outSize);
+            zstd.compress((uchar *) data, conf.num * sizeof(T), dst, outSize);
         } else if (conf.cmprAlgo == ALGO_LORENZO_REG) {
-            cmpData = (char *) SZ_compress_LorenzoReg<T, N>(conf, data, outSize);
+            SZ_compress_LorenzoReg<T, N>(conf, data, dst, outSize);
         } else if (conf.cmprAlgo == ALGO_INTERP) {
-            cmpData = (char *) SZ_compress_Interp<T, N>(conf, data, outSize);
+            SZ_compress_Interp<T, N>(conf, data, dst, outSize);
         } else if (conf.cmprAlgo == ALGO_INTERP_LORENZO) {
-            cmpData = (char *) SZ_compress_Interp_lorenzo<T, N>(conf, data, outSize);
+            SZ_compress_Interp_lorenzo<T, N>(conf, data, dst, outSize);
         }
-        return cmpData;
+//        return cmpData;
     }
 
 
     template<class T, uint N>
-    void SZ_decompress_dispatcher(Config &conf, char *cmpData, size_t cmpSize, T *decData) {
+    void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
         if (conf.absErrorBound == 0) {
             auto zstd = Lossless_zstd();
-            auto zstdOut = zstd.decompress((uchar *) cmpData, cmpSize);
-            memcpy(decData, zstdOut, conf.num * sizeof(T));
+            auto zstdDstCap = conf.num * sizeof(T);
+            zstd.decompress(cmpData, cmpSize, (uchar *) decData, zstdDstCap);
         } else if (conf.cmprAlgo == ALGO_LORENZO_REG) {
             SZ_decompress_LorenzoReg<T, N>(conf, cmpData, cmpSize, decData);
         } else if (conf.cmprAlgo == ALGO_INTERP) {

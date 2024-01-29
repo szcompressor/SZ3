@@ -19,35 +19,27 @@ namespace SZ3 {
 
         Lossless_zstd(int comp_level) : compression_level(comp_level) {};
 
-        uchar *compress(uchar *data, size_t dataLength, size_t &outSize) {
-            size_t estimatedCompressedSize = std::max(size_t(dataLength * 1.2), size_t(400));
-            uchar *compressBytes = new uchar[estimatedCompressedSize];
-            uchar *compressBytesPos = compressBytes;
-            write(dataLength, compressBytesPos);
+        void compress(uchar *src, size_t srcLen, uchar *dst, size_t &dstCap) {
+//            size_t estimatedCompressedSize = std::max(size_t(srcLen * 1.2), size_t(400));
+//            uchar *compressBytes = new uchar[estimatedCompressedSize];
+//            uchar *dstPos = dst;
+//            write(srcLen, dstPos);
 
-            outSize = ZSTD_compress(compressBytesPos, estimatedCompressedSize, data, dataLength,
-                                    compression_level);
-            outSize += sizeof(size_t);
-            return compressBytes;
+            dstCap = ZSTD_compress(dst, dstCap, src, srcLen, compression_level);
+//            dstLen += sizeof(size_t);
+//            return compressBytes;
         }
 
-        void postcompress_data(uchar *data) {
-            delete[] data;
-        }
 
-        uchar *decompress(const uchar *data, size_t &compressedSize) {
-            const uchar *dataPos = data;
-            size_t dataLength = 0;
-            read(dataLength, dataPos, compressedSize);
+        void decompress(const uchar *src, const size_t srcLen, uchar *dst, size_t &dstCap) {
+//            const uchar *dataPos = data;
+//            size_t dataLength = 0;
+//            read(dataLength, dataPos, compressedSize);
 
-            uchar *oriData = new uchar[dataLength];
-            ZSTD_decompress(oriData, dataLength, dataPos, compressedSize);
-            compressedSize = dataLength;
-            return oriData;
-        }
-
-        void postdecompress_data(uchar *data) {
-            delete[] data;
+//            uchar *oriData = new uchar[dataLength];
+            dstCap = ZSTD_decompress(dst, dstCap, src, srcLen);
+//            compressedSize = dataLength;
+//            return oriData;
         }
 
     private:

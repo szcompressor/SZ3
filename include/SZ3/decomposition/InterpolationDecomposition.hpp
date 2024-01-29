@@ -1,11 +1,8 @@
-#ifndef _SZ_INTERPOLATION_COMPRESSSOR_HPP
-#define _SZ_INTERPOLATION_COMPRESSSOR_HPP
+#ifndef _SZ_INTERPOLATION_DECOMPOSITION_HPP
+#define _SZ_INTERPOLATION_DECOMPOSITION_HPP
 
-#include "SZ3/predictor/Predictor.hpp"
-#include "SZ3/predictor/LorenzoPredictor.hpp"
+#include "Decomposition.hpp"
 #include "SZ3/quantizer/Quantizer.hpp"
-#include "SZ3/encoder/Encoder.hpp"
-#include "SZ3/lossless/Lossless.hpp"
 #include "SZ3/utils/Iterator.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
 #include "SZ3/utils/Config.hpp"
@@ -18,49 +15,24 @@
 #include <cmath>
 
 namespace SZ3 {
-    template<class T, uint N, class Quantizer, class Encoder, class Lossless>
-    class SZInterpolationCompressor {
+    template<class T, uint N, class Quantizer>
+    class InterpolationDecomposition : public concepts::DecompositionInterface<T, N> {
     public:
 
 
-        SZInterpolationCompressor(Quantizer quantizer, Encoder encoder, Lossless lossless) :
-                quantizer(quantizer), encoder(encoder), lossless(lossless) {
-
+        InterpolationDecomposition(const Config &conf, Quantizer quantizer) : quantizer(quantizer) {
             static_assert(std::is_base_of<concepts::QuantizerInterface<T>, Quantizer>::value,
                           "must implement the quatizer interface");
-            static_assert(std::is_base_of<concepts::EncoderInterface<int>, Encoder>::value,
-                          "must implement the encoder interface");
-            static_assert(std::is_base_of<concepts::LosslessInterface, Lossless>::value,
-                          "must implement the lossless interface");
         }
 
-        T *decompress(uchar const *cmpData, const size_t &cmpSize, size_t num) {
-            T *dec_data = new T[num];
-            return decompress(cmpData, cmpSize, dec_data);
-        }
-
-        T *decompress(uchar const *cmpData, const size_t &cmpSize, T *decData) {
-            size_t remaining_length = cmpSize;
-            uchar *buffer = lossless.decompress(cmpData, remaining_length);
-            uchar const *buffer_pos = buffer;
-
-            read(global_dimensions.data(), N, buffer_pos, remaining_length);
-            read(blocksize, buffer_pos, remaining_length);
-            read(interpolator_id, buffer_pos, remaining_length);
-            read(direction_sequence_id, buffer_pos, remaining_length);
-
+        T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) {
             init();
 
-            quantizer.load(buffer_pos, remaining_length);
-            encoder.load(buffer_pos, remaining_length);
-            quant_inds = encoder.decode(buffer_pos, num_elements);
-
-            encoder.postprocess_decode();
-
-            lossless.postdecompress_data(buffer);
+            this->quant_inds = quant_inds;
+//            lossless.postdecompress_data(buffer);
             double eb = quantizer.get_eb();
 
-            *decData = quantizer.recover(0, quant_inds[quant_index++]);
+            *dec_data = quantizer.recover(0, this->quant_inds[quant_index++]);
 
             for (uint level = interpolation_level; level > 0 && level <= interpolation_level; level--) {
                 if (level >= 3) {
@@ -70,7 +42,7 @@ namespace SZ3 {
                 }
                 size_t stride = 1U << (level - 1);
                 auto inter_block_range = std::make_shared<
-                        multi_dimensional_range<T, N>>(decData,
+                        multi_dimensional_range<T, N>>(dec_data,
                                                        std::begin(global_dimensions), std::end(global_dimensions),
                                                        stride * blocksize, 0);
                 auto inter_begin = inter_block_range->begin();
@@ -83,7 +55,7 @@ namespace SZ3 {
                             end_idx[i] = global_dimensions[i] - 1;
                         }
                     }
-                    block_interpolation(decData, block.get_global_index(), end_idx, PB_recover,
+                    block_interpolation(dec_data, block.get_global_index(), end_idx, PB_recover,
                                         interpolators[interpolator_id], direction_sequence_id, stride);
 
                 }
@@ -91,11 +63,11 @@ namespace SZ3 {
             quantizer.postdecompress_data();
 //            timer.stop("Interpolation Decompress");
 
-            return decData;
+            return dec_data;
         }
 
         // compress given the error bound
-        uchar *compress(const Config &conf, T *data, size_t &compressed_size) {
+        std::vector<int> compress(const Config &conf, T *data) {
             std::copy_n(conf.dims.begin(), N, global_dimensions.begin());
             blocksize = conf.interpBlockSize;
             interpolator_id = conf.interpAlgo;
@@ -104,14 +76,14 @@ namespace SZ3 {
             init();
 
             quant_inds.reserve(num_elements);
-            size_t interp_compressed_size = 0;
+//            size_t interp_compressed_size = 0;
 
             double eb = quantizer.get_eb();
 
             quant_inds.push_back(quantizer.quantize_and_overwrite(*data, 0));
 
-            Timer timer;
-            timer.start();
+//            Timer timer;
+//            timer.start();
 
             for (uint level = interpolation_level; level > 0 && level <= interpolation_level; level--) {
                 if (level >= 3) {
@@ -147,36 +119,27 @@ namespace SZ3 {
 
 //            writefile("pred.dat", preds.data(), num_elements);
 //            writefile("quant.dat", quant_inds.data(), num_elements);
-            encoder.preprocess_encode(quant_inds, quantizer.get_radius() * 2);
-            auto bufferSize = (size_t) std::max(1000.0, 1.2 * (quantizer.size_est() + encoder.size_est() + sizeof(T) * quant_inds.size()));
 
-            uchar *buffer = new uchar[bufferSize];
-            uchar *buffer_pos = buffer;
-
-            write(global_dimensions.data(), N, buffer_pos);
-            write(blocksize, buffer_pos);
-            write(interpolator_id, buffer_pos);
-            write(direction_sequence_id, buffer_pos);
-
-            quantizer.save(buffer_pos);
             quantizer.postcompress_data();
+            return quant_inds;
+        }
 
-            timer.start();
-            encoder.save(buffer_pos);
-            encoder.encode(quant_inds, buffer_pos);
-            encoder.postprocess_encode();
-//            timer.stop("Coding");
-            assert(buffer_pos - buffer < bufferSize);
+        void save(uchar *&c) {
+            write(global_dimensions.data(), N, c);
+            write(blocksize, c);
+            write(interpolator_id, c);
+            write(direction_sequence_id, c);
 
-            timer.start();
-            uchar *lossless_data = lossless.compress(buffer,
-                                                     buffer_pos - buffer,
-                                                     compressed_size);
-            lossless.postcompress_data(buffer);
-//            timer.stop("Lossless");
+            quantizer.save(c);
+        }
 
-            compressed_size += interp_compressed_size;
-            return lossless_data;
+        void load(const uchar *&c, size_t &remaining_length) {
+            read(global_dimensions.data(), N, c, remaining_length);
+            read(blocksize, c, remaining_length);
+            read(interpolator_id, c, remaining_length);
+            read(direction_sequence_id, c, remaining_length);
+
+            quantizer.load(c, remaining_length);
         }
 
     private:
@@ -465,8 +428,6 @@ namespace SZ3 {
         size_t quant_index = 0; // for decompress
         double max_error;
         Quantizer quantizer;
-        Encoder encoder;
-        Lossless lossless;
         size_t num_elements;
         std::array<size_t, N> global_dimensions;
         std::array<size_t, N> dimension_offsets;
@@ -474,6 +435,11 @@ namespace SZ3 {
         int direction_sequence_id;
     };
 
+    template<class T, uint N, class Quantizer>
+    InterpolationDecomposition<T, N, Quantizer>
+    make_sz_interpolation_quantization(const Config &conf, Quantizer quantizer) {
+        return InterpolationDecomposition<T, N, Quantizer>(conf, quantizer);
+    }
 
 };
 

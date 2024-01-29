@@ -9,9 +9,7 @@ namespace SZ3::concepts {
 
     /**
      * Data prediction
-     * example: lorenzo, regression, interpolation
-     * This will be changed to DecompositionTypeI
-     * See Frontend.hpp for details
+     * example: lorenzo, regression
      * @tparam T original data type
      * @tparam N original data dimension
      */

@@ -9,8 +9,9 @@
 #include <vector>
 #include <numeric>
 #include <cstdint>
+#include "SZ3/version.hpp"
 #include "SZ3/def.hpp"
-#include "MemoryUtil.hpp"
+#include "SZ3/utils/MemoryUtil.hpp"
 #include "SZ3/utils/inih/INIReader.h"
 
 namespace SZ3 {
@@ -125,6 +126,7 @@ namespace SZ3 {
 
 
         void save(unsigned char *&c) {
+            write_str(sz3DataVer, c);
             write(N, c);
             write(dims.data(), dims.size(), c);
             write(num, c);
@@ -149,6 +151,7 @@ namespace SZ3 {
         };
 
         void load(const unsigned char *&c) {
+            read_str(sz3DataVer, c);
             read(N, c);
             dims.resize(N);
             read(dims.data(), N, c);
@@ -178,9 +181,10 @@ namespace SZ3 {
         }
 
         static size_t size_est() {
-            return sizeof(size_t) * 5 + sizeof(double) * 4 + sizeof(bool) * 5 + sizeof(uint8_t) * 6 + sizeof(int) * 5 + 50; //50 is for redundancy
+            return sizeof(size_t) * 5 + sizeof(double) * 4 + sizeof(bool) * 5 + sizeof(uint8_t) * 9 + sizeof(int) * 5 + 50; //50 is for redundancy
         }
 
+        std::string sz3DataVer = SZ3_DATA_VER;
         char N = 0;
         std::vector<size_t> dims;
         size_t num = 0;

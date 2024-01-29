@@ -14,26 +14,24 @@ namespace SZ3::concepts {
      */
     class LosslessInterface {
     public:
-        virtual void postcompress_data(uchar *data) = 0;
-
-        virtual void postdecompress_data(uchar *data) = 0;
 
         /**
          * compress data with lossless compressors
-         * @param data data to be compressed
-         * @param dataLength length (in bytes) of the data to be compressed
-         * @param outSize compressed size (in bytes)
-         * @return compressed data
+         * @param src  data to be compressed
+         * @param srcLen length (in bytes) of the data to be compressed
+         * @param dst compressed data
+         * @param dstCap capacity to store compressed size (in bytes), will be overwritten by the actual size in return
          */
-        virtual uchar *compress(uchar *data, size_t dataLength, size_t &outSize) = 0;
+        virtual void compress(uchar *src, size_t srcLen, uchar *dst, size_t &dstCap) = 0;
 
         /**
          * reverse of compress(), decompress the data with lossless compressors
-         * @param data data to be decompressed
-         * @param compressedSize length (in bytes) of the data to be decompressed (as input) or the data decompressed (as output).
-         * @return decompressed data
+         * @param src data to be decompressed
+         * @param srcLen length (in bytes) of the data to be decompressed (as input) or the data decompressed (as output).
+         * @param dst decompressed data
+         * @param dstCap capacity to store decompressed data (in bytes), will be overwritten by the actual size in return
          */
-        virtual uchar *decompress(const uchar *data, size_t &compressedSize) = 0;
+        virtual void decompress(const uchar *src, const size_t srcLen, uchar *dst, size_t &dstCap) = 0;
     };
 }
 
