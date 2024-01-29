@@ -12,7 +12,7 @@
 #include <cstring>
 
 /**
- * SZGenericCompressor glue together predictor, quantizer, encoder, and lossless modules to form the compression pipeline
+ * SZGenericCompressor glues together predictor, quantizer, encoder, and lossless modules to form the compression pipeline
  * it doesn't contains the logic to iterate through the input data. The logic is handled inside decomposition
  */
 

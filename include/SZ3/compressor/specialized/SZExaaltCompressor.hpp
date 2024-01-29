@@ -18,11 +18,11 @@
  */
 namespace SZ3 {
     template<class T, uint N, class Quantizer, class Encoder, class Lossless>
-    class SZ_Exaalt_Compressor : public SZ3::concepts::CompressorInterface<T> {
+    class SZExaaltCompressor : public SZ3::concepts::CompressorInterface<T> {
     public:
 
 
-        SZ_Exaalt_Compressor(Quantizer quantizer, Encoder encoder, Lossless lossless, int timestep_op) :
+        SZExaaltCompressor(Quantizer quantizer, Encoder encoder, Lossless lossless, int timestep_op) :
                 quantizer(quantizer), encoder(encoder), lossless(lossless), timestep_op(timestep_op) {
             static_assert(std::is_base_of<concepts::QuantizerInterface<T>, Quantizer>::value,
                           "must implement the quatizer interface");
@@ -212,9 +212,9 @@ namespace SZ3 {
     };
 
     template<class T, uint N, class Quantizer, class Encoder, class Lossless>
-    std::shared_ptr<SZ_Exaalt_Compressor<T, N, Quantizer, Encoder, Lossless>>
+    std::shared_ptr<SZExaaltCompressor<T, N, Quantizer, Encoder, Lossless>>
     make_compressor_exaalt(Quantizer quantizer, Encoder encoder, Lossless lossless, int timestep_op) {
-        return std::make_shared<SZ_Exaalt_Compressor<T, N, Quantizer, Encoder, Lossless>>(quantizer, encoder, lossless, timestep_op);
+        return std::make_shared<SZExaaltCompressor<T, N, Quantizer, Encoder, Lossless>>(quantizer, encoder, lossless, timestep_op);
     }
 }
 #endif

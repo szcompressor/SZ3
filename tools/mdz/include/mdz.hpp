@@ -21,7 +21,7 @@
 #include <SZ3/utils/QuantOptimizatioin.hpp>
 #include "SZ3/utils/KmeansUtil.hpp"
 #include "SZ3/decomposition/TimeSeriesDecomposition.hpp"
-#include "SZ3/compressor/specialized/ExaaltCompressor.hpp"
+#include "SZ3/compressor/specialized/SZExaaltCompressor.hpp"
 
 using namespace SZ3;
 double total_compress_time = 0;

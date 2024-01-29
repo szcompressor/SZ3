@@ -16,7 +16,7 @@
 #include <cstring>
 
 /**
- * SZIterateCompressor glue together predictor, quantizer, encoder, and lossless modules to form the compression pipeline
+ * SZIterateCompressor glues together predictor, quantizer, encoder, and lossless modules to form the compression pipeline
  * it contains the logic to iterate through the input data
  */
 namespace SZ3 {
