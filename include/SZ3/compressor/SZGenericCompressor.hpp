@@ -12,19 +12,19 @@
 #include <cstring>
 
 /**
- * SZGenericCompressor glues together predictor, quantizer, encoder, and lossless modules to form the compression pipeline
+ * SZGenericCompressor glues together decomposition, encoder, and lossless modules to form the compression pipeline
  * it doesn't contains the logic to iterate through the input data. The logic is handled inside decomposition
  */
 
 namespace SZ3 {
-    template<class T, uint N, class Predictor, class Encoder, class Lossless>
+    template<class T, uint N, class Decomposition, class Encoder, class Lossless>
     class SZGenericCompressor : public concepts::CompressorInterface<T> {
     public:
 
 
-        SZGenericCompressor(Predictor predictor, Encoder encoder, Lossless lossless) :
-                predictor(predictor), encoder(encoder), lossless(lossless) {
-            static_assert(std::is_base_of<concepts::DecompositionInterface<T, N>, Predictor>::value,
+        SZGenericCompressor(Decomposition decomposition, Encoder encoder, Lossless lossless) :
+                decomposition(decomposition), encoder(encoder), lossless(lossless) {
+            static_assert(std::is_base_of<concepts::DecompositionInterface<T, N>, Decomposition>::value,
                           "must implement the frontend interface");
             static_assert(std::is_base_of<concepts::EncoderInterface<int>, Encoder>::value,
                           "must implement the encoder interface");
@@ -34,17 +34,17 @@ namespace SZ3 {
 
         void compress(const Config &conf, T *data, uchar *dst, size_t &dstLen) {
 
-            std::vector<int> quant_inds = predictor.compress(conf, data);
+            std::vector<int> quant_inds = decomposition.compress(conf, data);
 
-            encoder.preprocess_encode(quant_inds, predictor.get_radius() * 2);
-            size_t bufferSize = std::max<size_t>(1000, 1.2 * (predictor.size_est() + encoder.size_est() + sizeof(T) * quant_inds.size()));
+            encoder.preprocess_encode(quant_inds, decomposition.get_radius() * 2);
+            size_t bufferSize = std::max<size_t>(1000, 1.2 * (decomposition.size_est() + encoder.size_est() + sizeof(T) * quant_inds.size()));
 
             auto buffer = (uchar *) malloc(bufferSize);
             uchar *buffer_pos = buffer;
 
             write(conf.num, buffer_pos);
 
-            predictor.save(buffer_pos);
+            decomposition.save(buffer_pos);
 
             encoder.save(buffer_pos);
             encoder.encode(quant_inds, buffer_pos);
@@ -70,7 +70,7 @@ namespace SZ3 {
             size_t num = 0;
             read(num, buffer_pos, remaining_length);
 
-            predictor.load(buffer_pos, remaining_length);
+            decomposition.load(buffer_pos, remaining_length);
 
             encoder.load(buffer_pos, remaining_length);
 
@@ -83,22 +83,22 @@ namespace SZ3 {
 //            lossless.postdecompress_data(buffer);
 
 //            timer.start();
-            predictor.decompress(conf, quant_inds, decData);
+            decomposition.decompress(conf, quant_inds, decData);
 //            timer.stop("Prediction & Recover");
             return decData;
         }
 
 
     private:
-        Predictor predictor;
+        Decomposition decomposition;
         Encoder encoder;
         Lossless lossless;
     };
 
-    template<class T, uint N, class Predictor, class Encoder, class Lossless>
-    std::shared_ptr<SZGenericCompressor<T, N, Predictor, Encoder, Lossless>>
-    make_compressor_sz_generic(Predictor predictorTypeOne, Encoder encoder, Lossless lossless) {
-        return std::make_shared<SZGenericCompressor<T, N, Predictor, Encoder, Lossless>>(predictorTypeOne, encoder, lossless);
+    template<class T, uint N, class Decomposition, class Encoder, class Lossless>
+    std::shared_ptr<SZGenericCompressor<T, N, Decomposition, Encoder, Lossless>>
+    make_compressor_sz_generic(Decomposition decomposition, Encoder encoder, Lossless lossless) {
+        return std::make_shared<SZGenericCompressor<T, N, Decomposition, Encoder, Lossless>>(decomposition, encoder, lossless);
     }
 
 
