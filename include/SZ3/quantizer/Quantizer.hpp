@@ -39,10 +39,10 @@ namespace SZ3::concepts {
          */
         virtual T recover(T pred, int quant_index) = 0;
 
-        /**
-         * reset quantizer to initial state
-         */
-        virtual void clear() = 0;
+//        /**
+//         * reset quantizer to initial state
+//         */
+////        virtual void clear() = 0;
 
         /**
          ** serialize the quantizer and store it to a buffer

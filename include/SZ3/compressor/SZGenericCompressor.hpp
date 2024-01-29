@@ -1,5 +1,5 @@
-#ifndef SZ_COMPRESSOR_TYPEI_HPP
-#define SZ_COMPRESSOR_TYPEI_HPP
+#ifndef SZ_COMPRESSOR_TYPE_ONE_HPP
+#define SZ_COMPRESSOR_TYPE_ONE_HPP
 
 #include "SZ3/compressor/Compressor.hpp"
 #include "SZ3/decomposition/Decomposition.hpp"
@@ -11,13 +11,18 @@
 #include "SZ3/def.hpp"
 #include <cstring>
 
+/**
+ * SZGenericCompressor glue together predictor, quantizer, encoder, and lossless modules to form the compression pipeline
+ * it doesn't contains the logic to iterate through the input data. The logic is handled inside decomposition
+ */
+
 namespace SZ3 {
     template<class T, uint N, class Predictor, class Encoder, class Lossless>
-    class SZCompressorTypeOne : public concepts::CompressorInterface<T> {
+    class SZGenericCompressor : public concepts::CompressorInterface<T> {
     public:
 
 
-        SZCompressorTypeOne(Predictor predictor, Encoder encoder, Lossless lossless) :
+        SZGenericCompressor(Predictor predictor, Encoder encoder, Lossless lossless) :
                 predictor(predictor), encoder(encoder), lossless(lossless) {
             static_assert(std::is_base_of<concepts::DecompositionInterface<T, N>, Predictor>::value,
                           "must implement the frontend interface");
@@ -91,9 +96,9 @@ namespace SZ3 {
     };
 
     template<class T, uint N, class Predictor, class Encoder, class Lossless>
-    std::shared_ptr<SZCompressorTypeOne<T, N, Predictor, Encoder, Lossless>>
-    make_sz_compressor_type_one(Predictor predictorTypeOne, Encoder encoder, Lossless lossless) {
-        return std::make_shared<SZCompressorTypeOne<T, N, Predictor, Encoder, Lossless>>(predictorTypeOne, encoder, lossless);
+    std::shared_ptr<SZGenericCompressor<T, N, Predictor, Encoder, Lossless>>
+    make_compressor_sz_generic(Predictor predictorTypeOne, Encoder encoder, Lossless lossless) {
+        return std::make_shared<SZGenericCompressor<T, N, Predictor, Encoder, Lossless>>(predictorTypeOne, encoder, lossless);
     }
 
 

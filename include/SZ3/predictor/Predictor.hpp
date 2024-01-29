@@ -8,8 +8,13 @@
 namespace SZ3::concepts {
 
     /**
-     * Data prediction
-     * example: lorenzo, regression
+     * data prediction interface
+     *
+     * difference between Prediction and Decomposition interfaces:
+     * Prediction:
+     *       prediction function takes scalar value (e.g, single data point)
+     * Decomposition:
+     *       prediction function takes multidimensional tensors (e.g, whole input)
      * @tparam T original data type
      * @tparam N original data dimension
      */
@@ -74,7 +79,7 @@ namespace SZ3::concepts {
 
         virtual void print() const = 0;
 
-        virtual void clear() = 0;
+//        virtual void clear() = 0;
     };
 
     /**

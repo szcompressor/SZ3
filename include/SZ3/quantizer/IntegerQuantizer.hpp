@@ -174,10 +174,10 @@ namespace SZ3 {
             printf("[IntegerQuantizer] error_bound = %.8G, radius = %d, unpred = %lu\n", error_bound, radius, unpred.size());
         }
 
-        void clear() {
-            unpred.clear();
-            index = 0;
-        }
+//        void clear() {
+//            unpred.clear();
+//            index = 0;
+//        }
 
 
         virtual void postcompress_data() {

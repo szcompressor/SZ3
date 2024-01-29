@@ -1,8 +1,8 @@
 #ifndef SZ3_SZ_LORENZO_REG_HPP
 #define SZ3_SZ_LORENZO_REG_HPP
 
-#include "SZ3/compressor/SZCompressorTypeTwo.hpp"
-#include "SZ3/compressor/SZCompressorTypeOne.hpp"
+#include "SZ3/compressor/SZIterateCompressor.hpp"
+#include "SZ3/compressor/SZGenericCompressor.hpp"
 #include "SZ3/decomposition/LorenzoRegressionDecomposition.hpp"
 #include "SZ3/quantizer/IntegerQuantizer.hpp"
 #include "SZ3/predictor/ComposedPredictor.hpp"
@@ -22,7 +22,7 @@
 namespace SZ3 {
     template<class T, uint N, class Quantizer, class Encoder, class Lossless>
     std::shared_ptr<concepts::CompressorInterface<T>>
-    make_lorenzo_regression_compressor(const Config &conf, Quantizer quantizer, Encoder encoder, Lossless lossless) {
+    make_compressor_typetwo_lorenzo_regression(const Config &conf, Quantizer quantizer, Encoder encoder, Lossless lossless) {
         std::vector<std::shared_ptr<concepts::PredictorInterface<T, N>>> predictors;
 
         int methodCnt = (conf.lorenzo + conf.lorenzo2 + conf.regression + conf.regression2);
@@ -33,7 +33,7 @@ namespace SZ3 {
         }
         if (conf.lorenzo) {
             if (use_single_predictor) {
-                return make_sz_compressor_type_two<T, N>(conf,
+                return make_compressor_sz_iterate<T, N>(conf,
                                                         LorenzoPredictor<T, N, 1>(conf.absErrorBound),
                                                         quantizer, encoder, lossless);
             } else {
@@ -42,7 +42,7 @@ namespace SZ3 {
         }
         if (conf.lorenzo2) {
             if (use_single_predictor) {
-                return make_sz_compressor_type_two<T, N>(conf,
+                return make_compressor_sz_iterate<T, N>(conf,
                                                         LorenzoPredictor<T, N, 2>(conf.absErrorBound),
                                                         quantizer, encoder, lossless);
             } else {
@@ -51,7 +51,7 @@ namespace SZ3 {
         }
         if (conf.regression) {
             if (use_single_predictor) {
-                return make_sz_compressor_type_two<T, N>(conf, RegressionPredictor<T, N>(conf.blockSize, conf.absErrorBound),
+                return make_compressor_sz_iterate<T, N>(conf, RegressionPredictor<T, N>(conf.blockSize, conf.absErrorBound),
                                                         quantizer, encoder, lossless);
             } else {
                 predictors.push_back(std::make_shared<RegressionPredictor<T, N>>(conf.blockSize, conf.absErrorBound));
@@ -60,13 +60,13 @@ namespace SZ3 {
 
         if (conf.regression2) {
             if (use_single_predictor) {
-                return make_sz_compressor_type_two<T, N>(conf, PolyRegressionPredictor<T, N>(conf.blockSize, conf.absErrorBound),
+                return make_compressor_sz_iterate<T, N>(conf, PolyRegressionPredictor<T, N>(conf.blockSize, conf.absErrorBound),
                                                         quantizer, encoder, lossless);
             } else {
                 predictors.push_back(std::make_shared<PolyRegressionPredictor<T, N>>(conf.blockSize, conf.absErrorBound));
             }
         }
-        return make_sz_compressor_type_two<T, N>(conf, ComposedPredictor<T, N>(predictors),
+        return make_compressor_sz_iterate<T, N>(conf, ComposedPredictor<T, N>(predictors),
                                                 quantizer, encoder, lossless);
     }
 
@@ -78,15 +78,14 @@ namespace SZ3 {
         assert(conf.cmprAlgo == ALGO_LORENZO_REG);
         calAbsErrorBound(conf, data);
 
-        char *cmpData;
         auto quantizer = LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2);
         if (N == 3 && !conf.regression2 || (N == 1 && !conf.regression && !conf.regression2)) {
             // use fast version for 3D
-            auto sz = make_sz_compressor_type_one<T, N>(make_sz_lorenzo_regression_quantization<T, N>(conf, quantizer), HuffmanEncoder<int>(),
+            auto sz = make_compressor_sz_generic<T, N>(make_decomposition_lorenzo_regression<T, N>(conf, quantizer), HuffmanEncoder<int>(),
                                                        Lossless_zstd());
             sz->compress(conf, data, dst, outSize);
         } else {
-            auto sz = make_lorenzo_regression_compressor<T, N>(conf, quantizer, HuffmanEncoder<int>(), Lossless_zstd());
+            auto sz = make_compressor_typetwo_lorenzo_regression<T, N>(conf, quantizer, HuffmanEncoder<int>(), Lossless_zstd());
             sz->compress(conf, data, dst, outSize);
         }
 //        return cmpData;
@@ -101,13 +100,13 @@ namespace SZ3 {
         LinearQuantizer<T> quantizer;
         if (N == 3 && !conf.regression2 || (N == 1 && !conf.regression && !conf.regression2)) {
             // use fast version for 3D
-            auto sz = make_sz_compressor_type_one<T, N>(make_sz_lorenzo_regression_quantization<T, N>(conf, quantizer),
+            auto sz = make_compressor_sz_generic<T, N>(make_decomposition_lorenzo_regression<T, N>(conf, quantizer),
                                                        HuffmanEncoder<int>(), Lossless_zstd());
             sz->decompress(conf, cmpDataPos, cmpSize, decData);
             return;
 
         } else {
-            auto sz = make_lorenzo_regression_compressor<T, N>(conf, quantizer, HuffmanEncoder<int>(), Lossless_zstd());
+            auto sz = make_compressor_typetwo_lorenzo_regression<T, N>(conf, quantizer, HuffmanEncoder<int>(), Lossless_zstd());
             sz->decompress(conf, cmpDataPos, cmpSize, decData);
             return;
         }

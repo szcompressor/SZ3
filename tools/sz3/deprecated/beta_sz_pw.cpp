@@ -7,7 +7,7 @@
 #include "SZ3/utils/FileUtil.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/def.hpp"
-#include "SZ3/compressor/SZCompressorTypeTwo.hpp"
+#include "SZ3/compressor/SZIterateCompressor.hpp"
 #include "SZ3/encoder/HuffmanEncoder.hpp"
 #include "SZ3/encoder/ArithmeticEncoder.hpp"
 #include "SZ3/encoder/BypassEncoder.hpp"
@@ -89,7 +89,7 @@ float SZ_compress(std::unique_ptr<T[]> const &data,
     }
 
 //    std::vector<T> data1 = std::vector<T>(data.get(), data.get() + conf.num);
-    auto sz = SZ3::make_sz_compressor_type_two<T, N>(frontend, encoder, lossless);
+    auto sz = SZ3::make_compressor_sz_iterate<T, N>(frontend, encoder, lossless);
 
     SZ3::Timer timer;
     timer.start();

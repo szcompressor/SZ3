@@ -14,6 +14,10 @@
 #include <cstring>
 #include <cmath>
 
+/**
+ * DO NOT use this one
+ * It will be replaced by QOZ
+ */
 namespace SZ3 {
     template<class T, uint N, class Quantizer, class Encoder, class Lossless>
     class SZBlockInterpolationCompressor {

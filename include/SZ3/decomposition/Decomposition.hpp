@@ -1,5 +1,5 @@
-#ifndef SZ3_FRONTEND_INTERFACE
-#define SZ3_FRONTEND_INTERFACE
+#ifndef SZ3_DECOMPOSITION_INTERFACE
+#define SZ3_DECOMPOSITION_INTERFACE
 
 #include "SZ3/def.hpp"
 #include <vector>
@@ -8,11 +8,17 @@ namespace SZ3::concepts {
 
 
     /**
+     * Decomposition defines transformation and prediction methods
      * Transformation:
-     *
+     *      original data <--> data transformed in another domain
      * Prediction:
      *      original data  <-->  quantized prediction error
      *      combination of predictor (implementation) and quantizer (function calls)
+     *      difference between Prediction and Decomposition interfaces:
+     *          Prediction:
+     *              prediction function takes scalar value (e.g, single data point)
+     *          Decomposition:
+     *              prediction function takes multidimensional tensors (e.g, whole input)
      *
      * @tparam T original data
      * @tparam N data dimension
@@ -24,6 +30,7 @@ namespace SZ3::concepts {
         virtual ~DecompositionInterface() = default;
 
         /**
+         * TODO allow T as output instead of int
          * predict the data and quantize the error
          * @param data original input
          * @return quantized prediction error
@@ -58,7 +65,7 @@ namespace SZ3::concepts {
 
         virtual void print() {};
 
-        virtual void clear() {};
+//        virtual void clear() {};
     };
 
 

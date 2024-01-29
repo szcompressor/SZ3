@@ -1,10 +1,10 @@
-#ifndef SZ3_SZFASTFRONTEND
-#define SZ3_SZFASTFRONTEND
+#ifndef SZ3_LORENZO_REGRESSION_DECOMPOSITION_HPP
+#define SZ3_LORENZO_REGRESSION_DECOMPOSITION_HPP
 
 /**
  * This module is the implementation of the prediction and quantization methods in SZ2.
  * It has better speed than SZFrontend since multidimensional iterator is not used.
- * Currently only 3D data is supported.
+ * Currently only 1d and 3D data is supported.
  */
 
 #include "Decomposition.hpp"
@@ -156,7 +156,7 @@ namespace SZ3 {
                 free(reg_params);
                 reg_params = nullptr;
             }
-            quantizer.clear();
+//            quantizer.clear();
         }
 
         size_t size_est() {
@@ -615,9 +615,10 @@ namespace SZ3 {
 
     template<class T, uint N, class Quantizer>
     LorenzoRegressionDecomposition<T, N, Quantizer>
-    make_sz_lorenzo_regression_quantization(const Config &conf, Quantizer quantizer) {
+    make_decomposition_lorenzo_regression(const Config &conf, Quantizer quantizer) {
         return LorenzoRegressionDecomposition<T, N, Quantizer>(conf, quantizer);
     }
+
 }
 
 

@@ -437,7 +437,7 @@ namespace SZ3 {
 
     template<class T, uint N, class Quantizer>
     InterpolationDecomposition<T, N, Quantizer>
-    make_sz_interpolation_quantization(const Config &conf, Quantizer quantizer) {
+    make_decomposition_interpolation(const Config &conf, Quantizer quantizer) {
         return InterpolationDecomposition<T, N, Quantizer>(conf, quantizer);
     }
 

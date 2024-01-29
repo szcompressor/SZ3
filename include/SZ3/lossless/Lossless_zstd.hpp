@@ -24,7 +24,10 @@ namespace SZ3 {
 //            uchar *compressBytes = new uchar[estimatedCompressedSize];
 //            uchar *dstPos = dst;
 //            write(srcLen, dstPos);
-
+            if (dstCap < srcLen) {
+                throw std::invalid_argument(
+                        "dstCap/dstLen too small, remember to initialize the dstCap/dstLen with the array size when you call compression func");
+            }
             dstCap = ZSTD_compress(dst, dstCap, src, srcLen, compression_level);
 //            dstLen += sizeof(size_t);
 //            return compressBytes;

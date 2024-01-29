@@ -1,5 +1,5 @@
-#ifndef SZ_GENERAL_COMPRESSOR_HPP
-#define SZ_GENERAL_COMPRESSOR_HPP
+#ifndef SZ_COMPRESSOR_TYPE_TWO_HPP
+#define SZ_COMPRESSOR_TYPE_TWO_HPP
 
 #include "SZ3/compressor/Compressor.hpp"
 #include "SZ3/predictor/Predictor.hpp"
@@ -15,13 +15,17 @@
 #include "SZ3/def.hpp"
 #include <cstring>
 
+/**
+ * SZIterateCompressor glue together predictor, quantizer, encoder, and lossless modules to form the compression pipeline
+ * it contains the logic to iterate through the input data
+ */
 namespace SZ3 {
     template<class T, uint N, class Predictor, class Quantizer, class Encoder, class Lossless>
-    class SZCompressorTypeTwo : public concepts::CompressorInterface<T> {
+    class SZIterateCompressor : public concepts::CompressorInterface<T> {
     public:
 
 
-        SZCompressorTypeTwo(const Config &conf, Predictor predictor, Quantizer quantizer, Encoder encoder, Lossless lossless) :
+        SZIterateCompressor(const Config &conf, Predictor predictor, Quantizer quantizer, Encoder encoder, Lossless lossless) :
                 fallback_predictor(LorenzoPredictor<T, N, 1>(conf.absErrorBound)),
                 predictor(predictor),
                 quantizer(quantizer),
@@ -165,9 +169,9 @@ namespace SZ3 {
     };
 
     template<class T, uint N, class Predictor, class Quantizer, class Encoder, class Lossless>
-    std::shared_ptr<SZCompressorTypeTwo<T, N, Predictor, Quantizer, Encoder, Lossless>>
-    make_sz_compressor_type_two(const Config &conf, Predictor predictor, Quantizer quantizer, Encoder encoder, Lossless lossless) {
-        return std::make_shared<SZCompressorTypeTwo<T, N, Predictor, Quantizer, Encoder, Lossless>>(conf, predictor, quantizer, encoder, lossless);
+    std::shared_ptr<SZIterateCompressor<T, N, Predictor, Quantizer, Encoder, Lossless>>
+    make_compressor_sz_iterate(const Config &conf, Predictor predictor, Quantizer quantizer, Encoder encoder, Lossless lossless) {
+        return std::make_shared<SZIterateCompressor<T, N, Predictor, Quantizer, Encoder, Lossless>>(conf, predictor, quantizer, encoder, lossless);
     }
 
 

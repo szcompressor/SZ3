@@ -2,7 +2,6 @@
 
 #include <mdz.hpp>
 
-
 void usage() {
     printf("Usage: \n");
     printf("For 1D input:   mdz file_path -1 n_atoms                 -r reb\n");

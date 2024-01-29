@@ -2,7 +2,7 @@
 #define SZ3_SZINTERP_HPP
 
 #include "SZ3/decomposition/InterpolationDecomposition.hpp"
-#include "SZ3/compressor/deprecated/SZBlockInterpolationCompressor.hpp"
+#include "SZ3/compressor/specialized/SZBlockInterpolationCompressor.hpp"
 #include "SZ3/quantizer/IntegerQuantizer.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
 #include "SZ3/utils/Iterator.hpp"
@@ -17,14 +17,12 @@
 namespace SZ3 {
     template<class T, uint N>
     void SZ_compress_Interp(Config &conf, T *data, uchar *dst, size_t &outSize) {
-
-
         assert(N == conf.N);
         assert(conf.cmprAlgo == ALGO_INTERP);
         calAbsErrorBound(conf, data);
 
-        auto sz = make_sz_compressor_type_one<T, N>(
-                make_sz_interpolation_quantization<T, N>(conf,
+        auto sz = make_compressor_sz_generic<T, N>(
+                make_decomposition_interpolation<T, N>(conf,
                                                          LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
                 HuffmanEncoder<int>(),
                 Lossless_zstd());
@@ -37,8 +35,8 @@ namespace SZ3 {
     void SZ_decompress_Interp(const Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
         assert(conf.cmprAlgo == ALGO_INTERP);
         auto cmpDataPos = cmpData;
-        auto sz = make_sz_compressor_type_one<T, N>(
-                make_sz_interpolation_quantization<T, N>(conf,
+        auto sz = make_compressor_sz_generic<T, N>(
+                make_decomposition_interpolation<T, N>(conf,
                                                          LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
                 HuffmanEncoder<int>(),
                 Lossless_zstd());
