@@ -1,5 +1,5 @@
-#ifndef SZ3_SZINTERP_HPP
-#define SZ3_SZINTERP_HPP
+#ifndef SZ3_SZALGOINTERP_HPP
+#define SZ3_SZALGOINTERP_HPP
 
 #include "SZ3/decomposition/InterpolationDecomposition.hpp"
 #include "SZ3/compressor/specialized/SZBlockInterpolationCompressor.hpp"
@@ -10,7 +10,7 @@
 #include "SZ3/utils/Extraction.hpp"
 #include "SZ3/utils/QuantOptimizatioin.hpp"
 #include "SZ3/utils/Config.hpp"
-#include "SZ3/api/impl/SZLorenzoReg.hpp"
+#include "SZ3/api/impl/SZAlgoLorenzoReg.hpp"
 #include <cmath>
 #include <memory>
 
@@ -23,7 +23,7 @@ namespace SZ3 {
 
         auto sz = make_compressor_sz_generic<T, N>(
                 make_decomposition_interpolation<T, N>(conf,
-                                                         LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
+                                                       LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
                 HuffmanEncoder<int>(),
                 Lossless_zstd());
         sz->compress(conf, data, dst, outSize);
@@ -37,7 +37,7 @@ namespace SZ3 {
         auto cmpDataPos = cmpData;
         auto sz = make_compressor_sz_generic<T, N>(
                 make_decomposition_interpolation<T, N>(conf,
-                                                         LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
+                                                       LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
                 HuffmanEncoder<int>(),
                 Lossless_zstd());
         sz->decompress(conf, cmpDataPos, cmpSize, decData);
@@ -61,8 +61,8 @@ namespace SZ3 {
                 LinearQuantizer<T>(eb),
                 HuffmanEncoder<int>(),
                 Lossless_zstd());
-        std::vector<uchar> buffer(num);
-        size_t outSize = buffer.size();
+        size_t outSize = num * 2;
+        std::vector<uchar> buffer(outSize);
         sz.compress(conf, data1.data(), buffer.data(), outSize);
 //        delete[]cmpData;
         auto compression_ratio = num * sizeof(T) * 1.0 / outSize;

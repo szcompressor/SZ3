@@ -4,8 +4,9 @@
 #include "SZ3/utils/MemoryUtil.hpp"
 #include "SZ3/utils/Statistic.hpp"
 #include "SZ3/utils/Config.hpp"
-#include "SZ3/api/impl/SZInterp.hpp"
-#include "SZ3/api/impl/SZLorenzoReg.hpp"
+#include "SZ3/api/impl/SZAlgoInterp.hpp"
+#include "SZ3/api/impl/SZAlgoLorenzoReg.hpp"
+#include "SZ3/api/impl/SZAlgo.hpp"
 #include <cmath>
 
 namespace SZ3 {
@@ -25,6 +26,8 @@ namespace SZ3 {
             SZ_compress_Interp<T, N>(conf, data, dst, outSize);
         } else if (conf.cmprAlgo == ALGO_INTERP_LORENZO) {
             SZ_compress_Interp_lorenzo<T, N>(conf, data, dst, outSize);
+        } else if (conf.cmprAlgo == ALGO_NOPRED) {
+            SZ_compress_nopred<T, N>(conf, data, dst, outSize);
         }
 //        return cmpData;
     }
@@ -40,6 +43,8 @@ namespace SZ3 {
             SZ_decompress_LorenzoReg<T, N>(conf, cmpData, cmpSize, decData);
         } else if (conf.cmprAlgo == ALGO_INTERP) {
             SZ_decompress_Interp<T, N>(conf, cmpData, cmpSize, decData);
+        } else if (conf.cmprAlgo == ALGO_NOPRED) {
+            SZ_decompress_nopred<T, N>(conf, cmpData, cmpSize, decData);
         } else {
             printf("SZ_decompress_dispatcher, Method not supported\n");
             exit(0);

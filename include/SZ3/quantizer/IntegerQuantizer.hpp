@@ -30,32 +30,6 @@ namespace SZ3 {
             error_bound_reciprocal = 1.0 / eb;
         }
 
-        // quantize the data with a prediction value, and returns the quantization index
-        int quantize(T data, T pred) {
-            T diff = data - pred;
-            int quant_index = (int) (fabs(diff) * this->error_bound_reciprocal) + 1;
-            if (quant_index < this->radius * 2) {
-                quant_index >>= 1;
-                int half_index = quant_index;
-                quant_index <<= 1;
-                int quant_index_shifted;
-                if (diff < 0) {
-                    quant_index = -quant_index;
-                    quant_index_shifted = this->radius - half_index;
-                } else {
-                    quant_index_shifted = this->radius + half_index;
-                }
-                T decompressed_data = pred + quant_index * this->error_bound;
-                if (fabs(decompressed_data - data) > this->error_bound) {
-                    return 0;
-                } else {
-                    return quant_index_shifted;
-                }
-            } else {
-                return 0;
-            }
-        }
-
         // quantize the data with a prediction value, and returns the quantization index and the decompressed data
         // int quantize(T data, T pred, T& dec_data);
         int quantize_and_overwrite(T &data, T pred) {
@@ -86,6 +60,13 @@ namespace SZ3 {
             }
         }
 
+        /**
+         * For metaLorenzo only, will be removed together with metalorenzo
+         * @param ori
+         * @param pred
+         * @param dest
+         * @return
+         */
         int quantize_and_overwrite(T ori, T pred, T &dest) {
             T diff = ori - pred;
             int quant_index = (int) (fabs(diff) * this->error_bound_reciprocal) + 1;

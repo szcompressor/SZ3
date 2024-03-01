@@ -23,10 +23,10 @@ namespace SZ3 {
     constexpr EB EB_OPTIONS[] = {EB_ABS, EB_REL, EB_PSNR, EB_L2NORM, EB_ABS_AND_REL, EB_ABS_OR_REL};
 
     enum ALGO {
-        ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP
+        ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP, ALGO_NOPRED,
     };
-    constexpr const char *ALGO_STR[] = {"ALGO_LORENZO_REG", "ALGO_INTERP_LORENZO", "ALGO_INTERP"};
-    constexpr const ALGO ALGO_OPTIONS[] = {ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP};
+    constexpr const char *ALGO_STR[] = {"ALGO_LORENZO_REG", "ALGO_INTERP_LORENZO", "ALGO_INTERP", "ALGO_NOPRED"};
+    constexpr const ALGO ALGO_OPTIONS[] = {ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP, ALGO_NOPRED};
 
     enum INTERP_ALGO {
         INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC
@@ -84,6 +84,8 @@ namespace SZ3 {
                 cmprAlgo = ALGO_INTERP_LORENZO;
             } else if (cmprAlgoStr == ALGO_STR[ALGO_INTERP]) {
                 cmprAlgo = ALGO_INTERP;
+            } else if (cmprAlgoStr == ALGO_STR[ALGO_NOPRED]) {
+                cmprAlgo = ALGO_NOPRED;
             }
             auto ebModeStr = cfg.Get("GlobalSettings", "ErrorBoundMode", "");
             if (ebModeStr == EB_STR[EB_ABS]) {
