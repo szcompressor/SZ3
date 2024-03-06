@@ -69,9 +69,9 @@ int main(int argc, char **argv) {
     std::vector<float> dec_data(conf.num);
 
     size_t compressed_size;
-    if (dim == 2) {
+    if (conf.N == 2) {
         compressed_size = MDZ_Compress<float, 2>(conf, input_data.get(), dec_data.data(), batch_size, method);
-    } else if (dim == 3) {
+    } else if (conf.N == 3) {
         compressed_size = MDZ_Compress<float, 3>(conf, input_data.get(), dec_data.data(), batch_size, method);
     }
     float ratio = conf.num * 1.0 * sizeof(float) / compressed_size;

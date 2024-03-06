@@ -94,7 +94,6 @@ make_sz_timebased(const SZ3::Config &conf, T *data_ts0) {
 }
 
 
-
 template<typename T, SZ3::uint N>
 std::shared_ptr<SZ3::concepts::CompressorInterface<T>>
 make_sz(const SZ3::Config &conf) {
@@ -222,18 +221,23 @@ SZ2(SZ3::Config conf, size_t ts, T *data, size_t &compressed_size, bool decom) {
 
 template<typename T, SZ3::uint N>
 void select(SZ3::Config conf, int &method, size_t ts, T *data_all,
-            float level_start, float level_offset, int level_num, T *data_ts0, size_t timestep_batch) {
-//        && (ts_last_select == -1 || t - ts_last_select >= conf.timestep_batch * 10)) {
+            float level_start, float level_offset, int level_num, T *data_ts0, size_t batch_size) {
+//        && (ts_last_select == -1 || t - ts_last_select >= conf.batch_size * 10)) {
 //    std::cout << "****************** BEGIN Selection ****************" << std::endl;
 //        ts_last_select = ts;
     std::vector<size_t> compressed_size(10, std::numeric_limits<size_t>::max());
     std::vector<T> data1;
     size_t t = ts;
     if (ts == 0) {
-        t = conf.dims[0] / 2;
-        conf.dims[0] /= 2;
+        if (conf.dims[0] == 1) {//if the data shape is (1, XXX), then no need for testing
+            method = (level_num > 0 ? 0 : 3);
+            return;
+        } else {//if first batch, only use the second half of the batch for testing
+            t = conf.dims[0] / 2;
+            conf.dims[0] /= 2;
+        }
     }
-    if (timestep_batch > 10) {
+    if (batch_size > 10) {
         conf.dims[0] = 10;
     }
     conf.num = conf.dims[0] * conf.dims[1];
