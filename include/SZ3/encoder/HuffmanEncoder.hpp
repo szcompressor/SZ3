@@ -927,204 +927,160 @@ namespace SZ3{
 
             size_t len=bytesToInt64_bigEndian(bytes)^0x1234abcd;
             bytes+=8;
-            std::vector<T> a(targetLength);
-            size_t sza=0;
-            // a.reserve(targetLength);
+            std::vector<T> out(targetLength);
+            size_t outLen=0;
 
-            // for(int i=0;i<len;){
+            if (tree.limit > 16) {
+                //if huffman tree is large, a cache of huffman codebook is used to increase the performance
+                //Reference paper: Xiangyu Zou, Tao Lu, Wen Xia, Xuan Wang, Weizhe Zhang, Haijun Zhang, Sheng Di, Dingwen Tao, and Franck Cappello, "Performance Optimization for Relative-Error-Bounded Lossy Compression on Scientific Data", IEEE Transactions on Parallel and Distributed Systems (IEEE TPDS), 2020.
+                //Reference code: https://github.com/szcompressor/SZ/blob/a92658e785c072de1061f549c6cbc6d42d0f7f22/sz/src/Huffman.c#L345
 
-            //     u=u->p[readBit(bytes,i++)];
+                int maxBits = 16;
+                size_t count = 0;
+                Node *t = &tree.ht[tree.root];
+                Node *n = t;
 
-            //     if(u->isLeaf()){
-
-            //         a[sza++]=u->c+tree.offset;
-            //         u=&tree.ht[tree.root];
-            //     }
-            // }
-
-            // use unroll loops to optimize the above code
-            size_t byteIndex=0;
-            size_t i=0;
-            size_t b;
-
-            if(tree.n==0){
-
-                T c=0;
-                int j=0;
-
-                if(tree.offset==0){
-                    for(;i+8<len;i+=8,byteIndex++){
-
-                        b=bytes[byteIndex];
-
-                        c|=((b)&1)<<j,++j;
-                        if(j==tree.mbft) a[sza++]=c,c=j=0;
-                        c|=((b>>1)&1)<<j,++j;
-                        if(j==tree.mbft) a[sza++]=c,c=j=0;
-                        c|=((b>>2)&1)<<j,++j;
-                        if(j==tree.mbft) a[sza++]=c,c=j=0;
-                        c|=((b>>3)&1)<<j,++j;
-                        if(j==tree.mbft) a[sza++]=c,c=j=0;
-                        c|=((b>>4)&1)<<j,++j;
-                        if(j==tree.mbft) a[sza++]=c,c=j=0;
-                        c|=((b>>5)&1)<<j,++j;
-                        if(j==tree.mbft) a[sza++]=c,c=j=0;
-                        c|=((b>>6)&1)<<j,++j;
-                        if(j==tree.mbft) a[sza++]=c,c=j=0;
-                        c|=((b>>7)&1)<<j,++j;
-                        if(j==tree.mbft) a[sza++]=c,c=j=0;
+                int tableSize = 1 << maxBits;
+                std::vector<int> valueTable(tableSize);
+                std::vector<uint8_t> lengthTable(tableSize);
+                std::vector<Node *> nodeTable(tableSize);
+                int j;
+                for (uint32_t i = 0; i < tableSize; i++) {
+                    n = t;
+                    j = 0;
+                    uint32_t res = i;
+                    while (!n->isLeaf() && j < maxBits) {
+                        n = n->p[res & 0x00000001];
+                        res >>= 1;
+                        j++;
                     }
-                }
-                else{
-                    for(;i+8<len;i+=8,byteIndex++){
-
-                        b=bytes[byteIndex];
-
-                        c|=((b)&1)<<j,++j;
-                        if(j==tree.mbft) a[sza++]=c+tree.offset,c=j=0;
-                        c|=((b>>1)&1)<<j,++j;
-                        if(j==tree.mbft) a[sza++]=c+tree.offset,c=j=0;
-                        c|=((b>>2)&1)<<j,++j;
-                        if(j==tree.mbft) a[sza++]=c+tree.offset,c=j=0;
-                        c|=((b>>3)&1)<<j,++j;
-                        if(j==tree.mbft) a[sza++]=c+tree.offset,c=j=0;
-                        c|=((b>>4)&1)<<j,++j;
-                        if(j==tree.mbft) a[sza++]=c+tree.offset,c=j=0;
-                        c|=((b>>5)&1)<<j,++j;
-                        if(j==tree.mbft) a[sza++]=c+tree.offset,c=j=0;
-                        c|=((b>>6)&1)<<j,++j;
-                        if(j==tree.mbft) a[sza++]=c+tree.offset,c=j=0;
-                        c|=((b>>7)&1)<<j,++j;
-                        if(j==tree.mbft) a[sza++]=c+tree.offset,c=j=0;
+                    if (!n->isLeaf()) {
+                        nodeTable[i] = n;
+                        valueTable[i] = -1;
+                        lengthTable[i] = maxBits;
+                    } else {
+                        valueTable[i] = n->c + tree.offset;
+                        lengthTable[i] = j;
                     }
                 }
 
-                b=bytes[byteIndex];
+                int leftBits = 0;
+                uint32_t currentValue = 0;
+                size_t i = 0;
 
-                for(size_t k=0;k<len-i;k++){
-
-                    c|=((b>>k)&1)<<j,++j;
-                    if(j==tree.mbft) a[sza++]=c+tree.offset,c=j=0;
-                }
-
-                bytes+=(len+7)>>3;
-
-                return a;
-            }
-
-            if(tree.offset==0){
-
-                for(;i+8<len;i+=8,byteIndex++){
-
-                    b=bytes[byteIndex];
-
-                    u=u->p[b&1];
-                    if(u->isLeaf()){
-                        a[sza++]=u->c;
-                        u=&tree.ht[tree.root];
+                while (count < targetLength) {
+                    while (leftBits < maxBits) {
+                        currentValue += (bytes[i] << leftBits);
+                        leftBits += 8;
+                        i++;
                     }
-                    u=u->p[(b>>1)&1];
-                    if(u->isLeaf()){
-                        a[sza++]=u->c;
-                        u=&tree.ht[tree.root];
-                    }
-                    u=u->p[(b>>2)&1];
-                    if(u->isLeaf()){
-                        a[sza++]=u->c;
-                        u=&tree.ht[tree.root];
-                    }
-                    u=u->p[(b>>3)&1];
-                    if(u->isLeaf()){
-                        a[sza++]=u->c;
-                        u=&tree.ht[tree.root];
-                    }
-                    u=u->p[(b>>4)&1];
-                    if(u->isLeaf()){
-                        a[sza++]=u->c;
-                        u=&tree.ht[tree.root];
-                    }
-                    u=u->p[(b>>5)&1];
-                    if(u->isLeaf()){
-                        a[sza++]=u->c;
-                        u=&tree.ht[tree.root];
-                    }
-                    u=u->p[(b>>6)&1];
-                    if(u->isLeaf()){
-                        a[sza++]=u->c;
-                        u=&tree.ht[tree.root];
-                    }
-                    u=u->p[(b>>7)&1];
-                    if(u->isLeaf()){
-                        a[sza++]=u->c;
-                        u=&tree.ht[tree.root];
+
+                    uint32_t index = currentValue & ((1 << maxBits) - 1);
+                    int value = valueTable[index];
+                    if (value != -1) {
+                        out[count] = value;
+                        int bitLength = lengthTable[index];
+                        leftBits -= bitLength;
+                        currentValue >>= bitLength;
+                        count++;
+                    } else {
+                        int bitLength = lengthTable[index];
+                        leftBits -= bitLength;
+                        currentValue >>= bitLength;
+                        n = nodeTable[index];
+                        while (!n->isLeaf()) {
+                            if (!leftBits) {
+                                currentValue += (bytes[i] << leftBits);
+                                leftBits += 8;
+                                i++;
+                            }
+                            n = n->p[(currentValue & 0x01)];
+                            leftBits--;
+                            currentValue >>= 1;
+                        }
+                        out[count] = n->c + tree.offset;
+                        count++;
                     }
                 }
-            }
-            else{
+            } else {
 
-                for(;i+8<len;i+=8,byteIndex++){
+                // for small huffman tree, use loop unrolling to increase the performance
+                // for(int i=0;i<len;){
+                //     u=u->p[readBit(bytes,i++)];
+                //     if(u->isLeaf()){
+                //         out[outLen++]=u->c+tree.offset;
+                //         u=&tree.ht[tree.root];
+                //     }
+                // }
 
-                    b=bytes[byteIndex];
+                int byteIndex = 0;
+                int i = 0;
+                uchar b;
+                Node *u = &tree.ht[tree.root];
+                auto offset = tree.offset;
 
-                    u=u->p[b&1];
-                    if(u->isLeaf()){
-                        a[sza++]=u->c+tree.offset;
-                        u=&tree.ht[tree.root];
+                for (; i + 8 < len; i += 8, byteIndex++) {
+
+                    b = bytes[byteIndex];
+
+                    u = u->p[b & 1];
+                    if (u->isLeaf()) {
+                        out[outLen++] = u->c + offset;
+                        u = &tree.ht[tree.root];
                     }
-                    u=u->p[(b>>1)&1];
-                    if(u->isLeaf()){
-                        a[sza++]=u->c+tree.offset;
-                        u=&tree.ht[tree.root];
+                    u = u->p[(b >> 1) & 1];
+                    if (u->isLeaf()) {
+                        out[outLen++] = u->c + offset;
+                        u = &tree.ht[tree.root];
                     }
-                    u=u->p[(b>>2)&1];
-                    if(u->isLeaf()){
-                        a[sza++]=u->c+tree.offset;
-                        u=&tree.ht[tree.root];
+                    u = u->p[(b >> 2) & 1];
+                    if (u->isLeaf()) {
+                        out[outLen++] = u->c + offset;
+                        u = &tree.ht[tree.root];
                     }
-                    u=u->p[(b>>3)&1];
-                    if(u->isLeaf()){
-                        a[sza++]=u->c+tree.offset;
-                        u=&tree.ht[tree.root];
+                    u = u->p[(b >> 3) & 1];
+                    if (u->isLeaf()) {
+                        out[outLen++] = u->c + offset;
+                        u = &tree.ht[tree.root];
                     }
-                    u=u->p[(b>>4)&1];
-                    if(u->isLeaf()){
-                        a[sza++]=u->c+tree.offset;
-                        u=&tree.ht[tree.root];
+                    u = u->p[(b >> 4) & 1];
+                    if (u->isLeaf()) {
+                        out[outLen++] = u->c + offset;
+                        u = &tree.ht[tree.root];
                     }
-                    u=u->p[(b>>5)&1];
-                    if(u->isLeaf()){
-                        a[sza++]=u->c+tree.offset;
-                        u=&tree.ht[tree.root];
+                    u = u->p[(b >> 5) & 1];
+                    if (u->isLeaf()) {
+                        out[outLen++] = u->c + offset;
+                        u = &tree.ht[tree.root];
                     }
-                    u=u->p[(b>>6)&1];
-                    if(u->isLeaf()){
-                        a[sza++]=u->c+tree.offset;
-                        u=&tree.ht[tree.root];
+                    u = u->p[(b >> 6) & 1];
+                    if (u->isLeaf()) {
+                        out[outLen++] = u->c + offset;
+                        u = &tree.ht[tree.root];
                     }
-                    u=u->p[(b>>7)&1];
-                    if(u->isLeaf()){
-                        a[sza++]=u->c+tree.offset;
-                        u=&tree.ht[tree.root];
+                    u = u->p[(b >> 7) & 1];
+                    if (u->isLeaf()) {
+                        out[outLen++] = u->c + offset;
+                        u = &tree.ht[tree.root];
+                    }
+                }
+
+                b = bytes[byteIndex];
+
+                for (int j = 0; j < len - i; j++) {
+
+                    u = u->p[(b >> j) & 1];
+                    if (u->isLeaf()) {
+                        out[outLen++] = u->c + tree.offset;
+                        u = &tree.ht[tree.root];
                     }
                 }
             }
-
-            b=bytes[byteIndex];
-
-            for(size_t j=0;j<len-i;j++){
-
-                u=u->p[(b>>j)&1];
-                if(u->isLeaf()){
-                    a[sza++]=u->c+tree.offset;
-                    u=&tree.ht[tree.root];
-                }
-            }
-
-            bytes+=(len+7)>>3;
+            bytes += (len + 7) >> 3;
 
             timer.stop("decode");
 
-            return a;
+            return out;
         }
 
         void postprocess_decode(){
