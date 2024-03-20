@@ -110,12 +110,12 @@ namespace SZ3{
 
             std::vector<uchar> veclen;
             std::vector<int> veccode;
-//            ska::unordered_map<size_t,uchar> mplen;
-//            ska::unordered_map<size_t,int> mpcode;
+            ska::unordered_map<size_t,uchar> mplen;
+            ska::unordered_map<size_t,int> mpcode;
 //            std::unordered_map<size_t,uchar> mplen;
 //            std::unordered_map<size_t,int> mpcode;
-            std::map<size_t,uchar> mplen;
-            std::map<size_t,int> mpcode;
+//            std::map<size_t,uchar> mplen;
+//            std::map<size_t,int> mpcode;
 
             T offset;
             // minimum bits for T
@@ -148,12 +148,12 @@ namespace SZ3{
 
             int root;
             int n;
-            int maxval;
+            T maxval;
             std::vector<Node> ht;
             std::vector<size_t> vecfreq;
-//            ska::unordered_map<T,size_t> mpfreq;
+            ska::unordered_map<T,size_t> mpfreq;
 //            std::unordered_map<T,size_t> mpfreq;
-            std::map<T,size_t> mpfreq;
+//            std::map<T,size_t> mpfreq;
 
             void addElementInMap(T c,size_t freqc){
 
@@ -200,7 +200,7 @@ namespace SZ3{
                 Timer timer(true);
 
                 mbft=1;
-                while((1<<mbft)<maxval) ++mbft;
+                while((1llu<<mbft)<maxval) ++mbft;
 
                 std::priority_queue<std::pair<int,size_t>,std::vector<std::pair<int,size_t>>,cmp> q;
 
@@ -254,7 +254,7 @@ namespace SZ3{
 
     public:
 
-        void preprocess_encode(const T *const bins,size_t num_bin,int stateNum){
+        void preprocess_encode(const T *const bins,size_t num_bin,int stateNum,uchar flag=0x00){
 
             Timer timer(true);
 
@@ -263,7 +263,7 @@ namespace SZ3{
             T __minval,__maxval;
 
             if(stateNum==0){
-                printf("please input the stateNum\n");
+
                 __minval=*bins;
                 __maxval=*bins;
                 for(int i=1;i<num_bin;i++){
@@ -280,7 +280,32 @@ namespace SZ3{
             tree.offset=__minval;
             tree.maxval=__maxval-__minval+1;
 
-            tree.usemp=__maxval>=(1<<12)&&num_bin<2*stateNum||__maxval>=(1<<16)?1:0;
+            switch((flag&0xc0)>>6){
+                case 0:{
+                    tree.usemp=tree.maxval>=(1<<12)&&num_bin<2*__maxval||tree.maxval>=(1<<28)?1:0;
+                    break;
+                }
+                case 1:{
+                    tree.usemp=1;
+                    break;
+                }
+                case 2:{
+                    tree.usemp=0;
+                    break;
+                }
+                case 3:{
+                    tree.usemp=0;
+                    break;
+                }
+            }
+
+            if((flag&0x01)==0x01){
+                tree.mbft=1;
+                while((1llu<<tree.mbft)<tree.maxval) ++tree.mbft;
+                tree.n=0;
+                tree.setConstructed();
+                return;
+            }
 
             if(tree.usemp){
 
@@ -474,7 +499,7 @@ namespace SZ3{
                 c+=4;
             }
 
-            if(tree.n==1){
+            if(tree.n==0||tree.n==1){
 
                 writeBytesClearMask(c,mask,index);
                 return;
@@ -693,10 +718,16 @@ namespace SZ3{
 
             if(tree.usemp==0x00){
 
-                tree.maxval= bytesToInt32_bigEndian(bytes);
+                tree.maxval=bytesToInt32_bigEndian(bytes);
                 bytes+=4;
                 tree.veccode.resize(tree.maxval);
                 tree.veclen.resize(tree.maxval);
+            }
+
+            if(tree.n==0){
+
+                tree.setConstructed();
+                return;
             }
 
             if(tree.n==1) {
@@ -720,7 +751,7 @@ namespace SZ3{
             tree.ht.push_back(Node());
             std::stack<Node*> stk;
             stk.push(&tree.ht[0]);
-            int i=1;
+            size_t i=1;
 
             while(!stk.empty()){
 
@@ -787,6 +818,23 @@ namespace SZ3{
 
             uchar mask=0;
             uchar index=0;
+
+            if(tree.n==0){
+                if(tree.offset==0){
+                    for(size_t i=0;i<num_bin;i++){
+                        writeBytes(bytes,bins[i],tree.mbft,mask,index);
+                    }
+                }
+                else{
+                    for(size_t i=0;i<num_bin;i++){
+                        writeBytes(bytes,bins[i]-tree.offset,tree.mbft,mask,index);
+                    }
+                }
+                writeBytesClearMask(bytes,mask,index);
+                len = tree.mbft * num_bin;
+                int64ToBytes_bigEndian(head,len^0x1234abcd);
+                return bytes-head;
+            }
 
             if(tree.offset==0){
                 if(tree.usemp){
@@ -895,10 +943,75 @@ namespace SZ3{
             // }
 
             // use unroll loops to optimize the above code
-
             size_t byteIndex=0;
             size_t i=0;
-            uchar b;
+            size_t b;
+
+            if(tree.n==0){
+
+                T c=0;
+                int j=0;
+
+                if(tree.offset==0){
+                    for(;i+8<len;i+=8,byteIndex++){
+
+                        b=bytes[byteIndex];
+
+                        c|=((b)&1)<<j,++j;
+                        if(j==tree.mbft) a[sza++]=c,c=j=0;
+                        c|=((b>>1)&1)<<j,++j;
+                        if(j==tree.mbft) a[sza++]=c,c=j=0;
+                        c|=((b>>2)&1)<<j,++j;
+                        if(j==tree.mbft) a[sza++]=c,c=j=0;
+                        c|=((b>>3)&1)<<j,++j;
+                        if(j==tree.mbft) a[sza++]=c,c=j=0;
+                        c|=((b>>4)&1)<<j,++j;
+                        if(j==tree.mbft) a[sza++]=c,c=j=0;
+                        c|=((b>>5)&1)<<j,++j;
+                        if(j==tree.mbft) a[sza++]=c,c=j=0;
+                        c|=((b>>6)&1)<<j,++j;
+                        if(j==tree.mbft) a[sza++]=c,c=j=0;
+                        c|=((b>>7)&1)<<j,++j;
+                        if(j==tree.mbft) a[sza++]=c,c=j=0;
+                    }
+                }
+                else{
+                    for(;i+8<len;i+=8,byteIndex++){
+
+                        b=bytes[byteIndex];
+
+                        c|=((b)&1)<<j,++j;
+                        if(j==tree.mbft) a[sza++]=c+tree.offset,c=j=0;
+                        c|=((b>>1)&1)<<j,++j;
+                        if(j==tree.mbft) a[sza++]=c+tree.offset,c=j=0;
+                        c|=((b>>2)&1)<<j,++j;
+                        if(j==tree.mbft) a[sza++]=c+tree.offset,c=j=0;
+                        c|=((b>>3)&1)<<j,++j;
+                        if(j==tree.mbft) a[sza++]=c+tree.offset,c=j=0;
+                        c|=((b>>4)&1)<<j,++j;
+                        if(j==tree.mbft) a[sza++]=c+tree.offset,c=j=0;
+                        c|=((b>>5)&1)<<j,++j;
+                        if(j==tree.mbft) a[sza++]=c+tree.offset,c=j=0;
+                        c|=((b>>6)&1)<<j,++j;
+                        if(j==tree.mbft) a[sza++]=c+tree.offset,c=j=0;
+                        c|=((b>>7)&1)<<j,++j;
+                        if(j==tree.mbft) a[sza++]=c+tree.offset,c=j=0;
+                    }
+                }
+
+                b=bytes[byteIndex];
+
+                for(size_t k=0;k<len-i;k++){
+
+                    c|=((b>>k)&1)<<j,++j;
+                    if(j==tree.mbft) a[sza++]=c+tree.offset,c=j=0;
+                }
+
+                bytes+=(len+7)>>3;
+
+                return a;
+            }
+
             if(tree.offset==0){
 
                 for(;i+8<len;i+=8,byteIndex++){
