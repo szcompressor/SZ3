@@ -411,7 +411,7 @@ MDZ_Compress(SZ3::Config conf, T *input_data, T *dec_data, size_t batch_size, in
     auto total_num = conf.num;
     size_t total_compressed_size = 0;
     int current_method = method;
-
+    bool lossless_first_frame = false;
     for (size_t ts = 0; ts < dims[0]; ts += batch_size) {
         conf.dims[0] = (ts + batch_size > dims[0] ? dims[0] - ts : batch_size);
         conf.num = conf.dims[0] * conf.dims[1];
@@ -446,6 +446,7 @@ MDZ_Compress(SZ3::Config conf, T *input_data, T *dec_data, size_t batch_size, in
             ts_dec_data = VQ<T, N>(conf, ts, data, compressed_size, true, current_method, level_start, level_offset,
                                    level_num);
         } else if (current_method == 2) {
+            lossless_first_frame = true;
             ts_dec_data = MT<T, N>(conf, ts, data, compressed_size, true, data_ts0.data());
         } else if (current_method == 4) {
             ts_dec_data = MT<T, N>(conf, ts, data, compressed_size, true, (T *) nullptr);
@@ -455,7 +456,14 @@ MDZ_Compress(SZ3::Config conf, T *input_data, T *dec_data, size_t batch_size, in
         total_compressed_size += compressed_size;
         memcpy(&dec_data[ts * conf.dims[1]], ts_dec_data, conf.num * sizeof(T));
     }
-
+    if (lossless_first_frame) {
+        auto zstd = SZ3::Lossless_zstd();
+        size_t outSize = conf.dims[1] * sizeof(T);
+        auto cmpr = zstd.compress((SZ3::uchar *) data_ts0.data(), outSize, outSize);
+        delete[] cmpr;
+//        printf("outsize %lu\n", outSize);
+        total_compressed_size += outSize;
+    }
 
     return total_compressed_size;
 }
