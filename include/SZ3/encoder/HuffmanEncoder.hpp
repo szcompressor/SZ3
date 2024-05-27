@@ -6,7 +6,10 @@
 #include "SZ3/utils/ByteUtil.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
 #include "SZ3/utils/Timer.hpp"
-#include "SZ3/utils/ska_hash/unordered_map.hpp"
+#include <cstdint>
+#if INTPTR_MAX == INT64_MAX // 64bit system
+    #include "SZ3/utils/ska_hash/unordered_map.hpp"
+#endif // INTPTR_MAX == INT64_MAX
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
@@ -525,7 +528,12 @@ namespace SZ3 {
             T max = s[0];
             offset = s[0]; //offset is min
 
-            ska::unordered_map<T, size_t> frequency;
+            #if INTPTR_MAX == INT64_MAX // 64bit system
+                ska::unordered_map<T, size_t> frequency;
+            #else // most likely 32bit system
+                std::unordered_map<T, size_t> frequency;
+            #endif // INTPTR_MAX == INT64_MAX
+
             for (size_t i = 0; i < length; i++) {
                 frequency[s[i]]++;
             }
