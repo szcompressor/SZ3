@@ -13,6 +13,7 @@
 #include <cstring>
 #include <cstdio>
 #include <cstdint>
+#include "SZ3/api/sz.hpp"
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,8 +41,13 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
 
 const void *H5PLget_plugin_info(void);
 
+herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config &conf);
+
+herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config &conf);
+
 #ifdef __cplusplus
 }
 #endif
+
 
 #endif //SZ3_H5Z_SZ3_H

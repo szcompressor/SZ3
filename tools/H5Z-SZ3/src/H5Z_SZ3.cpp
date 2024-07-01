@@ -7,7 +7,6 @@
 #include <iterator>
 #include "H5PLextern.h"
 #include "H5Z_SZ3.hpp"
-#include "SZ3/api/sz.hpp"
 
 hid_t H5Z_SZ_ERRCLASS = -1;
 
@@ -34,6 +33,42 @@ const void *H5PLget_plugin_info(void) {
     return H5Z_SZ3;
 }
 
+herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config & conf) {
+    static char const *_funcname_ = "set_SZ3_conf_to_H5";
+    
+    //save conf into cd_values
+    size_t cd_nelmts = std::ceil(conf.size_est() / 1.0 / sizeof(int));
+    std::vector<unsigned int> cd_values(cd_nelmts, 0);
+    auto buffer = (unsigned char *) (cd_values.data());
+    
+    conf.save(buffer);
+    
+    /* update cd_values for the filter */
+    if (0 > H5Pmodify_filter(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values.data()))
+        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, 0, "failed to modify cd_values");
+    
+    return (herr_t) 1;
+}
+
+herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config & conf) {
+    static char const *_funcname_ = "get_SZ3_conf_from_H5";
+    
+    size_t cd_nelmts = std::ceil(conf.size_est() / 1.0 / sizeof(int));
+    std::vector<unsigned int> cd_values(cd_nelmts, 0);
+    
+    //read cd_values from HDF5
+    //note that cd_nelmts must be non-zero, otherwise, cd_values cannot be filled.
+    if (0 > H5Pget_filter_by_id(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, &cd_nelmts, cd_values.data(), 0, NULL, NULL))
+        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_CANTGET, 0, "unable to get current SZ cd_values");
+    
+    //load cd_values into config
+    if (cd_nelmts != 0) {
+        auto buffer = (const unsigned char *) (cd_values.data());
+        conf.load(buffer);
+    }
+    return (herr_t) 1;
+}
+
 static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_id) {
     
     printf("start H5Z_sz3_set_local\n");
@@ -44,21 +79,7 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
     // herr_t ret = H5Zregister(H5Z_SZ3);
     
     SZ3::Config conf;
-    
-    unsigned int flags = 0;
-    size_t cd_nelmts = conf.size_est();
-    std::vector<unsigned int> cd_values(conf.size_est(), 0);
-    
-    //read cd_values from HDF5
-    //note that cd_nelmts must be non-zero, otherwise, cd_values cannot be filled.
-    if (0 > H5Pget_filter_by_id(dcpl_id, H5Z_FILTER_SZ3, &flags, &cd_nelmts, cd_values.data(), 0, NULL, NULL))
-        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_CANTGET, 0, "unable to get current SZ cd_values");
-    
-    //load cd_values into config
-    if (cd_nelmts != 0) {
-        auto buffer = (const unsigned char *) (cd_values.data());
-        conf.load(buffer);
-    }
+    get_SZ3_conf_from_H5(dcpl_id, conf);
     
     //read datatype and dims from HDF5
     H5T_class_t dclass;
@@ -114,17 +135,9 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
     //update conf with dims
     conf.setDims(std::begin(dims), std::end(dims));
     
-    //save conf into cd_values
-    cd_nelmts = std::ceil(conf.size_est() / 1.0 / sizeof(int));
-    auto buffer = (unsigned char *) (cd_values.data());
-    conf.save(buffer);
+    set_SZ3_conf_to_H5(dcpl_id, conf);
     
-    /* update cd_values for the filter */
-    if (0 > H5Pmodify_filter(dcpl_id, H5Z_FILTER_SZ3, flags, cd_nelmts, cd_values.data()))
-        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, 0, "failed to modify cd_values");
-    
-    herr_t retval = 1;
-    return retval;
+    return (herr_t) 1;
 }
 
 template<typename T>

@@ -152,7 +152,7 @@ int main(int argc, char *argv[]) {
         exit(0);
     }
     
-    /* Add the SZ compression filter and set the chunk size */
+    /* Add the SZ compression filter */
     if (0 > H5Pset_filter(cpid, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values.data())) {
         printf("Error in H5Pcreate");
         exit(0);
@@ -171,13 +171,20 @@ int main(int argc, char *argv[]) {
             printf("sz filter is available for encoding and decoding.\n");
     }
     
+    /*  set the chunk size*/
     std::vector<hsize_t> hchunk(hdims);
-    hchunk[0] = 10;
+//    hchunk[0] = 10;
     if (0 > H5Pset_chunk(cpid, conf.N, hchunk.data())) {
         printf("Error in H5Pcreate");
         exit(0);
     }
     
+    {//This is an example to get/set SZ configuration from HDF5 file
+        SZ3::Config conf1;
+        get_SZ3_conf_from_H5(cpid, conf1);
+//        conf1.absErrorBound = 1;
+        set_SZ3_conf_to_H5(cpid, conf1);
+    }
     printf("....Writing SZ compressed data.............\n");
     
     switch (dataType) {
