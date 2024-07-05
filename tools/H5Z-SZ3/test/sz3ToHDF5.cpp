@@ -133,13 +133,6 @@ int main(int argc, char *argv[]) {
     // Set compression related attributes here
     conf.cmprAlgo = SZ3::ALGO_BIOMD;
     
-    //save conf to cd_values
-    size_t cd_nelmts = std::ceil(conf.size_est() / 1.0 / sizeof(int));
-    std::vector<unsigned int> cd_values(cd_nelmts);
-    auto buffer = (unsigned char *) (cd_values.data());
-    conf.save(buffer);
-    // conf.print();
-    
     std::vector<hsize_t> hdims(conf.dims.begin(), conf.dims.end());
     /*Create dataspace. Setting maximum size */
     if (0 > (sid = H5Screate_simple(conf.N, hdims.data(), NULL))) {
@@ -152,22 +145,15 @@ int main(int argc, char *argv[]) {
         exit(0);
     }
     
-    /* Add the SZ compression filter */
-    if (0 > H5Pset_filter(cpid, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values.data())) {
-        printf("Error in H5Pcreate");
-        exit(0);
-    }
-    herr_t ret = H5Zregister(H5PLget_plugin_info());
-    if (ret < 0) {
+    set_SZ3_conf_to_H5(cpid, conf);
+    
+    if (0 > H5Zregister(H5PLget_plugin_info())) {
         printf("Error in H5Zregister");
         exit(0);
     }
-    htri_t avail = H5Zfilter_avail(H5Z_FILTER_SZ3);
-    if (avail) {
+    if (H5Zfilter_avail(H5Z_FILTER_SZ3)) {
         unsigned filter_config;
-        auto status = H5Zget_filter_info(H5Z_FILTER_SZ3, &filter_config);
-        
-        if (filter_config & H5Z_FILTER_CONFIG_ENCODE_ENABLED)
+        if (H5Zget_filter_info(H5Z_FILTER_SZ3, &filter_config) & H5Z_FILTER_CONFIG_ENCODE_ENABLED)
             printf("sz filter is available for encoding and decoding.\n");
     }
     
@@ -226,8 +212,7 @@ int main(int argc, char *argv[]) {
         exit(0);
     }
     printf("Output hdf5 file: %s\n", outputFilePath);
-    ret = H5Zunregister(H5Z_FILTER_SZ3);
-    if (ret < 0) return -1;
+    if (H5Zunregister(H5Z_FILTER_SZ3) < 0) return -1;
     H5close();
     return 0;
 }

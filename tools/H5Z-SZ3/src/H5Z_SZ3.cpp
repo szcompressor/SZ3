@@ -33,7 +33,7 @@ const void *H5PLget_plugin_info(void) {
     return H5Z_SZ3;
 }
 
-herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config & conf) {
+herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config &conf) {
     static char const *_funcname_ = "set_SZ3_conf_to_H5";
     
     //save conf into cd_values
@@ -42,15 +42,20 @@ herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config & conf) {
     auto buffer = (unsigned char *) (cd_values.data());
     
     conf.save(buffer);
-    
-    /* update cd_values for the filter */
-    if (0 > H5Pmodify_filter(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values.data()))
-        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, 0, "failed to modify cd_values");
+    auto szfilter = H5Pget_filter_by_id(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, NULL, NULL, 0, NULL, NULL); //check if filter is set
+    if (0 > szfilter) { //filter not set, set filter. Notice that calling H5Pset_filter twice with the same filter id will cause unexpected errors for decompression
+        if (0 > H5Pset_filter(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values.data())) {
+            H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, 0, "failed to modify cd_values");
+        }
+    } else { // filter already set, update filter
+        if (0 > H5Pmodify_filter(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values.data()))
+            H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, 0, "failed to modify cd_values");
+    }
     
     return (herr_t) 1;
 }
 
-herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config & conf) {
+herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config &conf) {
     static char const *_funcname_ = "get_SZ3_conf_from_H5";
     
     size_t cd_nelmts = std::ceil(conf.size_est() / 1.0 / sizeof(int));
