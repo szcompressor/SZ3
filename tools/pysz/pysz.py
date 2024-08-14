@@ -18,7 +18,7 @@ class SZ:
         if szpath is None:
             szpath = {
                 "darwin": "libSZ3c.dylib",
-                "windows": "SZ3c.dll",
+                "win32": "SZ3c.dll",
             }.get(sys.platform, "libSZ3c.so")
 
 
