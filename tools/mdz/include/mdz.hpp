@@ -228,7 +228,7 @@ SZ2(Config conf, size_t ts, T *data, size_t &compressed_size, bool decom) {
 
 template<typename T, uint N>
 void select(Config conf, int &method, size_t ts, T *data_all,
-            float level_start, float level_offset, int level_num, T *data_ts0, size_t timestep_batch) {
+            float level_start, float level_offset, int level_num, T *data_ts0, size_t batch_size) {
 //        && (ts_last_select == -1 || t - ts_last_select >= conf.timestep_batch * 10)) {
 //    std::cout << "****************** BEGIN Selection ****************" << std::endl;
 //        ts_last_select = ts;
@@ -236,10 +236,15 @@ void select(Config conf, int &method, size_t ts, T *data_all,
     std::vector<T> data1;
     size_t t = ts;
     if (ts == 0) {
-        t = conf.dims[0] / 2;
-        conf.dims[0] /= 2;
+        if (conf.dims[0] == 1) {//if the data shape is (1, XXX), then no need for testing
+            method = (level_num > 0 ? 0 : 3);
+            return;
+        } else {//if first batch, only use the second half of the batch for testing
+            t = conf.dims[0] / 2;
+            conf.dims[0] /= 2;
+        }
     }
-    if (timestep_batch > 10) {
+    if (batch_size > 10) {
         conf.dims[0] = 10;
     }
     conf.num = conf.dims[0] * conf.dims[1];
@@ -414,7 +419,7 @@ MDZ_Compress(Config conf, T *input_data, T *dec_data, size_t batch_size, int met
     auto total_num = conf.num;
     size_t total_compressed_size = 0;
     int current_method = method;
-
+    bool lossless_first_frame = false;
     for (size_t ts = 0; ts < dims[0]; ts += batch_size) {
         conf.dims[0] = (ts + batch_size > dims[0] ? dims[0] - ts : batch_size);
         conf.num = conf.dims[0] * conf.dims[1];
@@ -449,6 +454,7 @@ MDZ_Compress(Config conf, T *input_data, T *dec_data, size_t batch_size, int met
             ts_dec_data = VQ<T, N>(conf, ts, data, compressed_size, true, current_method, level_start, level_offset,
                                    level_num);
         } else if (current_method == 2) {
+            lossless_first_frame = true;
             ts_dec_data = MT<T, N>(conf, ts, data, compressed_size, true, data_ts0.data());
         } else if (current_method == 4) {
             ts_dec_data = MT<T, N>(conf, ts, data, compressed_size, true, (T *) nullptr);
@@ -458,7 +464,14 @@ MDZ_Compress(Config conf, T *input_data, T *dec_data, size_t batch_size, int met
         total_compressed_size += compressed_size;
         memcpy(&dec_data[ts * conf.dims[1]], ts_dec_data, conf.num * sizeof(T));
     }
-
+    if (lossless_first_frame) {
+        auto zstd = SZ3::Lossless_zstd();
+        size_t outSize = conf.dims[1] * sizeof(T);
+        auto cmpr = zstd.compress((SZ3::uchar *) data_ts0.data(), outSize, outSize);
+        delete[] cmpr;
+//        printf("outsize %lu\n", outSize);
+        total_compressed_size += outSize;
+    }
 
     return total_compressed_size;
 }
