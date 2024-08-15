@@ -145,7 +145,8 @@ namespace SZ3 {
         
         void save(unsigned char *&c) {
             auto c0 = c;
-            write_str(sz3DataVer, c);
+            write(sz3MagicNumber, c);
+            write(sz3DataVer, c);
             write(N, c);
             write(dims.data(), dims.size(), c);
             write(num, c);
@@ -178,7 +179,8 @@ namespace SZ3 {
         
         void load(const unsigned char *&c) {
             auto c0 = c;
-            read_str(sz3DataVer, c);
+            read(sz3MagicNumber, c);
+            read(sz3DataVer, c);
             read(N, c);
             dims.resize(N);
             read(dims.data(), N, c);
@@ -212,6 +214,8 @@ namespace SZ3 {
         
         void print() {
             printf("===================== Begin SZ3 Configuration =====================\n");
+            printf("sz3MagicNumber = %u\n", sz3MagicNumber);
+            printf("sz3DataVer = %s\n", versionStr(sz3DataVer).data());
             printf("N = %d\n", N);
             printf("dims = ");
             for (auto dim : dims) {
@@ -246,7 +250,8 @@ namespace SZ3 {
             return sizeof(Config) + sizeof(size_t) * 5 + 32; //sizeof(size_t) * 5 is for dims vector, 32 is for redundancy
         }
         
-        std::string sz3DataVer = SZ3_DATA_VER;
+        uint32_t sz3MagicNumber = SZ3_MAGIC_NUMBER;
+        uint32_t sz3DataVer = versionInt(SZ3_DATA_VER);
         char N = 0;
         std::vector<size_t> dims;
         size_t num = 0;

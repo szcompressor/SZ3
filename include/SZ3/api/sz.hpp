@@ -115,10 +115,12 @@ void SZ_decompress(SZ3::Config &conf, char *cmpData, size_t cmpSize, T *&decData
     using namespace SZ3;
     auto confPos = (const uchar *) cmpData;
     conf.load(confPos);
-    //TODO output should be | magic number | version | data |
-    if (conf.sz3DataVer != SZ3_DATA_VER) {
+    if (conf.sz3MagicNumber != SZ3_MAGIC_NUMBER) {
+        throw std::invalid_argument("magic number mismatch, the input data is not compressed by SZ3");
+    }
+    if (versionStr(conf.sz3DataVer) != SZ3_DATA_VER) {
         std::stringstream ss;
-        printf("program v%s , program-data %s , input data v%s\n", SZ3_VER, SZ3_DATA_VER, conf.sz3DataVer.data());
+        printf("program v%s , program-data %s , input data v%s\n", SZ3_VER, SZ3_DATA_VER, versionStr(conf.sz3DataVer).data());
         ss << "Please use SZ3 v" << conf.sz3DataVer << " to decompress the data" << std::endl;
         throw std::invalid_argument(ss.str());
     }
