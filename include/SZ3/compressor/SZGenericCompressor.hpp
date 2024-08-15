@@ -32,7 +32,7 @@ namespace SZ3 {
                           "must implement the lossless interface");
         }
 
-        void compress(const Config &conf, T *data, uchar *dst, size_t &dstLen) {
+        size_t compress(const Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
 
             std::vector<int> quant_inds = decomposition.compress(conf, data);
 
@@ -50,13 +50,13 @@ namespace SZ3 {
             encoder.encode(quant_inds, buffer_pos);
             encoder.postprocess_encode();
 
-            assert(buffer_pos - buffer < bufferSize);
-
-            lossless.compress(buffer, buffer_pos - buffer, dst, dstLen);
+//            assert(buffer_pos - buffer < bufferSize);
+            
+            auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
             free(buffer);
 //            lossless.postcompress_data(buffer);
 
-//            return lossless_data;
+            return cmpSize;
         }
 
         T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *decData) {

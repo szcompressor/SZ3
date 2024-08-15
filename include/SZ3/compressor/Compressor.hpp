@@ -31,10 +31,11 @@ namespace SZ3::concepts {
          * compress data
          * @param conf compression configuration
          * @param data input data in original format
-         * @param dst compressed data in bytes
-         * @param dstLen size of the compressed data in bytes
+         * @param cmpData compressed data in bytes
+         * @param cmpCap size of the compressed buffer in bytes
+         * @return size of the compressed data in bytes
          */
-        virtual void compress(const Config &conf, T *data, uchar *dst, size_t &dstLen) = 0;
+        virtual size_t compress(const Config &conf, T *data, uchar *cmpData, size_t cmpCap) = 0;
 
     };
 }

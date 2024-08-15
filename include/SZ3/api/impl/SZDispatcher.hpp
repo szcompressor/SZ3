@@ -11,28 +11,28 @@
 
 namespace SZ3 {
     template<class T, uint N>
-    void SZ_compress_dispatcher(Config &conf, T *data, uchar *dst, size_t &outSize) {
-
+    size_t SZ_compress_dispatcher(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
+        
         assert(N == conf.N);
         calAbsErrorBound(conf, data);
 
 //        char *cmpData;
         if (conf.absErrorBound == 0) {
             auto zstd = Lossless_zstd();
-            zstd.compress((uchar *) data, conf.num * sizeof(T), dst, outSize);
+            return zstd.compress((uchar *) data, conf.num * sizeof(T), cmpData, cmpCap);
         } else if (conf.cmprAlgo == ALGO_LORENZO_REG) {
-            SZ_compress_LorenzoReg<T, N>(conf, data, dst, outSize);
+            return SZ_compress_LorenzoReg<T, N>(conf, data, cmpData, cmpCap);
         } else if (conf.cmprAlgo == ALGO_INTERP) {
-            SZ_compress_Interp<T, N>(conf, data, dst, outSize);
+            return SZ_compress_Interp<T, N>(conf, data, cmpData, cmpCap);
         } else if (conf.cmprAlgo == ALGO_INTERP_LORENZO) {
-            SZ_compress_Interp_lorenzo<T, N>(conf, data, dst, outSize);
+            return SZ_compress_Interp_lorenzo<T, N>(conf, data, cmpData, cmpCap);
         } else if (conf.cmprAlgo == ALGO_NOPRED) {
-            SZ_compress_nopred<T, N>(conf, data, dst, outSize);
+            return SZ_compress_nopred<T, N>(conf, data, cmpData, cmpCap);
         }
+        return 0;
 //        return cmpData;
     }
-
-
+    
     template<class T, uint N>
     void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
         if (conf.absErrorBound == 0) {
@@ -49,7 +49,7 @@ namespace SZ3 {
             printf("SZ_decompress_dispatcher, Method not supported\n");
             exit(0);
         }
-
+        
     }
 }
 #endif

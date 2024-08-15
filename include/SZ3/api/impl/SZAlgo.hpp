@@ -10,7 +10,7 @@
 
 namespace SZ3 {
     template<class T, uint N>
-    void SZ_compress_nopred(Config &conf, T *data, uchar *dst, size_t &outSize) {
+    size_t SZ_compress_nopred(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
         assert(N == conf.N);
         assert(conf.cmprAlgo == ALGO_INTERP);
         calAbsErrorBound(conf, data);
@@ -20,7 +20,7 @@ namespace SZ3 {
                                                       LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
                 HuffmanEncoder<int>(),
                 Lossless_zstd());
-        sz->compress(conf, data, dst, outSize);
+        return sz->compress(conf, data, cmpData, cmpCap);
 //        return cmpData;
     }
 

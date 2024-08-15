@@ -13,17 +13,17 @@
 
 namespace SZ3 {
     class Lossless_bypass : public concepts::LosslessInterface {
-
-    public:
-
-        void compress(uchar *src, size_t srcLen, uchar *dst, size_t &dstCap) {
+     
+     public:
+        
+        size_t compress(uchar *src, size_t srcLen, uchar *dst, size_t dstCap) {
             dst = src;
-//            return data;
+            return srcLen;
         }
-
-        void decompress(const uchar *src, const size_t srcLen, uchar *dst, size_t &dstCap) {
+        
+        size_t decompress(const uchar *src, const size_t srcLen, uchar *dst, size_t dstCap) {
             dst = (uchar *) src;
-//            return (uchar *) data;
+            return srcLen;
         }
     };
 }

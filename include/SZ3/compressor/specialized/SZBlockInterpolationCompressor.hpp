@@ -107,7 +107,7 @@ namespace SZ3 {
 
 
         // compress given the error bound
-        void compress(const Config &conf, T *data, uchar *dst, size_t &dstLen) {
+        size_t compress(const Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
 
             block_size = conf.blockSize;
             num_elements = conf.num;
@@ -165,9 +165,10 @@ namespace SZ3 {
             encoder.postprocess_encode();
 
             assert(buffer_pos - buffer < bufferSize);
-
-            lossless.compress(buffer, buffer_pos - buffer, dst, dstLen);
+            
+            auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
             free(buffer);
+            return cmpSize;
 //            lossless.postcompress_data(buffer);
 
 //            return lossless_data;

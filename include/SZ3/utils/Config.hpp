@@ -26,25 +26,25 @@
 #define SZ_INT64 9
 
 namespace SZ3 {
-
+    
     enum EB {
         EB_ABS, EB_REL, EB_PSNR, EB_L2NORM, EB_ABS_AND_REL, EB_ABS_OR_REL
     };
     constexpr const char *EB_STR[] = {"ABS", "REL", "PSNR", "NORM", "ABS_AND_REL", "ABS_OR_REL"};
     constexpr EB EB_OPTIONS[] = {EB_ABS, EB_REL, EB_PSNR, EB_L2NORM, EB_ABS_AND_REL, EB_ABS_OR_REL};
-
+    
     enum ALGO {
         ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP, ALGO_NOPRED,
     };
     constexpr const char *ALGO_STR[] = {"ALGO_LORENZO_REG", "ALGO_INTERP_LORENZO", "ALGO_INTERP", "ALGO_NOPRED"};
     constexpr const ALGO ALGO_OPTIONS[] = {ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP, ALGO_NOPRED};
-
+    
     enum INTERP_ALGO {
         INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC
     };
     constexpr const char *INTERP_ALGO_STR[] = {"INTERP_ALGO_LINEAR", "INTERP_ALGO_CUBIC"};
     constexpr INTERP_ALGO INTERP_ALGO_OPTIONS[] = {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC};
-
+    
     template<class T>
     const char *enum2Str(T e) {
         if (std::is_same<T, ALGO>::value) {
@@ -58,9 +58,9 @@ namespace SZ3 {
             exit(0);
         }
     }
-
+    
     class Config {
-    public:
+     public:
         template<class ... Dims>
         Config(Dims... args) {
             dims = std::vector<size_t>{static_cast<size_t>(std::forward<Dims>(args))...};
@@ -86,15 +86,15 @@ namespace SZ3 {
             stride = blockSize;
             return num;
         }
-
+        
         void loadcfg(const std::string &cfgpath) {
             INIReader cfg(cfgpath);
-
+            
             if (cfg.ParseError() != 0) {
                 std::cout << "Can't load cfg file " << cfgpath << std::endl;
                 exit(0);
             }
-
+            
             auto cmprAlgoStr = cfg.Get("GlobalSettings", "CmprAlgo", "");
             if (cmprAlgoStr == ALGO_STR[ALGO_LORENZO_REG]) {
                 cmprAlgo = ALGO_LORENZO_REG;
@@ -123,13 +123,13 @@ namespace SZ3 {
             relErrorBound = cfg.GetReal("GlobalSettings", "RelErrorBound", relErrorBound);
             psnrErrorBound = cfg.GetReal("GlobalSettings", "PSNRErrorBound", psnrErrorBound);
             l2normErrorBound = cfg.GetReal("GlobalSettings", "L2NormErrorBound", l2normErrorBound);
-
+            
             openmp = cfg.GetBoolean("GlobalSettings", "OpenMP", openmp);
             lorenzo = cfg.GetBoolean("AlgoSettings", "Lorenzo", lorenzo);
             lorenzo2 = cfg.GetBoolean("AlgoSettings", "Lorenzo2ndOrder", lorenzo2);
             regression = cfg.GetBoolean("AlgoSettings", "Regression", regression);
             regression2 = cfg.GetBoolean("AlgoSettings", "Regression2ndOrder", regression2);
-
+            
             auto interpAlgoStr = cfg.Get("AlgoSettings", "InterpolationAlgo", "");
             if (interpAlgoStr == INTERP_ALGO_STR[INTERP_ALGO_LINEAR]) {
                 interpAlgo = INTERP_ALGO_LINEAR;
@@ -140,12 +140,11 @@ namespace SZ3 {
             interpBlockSize = cfg.GetInteger("AlgoSettings", "InterpolationBlockSize", interpBlockSize);
             blockSize = cfg.GetInteger("AlgoSettings", "BlockSize", blockSize);
             quantbinCnt = cfg.GetInteger("AlgoSettings", "QuantizationBinTotal", quantbinCnt);
-
-
+            
         }
-
-
+        
         void save(unsigned char *&c) {
+            auto c0 = c;
             write_str(sz3DataVer, c);
             write(N, c);
             write(dims.data(), dims.size(), c);
@@ -169,9 +168,16 @@ namespace SZ3 {
             write(pred_dim, c);
             write(openmp, c);
             write(dataType, c);
+            if (c - c0 > size_est()) {
+                throw std::invalid_argument("Config saved size is larger than estimated size");
+            } else {
+                //for padding
+                c = c0 + size_est();
+            }
         };
-
+        
         void load(const unsigned char *&c) {
+            auto c0 = c;
             read_str(sz3DataVer, c);
             read(N, c);
             dims.resize(N);
@@ -196,8 +202,14 @@ namespace SZ3 {
             read(pred_dim, c);
             read(openmp, c);
             read(dataType, c);
+            if (c - c0 > size_est()) {
+                throw std::invalid_argument("Config loaded size is larger than estimated size");
+            } else {
+                //for padding
+                c = c0 + size_est();
+            }
         }
-
+        
         void print() {
             printf("===================== Begin SZ3 Configuration =====================\n");
             printf("N = %d\n", N);
@@ -234,7 +246,6 @@ namespace SZ3 {
             return sizeof(Config) + sizeof(size_t) * 5 + 32; //sizeof(size_t) * 5 is for dims vector, 32 is for redundancy
         }
         
-        
         std::string sz3DataVer = SZ3_DATA_VER;
         char N = 0;
         std::vector<size_t> dims;
@@ -260,10 +271,9 @@ namespace SZ3 {
         int blockSize = 0;
         int stride = 0;//not used now
         int pred_dim = 0; // not used now
-
+        
     };
-
-
+    
 }
 
 #endif //SZ_CONFIG_HPP

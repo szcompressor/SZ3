@@ -20,18 +20,20 @@ namespace SZ3::concepts {
          * @param src  data to be compressed
          * @param srcLen length (in bytes) of the data to be compressed
          * @param dst compressed data
-         * @param dstCap capacity to store compressed size (in bytes), will be overwritten by the actual size in return
+         * @param dstCap capacity (in bytes) for storing the compressed data
+         * @return length (in bytes) of the data compressed
          */
-        virtual void compress(uchar *src, size_t srcLen, uchar *dst, size_t &dstCap) = 0;
+        virtual size_t compress(uchar *src, size_t srcLen, uchar *dst, size_t dstCap) = 0;
 
         /**
          * reverse of compress(), decompress the data with lossless compressors
          * @param src data to be decompressed
          * @param srcLen length (in bytes) of the data to be decompressed (as input) or the data decompressed (as output).
          * @param dst decompressed data
-         * @param dstCap capacity to store decompressed data (in bytes), will be overwritten by the actual size in return
+         * @param dstCap capacity (in bytes) for storing the decompressed data (in bytes)
+         * @return length (in bytes) of the data decompressed
          */
-        virtual void decompress(const uchar *src, const size_t srcLen, uchar *dst, size_t &dstCap) = 0;
+        virtual size_t decompress(const uchar *src, const size_t srcLen, uchar *dst, size_t dstCap) = 0;
     };
 }
 

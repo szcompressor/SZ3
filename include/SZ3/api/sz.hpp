@@ -1,7 +1,6 @@
 #ifndef SZ3_SZ_HPP
 #define SZ3_SZ_HPP
 
-
 #include "SZ3/api/impl/SZImpl.hpp"
 #include "SZ3/version.hpp"
 #include <memory>
@@ -51,39 +50,47 @@ conf.absErrorBound = 1E-3; // absolute error bound 1e-3
 char *compressedData = SZ_compress(conf, data, outSize);
  */
 template<class T>
-char *SZ_compress(const SZ3::Config &conf_, const T *data, size_t &cmpSize) {
+size_t SZ_compress(const SZ3::Config &conf_, const T *data, char *cmpData, size_t cmpCap) {
     using namespace SZ3;
     Config conf(conf_);
-
-    size_t bufferLen = conf.num * sizeof(T) * 1.2;
-    auto buffer = (uchar *) malloc(bufferLen);
-    auto dataLen = bufferLen;
-
+    
+    if (cmpCap < conf.num * sizeof(T)) {
+        throw std::invalid_argument(
+            "cmpCap too small, remember to initialize the cmpCap with at least the same size of the original data");
+    }
+    
+    auto dst = (uchar*)cmpData + conf.size_est();
+    auto dstCap = cmpCap - conf.size_est();
+    
+    size_t dstLen = 0;
     if (conf.N == 1) {
-        SZ_compress_impl<T, 1>(conf, data, buffer, dataLen);
+        dstLen = SZ_compress_impl<T, 1>(conf, data, dst, dstCap);
     } else if (conf.N == 2) {
-        SZ_compress_impl<T, 2>(conf, data, buffer, dataLen);
+        dstLen = SZ_compress_impl<T, 2>(conf, data, dst, dstCap);
     } else if (conf.N == 3) {
-        SZ_compress_impl<T, 3>(conf, data, buffer, dataLen);
+        dstLen = SZ_compress_impl<T, 3>(conf, data, dst, dstCap);
     } else if (conf.N == 4) {
-        SZ_compress_impl<T, 4>(conf, data, buffer, dataLen);
+        dstLen = SZ_compress_impl<T, 4>(conf, data, dst, dstCap);
     } else {
         printf("Data dimension higher than 4 is not supported.\n");
         exit(0);
     }
+    
+    
+    auto confPos = (uchar *) cmpData;
+    conf.save(confPos);
+    return conf.size_est() + dstLen;
+}
 
-    //TODO
-    //output should be | magic number | version | data |
-    auto bufferPos = buffer + dataLen;
-    conf.save(bufferPos);
-    cmpSize = bufferPos - buffer;
-    size_t confLen = cmpSize - dataLen;
-
-    auto dst = new uchar[cmpSize];
-    memcpy(dst, buffer + dataLen, confLen);
-    memcpy(dst + confLen, buffer, dataLen);
-    free(buffer);
-    return (char *) dst;
+template<class T>
+char *SZ_compress(const SZ3::Config &conf, const T *data, size_t &cmpSize) {
+    using namespace SZ3;
+    
+    size_t bufferLen = conf.num * sizeof(T) * 1.2;
+    auto buffer = new char[bufferLen];
+    cmpSize = SZ_compress(conf, data, buffer, bufferLen);
+    
+    return buffer;
 }
 
 
@@ -108,6 +115,7 @@ void SZ_decompress(SZ3::Config &conf, char *cmpData, size_t cmpSize, T *&decData
     using namespace SZ3;
     auto confPos = (const uchar *) cmpData;
     conf.load(confPos);
+    //TODO output should be | magic number | version | data |
     if (conf.sz3DataVer != SZ3_DATA_VER) {
         std::stringstream ss;
         printf("program v%s , program-data %s , input data v%s\n", SZ3_VER, SZ3_DATA_VER, conf.sz3DataVer.data());

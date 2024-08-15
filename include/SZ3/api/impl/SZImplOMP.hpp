@@ -13,8 +13,8 @@
 #endif
 namespace SZ3 {
     template<class T, uint N>
-    void SZ_compress_OMP(Config &conf, const T *data, uchar *dst, size_t &outSize) {
-        unsigned char *buffer_pos = dst;
+    size_t SZ_compress_OMP(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
+        unsigned char *buffer_pos = cmpData;
 
 #ifdef _OPENMP
 
@@ -100,12 +100,13 @@ namespace SZ3 {
             memcpy(buffer_pos + cmp_start_t[tid], compressed_t[tid], cmp_size_t[tid]);
             free(compressed_t[tid]);
         }
-
-        outSize = buffer_pos - dst + cmp_start_t[nThreads];
+        
+        return buffer_pos - cmpData + cmp_start_t[nThreads];
 //    timer.stop("OMP memcpy");
 
 #endif
 //        return (char *) buffer;
+        return 0;
     }
 
 

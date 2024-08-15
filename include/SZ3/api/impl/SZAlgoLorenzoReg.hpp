@@ -72,7 +72,7 @@ namespace SZ3 {
 
 
     template<class T, uint N>
-    void SZ_compress_LorenzoReg(Config &conf, T *data, uchar *dst, size_t &outSize) {
+    size_t SZ_compress_LorenzoReg(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
 
         assert(N == conf.N);
         assert(conf.cmprAlgo == ALGO_LORENZO_REG);
@@ -83,10 +83,10 @@ namespace SZ3 {
             // use fast version for 3D
             auto sz = make_compressor_sz_generic<T, N>(make_decomposition_lorenzo_regression<T, N>(conf, quantizer), HuffmanEncoder<int>(),
                                                        Lossless_zstd());
-            sz->compress(conf, data, dst, outSize);
+            return sz->compress(conf, data, cmpData, cmpCap);
         } else {
             auto sz = make_compressor_typetwo_lorenzo_regression<T, N>(conf, quantizer, HuffmanEncoder<int>(), Lossless_zstd());
-            sz->compress(conf, data, dst, outSize);
+            return sz->compress(conf, data, cmpData, cmpCap);
         }
 //        return cmpData;
     }

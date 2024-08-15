@@ -466,11 +466,12 @@ MDZ_Compress(Config conf, T *input_data, T *dec_data, size_t batch_size, int met
     }
     if (lossless_first_frame) {
         auto zstd = SZ3::Lossless_zstd();
-        size_t outSize = conf.dims[1] * sizeof(T);
-        auto cmpr = zstd.compress((SZ3::uchar *) data_ts0.data(), outSize, outSize);
-        delete[] cmpr;
-//        printf("outsize %lu\n", outSize);
-        total_compressed_size += outSize;
+        size_t inSize = conf.dims[1] * sizeof(T);
+        uchar *buffer = new uchar[inSize];
+        auto cmpSize = zstd.compress((SZ3::uchar *) data_ts0.data(), inSize, buffer, inSize);
+        delete[] buffer;
+//        printf("outsize %lu\n", cmpSize);
+        total_compressed_size += cmpSize;
     }
 
     return total_compressed_size;

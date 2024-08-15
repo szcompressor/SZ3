@@ -35,7 +35,7 @@ namespace SZ3 {
 
         // compress given the error bound
 //        uchar *compress(T *data, size_t &compressed_size) {
-        void compress(const Config &conf, T *data, uchar *dst, size_t &dstLen) {
+        size_t compress(const Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
             assert(!(timestep_op > 0 && conf.dims.size() != 2) &&
                    "timestep prediction requires 2d dataset");
 
@@ -112,9 +112,10 @@ namespace SZ3 {
             encoder.save(buffer_pos);
             encoder.encode(pred_inds, buffer_pos);
             encoder.postprocess_encode();
-
-            lossless.compress(buffer, buffer_pos - buffer, dst, dstLen);
+            
+            auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
             free(buffer);
+            return cmpSize;
         }
 
 //        T *decompress(uchar const *lossless_compressed_data, const size_t length) {

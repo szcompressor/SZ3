@@ -16,7 +16,7 @@
 
 namespace SZ3 {
     template<class T, uint N>
-    void SZ_compress_Interp(Config &conf, T *data, uchar *dst, size_t &outSize) {
+    size_t SZ_compress_Interp(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
         assert(N == conf.N);
         assert(conf.cmprAlgo == ALGO_INTERP);
         calAbsErrorBound(conf, data);
@@ -26,7 +26,7 @@ namespace SZ3 {
                                                        LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
                 HuffmanEncoder<int>(),
                 Lossless_zstd());
-        sz->compress(conf, data, dst, outSize);
+        return sz->compress(conf, data, cmpData, cmpCap);
 //        return cmpData;
     }
 
@@ -70,7 +70,7 @@ namespace SZ3 {
     }
 
     template<class T, uint N>
-    void SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *dst, size_t &outSize) {
+    size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
         assert(conf.cmprAlgo == ALGO_INTERP_LORENZO);
 
 //        Timer timer(true);
@@ -82,8 +82,7 @@ namespace SZ3 {
         std::vector<T> sampling_data = sampling<T, N>(data, conf.dims, sampling_num, sample_dims, sampling_block);
         if (sampling_num == conf.num) {
             conf.cmprAlgo = ALGO_INTERP;
-            SZ_compress_Interp<T, N>(conf, data, dst, outSize);
-            return;
+            return SZ_compress_Interp<T, N>(conf, data, cmpData, cmpCap);
         }
 
         double best_lorenzo_ratio = 0, best_interp_ratio = 0, ratio;
@@ -133,8 +132,7 @@ namespace SZ3 {
         if (useInterp) {
             conf.cmprAlgo = ALGO_INTERP;
 //            double tuning_time = timer.stop();
-            SZ_compress_Interp<T, N>(conf, data, dst, outSize);
-            return;
+            return SZ_compress_Interp<T, N>(conf, data, cmpData, cmpCap);
         } else {
             //further tune lorenzo
             if (N == 3) {
@@ -170,8 +168,7 @@ namespace SZ3 {
             lorenzo_config.setDims(conf.dims.begin(), conf.dims.end());
             conf = lorenzo_config;
 //            double tuning_time = timer.stop();
-            SZ_compress_LorenzoReg<T, N>(conf, data, dst, outSize);
-            return;
+            return SZ_compress_LorenzoReg<T, N>(conf, data, cmpData, cmpCap);
         }
 
 
