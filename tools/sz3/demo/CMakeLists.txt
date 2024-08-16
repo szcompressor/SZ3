@@ -8,5 +8,3 @@ foreach (SRCFILE IN LISTS cpu_source_files)
 #    install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${EXE}$<TARGET_FILE_SUFFIX:${EXE}> TYPE BIN)
 
 endforeach ()
-
-install(FILES testfloat_8_8_128.dat DESTINATION ${CMAKE_INSTALL_DATADIR}/SZ3)

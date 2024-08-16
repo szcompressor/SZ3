@@ -10,4 +10,4 @@ foreach (SRCFILE IN LISTS cpu_source_files)
 endforeach ()
 install(FILES testfloat_8_8_128.dat DESTINATION ${CMAKE_INSTALL_DATADIR}/SZ3)
 
-add_subdirectory(demo)
+#add_subdirectory(demo)
