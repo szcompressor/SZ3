@@ -24,10 +24,10 @@ namespace SZ3 {
 //            uchar *compressBytes = new uchar[estimatedCompressedSize];
 //            uchar *dstPos = dst;
 //            write(srcLen, dstPos);
-            if (dstCap < srcLen) {
-                throw std::invalid_argument(
-                    "dstCap not large enough for zstd");
-            }
+//            if (dstCap < srcLen) {
+//                throw std::invalid_argument(
+//                    "dstCap not large enough for zstd");
+//            }
             return ZSTD_compress(dst, dstCap, src, srcLen, compression_level);
 //            dstLen += sizeof(size_t);
 //            return compressBytes;

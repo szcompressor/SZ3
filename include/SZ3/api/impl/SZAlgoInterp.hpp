@@ -59,7 +59,7 @@ namespace SZ3 {
             HuffmanEncoder<int>(),
             Lossless_zstd());
         
-        std::vector<uchar> buffer(num * 2);
+        std::vector<uchar> buffer(num * sizeof(T));
         size_t outSize = sz.compress(conf, data1.data(), buffer.data(), buffer.size());
 //        delete[]cmpData;
         auto compression_ratio = num * sizeof(T) * 1.0 / outSize;

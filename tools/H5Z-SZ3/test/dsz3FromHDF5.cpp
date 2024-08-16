@@ -206,7 +206,7 @@ int main(int argc, char *argv[]) {
                     int i;
                     printf("reconstructed data = ");
                     for (i = 0; i < 20; i++)
-                        printf("%ld ", data[i]);
+                        printf("%llu ", data[i]);
                     printf("\n");
                     free(data);
                 }
@@ -260,7 +260,7 @@ int main(int argc, char *argv[]) {
                     int i;
                     printf("reconstructed data = ");
                     for (i = 0; i < 20; i++)
-                        printf("%ld ", data[i]);
+                        printf("%lld ", data[i]);
                     printf("\n");
                     free(data);
                 }
