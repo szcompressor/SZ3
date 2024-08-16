@@ -42,49 +42,35 @@ namespace SZ3 {
             auto buffer = (uchar *) malloc(bufferSize);
             uchar *buffer_pos = buffer;
 
-            write(conf.num, buffer_pos);
-
             decomposition.save(buffer_pos);
 
             encoder.save(buffer_pos);
             encoder.encode(quant_inds, buffer_pos);
             encoder.postprocess_encode();
 
-//            assert(buffer_pos - buffer < bufferSize);
-            
             auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
             free(buffer);
-//            lossless.postcompress_data(buffer);
 
             return cmpSize;
         }
 
         T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *decData) {
-//            Timer timer(true);
             size_t bufferCap = conf.num * sizeof(T);
             auto buffer = (uchar *) malloc(bufferCap);
             lossless.decompress(cmpData, cmpSize, buffer, bufferCap);
+
             size_t remaining_length = bufferCap;
             uchar const *buffer_pos = buffer;
-//            timer.stop("Lossless");
-            size_t num = 0;
-            read(num, buffer_pos, remaining_length);
 
             decomposition.load(buffer_pos, remaining_length);
-
             encoder.load(buffer_pos, remaining_length);
-
-//            timer.start();
-            auto quant_inds = encoder.decode(buffer_pos, num);
+            
+            auto quant_inds = encoder.decode(buffer_pos, conf.num);
             encoder.postprocess_decode();
-//            timer.stop("Decoder");
 
             free(buffer);
-//            lossless.postdecompress_data(buffer);
 
-//            timer.start();
             decomposition.decompress(conf, quant_inds, decData);
-//            timer.stop("Prediction & Recover");
             return decData;
         }
 
