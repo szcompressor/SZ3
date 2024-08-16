@@ -165,14 +165,14 @@ namespace SZ3 {
             std::cout << std::endl;
         }
 
-        void clear() {
-            quantizer_liner.clear();
-            quantizer_independent.clear();
-            regression_coeff_quant_inds.clear();
-            regression_coeff_index = 0;
-            current_coeffs = {0};
-            prev_coeffs = {0};
-        }
+//        void clear() {
+//            quantizer_liner.clear();
+//            quantizer_independent.clear();
+//            regression_coeff_quant_inds.clear();
+//            regression_coeff_index = 0;
+//            current_coeffs = {0};
+//            prev_coeffs = {0};
+//        }
 
         std::array<T, N + 1> get_current_coeffs() {
             return current_coeffs;

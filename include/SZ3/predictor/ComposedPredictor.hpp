@@ -167,12 +167,12 @@ namespace SZ3 {
             predict_error.resize(predictors.size());
         }
 
-        void clear() {
-            for (auto &pred:predictors) {
-                pred->clear();
-            }
-            selection.clear();
-        }
+//        void clear() {
+//            for (auto &pred:predictors) {
+//                pred->clear();
+//            }
+//            selection.clear();
+//        }
 
     private:
         std::vector<std::shared_ptr<concepts::PredictorInterface < T, N>>>

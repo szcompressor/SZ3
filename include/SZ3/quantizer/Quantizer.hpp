@@ -16,14 +16,6 @@ namespace SZ3::concepts {
         virtual ~QuantizerInterface() = default;
 
         /**
-         * quantize the error (error=data-pred) based on error bound
-         * @param data single data point
-         * @param pred predicted value for the data point
-         * @return quantized error
-         */
-        virtual int quantize(T data, T pred) = 0;
-
-        /**
          * quantize the error (error=data-pred) based on error bound, and overwrite the data with reconstructed value
          * @param data single data point
          * @param pred predicted value for this data point
@@ -39,10 +31,6 @@ namespace SZ3::concepts {
          */
         virtual T recover(T pred, int quant_index) = 0;
 
-        /**
-         * reset quantizer to initial state
-         */
-        virtual void clear() = 0;
 
         /**
          ** serialize the quantizer and store it to a buffer

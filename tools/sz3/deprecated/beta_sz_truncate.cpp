@@ -1,4 +1,4 @@
-#include "SZ3/compressor/SZTruncateCompressor.hpp"
+#include "SZ3/compressor/specialized/SZTruncateCompressor.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
 #include "SZ3/lossless/Lossless_bypass.hpp"
 #include "SZ3/utils/FileUtil.hpp"

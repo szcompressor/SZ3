@@ -62,17 +62,20 @@ Scripts without parameters below should work fine by replacing SZ2 with SZ3.
 * Visit [this Github repository](https://github.com/ofmla/sz3_simple_example) for details
 
 #### H5Z-SZ3
+* Located in 'tools/H5Z-SZ3'
+* Please add "-DBUILD_H5Z_FILTER=ON" to enable this function for CMake.
+* sz3ToHDF5 and HDF5ToSz3 are provided for testing.
 
-* Use examples/print_h5repack_args.c to construct the cd_values parameters based on the specified error configuration.
-
-* Compression example: 
-`h5repack -f UD=32024,0,5,0,981668463,0,0,0 -i ~/Data/CESM-ATM-tylor/1800x3600/CLDLOW_1_1800_3600.dat.h5 -o ~/Data/CESM-ATM-tylor/1800x3600/CLDLOW_1_1800_3600.dat.sz3.h5`
-
-* Decompression example:
-`h5repack -f NONE -i ~/Data/CESM-ATM-tylor/1800x3600/CLDLOW_1_1800_3600.dat.sz3.h5 -o ~/Data/CESM-ATM-tylor/1800x3600/CLDLOW_1_1800_3600.dat.sz3.out.h5`
-
-* Alternatively, the error bound information can also be given through sz3.config (when there are no cd_values for h5repack). Example (You need to put sz3.config in the current local directory so that it will read sz3.config to get error bounds):
-`h5repack -f UD=32024,0 -i ~/Data/CESM-ATM-tylor/1800x3600/CLDLOW_1_1800_3600.dat.h5 -o ~/Data/CESM-ATM-tylor/1800x3600/CLDLOW_1_1800_3600.dat.sz3.h5`
+[//]: # (* Use examples/print_h5repack_args.c to construct the cd_values parameters based on the specified error configuration.)
+[//]: # ()
+[//]: # (* Compression example: )
+[//]: # (`h5repack -f UD=32024,0,5,0,981668463,0,0,0 -i ~/Data/CESM-ATM-tylor/1800x3600/CLDLOW_1_1800_3600.dat.h5 -o ~/Data/CESM-ATM-tylor/1800x3600/CLDLOW_1_1800_3600.dat.sz3.h5`)
+[//]: # ()
+[//]: # (* Decompression example:)
+[//]: # (`h5repack -f NONE -i ~/Data/CESM-ATM-tylor/1800x3600/CLDLOW_1_1800_3600.dat.sz3.h5 -o ~/Data/CESM-ATM-tylor/1800x3600/CLDLOW_1_1800_3600.dat.sz3.out.h5`)
+[//]: # ()
+[//]: # (* Alternatively, the error bound information can also be given through sz3.config &#40;when there are no cd_values for h5repack&#41;. Example &#40;You need to put sz3.config in the current local directory so that it will read sz3.config to get error bounds&#41;:)
+[//]: # (`h5repack -f UD=32024,0 -i ~/Data/CESM-ATM-tylor/1800x3600/CLDLOW_1_1800_3600.dat.h5 -o ~/Data/CESM-ATM-tylor/1800x3600/CLDLOW_1_1800_3600.dat.sz3.h5`)
 
 
 
@@ -91,6 +94,8 @@ Version New features
 * SZ 3.1.6 Support C API and Python API.
 * SZ 3.1.7 Initial MDZ(https://github.com/szcompressor/SZ3/tree/master/tools/mdz) support.
 * SZ 3.1.8 namespace changed from SZ to SZ3. H5Z-SZ3 supports configuration file now.
+* SZ 3.2.0 API reconstructed for FZ. H5Z-SZ3 rewrite. Compression version checking.
+
 ## Citations
 
 **Kindly note**: If you mention SZ in your paper, the most appropriate citation is including these three references (**TBD22, ICDE21, Bigdata18**), because they cover the design and implementation of the latest version of SZ.

@@ -8,6 +8,7 @@
 #include "SZ3/def.hpp"
 #include <cstring>
 #include <string>
+#include <vector>
 
 namespace SZ3 {
 

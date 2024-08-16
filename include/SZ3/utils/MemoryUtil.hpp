@@ -4,9 +4,12 @@
 
 #ifndef SZ_MEMORYOPS_HPP
 #define SZ_MEMORYOPS_HPP
+
 #include <cassert>
 #include <cstring>
+#include <string>
 #include "SZ3/def.hpp"
+
 namespace SZ3 {
     // read array
     template<class T1>
@@ -53,6 +56,16 @@ namespace SZ3 {
     void write(T1 const var, uchar *&compressed_data_pos) {
         memcpy(compressed_data_pos, &var, sizeof(T1));
         compressed_data_pos += sizeof(T1);
+    }
+
+    void write_str(std::string const &var, uchar *&compressed_data_pos) {
+        strcpy(reinterpret_cast<char *>(compressed_data_pos), var.c_str());
+        compressed_data_pos += var.size() + 1;
+    }
+
+    void read_str(std::string &var, uchar const *&compressed_data_pos) {
+        var = std::string(reinterpret_cast<const char *>(compressed_data_pos));
+        compressed_data_pos += var.size() + 1;
     }
 }
 #endif //SZ_MEMORYOPS_HPP

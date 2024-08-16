@@ -14,6 +14,10 @@
 #include <cstring>
 #include <cmath>
 
+/**
+ * DO NOT use this one
+ * It will be replaced by QOZ
+ */
 namespace SZ3 {
     template<class T, uint N, class Quantizer, class Encoder, class Lossless>
     class SZBlockInterpolationCompressor {
@@ -32,16 +36,13 @@ namespace SZ3 {
 
         }
 
-        T *decompress(uchar const *cmpData, const size_t &cmpSize, size_t num) {
-            T *dec_data = new T[num];
-            return decompress(cmpData, cmpSize, dec_data);
-        }
 
-        T *decompress(uchar const *cmpData, const size_t &cmpSize, T *decData) {
+        T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *decData) {
 
-            size_t remaining_length = cmpSize;
-
-            uchar *buffer = lossless.decompress(cmpData, remaining_length);
+            size_t bufferCap = conf.num * sizeof(T);
+            auto buffer = (uchar *) malloc(bufferCap);
+            lossless.decompress(cmpData, cmpSize, buffer, bufferCap);
+            size_t remaining_length = bufferCap;
             uchar const *buffer_pos = buffer;
 
             read(global_dimensions.data(), N, buffer_pos, remaining_length);
@@ -59,13 +60,13 @@ namespace SZ3 {
 
             encoder.postprocess_decode();
 
-            lossless.postdecompress_data(buffer);
+            free(buffer);
 
             auto range = std::make_shared<multi_dimensional_range<T, N>>(decData,
-                                                                             std::begin(global_dimensions),
-                                                                             std::end(global_dimensions),
-                                                                             block_size,
-                                                                             0);
+                                                                         std::begin(global_dimensions),
+                                                                         std::end(global_dimensions),
+                                                                         block_size,
+                                                                         0);
 
             quantizer.predecompress_data();
 
@@ -106,7 +107,7 @@ namespace SZ3 {
 
 
         // compress given the error bound
-        uchar *compress(const Config &conf, T *data, size_t &compressed_size) {
+        size_t compress(const Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
 
             block_size = conf.blockSize;
             num_elements = conf.num;
@@ -118,9 +119,9 @@ namespace SZ3 {
 
             quant_inds.clear();
             auto range = std::make_shared<multi_dimensional_range<T, N>>(data,
-                                                                             std::begin(global_dimensions),
-                                                                             std::end(global_dimensions),
-                                                                             block_size, 0);
+                                                                         std::begin(global_dimensions),
+                                                                         std::end(global_dimensions),
+                                                                         block_size, 0);
             quantizer.precompress_data();
             for (auto block = range->begin(); block != range->end(); ++block) {
 
@@ -149,7 +150,7 @@ namespace SZ3 {
             encoder.preprocess_encode(quant_inds, quantizer.get_radius() * 2);
             size_t bufferSize = 1.2 * (quantizer.size_est() + encoder.size_est() + sizeof(T) * quant_inds.size());
 
-            uchar *buffer = new uchar[bufferSize];
+            auto *buffer = (uchar *) malloc(bufferSize);
             uchar *buffer_pos = buffer;
 
             write(global_dimensions.data(), N, buffer_pos);
@@ -164,13 +165,13 @@ namespace SZ3 {
             encoder.postprocess_encode();
 
             assert(buffer_pos - buffer < bufferSize);
+            
+            auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
+            free(buffer);
+            return cmpSize;
+//            lossless.postcompress_data(buffer);
 
-            uchar *lossless_data = lossless.compress(buffer,
-                                                     buffer_pos - buffer,
-                                                     compressed_size);
-            lossless.postcompress_data(buffer);
-
-            return lossless_data;
+//            return lossless_data;
         }
 
     private:

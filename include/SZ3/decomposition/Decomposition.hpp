@@ -1,5 +1,5 @@
-#ifndef SZ3_FRONTEND_INTERFACE
-#define SZ3_FRONTEND_INTERFACE
+#ifndef SZ3_DECOMPOSITION_INTERFACE
+#define SZ3_DECOMPOSITION_INTERFACE
 
 #include "SZ3/def.hpp"
 #include <vector>
@@ -8,32 +8,34 @@ namespace SZ3::concepts {
 
 
     /**
-     * Frontend is the combination of predictor and quantizer
-     * It handles original data  <-->  quantized error (usually in integer)
+     * Decomposition defines transformation and prediction methods
+     * Transformation:
+     *      original data <--> data transformed in another domain
+     * Prediction:
+     *      original data  <-->  quantized prediction error
+     *      combination of predictor (implementation) and quantizer (function calls)
+     *      difference between Prediction and Decomposition interfaces:
+     *          Prediction:
+     *              prediction function takes scalar value (e.g, single data point)
+     *          Decomposition:
+     *              prediction function takes multidimensional tensors (e.g, whole input)
      *
-     * This will be changed to DecompositionTypeII
-     * DecompositionTypeI:
-     *                 E.g: transformation, predictors with no quantizer fused
-     *                 Example: regression, zfp, mgard, wavelet (cdf97 in sperr)
-     * DecompositionTypeII:
-     *                 predictors which internally calls quantizer APIs.
-     *                 example: Lorenzo, interpolation
-     *                 default quantizer need to be provided to reduce the initialization complexity for users
      * @tparam T original data
      * @tparam N data dimension
      */
     template<class T, uint N>
-    class FrontendInterface {
+    class DecompositionInterface {
     public:
 
-        virtual ~FrontendInterface() = default;
+        virtual ~DecompositionInterface() = default;
 
         /**
+         * TODO allow T as output instead of int
          * predict the data and quantize the error
          * @param data original input
          * @return quantized prediction error
          */
-        virtual std::vector<int> compress(T *data) = 0;
+        virtual std::vector<int> compress(const Config &conf, T *data) = 0;
 
         /**
          * reverse of compress(), reconstruct the data
@@ -41,7 +43,7 @@ namespace SZ3::concepts {
          * @param dec_data place to write the reconstructed data
          * @return same value with dec_data
          */
-        virtual T *decompress(std::vector<int> &quant_inds, T *dec_data) = 0;
+        virtual T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) = 0;
 
         /**
          * serialize the frontend and store it to a buffer
@@ -63,7 +65,7 @@ namespace SZ3::concepts {
 
         virtual void print() {};
 
-        virtual void clear() {};
+//        virtual void clear() {};
     };
 
 
