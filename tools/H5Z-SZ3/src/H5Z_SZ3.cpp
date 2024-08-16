@@ -1,7 +1,3 @@
-//
-// Created by arham23 on 2/8/22.
-//
-
 #include <memory>
 #include <fstream>
 #include <iterator>
