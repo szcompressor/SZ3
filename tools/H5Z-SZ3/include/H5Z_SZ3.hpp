@@ -1,7 +1,3 @@
-//
-// Created by arham23 on 2/8/22.
-//
-
 #ifndef SZ3_H5Z_SZ3_H
 #define SZ3_H5Z_SZ3_H
 
