@@ -4,7 +4,7 @@
 /**
  */
 
-#include "Frontend.hpp"
+#include "Decomposition.hpp"
 //#include "SZ3/utils/MemoryUtil.hpp"
 #include "SZ3/utils/Config.hpp"
 #include <list>
@@ -12,9 +12,9 @@
 namespace SZ3 {
     
     template<class T, uint N, class Quantizer>
-    class SZBioMDFrontend : public concepts::FrontendInterface<T, N> {
+    class SZBioMDDecomposition : public concepts::DecompositionInterface<T, N> {
      public:
-        SZBioMDFrontend(const Config &conf, Quantizer quantizer) :
+        SZBioMDDecomposition(const Config &conf, Quantizer quantizer) :
             quantizer(quantizer),
             conf(conf) {
             if (N != 1 && N != 2 && N != 3) {
@@ -22,13 +22,13 @@ namespace SZ3 {
             }
         }
         
-        ~SZBioMDFrontend() {
-            clear();
+        ~SZBioMDDecomposition() {
+//            clear();
         }
         
         void print() {};
-        
-        std::vector<int> compress(T *data) {
+
+        std::vector<int> compress(const Config &conf, T *data) {
             if (N == 1) {
                 return compress_1d(data);
             } else if (N == 2) {
@@ -37,8 +37,8 @@ namespace SZ3 {
                 return compress_3d(data);
             }
         };
-        
-        T *decompress(std::vector<int> &quant_inds, T *dec_data) {
+
+        T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) {
             if (N == 1) {
                 return decompress_1d(quant_inds, dec_data);
             } else if (N == 2) {
@@ -56,7 +56,7 @@ namespace SZ3 {
         }
         
         void load(const uchar *&c, size_t &remaining_length) {
-            clear();
+//            clear();
             const uchar *c_pos = c;
             read(site, c, remaining_length);
             read(firstFillFrame_, c, remaining_length);
@@ -65,9 +65,9 @@ namespace SZ3 {
             remaining_length -= c_pos - c;
         }
         
-        void clear() {
-            quantizer.clear();
-        }
+//        void clear() {
+//            quantizer.clear();
+//        }
         
         size_t size_est() {
             return quantizer.size_est(); //unpred
@@ -362,9 +362,9 @@ namespace SZ3 {
     };
     
     template<class T, uint N, class Predictor>
-    SZBioMDFrontend<T, N, Predictor>
-    make_sz_bio_frontend(const Config &conf, Predictor predictor) {
-        return SZBioMDFrontend<T, N, Predictor>(conf, predictor);
+    SZBioMDDecomposition<T, N, Predictor>
+    make_decomposition_biomd(const Config &conf, Predictor predictor) {
+        return SZBioMDDecomposition<T, N, Predictor>(conf, predictor);
     }
 }
 

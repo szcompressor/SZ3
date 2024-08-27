@@ -1,12 +1,12 @@
 /*
- * Based on SZBioMDFrontend.hpp
+ * Based on SZBioMDDecomposition.hpp
  * \author: Magnus Lundborg
  */
 
 #ifndef SZ3_SZBIOMDXTCBASED_FRONTEND
 #define SZ3_SZBIOMDXTCBASED_FRONTEND
 
-#include "Frontend.hpp"
+#include "Decomposition.hpp"
 #include "SZ3/utils/Config.hpp"
 
 #include <list>
@@ -14,19 +14,19 @@
 namespace SZ3 {
     
     template<class T, uint N>
-    class SZBioMDXtcBasedFrontend : public concepts::FrontendInterface<T, N> {
+    class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, N> {
      public:
-        SZBioMDXtcBasedFrontend(const Config &conf) : conf(conf) {
+        SZBioMDXtcDecomposition(const Config &conf) : conf(conf) {
             if (N != 1 && N != 2 && N != 3) {
                 throw std::invalid_argument("SZBioFront only support 1D, 2D or 3D data");
             }
         }
         
-        ~SZBioMDXtcBasedFrontend() { clear(); }
+        // ~SZBioMDXtcDecomposition() { clear(); }
         
         void print() {};
         
-        std::vector<int> compress(T *data) {
+        std::vector<int> compress(const Config &conf, T *data) {
             if (N <= 2) {
                 return compressSingleFrame(data);
             } else {
@@ -34,7 +34,7 @@ namespace SZ3 {
             }
         };
         
-        T *decompress(std::vector<int> &quantData, T *decData) {
+        T *decompress(const Config &conf, std::vector<int> &quantData, T *decData) {
             if (N <= 2) {
                 return decompressSingleFrame(quantData, decData);
             } else {

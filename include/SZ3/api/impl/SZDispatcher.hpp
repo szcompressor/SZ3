@@ -7,7 +7,7 @@
 #include "SZ3/api/impl/SZAlgoInterp.hpp"
 #include "SZ3/api/impl/SZAlgoLorenzoReg.hpp"
 #include "SZ3/api/impl/SZAlgo.hpp"
-#include "SZ3/api/impl/SZBioMD.hpp"
+#include "SZ3/api/impl/SZAlgoBioMD.hpp"
 #include <cmath>
 
 namespace SZ3 {
@@ -30,9 +30,9 @@ namespace SZ3 {
         } else if (conf.cmprAlgo == ALGO_NOPRED) {
             return SZ_compress_nopred<T, N>(conf, data, cmpData, cmpCap);
         } else if (conf.cmprAlgo == ALGO_BIOMD) {
-            cmpData = (char *) SZ_compress_bioMD<T, N>(conf, data, outSize);
+            return SZ_compress_bioMD<T, N>(conf, data, cmpData, cmpCap);
         } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
-            cmpData = (char *) SZ_compress_bioMDXtcBased<T, N>(conf, data, outSize);
+            return SZ_compress_bioMDXtcBased<T, N>(conf, data, cmpData, cmpCap);
         }
         return 0;
 //        return cmpData;

@@ -11,6 +11,7 @@
 #include <cstdint>
 #include "SZ3/utils/MemoryUtil.hpp"
 #include "SZ3/utils/inih/INIReader.h"
+#include "SZ3/version.hpp"
 
 #define SZ_FLOAT 0
 #define SZ_DOUBLE 1
