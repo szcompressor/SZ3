@@ -14,10 +14,10 @@ void usage() {
     printf("	-v: print the version number\n");
     printf("	-a : print compression results such as distortions\n");
     printf("* input and output:\n");
-    printf("	-i <path> : original binary input file\n");
-    printf("	-o <path> : compressed output file, default in binary format\n");
-    printf("	-z <path> : compressed output (w -i) or input (w/o -i) file\n");
-    printf("	-t : store compressed output file in text format\n");
+    printf("	-i <path> : original input file in binary format\n");
+    printf("	-o <path> : decompressed file in binary format\n");
+    printf("	-z <path> : compressed file\n");
+    printf("	-t : store decompressed file in text format\n");
 //    printf("	-p: print meta data (configuration info)\n");
     printf("* data type:\n");
     printf("	-f: single precision (float type)\n");

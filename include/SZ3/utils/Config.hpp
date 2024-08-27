@@ -9,8 +9,7 @@
 #include <vector>
 #include <numeric>
 #include <cstdint>
-#include "SZ3/def.hpp"
-#include "MemoryUtil.hpp"
+#include "SZ3/utils/MemoryUtil.hpp"
 #include "SZ3/utils/inih/INIReader.h"
 
 #define SZ_FLOAT 0
@@ -28,27 +27,27 @@ namespace SZ3 {
     enum EB {
         EB_ABS, EB_REL, EB_PSNR, EB_L2NORM, EB_ABS_AND_REL, EB_ABS_OR_REL
     };
-    
+
     constexpr const char *EB_STR[] = {"ABS", "REL", "PSNR", "NORM", "ABS_AND_REL", "ABS_OR_REL"};
     constexpr EB EB_OPTIONS[] = {EB_ABS, EB_REL, EB_PSNR, EB_L2NORM, EB_ABS_AND_REL, EB_ABS_OR_REL};
-    
+
     enum ALGO {
-        ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP, ALGO_BIOMD, ALGO_BIOMDXTC
+        ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP, ALGO_NOPRED, ALGO_BIOMD, ALGO_BIOMDXTC
     };
     constexpr const char *ALGO_STR[] = {
-        "ALGO_LORENZO_REG", "ALGO_INTERP_LORENZO", "ALGO_INTERP", "ALGO_BIOMD", "ALGO_BIOMDXTC"
+        "ALGO_LORENZO_REG", "ALGO_INTERP_LORENZO", "ALGO_INTERP", "ALGO_NOPRED", "ALGO_BIOMD", "ALGO_BIOMDXTC",
     };
     constexpr const ALGO ALGO_OPTIONS[] = {
-        ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP, ALGO_BIOMD, ALGO_BIOMDXTC
+        ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP, ALGO_NOPRED, ALGO_BIOMD, ALGO_BIOMDXTC,
     };
-    
+
     enum INTERP_ALGO {
         INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC
     };
-    
+
     constexpr const char *INTERP_ALGO_STR[] = {"INTERP_ALGO_LINEAR", "INTERP_ALGO_CUBIC"};
     constexpr INTERP_ALGO INTERP_ALGO_OPTIONS[] = {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC};
-    
+
     template<class T>
     const char *enum2Str(T e) {
         if (std::is_same<T, ALGO>::value) {
@@ -62,7 +61,7 @@ namespace SZ3 {
             exit(0);
         }
     }
-    
+
     class Config {
      public:
         template<class... Dims>
@@ -70,7 +69,7 @@ namespace SZ3 {
             dims = std::vector<size_t>{static_cast<size_t>(std::forward<Dims>(args))...};
             setDims(dims.begin(), dims.end());
         }
-        
+
         template<class Iter>
         size_t setDims(Iter begin, Iter end) {
             auto dims_ = std::vector<size_t>(begin, end);
@@ -90,15 +89,15 @@ namespace SZ3 {
             stride = blockSize;
             return num;
         }
-        
+
         void loadcfg(const std::string &cfgpath) {
             INIReader cfg(cfgpath);
-            
+
             if (cfg.ParseError() != 0) {
                 std::cout << "Can't load cfg file " << cfgpath << std::endl;
                 exit(0);
             }
-            
+
             auto cmprAlgoStr = cfg.Get("GlobalSettings", "CmprAlgo", "");
             if (cmprAlgoStr == ALGO_STR[ALGO_LORENZO_REG]) {
                 cmprAlgo = ALGO_LORENZO_REG;
@@ -106,6 +105,8 @@ namespace SZ3 {
                 cmprAlgo = ALGO_INTERP_LORENZO;
             } else if (cmprAlgoStr == ALGO_STR[ALGO_INTERP]) {
                 cmprAlgo = ALGO_INTERP;
+            } else if (cmprAlgoStr == ALGO_STR[ALGO_NOPRED]) {
+                cmprAlgo = ALGO_NOPRED;
             } else if (cmprAlgoStr == ALGO_STR[ALGO_BIOMD]) {
                 cmprAlgo = ALGO_BIOMD;
             } else if (cmprAlgoStr == ALGO_STR[ALGO_BIOMDXTC]) {
@@ -129,13 +130,13 @@ namespace SZ3 {
             relErrorBound = cfg.GetReal("GlobalSettings", "RelErrorBound", relErrorBound);
             psnrErrorBound = cfg.GetReal("GlobalSettings", "PSNRErrorBound", psnrErrorBound);
             l2normErrorBound = cfg.GetReal("GlobalSettings", "L2NormErrorBound", l2normErrorBound);
-            
+
             openmp = cfg.GetBoolean("GlobalSettings", "OpenMP", openmp);
             lorenzo = cfg.GetBoolean("AlgoSettings", "Lorenzo", lorenzo);
             lorenzo2 = cfg.GetBoolean("AlgoSettings", "Lorenzo2ndOrder", lorenzo2);
             regression = cfg.GetBoolean("AlgoSettings", "Regression", regression);
             regression2 = cfg.GetBoolean("AlgoSettings", "Regression2ndOrder", regression2);
-            
+
             auto interpAlgoStr = cfg.Get("AlgoSettings", "InterpolationAlgo", "");
             if (interpAlgoStr == INTERP_ALGO_STR[INTERP_ALGO_LINEAR]) {
                 interpAlgo = INTERP_ALGO_LINEAR;
@@ -146,9 +147,13 @@ namespace SZ3 {
             interpBlockSize = cfg.GetInteger("AlgoSettings", "InterpolationBlockSize", interpBlockSize);
             blockSize = cfg.GetInteger("AlgoSettings", "BlockSize", blockSize);
             quantbinCnt = cfg.GetInteger("AlgoSettings", "QuantizationBinTotal", quantbinCnt);
+
         }
-        
+
         void save(unsigned char *&c) {
+            auto c0 = c;
+            write(sz3MagicNumber, c);
+            write(sz3DataVer, c);
             write(N, c);
             write(dims.data(), dims.size(), c);
             write(num, c);
@@ -171,9 +176,18 @@ namespace SZ3 {
             write(pred_dim, c);
             write(openmp, c);
             write(dataType, c);
+            if (c - c0 > size_est()) {
+                throw std::invalid_argument("Config saved size is larger than estimated size");
+            } else {
+                //for padding
+                c = c0 + size_est();
+            }
         };
-        
+
         void load(const unsigned char *&c) {
+            auto c0 = c;
+            read(sz3MagicNumber, c);
+            read(sz3DataVer, c);
             read(N, c);
             dims.resize(N);
             read(dims.data(), N, c);
@@ -197,10 +211,18 @@ namespace SZ3 {
             read(pred_dim, c);
             read(openmp, c);
             read(dataType, c);
+            if (c - c0 > size_est()) {
+                throw std::invalid_argument("Config loaded size is larger than estimated size");
+            } else {
+                //for padding
+                c = c0 + size_est();
+            }
         }
-        
+
         void print() {
             printf("===================== Begin SZ3 Configuration =====================\n");
+            printf("sz3MagicNumber = %u\n", sz3MagicNumber);
+            printf("sz3DataVer = %s\n", versionStr(sz3DataVer).data());
             printf("N = %d\n", N);
             printf("dims = ");
             for (auto dim : dims) {
@@ -230,22 +252,22 @@ namespace SZ3 {
             printf("PredDim = %d\n", pred_dim);
             printf("===================== End SZ3 Configuration =====================\n");
         }
-        
+
         static size_t size_est() {
             return sizeof(Config) + sizeof(size_t) * 5 + 32; //sizeof(size_t) * 5 is for dims vector, 32 is for redundancy
-            return sizeof(size_t) * 5 + sizeof(double) * 4 + sizeof(bool) * 5 + sizeof(uint8_t) * 7 + sizeof(int) * 5 +
-                50; //50 is for redundancy
         }
-        
-        char N;
+
+        uint32_t sz3MagicNumber = SZ3_MAGIC_NUMBER;
+        uint32_t sz3DataVer = versionInt(SZ3_DATA_VER);
+        char N = 0;
         std::vector<size_t> dims;
-        size_t num;
+        size_t num = 0;
         uint8_t cmprAlgo = ALGO_INTERP_LORENZO;
         uint8_t errorBoundMode = EB_ABS;
         double absErrorBound = 1e-3;
-        double relErrorBound = 0;
-        double psnrErrorBound = 0;
-        double l2normErrorBound = 0;
+        double relErrorBound = 0.0;
+        double psnrErrorBound = 0.0;
+        double l2normErrorBound = 0.0;
         bool lorenzo = true;
         bool lorenzo2 = false;
         bool regression = true;
@@ -258,10 +280,12 @@ namespace SZ3 {
         uint8_t interpDirection = 0;
         int interpBlockSize = 32;
         int quantbinCnt = 65536;
-        int blockSize;
-        int stride; //not used now
-        int pred_dim; // not used now
+        int blockSize = 0;
+        int stride = 0;//not used now
+        int pred_dim = 0; // not used now
+
     };
+
 }
 
 #endif //SZ_CONFIG_HPP

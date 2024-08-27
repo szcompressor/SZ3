@@ -8,22 +8,22 @@
 
 namespace SZ3 {
     template<class T, uint N>
-    char *SZ_compress_impl(Config &conf, const T *data, size_t &outSize) {
+    size_t SZ_compress_impl(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
 #ifndef _OPENMP
         conf.openmp=false;
 #endif
         if (conf.openmp) {
             //dataCopy for openMP is handled by each thread
-            return SZ_compress_OMP<T, N>(conf, data, outSize);
+            return SZ_compress_OMP<T, N>(conf, data, cmpData, cmpCap);
         } else {
             std::vector<T> dataCopy(data, data + conf.num);
-            return SZ_compress_dispatcher<T, N>(conf, dataCopy.data(), outSize);
+            return SZ_compress_dispatcher<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
         }
     }
 
 
     template<class T, uint N>
-    void SZ_decompress_impl(Config &conf, char *cmpData, size_t cmpSize, T *decData) {
+    void SZ_decompress_impl(Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
 
 
 #ifndef _OPENMP

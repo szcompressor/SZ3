@@ -175,15 +175,15 @@ namespace SZ3 {
             std::cout << "2-Layer Regression predictor, poly term eb = " << quantizer_poly.get_eb() << "\n";
         }
 
-        void clear() {
-            quantizer_independent.clear();
-            quantizer_liner.clear();
-            quantizer_poly.clear();
-            regression_coeff_quant_inds.clear();
-            regression_coeff_index = 0;
-            current_coeffs = {0};
-            prev_coeffs = {0};
-        }
+//        void clear() {
+//            quantizer_independent.clear();
+//            quantizer_liner.clear();
+//            quantizer_poly.clear();
+//            regression_coeff_quant_inds.clear();
+//            regression_coeff_index = 0;
+//            current_coeffs = {0};
+//            prev_coeffs = {0};
+//        }
 
     private:
         LinearQuantizer<T> quantizer_independent, quantizer_liner, quantizer_poly;

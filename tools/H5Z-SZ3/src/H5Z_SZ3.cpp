@@ -1,7 +1,3 @@
-//
-// Created by arham23 on 2/8/22.
-//
-
 #include <memory>
 #include <fstream>
 #include <iterator>
@@ -154,11 +150,11 @@ void process_data(SZ3::Config &conf, void **buf, size_t *buf_size, size_t nbytes
         *buf = processedData;
         *buf_size = conf.num * sizeof(T);
     } else {
-        size_t outSize = 0;
-        char *processedData = SZ_compress(conf, (T *) *buf, outSize);
+        size_t cmpCap = sizeof(T) * conf.num;
+        char *cmpData = (char *) malloc(cmpCap);
+        *buf_size = SZ_compress(conf, (T *) *buf, cmpData, cmpCap);
         free(*buf);
-        *buf = processedData;
-        *buf_size = outSize;
+        *buf = cmpData;
     }
 }
 

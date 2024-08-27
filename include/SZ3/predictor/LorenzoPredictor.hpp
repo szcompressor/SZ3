@@ -94,7 +94,7 @@ namespace SZ3 {
             return do_predict(iter);
         }
 
-        void clear() {}
+//        void clear() {}
 
     protected:
         T noise = 0;

@@ -5,7 +5,6 @@
 #ifndef SZ_EXTRACTION_HPP
 #define SZ_EXTRACTION_HPP
 
-
 namespace SZ3 {
 
     template<uint N>

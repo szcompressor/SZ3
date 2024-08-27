@@ -12,8 +12,8 @@
 #include <random>
 #include <vector>
 #include <unordered_set>
-#include <SZ3/utils/Timer.hpp>
-#include <SZ3/def.hpp>
+#include "Timer.hpp"
+#include "SZ3/def.hpp"
 
 
 namespace SZ3 {
