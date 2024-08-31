@@ -7,14 +7,14 @@
  *      See COPYRIGHT in top-level directory.
  */
 
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
 #include <dlfcn.h>
 #include <SZ3/utils/ByteUtil.hpp>
 
 #include "hdf5.h"
-#include "H5Cpp.h"
+// #include "H5Cpp.h"
 #include "H5Z_SZ3.hpp"
 #include "SZ3/utils/FileUtil.hpp"
 #include "SZ3/utils/Config.hpp"
