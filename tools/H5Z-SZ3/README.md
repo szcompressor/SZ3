@@ -56,7 +56,7 @@ h5repack.sh ~/code/sz3/tools/sz3/sz3.config data.h5 data.sz3.h5
 
 ### Decompression
 ```bash
-h5repack-shared -f NULL data.sz3.h5 data.sz3_decompressed.h5
+h5repack-shared -f NONE data.sz3.h5 data.sz3_decompressed.h5
 ```
 
 ## Use H5Z-SZ3 in code (C/C++)
