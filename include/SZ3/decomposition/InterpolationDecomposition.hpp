@@ -68,7 +68,7 @@ namespace SZ3 {
         // compress given the error bound
         std::vector<int> compress(const Config &conf, T *data) {
             std::copy_n(conf.dims.begin(), N, global_dimensions.begin());
-            blocksize = conf.interpBlockSize;
+            blocksize = 32;
             interpolator_id = conf.interpAlgo;
             direction_sequence_id = conf.interpDirection;
             

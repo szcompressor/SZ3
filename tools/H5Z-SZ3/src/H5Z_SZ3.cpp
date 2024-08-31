@@ -6,8 +6,6 @@
 
 hid_t H5Z_SZ_ERRCLASS = -1;
 
-//h5repack -f UD=32024,0 /home/arham23/Software/SZ3/test/testfloat_8_8_128.dat.h5 tf_8_8_128.dat.sz.h5
-
 //filter definition
 const H5Z_class2_t H5Z_SZ3[1] = {{
                                      H5Z_CLASS_T_VERS,              /* H5Z_class_t version */
@@ -38,6 +36,9 @@ herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config &conf) {
     auto buffer = (unsigned char *) (cd_values.data());
     
     conf.save(buffer);
+    auto confSizeReal = conf.save(buffer);
+    cd_nelmts = std::ceil(confSizeReal / 1.0 / sizeof(int));
+    
     auto szfilter = H5Pget_filter_by_id(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, NULL, NULL, 0, NULL, NULL); //check if filter is set
     if (0 > szfilter) { //filter not set, set filter. Notice that calling H5Pset_filter twice with the same filter id will cause unexpected errors for decompression
         if (0 > H5Pset_filter(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values.data())) {
@@ -81,7 +82,7 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
     
     SZ3::Config conf;
     get_SZ3_conf_from_H5(dcpl_id, conf);
-    
+
     //read datatype and dims from HDF5
     H5T_class_t dclass;
     if (0 > (dclass = H5Tget_class(type_id)))
@@ -96,7 +97,6 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
     if (0 > (ndims = H5Sget_simple_extent_dims(chunk_space_id, dims_all, 0)))
         H5Z_SZ_PUSH_AND_GOTO(H5E_ARGS, H5E_BADTYPE, -1, "not a data space");
     std::vector<size_t> dims(dims_all, dims_all + ndims);
-    
     //update conf with datatype
     conf.dataType = SZ_FLOAT;
     if (dclass == H5T_FLOAT)
@@ -132,12 +132,10 @@ static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_
     } else {
         H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADTYPE, 0, "datatype class must be H5T_FLOAT or H5T_INTEGER");
     }
-    
     //update conf with dims
     conf.setDims(std::begin(dims), std::end(dims));
     
     set_SZ3_conf_to_H5(dcpl_id, conf);
-    
     return (herr_t) 1;
 }
 
