@@ -89,7 +89,7 @@ namespace SZ {
     }
 
     template<typename Type>
-    void verify(Type *ori_data, Type *data, size_t num_elements, double &psnr, double &nrmse, double &max_err, double &range) {
+    void verify(Type *ori_data, Type *data, size_t num_elements, double &psnr, double &nrmse, double &max_err, double &range, double &l2_err) {
         size_t i = 0;
         double Max = ori_data[0];
         double Min = ori_data[0];
@@ -106,7 +106,8 @@ namespace SZ {
         size_t max_err_idx = 0;
 
         double sum3 = 0, sum4 = 0;
-        double sum = 0, prodSum = 0, relerr = 0;
+        double prodSum = 0, relerr = 0;
+        l2_err = 0;
 
         double *diff = (double *) malloc(num_elements * sizeof(double));
 
@@ -129,28 +130,34 @@ namespace SZ {
             prodSum += (ori_data[i] - mean1) * (data[i] - mean2);
             sum3 += (ori_data[i] - mean1) * (ori_data[i] - mean1);
             sum4 += (data[i] - mean2) * (data[i] - mean2);
-            sum += err * err;
+            l2_err += err * err;
         }
         double std1 = sqrt(sum3 / num_elements);
         double std2 = sqrt(sum4 / num_elements);
         double ee = prodSum / num_elements;
         double acEff = ee / std1 / std2;
 
-        double mse = sum / num_elements;
+        double mse = l2_err / num_elements;
         range = Max - Min;
         psnr = 20 * log10(range) - 10 * log10(mse);
         nrmse = sqrt(mse) / range;
 
-        printf("L2 error = %.10G\n", sum);
-        printf("Min=%.20G, Max=%.20G, range=%.20G\n", Min, Max, range);
-        printf("Max absolute error = %.2G\n", max_err);
-        printf("Max relative error = %.2G\n", max_err / (Max - Min));
-        printf("Max pw relative error = %.2G\n", maxpw_relerr);
+        printf("L2 error = %.10G\n", l2_err);
+//        printf("Min=%.20G, Max=%.20G, range=%.20G\n", Min, Max, range);
+//        printf("Max absolute error = %.2G\n", max_err);
+//        printf("Max relative error = %.2G\n", max_err / (Max - Min));
+//        printf("Max pw relative error = %.2G\n", maxpw_relerr);
 //        printf("PSNR = %f, NRMSE= %.10G\n", psnr, nrmse);
-        printf("PSNR = %f, NRMSE= %.10G L2Error= %.10G\n", psnr, nrmse, sum);
+//        printf("PSNR = %f, NRMSE= %.10G L2Error= %.10G\n", psnr, nrmse, l2_err);
 //        printf("acEff=%f\n", acEff);
 //        printf("errAutoCorr=%.10f\n", autocorrelation1DLag1<double>(diff, num_elements, diff_sum / num_elements));
         free(diff);
+    }
+
+    template<typename Type>
+    void verify(Type *ori_data, Type *data, size_t num_elements, double &psnr, double &nrmse, double &max_err, double &range) {
+        double l2_err;
+        verify(ori_data, data, num_elements, psnr, nrmse, max_err, range, l2_err);
     }
 
     template<typename Type>

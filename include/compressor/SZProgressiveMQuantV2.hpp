@@ -142,11 +142,16 @@ namespace SZ {
             printf("retrieved = %.3f%% %lu\n", retrieved_size * 100.0 / (num_elements * sizeof(float)), retrieved_size);
 
             if (level_progressive > 0) {
+                {
+                    double psnr, nrmse, max_err, range;
+                    verify(data, dec_data, num_elements, psnr, nrmse, max_err, range);
+                }
+
                 std::vector<ska::unordered_map<std::string, double>> result_stat;
 
                 int lsize = N * level_progressive, bsize = bitgroup.size();
                 std::vector<int> bsum(lsize), bdelta(lsize);
-//                bdelta[0] = 1;
+                bdelta[0] = 1;
                 std::vector<uchar const *> data_lb(lsize * bsize);
                 std::vector<size_t> size_lb(lsize * bsize);
                 for (int l = 0; l < lsize; l++) {
@@ -160,95 +165,22 @@ namespace SZ {
                 dec_delta.clear();
                 dec_delta.resize(num_elements, 0);
 
-                double currentL2 = 0;
-                {
-                    for (uint level = level_progressive; level > 0; level--) {
-                        for (int direct = 0; direct < N; direct++) {
-                            int lid = (level_progressive - level) * N + direct;
-//                            printf("\n-----------------------\n");
-                            printf("Level = %d , direction = %d , lid = %d, bg = %d\n", level, direct, lid, bsum[lid]);
-                            quant_inds.clear();
-                            quant_cnt = 0;
-                            uchar const *bg_data = data_lb[lid * bsize];
-                            size_t bg_len = size_lb[lid * bsize];
-                            lossless_decode_bitgroup(0, bg_data, bg_len);
-                            if (bsum[lid] == 0) {
-                                block_interpolation(dec_data, dec_data, global_begin, global_end, &SZProgressiveMQuant::recover,
-                                                    interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
-                            }
-                            bsum[lid] = 1;
-                        }
+//                double targetl2 = 60;
+                double l2_proj = 0, l2_last = 0, l2_no_propo = 0, l2_propogated = 0;
+                while (true) {
+//                    for (uint level = level_progressive; level > 0; level--) {
+//                        for (int direct = 0; direct < N; direct++) {
+//                            int lid = (level_progressive - level) * N + direct;
+//                            l2_diff[lid * bsize + b]);
+//                        }
+//                    }
+                    printf("\n-----------------------\n");
+                    for (int l = 0; l < lsize; l++) {
+                        printf("%d ", bsum[l]);
                     }
-                    double psnr, nrmse, max_err, range;
-                    verify(data, dec_data, num_elements, psnr, nrmse, max_err, range, currentL2);
-                }
-
-
-                double targetL2 = 3E-3;
-                printf("from %.10G to %.10G\n", currentL2, targetL2);
-                while (currentL2 > targetL2) {
-                    bool done = true;
-                    for (const auto &b: bsum) {
-                        if (b < bsize) {
-                            done = false;
-                        }
-                    }
-                    if (done) {
-                        printf("no way to decrease l2 from %.10G to %.10G", currentL2, targetL2);
-                        break;
-                    }
-                    bdelta.clear();
-                    bdelta.resize(lsize, 0);
-
-                    double estimateL2 = currentL2;
-                    while (estimateL2 > targetL2) {
-                        double max_diff = 0;
-                        int max_diff_lid = 0;
-                        for (uint level = level_progressive; level > 0; level--) {
-                            for (int direct = 0; direct < N; direct++) {
-                                int lid = (level_progressive - level) * N + direct;
-                                if (bsum[lid] + bdelta[lid] < bsize
-                                    && (lid == 0 || bsum[lid - 1] + bdelta[lid - 1] > bsum[lid] + bdelta[lid])) {
-                                    double mul = pow(2, lsize - 1 - lid);
-//                                    if (bsum[lid] + bdelta[lid] < 2) {
-//                                        if (lid == lsize - 1) {
-//                                            mul = 1;
-//                                        } else {
-//                                            mul = 1 + pow(2, lsize - 1 - lid - 1);
-//                                        }
-//                                    }
-                                    double diff = l2_diff[lid * bsize + bsum[lid] + bdelta[lid]] * mul;
-//                                    double diff = l2_diff[lid * bsize + bsum[lid] + bdelta[lid]];
-                                    if (diff > max_diff) {
-                                        max_diff = diff;
-                                        max_diff_lid = lid;
-                                    }
-                                }
-                            }
-                        }
-                        printf("pickup %d, %d, %.10G to %.10G, diff= %.10G\n", max_diff_lid, bsum[max_diff_lid] + bdelta[max_diff_lid] + 1,
-                               estimateL2,
-                               estimateL2 - max_diff, max_diff);
-                        bdelta[max_diff_lid]++;
-                        estimateL2 -= max_diff;
-                        bool estimateDone = true;
-                        for (int i = 0; i < lsize; i++) {
-                            if (bsum[i] + bdelta[i] < bsize) {
-                                estimateDone = false;
-                            }
-                        }
-                        if (estimateDone) {
-                            break;
-                        }
-                    }
-
-                    printf("from ");
-                    for (int i = 0; i < lsize; i++) {
-                        printf("%d ", bsum[i]);
-                    }
-                    printf(" to ");
-                    for (int i = 0; i < lsize; i++) {
-                        printf("%d ", bsum[i] + bdelta[i]);
+                    printf(" -> ");
+                    for (int l = 0; l < lsize; l++) {
+                        printf("%d ", bsum[l] + bdelta[l]);
                     }
                     printf("\n");
 
@@ -259,7 +191,7 @@ namespace SZ {
                             int lid = (level_progressive - level) * N + direct;
                             if (bdelta[lid] > 0 && bsum[lid] < bsize) {
 //                                printf("\n-----------------------\n");
-                                printf("Level = %d , direction = %d , lid = %d, bg = %d\n", level, direct, lid, bsum[lid]);
+//                                printf("Level = %d , direction = %d , lid = %d, bg = %d\n", level, direct, lid, bsum[lid]);
                                 changed = true;
                                 result["level"] = level;
                                 result["direct"] = direct;
@@ -267,7 +199,8 @@ namespace SZ {
                                 quant_cnt = 0;
                                 int bg_end = std::min(bsize, bsum[lid] + bdelta[lid]);
                                 for (int b = bsum[lid]; b < bg_end; b++) {
-//                                    printf("reduce l2 = %.10G\n", l2_diff[lid * bsize + b]);
+                                    l2_proj = l2_diff[lid * bsize + b];
+//                                    printf("projected l2 delta = %.10G\n", l2_diff[lid * bsize + b]);
                                     uchar const *bg_data = data_lb[lid * bsize + b];
                                     size_t bg_len = size_lb[lid * bsize + b];
                                     lossless_decode_bitgroup(b, bg_data, bg_len);
@@ -281,8 +214,8 @@ namespace SZ {
                                                         interpolators[interpolator_id], directions[direct], 1U << (level - 1), true);
                                 }
                                 bsum[lid] = bg_end;
-//                                double psnr, nrmse, max_err, range;
-//                                verify(data, dec_data, num_elements, psnr, nrmse, max_err, range);
+                                double psnr, nrmse, max_err, range;
+                                verify(data, dec_data, num_elements, psnr, nrmse, max_err, range, l2_no_propo);
 
                             } else {
                                 if (changed) {
@@ -294,20 +227,56 @@ namespace SZ {
                         }
                     }
 
+//                    bool last = true;
+//                    for (int b = 0; b < lsize - 1; b++) {
+//                        if (bsum[b] < bsize) {
+//                            last = false;
+//                            break;
+//                        }
+//                    }
+//                    if (last) {
+//                        bdelta[lsize - 1] = 1;
+//                    } else {
+                    for (int b = 0; b < lsize; b++) {
+                        if (bdelta[b]) {
+                            bdelta[b] = 0;
+                            bdelta[(b + 1) % (lsize)] = (b == lsize - 2 ? 1 : 1);
+                            break;
+                        }
+                    }
+//                    }
+
+                    if (!changed) {
+                        continue;
+                    }
 
                     dec_delta.clear();
                     dec_delta.resize(num_elements, 0);
 
                     float retrieved_rate = retrieved_size * 100.0 / (num_elements * sizeof(float));
-                    printf("\nretrieved = %.3f%% %lu\n", retrieved_rate, retrieved_size);
+//                    printf("retrieved = %.3f%% %lu\n", retrieved_rate, retrieved_size);
                     double psnr, nrmse, max_err, range;
-                    verify(data, dec_data, num_elements, psnr, nrmse, max_err, range, currentL2);
+                    verify(data, dec_data, num_elements, psnr, nrmse, max_err, range, l2_propogated);
+                    //                                    printf("projected l2 delta = %.10G\n", l2_diff[lid * bsize + b]);
+
+                    printf("[L2] projected %.10G, noprop = %.10G, prop = %.10G, ratio = %.2G\n", l2_proj, l2_last - l2_no_propo,
+                           l2_no_propo - l2_propogated, (l2_no_propo - l2_propogated) / l2_proj);
+                    l2_last = l2_propogated;
                     result["retrieved_rate"] = retrieved_rate;
                     result["psnr"] = psnr;
                     result["max_err"] = max_err;
                     result["max_rel_err"] = max_err / range;
                     result_stat.push_back(result);
 
+                    bool done = true;
+                    for (const auto &b: bsum) {
+                        if (b < bsize) {
+                            done = false;
+                        }
+                    }
+                    if (done) {
+                        break;
+                    }
                 }
 
 
@@ -441,10 +410,11 @@ namespace SZ {
         Lossless lossless;
 
 //        std::vector<int> bitgroup = {8, 8, 8, 2, 2, 2, 1, 1};
-//TODO quantization bins in different levels have different distribution.
+//TODO quantizati45on bins in different levels have different distribution.
 // a dynamic bitgroup should be used for each level
-        std::vector<int> bitgroup = {16, 8, 4, 2, 1, 1};
-//        std::vector<int> bitgroup = {30, 2};
+//        std::vector<int> bitgroup = {16, 8, 4, 2, 1, 1};
+        std::vector<int> bitgroup = {16, 8, 2, 2, 1, 1, 1, 1};
+//        std::vector<int> bitgroup = {4, 4, 4, 4, 4, 4, 4, 4,};
 //        std::vector<int> bitgroup = {16, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1};
         std::vector<T> dec_delta;
         size_t retrieved_size = 0;
@@ -523,7 +493,7 @@ namespace SZ {
                     l2_error += error[i] * error[i];
                 }
                 l2_diff[lid * bsize + b] = l2_error - ((b == bsize - 1) ? l2_error_base : l2_diff[lid * bsize + b + 1]);
-                printf("bitgroup = %d, l2 = %.10G , diff = %.10G\n", b, l2_error, l2_diff[lid * bsize + b]);
+                printf("l2 = %.10G , diff = %.10G\n", l2_error, l2_diff[lid * bsize + b]);
                 shift += bitgroup[b];
 
                 if (bitgroup[b] == 1) {

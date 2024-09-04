@@ -136,7 +136,7 @@ namespace SZ {
                 std::vector<ska::unordered_map<std::string, double>> result_stat;
 
                 int bid_total = N * level_progressive, bg_total = bitgroup.size();
-                std::vector<int> b_bg(bid_total), b_bg_delta(bid_total);
+                std::vector<int> b_bg(bid_total), b_bg_delta(bid_total + 1);
                 b_bg_delta[0] = 1;
                 std::vector<uchar const *> b_data(bid_total * bg_total);
                 std::vector<size_t> b_data_size(bid_total * bg_total);
@@ -199,6 +199,14 @@ namespace SZ {
 //                    if (last) {
 //                        b_bg_delta[bid_total - 1] = 1;
 //                    } else {
+
+//                    for (int b = 0; b < bid_total; b++) {
+//                        if (b_bg_delta[b] && b_bg[b] == bg_total) {
+//                            b_bg_delta[b] = 0;
+//                            b_bg_delta[b + 1] = 1;
+//                        }
+//                    }
+
                     for (int b = 0; b < bid_total; b++) {
                         if (b_bg_delta[b]) {
                             b_bg_delta[b] = 0;
