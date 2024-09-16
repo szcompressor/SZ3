@@ -15,6 +15,7 @@ namespace SZ3 {
 template <class T, uint N>
 size_t SZ_compress_OMP(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
 #ifdef _OPENMP
+    unsigned char *buffer_pos = cmpData;
 
     assert(N == conf.N);
 
