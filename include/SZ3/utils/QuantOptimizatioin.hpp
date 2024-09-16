@@ -23,7 +23,7 @@ unsigned int static round_up_power_of_2(unsigned int base) {
     return base + 1;
 }
 
-unsigned int static estimate_quantization_intervals(const std::vector<size_t> &intervals, size_t sample_count) {
+unsigned int static inline estimate_quantization_intervals(const std::vector<size_t> &intervals, size_t sample_count) {
     size_t target = sample_count * QuantIntvAccThreshold;
     size_t sum = 0;
     size_t i = 0;

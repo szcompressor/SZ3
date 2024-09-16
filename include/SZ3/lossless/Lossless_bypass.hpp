@@ -7,20 +7,19 @@
 
 #include "SZ3/def.hpp"
 #include "SZ3/lossless/Lossless.hpp"
-#include "SZ3/utils/FileUtil.hpp"
-#include "SZ3/utils/MemoryUtil.hpp"
-#include "zstd.h"
 
 namespace SZ3 {
 class Lossless_bypass : public concepts::LosslessInterface {
    public:
     size_t compress(uchar *src, size_t srcLen, uchar *dst, size_t dstCap) override {
-        dst = src;
+        std::memcpy(dst, src, srcLen);
+        // dst = src;
         return srcLen;
     }
 
     size_t decompress(const uchar *src, const size_t srcLen, uchar *dst, size_t dstCap) override {
-        dst = (uchar *)src;
+        std::memcpy(dst, src, srcLen);
+        // dst = (uchar *)src;
         return srcLen;
     }
 };

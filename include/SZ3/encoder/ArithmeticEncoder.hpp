@@ -133,7 +133,7 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
         uint64_t total_frequency = ariCoder.total_frequency;
         Prob *cumulative_frequency = ariCoder.cumulative_frequency;
 
-        unsigned int outSize = 0;
+        // unsigned int outSize = 0;
 
         int32ToBytes_bigEndian(p, numOfRealStates);
         p += sizeof(int);
@@ -158,7 +158,7 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
                         // if(((unsigned char)cumulative_frequency[i].state)==129)
                     }
                 }
-                outSize = 2 * sizeof(int) + sizeof(uint64_t) + ariCoder.numOfValidStates * 5;  // 2*sizeof(uint16_t)+1
+                // outSize = 2 * sizeof(int) + sizeof(uint64_t) + ariCoder.numOfValidStates * 5;  // 2*sizeof(uint16_t)+1
             } else if (numOfRealStates <= 65536) {
                 for (i = 0; i < numOfRealStates; i++) {
                     high = static_cast<uint16_t>(cumulative_frequency[i].high);
@@ -173,7 +173,7 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
                         p += sizeof(uint16_t);
                     }
                 }
-                outSize = 2 * sizeof(int) + sizeof(uint64_t) + ariCoder.numOfValidStates * 6;
+                // outSize = 2 * sizeof(int) + sizeof(uint64_t) + ariCoder.numOfValidStates * 6;
             } else {
                 for (i = 0; i < numOfRealStates; i++) {
                     high = static_cast<uint16_t>(cumulative_frequency[i].high);
@@ -187,7 +187,7 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
                         p += sizeof(uint32_t);
                     }
                 }
-                outSize = 2 * sizeof(int) + sizeof(uint64_t) + ariCoder.numOfValidStates * 8;
+                // outSize = 2 * sizeof(int) + sizeof(uint64_t) + ariCoder.numOfValidStates * 8;
             }
         } else if (total_frequency <= 4294967296) {
             uint32_t low, high;
@@ -203,7 +203,7 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
                         *(p++) = static_cast<unsigned char>(cumulative_frequency[i].state);
                     }
                 }
-                outSize = 2 * sizeof(int) + sizeof(uint64_t) + ariCoder.numOfValidStates * 9;
+                // outSize = 2 * sizeof(int) + sizeof(uint64_t) + ariCoder.numOfValidStates * 9;
             } else if (numOfRealStates <= 65536) {
                 for (i = 0; i < numOfRealStates; i++) {
                     high = static_cast<uint32_t>(cumulative_frequency[i].high);
@@ -218,7 +218,7 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
                         p += sizeof(uint16_t);
                     }
                 }
-                outSize = 2 * sizeof(int) + sizeof(uint64_t) + ariCoder.numOfValidStates * 10;
+                // outSize = 2 * sizeof(int) + sizeof(uint64_t) + ariCoder.numOfValidStates * 10;
             } else {
                 for (i = 0; i < numOfRealStates; i++) {
                     high = static_cast<uint32_t>(cumulative_frequency[i].high);
@@ -232,7 +232,7 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
                         p += sizeof(uint32_t);
                     }
                 }
-                outSize = 2 * sizeof(int) + sizeof(uint64_t) + ariCoder.numOfValidStates * 12;
+                // outSize = 2 * sizeof(int) + sizeof(uint64_t) + ariCoder.numOfValidStates * 12;
             }
         } else {
             uint64_t low, high;
@@ -248,7 +248,7 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
                         *(p++) = static_cast<unsigned char>(cumulative_frequency[i].state);
                     }
                 }
-                outSize = 2 * sizeof(int) + sizeof(uint64_t) + ariCoder.numOfValidStates * 17;
+                // outSize = 2 * sizeof(int) + sizeof(uint64_t) + ariCoder.numOfValidStates * 17;
             } else if (numOfRealStates <= 65536) {
                 for (i = 0; i < numOfRealStates; i++) {
                     high = static_cast<uint64_t>(cumulative_frequency[i].high);
@@ -263,7 +263,7 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
                         p += sizeof(uint16_t);
                     }
                 }
-                outSize = 2 * sizeof(int) + sizeof(uint64_t) + ariCoder.numOfValidStates * 18;
+                // outSize = 2 * sizeof(int) + sizeof(uint64_t) + ariCoder.numOfValidStates * 18;
             } else {
                 for (i = 0; i < numOfRealStates; i++) {
                     high = static_cast<uint64_t>(cumulative_frequency[i].high);
@@ -277,7 +277,7 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
                         p += sizeof(uint32_t);
                     }
                 }
-                outSize = 2 * sizeof(int) + sizeof(uint64_t) + ariCoder.numOfValidStates * 20;
+                // outSize = 2 * sizeof(int) + sizeof(uint64_t) + ariCoder.numOfValidStates * 20;
             }
         }
         // return outSize;
