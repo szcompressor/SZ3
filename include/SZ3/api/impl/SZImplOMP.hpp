@@ -1,10 +1,10 @@
 #ifndef SZ3_IMPL_SZDISPATCHER_OMP_HPP
 #define SZ3_IMPL_SZDISPATCHER_OMP_HPP
 
-#include "SZ3/api/impl/SZDispatcher.hpp"
 #include <cmath>
 #include <memory>
 
+#include "SZ3/api/impl/SZDispatcher.hpp"
 
 #ifdef _OPENMP
 
@@ -25,7 +25,7 @@ size_t SZ_compress_OMP(Config &conf, const T *data, uchar *cmpData, size_t cmpCa
     std::vector<Config> conf_t;
     //    Timer timer(true);
     int nThreads = 1;
-    double eb;
+    // double eb;
 #pragma omp parallel
 #pragma omp single
     { nThreads = omp_get_num_threads(); }
@@ -49,7 +49,7 @@ size_t SZ_compress_OMP(Config &conf, const T *data, uchar *cmpData, size_t cmpCa
         int hi = (tid + 1) * conf.dims[0] / nThreads;
         dims_t[0] = hi - lo;
         auto it = dims_t.begin();
-        size_t num_t_base = std::accumulate(++it, dims_t.end(), (size_t)1, std::multiplies<size_t>());
+        size_t num_t_base = std::accumulate(++it, dims_t.end(), static_cast<size_t>(1), std::multiplies<size_t>());
         size_t num_t = dims_t[0] * num_t_base;
 
         //        T *data_t = data + lo * num_t_base;
@@ -71,7 +71,7 @@ size_t SZ_compress_OMP(Config &conf, const T *data, uchar *cmpData, size_t cmpCa
         conf_t[tid] = conf;
         conf_t[tid].setDims(dims_t.begin(), dims_t.end());
         cmp_size_t[tid] = data_t.size() * sizeof(T);
-        compressed_t[tid] = (uchar *)malloc(cmp_size_t[tid]);
+        compressed_t[tid] = static_cast<uchar *>(malloc(cmp_size_t[tid]));
         SZ_compress_dispatcher<T, N>(conf_t[tid], data_t.data(), compressed_t[tid], cmp_size_t[tid]);
 
 #pragma omp barrier
@@ -83,7 +83,7 @@ size_t SZ_compress_OMP(Config &conf, const T *data, uchar *cmpData, size_t cmpCa
             for (int i = 1; i <= nThreads; i++) {
                 cmp_start_t[i] = cmp_start_t[i - 1] + cmp_size_t[i - 1];
             }
-            size_t bufferSize = sizeof(int) + (nThreads + 1) * Config::size_est() + cmp_start_t[nThreads];
+            // size_t bufferSize = sizeof(int) + (nThreads + 1) * Config::size_est() + cmp_start_t[nThreads];
             //                buffer = new uchar[bufferSize];
             //                buffer_pos = buffer;
             write(nThreads, buffer_pos);
@@ -140,7 +140,7 @@ void SZ_decompress_OMP(Config &conf, const uchar *cmpData, size_t cmpSize, T *de
         int hi = (tid + 1) * conf.dims[0] / nThreads;
         dims_t[0] = hi - lo;
         auto it = dims_t.begin();
-        size_t num_t_base = std::accumulate(++it, dims_t.end(), (size_t)1, std::multiplies<size_t>());
+        size_t num_t_base = std::accumulate(++it, dims_t.end(), static_cast<size_t>(1), std::multiplies<size_t>());
 
         SZ_decompress_dispatcher<T, N>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid],
                                        decData + lo * num_t_base);
