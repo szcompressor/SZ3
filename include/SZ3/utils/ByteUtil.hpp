@@ -5,10 +5,10 @@
 #ifndef SZ3_BYTEUTIL_HPP
 #define SZ3_BYTEUTIL_HPP
 
+#include <algorithm>
 #include <cstring>
 #include <string>
 #include <vector>
-#include <algorithm>
 
 #include "SZ3/def.hpp"
 
@@ -55,7 +55,7 @@ inline void symTransform_4bytes(uchar data[4]) {
     data[2] = tmp;
 }
 
-inline int16_t bytesToInt16_bigEndian(unsigned char *bytes) {
+inline int16_t bytesToInt16_bigEndian(const unsigned char *bytes) {
     int16_t temp = 0;
     int16_t res = 0;
 
@@ -132,29 +132,29 @@ inline int64_t bytesToInt64_bigEndian(const unsigned char *b) {
 }
 
 inline void int16ToBytes_bigEndian(unsigned char *b, int16_t num) {
-    b[0] = (unsigned char)(num >> 8);
-    b[1] = (unsigned char)(num);
+    b[0] = static_cast<unsigned char>(num >> 8);
+    b[1] = static_cast<unsigned char>(num);
 }
 
 inline void int32ToBytes_bigEndian(unsigned char *b, int32_t num) {
-    b[0] = (unsigned char)(num >> 24);
-    b[1] = (unsigned char)(num >> 16);
-    b[2] = (unsigned char)(num >> 8);
-    b[3] = (unsigned char)(num);
+    b[0] = static_cast<unsigned char>(num >> 24);
+    b[1] = static_cast<unsigned char>(num >> 16);
+    b[2] = static_cast<unsigned char>(num >> 8);
+    b[3] = static_cast<unsigned char>(num);
 }
 
 inline void int64ToBytes_bigEndian(unsigned char *b, int64_t num) {
-    b[0] = (unsigned char)(num >> 56);
-    b[1] = (unsigned char)(num >> 48);
-    b[2] = (unsigned char)(num >> 40);
-    b[3] = (unsigned char)(num >> 32);
-    b[4] = (unsigned char)(num >> 24);
-    b[5] = (unsigned char)(num >> 16);
-    b[6] = (unsigned char)(num >> 8);
-    b[7] = (unsigned char)(num);
+    b[0] = static_cast<unsigned char>(num >> 56);
+    b[1] = static_cast<unsigned char>(num >> 48);
+    b[2] = static_cast<unsigned char>(num >> 40);
+    b[3] = static_cast<unsigned char>(num >> 32);
+    b[4] = static_cast<unsigned char>(num >> 24);
+    b[5] = static_cast<unsigned char>(num >> 16);
+    b[6] = static_cast<unsigned char>(num >> 8);
+    b[7] = static_cast<unsigned char>(num);
 }
 
-std::string floatToBinary(float f) {
+inline std::string floatToBinary(float f) {
     lfloat u;
     u.value = f;
     std::string str(32, '0');
@@ -262,5 +262,5 @@ std::vector<T> bytes2vector(const unsigned char *&c, uint8_t bit_width, size_t n
     return data;
 }
 
-};      // namespace SZ3
+}  // namespace SZ3
 #endif  // SZ3_BYTEUTIL_HPP

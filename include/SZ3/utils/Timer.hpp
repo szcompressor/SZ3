@@ -5,42 +5,39 @@
 #ifndef SZ_TIMER_HPP
 #define SZ_TIMER_HPP
 
-#include <string>
-#include <iostream>
 #include <chrono>
+#include <iostream>
+#include <string>
 
 namespace SZ3 {
-    class Timer {
-    public:
-        Timer() = default;
+class Timer {
+   public:
+    Timer() = default;
 
-        Timer(bool initstart) {
-            if (initstart) {
-                start();
-            }
+    Timer(bool initstart) {
+        if (initstart) {
+            start();
         }
+    }
 
-        void start() {
-            begin = std::chrono::steady_clock::now();
-        }
+    void start() { begin = std::chrono::steady_clock::now(); }
 
-        double stop() {
-            end = std::chrono::steady_clock::now();
-            return std::chrono::duration<double>(end - begin).count();
-        }
+    double stop() {
+        end = std::chrono::steady_clock::now();
+        return std::chrono::duration<double>(end - begin).count();
+    }
 
-        double stop(const std::string &msg) {
-            double seconds = stop();
+    double stop(const std::string &msg) {
+        double seconds = stop();
 #if SZ3_DEBUG_TIMINGS
-            std::cout << msg << " time = " << seconds << "s" << std::endl;
+        std::cout << msg << " time = " << seconds << "s" << std::endl;
 #endif
-            return seconds;
-        }
+        return seconds;
+    }
 
-    private:
-        std::chrono::time_point<std::chrono::steady_clock> begin, end;
-    };
+   private:
+    std::chrono::time_point<std::chrono::steady_clock> begin, end;
 };
+}  // namespace SZ3
 
-
-#endif //SZ_TIMER_HPP
+#endif  // SZ_TIMER_HPP

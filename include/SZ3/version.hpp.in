@@ -18,7 +18,7 @@
 
 #define SZ3_DATA_VER "@SZ3_DATA_VERSION@"
 
-uint32_t versionInt(const std::string& version) {
+inline uint32_t versionInt(const std::string& version) {
     uint32_t major = 0, minor = 0, patch = 0;
     char dot;
     std::stringstream ss(version);
@@ -26,7 +26,7 @@ uint32_t versionInt(const std::string& version) {
     return (major << 24) | (minor << 16) | (patch<<8);
 }
 
-std::string versionStr(uint32_t version) {
+inline std::string versionStr(uint32_t version) {
     uint32_t major = (version >> 24) & 0xFF;
     uint32_t minor = (version >> 16) & 0xFF;
     uint32_t patch = (version >> 8) & 0xFF;

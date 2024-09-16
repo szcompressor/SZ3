@@ -1,8 +1,7 @@
+#include <mdz.hpp>
 #include <vector>
 
-#include <mdz.hpp>
-
-void usage() {
+inline void usage() {
     printf("Usage: \n");
     printf("For 1D input:   mdz file_path -1 n_atoms                 -r reb\n");
     printf("For 2D input:   mdz file_path -2 n_frames n_atoms        -r reb\n");
@@ -58,8 +57,8 @@ int main(int argc, char **argv) {
     conf.blockSize = 128;
     conf.stride = 128;
     conf.quantbinCnt = 1024;
-//    conf.enable_regression = false;
-//    conf.quant_state_num = 4096;
+    //    conf.enable_regression = false;
+    //    conf.quant_state_num = 4096;
     if (argp < argc) {
         conf.quantbinCnt = atoi(argv[argp++]);
     }
@@ -67,7 +66,7 @@ int main(int argc, char **argv) {
     std::vector<float> input2(input_data.get(), input_data.get() + conf.num);
     std::vector<float> dec_data(conf.num);
 
-    size_t compressed_size;
+    size_t compressed_size = 0;
     if (conf.N == 2) {
         compressed_size = MDZ_Compress<float, 2>(conf, input_data.get(), dec_data.data(), batch_size, method);
     } else if (conf.N == 3) {
@@ -77,16 +76,16 @@ int main(int argc, char **argv) {
 
     double max_diff, psnr, nrmse;
     printf("\nBatch=%lu\nCompression ratio=%.3f\nCompression time=%.3f\nDecompression time=%.3f\n",
-           (batch_size == 0 ? dims[0] : batch_size), ratio,
-           total_compress_time, total_decompress_time);
+           (batch_size == 0 ? dims[0] : batch_size), ratio, total_compress_time, total_decompress_time);
 
     SZ3::verify<float>(input2.data(), dec_data.data(), conf.num, psnr, nrmse, max_diff);
-//    std::cout << "****************** Final ****************" << std::endl;
-//    printf("method=md, file=%s, block=%lu, compression_ratio=%.3f, reb=%.1e, eb=%.6f, psnr=%.3f, nsmse=%e, compress_time=%.3f, decompress_time=%.3f, timestep_op=%d\n",
-//           input_path.data(), batch_size,
-//           ratio,
-//           conf.relErrorBound,
-//           max_diff, psnr, nrmse,
-//           total_compress_time, total_decompress_time,
-//           method);
+    //    std::cout << "****************** Final ****************" << std::endl;
+    //    printf("method=md, file=%s, block=%lu, compression_ratio=%.3f, reb=%.1e, eb=%.6f, psnr=%.3f, nsmse=%e,
+    //    compress_time=%.3f, decompress_time=%.3f, timestep_op=%d\n",
+    //           input_path.data(), batch_size,
+    //           ratio,
+    //           conf.relErrorBound,
+    //           max_diff, psnr, nrmse,
+    //           total_compress_time, total_decompress_time,
+    //           method);
 }

@@ -3,7 +3,7 @@
 #include "SZ3/predictor/LorenzoPredictor.hpp"
 #include "SZ3/predictor/RegressionPredictor.hpp"
 #include "SZ3/predictor/ComposedPredictor.hpp"
-#include "SZ3/quantizer/IntegerQuantizer.hpp"
+#include "SZ3/quantizer/LinearQuantizer.hpp"
 #include "SZ3/utils/FileUtil.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/def.hpp"

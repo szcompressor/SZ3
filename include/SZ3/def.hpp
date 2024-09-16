@@ -5,10 +5,9 @@
 
 namespace SZ3 {
 
-    typedef unsigned int uint;
-    typedef unsigned char uchar;
+typedef unsigned int uint;
+typedef unsigned char uchar;
 
-}
-
+}  // namespace SZ3
 
 #endif

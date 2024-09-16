@@ -81,7 +81,7 @@ class Config {
             dims = {1};
         }
         N = dims.size();
-        num = std::accumulate(dims.begin(), dims.end(), (size_t)1, std::multiplies<size_t>());
+        num = std::accumulate(dims.begin(), dims.end(), static_cast<size_t>(1), std::multiplies<size_t>());
         pred_dim = N;
         blockSize = (N == 1 ? 128 : (N == 2 ? 16 : 6));
         stride = blockSize;
@@ -189,10 +189,10 @@ class Config {
 
         // printf("%lu\n", c - c0);
         return c - c0;
-    };
+    }
 
     void load(const unsigned char *&c) {
-        auto c0 = c;
+        // auto c0 = c;
         read(sz3MagicNumber, c);
         if (sz3MagicNumber != SZ3_MAGIC_NUMBER) {
             throw std::invalid_argument("magic number mismatch, the input data is not compressed by SZ3");
@@ -272,8 +272,8 @@ class Config {
             printf("%zu ", dim);
         }
         printf("\nnum = %zu\n", num);
-        printf("CmprAlgo = %s\n", enum2Str((ALGO)cmprAlgo));
-        printf("ErrorBoundMode = %s\n", enum2Str((EB)errorBoundMode));
+        printf("CmprAlgo = %s\n", enum2Str(static_cast<ALGO>(cmprAlgo)));
+        printf("ErrorBoundMode = %s\n", enum2Str(static_cast<EB>(errorBoundMode)));
         printf("AbsErrorBound = %f\n", absErrorBound);
         printf("RelErrorBound = %f\n", relErrorBound);
         printf("PSNRErrorBound = %f\n", psnrErrorBound);
@@ -286,7 +286,7 @@ class Config {
         printf("DataType = %d\n", dataType);
         printf("Lossless = %d\n", lossless);
         printf("Encoder = %d\n", encoder);
-        printf("InterpolationAlgo = %s\n", enum2Str((INTERP_ALGO)interpAlgo));
+        printf("InterpolationAlgo = %s\n", enum2Str(static_cast<INTERP_ALGO>(interpAlgo)));
         printf("InterpolationDirection = %d\n", interpDirection);
         printf("QuantizationBinTotal = %d\n", quantbinCnt);
         printf("BlockSize = %d\n", blockSize);
