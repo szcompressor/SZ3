@@ -41,11 +41,7 @@ namespace SZ {
             // e = min{(1 - b^{-t})|x|, (b^{t} - 1)|x|}
             // return 0;
             if(data == 0) return 0;
-
-            //T eb = coeff * fabs(data);
-            double a = fabs(1.0 / (data*log_b) );//datatype may be T
-            double b = fabs(-a/data);
-            T eb = (sqrt(a*a+2*b*tolerance)-a)/b;
+            T eb = coeff * fabs(data);
             return std::min(eb, global_eb);
         }
 
