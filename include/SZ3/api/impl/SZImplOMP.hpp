@@ -52,7 +52,7 @@ size_t SZ_compress_OMP(Config &conf, const T *data, uchar *cmpData, size_t cmpCa
         size_t num_t_base = std::accumulate(++it, dims_t.end(), static_cast<size_t>(1), std::multiplies<size_t>());
         size_t num_t = dims_t[0] * num_t_base;
 
-        T *data_t = data + lo * num_t_base;
+        const T *data_t = data + lo * num_t_base;
         // std::vector<T> data_t(data + lo * num_t_base, data + lo * num_t_base + num_t);
         if (conf.errorBoundMode != EB_ABS) {
             auto minmax = std::minmax_element(data_t, data_t + num_t);
