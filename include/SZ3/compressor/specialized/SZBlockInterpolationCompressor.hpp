@@ -34,10 +34,10 @@ class SZBlockInterpolationCompressor {
     }
 
     T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *decData) {
-        size_t bufferCap = conf.num * sizeof(T);
-        auto buffer = static_cast<uchar *>(malloc(bufferCap));
-        lossless.decompress(cmpData, cmpSize, buffer, bufferCap);
-        size_t remaining_length = bufferCap;
+        uchar *buffer = nullptr;
+        size_t bufferSize = 0;
+        lossless.decompress(cmpData, cmpSize, buffer, bufferSize);
+        size_t remaining_length = bufferSize;
         uchar const *buffer_pos = buffer;
 
         read(global_dimensions.data(), N, buffer_pos, remaining_length);

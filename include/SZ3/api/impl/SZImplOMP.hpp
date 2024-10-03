@@ -52,10 +52,10 @@ size_t SZ_compress_OMP(Config &conf, const T *data, uchar *cmpData, size_t cmpCa
         size_t num_t_base = std::accumulate(++it, dims_t.end(), static_cast<size_t>(1), std::multiplies<size_t>());
         size_t num_t = dims_t[0] * num_t_base;
 
-        //        T *data_t = data + lo * num_t_base;
-        std::vector<T> data_t(data + lo * num_t_base, data + lo * num_t_base + num_t);
+        T *data_t = data + lo * num_t_base;
+        // std::vector<T> data_t(data + lo * num_t_base, data + lo * num_t_base + num_t);
         if (conf.errorBoundMode != EB_ABS) {
-            auto minmax = std::minmax_element(data_t.begin(), data_t.end());
+            auto minmax = std::minmax_element(data_t, data_t + num_t);
             min_t[tid] = *minmax.first;
             max_t[tid] = *minmax.second;
 #pragma omp barrier
@@ -70,9 +70,9 @@ size_t SZ_compress_OMP(Config &conf, const T *data, uchar *cmpData, size_t cmpCa
 
         conf_t[tid] = conf;
         conf_t[tid].setDims(dims_t.begin(), dims_t.end());
-        cmp_size_t[tid] = data_t.size() * sizeof(T);
+        cmp_size_t[tid] = num_t * sizeof(T);
         compressed_t[tid] = static_cast<uchar *>(malloc(cmp_size_t[tid]));
-        SZ_compress_dispatcher<T, N>(conf_t[tid], data_t.data(), compressed_t[tid], cmp_size_t[tid]);
+        SZ_compress_dispatcher<T, N>(conf_t[tid], data_t, compressed_t[tid], cmp_size_t[tid]);
 
 #pragma omp barrier
 #pragma omp single
@@ -101,8 +101,7 @@ size_t SZ_compress_OMP(Config &conf, const T *data, uchar *cmpData, size_t cmpCa
     //    timer.stop("OMP memcpy");
 
 #else
-    std::vector<T> dataCopy(data, data + conf.num);
-    return SZ_compress_dispatcher<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+    return SZ_compress_dispatcher<T, N>(conf, data, cmpData, cmpCap);
 #endif
 }
 

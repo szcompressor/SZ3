@@ -118,9 +118,9 @@ class SZExaaltCompressor : public SZ3::concepts::CompressorInterface<T> {
 
     //        T *decompress(uchar const *lossless_compressed_data, const size_t length) {
     T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *dec_data) override {
-        size_t bufferCap = conf.num * sizeof(T);
-        auto buffer = static_cast<uchar *>(malloc(bufferCap));
-        lossless.decompress(cmpData, cmpSize, buffer, bufferCap);
+        uchar *buffer = nullptr;
+        size_t bufferSize = 0;
+        lossless.decompress(cmpData, cmpSize, buffer, bufferSize);
         size_t remaining_length = cmpSize;
         uchar const *buffer_pos = buffer;
 

@@ -38,7 +38,6 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
     size_t compress(const Config &conf, T *data, uchar *cmpData, size_t cmpCap) override {
         std::vector<int> quant_inds = decomposition.compress(conf, data);
 
-        // encoder.preprocess_encode(quant_inds, decomposition.get_radius() * 2);
         if (decomposition.get_out_range().first != 0) {
             throw std::runtime_error("The output range of the decomposition must start from 0 for this compressor");
         }
@@ -54,7 +53,7 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         encoder.save(buffer_pos);
         encoder.encode(quant_inds, buffer_pos);
         encoder.postprocess_encode();
-
+        
         auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
         free(buffer);
 
@@ -62,17 +61,16 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
     }
 
     T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *decData) override {
-        size_t bufferCap = conf.num * sizeof(T);
-        auto buffer = static_cast<uchar *>(malloc(bufferCap));
-        lossless.decompress(cmpData, cmpSize, buffer, bufferCap);
+        uchar *buffer = nullptr;
+        size_t bufferSize = 0;
+        lossless.decompress(cmpData, cmpSize, buffer, bufferSize);
 
-        size_t remaining_length = bufferCap;
-        uchar const *buffer_pos = buffer;
+        uchar const *bufferPos = buffer;
 
-        decomposition.load(buffer_pos, remaining_length);
-        encoder.load(buffer_pos, remaining_length);
+        decomposition.load(bufferPos, bufferSize);
+        encoder.load(bufferPos, bufferSize);
 
-        auto quant_inds = encoder.decode(buffer_pos, conf.num);
+        auto quant_inds = encoder.decode(bufferPos, conf.num);
         encoder.postprocess_decode();
 
         free(buffer);

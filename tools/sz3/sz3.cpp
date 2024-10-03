@@ -130,10 +130,11 @@ template <class T>
 void compress(char *inPath, char *cmpPath, SZ3::Config conf) {
     T *data = new T[conf.num];
     SZ3::readfile<T>(inPath, conf.num, data);
+    size_t bytesCap = 2 * conf.num * sizeof(T);
+    auto bytes = new char[bytesCap];
 
-    size_t outSize;
     SZ3::Timer timer(true);
-    char *bytes = SZ_compress<T>(conf, data, outSize);
+    size_t outSize = SZ_compress<T>(conf, data, bytes, bytesCap);
     double compress_time = timer.stop();
 
     char outputFilePath[1024];
@@ -156,9 +157,10 @@ template <class T>
 void decompress(char *inPath, char *cmpPath, char *decPath, SZ3::Config conf, int binaryOutput, int printCmpResults) {
     size_t cmpSize;
     auto cmpData = SZ3::readfile<char>(cmpPath, cmpSize);
+    T *decData = new T[conf.num];
 
     SZ3::Timer timer(true);
-    T *decData = SZ_decompress<T>(conf, cmpData.get(), cmpSize);
+    SZ_decompress<T>(conf, cmpData.get(), cmpSize, decData);
     double compress_time = timer.stop();
 
     char outputFilePath[1024];

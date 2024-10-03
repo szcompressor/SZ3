@@ -33,14 +33,12 @@ enum EB { EB_ABS, EB_REL, EB_PSNR, EB_L2NORM, EB_ABS_AND_REL, EB_ABS_OR_REL };
 constexpr const char *EB_STR[] = {"ABS", "REL", "PSNR", "NORM", "ABS_AND_REL", "ABS_OR_REL"};
 constexpr EB EB_OPTIONS[] = {EB_ABS, EB_REL, EB_PSNR, EB_L2NORM, EB_ABS_AND_REL, EB_ABS_OR_REL};
 
-enum ALGO {
-    ALGO_LORENZO_REG,
-    ALGO_INTERP_LORENZO,
-    ALGO_INTERP,
-    ALGO_NOPRED,
-};
-constexpr const char *ALGO_STR[] = {"ALGO_LORENZO_REG", "ALGO_INTERP_LORENZO", "ALGO_INTERP", "ALGO_NOPRED"};
-constexpr const ALGO ALGO_OPTIONS[] = {ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP, ALGO_NOPRED};
+enum ALGO { ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP, ALGO_NOPRED, ALGO_LOSSLESS };
+constexpr const char *ALGO_STR[] = {"ALGO_LORENZO_REG", "ALGO_INTERP_LORENZO", "ALGO_INTERP",
+                                    "ALGO_NOPRED",      "ALGO_LOSSLESS"       };
+
+constexpr const ALGO ALGO_OPTIONS[] = {ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP,
+                                       ALGO_NOPRED,      ALGO_LOSSLESS};
 
 enum INTERP_ALGO { INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC };
 constexpr const char *INTERP_ALGO_STR[] = {"INTERP_ALGO_LINEAR", "INTERP_ALGO_CUBIC"};
@@ -105,6 +103,8 @@ class Config {
             cmprAlgo = ALGO_INTERP;
         } else if (cmprAlgoStr == ALGO_STR[ALGO_NOPRED]) {
             cmprAlgo = ALGO_NOPRED;
+        } else if (cmprAlgoStr == ALGO_STR[ALGO_LOSSLESS]) {
+            cmprAlgo = ALGO_LOSSLESS;
         }
         auto ebModeStr = cfg.Get("GlobalSettings", "ErrorBoundMode", "");
         if (ebModeStr == EB_STR[EB_ABS]) {

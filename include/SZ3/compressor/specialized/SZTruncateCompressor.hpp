@@ -44,9 +44,9 @@ class SZTruncateCompressor : public concepts::CompressorInterface<T> {
     }
 
     T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *decData) override {
-        size_t bufferCap = conf.num * sizeof(T);
-        auto buffer = static_cast<uchar *>(malloc(bufferCap));
-        lossless.decompress(cmpData, cmpSize, buffer, bufferCap);
+        uchar *buffer = nullptr;
+        size_t bufferSize = 0;
+        lossless.decompress(cmpData, cmpSize, buffer, bufferSize);
         // size_t remaining_length = bufferCap;
         uchar const *buffer_pos = buffer;
 

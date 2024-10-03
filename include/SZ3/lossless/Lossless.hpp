@@ -23,17 +23,17 @@ class LosslessInterface {
      * @param dstCap capacity (in bytes) for storing the compressed data
      * @return length (in bytes) of the data compressed
      */
-    virtual size_t compress(uchar *src, size_t srcLen, uchar *dst, size_t dstCap) = 0;
+    virtual size_t compress(const uchar *src, size_t srcLen, uchar *dst, size_t dstCap) = 0;
 
     /**
      * reverse of compress(), decompress the data with lossless compressors
      * @param src data to be decompressed
      * @param srcLen length (in bytes) of the data to be decompressed (as input) or the data decompressed (as output).
      * @param dst decompressed data
-     * @param dstCap capacity (in bytes) for storing the decompressed data (in bytes)
+     * @param dstLen length (in bytes) of the decompressed data
      * @return length (in bytes) of the data decompressed
      */
-    virtual size_t decompress(const uchar *src, const size_t srcLen, uchar *dst, size_t dstCap) = 0;
+    virtual size_t decompress(const uchar *src, const size_t srcLen, uchar *&dst, size_t &dstLen) = 0;
 };
 }  // namespace SZ3::concepts
 
