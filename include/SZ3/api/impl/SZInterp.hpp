@@ -71,7 +71,9 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
             double best_abs_eb = conf.absErrorBound;
             double best_ratio = current_ratio;
             // check smaller bounds
-            while(true){
+            int max_iter = 20; 
+            int iter = 0;
+            while(iter++ < max_iter){
                 auto prev_eb = conf.absErrorBound;
                 prev_ratio = current_ratio;
                 conf.absErrorBound /= 2;
@@ -179,8 +181,12 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
     if(qoi){
         // compute abs qoi eb
         T qoi_rel_eb = conf.qoiEB;
+        std::cout << "qoi_rel_eb = " << qoi_rel_eb << std::endl;
         T max = data[0];
         T min = data[0];
+        double min_abs ;
+        double max_abs ;
+        double min_abs_2;
         for (size_t i = 1; i < conf.num; i++) {
             if (max < data[i]) max = data[i];
             if (min > data[i]) min = data[i];
@@ -189,8 +195,14 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
             // x^2
             auto max_2 = max * max;
             auto min_2 = min * min;
-            auto max_abs_val = (max_2 > min_2) ? max_2 : min_2;
-            conf.qoiEB *= max_abs_val;
+            double max_abs_val = (max_2 > min_2) ? max_2 : min_2;
+            double min_abs_val = (max_2 > min_2) ? min_2 : max_2;
+            if(min< 0) min_abs_2 = 0;
+            else min_abs_2 = min_abs_val;
+            conf.qoiEB *= (max_abs_val - min_abs_2);
+            // conf.qoiEB *= (max_abs_val);
+
+            
         }
         // else if(qoi == 3){
         //     // regional average
