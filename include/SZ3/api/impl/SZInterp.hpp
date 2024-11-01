@@ -40,6 +40,7 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
         auto qoi = SZ::GetQOI<T, N>(conf);
         auto sz = SZ::SZQoIInterpolationCompressor<T, N, SZ::VariableEBLinearQuantizer<T, T>, SZ::EBLogQuantizer<T>, SZ::QoIEncoder<int>, SZ::Lossless_zstd>(
                 quantizer, quantizer_eb, qoi, SZ::QoIEncoder<int>(), SZ::Lossless_zstd());
+        double max_abs_eb = 0;
         // use sampling to determine abs bound
         {
             auto dims = conf.dims;
@@ -61,6 +62,7 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
                 // reset variables for average of square
                 if(conf.qoi == 3) qoi->init();
                 auto cmprData = sz.compress(conf, sampling_data, sampleOutSize);
+                max_abs_eb = sz.get_max_eb();
                 sz.clear();
                 delete[]cmprData;
                 ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;                
@@ -68,10 +70,10 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
             }
             double prev_ratio = 1;
             double current_ratio = ratio;
-            double best_abs_eb = conf.absErrorBound;
+            double best_abs_eb = std::min(conf.absErrorBound, max_abs_eb);
             double best_ratio = current_ratio;
             // check smaller bounds
-            int max_iter = 20; 
+            int max_iter = 100; 
             int iter = 0;
             while(iter++ < max_iter){
                 auto prev_eb = conf.absErrorBound;
