@@ -16,6 +16,7 @@
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/api/impl/SZLorenzoReg.hpp"
 #include <cmath>
+#include <limits>
 #include <memory>
 
 template<class T, SZ::uint N>
@@ -40,6 +41,7 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
         auto qoi = SZ::GetQOI<T, N>(conf);
         auto sz = SZ::SZQoIInterpolationCompressor<T, N, SZ::VariableEBLinearQuantizer<T, T>, SZ::EBLogQuantizer<T>, SZ::QoIEncoder<int>, SZ::Lossless_zstd>(
                 quantizer, quantizer_eb, qoi, SZ::QoIEncoder<int>(), SZ::Lossless_zstd());
+        double max_abs_eb = 0;
         // use sampling to determine abs bound
         {
             auto dims = conf.dims;
@@ -61,6 +63,7 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
                 // reset variables for average of square
                 if(conf.qoi == 3) qoi->init();
                 auto cmprData = sz.compress(conf, sampling_data, sampleOutSize);
+                max_abs_eb = sz.get_max_eb();
                 sz.clear();
                 delete[]cmprData;
                 ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;                
@@ -68,10 +71,10 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
             }
             double prev_ratio = 1;
             double current_ratio = ratio;
-            double best_abs_eb = conf.absErrorBound;
+            double best_abs_eb = std::min(conf.absErrorBound, max_abs_eb);
             double best_ratio = current_ratio;
             // check smaller bounds
-            int max_iter = 20; 
+            int max_iter = 100; 
             int iter = 0;
             while(iter++ < max_iter){
                 auto prev_eb = conf.absErrorBound;
@@ -200,9 +203,26 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
             if(min< 0) min_abs_2 = 0;
             else min_abs_2 = min_abs_val;
             conf.qoiEB *= (max_abs_val - min_abs_2);
-            // conf.qoiEB *= (max_abs_val);
+            conf.qoiEB *= (max_abs_val);
 
             
+        }
+        else if(qoi == 2){
+            // log x
+            double max_log, min_log, cur_log; 
+            max_log = std::numeric_limits<double>::lowest(); 
+            min_log = std::numeric_limits<double>::max(); 
+            double log_base = log(2);
+            for (size_t i = 0; i < conf.num; i++) {
+                if(data[i] == 0){
+                    continue;
+                }
+                cur_log = log(fabs(data[i])); 
+                if (max_log < cur_log) max_log = cur_log;
+                if (min_log > cur_log) min_log = cur_log;
+            }
+            conf.qoiEB *= (max_log - min_log)/log_base;
+
         }
         // else if(qoi == 3){
         //     // regional average
@@ -217,6 +237,18 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
             for(int i=0; i<isonum; i++){
                 conf.isovalues.push_back(min + (i + 1) * 1.0 / (isonum + 1) * range);
             }
+        }
+        else if(qoi == 9){
+            // compute isovalues
+            double max_cubic = max * max * max;
+            double min_cubic = min * min * min;
+            conf.qoiEB *= (max_cubic - min_cubic);
+        }
+        else if(qoi == 10){
+            double max_abs_val = (fabs(max) > fabs(min)) ? fabs(max) : fabs(min);
+            double min_abs_val = (fabs(max) > fabs(min)) ? fabs(min) : fabs(max);
+            if (min < 0) min_abs_val = 0;
+            conf.qoiEB *= (sqrt(max_abs_val) - sqrt(min_abs_val));
         }
         else if(qoi >= 5){
             // (x^2) + (log x) + (isoline)

@@ -9,6 +9,8 @@
 #include "Isoline.hpp"
 #include "MultiQoIs.hpp"
 #include <vector>
+#include "XCubic.hpp"
+#include "XSqrt.hpp"
 
 namespace SZ {
 
@@ -71,6 +73,13 @@ namespace SZ {
             	}
                 qois.push_back(std::make_shared<SZ::QoI_Isoline<T, N>>(conf.dims, values, conf.absErrorBound));
                 return std::make_shared<SZ::QoI_MultiQoIs<T, N>>(qois);            	
+            }
+            case 9:{
+                return std::make_shared<SZ::QoI_X_Cubic<T, N>>(conf.qoiEB, conf.absErrorBound);
+
+            }
+            case 10:{
+                return std::make_shared<SZ::QoI_X_Sqrt<T, N>>(conf.qoiEB, conf.absErrorBound);
             }
         }
         return NULL;

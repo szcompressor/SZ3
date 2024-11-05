@@ -307,6 +307,8 @@ namespace SZ {
 
         double max_abs_val = std::max(fabs(max), fabs(min));
         double max_abs_val_sq = max_abs_val * max_abs_val;
+        double min_abs_val_sq =std::min(fabs(max), fabs(min))*std::min(fabs(max), fabs(min));
+        if(min < 0) min_abs_val_sq = 0;
         double max_x_square_diff = 0;
         double max_log_diff = 0;
         for(size_t i=0; i<num_elements; i++){
@@ -335,7 +337,7 @@ namespace SZ {
 
         printf("QoI error info:\n");
         printf("max x^2 of data =%.6G\n", max_abs_val_sq);
-        printf("Max x^2 error = %.6G, relative x^2 error = %.6G\n", max_x_square_diff, max_x_square_diff / max_abs_val_sq);
+        printf("Max x^2 error = %.6G, relative x^2 error = %.6G\n", max_x_square_diff, max_x_square_diff /( max_abs_val_sq - min_abs_val_sq));
         printf("Max log error = %.6G\n", max_log_diff);
 
         for(size_t i=0; i<num_elements; i++){
