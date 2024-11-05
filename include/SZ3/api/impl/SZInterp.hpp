@@ -16,6 +16,7 @@
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/api/impl/SZLorenzoReg.hpp"
 #include <cmath>
+#include <limits>
 #include <memory>
 
 template<class T, SZ::uint N>
@@ -202,9 +203,26 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
             if(min< 0) min_abs_2 = 0;
             else min_abs_2 = min_abs_val;
             conf.qoiEB *= (max_abs_val - min_abs_2);
-            // conf.qoiEB *= (max_abs_val);
+            conf.qoiEB *= (max_abs_val);
 
             
+        }
+        else if(qoi == 2){
+            // log x
+            double max_log, min_log, cur_log; 
+            max_log = std::numeric_limits<double>::lowest(); 
+            min_log = std::numeric_limits<double>::max(); 
+            double log_base = log(2);
+            for (size_t i = 0; i < conf.num; i++) {
+                if(data[i] == 0){
+                    continue;
+                }
+                cur_log = log(fabs(data[i])); 
+                if (max_log < cur_log) max_log = cur_log;
+                if (min_log > cur_log) min_log = cur_log;
+            }
+            conf.qoiEB *= (max_log - min_log)/log_base;
+
         }
         // else if(qoi == 3){
         //     // regional average
@@ -219,6 +237,18 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
             for(int i=0; i<isonum; i++){
                 conf.isovalues.push_back(min + (i + 1) * 1.0 / (isonum + 1) * range);
             }
+        }
+        else if(qoi == 9){
+            // compute isovalues
+            double max_cubic = max * max * max;
+            double min_cubic = min * min * min;
+            conf.qoiEB *= (max_cubic - min_cubic);
+        }
+        else if(qoi == 10){
+            double max_abs_val = (fabs(max) > fabs(min)) ? fabs(max) : fabs(min);
+            double min_abs_val = (fabs(max) > fabs(min)) ? fabs(min) : fabs(max);
+            if (min < 0) min_abs_val = 0;
+            conf.qoiEB *= (sqrt(max_abs_val) - sqrt(min_abs_val));
         }
         else if(qoi >= 5){
             // (x^2) + (log x) + (isoline)
