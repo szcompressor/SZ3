@@ -11,6 +11,8 @@
 #include <vector>
 #include "XCubic.hpp"
 #include "XSqrt.hpp"
+#include "XExp.hpp"
+#include "XLin.hpp"
 
 namespace SZ {
 
@@ -81,6 +83,10 @@ namespace SZ {
             case 10:{
                 return std::make_shared<SZ::QoI_X_Sqrt<T, N>>(conf.qoiEB, conf.absErrorBound);
             }
+            case 11:
+                return std::make_shared<SZ::QoI_X_Lin<T, N>>(conf.qoiEB, conf.absErrorBound);
+            case 12:
+                return std::make_shared<SZ::QoI_X_Exp<T, N>>(conf.qoiEB, conf.absErrorBound,conf.qoiLogBase);
         }
         return NULL;
     }
