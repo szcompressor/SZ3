@@ -220,9 +220,9 @@ namespace SZ {
             quantizer_eb.clear();
         }
 
-        double get_max_eb() {
-            return max_abs_eb;
-        }
+        // double get_max_eb() {
+        //     return max_abs_eb;
+        // }
 
     private:
 
@@ -230,7 +230,7 @@ namespace SZ {
             auto ori_data = *data;
             auto eb = qoi->interpret_eb(data, offset);
             quant_inds[quant_index] = quantizer_eb.quantize_and_overwrite(eb);
-            max_abs_eb = std::max(max_abs_eb, (double) eb);
+            // max_abs_eb = std::max(max_abs_eb, (double) eb);
             quant_inds[num_elements + quant_index] = quantizer.quantize_and_overwrite(
                     *data, pred, eb);
             if(!qoi->check_compliance(ori_data, *data)){
@@ -565,7 +565,7 @@ namespace SZ {
         std::array<size_t, N> dimension_offsets;
         std::vector<std::array<int, N>> dimension_sequences;
         int direction_sequence_id;
-        double max_abs_eb= std::numeric_limits<double>::lowest();
+        // double max_abs_eb= std::numeric_limits<double>::lowest();
     };
 
 

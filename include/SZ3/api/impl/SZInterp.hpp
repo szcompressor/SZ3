@@ -63,11 +63,14 @@ char *SZ_compress_Interp(SZ::Config &conf, T *data, size_t &outSize) {
                 // reset variables for average of square
                 if(conf.qoi == 3) qoi->init();
                 auto cmprData = sz.compress(conf, sampling_data, sampleOutSize);
-                max_abs_eb = sz.get_max_eb();
                 sz.clear();
                 delete[]cmprData;
                 ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;                
                 std::cout << "current_eb = " << conf.absErrorBound << ", current_ratio = " << ratio << std::endl;
+                max_abs_eb = fabs(sampling_data[0] - samples[0]);
+                for(size_t i=1; i<sampling_num; i++){
+                    max_abs_eb = std::max(max_abs_eb, fabs(sampling_data[i] - samples[i]));
+                }
             }
             double prev_ratio = 1;
             double current_ratio = ratio;
