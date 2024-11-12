@@ -203,9 +203,7 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
             if(min< 0) min_abs_2 = 0;
             else min_abs_2 = min_abs_val;
             conf.qoiEB *= (max_abs_val - min_abs_2);
-            conf.qoiEB *= (max_abs_val);
 
-            
         }
         else if(qoi == 2){
             // log x
@@ -248,6 +246,11 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
             double max_abs_val = (fabs(max) > fabs(min)) ? fabs(max) : fabs(min);
             double min_abs_val = (fabs(max) > fabs(min)) ? fabs(min) : fabs(max);
             if (min < 0) min_abs_val = 0;
+            conf.qoiEB *= (sqrt(max_abs_val) - sqrt(min_abs_val));
+        }
+        else if(qoi == 12){
+            double max_abs_val = std::pow(2, max);
+            double min_abs_val = std::pow(2, min);
             conf.qoiEB *= (sqrt(max_abs_val) - sqrt(min_abs_val));
         }
         else if(qoi >= 5){
