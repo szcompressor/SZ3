@@ -187,23 +187,28 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
         std::cout << "qoi_rel_eb = " << qoi_rel_eb << std::endl;
         T max = data[0];
         T min = data[0];
-        double min_abs ;
-        double max_abs ;
+        double min_abs = fabs(data[0]); 
+        double max_abs = fabs(data[0]); 
         double min_abs_2;
         for (size_t i = 1; i < conf.num; i++) {
             if (max < data[i]) max = data[i];
             if (min > data[i]) min = data[i];
+            double cur_abs = fabs(data[i]);
+            if (max_abs < cur_abs) max_abs = cur_abs;
+            if (min_abs > cur_abs) min_abs = cur_abs;
         }
         if(qoi == 1 || qoi == 3){
             // x^2
-            auto max_2 = max * max;
-            auto min_2 = min * min;
-            double max_abs_val = (max_2 > min_2) ? max_2 : min_2;
-            double min_abs_val = (max_2 > min_2) ? min_2 : max_2;
-            if(min< 0) min_abs_2 = 0;
-            else min_abs_2 = min_abs_val;
-            conf.qoiEB *= (max_abs_val - min_abs_2);
+            // auto max_2 = max * max;
+            // auto min_2 = min * min;
+            // double max_abs_val = (max_2 > min_2) ? max_2 : min_2;
+            // double min_abs_val = (max_2 > min_2) ? min_2 : max_2;
+            // if(min< 0) min_abs_2 = 0;
+            // else min_abs_2 = min_abs_val;
+            // conf.qoiEB *= (max_abs_val - min_abs_2);
+            conf.qoiEB *= (max_abs*max_abs - min_abs*min_abs);
 
+            printf("qoiEB = %f\n", conf.qoiEB);
         }
         else if(qoi == 2){
             // log x
@@ -243,15 +248,12 @@ char *SZ_compress_Interp_lorenzo(SZ::Config &conf, T *data, size_t &outSize) {
             conf.qoiEB *= (max_cubic - min_cubic);
         }
         else if(qoi == 10){
-            double max_abs_val = (fabs(max) > fabs(min)) ? fabs(max) : fabs(min);
-            double min_abs_val = (fabs(max) > fabs(min)) ? fabs(min) : fabs(max);
-            if (min < 0) min_abs_val = 0;
-            conf.qoiEB *= (sqrt(max_abs_val) - sqrt(min_abs_val));
+            conf.qoiEB *= (sqrt(max_abs)  - sqrt(min_abs));
         }
         else if(qoi == 12){
             double max_abs_val = std::pow(2, max);
             double min_abs_val = std::pow(2, min);
-            conf.qoiEB *= (sqrt(max_abs_val) - sqrt(min_abs_val));
+            conf.qoiEB *= (max_abs_val - min_abs_val);
         }
         else if(qoi >= 5){
             // (x^2) + (log x) + (isoline)
