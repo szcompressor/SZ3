@@ -5,47 +5,43 @@
 #ifndef SZ_LOSSLESS_ZSTD_HPP
 #define SZ_LOSSLESS_ZSTD_HPP
 
-#include "zstd.h"
 #include "SZ3/def.hpp"
-#include "SZ3/utils/MemoryUtil.hpp"
-#include "SZ3/utils/FileUtil.hpp"
 #include "SZ3/lossless/Lossless.hpp"
+#include "zstd.h"
 
 namespace SZ3 {
-    class Lossless_zstd : public concepts::LosslessInterface {
-     
-     public:
-        Lossless_zstd() = default;
-        
-        Lossless_zstd(int comp_level) : compression_level(comp_level) {};
-        
-        size_t compress(uchar *src, size_t srcLen, uchar *dst, size_t dstCap) {
-//            size_t estimatedCompressedSize = std::max(size_t(srcLen * 1.2), size_t(400));
-//            uchar *compressBytes = new uchar[estimatedCompressedSize];
-//            uchar *dstPos = dst;
-//            write(srcLen, dstPos);
-//            if (dstCap < srcLen) {
-//                throw std::invalid_argument(
-//                    "dstCap not large enough for zstd");
-//            }
-            return ZSTD_compress(dst, dstCap, src, srcLen, compression_level);
-//            dstLen += sizeof(size_t);
-//            return compressBytes;
-        }
-        
-        size_t decompress(const uchar *src, const size_t srcLen, uchar *dst, size_t dstCap) {
-//            const uchar *dataPos = data;
-//            size_t dataLength = 0;
-//            read(dataLength, dataPos, compressedSize);
+class Lossless_zstd : public concepts::LosslessInterface {
+   public:
+    Lossless_zstd() = default;
 
-//            uchar *oriData = new uchar[dataLength];
-            return ZSTD_decompress(dst, dstCap, src, srcLen);
-//            compressedSize = dataLength;
-//            return oriData;
+    Lossless_zstd(int comp_level) : compression_level(comp_level) {}
+
+    /**
+    * Attention
+    * When dstCap is smaller than the space needed, ZSTD will not throw any errors.
+    * Instead, it will write a portion of the compressed data to dst and stops.
+    * This behavior is not desirable in SZ, as we need the whole compressed data for decompression.
+    * Therefore, we need to check if the dst buffer (dstCap) is large enough for zstd
+    */
+    size_t compress(const uchar *src, size_t srcLen, uchar *dst, size_t dstCap) override {
+        write(srcLen, dst);
+        if (dstCap < ZSTD_compressBound(srcLen)) {
+            throw std::length_error(SZ_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
         }
-     
-     private:
-        int compression_level = 3;  //default setting of level is 3
-    };
-}
-#endif //SZ_LOSSLESS_ZSTD_HPP
+        size_t dstLen = ZSTD_compress(dst, dstCap, src, srcLen, compression_level);
+        return dstLen + sizeof(size_t);
+    }
+
+    size_t decompress(const uchar *src, const size_t srcLen, uchar *&dst, size_t &dstLen) override {
+        read(dstLen, src);
+        if (dst == nullptr) {
+            dst = static_cast<uchar *>(malloc(dstLen));
+        }
+        return ZSTD_decompress(dst, dstLen, src, srcLen - sizeof(dstLen));
+    }
+
+   private:
+    int compression_level = 3;  // default setting of level is 3
+};
+}  // namespace SZ3
+#endif  // SZ_LOSSLESS_ZSTD_HPP

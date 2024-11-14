@@ -7,4 +7,6 @@ endfunction(build_hdf5_test)
 build_hdf5_test(sz3ToHDF5.cpp)
 build_hdf5_test(dsz3FromHDF5.cpp)
 build_hdf5_test(convertBinToHDF5.cpp)
+build_hdf5_test(print_h5repack_args.cpp)
 
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/h5repack.sh DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

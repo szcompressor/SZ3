@@ -1,7 +1,7 @@
 #ifndef SZ3_SZ_BIOMD_HPP
 #define SZ3_SZ_BIOMD_HPP
 
-#include "SZ3/quantizer/IntegerQuantizer.hpp"
+#include "SZ3/quantizer/LinearQuantizer.hpp"
 #include "SZ3/decomposition/SZBioMDXtcDecomposition.hpp"
 #include "SZ3/decomposition/SZBioMDDecomposition.hpp"
 #include "SZ3/encoder/XtcBasedEncoder.hpp"

@@ -43,16 +43,16 @@ unsigned char *SZ_compress_args(int dataType, void *data, size_t *outSize,
 
     unsigned char *cmpr_data = NULL;
     if (dataType == SZ_FLOAT) {
-        cmpr_data = (unsigned char *) SZ_compress<float>(conf, (float *) data, *outSize);
+        cmpr_data = reinterpret_cast<unsigned char *>(SZ_compress<float>(conf, static_cast<float *>(data), *outSize));
     } else if (dataType == SZ_DOUBLE) {
-        cmpr_data = (unsigned char *) SZ_compress<double>(conf, (double *) data, *outSize);
+        cmpr_data = reinterpret_cast<unsigned char *>(SZ_compress<double>(conf, static_cast<double *>(data), *outSize));
     } else {
         printf("dataType %d not support\n", dataType);
         exit(0);
     }
 
     //convert c++ memory (by 'new' operator) to c memory (by malloc)
-    auto *cmpr = (unsigned char *) malloc(*outSize);
+    auto *cmpr = static_cast<unsigned char *>(malloc(*outSize));
     memcpy(cmpr, cmpr_data, *outSize);
     delete[]cmpr_data;
 
@@ -77,12 +77,12 @@ void *SZ_decompress(int dataType, unsigned char *bytes, size_t byteLength,
 
     SZ3::Config conf;
     if (dataType == SZ_FLOAT) {
-        auto dec_data = (float *) malloc(n * sizeof(float));
-        SZ_decompress<float>(conf, (char *) bytes, byteLength, dec_data);
+        auto dec_data = static_cast<float *>(malloc(n * sizeof(float)));
+        SZ_decompress<float>(conf, reinterpret_cast<char *>(bytes), byteLength, dec_data);
         return dec_data;
     } else if (dataType == SZ_DOUBLE) {
-        auto dec_data = (double *) malloc(n * sizeof(double));
-        SZ_decompress<double>(conf, (char *) bytes, byteLength, dec_data);
+        auto dec_data = static_cast<double *>(malloc(n * sizeof(double)));
+        SZ_decompress<double>(conf, reinterpret_cast<char *>(bytes), byteLength, dec_data);
         return dec_data;
     } else {
         printf("dataType %d not support\n", dataType);

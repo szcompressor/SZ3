@@ -4,17 +4,14 @@
 
 #include <mdz.hpp>
 
-
 int main(int argc, char **argv) {
-
-
     std::vector<size_t> dims({100, 200});
     SZ3::Config conf({dims[0], dims[1]});
 
     conf.errorBoundMode = SZ3::EB_ABS;
     conf.absErrorBound = 1e-6;
-//    conf.blockSize = 128;
-//    conf.stride = 128;
+    //    conf.blockSize = 128;
+    //    conf.stride = 128;
     conf.quantbinCnt = 1024;
 
     std::vector<float> input_data(conf.num);
@@ -31,5 +28,4 @@ int main(int argc, char **argv) {
     size_t compressed_size = MDZ_Compress<float, 2>(conf, input_data.data(), dec_data.data(), 10);
     printf("compression ratio = %.5f", dims[0] * dims[1] * sizeof(float) * 1.0 / compressed_size);
     return 0;
-
 }
