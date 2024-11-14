@@ -22,9 +22,6 @@ class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, 
         }
     }
 
-    // ~SZBioMDXtcDecomposition() { clear(); }
-
-
     std::vector<int> compress(const Config &conf, T *data) override {
         if (N <= 2) {
             return compressSingleFrame(data);

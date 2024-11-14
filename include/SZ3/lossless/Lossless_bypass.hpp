@@ -18,9 +18,12 @@ class Lossless_bypass : public concepts::LosslessInterface {
     }
 
     size_t decompress(const uchar *src, const size_t srcLen, uchar *&dst, size_t &dstLen) override {
-        std::memcpy(dst, src, srcLen);
-        // dst = (uchar *)src;
-        return srcLen;
+        dstLen = srcLen;
+        if (dst == nullptr) {
+            dst = static_cast<uchar *>(malloc(dstLen));
+        }
+        std::memcpy(dst, src, dstLen);
+        return dstLen;
     }
 };
 }  // namespace SZ3

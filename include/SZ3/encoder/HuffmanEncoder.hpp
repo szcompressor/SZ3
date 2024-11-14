@@ -308,7 +308,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     }
 
     void saveAsCode(uchar *&c) {
-        Timer timer(true);
+        // Timer timer(true);
 
         // uchar *head = c;
 
@@ -395,7 +395,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
         writeBytesClearMask(c, mask, index);
 
-        timer.stop("saveAsCode");
+        // timer.stop("saveAsCode");
 
         // printf("huffman tree size = %d\n",(int)(c-head));
 
@@ -411,7 +411,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     }
 
     void loadAsCode(const uchar *&bytes, size_t &remaining_length) {
-        Timer timer(true);
+        // Timer timer(true);
 
         tree.init();
 
@@ -546,7 +546,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
         bytes += (i + 7) >> 3;
 
-        timer.stop("loadAsCode");
+        // timer.stop("loadAsCode");
 
         tree.setConstructed();
     }

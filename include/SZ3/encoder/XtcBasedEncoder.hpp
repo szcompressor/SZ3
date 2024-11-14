@@ -281,7 +281,15 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
     Config conf_;
 
    public:
-    void preprocess_encode(const std::vector<T> &quantData, int stateNum) override {}
+    void preprocess_encode(const std::vector<T> &quantData, int stateNum) override {
+        auto nreminder = quantData.size() % 3;
+        if (nreminder == 1) {
+            reminder1 = quantData[quantData.size() - 1];
+        } else if (nreminder == 2) {
+            reminder1 = quantData[quantData.size() - 1];
+            reminder2 = quantData[quantData.size() - 2];
+        }
+    }
 
     /*! \brief Compress 3d coordinates to memory.
      *
@@ -751,14 +759,30 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         }
 #endif
 
+        auto nreminder = quantData.size() % 3;
+        if (nreminder == 1) {
+            quantData[quantData.size() - 1] = reminder1;
+        } else if (nreminder == 2) {
+            quantData[quantData.size() - 1] = reminder1;
+            quantData[quantData.size() - 2] = reminder2;
+        }
         return quantData;
     }
 
     void postprocess_decode() override {}
 
-    void save(uchar *&c) override {}
+    void save(uchar *&c) override {
+        write(reminder1, c);
+        write(reminder2, c);
+    }
 
-    void load(const uchar *&c, size_t &remaining_length) override {}
+    void load(const uchar *&c, size_t &remaining_length) override {
+        read(reminder1, c, remaining_length);
+        read(reminder2, c, remaining_length);
+    }
+
+   private:
+    int reminder1 = 0, reminder2 = 0;
 };
 
 }  // namespace SZ3
