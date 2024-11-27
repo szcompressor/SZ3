@@ -7,10 +7,10 @@
  *      See COPYRIGHT in top-level directory.
  */
 
-#include <dlfcn.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
+// #include <dlfcn.h>
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
 
 #include "H5Z_SZ3.hpp"
 #include "hdf5.h"

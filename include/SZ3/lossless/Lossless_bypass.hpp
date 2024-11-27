@@ -10,7 +10,7 @@
 
 namespace SZ3 {
 class Lossless_bypass : public concepts::LosslessInterface {
-   public:
+public:
     size_t compress(const uchar *src, size_t srcLen, uchar *dst, size_t dstCap) override {
         std::memcpy(dst, src, srcLen);
         // dst = src;

@@ -33,7 +33,7 @@ size_t SZ_compress_OMP(Config &conf, const T *data, uchar *cmpData, size_t cmpCa
         nThreads = conf.dims[0];
         omp_set_num_threads(nThreads);
     }
-    //        printf("OpenMP threads = %d\n", nThreads);
+    printf("OpenMP enabled for compression, threads = %d\n", nThreads);
     compressed_t.resize(nThreads);
     cmp_size_t.resize(nThreads + 1);
     cmp_start_t.resize(nThreads + 1);
@@ -70,9 +70,9 @@ size_t SZ_compress_OMP(Config &conf, const T *data, uchar *cmpData, size_t cmpCa
 
         conf_t[tid] = conf;
         conf_t[tid].setDims(dims_t.begin(), dims_t.end());
-        cmp_size_t[tid] = num_t * sizeof(T);
-        compressed_t[tid] = static_cast<uchar *>(malloc(cmp_size_t[tid]));
-        SZ_compress_dispatcher<T, N>(conf_t[tid], data_t, compressed_t[tid], cmp_size_t[tid]);
+        size_t cmp_size_cap = 2 * num_t * sizeof(T);
+        compressed_t[tid] = static_cast<uchar *>(malloc(cmp_size_cap));
+        cmp_size_t[tid] = SZ_compress_dispatcher<T, N>(conf_t[tid], data_t, compressed_t[tid], cmp_size_cap);
 
 #pragma omp barrier
 #pragma omp single
@@ -113,7 +113,7 @@ void SZ_decompress_OMP(Config &conf, const uchar *cmpData, size_t cmpSize, T *de
     int nThreads = 1;
     read(nThreads, cmpr_data_pos);
     omp_set_num_threads(nThreads);
-    //    printf("OpenMP threads = %d\n", nThreads);
+    printf("OpenMP enabled for decompression, threads = %d\n", nThreads);
 
     std::vector<Config> conf_t(nThreads);
     for (int i = 0; i < nThreads; i++) {

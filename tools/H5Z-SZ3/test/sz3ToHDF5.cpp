@@ -7,7 +7,6 @@
  *      See COPYRIGHT in top-level directory.
  */
 
-#include <dlfcn.h>
 
 #include <SZ3/utils/ByteUtil.hpp>
 #include <cerrno>
@@ -121,7 +120,7 @@ int main(int argc, char *argv[]) {
     // H5Z_sz3_set_local automatically
     conf.setDims(dimensions.begin(), dimensions.end());
     // Set compression related attributes here
-    //    conf.cmprAlgo = SZ3::ALGO_BIOMD;
+    // conf.cmprAlgo = SZ3::ALGO_BIOMD;
 
     std::vector<hsize_t> hdims(conf.dims.begin(), conf.dims.end());
     /*Create dataspace. Setting maximum size */
@@ -149,7 +148,7 @@ int main(int argc, char *argv[]) {
 
     /*  set the chunk size*/
     std::vector<hsize_t> hchunk(hdims);
-    //    hchunk[0] = 10;
+    // hchunk[0] = 10;
     if (0 > H5Pset_chunk(cpid, conf.N, hchunk.data())) {
         printf("Error in H5Pcreate");
         exit(0);
