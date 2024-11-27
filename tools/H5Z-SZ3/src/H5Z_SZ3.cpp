@@ -153,7 +153,7 @@ void process_data(SZ3::Config &conf, void **buf, size_t *buf_size, size_t nbytes
         *buf = processedData;
         *buf_size = conf.num * sizeof(T);
     } else {
-        size_t cmpCap = sizeof(T) * conf.num;
+        size_t cmpCap = sizeof(T) * conf.num * 2;
         char *cmpData = static_cast<char *>(malloc(cmpCap));
         *buf_size = SZ_compress(conf, static_cast<T *>(*buf), cmpData, cmpCap);
         free(*buf);
