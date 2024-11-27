@@ -1,14 +1,11 @@
-#ifndef _SZ_HUFFMAN_ENCODER_LZ_HPP
-#define _SZ_HUFFMAN_ENCODER_LZ_HPP
+#ifndef _SZ_HUFFMAN_ENCODER_HPP
+#define _SZ_HUFFMAN_ENCODER_HPP
 
-#include <assert.h>
-
+#include <cassert>
 #include <iostream>
 #include <map>
 #include <queue>
-#include <set>
-#include <unordered_map>
-#include <unordered_set>
+#include <stack>
 #include <vector>
 
 #include "SZ3/def.hpp"
@@ -44,6 +41,14 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         uchar len = 0;
         int vec = 0;
 
+        class cmp {
+           public:
+            bool operator()(const std::pair<int, size_t> &u, const std::pair<int, size_t> &v) {
+                return u.second == v.second ? u.first > v.first : u.second > v.second;
+            }
+        };
+
+       public:
         void dfs_mp(Node *u) {
             if (u->isLeaf()) {
                 mplen[u->c] = len;
@@ -82,26 +87,18 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             vec ^= 1 << --len;
         }
 
-        class cmp {
-           public:
-            bool operator()(const std::pair<int, size_t> &u, const std::pair<int, size_t> &v) {
-                return u.second == v.second ? u.first > v.first : u.second > v.second;
-            }
-        };
-
-       public:
         uchar usemp;
         // 0 : vec
         // 1 : mp
 
         std::vector<uchar> veclen;
         std::vector<int> veccode;
-        //            ska::unordered_map<size_t,uchar> mplen;
-        //            ska::unordered_map<size_t,int> mpcode;
+        ska::unordered_map<size_t, uchar> mplen;
+        ska::unordered_map<size_t, int> mpcode;
         //            std::unordered_map<size_t,uchar> mplen;
         //            std::unordered_map<size_t,int> mpcode;
-        std::map<size_t, uchar> mplen;
-        std::map<size_t, int> mpcode;
+        //            std::map<size_t,uchar> mplen;
+        //            std::map<size_t,int> mpcode;
 
         T offset;
         // minimum bits for T
@@ -130,12 +127,12 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
         int root;
         int n;
-        int maxval;
+        T maxval;
         std::vector<Node> ht;
         std::vector<size_t> vecfreq;
-        //            ska::unordered_map<size_t,size_t> mpfreq;
-        //            std::unordered_map<size_t,size_t> mpfreq;
-        std::map<size_t, size_t> mpfreq;
+        ska::unordered_map<T, size_t> mpfreq;
+        //            std::unordered_map<T,size_t> mpfreq;
+        //            std::map<T,size_t> mpfreq;
 
         void addElementInMap(T c, size_t freqc) {
             assert(!_constructed);
@@ -159,7 +156,8 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             if (n == 1 || maxval == 1) {
                 mbft = 1;
                 maxval = 1;
-                offset = ht[0].c;
+                offset += ht[0].c;
+                ht[0].c = 0;
                 ht.push_back(Node(0, &ht[0], nullptr));
                 if (usemp) {
                     mplen[0] = 1;
@@ -173,10 +171,10 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                 return;
             }
 
-            Timer timer(true);
+            // Timer timer(true);
 
             mbft = 1;
-            while ((1 << mbft) < maxval) ++mbft;
+            while ((1llu << mbft) < maxval) ++mbft;
 
             std::priority_queue<std::pair<int, size_t>, std::vector<std::pair<int, size_t>>, cmp> q;
 
@@ -212,7 +210,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
             setConstructed();
 
-            timer.stop("construct huffman tree");
+            // timer.stop("construct huffman tree");
         }
 
         uchar isConstructed() { return _constructed; }
@@ -223,17 +221,14 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     HuffmanTree tree;
 
    public:
-    void preprocess_encode(const T *const bins, size_t num_bin, int stateNum) {
-        Timer timer(true);
-
-        tree.usemp = stateNum >= (1 << 12) && num_bin < 2 * stateNum ? 1 : 0;
+    void preprocess_encode(const T *const bins, size_t num_bin, int stateNum, uchar flag = 0x00) {
+        // Timer timer(true);
 
         tree.init();
 
         T __minval, __maxval;
 
         if (stateNum == 0) {
-            printf("please input the stateNum\n");
             __minval = *bins;
             __maxval = *bins;
             for (int i = 1; i < num_bin; i++) {
@@ -247,14 +242,42 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
         tree.offset = __minval;
         tree.maxval = __maxval - __minval + 1;
+
+        switch ((flag & 0xc0) >> 6) {
+            case 0: {
+                tree.usemp = tree.maxval >= (1 << 12) && num_bin < 2 * __maxval || tree.maxval >= (1 << 28) ? 1 : 0;
+                break;
+            }
+            case 1: {
+                tree.usemp = 1;
+                break;
+            }
+            case 2: {
+                tree.usemp = 0;
+                break;
+            }
+            case 3: {
+                tree.usemp = 0;
+                break;
+            }
+        }
+
+        if ((flag & 0x01) == 0x01) {
+            tree.mbft = 1;
+            while ((1llu << tree.mbft) < tree.maxval) ++tree.mbft;
+            tree.n = 0;
+            tree.setConstructed();
+            return;
+        }
+
         if (tree.usemp) {
             //                tree.mpfreq.reserve(num_bin);
             //                tree.mplen.reserve(num_bin);
             //                tree.mpcode.reserve(num_bin);
 
-            //                ska::unordered_map<size_t,size_t> freq;
-            //                std::unordered_map<size_t,size_t> freq;
-            std::map<size_t, size_t> freq;
+            //                ska::unordered_map<T,size_t> freq;
+            //                std::unordered_map<T,size_t> freq;
+            std::map<T, size_t> freq;
             //                freq.reserve(num_bin);
 
             if (tree.offset == 0) {
@@ -300,279 +323,55 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
         tree.constructHuffmanTree();
 
-        timer.stop("preprocess_encode");
+        // timer.stop("preprocess_encode");
     }
 
     void preprocess_encode(const std::vector<T> &bins, int stateNum) override {
         preprocess_encode(bins.data(), bins.size(), stateNum);
     }
 
-    void saveAsCode(uchar *&c) {
-        // Timer timer(true);
-
-        // uchar *head = c;
-
-        // whether the tree is full binary tree
-
-        uchar &limit = tree.limit;
-
-        std::vector<std::deque<T>> mp(limit + 1);
-
-        if (tree.usemp) {
-            for (auto it : tree.mplen) {
-                mp[it.second].push_back(it.first);
-            }
-        } else {
-            for (int i = 0; i < tree.maxval; i++) {
-                mp[tree.veclen[i]].push_back(i);
-            }
-        }
-
-        uchar mask = 0;
-        uchar index = 0;
-
-        assert(sizeof(T) <= 8);
-
-        if (mp[limit].size() == tree.n) {
-            // 00 XXXXXX (mbft)
-            if (tree.maxval > 1)
-                writeBytesByte(c, tree.mbft);
-            else
-                writeBytesByte(c, 0x80 | tree.mbft);
-
-            writeBytesByte(c, ((sizeof(T) - 1) << 5) | (limit - 1));
-
-            writeBytes(c, tree.offset, sizeof(T) << 3, mask, index);
-
-            int32ToBytes_bigEndian(c, tree.n);
-            c += 4;
-
-            int cnt = mp[limit].size();
-
-            uchar logcnt = 0;
-            while (logcnt < 32 && (1 << logcnt) != cnt) ++logcnt;
-            assert(logcnt != 32);
-
-            if (tree.n > 1) {
-                for (T it : mp[limit]) {
-                    writeBytes(c, it, tree.mbft, mask, index);
-
-                    const int code = tree.usemp ? tree.mpcode[it] : tree.veccode[it];
-
-                    writeBytes(c, code, logcnt, mask, index);
-                }
-
-                writeBytesClearMask(c, mask, index);
-            }
-
-            return;
-        }
-
-        writeBytesByte(c, 0x40 | tree.mbft);
-
-        writeBytesByte(c, ((sizeof(T) - 1) << 5) | (limit - 1));
-
-        writeBytes(c, tree.offset, sizeof(T) << 3, mask, index);
-
-        int32ToBytes_bigEndian(c, tree.maxval);
-        c += 4;
-
-        for (uchar len = 1; len <= limit; len++) {
-            int cnt = mp[len].size();
-
-            writeBytes(c, cnt, len, mask, index);
-
-            if (cnt) {
-                for (const T &it : mp[len]) {
-                    writeBytes(c, it, tree.mbft, mask, index);
-
-                    const int code = tree.usemp ? tree.mpcode[it] : tree.veccode[it];
-
-                    writeBytes(c, code, len, mask, index);
-                }
-            }
-        }
-
-        writeBytesClearMask(c, mask, index);
-
-        // timer.stop("saveAsCode");
-
-        // printf("huffman tree size = %d\n",(int)(c-head));
-
-        // Lossless_zstd zstd;
-        // size_t compressed_tree_size;
-
-        // // uchar *compressed_tree = zstd.compress(head,c-head,compressed_tree_size);
-        // delete[] zstd.compress(head,c-head,compressed_tree_size);
-
-        // printf("compressed huffman tree size = %d\n",(int)compressed_tree_size);
-
-        return;
-    }
-
-    void loadAsCode(const uchar *&bytes, size_t &remaining_length) {
-        // Timer timer(true);
-
-        tree.init();
-
-        uchar feature = (*bytes) >> 6;
-        tree.mbft = (*bytes) & 0x3f;
-        ++bytes;
-
-        // uchar szT = ((*bytes) >> 5) + 1;
-        tree.limit = ((*bytes) & 0x1f) + 1;
-        ++bytes;
-
-        // assert(szT == sizeof(T));
-
-        for (int i = 0; i < sizeof(T); i++) {
-            tree.offset |= static_cast<T>(*bytes) << (i << 3);
-            ++bytes;
-        }
-
-        tree.maxval = bytesToInt32_bigEndian(bytes);
-        bytes += 4;
-
-        tree.usemp = tree.maxval >= (1 << 12) && (1 << (tree.limit - 1)) < tree.maxval ? 1 : 0;
-
-        if (tree.usemp) {
-            tree.ht.reserve(2 << tree.limit);
-            //                tree.mpfreq.reserve(1<<tree.limit);
-            //                tree.mplen.reserve(1<<tree.limit);
-            //                tree.mpcode.reserve(1<<tree.limit);
-        } else {
-            tree.ht.reserve(tree.maxval << 1);
-            tree.vecfreq.resize(tree.maxval);
-            tree.veclen.resize(tree.maxval);
-            tree.veccode.resize(tree.maxval);
-        }
-
-        tree.ht.push_back(Node());
-
-        if (feature == 0x00 || feature == 0x02) {
-            int i = 0;
-            tree.n = 1 << tree.limit;
-            if (feature == 0x02) {
-                tree.n = 1;
-                tree.ht.resize(2);
-                tree.root = 0;
-                tree.ht[0] = Node(0, &tree.ht[1]);
-                tree.ht[1] = Node(0);
-                tree.mplen[0] = 1;
-                tree.mpcode[0] = 0;
-                return;
-            }
-
-            for (int j = 0; j < tree.n; j++) {
-                T c = 0;
-
-                for (uchar k = 0; k < tree.mbft; k++) {
-                    c |= static_cast<T>(readBit(bytes, i++)) << k;
-                }
-
-                Node *u = &tree.ht[tree.root];
-                int vec = 0;
-
-                for (uchar k = 0; k < tree.limit; k++) {
-                    int e = readBit(bytes, i++);
-                    vec |= e << k;
-
-                    if (u->p[e] == nullptr) {
-                        tree.ht.push_back(Node());
-                        u->p[e] = &tree.ht[tree.ht.size() - 1];
-                    }
-
-                    u = u->p[e];
-                }
-
-                u->c = c;
-                if (tree.usemp) {
-                    tree.mplen[c] = tree.limit;
-                    tree.mpcode[c] = vec;
-                } else {
-                    tree.veclen[c] = tree.limit;
-                    tree.veccode[c] = vec;
-                }
-            }
-
-            bytes += (i + 7) >> 3;
-
-            return;
-        }
-
-        tree.n = 0;
-
-        int i = 0;
-
-        for (uchar len = 1; len <= tree.limit; len++) {
-            int cnt = 0;
-
-            for (uchar j = 0; j < len; j++) {
-                cnt |= static_cast<int>(readBit(bytes, i++)) << j;
-            }
-
-            for (int j = 0; j < cnt; j++) {
-                T c = 0;
-
-                for (uchar k = 0; k < tree.mbft; k++) {
-                    c |= static_cast<T>(readBit(bytes, i++)) << k;
-                }
-
-                Node *u = &tree.ht[0];
-                int vec = 0;
-
-                for (int k = 0; k < len; k++) {
-                    int e = readBit(bytes, i++);
-                    vec |= e << k;
-                    if (u->p[e] == nullptr) {
-                        tree.ht.push_back(Node());
-                        u->p[e] = &tree.ht[tree.ht.size() - 1];
-                    }
-
-                    u = u->p[e];
-                }
-
-                u->c = c;
-                ++tree.n;
-                if (tree.usemp) {
-                    tree.mplen[c] = len;
-                    tree.mpcode[c] = vec;
-                } else {
-                    tree.veclen[c] = len;
-                    tree.veccode[c] = vec;
-                }
-            }
-        }
-
-        bytes += (i + 7) >> 3;
-
-        // timer.stop("loadAsCode");
-
-        tree.setConstructed();
+    size_t encode(const std::vector<T> &bins, uchar *&bytes) override {
+        return encode(bins.data(), bins.size(), bytes);
     }
 
     size_t encode(const T *bins, size_t num_bin, uchar *&bytes) {
         if (tree.maxval == 1) {
-            int32ToBytes_bigEndian(bytes, num_bin ^ 0x1234abcd);
-            bytes += 4;
-            return 4;
+            int64ToBytes_bigEndian(bytes, num_bin ^ 0x1234abcd);
+            bytes += 8;
+            return 8;
         }
 
-        Timer timer(true);
+        // Timer timer(true);
 
         assert(tree.isConstructed());
 
         uchar *head = bytes;
-        bytes += 4;
+        bytes += 8;
 
-        int len = 0;
+        size_t len = 0;
 
         uchar mask = 0;
         uchar index = 0;
 
+        if (tree.n == 0) {
+            if (tree.offset == 0) {
+                for (size_t i = 0; i < num_bin; i++) {
+                    writeBytes(bytes, bins[i], tree.mbft, mask, index);
+                }
+            } else {
+                for (size_t i = 0; i < num_bin; i++) {
+                    writeBytes(bytes, bins[i] - tree.offset, tree.mbft, mask, index);
+                }
+            }
+            writeBytesClearMask(bytes, mask, index);
+            len = tree.mbft * num_bin;
+            int64ToBytes_bigEndian(head, len ^ 0x1234abcd);
+            return bytes - head;
+        }
+
         if (tree.offset == 0) {
             if (tree.usemp) {
-                for (int i = 0; i < num_bin; i++) {
+                for (size_t i = 0; i < num_bin; i++) {
                     const T &it = bins[i];
                     const uchar &len_i = tree.mplen[it];
                     const int &code_i = tree.mpcode[it];
@@ -580,7 +379,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                     writeBytes(bytes, code_i, len_i, mask, index);
                 }
             } else {
-                for (int i = 0; i < num_bin; i++) {
+                for (size_t i = 0; i < num_bin; i++) {
                     const T &it = bins[i];
                     const uchar &len_i = tree.veclen[it];
                     const int &code_i = tree.veccode[it];
@@ -590,7 +389,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             }
         } else {
             if (tree.usemp) {
-                for (int i = 0; i < num_bin; i++) {
+                for (size_t i = 0; i < num_bin; i++) {
                     const T &it = bins[i];
                     const uchar &len_i = tree.mplen[it - tree.offset];
                     const int &code_i = tree.mpcode[it - tree.offset];
@@ -598,7 +397,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                     writeBytes(bytes, code_i, len_i, mask, index);
                 }
             } else {
-                for (int i = 0; i < num_bin; i++) {
+                for (size_t i = 0; i < num_bin; i++) {
                     const T &it = bins[i];
                     const uchar &len_i = tree.veclen[it - tree.offset];
                     const int &code_i = tree.veccode[it - tree.offset];
@@ -610,9 +409,9 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
         writeBytesClearMask(bytes, mask, index);
 
-        int32ToBytes_bigEndian(head, len ^ 0x1234abcd);
+        int64ToBytes_bigEndian(head, len ^ 0x1234abcd);
 
-        timer.stop("encode");
+        // timer.stop("encode");
 
         // printf("code size = %d\n",(int)(bytes-head));
 
@@ -626,28 +425,94 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         return bytes - head;
     }
 
-    size_t encode(const std::vector<T> &bins, uchar *&bytes) override {
-        return encode(bins.data(), bins.size(), bytes);
-    }
-
     void postprocess_encode() override {}
 
     void preprocess_decode() override {}
 
     std::vector<T> decode(const uchar *&bytes, size_t targetLength) override {
         if (tree.maxval == 1) {
-            int len = bytesToInt32_bigEndian(bytes) ^ 0x1234abcd;
-            bytes += 4;
+            size_t len = bytesToInt64_bigEndian(bytes) ^ 0x1234abcd;
+            bytes += 8;
+            //                assert(len==targetLength);
+
             return std::vector<T>(len, tree.offset);
         }
 
+        // Timer timer(true);
+
         assert(tree.isConstructed());
 
-        int len = bytesToInt32_bigEndian(bytes) ^ 0x1234abcd;
-        bytes += 4;
+        // Node *u = &tree.ht[tree.root];
 
+        size_t len = bytesToInt64_bigEndian(bytes) ^ 0x1234abcd;
+        bytes += 8;
         std::vector<T> out(targetLength);
-        int outLen = 0;
+        size_t outLen = 0;
+
+        // For fixed length encoding
+        if (tree.n == 0) {
+            size_t byteIndex = 0;
+            size_t i = 0;
+            size_t b;
+
+            T c = 0;
+            int j = 0;
+
+            if (tree.offset == 0) {
+                for (; i + 8 < len; i += 8, byteIndex++) {
+                    b = bytes[byteIndex];
+
+                    c |= ((b) & 1) << j, ++j;
+                    if (j == tree.mbft) out[outLen++] = c, c = j = 0;
+                    c |= ((b >> 1) & 1) << j, ++j;
+                    if (j == tree.mbft) out[outLen++] = c, c = j = 0;
+                    c |= ((b >> 2) & 1) << j, ++j;
+                    if (j == tree.mbft) out[outLen++] = c, c = j = 0;
+                    c |= ((b >> 3) & 1) << j, ++j;
+                    if (j == tree.mbft) out[outLen++] = c, c = j = 0;
+                    c |= ((b >> 4) & 1) << j, ++j;
+                    if (j == tree.mbft) out[outLen++] = c, c = j = 0;
+                    c |= ((b >> 5) & 1) << j, ++j;
+                    if (j == tree.mbft) out[outLen++] = c, c = j = 0;
+                    c |= ((b >> 6) & 1) << j, ++j;
+                    if (j == tree.mbft) out[outLen++] = c, c = j = 0;
+                    c |= ((b >> 7) & 1) << j, ++j;
+                    if (j == tree.mbft) out[outLen++] = c, c = j = 0;
+                }
+            } else {
+                for (; i + 8 < len; i += 8, byteIndex++) {
+                    b = bytes[byteIndex];
+
+                    c |= ((b) & 1) << j, ++j;
+                    if (j == tree.mbft) out[outLen++] = c + tree.offset, c = j = 0;
+                    c |= ((b >> 1) & 1) << j, ++j;
+                    if (j == tree.mbft) out[outLen++] = c + tree.offset, c = j = 0;
+                    c |= ((b >> 2) & 1) << j, ++j;
+                    if (j == tree.mbft) out[outLen++] = c + tree.offset, c = j = 0;
+                    c |= ((b >> 3) & 1) << j, ++j;
+                    if (j == tree.mbft) out[outLen++] = c + tree.offset, c = j = 0;
+                    c |= ((b >> 4) & 1) << j, ++j;
+                    if (j == tree.mbft) out[outLen++] = c + tree.offset, c = j = 0;
+                    c |= ((b >> 5) & 1) << j, ++j;
+                    if (j == tree.mbft) out[outLen++] = c + tree.offset, c = j = 0;
+                    c |= ((b >> 6) & 1) << j, ++j;
+                    if (j == tree.mbft) out[outLen++] = c + tree.offset, c = j = 0;
+                    c |= ((b >> 7) & 1) << j, ++j;
+                    if (j == tree.mbft) out[outLen++] = c + tree.offset, c = j = 0;
+                }
+            }
+
+            b = bytes[byteIndex];
+
+            for (size_t k = 0; k < len - i; k++) {
+                c |= ((b >> k) & 1) << j, ++j;
+                if (j == tree.mbft) out[outLen++] = c + tree.offset, c = j = 0;
+            }
+
+            bytes += (len + 7) >> 3;
+
+            return out;
+        }
 
         if (tree.limit > 16) {
             // if huffman tree is large, a cache of huffman codebook is used to increase the performance
@@ -662,15 +527,15 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             Node *t = &tree.ht[tree.root];
             Node *n = t;
 
-            int tableSize = 1 << maxBits;
-            std::vector<int> valueTable(tableSize);
+            size_t tableSize = 1 << maxBits;
+            std::vector<T> valueTable(tableSize);
             std::vector<uint8_t> lengthTable(tableSize);
             std::vector<Node *> nodeTable(tableSize);
-            int j;
-            for (uint32_t i = 0; i < tableSize; i++) {
+            size_t j;
+            for (size_t i = 0; i < tableSize; i++) {
                 n = t;
                 j = 0;
-                uint32_t res = i;
+                size_t res = i;
                 while (!n->isLeaf() && j < maxBits) {
                     n = n->p[res & 0x00000001];
                     res >>= 1;
@@ -686,8 +551,8 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                 }
             }
 
-            int leftBits = 0;
-            uint32_t currentValue = 0;
+            size_t leftBits = 0;
+            T currentValue = 0;
             size_t i = 0;
 
             while (count < targetLength) {
@@ -697,8 +562,8 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                     i++;
                 }
 
-                uint32_t index = currentValue & ((1 << maxBits) - 1);
-                int value = valueTable[index];
+                size_t index = currentValue & ((1 << maxBits) - 1);
+                T value = valueTable[index];
                 if (value != -1) {
                     out[count] = value;
                     int bitLength = lengthTable[index];
@@ -797,14 +662,466 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         }
         bytes += (len + 7) >> 3;
 
+        // timer.stop("decode");
+
         return out;
     }
 
     void postprocess_decode() override {}
 
-    void save(uchar *&c) override { saveAsCode(c); }
+    void save(uchar *&c) override {
+        //            saveAsCode(c);
+        saveAsDFSOrder(c);
+    }
 
-    void load(const uchar *&c, size_t &remaining_length) override { loadAsCode(c, remaining_length); }
+    void load(const uchar *&c, size_t &remaining_length) override {
+        //            loadAsCode(c,remaining_length);
+        loadAsDFSOrder(c, remaining_length);
+    }
+
+   private:
+    static void writeBytesBit(uchar *&c, uchar val, uchar &mask, uchar &index) {
+        assert(val == 0 || val == 1);
+
+        mask |= val << index++;
+        if (index == 8) {
+            *c++ = mask;
+            mask = index = 0;
+        }
+    }
+
+    static void writeBytes(uchar *&c, T val, uchar len, uchar &mask, uchar &index) {
+        assert(len >= 1 && len <= sizeof(T) * 8);
+
+        if (len + index >= 8) {
+            mask |= (val & ((1 << (8 - index)) - 1)) << index;
+            val >>= 8 - index;
+            len -= 8 - index;
+            *c++ = mask;
+            mask = index = 0;
+
+            while (len >= 8) {
+                *c++ = val & (1 << 8) - 1;
+                val >>= 8;
+                len -= 8;
+            }
+        }
+
+        mask |= (val & (1 << len) - 1) << index;
+        index += len;
+
+        // for(int i=0;i<len;i++){
+        //     mask|=(val&1)<<index++;
+        //     if(index==8){
+        //         *c++=mask;
+        //         mask=index=0;
+        //     }
+        //     val>>=1;
+        // }
+    }
+
+    static void writeBytesByte(uchar *&c, uchar val) { *c++ = val; }
+
+    static void writeBytesClearMask(uchar *&c, uchar &mask, uchar &index) {
+        if (index > 0) {
+            *c++ = mask;
+            // mask=i=0;
+        }
+    }
+
+    static uchar readBit(const uchar *const &c, int i) { return ((*(c + (i >> 3))) >> (i & 7)) & 1; }
+
+    void saveAsCode(uchar *&c) {
+        // Timer timer(true);
+
+        // uchar *head = c;
+        // whether the tree is full binary tree
+
+        uchar &limit = tree.limit;
+
+        std::vector<std::deque<T>> mp(limit + 1);
+
+        if (tree.usemp) {
+            for (auto it : tree.mplen) {
+                mp[it.second].push_back(it.first);
+            }
+        } else {
+            for (int i = 0; i < tree.maxval; i++) {
+                mp[tree.veclen[i]].push_back(i);
+            }
+        }
+
+        uchar mask = 0;
+        uchar index = 0;
+
+        assert(sizeof(T) <= 8);
+
+        if (mp[limit].size() == tree.n) {
+            // 00 XXXXXX (mbft)
+            if (tree.maxval > 1)
+                writeBytesByte(c, tree.mbft);
+            else
+                writeBytesByte(c, 0x80 | tree.mbft);
+
+            writeBytesByte(c, ((sizeof(T) - 1) << 5) | (limit - 1));
+
+            writeBytes(c, tree.offset, sizeof(T) << 3, mask, index);
+
+            int32ToBytes_bigEndian(c, tree.n);
+            c += 4;
+
+            int cnt = mp[limit].size();
+
+            uchar logcnt = 0;
+            while (logcnt < 32 && (1 << logcnt) != cnt) ++logcnt;
+            assert(logcnt != 32);
+
+            if (tree.n > 1) {
+                for (T it : mp[limit]) {
+                    writeBytes(c, it, tree.mbft, mask, index);
+
+                    const int code = tree.usemp ? tree.mpcode[it] : tree.veccode[it];
+
+                    writeBytes(c, code, logcnt, mask, index);
+                }
+
+                writeBytesClearMask(c, mask, index);
+            }
+
+            return;
+        }
+
+        writeBytesByte(c, 0x40 | tree.mbft);
+
+        writeBytesByte(c, ((sizeof(T) - 1) << 5) | (limit - 1));
+
+        writeBytes(c, tree.offset, sizeof(T) << 3, mask, index);
+
+        int32ToBytes_bigEndian(c, tree.maxval);
+        c += 4;
+
+        for (uchar len = 1; len <= limit; len++) {
+            int cnt = mp[len].size();
+
+            writeBytes(c, cnt, len, mask, index);
+
+            if (cnt) {
+                for (const T &it : mp[len]) {
+                    writeBytes(c, it, tree.mbft, mask, index);
+
+                    const int code = tree.usemp ? tree.mpcode[it] : tree.veccode[it];
+
+                    writeBytes(c, code, len, mask, index);
+                }
+            }
+        }
+
+        writeBytesClearMask(c, mask, index);
+
+        // timer.stop("saveAsCode");
+
+        //            printf("n = %d\n",tree.n);
+        //
+        //            printf("huffman tree size = %d\n",(int)(c-head));
+        //
+        //            Lossless_zstd zstd;
+        //            size_t compressed_tree_size;
+        //
+        //            // uchar *compressed_tree = zstd.compress(head,c-head,compressed_tree_size);
+        //            delete[] zstd.compress(head,c-head,compressed_tree_size);
+        //
+        //            printf("compressed huffman tree size = %d\n",(int)compressed_tree_size);
+
+        // return;
+    }
+
+    void saveAsDFSOrder(uchar *&c) {
+        // uchar *head = c;
+
+        uchar mask = 0, index = 0;
+
+        writeBytesByte(c, (tree.usemp << 7) | ((tree.n == 1) << 6) | tree.mbft);
+        writeBytes(c, tree.offset, sizeof(T) << 3, mask, index);
+        int64ToBytes_bigEndian(c, tree.n);
+        c += sizeof(size_t);
+        if (tree.usemp == 0x00) {
+            int64ToBytes_bigEndian(c, tree.maxval);
+            c += sizeof(size_t);
+        }
+
+        if (tree.n == 0 || tree.n == 1) {
+            writeBytesClearMask(c, mask, index);
+            return;
+        }
+
+        std::stack<Node *> stk;
+
+        stk.push(&tree.ht[tree.root]);
+
+        while (!stk.empty()) {
+            Node *u = stk.top();
+            stk.pop();
+            if (u->isLeaf()) {
+                writeBytesBit(c, 0x01, mask, index);
+                writeBytes(c, u->c, tree.mbft, mask, index);
+            } else {
+                writeBytesBit(c, 0x00, mask, index);
+                stk.push(u->p[1]);
+                stk.push(u->p[0]);
+            }
+        }
+
+        writeBytesClearMask(c, mask, index);
+
+        //            printf("n = %d\n",tree.n);
+        //
+        //            printf("huffman tree size = %d\n",(int)(c-head));
+        //
+        //            Lossless_zstd zstd;
+        //            size_t compressed_tree_size;
+        //
+        //            // uchar *compressed_tree = zstd.compress(head,c-head,compressed_tree_size);
+        //            delete[] zstd.compress(head,c-head,compressed_tree_size);
+        //
+        //            printf("compressed huffman tree size = %d\n",(int)compressed_tree_size);
+    }
+
+    void loadAsCode(const uchar *&bytes, size_t &remaining_length) {
+        // Timer timer(true);
+
+        tree.init();
+
+        uchar feature = (*bytes) >> 6;
+        tree.mbft = (*bytes) & 0x3f;
+        ++bytes;
+
+        // uchar szT = ((*bytes) >> 5) + 1;
+        tree.limit = ((*bytes) & 0x1f) + 1;
+        ++bytes;
+
+        // assert(szT == sizeof(T));
+
+        for (int i = 0; i < sizeof(T); i++) {
+            tree.offset |= static_cast<T>(*bytes) << (i << 3);
+            ++bytes;
+        }
+
+        tree.maxval = bytesToInt32_bigEndian(bytes);
+        bytes += 4;
+
+        tree.usemp = tree.maxval >= (1 << 12) && (1 << (tree.limit - 1)) < tree.maxval ? 1 : 0;
+
+        if (tree.usemp) {
+            tree.ht.reserve(2 << tree.limit);
+            //                tree.mpfreq.reserve(1<<tree.limit);
+            //                tree.mplen.reserve(1<<tree.limit);
+            //                tree.mpcode.reserve(1<<tree.limit);
+        } else {
+            tree.ht.reserve(tree.maxval << 1);
+            tree.vecfreq.resize(tree.maxval);
+            tree.veclen.resize(tree.maxval);
+            tree.veccode.resize(tree.maxval);
+        }
+
+        tree.ht.push_back(Node());
+
+        if (feature == 0x00 || feature == 0x02) {
+            int i = 0;
+            tree.n = 1 << tree.limit;
+            if (feature == 0x02) {
+                tree.n = 1;
+                tree.ht.resize(2);
+                tree.root = 0;
+                tree.ht[0] = Node(0, &tree.ht[1]);
+                tree.ht[1] = Node(0);
+                tree.mplen[0] = 1;
+                tree.mpcode[0] = 0;
+                tree.setConstructed();
+                return;
+            }
+
+            for (int j = 0; j < tree.n; j++) {
+                T c = 0;
+
+                for (uchar k = 0; k < tree.mbft; k++) {
+                    c |= static_cast<T>(readBit(bytes, i++)) << k;
+                }
+
+                Node *u = &tree.ht[tree.root];
+                int vec = 0;
+
+                for (uchar k = 0; k < tree.limit; k++) {
+                    int e = readBit(bytes, i++);
+                    vec |= e << k;
+
+                    if (u->p[e] == nullptr) {
+                        tree.ht.push_back(Node());
+                        u->p[e] = &tree.ht[tree.ht.size() - 1];
+                    }
+
+                    u = u->p[e];
+                }
+
+                u->c = c;
+                if (tree.usemp) {
+                    tree.mplen[c] = tree.limit;
+                    tree.mpcode[c] = vec;
+                } else {
+                    tree.veclen[c] = tree.limit;
+                    tree.veccode[c] = vec;
+                }
+            }
+
+            bytes += (i + 7) >> 3;
+
+            tree.setConstructed();
+
+            return;
+        }
+
+        tree.n = 0;
+
+        int i = 0;
+
+        for (uchar len = 1; len <= tree.limit; len++) {
+            int cnt = 0;
+
+            for (uchar j = 0; j < len; j++) {
+                cnt |= static_cast<int>(readBit(bytes, i++)) << j;
+            }
+
+            for (int j = 0; j < cnt; j++) {
+                T c = 0;
+
+                for (uchar k = 0; k < tree.mbft; k++) {
+                    c |= static_cast<T>(readBit(bytes, i++)) << k;
+                }
+
+                Node *u = &tree.ht[0];
+                int vec = 0;
+
+                for (int k = 0; k < len; k++) {
+                    int e = readBit(bytes, i++);
+                    vec |= e << k;
+                    if (u->p[e] == nullptr) {
+                        tree.ht.push_back(Node());
+                        u->p[e] = &tree.ht[tree.ht.size() - 1];
+                    }
+
+                    u = u->p[e];
+                }
+
+                u->c = c;
+                ++tree.n;
+                if (tree.usemp) {
+                    tree.mplen[c] = len;
+                    tree.mpcode[c] = vec;
+                } else {
+                    tree.veclen[c] = len;
+                    tree.veccode[c] = vec;
+                }
+            }
+        }
+
+        bytes += (i + 7) >> 3;
+
+        tree.setConstructed();
+
+        // timer.stop("loadAsCode");
+    }
+
+    void loadAsDFSOrder(const uchar *&bytes, size_t &remaining_length) {
+        tree.init();
+
+        tree.usemp = (*bytes) >> 7;
+        tree.mbft = (*bytes) & 0x3f;
+        ++bytes;
+
+        for (int i = 0; i < sizeof(T); i++) {
+            tree.offset |= static_cast<T>(*bytes) << (i << 3);
+            ++bytes;
+        }
+
+        tree.n = bytesToInt64_bigEndian(bytes);
+        bytes += sizeof(size_t);
+        tree.ht.reserve(tree.n << 1);
+
+        if (tree.usemp == 0x00) {
+            tree.maxval = bytesToInt64_bigEndian(bytes);
+            bytes += sizeof(size_t);
+            if (tree.n > 0) {
+                tree.veccode.resize(tree.maxval);
+                tree.veclen.resize(tree.maxval);
+            }
+        }
+
+        if (tree.n == 0) {
+            tree.setConstructed();
+            return;
+        }
+
+        if (tree.n == 1) {
+            tree.ht.resize(2);
+            tree.root = 0;
+            tree.ht[0] = Node(0, &tree.ht[1]);
+            tree.ht[1] = Node(0);
+            if (tree.usemp) {
+                tree.mplen[0] = 1;
+                tree.mpcode[0] = 0;
+            } else {
+                tree.veclen[0] = 1;
+                tree.veccode[0] = 0;
+            }
+            tree.setConstructed();
+            return;
+        }
+
+        tree.root = 0;
+        tree.ht.push_back(Node());
+        std::stack<Node *> stk;
+        stk.push(&tree.ht[0]);
+        size_t i = 1;
+
+        while (!stk.empty()) {
+            Node *u = stk.top();
+
+            if (readBit(bytes, i++) == 0x00) {
+                tree.ht.push_back(Node());
+                if (u->p[0] == nullptr) {
+                    u->p[0] = &tree.ht[tree.ht.size() - 1];
+                } else {
+                    u->p[1] = &tree.ht[tree.ht.size() - 1];
+                }
+                stk.push(&tree.ht[tree.ht.size() - 1]);
+            } else {
+                T c = 0;
+                for (int j = 0; j < tree.mbft; j++) c |= static_cast<T>(readBit(bytes, i++)) << j;
+                tree.ht.push_back(Node(c));
+                if (u->p[0] == nullptr)
+                    u->p[0] = &tree.ht[tree.ht.size() - 1];
+                else
+                    u->p[1] = &tree.ht[tree.ht.size() - 1];
+                while (!stk.empty() && stk.top()->p[1] != nullptr) {
+                    //                        Node *tem=stk.top();
+                    stk.pop();
+                    //                        if(!stk.empty()){
+                    //                            if(stk.top()->p[0]==nullptr) stk.top()->p[0]=tem;
+                    //                            else stk.top()->p[1]=tem;
+                    //                        }
+                }
+            }
+        }
+
+        bytes += (i + 7) >> 3;
+
+        if (tree.usemp) {
+            tree.dfs_mp(&tree.ht[tree.root]);
+        } else {
+            tree.dfs_vec(&tree.ht[tree.root]);
+        }
+
+        tree.setConstructed();
+    }
 };
 }  // namespace SZ3
 
