@@ -17,7 +17,7 @@ const H5Z_class2_t H5Z_SZ3[1] = {{
     "SZ3 compressor/decompressor for floating-point data.", /* Filter name for debugging */
     NULL,                                                   /* The "can apply" callback */
     H5Z_sz3_set_local,                                      /* The "set local" callback */
-    (H5Z_func_t)H5Z_filter_sz3,                             /* The actual filter function */
+    static_cast<H5Z_func_t>(H5Z_filter_sz3),                /* The actual filter function */
 }};
 
 H5PL_type_t H5PLget_plugin_type(void) { return H5PL_TYPE_FILTER; }
