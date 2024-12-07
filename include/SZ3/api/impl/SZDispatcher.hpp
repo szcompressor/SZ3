@@ -32,8 +32,8 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
             } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
                 return SZ_compress_bioMDXtcBased<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
             } else {
-                printf("SZ_compress_dispatcher, Method not supported\n");
-                exit(0);
+                fprintf(stderr, "Unknown compression algorithm\n");
+                throw std::invalid_argument("Unknown compression algorithm");
             }
 
         } catch (std::length_error &e) {
@@ -64,6 +64,7 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
             if (zstdCmpSize < cmpSize) {
                 conf.cmprAlgo = ALGO_LOSSLESS;
                 if (zstdCmpSize > cmpCap) {
+                    fprintf(stderr, SZ_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
                     throw std::length_error(SZ_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
                 }
                 memcpy(cmpData, zstdCmpData, zstdCmpSize);
@@ -83,7 +84,8 @@ void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize
         auto decDataPos = reinterpret_cast<uchar *>(decData);
         zstd.decompress(cmpData, cmpSize, decDataPos, decDataSize);
         if (decDataSize != conf.num * sizeof(T)) {
-            throw std::runtime_error("Decompressed data size does not match the original data size\n");
+            fprintf(stderr, "Decompressed data size does not match the original data size\n");
+            throw std::runtime_error("Decompressed data size does not match the original data size");
         }
     } else if (conf.cmprAlgo == ALGO_LORENZO_REG) {
         SZ_decompress_LorenzoReg<T, N>(conf, cmpData, cmpSize, decData);
@@ -96,8 +98,8 @@ void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize
     } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
         SZ_decompress_bioMDXtcBased<T, N>(conf, cmpData, cmpSize, decData);
     } else {
-        printf("SZ_decompress_dispatcher, Method not supported\n");
-        exit(0);
+        fprintf(stderr, "Unknown compression algorithm\n");
+        throw std::invalid_argument("Unknown compression algorithm");
     }
 }
 }  // namespace SZ3

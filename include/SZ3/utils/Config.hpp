@@ -55,8 +55,8 @@ const char *enum2Str(T e) {
     } else if (std::is_same<T, EB>::value) {
         return EB_STR[e];
     } else {
-        printf("invalid enum type for enum2Str()\n ");
-        exit(0);
+        fprintf(stderr, "invalid enum type for enum2Str()\n ");
+        throw std::invalid_argument("invalid enum type for enum2Str()");
     }
 }
 
@@ -92,8 +92,8 @@ class Config {
         INIReader cfg(cfgpath);
 
         if (cfg.ParseError() != 0) {
-            std::cout << "Can't load cfg file " << cfgpath << std::endl;
-            exit(0);
+            std::cerr << "Can't load cfg file " << cfgpath << std::endl;
+            throw std::invalid_argument("Can't load cfg file");
         }
 
         auto cmprAlgoStr = cfg.Get("GlobalSettings", "CmprAlgo", "");
@@ -113,8 +113,8 @@ class Config {
             } else if (cmprAlgoStr == ALGO_STR[ALGO_BIOMDXTC]) {
                 cmprAlgo = ALGO_BIOMDXTC;
             } else {
-                printf("Unknown compression algorithm %s\n", cmprAlgoStr.data());
-                exit(0);
+                fprintf(stderr, "Unknown compression algorithm %s\n", cmprAlgoStr.data());
+                throw std::invalid_argument("Unknown compression algorithm");
             }
         }
         auto ebModeStr = cfg.Get("GlobalSettings", "ErrorBoundMode", "");
@@ -132,8 +132,8 @@ class Config {
             } else if (ebModeStr == EB_STR[EB_ABS_OR_REL]) {
                 errorBoundMode = EB_ABS_OR_REL;
             } else {
-                printf("Unknown error bound mode %s\n", ebModeStr.data());
-                exit(0);
+                fprintf(stderr, "Unknown error bound mode %s\n", ebModeStr.data());
+                throw std::invalid_argument("Unknown error bound mode");
             }
         }
         absErrorBound = cfg.GetReal("GlobalSettings", "AbsErrorBound", absErrorBound);
@@ -211,6 +211,7 @@ class Config {
         // auto c0 = c;
         read(sz3MagicNumber, c);
         if (sz3MagicNumber != SZ3_MAGIC_NUMBER) {
+            fprintf(stderr, "magic number mismatch, the input data is not compressed by SZ3\n");
             throw std::invalid_argument("magic number mismatch, the input data is not compressed by SZ3");
         }
         read(sz3DataVer, c);
@@ -219,6 +220,7 @@ class Config {
             printf("program v%s , program-data %s , input data v%s\n", SZ3_VER, SZ3_DATA_VER,
                    versionStr(sz3DataVer).data());
             ss << "Please use SZ3 v" << versionStr(sz3DataVer) << " to decompress the data" << std::endl;
+            std::cerr<< ss.str();
             throw std::invalid_argument(ss.str());
         }
 
