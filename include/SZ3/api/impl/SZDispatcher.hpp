@@ -26,6 +26,9 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
                 cmpSize = SZ_compress_Interp_lorenzo<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
             } else if (conf.cmprAlgo == ALGO_NOPRED) {
                 cmpSize = SZ_compress_nopred<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+            } else {
+                printf("SZ_compress_dispatcher, Method not supported\n");
+                exit(0);
             }
 
         } catch (std::length_error &e) {

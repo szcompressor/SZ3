@@ -95,30 +95,40 @@ class Config {
         }
 
         auto cmprAlgoStr = cfg.Get("GlobalSettings", "CmprAlgo", "");
-        if (cmprAlgoStr == ALGO_STR[ALGO_LORENZO_REG]) {
-            cmprAlgo = ALGO_LORENZO_REG;
-        } else if (cmprAlgoStr == ALGO_STR[ALGO_INTERP_LORENZO]) {
-            cmprAlgo = ALGO_INTERP_LORENZO;
-        } else if (cmprAlgoStr == ALGO_STR[ALGO_INTERP]) {
-            cmprAlgo = ALGO_INTERP;
-        } else if (cmprAlgoStr == ALGO_STR[ALGO_NOPRED]) {
-            cmprAlgo = ALGO_NOPRED;
-        } else if (cmprAlgoStr == ALGO_STR[ALGO_LOSSLESS]) {
-            cmprAlgo = ALGO_LOSSLESS;
+        if (!cmprAlgoStr.empty()) {
+            if (cmprAlgoStr == ALGO_STR[ALGO_LORENZO_REG]) {
+                cmprAlgo = ALGO_LORENZO_REG;
+            } else if (cmprAlgoStr == ALGO_STR[ALGO_INTERP_LORENZO]) {
+                cmprAlgo = ALGO_INTERP_LORENZO;
+            } else if (cmprAlgoStr == ALGO_STR[ALGO_INTERP]) {
+                cmprAlgo = ALGO_INTERP;
+            } else if (cmprAlgoStr == ALGO_STR[ALGO_NOPRED]) {
+                cmprAlgo = ALGO_NOPRED;
+            } else if (cmprAlgoStr == ALGO_STR[ALGO_LOSSLESS]) {
+                cmprAlgo = ALGO_LOSSLESS;
+            } else {
+                printf("Unknown compression algorithm %s\n", cmprAlgoStr.data());
+                exit(0);
+            }
         }
         auto ebModeStr = cfg.Get("GlobalSettings", "ErrorBoundMode", "");
-        if (ebModeStr == EB_STR[EB_ABS]) {
-            errorBoundMode = EB_ABS;
-        } else if (ebModeStr == EB_STR[EB_REL]) {
-            errorBoundMode = EB_REL;
-        } else if (ebModeStr == EB_STR[EB_PSNR]) {
-            errorBoundMode = EB_PSNR;
-        } else if (ebModeStr == EB_STR[EB_L2NORM]) {
-            errorBoundMode = EB_L2NORM;
-        } else if (ebModeStr == EB_STR[EB_ABS_AND_REL]) {
-            errorBoundMode = EB_ABS_AND_REL;
-        } else if (ebModeStr == EB_STR[EB_ABS_OR_REL]) {
-            errorBoundMode = EB_ABS_OR_REL;
+        if (!ebModeStr.empty()) {
+            if (ebModeStr == EB_STR[EB_ABS]) {
+                errorBoundMode = EB_ABS;
+            } else if (ebModeStr == EB_STR[EB_REL]) {
+                errorBoundMode = EB_REL;
+            } else if (ebModeStr == EB_STR[EB_PSNR]) {
+                errorBoundMode = EB_PSNR;
+            } else if (ebModeStr == EB_STR[EB_L2NORM]) {
+                errorBoundMode = EB_L2NORM;
+            } else if (ebModeStr == EB_STR[EB_ABS_AND_REL]) {
+                errorBoundMode = EB_ABS_AND_REL;
+            } else if (ebModeStr == EB_STR[EB_ABS_OR_REL]) {
+                errorBoundMode = EB_ABS_OR_REL;
+            } else {
+                printf("Unknown error bound mode %s\n", ebModeStr.data());
+                exit(0);
+            }
         }
         absErrorBound = cfg.GetReal("GlobalSettings", "AbsErrorBound", absErrorBound);
         relErrorBound = cfg.GetReal("GlobalSettings", "RelErrorBound", relErrorBound);
