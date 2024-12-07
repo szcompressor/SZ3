@@ -71,9 +71,17 @@ class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, 
          * absolute error bound, scale down the error limit slightly.
          * The precision is twice the required maximum error. */
         double reciprocalPrecision = 1.0 / (conf.absErrorBound * 0.99999 * 2.0);
-
+        // Define the range limits for int as double
+        const auto INT_MIN_D = static_cast<double>(std::numeric_limits<int>::min())/4;
+        const auto INT_MAX_D = static_cast<double>(std::numeric_limits<int>::max())/4;
         for (size_t i = 0; i < conf.num; i++) {
-            quantData[i] = std::floor(data[i] * reciprocalPrecision + 0.5);
+            double quant = std::floor(data[i] * reciprocalPrecision + 0.5);
+            // Range checking
+            if (quant < INT_MIN_D || quant > INT_MAX_D) {
+                throw std::out_of_range("Quantization value out of int range in SZBioMDXtcDecomposition, consider "
+                                        "increasing the error bound");
+            }
+            quantData[i] = static_cast<int>(quant);
         }
         return quantData;
     }
@@ -143,6 +151,8 @@ class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, 
          * absolute error bound, scale down the error limit slightly.
          * The precision is twice the required maximum error. */
         double reciprocalPrecision = 1.0 / (conf.absErrorBound * 0.99999 * 2.0);
+        const auto INT_MIN_D = static_cast<double>(std::numeric_limits<int>::min())/4;
+        const auto INT_MAX_D = static_cast<double>(std::numeric_limits<int>::max())/4;
 
         for (size_t i = 0; i < lastFrame; i++)  // time
         {
@@ -151,7 +161,12 @@ class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, 
                 for (size_t k = 0; k < dims[2]; k++)  // xyz
                 {
                     size_t idx = i * stride[0] + j * stride[1] + k;
-                    quantData[idx] = std::floor(data[idx] * reciprocalPrecision + 0.5);
+                    double quant = std::floor(data[idx] * reciprocalPrecision + 0.5);
+                    if (quant < INT_MIN_D || quant > INT_MAX_D) {
+                        throw std::out_of_range("Quantization value out of int range in SZBioMDXtcDecomposition, consider "
+                                                "increasing the error bound");
+                    }
+                    quantData[idx] = static_cast<int>(quant);
                 }
             }
         }

@@ -343,7 +343,7 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         int oldLocalValue2 = 0;
         int oldLocalValue3 = 0;
         const int *inputDataPtr = quantData.data();
-        while (inputDataPtr < quantData.data() + size3) {
+        while (inputDataPtr + 2 < quantData.data() + size3) {
             int localValue1 = *inputDataPtr++;
             if (localValue1 < minInt[0]) {
                 minInt[0] = localValue1;
@@ -389,13 +389,20 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
 
         if (static_cast<float>(maxInt[0]) - static_cast<float>(minInt[0]) >= maxAbsoluteInt ||
             static_cast<float>(maxInt[1]) - static_cast<float>(minInt[1]) >= maxAbsoluteInt ||
-            static_cast<float>(maxInt[2]) - static_cast<float>(minInt[2]) >= maxAbsoluteInt) {
+            static_cast<float>(maxInt[2]) - static_cast<float>(minInt[2]) >= maxAbsoluteInt ||
+            static_cast<float>(maxInt[0]) >= maxAbsoluteInt/4 ||
+            static_cast<float>(maxInt[1]) >= maxAbsoluteInt/4 ||
+            static_cast<float>(maxInt[2]) >= maxAbsoluteInt/4 ||
+            static_cast<float>(minInt[0]) <= -maxAbsoluteInt/4 ||
+            static_cast<float>(minInt[1]) <= -maxAbsoluteInt/4 ||
+            static_cast<float>(minInt[2]) <= -maxAbsoluteInt/4 ){
             /* turning value in unsigned by subtracting minInt
              * would cause overflow
              */
             fprintf(stderr,
                     "Error. Turning value in unsigned by subtracting minInt would cause "
                     "overflow.\n");
+            throw std::runtime_error("Error. Turning value in unsigned by subtracting minInt would cause overflow.");
         }
         unsigned int sizeInt[3];
         sizeInt[0] = maxInt[0] - minInt[0] + 1;
