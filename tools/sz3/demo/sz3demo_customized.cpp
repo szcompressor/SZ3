@@ -3,7 +3,7 @@
 using namespace SZ3;
 
 template<class T, uint N>
-class MyDecomposition : public concepts::DecompositionInterface<T, N> {
+class MyDecomposition : public concepts::DecompositionInterface<T, int, N> {
 public:
     MyDecomposition(const Config &conf) : num(conf.num) {}
 
@@ -32,6 +32,9 @@ public:
         read(num, c, remaining_length);
     }
 
+    std::pair<int, int> get_out_range() {
+            return std::make_pair(0, 0);
+    }
 private:
     size_t num;
 };
@@ -46,7 +49,8 @@ void SZ3_customized_compress(Config &conf, T *data, char *dst, size_t &outSize) 
             HuffmanEncoder<int>(),
             Lossless_zstd());
 
-    sz->compress(conf, data, (uchar *) dst, outSize);
+    outSize = sz->compress(conf, data, (uchar *) dst, outSize);
+    
 }
 
 template<class T, uint N>
