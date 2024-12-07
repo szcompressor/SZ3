@@ -335,7 +335,6 @@ void get_cluster(T *data, size_t num, float &level_start, float &level_offset, i
         //            std::cout << "No clusters are found." << std::endl;
         level_num = 0;
         return;
-        //            exit(0);
     }
 
     //        std::cout << "centers : ";

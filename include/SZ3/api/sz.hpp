@@ -68,8 +68,8 @@ size_t SZ_compress(const SZ3::Config &config, const T *data, char *cmpData, size
     } else if (conf.N == 4) {
         cmpDataLen = SZ_compress_impl<T, 4>(conf, data, cmpDataPos, cmpDataCap);
     } else {
-        printf("Data dimension higher than 4 is not supported.\n");
-        exit(0);
+        fprintf(stderr, "Data dimension higher than 4 is not supported.\n");
+        throw std::invalid_argument("Data dimension higher than 4 is not supported.");
     }
 
     auto cmpConfPos = reinterpret_cast<uchar *>(cmpData);
@@ -134,8 +134,8 @@ void SZ_decompress(SZ3::Config &config, char *cmpData, size_t cmpSize, T *&decDa
     } else if (config.N == 4) {
         SZ_decompress_impl<T, 4>(config, cmpDataPos, cmpDataSize, decData);
     } else {
-        printf("Data dimension higher than 4 is not supported.\n");
-        exit(0);
+        fprintf(stderr, "Data dimension higher than 4 is not supported.\n");
+        throw std::invalid_argument("Data dimension higher than 4 is not supported.");
     }
 }
 

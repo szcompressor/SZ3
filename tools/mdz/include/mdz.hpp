@@ -125,8 +125,8 @@ template <typename T, uint N>
 float *VQ(Config conf, size_t ts, T *data, size_t &compressed_size, bool decom, int method, float level_start,
           float level_offset, int level_num) {
     if (level_num == 0) {
-        printf("VQ/VQT not availble on current dataset, please use ADP or MT\n");
-        exit(0);
+        fprintf(stderr, "VQ/VQT not availble on current dataset, please use ADP or MT\n");
+        throw std::runtime_error("VQ/VQT not availble on current dataset, please use ADP or MT");
     }
 
     auto sz = make_compressor_exaalt<T, N>(LinearQuantizer<float>(conf.absErrorBound, conf.quantbinCnt / 2),
@@ -284,8 +284,8 @@ template <typename T, uint N>
 uchar *LAMMPS_compress(Config conf, T *data, int method, size_t &compressed_size, float level_start, float level_offset,
                        int level_num, T *ts0) {
     if ((method == 0 || method == 1) && level_num == 0) {
-        printf("VQ/VQT not available on current dataset, please use ADP or MT\n");
-        exit(0);
+        fprintf(stderr, "VQ/VQT not available on current dataset, please use ADP or MT\n");
+        throw std::runtime_error("VQ/VQT not available on current dataset, please use ADP or MT");
     }
     compressed_size = conf.num * sizeof(T);
     auto compressed_data = new uchar[compressed_size];

@@ -198,8 +198,8 @@ class multi_dimensional_range : public std::enable_shared_from_this<multi_dimens
                       "ForwardIt1 must be convertible to std::size_t");
         if (global_dims_end - global_dims_begin != N) {
             std::cout << global_dims_end - global_dims_begin << " " << N << std::endl;
-            std::cerr << "#dimensions does not match!\n";
-            exit(0);
+            std::cerr << "#dimensions does not match\n";
+            throw std::invalid_argument("#dimensions does not match");
         }
         set_access_stride(stride_);
         // set global dimensions

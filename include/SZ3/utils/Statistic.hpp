@@ -50,8 +50,8 @@ void calAbsErrorBound(Config &conf, const T *data, T range = 0) {
             conf.absErrorBound =
                 std::max(conf.absErrorBound, conf.relErrorBound * ((range > 0) ? range : data_range(data, conf.num)));
         } else {
-            printf("Error, error bound mode not supported\n");
-            exit(0);
+            fprintf(stderr, "Error bound mode not supported\n");
+            throw std::invalid_argument("Error bound mode not supported");
         }
     }
 }

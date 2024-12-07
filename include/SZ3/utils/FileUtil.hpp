@@ -26,11 +26,12 @@ template <typename Type>
 void readfile(const char *file, const size_t num, Type *data) {
     std::ifstream fin(file, std::ios::binary);
     if (!fin) {
-        std::cout << " Error, Couldn't find the file: " << file << "\n";
-        exit(0);
+        std::cerr << " Error, Couldn't find the file: " << file << "\n";
+        throw std::invalid_argument("Couldn't find the file");
     }
     fin.seekg(0, std::ios::end);
     if (fin.tellg() / sizeof(Type) != num) {
+        fprintf(stderr, "File size is not equal to the input setting\n");
         throw std::invalid_argument("File size is not equal to the input setting");
     }
     fin.seekg(0, std::ios::beg);
@@ -49,8 +50,8 @@ template <typename Type>
 std::unique_ptr<Type[]> readfile(const char *file, size_t &num) {
     std::ifstream fin(file, std::ios::binary);
     if (!fin) {
-        std::cout << " Error, Couldn't find the file: " << file << std::endl;
-        exit(0);
+        std::cerr << " Error, Couldn't find the file: " << file << std::endl;
+        throw std::invalid_argument("Couldn't find the file");
     }
     fin.seekg(0, std::ios::end);
     num = fin.tellg() / sizeof(Type);
@@ -78,8 +79,8 @@ void writeTextFile(const char *file, Type *data, size_t num_elements) {
         }
         fout.close();
     } else {
-        std::cout << "Error, unable to open file for output: " << file << std::endl;
-        exit(0);
+        std::cerr << "Error, unable to open file for output: " << file << std::endl;
+        throw std::invalid_argument("Couldn't open the file for output");
     }
 }
 

@@ -198,7 +198,6 @@ inline void regression_predict_quantize_3d(const T *data_pos, const float *reg_p
         }
         type_pos += size_y * size_z;
     }
-    //    exit(0);
 }
 
 template <typename T, class Quantizer>
