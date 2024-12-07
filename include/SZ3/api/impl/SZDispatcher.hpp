@@ -31,6 +31,9 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
                 return SZ_compress_bioMD<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
             } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
                 return SZ_compress_bioMDXtcBased<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+            } else {
+                printf("SZ_compress_dispatcher, Method not supported\n");
+                exit(0);
             }
 
         } catch (std::length_error &e) {
