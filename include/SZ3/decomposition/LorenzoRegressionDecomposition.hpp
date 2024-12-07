@@ -268,8 +268,6 @@ class LorenzoRegressionDecomposition : public concepts::DecompositionInterface<T
         //        }
         // size_t block_cnt = 0;
         const T *x_data_pos = data;
-        std::vector<float> reg_params_ori(8, 0);
-        std::vector<size_t> reg_params_ori_cnt(4, 0);
         for (size_t i = 0; i < size.num_x; i++) {
             const T *y_data_pos = x_data_pos;
             T *pred_buffer_pos = pred_buffer;
@@ -301,29 +299,9 @@ class LorenzoRegressionDecomposition : public concepts::DecompositionInterface<T
 
                     if (selection_result == SELECTOR_REGRESSION) {
                         // regression
-                        for (int e = 0; e < 4; e++) {
-                            reg_params_ori[e + 4] = reg_params_ori[e];
-                            reg_params_ori[e] = reg_params_pos[e];
-                        }
                         compress_regression_coefficient_3d(RegCoeffNum3d, reg_precisions, reg_recip_precisions,
                                                            reg_params_pos, reg_params_type_pos,
                                                            reg_unpredictable_data_pos);
-                        for (int e = 0; e < 4; e++) {
-                            if (fabs(reg_params_ori[e + 4] - reg_params_ori[e]) < precision * 1e-3) {
-                                if (reg_params_ori_cnt[e]++ == 100) {
-                                    reg_params_type_pos[e] = 0;
-                                    reg_params_pos[e] = reg_params_ori[e];
-                                    *(reg_unpredictable_data_pos++) = reg_params_ori[e];
-                                }
-                            } else {
-                                reg_params_ori_cnt[e] = 0;
-                            }
-                        }
-                        // printf("%lu %.5f %.5f %.5f %.5f ->  ", block_cnt, reg_params_pos[0], reg_params_pos[1],
-                        // reg_params_pos[2],
-                        //                                   reg_params_pos[3]);
-                        //                            printf("%.5f %.5f %.5f %.5f\n", reg_params_pos[0],
-                        //                            reg_params_pos[1], reg_params_pos[2], reg_params_pos[3]);
 
                         regression_predict_quantize_3d<T>(
                             z_data_pos, reg_params_pos, pred_buffer_pos, precision, recip_precision, capacity,
