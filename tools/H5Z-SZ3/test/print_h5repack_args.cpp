@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
         printf("h5repack can only take 20 cd_values, but got %d\n cd_values in SZ3", cd_nelmts);
         return 0;
     }
-    printf("-f UD=32024,0,%d", cd_nelmts);
+    printf("UD=32024,0,%d", cd_nelmts);
     for (int i = 0; i < cd_nelmts; i++) {
         printf(",%u", cd_values[i]);
     }
