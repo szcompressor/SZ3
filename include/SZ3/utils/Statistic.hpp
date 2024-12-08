@@ -30,6 +30,10 @@ inline double computeABSErrBoundFromPSNR(double psnr, double threshold, double v
 
 template <class T>
 void calAbsErrorBound(Config &conf, const T *data, T range = 0) {
+    if (conf.cmprAlgo == ALGO_LOSSLESS) {
+        conf.errorBoundMode = EB_ABS;
+        conf.absErrorBound = 0.0;
+    }
     if (conf.errorBoundMode != EB_ABS) {
         if (conf.errorBoundMode == EB_REL) {
             conf.errorBoundMode = EB_ABS;
