@@ -13,9 +13,15 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
     assert(N == conf.N);
     calAbsErrorBound(conf, data);
     size_t cmpSize = 0;
-    bool isCmpCapSufficient = true;
+    
+    // if absErrorBound is 0, use lossless only mode
+    if (conf.absErrorBound == 0 ) {
+        conf.cmprAlgo = ALGO_LOSSLESS;
+    }
 
-    if (conf.absErrorBound != 0) {
+    // do lossy compression
+    bool isCmpCapSufficient = true;
+    if (conf.cmprAlgo != ALGO_LOSSLESS) {
         try {
             std::vector<T> dataCopy(data, data + conf.num);
             if (conf.cmprAlgo == ALGO_LORENZO_REG) {
@@ -42,14 +48,15 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
             }
         }
     }
-    if (conf.absErrorBound == 0 || !isCmpCapSufficient) {
-        // must use lossless only mode if 1) user sets error bound to 0, or 2) compressed buffer not large enough for lossy
+
+    // do lossless only compression if 1) cmpr algorithm is lossless or 2) compressed buffer not large enough for lossy
+    if (conf.cmprAlgo == ALGO_LOSSLESS || !isCmpCapSufficient) {
         conf.cmprAlgo = ALGO_LOSSLESS;
         auto zstd = Lossless_zstd();
         cmpSize = zstd.compress(reinterpret_cast<const uchar *>(data), conf.num * sizeof(T), cmpData, cmpCap);
     } else {
+        // if lossy compression ratio < 3, test if lossless only mode has a better ratio than lossy
         if (conf.num * sizeof(T) / 1.0 / cmpSize < 3) {
-            // may use lossless only mode when lossy compression ratio is less than 2.5
             auto zstd = Lossless_zstd();
             auto zstdCmpCap = ZSTD_compressBound(conf.num * sizeof(T));
             auto zstdCmpData = static_cast<uchar *>(malloc(cmpCap));
