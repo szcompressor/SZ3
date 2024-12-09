@@ -45,9 +45,7 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
         } catch (std::length_error &e) {
             if (std::string(e.what()) == SZ_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH) {
                 isCmpCapSufficient = false;
-                printf(
-                    "The buffer for compressed data is not large enough. Ideally, set it as 2X original data size.\n "
-                    "SZ is downgraded to lossless mode.\n");
+                printf("SZ is downgraded to lossless mode.\n");
             } else {
                 throw;
             }
@@ -70,7 +68,7 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
             if (zstdCmpSize < cmpSize) {
                 conf.cmprAlgo = ALGO_LOSSLESS;
                 if (zstdCmpSize > cmpCap) {
-                    fprintf(stderr, SZ_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
+                    fprintf(stderr, "%s\n", SZ_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
                     throw std::length_error(SZ_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
                 }
                 memcpy(cmpData, zstdCmpData, zstdCmpSize);
