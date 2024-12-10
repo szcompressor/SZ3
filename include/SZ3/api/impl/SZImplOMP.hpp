@@ -73,7 +73,7 @@ size_t SZ_compress_OMP(Config &conf, const T *data, uchar *cmpData, size_t cmpCa
         // we have to use conf_t[tid].N instead of N since each chunk may be a slice of the original data
         if (conf_t[tid].N==1) {
             cmp_size_t[tid] = SZ_compress_dispatcher<T, 1>(conf_t[tid], data_t, compressed_t[tid], cmp_size_cap);
-        } else if (conf_t[tid].N==1) {
+        } else if (conf_t[tid].N==2) {
             cmp_size_t[tid] = SZ_compress_dispatcher<T, 2>(conf_t[tid], data_t, compressed_t[tid], cmp_size_cap);
         }else if ( conf_t[tid].N==3) {
             cmp_size_t[tid] = SZ_compress_dispatcher<T, 3>(conf_t[tid], data_t, compressed_t[tid], cmp_size_cap);
