@@ -55,6 +55,11 @@ size_t SZ_compress(const SZ3::Config &config, const T *data, char *cmpData, size
     using namespace SZ3;
     Config conf(config);
     
+    if (cmpCap < SZ_compress_size_bound<T>(conf)) {
+        fprintf(stderr, "%s\n", SZ_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
+        throw std::invalid_argument(SZ_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
+    }
+    
     auto cmpDataPos = reinterpret_cast<uchar *>(cmpData) + conf.size_est();
     auto cmpDataCap = cmpCap - conf.size_est();
 
@@ -92,8 +97,7 @@ template <class T>
 char *SZ_compress(const SZ3::Config &config, const T *data, size_t &cmpSize) {
     using namespace SZ3;
 
-    // Ensure that the buffer can always hold the config and the lossless fallback
-    size_t bufferLen = config.size_est() + ZSTD_compressBound(config.num * sizeof(T));
+    size_t bufferLen = SZ_compress_size_bound<T>(config);
     auto buffer = new char[bufferLen];
     cmpSize = SZ_compress(config, data, buffer, bufferLen);
 

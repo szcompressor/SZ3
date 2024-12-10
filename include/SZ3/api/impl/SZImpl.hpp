@@ -29,5 +29,23 @@ void SZ_decompress_impl(Config &conf, const uchar *cmpData, size_t cmpSize, T *d
         SZ_decompress_dispatcher<T, N>(conf, cmpData, cmpSize, decData);
     }
 }
+
+
+template<class T>
+size_t SZ_compress_size_bound(const Config &conf) {
+#ifndef _OPENMP
+    conf.openmp = false;
+#endif
+    if (conf.openmp) {
+        auto bound = SZ_compress_size_bound_omp<T>(conf);
+        printf("bound: %zu\n", bound);
+        return bound;
+    } else {
+        auto bound= conf.size_est() + ZSTD_compressBound(conf.num * sizeof(T));
+        printf("bound: %zu\n", bound);
+        return bound;
+    }
+}
+
 }  // namespace SZ3
 #endif
