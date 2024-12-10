@@ -175,7 +175,7 @@ size_t SZ_compress_size_bound_omp(const Config &conf) {
     return sizeof(int) + nThreads * conf.size_est() + nThreads * sizeof(size_t) +
        (nThreads-1)  * ZSTD_compressBound(chunk_size * sizeof(T)) + ZSTD_compressBound(last_chunk_size * sizeof(T));
 #else
-    return conf.size_est() + ZSTD_compressBound(conf.num * sizeof(T))
+    return conf.size_est() + ZSTD_compressBound(conf.num * sizeof(T));
 #endif
 }
 
