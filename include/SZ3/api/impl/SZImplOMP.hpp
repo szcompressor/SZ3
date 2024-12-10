@@ -17,8 +17,6 @@ size_t SZ_compress_OMP(Config &conf, const T *data, uchar *cmpData, size_t cmpCa
 #ifdef _OPENMP
     unsigned char *buffer_pos = cmpData;
 
-    assert(N == conf.N);
-
     std::vector<uchar *> compressed_t;
     std::vector<size_t> cmp_size_t, cmp_start_t;
     std::vector<T> min_t, max_t;
@@ -70,9 +68,21 @@ size_t SZ_compress_OMP(Config &conf, const T *data, uchar *cmpData, size_t cmpCa
 
         conf_t[tid] = conf;
         conf_t[tid].setDims(dims_t.begin(), dims_t.end());
-        size_t cmp_size_cap = 2 * num_t * sizeof(T);
+        size_t cmp_size_cap = ZSTD_compressBound(conf_t[tid].num * sizeof(T));
         compressed_t[tid] = static_cast<uchar *>(malloc(cmp_size_cap));
-        cmp_size_t[tid] = SZ_compress_dispatcher<T, N>(conf_t[tid], data_t, compressed_t[tid], cmp_size_cap);
+        // we have to use conf_t[tid].N instead of N since each chunk may be a slice of the original data
+        if (conf_t[tid].N==1) {
+            cmp_size_t[tid] = SZ_compress_dispatcher<T, 1>(conf_t[tid], data_t, compressed_t[tid], cmp_size_cap);
+        } else if (conf_t[tid].N==2) {
+            cmp_size_t[tid] = SZ_compress_dispatcher<T, 2>(conf_t[tid], data_t, compressed_t[tid], cmp_size_cap);
+        }else if ( conf_t[tid].N==3) {
+            cmp_size_t[tid] = SZ_compress_dispatcher<T, 3>(conf_t[tid], data_t, compressed_t[tid], cmp_size_cap);
+        } else if (conf_t[tid].N==4) {
+            cmp_size_t[tid] = SZ_compress_dispatcher<T, 4>(conf_t[tid], data_t, compressed_t[tid], cmp_size_cap);
+        } else {
+            fprintf(stderr, "Unsupported N = %d\n", conf_t[tid].N);
+            throw std::invalid_argument("Unsupported N");
+        }
 
 #pragma omp barrier
 #pragma omp single
@@ -148,6 +158,27 @@ void SZ_decompress_OMP(Config &conf, const uchar *cmpData, size_t cmpSize, T *de
     SZ_decompress_dispatcher<T, N>(conf, cmpData, cmpSize, decData);
 #endif
 }
+
+template<class T>
+size_t SZ_compress_size_bound_omp(const Config &conf) {
+#ifdef _OPENMP
+    int nThreads = 1;
+#pragma omp parallel
+#pragma omp single
+    { nThreads = omp_get_num_threads(); }
+    if (conf.dims[0] < nThreads) {
+        nThreads = conf.dims[0];
+    }
+    size_t chunk_size = conf.dims[0] / nThreads * (conf.num / conf.dims[0]);
+    size_t last_chunk_size = (conf.dims[0] - conf.dims[0] / nThreads * (nThreads-1)) * (conf.num / conf.dims[0]);
+    //for each thread, we save conf, compressed size, and compressed data
+    return sizeof(int) + nThreads * conf.size_est() + nThreads * sizeof(size_t) +
+       (nThreads-1)  * ZSTD_compressBound(chunk_size * sizeof(T)) + ZSTD_compressBound(last_chunk_size * sizeof(T));
+#else
+    return conf.size_est() + ZSTD_compressBound(conf.num * sizeof(T))
+#endif
+}
+
 }  // namespace SZ3
 
 #endif
