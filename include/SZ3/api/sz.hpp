@@ -92,7 +92,8 @@ template <class T>
 char *SZ_compress(const SZ3::Config &config, const T *data, size_t &cmpSize) {
     using namespace SZ3;
 
-    size_t bufferLen = 2 * config.num * sizeof(T);
+    // Ensure that the buffer can always hold the config and the lossless fallback
+    size_t bufferLen = config.size_est() + ZSTD_compressBound(config.num * sizeof(T));
     auto buffer = new char[bufferLen];
     cmpSize = SZ_compress(config, data, buffer, bufferLen);
 
