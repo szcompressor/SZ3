@@ -37,13 +37,9 @@ size_t SZ_compress_size_bound(const Config &conf) {
     conf.openmp = false;
 #endif
     if (conf.openmp) {
-        auto bound = SZ_compress_size_bound_omp<T>(conf);
-        printf("bound: %zu\n", bound);
-        return bound;
+        return SZ_compress_size_bound_omp<T>(conf);
     } else {
-        auto bound= conf.size_est() + ZSTD_compressBound(conf.num * sizeof(T));
-        printf("bound: %zu\n", bound);
-        return bound;
+        return conf.size_est() + ZSTD_compressBound(conf.num * sizeof(T));
     }
 }
 
