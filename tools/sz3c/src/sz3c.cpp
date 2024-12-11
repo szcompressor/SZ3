@@ -44,8 +44,10 @@ unsigned char *SZ_compress_args(int dataType, void *data, size_t *outSize,
     unsigned char *cmpr_data = NULL;
     if (dataType == SZ_FLOAT) {
         cmpr_data = reinterpret_cast<unsigned char *>(SZ_compress<float>(conf, static_cast<float *>(data), *outSize));
+#if (!SZ3_DEBUG_TIMINGS)
     } else if (dataType == SZ_DOUBLE) {
         cmpr_data = reinterpret_cast<unsigned char *>(SZ_compress<double>(conf, static_cast<double *>(data), *outSize));
+#endif
     } else {
         printf("dataType %d not support\n", dataType);
         exit(0);
@@ -80,10 +82,12 @@ void *SZ_decompress(int dataType, unsigned char *bytes, size_t byteLength,
         auto dec_data = static_cast<float *>(malloc(n * sizeof(float)));
         SZ_decompress<float>(conf, reinterpret_cast<char *>(bytes), byteLength, dec_data);
         return dec_data;
+#if (!SZ3_DEBUG_TIMINGS)
     } else if (dataType == SZ_DOUBLE) {
         auto dec_data = static_cast<double *>(malloc(n * sizeof(double)));
         SZ_decompress<double>(conf, reinterpret_cast<char *>(bytes), byteLength, dec_data);
         return dec_data;
+#endif
     } else {
         printf("dataType %d not support\n", dataType);
         exit(0);
