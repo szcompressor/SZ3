@@ -190,6 +190,7 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
         case SZ_FLOAT:
             process_data<float>(conf, buf, buf_size, nbytes, is_decompress);
             break;
+#if (!SZ3_DEBUG_TIMINGS)
         case SZ_DOUBLE:
             process_data<double>(conf, buf, buf_size, nbytes, is_decompress);
             break;
@@ -217,6 +218,7 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
         case SZ_UINT64:
             process_data<uint64_t>(conf, buf, buf_size, nbytes, is_decompress);
             break;
+#endif
         default:
             std::cerr << (is_decompress ? "Decompression" : "Compression") << " Error: Unknown Datatype" << std::endl;
             std::exit(EXIT_FAILURE);

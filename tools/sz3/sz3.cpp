@@ -444,12 +444,14 @@ int main(int argc, char *argv[]) {
     if (compression) {
         if (dataType == SZ_FLOAT) {
             compress<float>(inPath, cmpPath, conf);
+#if (!SZ3_DEBUG_TIMINGS)
         } else if (dataType == SZ_DOUBLE) {
             compress<double>(inPath, cmpPath, conf);
         } else if (dataType == SZ_INT32) {
             compress<int32_t>(inPath, cmpPath, conf);
         } else if (dataType == SZ_INT64) {
             compress<int64_t>(inPath, cmpPath, conf);
+#endif
         } else {
             printf("Error: data type not supported \n");
             usage();
@@ -464,12 +466,14 @@ int main(int argc, char *argv[]) {
 
         if (dataType == SZ_FLOAT) {
             decompress<float>(inPath, cmpPath, decPath, conf, binaryOutput, printCmpResults);
+#if (!SZ3_DEBUG_TIMINGS)
         } else if (dataType == SZ_DOUBLE) {
             decompress<double>(inPath, cmpPath, decPath, conf, binaryOutput, printCmpResults);
         } else if (dataType == SZ_INT32) {
             decompress<int32_t>(inPath, cmpPath, decPath, conf, binaryOutput, printCmpResults);
         } else if (dataType == SZ_INT64) {
             decompress<int64_t>(inPath, cmpPath, decPath, conf, binaryOutput, printCmpResults);
+#endif
         } else {
             printf("Error: data type not supported \n");
             usage();
