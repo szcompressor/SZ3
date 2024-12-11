@@ -17,14 +17,9 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
    public:
     SZBioMDDecomposition(const Config &conf, Quantizer quantizer) : quantizer(quantizer), conf(conf) {
         if (N != 1 && N != 2 && N != 3) {
-            throw std::invalid_argument("SZBioFront only support 1D, 2D or 3D data");
+            throw std::invalid_argument("SZBioMDDecomposition only support 1D, 2D or 3D data");
         }
     }
-
-    ~SZBioMDDecomposition() {
-        //            clear();
-    }
-
 
     std::vector<int> compress(const Config &conf, T *data) override {
         if (N == 1) {
@@ -353,9 +348,9 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     T fillValue_;
 };
 
-template <class T, uint N, class Predictor>
-SZBioMDDecomposition<T, N, Predictor> make_decomposition_biomd(const Config &conf, Predictor predictor) {
-    return SZBioMDDecomposition<T, N, Predictor>(conf, predictor);
+template <class T, uint N, class Quantizer>
+SZBioMDDecomposition<T, N, Quantizer> make_decomposition_biomd(const Config &conf, Quantizer quantizer) {
+    return SZBioMDDecomposition<T, N, Quantizer>(conf, quantizer);
 }
 }  // namespace SZ3
 

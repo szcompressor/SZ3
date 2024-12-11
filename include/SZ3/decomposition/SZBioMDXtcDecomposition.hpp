@@ -13,12 +13,12 @@
 
 namespace SZ3 {
 
-template <class T, uint N>
+template <class T, uint N, class Quantizer>
 class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, N> {
    public:
-    SZBioMDXtcDecomposition(const Config &conf) : conf(conf) {
+    SZBioMDXtcDecomposition(const Config &conf, Quantizer quantizer) : quantizer(quantizer), conf(conf) {
         if (N != 1 && N != 2 && N != 3) {
-            throw std::invalid_argument("SZBioFront only support 1D, 2D or 3D data");
+            throw std::invalid_argument("SZBioMDXtcDecomposition only support 1D, 2D or 3D data");
         }
     }
 
@@ -41,20 +41,18 @@ class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, 
     void save(uchar *&c) override {
         write(firstFillFrame_, c);
         write(fillValue_, c);
+        quantizer.save(c);
     }
 
     void load(const uchar *&c, size_t &remaining_length) override {
-        clear();
-        // const uchar *c_pos = c;
         read(firstFillFrame_, c, remaining_length);
         read(fillValue_, c, remaining_length);
+        quantizer.load(c, remaining_length);
     }
-
-    void clear() {}
 
     size_t size_est() override { return 0; }
 
-    std::pair<int, int> get_out_range() override { return {0, 0}; }
+    std::pair<int, int> get_out_range() override { return quantizer.get_out_range(); }
 
     size_t get_num_elements() const {
         if (N == 3) {
@@ -66,35 +64,18 @@ class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, 
    private:
     std::vector<int> compressSingleFrame(T *data) {
         std::vector<int> quantData(conf.num);
-
-        /* To prevent that potential rounding errors make the error slightly larger than the
-         * absolute error bound, scale down the error limit slightly.
-         * The precision is twice the required maximum error. */
-        double reciprocalPrecision = 1.0 / (conf.absErrorBound * 0.99999 * 2.0);
-        // Define the range limits for int as double
-        const auto INT_MIN_D = static_cast<double>(std::numeric_limits<int>::min())/4;
-        const auto INT_MAX_D = static_cast<double>(std::numeric_limits<int>::max())/4;
         for (size_t i = 0; i < conf.num; i++) {
-            double quant = std::floor(data[i] * reciprocalPrecision + 0.5);
-            // Range checking
-            if (quant < INT_MIN_D || quant > INT_MAX_D) {
-                throw std::out_of_range("Quantization value out of int range in SZBioMDXtcDecomposition, consider "
-                                        "increasing the error bound");
-            }
-            quantData[i] = static_cast<int>(quant);
+            quantData[i] = quantizer.quantize_and_overwrite(data[i], 0);
         }
+        quantizer.postcompress_data();
         return quantData;
     }
 
     T *decompressSingleFrame(std::vector<int> &quantData, T *decData) {
-        /* To prevent that potential rounding errors make the error slightly larger than the
-         * absolute error bound, scale down the error limit slightly.
-         * The precision is twice the required maximum error. */
-        double precision = conf.absErrorBound * 0.99999 * 2.0;
-
         for (size_t i = 0; i < conf.num; i++) {
-            decData[i] = quantData[i] * precision;
+            decData[i] = quantizer.recover(0, quantData[i]);
         }
+        quantizer.postdecompress_data();
         return decData;
     }
 
@@ -147,29 +128,15 @@ class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, 
         size_t lastFrame = std::min(dims[0], firstFillFrame_);
         std::vector<int> quantData(lastFrame * dims[1] * dims[2]);
 
-        /* To prevent that potential rounding errors make the error slightly larger than the
-         * absolute error bound, scale down the error limit slightly.
-         * The precision is twice the required maximum error. */
-        double reciprocalPrecision = 1.0 / (conf.absErrorBound * 0.99999 * 2.0);
-        const auto INT_MIN_D = static_cast<double>(std::numeric_limits<int>::min())/4;
-        const auto INT_MAX_D = static_cast<double>(std::numeric_limits<int>::max())/4;
-
-        for (size_t i = 0; i < lastFrame; i++)  // time
-        {
-            for (size_t j = 0; j < dims[1]; j++)  // atoms
-            {
-                for (size_t k = 0; k < dims[2]; k++)  // xyz
-                {
+        for (size_t i = 0; i < lastFrame; i++) {        // time
+            for (size_t j = 0; j < dims[1]; j++) {      // atoms
+                for (size_t k = 0; k < dims[2]; k++) {  // xyz
                     size_t idx = i * stride[0] + j * stride[1] + k;
-                    double quant = std::floor(data[idx] * reciprocalPrecision + 0.5);
-                    if (quant < INT_MIN_D || quant > INT_MAX_D) {
-                        throw std::out_of_range("Quantization value out of int range in SZBioMDXtcDecomposition, consider "
-                                                "increasing the error bound");
-                    }
-                    quantData[idx] = static_cast<int>(quant);
+                    quantData[idx] = quantizer.quantize_and_overwrite(data[idx], 0);
                 }
             }
         }
+        quantizer.postcompress_data();
 
         return quantData;
     }
@@ -182,19 +149,15 @@ class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, 
 
         size_t lastFrame = std::min(dims[0], firstFillFrame_);
 
-        /* To prevent that potential rounding errors make the error slightly larger than the
-         * absolute error bound, scale down the error limit slightly.
-         * The precision is twice the required maximum error. */
-        double precision = conf.absErrorBound * 0.99999 * 2.0;
-
         for (size_t i = 0; i < lastFrame; i++) {        // time
             for (size_t j = 0; j < dims[1]; j++) {      // atoms
                 for (size_t k = 0; k < dims[2]; k++) {  // xyz
                     size_t idx = i * stride[0] + j * stride[1] + k;
-                    decData[idx] = quantData[idx] * precision;
+                    decData[idx] = quantizer.recover(0, quantData[idx]);
                 }
             }
         }
+        quantizer.postdecompress_data();
 
         /* Fill frames at the end with the fill value. */
         for (size_t i = firstFillFrame_; i < dims[0]; i++) {
@@ -210,7 +173,13 @@ class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, 
     Config conf;
     size_t firstFillFrame_;
     T fillValue_;
+    Quantizer quantizer;
 };
+
+template <class T, uint N, class Quantizer>
+SZBioMDXtcDecomposition<T, N, Quantizer> make_decomposition_biomdxtc(const Config &conf, Quantizer quantizer) {
+    return SZBioMDXtcDecomposition<T, N, Quantizer>(conf, quantizer);
+}
 
 }  // namespace SZ3
 
