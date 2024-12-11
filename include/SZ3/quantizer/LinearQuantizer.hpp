@@ -31,7 +31,7 @@ class LinearQuantizer : public concepts::QuantizerInterface<T, int> {
 
     // quantize the data with a prediction value, and returns the quantization index and the decompressed data
     // int quantize(T data, T pred, T& dec_data);
-    int quantize_and_overwrite(T &data, T pred) override {
+    int quantize_and_overwrite(T &data, T pred) override ALWAYS_INLINE {
         T diff = data - pred;
         auto quant_index = static_cast<int64_t>(fabs(diff) * this->error_bound_reciprocal) + 1;
         if (quant_index < this->radius * 2) {
@@ -66,7 +66,7 @@ class LinearQuantizer : public concepts::QuantizerInterface<T, int> {
      * @param dest
      * @return
      */
-    int quantize_and_overwrite(T ori, T pred, T &dest) {
+    int quantize_and_overwrite(T ori, T pred, T &dest) ALWAYS_INLINE {
         T diff = ori - pred;
         auto quant_index = static_cast<int64_t>(fabs(diff) * this->error_bound_reciprocal) + 1;
         if (quant_index < this->radius * 2) {
@@ -97,7 +97,7 @@ class LinearQuantizer : public concepts::QuantizerInterface<T, int> {
     }
 
     // recover the data using the quantization index
-    T recover(T pred, int quant_index) override {
+    T recover(T pred, int quant_index) override ALWAYS_INLINE {
         if (quant_index) {
             return recover_pred(pred, quant_index);
         } else {
@@ -105,9 +105,9 @@ class LinearQuantizer : public concepts::QuantizerInterface<T, int> {
         }
     }
 
-    T recover_pred(T pred, int quant_index) { return pred + 2 * (quant_index - this->radius) * this->error_bound; }
+    T recover_pred(T pred, int quant_index) ALWAYS_INLINE { return pred + 2 * (quant_index - this->radius) * this->error_bound; }
 
-    T recover_unpred() { return unpred[index++]; }
+    T recover_unpred() ALWAYS_INLINE { return unpred[index++]; }
 
     size_t size_est() { return unpred.size() * sizeof(T); }
 

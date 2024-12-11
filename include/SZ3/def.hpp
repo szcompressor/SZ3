@@ -9,4 +9,10 @@ typedef unsigned char uchar;
     "The buffer for compressed data is not large enough."
 }  // namespace SZ3
 
+#ifdef _MSC_VER
+#define ALWAYS_INLINE __forceinline
+#else
+#define ALWAYS_INLINE __attribute__((always_inline))
+#endif
+
 #endif
