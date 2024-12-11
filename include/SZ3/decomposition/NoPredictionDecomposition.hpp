@@ -12,7 +12,7 @@ class NoPredictionDecomposition : public concepts::DecompositionInterface<T, int
    public:
     NoPredictionDecomposition(const Config &conf, Quantizer quantizer) : quantizer(quantizer) {
         static_assert(std::is_base_of<concepts::QuantizerInterface<T, int>, Quantizer>::value,
-                      "must implement the quatizer interface");
+                      "must implement the quantizer interface");
     }
 
     T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) override {

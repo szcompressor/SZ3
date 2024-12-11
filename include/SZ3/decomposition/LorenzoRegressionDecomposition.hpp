@@ -30,12 +30,13 @@ class LorenzoRegressionDecomposition : public concepts::DecompositionInterface<T
                  conf.absErrorBound),
           precision(conf.absErrorBound),
           conf(conf) {
+        static_assert(std::is_base_of<concepts::QuantizerInterface<T, int>, Quantizer>::value,
+              "must implement the quantizer interface");
+
         if (N != 1 && N != 3) {
             fprintf(stderr, "SZMeta Front only support 1D or 3D data\n");
             throw std::invalid_argument("SZMeta Front only support 1D or 3D data");
         }
-        static_assert(std::is_base_of<concepts::QuantizerInterface<T, int>, Quantizer>::value,
-                      "must implement the quatizer interface");
     }
 
     ~LorenzoRegressionDecomposition() override { clear(); }

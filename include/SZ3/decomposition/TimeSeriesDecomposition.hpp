@@ -23,6 +23,10 @@ class TimeSeriesDecomposition : public concepts::DecompositionInterface<T, int, 
           stride(conf.stride),
           num_elements(conf.num),
           data_ts0(data_ts0) {
+        static_assert(std::is_base_of<concepts::PredictorInterface<T, N - 1>, Predictor>::value,
+                      "must implement the predictor interface");
+        static_assert(std::is_base_of<concepts::QuantizerInterface<T, int>, Quantizer>::value,
+            "must implement the quantizer interface");
         assert((conf.dims.size() == 2) && "timestep prediction requires 2d dataset");
         global_dimensions[0] = conf.dims[0];
         global_dimensions[1] = conf.dims[1];
