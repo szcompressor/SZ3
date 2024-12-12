@@ -33,10 +33,11 @@ void SZ_decompress_impl(Config &conf, const uchar *cmpData, size_t cmpSize, T *d
 
 template<class T>
 size_t SZ_compress_size_bound(const Config &conf) {
+    bool omp = conf.openmp;
 #ifndef _OPENMP
-    conf.openmp = false;
+    omp = false;
 #endif
-    if (conf.openmp) {
+    if (omp) {
         return SZ_compress_size_bound_omp<T>(conf);
     } else {
         return conf.size_est() + ZSTD_compressBound(conf.num * sizeof(T));
