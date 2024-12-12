@@ -14,8 +14,8 @@
 #include <type_traits>
 #include "flat_hash_map.hpp"
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wnull-pointer-arithmetic"
+// #pragma GCC diagnostic push
+// #pragma GCC diagnostic ignored "-Wnull-pointer-arithmetic"
 namespace ska
 {
 
@@ -885,4 +885,4 @@ public:
 };
 
 } // end namespace ska
-#pragma GCC diagnostic pop
+// #pragma GCC diagnostic pop
