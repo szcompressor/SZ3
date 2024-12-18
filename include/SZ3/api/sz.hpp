@@ -119,7 +119,7 @@ char *SZ_compress(const SZ3::Config &config, const T *data, size_t &cmpSize) {
 
  */
 template <class T>
-void SZ_decompress(SZ3::Config &config, char *cmpData, size_t cmpSize, T *&decData) {
+void SZ_decompress(SZ3::Config &config, const char *cmpData, size_t cmpSize, T *&decData) {
     using namespace SZ3;
     auto cmpConfPos = reinterpret_cast<const uchar *>(cmpData);
     config.load(cmpConfPos);
@@ -160,7 +160,7 @@ void SZ_decompress(SZ3::Config &config, char *cmpData, size_t cmpSize, T *&decDa
  float decompressedData = SZ_decompress(conf, cmpData, cmpSize)
  */
 template <class T>
-T *SZ_decompress(SZ3::Config &config, char *cmpData, size_t cmpSize) {
+T *SZ_decompress(SZ3::Config &config, const char *cmpData, size_t cmpSize) {
     using namespace SZ3;
     T *decData = nullptr;
     SZ_decompress<T>(config, cmpData, cmpSize, decData);
