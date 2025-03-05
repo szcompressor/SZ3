@@ -7,7 +7,7 @@ project(SZ3 VERSION 3.2.2)
 set(SZ3_DATA_VERSION 3.2.1)
 
 include(GNUInstallDirs)
-include(CTest)
+
 
 option(BUILD_SHARED_LIBS "build shared libraries by default" ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -66,6 +66,11 @@ if (ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
 else ()
     add_subdirectory(tools/zstd)
     target_link_libraries(${PROJECT_NAME} INTERFACE zstd)
+endif ()
+
+option(BUILD_TESTING "Build tests" OFF)
+if (BUILD_TESTING)
+    add_subdirectory(tools/test)
 endif ()
 
 find_package(GSL)

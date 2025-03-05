@@ -5,6 +5,7 @@
 #ifndef SZ_LOSSLESS_BYPASS_HPP
 #define SZ_LOSSLESS_BYPASS_HPP
 
+#include <cstring>
 #include "SZ3/def.hpp"
 #include "SZ3/lossless/Lossless.hpp"
 

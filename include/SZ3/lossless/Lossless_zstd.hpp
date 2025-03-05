@@ -7,6 +7,7 @@
 
 #include "SZ3/def.hpp"
 #include "SZ3/lossless/Lossless.hpp"
+#include "SZ3/utils/MemoryUtil.hpp"
 #include "zstd.h"
 
 namespace SZ3 {
