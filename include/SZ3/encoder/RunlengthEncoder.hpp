@@ -44,6 +44,9 @@ class RunlengthEncoder : public concepts::EncoderInterface<T> {
         for (size_t i = 0; i < bins.size();) {
             read(value, bytes);
             read(cnt, bytes);
+            if (i + cnt > bins.size()) {
+                throw std::runtime_error("Decoded length exceeds targetLength");
+            }
             for (size_t j = i; j < i + cnt; j++) {
                 bins[j] = value;
             }
