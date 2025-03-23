@@ -482,15 +482,15 @@ namespace QoZ {
 
             quantizer.set_eb(eb);
 
-            if (tuning){
+            //if (tuning){
                 //conf.quant_bins=quant_inds;
                 //std::vector<int>().swap(quant_inds);
-                conf.decomp_square_error=predict_error;
+                //decomp_square_error=predict_error;
                 //size_t bufferSize = 1;
                 //uchar *buffer = new uchar[bufferSize];
                 //buffer[0]=0;
                 //return buffer;
-            }
+           // }
 
             //if(conf.verbose)
             //    timer.stop("prediction");//can remove later
@@ -550,10 +550,10 @@ namespace QoZ {
             write(frozen_dim,c);
             write(cross_block,c);
             //write(conf.regressiveInterp,buffer_pos);
-            if(conf.blockwiseTuning){
+            if(blockwiseTuning){
                 size_t meta_num=interpMeta_list.size();
                 write(meta_num,c);
-                write(iinterpMeta_list.data(),meta_num,c);
+                write(interpMeta_list.data(),meta_num,c);
             }
             else if(levelwise_predictor_levels>0){
                 write(interpMeta_list.data(),levelwise_predictor_levels,c);
