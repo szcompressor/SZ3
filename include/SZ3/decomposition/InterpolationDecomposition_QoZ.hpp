@@ -48,7 +48,7 @@ namespace QoZ {
                 recover_grid(decData,global_dimensions,maxStep,frozen_dim);                   
                 interpolation_level--;           
             }
-            size_t meta_index=0,coeff_idx=0;
+            size_t meta_index=0;//,coeff_idx=0;
             for (uint level = interpolation_level; level > 0 && level <= interpolation_level; level--) {
 
                 if (alpha<0) {
@@ -149,10 +149,10 @@ namespace QoZ {
         {
             double temp;
             std::vector<int> quant_bin_counts;
-            return compress(conf, data,0,0,0,temp,quant_bin_counts);
+            return compress_with_tuning(conf, data,0,0,0,temp,quant_bin_counts);
         }
 
-        std::vector<int> compress(const Config &conf, T *data,int tuning,double & predict_error){
+        std::vector<int> compress_with_tuning(const Config &conf, T *data,int tuning,double & predict_error){
             //double temp;
             std::vector<size_t> quant_bin_counts;
             return compress_with_tuning(conf, data,tuning,0,0,predict_error,quant_bin_counts);
@@ -160,7 +160,7 @@ namespace QoZ {
 
         std::vector<int> compress_with_tuning(const Config &conf, T *data,int tuning,double & predict_error,std::vector<size_t> &quant_bin_counts){//compresstest
             //double temp;
-            return compress(conf, data,tuning,0,0,predict_error,quant_bin_counts);
+            return compress_with_tuning(conf, data,tuning,0,0,predict_error,quant_bin_counts);
         }
 
        
@@ -1250,7 +1250,7 @@ namespace QoZ {
                 size_t math_stride2x=2*math_stride;
                 size_t math_stride3x=3*math_stride;
                 T *d;
-                size_t i;
+                //size_t i;
 
                 if(!meta.adjInterp){
                     size_t i_start= (cross_back and math_begin_idx>=math_stride2x)?1:3;
@@ -1620,7 +1620,7 @@ namespace QoZ {
                 size_t math_stride2x=2*math_stride;
                 size_t math_stride3x=3*math_stride;
                 T *d;
-                size_t i;
+                //size_t i;
 
                 if(!meta.adjInterp){
                     size_t i_start= (cross_back and math_begin_idx>=math_stride2x)?1:3;
@@ -2469,7 +2469,7 @@ namespace QoZ {
             
             float coeff_x=(dim_coeffs[0])/((dim_coeffs[0])+(dim_coeffs[1])),coeff_y=1-coeff_x;
 
-            size_t begin=0,global_end_idx1=global_dimensions[direction1],global_end_idx2=global_dimensions[direction2];
+            size_t begin=0;//,global_end_idx1=global_dimensions[direction1],global_end_idx2=global_dimensions[direction2];
             for(size_t i=0;i<N;i++)
                 begin+=dimension_offsets[i]*begin_idx[i];
 
@@ -2537,7 +2537,7 @@ namespace QoZ {
                 size_t stride2x1 = 2 * stride1,stride2x2 = 2 * stride2;
                 size_t stride3x1 = 3 * stride1,stride3x2 = 3 * stride2;
                 size_t math_stride2x=2*math_stride;
-                size_t math_stride3x=3*math_stride;
+                //size_t math_stride3x=3*math_stride;
                 //adaptive todo
               
                 size_t i,j;
@@ -2989,7 +2989,7 @@ namespace QoZ {
             
             float coeff_x=(dim_coeffs[0])/((dim_coeffs[0])+(dim_coeffs[1])),coeff_y=1-coeff_x;
 
-            size_t begin=0,global_end_idx1=global_dimensions[direction1],global_end_idx2=global_dimensions[direction2];
+            size_t begin=0;//,global_end_idx1=global_dimensions[direction1],global_end_idx2=global_dimensions[direction2];
             for(size_t i=0;i<N;i++)
                 begin+=dimension_offsets[i]*begin_idx[i];
             size_t stride1=math_stride*dimension_offsets[direction1],stride2=math_stride*dimension_offsets[direction2];
@@ -3094,7 +3094,7 @@ namespace QoZ {
                 size_t stride2x1 = 2 * stride1,stride2x2 = 2 * stride2;
                 size_t stride3x1 = 3 * stride1,stride3x2 = 3 * stride2;
                 size_t math_stride2x=2*math_stride;
-                size_t math_stride3x=3*math_stride;
+                //size_t math_stride3x=3*math_stride;
                 //adaptive todo
               
                 size_t i,j;
@@ -5161,7 +5161,7 @@ namespace QoZ {
             float coeff_x_xz=(coeff_x)/(coeff_x+coeff_z),coeff_z_xz=1-coeff_x_xz;
             float coeff_y_yz=(coeff_y)/(coeff_y+coeff_z),coeff_z_yz=1-coeff_y_yz;
 
-            size_t begin=0,global_end_idx1=global_dimensions[direction1],global_end_idx2=global_dimensions[direction2],global_end_idx3=global_dimensions[direction3];
+            size_t begin=0;//,global_end_idx1=global_dimensions[direction1],global_end_idx2=global_dimensions[direction2],global_end_idx3=global_dimensions[direction3];
             for(size_t i=0;i<N;i++)
                 begin+=dimension_offsets[i]*begin_idx[i];
 
@@ -5303,7 +5303,7 @@ namespace QoZ {
                 }
                 size_t stride3x1=3*stride1,stride3x2=3*stride2,stride3x3=3*stride3,stride2x1=2*stride1,stride2x2=2*stride2,stride2x3=2*stride3;
                 size_t math_stride2x=2*math_stride;
-                size_t math_stride3x=3*math_stride;
+                //size_t math_stride3x=3*math_stride;
                 //adaptive todo
               
                    
