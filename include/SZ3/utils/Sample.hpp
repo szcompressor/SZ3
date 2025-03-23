@@ -3,7 +3,7 @@
 #ifndef SZ_SAMPLE_HPP
 #define SZ_SAMPLE_HPP
 
-#include "SZ/utils/Interpolators.hpp"
+#include "SZ3/utils/Interpolators.hpp"
 namespace SZ3{
     namespace QoZ {
 
