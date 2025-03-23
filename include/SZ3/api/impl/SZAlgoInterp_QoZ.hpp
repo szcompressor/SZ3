@@ -380,7 +380,7 @@ std::pair<double,double> CompressTest(const Config &conf,const std::vector< std:
             
              
             double decomp_square_error;
-            auto quant_bins = sz.compress(testConfig, cur_block.data(), 1,decomp_square_error,q_bin_counts);
+            auto quant_bins = sz.compress_with_tuning(testConfig, cur_block.data(), 1,decomp_square_error,q_bin_counts);
 
             
             
@@ -963,7 +963,7 @@ double Tuning(Config &conf, T *data){
                                         cur_block=sampled_blocks[i];  //not so efficient              
                                         double decomp_square_error;    
                                         std::vector<size_t> quant_bin_counts;                  
-                                        sz.compress(conf, cur_block.data(), 2,start_level,end_level,decomp_square_error,quant_bin_counts);
+                                        sz.compress_with_tuning(conf, cur_block.data(), 2,start_level,end_level,decomp_square_error,quant_bin_counts);
                                         //delete []cmprData;                              
                                         cur_absloss+=decomp_square_error;
                                     }
@@ -1098,7 +1098,7 @@ double Tuning(Config &conf, T *data){
                                             cur_block=sampled_blocks[i];  //not so efficient              
                                            double decomp_square_error;           
                                            std::vector<size_t> quant_bin_counts;            
-                                           sz.compress(conf, cur_block.data(), 2,start_level,end_level,decomp_square_error,quant_bin_counts);                          
+                                           sz.compress_with_tuning(conf, cur_block.data(), 2,start_level,end_level,decomp_square_error,quant_bin_counts);                          
                                             cur_absloss+=decomp_square_error;
                                         }
                                         if (cur_absloss<best_interp_absloss){
