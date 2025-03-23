@@ -82,8 +82,7 @@ class SZEncodingLosslessCompressor  {
 template < class Encoder, class Lossless>
 std::shared_ptr<SZEncodingLosslessCompressor<Encoder, Lossless>> make_compressor_sz_encodinglossless(
     Encoder encoder, Lossless lossless) {
-    return std::make_shared<SZEncodingLosslessCompressor<Encoder, Lossless>>(encoder,
-                                                                                         lossless);
+    return std::make_shared<SZEncodingLosslessCompressor<Encoder, Lossless>>(encoder,lossless);
 }
 
 }  // namespace SZ3

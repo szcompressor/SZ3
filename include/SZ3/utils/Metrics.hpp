@@ -6,11 +6,11 @@
 namespace SZ3{
     namespace QoZ {
         
-        inline double PSNR(const double & rng, const double & mse) {
+        inline double calc_PSNR(const double & rng, const double & mse) {
             return 20*log10(rng)-10*log10(mse);
         }
 
-        inline double SSIM(const double &xr,const double &xm,const double &xv2,const double &ym,const double &yv2,const double &cov) {
+        inline double calc_SSIM(const double &xr,const double &xm,const double &xv2,const double &ym,const double &yv2,const double &cov) {
             double c1=0.0001,c2=0.0009;
             if (xr>0){
                 c1*=(xr*xr);
@@ -101,7 +101,7 @@ namespace SZ3{
         }
 
         template <class T>
-        double blockwise_cov(const T *data,const T * data2,const std::vector<size_t> &dims, const std::vector<size_t> &starts,const size_t &blocksize,const double & mean=0,const double & mean2=0){
+        double calc_blockwise_cov(const T *data,const T * data2,const std::vector<size_t> &dims, const std::vector<size_t> &starts,const size_t &blocksize,const double & mean=0,const double & mean2=0){
             size_t N=dims.size();
 
             if(N==2){
@@ -145,7 +145,7 @@ namespace SZ3{
         }
 
         template <class T>
-        double blockwise_autocorrelation(const T *data,const T * data2,const std::vector<size_t> &dims, const std::vector<size_t> &starts,const size_t &blocksize){
+        double calc_blockwise_autocorrelation(const T *data,const T * data2,const std::vector<size_t> &dims, const std::vector<size_t> &starts,const size_t &blocksize){
              size_t N=dims.size();
              size_t element_num;
              std::vector<T>diffs;
@@ -219,7 +219,7 @@ namespace SZ3{
         }
 
         template <class T>
-        double autocorrelation(const T *data, const T * data2,const size_t &element_num){
+        double calc_autocorrelation(const T *data, const T * data2,const size_t &element_num){
              
              
             std::vector<T>diffs(element_num,0);

@@ -14,6 +14,8 @@
 #include "SZ3/utils/Statistic.hpp"
 #include "SZ3/utils/Metrics.hpp"
 
+#include "SZ3/lossless/Lossless_zstd.hpp"
+#include "SZ3/encoder/HuffmanEncoder.hpp"
 namespace SZ3 {
 
 namespace QoZ {
@@ -328,8 +330,8 @@ std::pair<double,double> CompressTest(const Config &conf,const std::vector< std:
                             orig_range=orig_ranges[idx];
                             std::vector<size_t> starts{i,j};
                             blockwise_profiling<T>(cur_block.data(),block_dims,starts,ssim_size,mean,sigma2,range);
-                            cov=blockwise_cov<T>(sampled_blocks[k].data(),cur_block.data(),block_dims,starts,ssim_size,orig_mean,mean);
-                            metric+=SSIM(orig_range,orig_mean,orig_sigma2,mean,sigma2,cov)/ssim_block_num;
+                            cov=calc_blockwise_cov<T>(sampled_blocks[k].data(),cur_block.data(),block_dims,starts,ssim_size,orig_mean,mean);
+                            metric+=calc_SSIM(orig_range,orig_mean,orig_sigma2,mean,sigma2,cov)/ssim_block_num;
                             idx++;
 
 
@@ -345,9 +347,9 @@ std::pair<double,double> CompressTest(const Config &conf,const std::vector< std:
                                 orig_range=orig_ranges[idx];
                                 std::vector<size_t> starts{i,j,kk};
                                 blockwise_profiling<T>(cur_block.data(),block_dims,starts,ssim_size,mean,sigma2,range);
-                                cov=blockwise_cov<T>(sampled_blocks[k].data(),cur_block.data(),block_dims,starts,ssim_size,orig_mean,mean);
+                                cov=calc_blockwise_cov<T>(sampled_blocks[k].data(),cur_block.data(),block_dims,starts,ssim_size,orig_mean,mean);
                                 //printf("%.8f %.8f %.8f %.8f %.8f %.8f %.8f\n",orig_range,orig_sigma2,orig_mean,range,sigma2,mean,cov);
-                                metric+=SSIM(orig_range,orig_mean,orig_sigma2,mean,sigma2,cov)/ssim_block_num;
+                                metric+=calc_SSIM(orig_range,orig_mean,orig_sigma2,mean,sigma2,cov)/ssim_block_num;
                          
                                 idx++;
                             }
@@ -488,10 +490,10 @@ std::pair<double,double> CompressTest(const Config &conf,const std::vector< std:
         double mse=square_error/ele_num;
         mse*=profiling_coeff;      
         
-        metric=PSNR(testConfig.rng,mse);
+        metric=calc_PSNR(testConfig.rng,mse);
     }
     else if (tuningTarget==TUNING_TARGET_AC){                       
-        metric=1.0-autocorrelation<T>(flattened_sampled_data.data(),flattened_cur_blocks.data(),ele_num);                        
+        metric=1.0-calc_autocorrelation<T>(flattened_sampled_data.data(),flattened_cur_blocks.data(),ele_num);                        
     }                    
    
 
@@ -850,7 +852,7 @@ double Tuning(Config &conf, T *data){
         
         std::vector<uint8_t> interpParadigm_Candidates={0};//
         std::vector<uint8_t> cubicSplineType_Candidates={0};
-        std::vector<uint8_t> interpDirection_Candidates={0, (uint8_t)(factorial(N) -1)};
+        std::vector<uint8_t> interpDirection_Candidates={0, static_cast<uint8_t>(factorial(N) -1)};
        
         std::vector<uint8_t> adjInterp_Candidates={0};//
 
@@ -1239,23 +1241,23 @@ double Tuning(Config &conf, T *data){
                 std::cout << "interp best interpAlgo = " << (bestInterpMeta.interpAlgo == 0 ? "LINEAR" : (bestInterpMeta.interpAlgo == 1?"CUBIC":"QUAD")) << std::endl;
                 std::cout << "interp best interpParadigm = " << (bestInterpMeta.interpParadigm == 0 ? "1D" : (bestInterpMeta.interpParadigm == 1 ? "MD" : "HD") ) << std::endl;
                 if(bestInterpMeta.interpParadigm!=1)
-                    std::cout << "interp best direction = " << (unsigned) bestInterpMeta.interpDirection << std::endl;
+                    std::cout << "interp best direction = " << static_cast<unsigned>( bestInterpMeta.interpDirection) << std::endl;
                 if(bestInterpMeta.interpAlgo!=0){
-                    std::cout << "interp best cubic spline = " << (unsigned) bestInterpMeta.cubicSplineType << std::endl;
-                    std::cout << "interp best adj = " << (unsigned) bestInterpMeta.adjInterp << std::endl;
+                    std::cout << "interp best cubic spline = " << static_cast<unsigned>( bestInterpMeta.cubicSplineType) << std::endl;
+                    std::cout << "interp best adj = " << static_cast<unsigned>( bestInterpMeta.adjInterp )<< std::endl;
 
                 }
             }
             else{
                 for(int level=conf.levelwisePredictionSelection;level>0;level--){
-                    std::cout << "Level: " << (unsigned) level<<std::endl;
+                    std::cout << "Level: " << static_cast<unsigned>( level)<<std::endl;
                     std::cout << "\tinterp best interpAlgo = " << (bestInterpMeta_list[level-1].interpAlgo == 0 ? "LINEAR" : (bestInterpMeta_list[level-1].interpAlgo == 1 ? "CUBIC" : "QUAD")) << std::endl;
                     std::cout << "\tinterp best interpParadigm = " << (bestInterpMeta_list[level-1].interpParadigm == 0 ? "1D" : (bestInterpMeta_list[level-1].interpParadigm == 1 ? "MD" : "HD") ) << std::endl;
                     if(bestInterpMeta_list[level-1].interpParadigm!=1)
-                        std::cout << "\tinterp best direction = " << (unsigned) bestInterpMeta_list[level-1].interpDirection << std::endl;
+                        std::cout << "\tinterp best direction = " << static_cast<unsigned>( bestInterpMeta_list[level-1].interpDirection )<< std::endl;
                     if(bestInterpMeta_list[level-1].interpAlgo!=0){
-                        std::cout << "\tinterp best cubic spline = " << (unsigned) bestInterpMeta_list[level-1].cubicSplineType << std::endl;
-                        std::cout << "\tinterp best adj = " << (unsigned) bestInterpMeta_list[level-1].adjInterp << std::endl;
+                        std::cout << "\tinterp best cubic spline = " << static_cast<unsigned>( bestInterpMeta_list[level-1].cubicSplineType )<< std::endl;
+                        std::cout << "\tinterp best adj = " << static_cast<unsigned>( bestInterpMeta_list[level-1].adjInterp )<< std::endl;
 
                     }
                 }
@@ -1292,11 +1294,11 @@ double Tuning(Config &conf, T *data){
             lorenzo_config.openmp = false;
             lorenzo_config.blockSize = 5;//why?
 
-            size_t bufferCap = 1.2 * lorenzo_config * sizeof(T);
+            size_t bufferCap = 1.2 * lorenzo_config.num * sizeof(T);
             auto buffer = static_cast<uchar *>(malloc(bufferCap));
 
 
-            size_t sampleOutSize;
+            //size_t sampleOutSize;
             std::vector<T> cur_sampling_data=sampling_data;
             size_t sampleOutSize = SZ_compress_LorenzoReg<T, N>(lorenzo_config, cur_sampling_data.data(), buffer, bufferCap);
                 
@@ -1330,7 +1332,7 @@ double Tuning(Config &conf, T *data){
             }
             useInterp=!(best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 80 && best_interp_ratio < 80);
             if(conf.verbose){
-                std::cout << "interp best direction = " << (unsigned) conf.interpMeta.interpDirection << std::endl;
+                std::cout << "interp best direction = " << static_cast<unsigned>( conf.interpMeta.interpDirection) << std::endl;
                 
                 printf("Interp ratio = %.4f\n", best_interp_ratio);
                     
@@ -1450,7 +1452,7 @@ double Tuning(Config &conf, T *data){
                 conf.alpha=alpha;
                 conf.beta=beta; 
                 
-                std::pair<double,double> results=CompressTest<T,N>(conf, sampled_blocks,ALGO_INTERP,(TUNING_TARGET)conf.tuningTarget,false,profiling_coeff,orig_means,
+                std::pair<double,double> results=CompressTest<T,N>(conf, sampled_blocks,ALGO_INTERP,static_cast<TUNING_TARGET>(conf.tuningTarget),false,profiling_coeff,orig_means,
                                                                     orig_sigma2s,orig_ranges,flattened_sampled_data);
                 double bitrate=results.first;
                 double metric=results.second;
@@ -1474,7 +1476,7 @@ double Tuning(Config &conf, T *data){
                     double orieb=conf.absErrorBound;
                     conf.absErrorBound*=eb_fixrate;
                         
-                    std::pair<double,double> results=CompressTest<T,N>(conf, sampled_blocks,ALGO_INTERP,(TUNING_TARGET)conf.tuningTarget,false,profiling_coeff,orig_means,
+                    std::pair<double,double> results=CompressTest<T,N>(conf, sampled_blocks,ALGO_INTERP,static_cast<TUNING_TARGET>(conf.tuningTarget),false,profiling_coeff,orig_means,
                                                                         orig_sigma2s,orig_ranges,flattened_sampled_data);
                     conf.absErrorBound=orieb;
 
@@ -1503,7 +1505,7 @@ double Tuning(Config &conf, T *data){
         if(conf.testLorenzo){    
 
 
-            std::pair<double,double> results=CompressTest<T,N>(conf, sampled_blocks,ALGO_LORENZO_REG,(TUNING_TARGET)conf.tuningTarget,false,profiling_coeff,orig_means,
+            std::pair<double,double> results=CompressTest<T,N>(conf, sampled_blocks,ALGO_LORENZO_REG,static_cast<TUNING_TARGET>(conf.tuningTarget),false,profiling_coeff,orig_means,
                     orig_sigma2s,orig_ranges,flattened_sampled_data);
 
             double bitrate=results.first;
@@ -1529,7 +1531,7 @@ double Tuning(Config &conf, T *data){
                 eb_fixrate=bitrate/bestb;
                 double orieb=conf.absErrorBound;
                 conf.absErrorBound*=eb_fixrate;                        
-                std::pair<double,double> results=CompressTest<T,N>(conf, sampled_blocks,ALGO_LORENZO_REG,(TUNING_TARGET)conf.tuningTarget,false,profiling_coeff,orig_means,
+                std::pair<double,double> results=CompressTest<T,N>(conf, sampled_blocks,ALGO_LORENZO_REG,static_cast<TUNING_TARGET>(conf.tuningTarget),false,profiling_coeff,orig_means,
                                                                     orig_sigma2s,orig_ranges,flattened_sampled_data);
                 conf.absErrorBound=orieb;
                 double bitrate_r=results.first;
@@ -1606,10 +1608,10 @@ double Tuning(Config &conf, T *data){
 
 
 
-template<class T, QoZ::uint N>
+template<class T, uint N>
 size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
-    assert(conf.cmprAlgo == QoZ::ALGO_INTERP_LORENZO);
-    QoZ::calAbsErrorBound(conf, data);
+    assert(conf.cmprAlgo == ALGO_INTERP_LORENZO);
+    calAbsErrorBound(conf, data);
 
     if(N!=2&&N!=3){
         conf.autoTuningRate=0;
@@ -1631,7 +1633,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
 
     if(conf.verbose)
         std::cout << "====================================== BEGIN TUNING ================================" << std::endl;
-    QoZ::Timer timer(true);
+    Timer timer(true);
     
      
     double best_lorenzo_ratio=Tuning<T,N>(conf,data);
