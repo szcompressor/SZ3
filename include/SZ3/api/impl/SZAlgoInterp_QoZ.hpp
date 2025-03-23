@@ -291,7 +291,7 @@ std::pair<double,double> CompressTest(const Config &conf,const std::vector< std:
         auto sz = make_decomposition_lorenzo_regression<T, N, LinearQuantizer<T> >(
                         testConfig,
                         LinearQuantizer<T>(testConfig.absErrorBound, testConfig.quantbinCnt / 2)
-                        );
+                        );//make or object?
         for (int k=0;k<num_sampled_blocks;k++){
             size_t sampleOutSize;
             std::vector<T> cur_block(testConfig.num);
@@ -369,7 +369,7 @@ std::pair<double,double> CompressTest(const Config &conf,const std::vector< std:
         auto sz = make_decomposition_interpolation<T, N, LinearQuantizer<T> >(
                         testConfig,
                         LinearQuantizer<T>(testConfig.absErrorBound, testConfig.quantbinCnt / 2)
-                        );
+                        );//make or object?
 
 
         
