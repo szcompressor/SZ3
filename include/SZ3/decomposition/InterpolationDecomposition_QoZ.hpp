@@ -189,9 +189,11 @@ namespace QoZ {
 
             std::vector<int> quant_inds_vec(num_elements);
             quant_inds = quant_inds_vec.data();
-
+            std::cout<<"ap1"<<std::endl;
 
             init();
+            std::cout<<"ap2"<<std::endl;
+
             if (tuning){
                 predict_error=0.0;
                 if(tuning == 1)
@@ -224,8 +226,11 @@ namespace QoZ {
             }
            // double predict_error=0.0;
             int levelwise_predictor_levels=interpMeta_list.size();
+            std::cout<<"ap3"<<std::endl;
 
             for (uint level = start_level; level > end_level && level <= start_level; level--) {
+                std::cout<<"ap4 "<<level<<std::endl;
+
                 cur_level=level;
                 double cur_eb;
                 if (alpha<0) {
@@ -250,6 +255,7 @@ namespace QoZ {
                     cur_eb=eb*cur_ratio;
                 }
                 quantizer.set_eb(cur_eb);
+                std::cout<<"ap4.1 "<<level<<std::endl;
 
                 Interp_Meta cur_meta;
                 if (levelwise_predictor_levels==0){
@@ -264,6 +270,7 @@ namespace QoZ {
                         cur_meta=interpMeta_list[levelwise_predictor_levels-1];
                     }
                 }
+                std::cout<<"ap4.2 "<<level<<std::endl;
                 Interp_Meta cur_level_meta;
                 if(blockwiseTuning)
                     cur_level_meta=cur_meta;
@@ -281,6 +288,7 @@ namespace QoZ {
                                                            cur_blocksize, 0);//,0);//conf.blockOrder);
                 auto inter_begin = inter_block_range->begin();
                 auto inter_end = inter_block_range->end();
+                std::cout<<"ap4.3 "<<level<<std::endl;
                 for (auto block = inter_begin; block != inter_end; ++block) {
                     auto start_idx=block.get_global_index();
                     auto end_idx = start_idx;
@@ -471,6 +479,7 @@ namespace QoZ {
                     }
 
                 }
+                std::cout<<"ap4.4 "<<level<<std::endl;
                 if(tuning==1){
                     quant_bin_counts[level-1]=quant_index;
                 }
