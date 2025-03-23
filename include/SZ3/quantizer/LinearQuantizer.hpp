@@ -117,15 +117,18 @@ class LinearQuantizer : public concepts::QuantizerInterface<T, int> {
 
     void save(unsigned char *&c) const override {
         // std::string serialized(sizeof(uint8_t) + sizeof(T) + sizeof(int),0);
+        std::cout<<"qsp1"<<std::endl;
         c[0] = 0b00000010;
         c += 1;
         *reinterpret_cast<double *>(c) = this->error_bound;
         c += sizeof(double);
         *reinterpret_cast<int *>(c) = this->radius;
+        std::cout<<"qsp2"<<std::endl;
         c += sizeof(int);
         *reinterpret_cast<size_t *>(c) = unpred.size();
         c += sizeof(size_t);
         memcpy(c, unpred.data(), unpred.size() * sizeof(T));
+        std::cout<<"qsp3"<<std::endl;
         c += unpred.size() * sizeof(T);
     }
 

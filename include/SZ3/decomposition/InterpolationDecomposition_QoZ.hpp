@@ -550,17 +550,21 @@ namespace QoZ {
        
 
         void save(uchar *&c) override {
+
+            std::cout<<"sp1"<<std::endl;
             write(global_dimensions.data(), N, c);
             write(blocksize, c);
             write(interp_meta, c);
             write(alpha,c);
             write(beta,c);
             write(maxStep,c);
+            std::cout<<"sp2"<<std::endl;
             write(levelwise_predictor_levels,c);
             write(blockwiseTuning,c);
             write(fixBlockSize,c);
             write(frozen_dim,c);
             write(cross_block,c);
+            std::cout<<"sp3"<<std::endl;
             //write(conf.regressiveInterp,buffer_pos);
             if(blockwiseTuning){
                 size_t meta_num=interpMeta_list.size();
@@ -571,6 +575,7 @@ namespace QoZ {
                 write(interpMeta_list.data(),levelwise_predictor_levels,c);
                
             }
+            std::cout<<"sp4"<<std::endl;
 
             quantizer.save(c);
         }
