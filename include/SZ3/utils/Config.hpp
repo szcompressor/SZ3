@@ -71,10 +71,10 @@ namespace SZ3 {
  
     };
 
-    void print_meta(Interp_Meta meta){
-        std::cout<<(int)meta.interpAlgo<<" "<<(int)meta.interpParadigm<<" "<<(int)meta.cubicSplineType<<" "<<(int)meta.interpDirection<<" "<<(int)meta.adjInterp<<std::endl;
+    //void print_meta(Interp_Meta meta){
+    //    std::cout<<(int)meta.interpAlgo<<" "<<(int)meta.interpParadigm<<" "<<(int)meta.cubicSplineType<<" "<<(int)meta.interpDirection<<" "<<(int)meta.adjInterp<<std::endl;
 
-    }
+    //}
 
     template<class T>
     const char *enum2Str(T e) {
@@ -99,27 +99,26 @@ namespace SZ3 {
         template<class ... Dims>
         Config(Dims ... args) {
             dims = std::vector<size_t>{static_cast<size_t>(std::forward<Dims>(args))...};
-           
-            N = dims.size();
-            num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<size_t>());
-          
-            blockSize = (N == 1 ? 128 : (N == 2 ? 16 : 6));
-            pred_dim = N;
-            stride = blockSize;
+            setDims(dims.begin(), dims.end());
         }
 
         template<class Iter>
         size_t setDims(Iter begin, Iter end) {
-            dims = std::vector<size_t>(begin, end);
-           
+            auto dims_ = std::vector<size_t>(begin, end);
+            dims.clear();
+            for (auto dim : dims_) {
+                if (dim > 1) {
+                    dims.push_back(dim);
+                }
+            }
+            if (dims.empty()) {
+                dims = {1};
+            }
             N = dims.size();
-            num = std::accumulate(dims.begin(), dims.end(), (size_t) 1, std::multiplies<size_t>());
-          
-            //added
-            blockSize = (N == 1 ? 128 : (N == 2 ? 16 : 6));
+            num = std::accumulate(dims.begin(), dims.end(), static_cast<size_t>(1), std::multiplies<size_t>());
             pred_dim = N;
+            blockSize = (N == 1 ? 128 : (N == 2 ? 16 : 6));
             stride = blockSize;
-            //added end 
             return num;
         }
 
@@ -371,7 +370,7 @@ namespace SZ3 {
             
 
             
-        };
+        }
 
         void load(const unsigned char *&c) {
 
