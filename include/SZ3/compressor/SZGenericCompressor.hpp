@@ -47,11 +47,13 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         encoder.preprocess_encode(quant_inds, decomposition.get_out_range().second);
         size_t bufferSize = std::max<size_t>(
             1000, 1.2 * (decomposition.size_est() + encoder.size_est() + sizeof(T) * quant_inds.size()));
-        std::cout<<"cp3"<<std::endl;
+        std::cout<<"cp3 "<<bufferSize<<std::endl;
         auto buffer = static_cast<uchar *>(malloc(bufferSize));
+        std::cout<<"cp3.1"<<std::endl;
         uchar *buffer_pos = buffer;
 
         decomposition.save(buffer_pos);
+        std::cout<<"cp3.2"<<std::endl;
         encoder.save(buffer_pos);
         std::cout<<"cp4"<<std::endl;
         //store the size of quant_inds is necessary as it is not always equal to conf.num
