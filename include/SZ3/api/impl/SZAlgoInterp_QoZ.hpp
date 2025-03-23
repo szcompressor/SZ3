@@ -474,7 +474,7 @@ std::pair<double,double> CompressTest(const Config &conf,const std::vector< std:
     size_t estimated_size = 1.2*sizeof(int)*q_bins.size();
 
     uchar * cmpData = new uchar[estimated_size];
-    auto lossless = SZ3::make_compressor_sz_encodinglossless<HuffmanEncoder<int>, Lossless_zstd>(HuffmanEncoder<int>(), Lossless_zstd());
+    auto lossless = make_compressor_sz_encodinglossless<HuffmanEncoder<int>, Lossless_zstd>(HuffmanEncoder<int>(), Lossless_zstd());
 
     auto totalOutSize = lossless.compress(q_bins,cmpData,estimated_size);
 

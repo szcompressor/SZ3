@@ -28,7 +28,7 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
 
 
             bool qoz_tuning = conf.QoZ != -1 and (conf.QoZ > 0 or conf.predictorTuningRate > 0 or conf.autoTuningRate > 0);
-            bool qoz_interp = (conf.alpha != -1 and conf.beta != -1) or conf.maxStep > 0 or conf.intepMeta.interpParadigm !=0 or conf.intepMeta.cubicSplineType != 0 or conf.intepMeta.adjInterp != 0;
+            bool qoz_interp = (conf.alpha != -1 and conf.beta != -1) or conf.maxStep > 0 or conf.interpMeta.interpParadigm !=0 or conf.interpMeta.cubicSplineType != 0 or conf.interpMeta.adjInterp != 0;
 
 
             if (conf.cmprAlgo == ALGO_LORENZO_REG) {
