@@ -23,7 +23,7 @@ template <class T, uint N>
 size_t SZ_compress_Interp(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
     assert(N == conf.N);
     assert(conf.cmprAlgo == ALGO_INTERP);
-    calAbsErrorBound(conf, data);
+    SZ3::QoZ::calAbsErrorBound(conf, data);
 
     auto sz = make_compressor_sz_generic<T, N>(
         SZ3::QoZ::make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
@@ -1611,7 +1611,7 @@ double Tuning(Config &conf, T *data){
 template<class T, uint N>
 size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
     assert(conf.cmprAlgo == ALGO_INTERP_LORENZO);
-    calAbsErrorBound(conf, data);
+    SZ3::QoZ::calAbsErrorBound(conf, data);
 
     if(N!=2&&N!=3){
         conf.autoTuningRate=0;
@@ -1649,7 +1649,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         }
 
             
-        return SZ_compress_Interp<T, N>(conf, data, cmpData, cmpCap);        
+        return SZ3::QoZ::SZ_compress_Interp<T, N>(conf, data, cmpData, cmpCap);        
 
     } 
 
@@ -1659,7 +1659,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         std::vector<size_t> sample_dims(N);
         std::vector<T> sampling_data;
 
-        size_t sampleOutSize;
+        //size_t sampleOutSize;
         double ratio;  
             
         sampling_data = sampling<T, N>(data, conf.dims, sampling_num, sample_dims, sampling_block);    
@@ -1689,7 +1689,9 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
           
             //further tune lorenzo
             if (N == 3 ) {
-                lorenzo_config.quantbinCnt = optimize_quant_invl_3d<T>(data, conf.dims[0], conf.dims[1], conf.dims[2], conf.absErrorBound);
+                float pred_freq, mean_freq;
+                T mean_guess;
+                lorenzo_config.quantbinCnt = optimize_quant_invl_3d<T>(data, conf.dims[0], conf.dims[1], conf.dims[2], conf.absErrorBound, pred_freq, mean_freq, mean_guessb);
                 lorenzo_config.pred_dim = 2;
                 auto sampleOutSize= SZ_compress_LorenzoReg<T, N>(lorenzo_config, sampling_data.data(), buffer, bufferCap);
                 //delete[]cmprData;
