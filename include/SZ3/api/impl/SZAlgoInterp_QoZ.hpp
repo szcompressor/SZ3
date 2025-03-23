@@ -303,7 +303,7 @@ std::pair<double,double> CompressTest(const Config &conf,const std::vector< std:
 
             
           
-            q_bins.insert(q_bins.end(),quant_bins.start(),quant_bins.end());
+            q_bins.insert(q_bins.end(),quant_bins.begin(),quant_bins.end());
 
             if(tuningTarget==TUNING_TARGET_RD){
                 if(algo==ALGO_INTERP)

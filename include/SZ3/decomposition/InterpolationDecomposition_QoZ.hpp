@@ -145,7 +145,7 @@ namespace QoZ {
             quantizer.postdecompress_data();
             return decData;
         }
-        std::vector<int> compress(const Config &conf, T *data) override 
+        std::vector<int> compress(const Config &conf, T *data) 
         {
             double temp;
             std::vector<int> quant_bin_counts;
