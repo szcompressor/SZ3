@@ -2,6 +2,7 @@
 #define SZ3_IMPL_SZDISPATCHER_HPP
 
 #include "SZ3/api/impl/SZAlgoInterp.hpp"
+#include "SZ3/api/impl/SZAlgoInterp_QoZ.hpp"
 #include "SZ3/api/impl/SZAlgoLorenzoReg.hpp"
 #include "SZ3/api/impl/SZAlgoNopred.hpp"
 #include "SZ3/utils/Config.hpp"
@@ -24,12 +25,33 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
     if (conf.cmprAlgo != ALGO_LOSSLESS) {
         try {
             std::vector<T> dataCopy(data, data + conf.num);
+
+
+            bool qoz_tuning = conf.QoZ >=0 or (conf.predictorTuningRate > 0 or conf.autoTuningRate > 0);
+            bool qoz_interp = conf.QoZ >=0 or (conf.alpha != -1 and conf.beta != -1) or conf.maxStep > 0 or conf.interpMeta.interpParadigm !=0 or conf.interpMeta.cubicSplineType != 0 or conf.interpMeta.adjInterp != 0;
+
+
             if (conf.cmprAlgo == ALGO_LORENZO_REG) {
                 cmpSize = SZ_compress_LorenzoReg<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
             } else if (conf.cmprAlgo == ALGO_INTERP) {
-                cmpSize = SZ_compress_Interp<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                if (qoz_interp){
+                    conf.qoz_used = true;
+                    cmpSize = QoZ::SZ_compress_Interp<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                }
+                else{
+                    conf.qoz_used = false;
+                    cmpSize = SZ_compress_Interp<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                }
             } else if (conf.cmprAlgo == ALGO_INTERP_LORENZO) {
-                cmpSize = SZ_compress_Interp_lorenzo<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                if (qoz_interp or qoz_tuning){
+                    conf.qoz_used = true;
+                    cmpSize = QoZ::SZ_compress_Interp_lorenzo<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+
+                }
+                else{
+                    conf.qoz_used = false;
+                    cmpSize = SZ_compress_Interp_lorenzo<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                }
             } else if (conf.cmprAlgo == ALGO_NOPRED) {
                 cmpSize = SZ_compress_nopred<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
             } else {
@@ -86,7 +108,10 @@ void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize
     } else if (conf.cmprAlgo == ALGO_LORENZO_REG) {
         SZ_decompress_LorenzoReg<T, N>(conf, cmpData, cmpSize, decData);
     } else if (conf.cmprAlgo == ALGO_INTERP) {
-        SZ_decompress_Interp<T, N>(conf, cmpData, cmpSize, decData);
+        if(conf.qoz_used)
+            QoZ::SZ_decompress_Interp<T, N>(conf, cmpData, cmpSize, decData);
+        else
+            SZ_decompress_Interp<T, N>(conf, cmpData, cmpSize, decData);
     } else if (conf.cmprAlgo == ALGO_NOPRED) {
         SZ_decompress_nopred<T, N>(conf, cmpData, cmpSize, decData);
     } else {

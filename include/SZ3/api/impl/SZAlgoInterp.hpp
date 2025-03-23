@@ -45,8 +45,8 @@ double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> d
     conf.absErrorBound = eb;
     conf.setDims(dims.begin(), dims.end());
     conf.blockSize = block_size;
-    conf.interpAlgo = interp_op;
-    conf.interpDirection = direction_op;
+    conf.interpMeta.interpAlgo = interp_op;
+    conf.interpMeta.interpDirection = direction_op;
     auto sz = SZBlockInterpolationCompressor<T, N, LinearQuantizer<T>, HuffmanEncoder<int>, Lossless_zstd>(
         LinearQuantizer<T>(eb), HuffmanEncoder<int>(), Lossless_zstd());
 
@@ -98,21 +98,21 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         // tune interp
         for (auto &interp_op : {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC}) {
             ratio = do_not_use_this_interp_compress_block_test<T, N>(
-                sampling_data.data(), sample_dims, sampling_num, conf.absErrorBound, interp_op, conf.interpDirection,
+                sampling_data.data(), sample_dims, sampling_num, conf.absErrorBound, interp_op, conf.interpMeta.interpDirection,
                 sampling_block, buffer, bufferCap);
             if (ratio > best_interp_ratio) {
                 best_interp_ratio = ratio;
-                conf.interpAlgo = interp_op;
+                conf.interpMeta.interpAlgo = interp_op;
             }
         }
 
         int direction_op = factorial(N) - 1;
         ratio = do_not_use_this_interp_compress_block_test<T, N>(sampling_data.data(), sample_dims, sampling_num,
-                                                                 conf.absErrorBound, conf.interpAlgo, direction_op,
+                                                                 conf.absErrorBound, conf.interpMeta.interpAlgo, direction_op,
                                                                  sampling_block, buffer, bufferCap);
         if (ratio > best_interp_ratio * 1.02) {
             best_interp_ratio = ratio;
-            conf.interpDirection = direction_op;
+            conf.interpMeta.interpDirection = direction_op;
         }
     }
 

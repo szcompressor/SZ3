@@ -56,6 +56,7 @@ void calAbsErrorBound(Config &conf, const T *data, T range = 0) {
     }
 }
 
+
 template <typename Type>
 double autocorrelation1DLag1(const Type *data, size_t numOfElem, Type avg) {
     double cov = 0;
@@ -151,6 +152,43 @@ void verify(Type *ori_data, Type *data, size_t num_elements, double &psnr, doubl
     double max_diff;
     verify(ori_data, data, num_elements, psnr, nrmse, max_diff);
 }
+
+    namespace QoZ {
+        template<class T>
+        void calAbsErrorBound(Config &conf, const T *data,T range = 0 ) {
+            if (conf.errorBoundMode != EB_ABS) {
+                if (conf.errorBoundMode == EB_REL) {
+                    conf.errorBoundMode = EB_ABS;
+                    double rng= (range > 0) ? range : data_range(data, conf.num);
+                    conf.rng=rng;
+                    conf.absErrorBound = conf.relErrorBound * rng;
+                } else if (conf.errorBoundMode == EB_PSNR) {
+                    conf.errorBoundMode = EB_ABS;
+                    double rng=(range > 0) ? range : data_range(data, conf.num);
+                    conf.rng=rng;
+                    conf.absErrorBound = computeABSErrBoundFromPSNR(conf.psnrErrorBound, 0.99, rng);
+                    conf.relErrorBound=conf.absErrorBound/rng;
+                } else if (conf.errorBoundMode == EB_L2NORM) {
+                    conf.errorBoundMode = EB_ABS;
+                    conf.absErrorBound = sqrt(3.0 / conf.num) * conf.l2normErrorBound;
+                } else if (conf.errorBoundMode == EB_ABS_AND_REL) {
+                    conf.errorBoundMode = EB_ABS;
+                    double rng=(range > 0) ? range : data_range(data, conf.num);
+                    conf.rng=rng;
+                    conf.absErrorBound = std::min(conf.absErrorBound, conf.relErrorBound * rng);
+                } else if (conf.errorBoundMode == EB_ABS_OR_REL) {
+                    conf.errorBoundMode = EB_ABS;
+                    double rng=(range > 0) ? range : data_range(data, conf.num);
+                    conf.rng=rng;
+                    conf.absErrorBound = std::max(conf.absErrorBound, conf.relErrorBound *rng);
+                } else {
+                    printf("Error, error bound mode not supported\n");
+                    exit(0);
+                }
+            }
+        }
+    } //namespace QoZ
+
 }  // namespace SZ3
 
 #endif

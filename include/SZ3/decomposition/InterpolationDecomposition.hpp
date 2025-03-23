@@ -65,8 +65,8 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
     std::vector<int> compress(const Config &conf, T *data) override {
         std::copy_n(conf.dims.begin(), N, global_dimensions.begin());
         blocksize = 32;
-        interpolator_id = conf.interpAlgo;
-        direction_sequence_id = conf.interpDirection;
+        interpolator_id = conf.interpMeta.interpAlgo;
+        direction_sequence_id = conf.interpMeta.interpDirection;
 
         init();
 
