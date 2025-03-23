@@ -13,6 +13,7 @@
 #include "SZ3/utils/Iterator.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
 #include "SZ3/utils/Timer.hpp"
+#include "SZ3/utils/Sample.hpp"
 
 namespace SZ3 {
 
@@ -30,7 +31,7 @@ namespace QoZ {
         }
 
 
-        T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) {
+        T *decompress(const Config &conf, std::vector<int> &quant_inds, T *decData) {
             
             init();   
           
@@ -146,17 +147,19 @@ namespace QoZ {
         }
         std::vector<int> compress(const Config &conf, T *data){
             double temp;
-            return compress(conf, data,0,0,0,temp)
+            std::vector<int> quant_bin_counts;
+            return compress(conf, data,0,0,0,temp,quant_bin_counts);
         }
 
          std::vector<int> compress(const Config &conf, T *data,int tuning,double & predict_error){
             //double temp;
-            return compress(conf, data,tuning,0,0,predict_error)
+            std::vector<int> quant_bin_counts;
+            return compress(conf, data,tuning,0,0,predict_error,quant_bin_counts);
         }
        
 
         // compress given the error bound
-        std::vector<int> compress(const Config &conf, T *data,int tuning,int start_level,int end_level,double & predict_error) {
+        std::vector<int> compress(const Config &conf, T *data,int tuning,int start_level,int end_level,double & predict_error,std::vector<size_t> &quant_bin_counts) {
             //tuning 0: normal compress 1:tuning to return qbins and psnr 2: tuning to return prediction loss
             //Timer timer;
             //timer.start();
@@ -164,6 +167,9 @@ namespace QoZ {
             std::copy_n(conf.dims.begin(), N, global_dimensions.begin());
             blocksize = conf.interpBlockSize;
             maxStep=conf.maxStep;
+            blockwiseTuning=conf.blockwiseTuning;
+            fixBlockSize=conf.fixBlockSize;
+            frozen_dim = conf.frozen_dim;
 
             interp_meta=conf.interpMeta;
 
@@ -172,13 +178,17 @@ namespace QoZ {
             std::vector<Interp_Meta>interp_metas;
             cross_block=conf.crossBlock;
 
+            interpMeta_list = conf.interpMeta_list;
+
             std::vector<int> quant_inds_vec(num_elements);
             quant_inds = quant_inds_vec.data();
 
 
             init();
             if (tuning){
-                conf.decomp_square_error=0.0;
+                predict_error=0.0;
+                if(tuning == 1)
+                    quant_bin_counts=std::vector<size_t>(interpolation_level,0);
 
             }
             double eb = quantizer.get_eb();
@@ -195,18 +205,18 @@ namespace QoZ {
 
 
             if(!anchor){
-                quant_inds.push_back(quantizer.quantize_and_overwrite(*data, 0));
+                quant_inds[quant_index++] = quantizer.quantize_and_overwrite(*data, 0);
             }
             else if (start_level==interpolation_level){
                 
                 build_grid(conf,data,maxStep,tuning);
-                if(tuning){
-                    conf.quant_bin_counts[start_level-1]=quant_inds.size();
+                if(tuning==1){
+                    quant_bin_counts[start_level-1]=quant_index;
                 }
                 start_level--;
             }
            // double predict_error=0.0;
-            int levelwise_predictor_levels=conf.interpMeta_list.size();
+            int levelwise_predictor_levels=interpMeta_list.size();
 
             for (uint level = start_level; level > end_level && level <= start_level; level--) {
                 cur_level=level;
@@ -241,19 +251,19 @@ namespace QoZ {
                 }
                 else{
                     if (level-1<levelwise_predictor_levels){
-                        cur_meta=conf.interpMeta_list[level-1];
+                        cur_meta=interpMeta_list[level-1];
                     }
                     else{
-                        cur_meta=conf.interpMeta_list[levelwise_predictor_levels-1];
+                        cur_meta=interpMeta_list[levelwise_predictor_levels-1];
                     }
                 }
                 Interp_Meta cur_level_meta;
-                if(conf.blockwiseTuning)
+                if(blockwiseTuning)
                     cur_level_meta=cur_meta;
                 size_t stride = 1U << (level - 1);
                 size_t cur_blocksize;
-                if (conf.fixBlockSize>0){
-                    cur_blocksize=conf.fixBlockSize;
+                if (fixBlockSize>0){
+                    cur_blocksize=fixBlockSize;
                 }
                 else{
                     cur_blocksize=blocksize*stride;
@@ -274,7 +284,7 @@ namespace QoZ {
                         }
                     }
 
-                    if(!conf.blockwiseTuning or (N!=2 and N!=3)){
+                    if(!blockwiseTuning or (N!=2 and N!=3)){
                         predict_error+=block_interpolation(data, start_idx, end_idx, PB_predict_overwrite,
                                     interpolators[cur_meta.interpAlgo],cur_meta, stride,tuning,cross_block);//,cross_block,regressiveInterp);
 
@@ -307,8 +317,8 @@ namespace QoZ {
                             }
             
                             double temp1=0.5-0.5/cur_rate,temp2=0.5+0.5/cur_rate;
-                            sample_starts[i]=((size_t)((temp1*cur_length)/(2*stride)))*2*stride+start_idx[i];
-                            sample_ends[i]=((size_t)((temp2*cur_length)/(2*stride)))*2*stride+start_idx[i];
+                            sample_starts[i]=((temp1*cur_length)/(2*stride))*2*stride+start_idx[i];
+                            sample_ends[i]=((temp2*cur_length)/(2*stride))*2*stride+start_idx[i];
                             if(sample_ends[i]>end_idx[i])
                                 sample_ends[i]=end_idx[i];
 
@@ -317,8 +327,8 @@ namespace QoZ {
                         std::array<size_t,N>sample_strides;
                         for(size_t i=0;i<N;i++)
                             sample_strides[i]=stride;
-                        if(conf.frozen_dim>=0)
-                            sample_strides[conf.frozen_dim]=1;
+                        if(frozen_dim>=0)
+                            sample_strides[frozen_dim]=1;
                         if(N==2){
                             for(size_t x=sample_starts[0];x<=sample_ends[0] ;x+=sample_strides[0]){
                                 //sb_ends[0]++;
@@ -349,11 +359,11 @@ namespace QoZ {
                         std::vector<uint8_t> interpAlgo_Candidates={cur_level_meta.interpAlgo};
                         std::vector<uint8_t> interpParadigm_Candidates={0};
                         std::vector<uint8_t> cubicSplineType_Candidates={cur_level_meta.cubicSplineType};
-                        std::vector<uint8_t> interpDirection_Candidates={0, (uint8_t)(factorial(N) -1)};
-                        if(conf.frozen_dim>=0){
-                            if(conf.frozen_dim==0)
+                        std::vector<uint8_t> interpDirection_Candidates={0, static_cast<uint8_t>(factorial(N) -1)};
+                        if(frozen_dim>=0){
+                            if(frozen_dim==0)
                                 interpDirection_Candidates={6,7};
-                            else if (conf.frozen_dim==1)
+                            else if (frozen_dim==1)
                                 interpDirection_Candidates={8,9};
                             else
                                 interpDirection_Candidates={10,11};
@@ -379,12 +389,12 @@ namespace QoZ {
                         for (auto &interp_op: interpAlgo_Candidates) {
                             cur_meta.interpAlgo=interp_op;
                             for (auto &interp_pd: interpParadigm_Candidates) {
-                                if(conf.frozen_dim>=0 and interp_pd>1)
+                                if(frozen_dim>=0 and interp_pd>1)
                                     continue;
                                 cur_meta.interpParadigm=interp_pd;
 
                                 for (auto &interp_direction: interpDirection_Candidates) {
-                                    if (conf.frozen_dim<0 and (interp_pd==1 or  (interp_pd==2 and N<=2)) and interp_direction!=0)
+                                    if (frozen_dim<0 and (interp_pd==1 or  (interp_pd==2 and N<=2)) and interp_direction!=0)
                                         continue;
                                     cur_meta.interpDirection=interp_direction;
                                     for(auto &cubic_spline_type:cubicSplineType_Candidates){
@@ -454,9 +464,13 @@ namespace QoZ {
                     }
 
                 }
-                if(tuning){
-                    conf.quant_bin_counts[level-1]=quant_inds.size();
+                if(tuning==1){
+                    quant_bin_counts[level-1]=quant_index;
                 }
+            }
+
+            if (!interp_metas.empty()){
+                interpMeta_list = interp_metas;
             }                    
             //timer.start();
 
@@ -525,18 +539,18 @@ namespace QoZ {
             write(beta,c);
             write(maxStep,c);
             write(levelwise_predictor_levels,c);
-            write(conf.blockwiseTuning,c);
-            write(conf.fixBlockSize,c);
-            write(conf.frozen_dim,c);
+            write(blockwiseTuning,c);
+            write(fixBlockSize,c);
+            write(frozen_dim,c);
             write(cross_block,c);
             //write(conf.regressiveInterp,buffer_pos);
             if(conf.blockwiseTuning){
-                size_t meta_num=interp_metas.size();
+                size_t meta_num=interpMeta_list.size();
                 write(meta_num,c);
-                write(interp_metas.data(),meta_num,c);
+                write(iinterpMeta_list.data(),meta_num,c);
             }
             else if(levelwise_predictor_levels>0){
-                write(conf.interpMeta_list.data(),levelwise_predictor_levels,c);
+                write(interpMeta_list.data(),levelwise_predictor_levels,c);
                
             }
 
@@ -561,7 +575,7 @@ namespace QoZ {
             //read(regressiveInterp,c, remaining_length);     
             if(blockwiseTuning){
                 size_t meta_num;
-                read(meta_num,buffer_pos, remaining_length);
+                read(meta_num,c, remaining_length);
                 interpMeta_list.resize(meta_num);
                 read(interpMeta_list.data(),meta_num,c, remaining_length);
             }
@@ -591,13 +605,13 @@ namespace QoZ {
 
             for (int i = 0; i < N; i++) {
                 if (interpolation_level < ceil(log2(global_dimensions[i]))) {
-                    interpolation_level = (uint) ceil(log2(global_dimensions[i]));
+                    interpolation_level = static_cast<uint> (ceil(log2(global_dimensions[i])) );
                 }
                 num_elements *= global_dimensions[i];
             }
             if (maxStep>0){
                 anchor=true;//recently moved out of if
-                int max_interpolation_level=(uint)log2(maxStep)+1;
+                int max_interpolation_level=static_cast<uint> (log2(maxStep))+1;
                 if (max_interpolation_level<=interpolation_level){ 
                     interpolation_level=max_interpolation_level;
                 }
@@ -759,7 +773,7 @@ namespace QoZ {
 
         inline void recover(size_t idx, T &d, T pred) {
             d = quantizer.recover(pred, quant_inds[quant_index++]);
-        };
+        }
 
         inline double quantize_integrated(size_t idx, T &d, T pred, int mode=0){
 
@@ -7228,7 +7242,7 @@ namespace QoZ {
 
 
         int levelwise_predictor_levels;
-        bool blockwiseTuning;
+        bool blockwiseTuning = false;
         std::vector <uint8_t> interpAlgo_list;
         std::vector <uint8_t> interpDirection_list;
         //std::vector <uint8_t> cubicSplineType_list;

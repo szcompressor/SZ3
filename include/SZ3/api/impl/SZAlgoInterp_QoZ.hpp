@@ -285,18 +285,167 @@ std::pair<double,double> CompressTest(const Config &conf,const std::vector< std:
     size_t idx=0;   
     std::shared_ptr< concepts::DecompositionInterface<T,int,N>> sz;
     size_t totalOutSize=0;
+    std::vector<size_t> q_bin_counts;     
     if(algo == ALGO_LORENZO_REG){
-        sz = std::make_shared< LorenzoRegressionDecomposition<T, N, LinearQuantizer<T> > >(
+        auto sz = make_decomposition_lorenzo_regression<T, N, LinearQuantizer<T> >(
                         testConfig,
                         LinearQuantizer<T>(testConfig.absErrorBound, testConfig.quantbinCnt / 2)
                         );
+        for (int k=0;k<num_sampled_blocks;k++){
+            size_t sampleOutSize;
+            std::vector<T> cur_block(testConfig.num);
+            std::copy(sampled_blocks[k].begin(),sampled_blocks[k].end(),cur_block.begin());
+            
+             
+            double decomp_square_error;
+            auto quant_bins = sz->compress(testConfig, cur_block.data());
+
+            
+          
+            q_bins.insert(q_bins.end(),quant_bins.start(),quant_bins.end());
+
+            if(tuningTarget==TUNING_TARGET_RD){
+                if(algo==ALGO_INTERP)
+                    square_error+=decomp_square_error;
+                else{
+                   
+                    for(size_t j=0;j<per_block_ele_num;j++){
+                        T value=sampled_blocks[k][j]-cur_block[j];
+                        square_error+=value*value;
+                    
+                    }
+                }
+            }
+            else if (tuningTarget==TUNING_TARGET_SSIM){
+                size_t ssim_block_num=orig_means.size();                       
+                double mean=0,sigma2=0,cov=0,range=0;
+                double orig_mean=0,orig_sigma2=0,orig_range=0;  
+                std::vector<size_t>block_dims(N,sampleBlockSize+1);                      
+                if(N==2){
+                    for (size_t i=0;i+ssim_size<sampleBlockSize+1;i+=ssim_size){
+                        for (size_t j=0;j+ssim_size<sampleBlockSize+1;j+=ssim_size){
+                            orig_mean=orig_means[idx];
+                            orig_sigma2=orig_sigma2s[idx];
+                            orig_range=orig_ranges[idx];
+                            std::vector<size_t> starts{i,j};
+                            blockwise_profiling<T>(cur_block.data(),block_dims,starts,ssim_size,mean,sigma2,range);
+                            cov=blockwise_cov<T>(sampled_blocks[k].data(),cur_block.data(),block_dims,starts,ssim_size,orig_mean,mean);
+                            metric+=SSIM(orig_range,orig_mean,orig_sigma2,mean,sigma2,cov)/ssim_block_num;
+                            idx++;
+
+
+                        }
+                    }
+                }
+                else if(N==3){
+                    for (size_t i=0;i+ssim_size<sampleBlockSize+1;i+=ssim_size){
+                        for (size_t j=0;j+ssim_size<sampleBlockSize+1;j+=ssim_size){
+                            for (size_t kk=0;kk+ssim_size<sampleBlockSize+1;kk+=ssim_size){
+                                orig_mean=orig_means[idx];
+                                orig_sigma2=orig_sigma2s[idx];
+                                orig_range=orig_ranges[idx];
+                                std::vector<size_t> starts{i,j,kk};
+                                blockwise_profiling<T>(cur_block.data(),block_dims,starts,ssim_size,mean,sigma2,range);
+                                cov=blockwise_cov<T>(sampled_blocks[k].data(),cur_block.data(),block_dims,starts,ssim_size,orig_mean,mean);
+                                //printf("%.8f %.8f %.8f %.8f %.8f %.8f %.8f\n",orig_range,orig_sigma2,orig_mean,range,sigma2,mean,cov);
+                                metric+=SSIM(orig_range,orig_mean,orig_sigma2,mean,sigma2,cov)/ssim_block_num;
+                         
+                                idx++;
+                            }
+                        }
+                    }
+                }
+            }
+            else if (tuningTarget==TUNING_TARGET_AC){
+                flattened_cur_blocks.insert(flattened_cur_blocks.end(),cur_block.begin(),cur_block.end());
+            }                      
+        }
+
+
     }
     else if(algo == ALGO_INTERP){
 
-        sz = std::make_shared< SZInterpolationDecomposition<T, N, LinearQuantizer<T> > >(
+        auto sz = make_decomposition_interpolation<T, N, LinearQuantizer<T> >(
                         testConfig,
                         LinearQuantizer<T>(testConfig.absErrorBound, testConfig.quantbinCnt / 2)
                         );
+
+
+        
+        for (int k=0;k<num_sampled_blocks;k++){
+            size_t sampleOutSize;
+            std::vector<T> cur_block(testConfig.num);
+            std::copy(sampled_blocks[k].begin(),sampled_blocks[k].end(),cur_block.begin());
+            
+             
+            double decomp_square_error;
+            auto quant_bins = sz->compress(testConfig, cur_block.data(), 1,decomp_square_error,q_bin_counts);
+
+            
+            
+
+            
+            block_q_bins.push_back(quant_bins);
+            
+        
+
+            if(tuningTarget==TUNING_TARGET_RD){
+                if(algo==ALGO_INTERP)
+                    square_error+=decomp_square_error;
+                else{
+                   
+                    for(size_t j=0;j<per_block_ele_num;j++){
+                        T value=sampled_blocks[k][j]-cur_block[j];
+                        square_error+=value*value;
+                    
+                    }
+                }
+            }
+            else if (tuningTarget==TUNING_TARGET_SSIM){
+                size_t ssim_block_num=orig_means.size();                       
+                double mean=0,sigma2=0,cov=0,range=0;
+                double orig_mean=0,orig_sigma2=0,orig_range=0;  
+                std::vector<size_t>block_dims(N,sampleBlockSize+1);                      
+                if(N==2){
+                    for (size_t i=0;i+ssim_size<sampleBlockSize+1;i+=ssim_size){
+                        for (size_t j=0;j+ssim_size<sampleBlockSize+1;j+=ssim_size){
+                            orig_mean=orig_means[idx];
+                            orig_sigma2=orig_sigma2s[idx];
+                            orig_range=orig_ranges[idx];
+                            std::vector<size_t> starts{i,j};
+                            blockwise_profiling<T>(cur_block.data(),block_dims,starts,ssim_size,mean,sigma2,range);
+                            cov=blockwise_cov<T>(sampled_blocks[k].data(),cur_block.data(),block_dims,starts,ssim_size,orig_mean,mean);
+                            metric+=SSIM(orig_range,orig_mean,orig_sigma2,mean,sigma2,cov)/ssim_block_num;
+                            idx++;
+
+
+                        }
+                    }
+                }
+                else if(N==3){
+                    for (size_t i=0;i+ssim_size<sampleBlockSize+1;i+=ssim_size){
+                        for (size_t j=0;j+ssim_size<sampleBlockSize+1;j+=ssim_size){
+                            for (size_t kk=0;kk+ssim_size<sampleBlockSize+1;kk+=ssim_size){
+                                orig_mean=orig_means[idx];
+                                orig_sigma2=orig_sigma2s[idx];
+                                orig_range=orig_ranges[idx];
+                                std::vector<size_t> starts{i,j,kk};
+                                blockwise_profiling<T>(cur_block.data(),block_dims,starts,ssim_size,mean,sigma2,range);
+                                cov=blockwise_cov<T>(sampled_blocks[k].data(),cur_block.data(),block_dims,starts,ssim_size,orig_mean,mean);
+                                //printf("%.8f %.8f %.8f %.8f %.8f %.8f %.8f\n",orig_range,orig_sigma2,orig_mean,range,sigma2,mean,cov);
+                                metric+=SSIM(orig_range,orig_mean,orig_sigma2,mean,sigma2,cov)/ssim_block_num;
+                         
+                                idx++;
+                            }
+                        }
+                    }
+                }
+            }
+            else if (tuningTarget==TUNING_TARGET_AC){
+                flattened_cur_blocks.insert(flattened_cur_blocks.end(),cur_block.begin(),cur_block.end());
+            }                      
+        }
+        
 
     }
     else{
@@ -304,85 +453,8 @@ std::pair<double,double> CompressTest(const Config &conf,const std::vector< std:
             std::cout<<"algo type error!"<<std::endl;
         return std::pair<double,double>(0,0);
     }
-                           
-    for (int k=0;k<num_sampled_blocks;k++){
-        size_t sampleOutSize;
-        std::vector<T> cur_block(testConfig.num);
-        std::copy(sampled_blocks[k].begin(),sampled_blocks[k].end(),cur_block.begin());
-        
-         
-        double decomp_square_error;
-        auto quant_bins = sz->compress(testConfig, cur_block.data(), 1,decomp_square_error);
 
-        
-        
-
-        
-        if(algo==ALGO_INTERP){
-            block_q_bins.push_back(quant_bins);
-        }
-        else{
-            q_bins.insert(q_bins.end(),quant_bins.start(),quant_bins.end());
-        }
-
-        if(tuningTarget==TUNING_TARGET_RD){
-            if(algo==ALGO_INTERP)
-                square_error+=decomp_square_error;
-            else{
-               
-                for(size_t j=0;j<per_block_ele_num;j++){
-                    T value=sampled_blocks[k][j]-cur_block[j];
-                    square_error+=value*value;
-                
-                }
-            }
-        }
-        else if (tuningTarget==TUNING_TARGET_SSIM){
-            size_t ssim_block_num=orig_means.size();                       
-            double mean=0,sigma2=0,cov=0,range=0;
-            double orig_mean=0,orig_sigma2=0,orig_range=0;  
-            std::vector<size_t>block_dims(N,sampleBlockSize+1);                      
-            if(N==2){
-                for (size_t i=0;i+ssim_size<sampleBlockSize+1;i+=ssim_size){
-                    for (size_t j=0;j+ssim_size<sampleBlockSize+1;j+=ssim_size){
-                        orig_mean=orig_means[idx];
-                        orig_sigma2=orig_sigma2s[idx];
-                        orig_range=orig_ranges[idx];
-                        std::vector<size_t> starts{i,j};
-                        blockwise_profiling<T>(cur_block.data(),block_dims,starts,ssim_size,mean,sigma2,range);
-                        cov=blockwise_cov<T>(sampled_blocks[k].data(),cur_block.data(),block_dims,starts,ssim_size,orig_mean,mean);
-                        metric+=SSIM(orig_range,orig_mean,orig_sigma2,mean,sigma2,cov)/ssim_block_num;
-                        idx++;
-
-
-                    }
-                }
-            }
-            else if(N==3){
-                for (size_t i=0;i+ssim_size<sampleBlockSize+1;i+=ssim_size){
-                    for (size_t j=0;j+ssim_size<sampleBlockSize+1;j+=ssim_size){
-                        for (size_t kk=0;kk+ssim_size<sampleBlockSize+1;kk+=ssim_size){
-                            orig_mean=orig_means[idx];
-                            orig_sigma2=orig_sigma2s[idx];
-                            orig_range=orig_ranges[idx];
-                            std::vector<size_t> starts{i,j,kk};
-                            blockwise_profiling<T>(cur_block.data(),block_dims,starts,ssim_size,mean,sigma2,range);
-                            cov=blockwise_cov<T>(sampled_blocks[k].data(),cur_block.data(),block_dims,starts,ssim_size,orig_mean,mean);
-                            //printf("%.8f %.8f %.8f %.8f %.8f %.8f %.8f\n",orig_range,orig_sigma2,orig_mean,range,sigma2,mean,cov);
-                            metric+=SSIM(orig_range,orig_mean,orig_sigma2,mean,sigma2,cov)/ssim_block_num;
-                     
-                            idx++;
-                        }
-                    }
-                }
-            }
-        }
-        else if (tuningTarget==TUNING_TARGET_AC){
-            flattened_cur_blocks.insert(flattened_cur_blocks.end(),cur_block.begin(),cur_block.end());
-        }                      
-    }
     if(algo==ALGO_INTERP ){
-        q_bin_counts=testConfig.quant_bin_counts;
         size_t level_num=q_bin_counts.size();
         size_t last_pos=0;
         for(int k=level_num-1;k>=0;k--){
@@ -888,8 +960,9 @@ double Tuning(Config &conf, T *data){
                                     double cur_absloss=0;
                                     for (int i=0;i<num_sampled_blocks;i++){
                                         cur_block=sampled_blocks[i];  //not so efficient              
-                                        double decomp_square_error;                      
-                                        sz.compress(conf, cur_block.data(), 2,start_level,end_level,decomp_square_error);
+                                        double decomp_square_error;    
+                                        std::vector<size_t> quant_bin_counts;                  
+                                        sz.compress(conf, cur_block.data(), 2,start_level,end_level,decomp_square_error,quant_bin_counts);
                                         //delete []cmprData;                              
                                         cur_absloss+=decomp_square_error;
                                     }
@@ -1022,8 +1095,9 @@ double Tuning(Config &conf, T *data){
                                         double cur_absloss=0;
                                         for (int i=0;i<num_sampled_blocks;i++){
                                             cur_block=sampled_blocks[i];  //not so efficient              
-                                           double decomp_square_error;                      
-                                           sz.compress(conf, cur_block.data(), 2,start_level,end_level,decomp_square_error);                          
+                                           double decomp_square_error;           
+                                           std::vector<size_t> quant_bin_counts;            
+                                           sz.compress(conf, cur_block.data(), 2,start_level,end_level,decomp_square_error,quant_bin_counts);                          
                                             cur_absloss+=decomp_square_error;
                                         }
                                         if (cur_absloss<best_interp_absloss){

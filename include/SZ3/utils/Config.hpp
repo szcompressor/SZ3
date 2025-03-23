@@ -568,7 +568,7 @@ namespace SZ3 {
         int testLorenzo=0;
         std::vector<int> quant_bins;
         //double pred_square_error;
-        double decomp_square_error;
+        //double decomp_square_error;
         std::vector<size_t> quant_bin_counts;
         int sampleBlockSize=0;
         bool blockwiseTuning=false;

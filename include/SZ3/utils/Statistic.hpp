@@ -159,12 +159,12 @@ void verify(Type *ori_data, Type *data, size_t num_elements, double &psnr, doubl
             if (conf.errorBoundMode != EB_ABS) {
                 if (conf.errorBoundMode == EB_REL) {
                     conf.errorBoundMode = EB_ABS;
-                    double rng= (range > 0) ? range : QoZ::data_range(data, conf.num);
+                    double rng= (range > 0) ? range : data_range(data, conf.num);
                     conf.rng=rng;
                     conf.absErrorBound = conf.relErrorBound * rng;
                 } else if (conf.errorBoundMode == EB_PSNR) {
                     conf.errorBoundMode = EB_ABS;
-                    double rng=(range > 0) ? range : QoZ::data_range(data, conf.num);
+                    double rng=(range > 0) ? range : data_range(data, conf.num);
                     conf.rng=rng;
                     conf.absErrorBound = computeABSErrBoundFromPSNR(conf.psnrErrorBound, 0.99, rng);
                     conf.relErrorBound=conf.absErrorBound/rng;
@@ -173,12 +173,12 @@ void verify(Type *ori_data, Type *data, size_t num_elements, double &psnr, doubl
                     conf.absErrorBound = sqrt(3.0 / conf.num) * conf.l2normErrorBound;
                 } else if (conf.errorBoundMode == EB_ABS_AND_REL) {
                     conf.errorBoundMode = EB_ABS;
-                    double rng=(range > 0) ? range : QoZ::data_range(data, conf.num);
+                    double rng=(range > 0) ? range : data_range(data, conf.num);
                     conf.rng=rng;
                     conf.absErrorBound = std::min(conf.absErrorBound, conf.relErrorBound * rng);
                 } else if (conf.errorBoundMode == EB_ABS_OR_REL) {
                     conf.errorBoundMode = EB_ABS;
-                    double rng=(range > 0) ? range : QoZ::data_range(data, conf.num);
+                    double rng=(range > 0) ? range : data_range(data, conf.num);
                     conf.rng=rng;
                     conf.absErrorBound = std::max(conf.absErrorBound, conf.relErrorBound *rng);
                 } else {
