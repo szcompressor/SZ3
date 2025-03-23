@@ -875,7 +875,7 @@ double Tuning(Config &conf, T *data){
         
         if(conf.levelwisePredictionSelection>0 and (N==2 or N==3)){
             std::vector<Interp_Meta> interpMeta_list(conf.levelwisePredictionSelection);
-            auto sz = SZ3::QoZ::InterpolationDecomposition<T,N,LinearQuantizer<T> >(conf, LinearQuantizer<T>(conf.absErrorBound,conf.quantbinCnt / 2));  
+            auto sz = SZ3::QoZ::SZInterpolationDecomposition<T,N,LinearQuantizer<T> >(conf, LinearQuantizer<T>(conf.absErrorBound,conf.quantbinCnt / 2));  
             double best_accumulated_interp_loss_1=0;
             double best_accumulated_interp_loss_2=0;
             std::vector<std::vector<double> > linear_interp_vars(conf.levelwisePredictionSelection),cubic_noknot_vars(conf.levelwisePredictionSelection),cubic_nat_vars(conf.levelwisePredictionSelection);
