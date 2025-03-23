@@ -227,7 +227,7 @@ namespace QoZ {
             }
             
            // double predict_error=0.0;
-            int levelwise_predictor_levels=interpMeta_list.size();
+            levelwise_predictor_levels=interpMeta_list.size();
             //std::cout<<"ap3"<<std::endl;
 
             for (uint level = start_level; level > end_level && level <= start_level; level--) {
@@ -7264,7 +7264,7 @@ namespace QoZ {
         std::vector<std::array<size_t, N>> dimension_sequences;
 
 
-        int levelwise_predictor_levels;
+        int levelwise_predictor_levels = 0;
         bool blockwiseTuning = false;
         std::vector <uint8_t> interpAlgo_list;
         std::vector <uint8_t> interpDirection_list;
