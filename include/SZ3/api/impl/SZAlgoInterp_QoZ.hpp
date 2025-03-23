@@ -24,11 +24,13 @@ size_t SZ_compress_Interp(Config &conf, T *data, uchar *cmpData, size_t cmpCap) 
     assert(N == conf.N);
     assert(conf.cmprAlgo == ALGO_INTERP);
     SZ3::QoZ::calAbsErrorBound(conf, data);
-
+    std::cout<<"p1"<<std::endl;
     auto sz = make_compressor_sz_generic<T, N>(
         SZ3::QoZ::make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
         HuffmanEncoder<int>(), Lossless_zstd());
+    std::cout<<"p2"<<std::endl;
     return sz->compress(conf, data, cmpData, cmpCap);
+    
     //        return cmpData;
 }
 
