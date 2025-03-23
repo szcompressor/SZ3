@@ -21,8 +21,8 @@ namespace SZ3 {
 template <  class Encoder, class Lossless>
 class SZEncodingLosslessCompressor  {
    public:
-    SZEncodingLosslessCompressor(Encoder encoder, Lossless lossless)
-        : encoder(encoder), lossless(lossless) {
+    SZEncodingLosslessCompressor(Encoder encoder, Lossless lossless, int radius = 32768)
+        : encoder(encoder), lossless(lossless), radius (radius) {
         static_assert(std::is_base_of<concepts::EncoderInterface<int>, Encoder>::value,
                       "must implement the encoder interface");
         static_assert(std::is_base_of<concepts::LosslessInterface, Lossless>::value,
@@ -32,7 +32,7 @@ class SZEncodingLosslessCompressor  {
     size_t compress( std::vector<int> &quant_inds, uchar *cmpData, size_t cmpCap) override {
         //std::vector<int> quant_inds = decomposition.compress(conf, data);
 
-        encoder.preprocess_encode(quant_inds, decomposition.get_out_range().second);
+        encoder.preprocess_encode(quant_inds, radius * 2);
         size_t bufferSize = std::max<size_t>(
             1000, 2.0 * (decomposition.size_est() + encoder.size_est() + sizeof(int) * quant_inds.size()));
 
@@ -73,6 +73,7 @@ class SZEncodingLosslessCompressor  {
    private:
     Encoder encoder;
     Lossless lossless;
+    int radius = 32768;
 };
 
 template < class Encoder, class Lossless>
