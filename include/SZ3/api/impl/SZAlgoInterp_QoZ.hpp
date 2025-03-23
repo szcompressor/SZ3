@@ -1674,7 +1674,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         if (sampling_num != conf.num) {
             lorenzo_config.setDims(sample_dims.begin(), sample_dims.end());
 
-             size_t bufferCap = 1.2 * lorenzo_config * sizeof(T);
+             size_t bufferCap = 1.2 * lorenzo_config.num * sizeof(T);
             auto buffer = static_cast<uchar *>(malloc(bufferCap));
        
         //lorenzo_config.quantbinCnt = 65536 * 2;
@@ -1691,7 +1691,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
             if (N == 3 ) {
                 float pred_freq, mean_freq;
                 T mean_guess;
-                lorenzo_config.quantbinCnt = optimize_quant_invl_3d<T>(data, conf.dims[0], conf.dims[1], conf.dims[2], conf.absErrorBound, pred_freq, mean_freq, mean_guessb);
+                lorenzo_config.quantbinCnt = optimize_quant_invl_3d<T>(data, conf.dims[0], conf.dims[1], conf.dims[2], conf.absErrorBound, pred_freq, mean_freq, mean_guess);
                 lorenzo_config.pred_dim = 2;
                 auto sampleOutSize= SZ_compress_LorenzoReg<T, N>(lorenzo_config, sampling_data.data(), buffer, bufferCap);
                 //delete[]cmprData;
@@ -1727,7 +1727,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
             std::cout << "Tuning time = " << tuning_time << "s" << std::endl;
             std::cout << "====================================== END TUNING ======================================" << std::endl;
         }
-        return SZ_compress_LorenzoReg<T, N>(conf, data, cmpData.cmpCap);
+        return SZ_compress_LorenzoReg<T, N>(conf, data, cmpData, cmpCap);
     }
   
 }

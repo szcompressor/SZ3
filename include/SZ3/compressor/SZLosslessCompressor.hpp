@@ -14,18 +14,14 @@
 
 namespace SZ3 {
 /**
- * SZGenericCompressor glues together decomposition, encoder, and lossless modules to form the compressor.
- * It only takes Decomposition, not Predictor.
- * @tparam T original data type
- * @tparam N original data dimension
- * @tparam Decomposition decomposition module
+ * SZEncodingLosslessCompressor glues together encoder, and lossless modules to form the compressor.
  * @tparam Encoder encoder module
  * @tparam Lossless lossless module
  */
 template <  class Encoder, class Lossless>
 class SZEncodingLosslessCompressor  {
    public:
-    SZGenericCompressor(Encoder encoder, Lossless lossless)
+    SZEncodingLosslessCompressor(Encoder encoder, Lossless lossless)
         : encoder(encoder), lossless(lossless) {
         static_assert(std::is_base_of<concepts::EncoderInterface<int>, Encoder>::value,
                       "must implement the encoder interface");
