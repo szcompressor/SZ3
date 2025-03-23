@@ -389,7 +389,7 @@ int main(int argc, char *argv[]) {
                 if (++i == argc || sscanf(argv[i], "%d", &sampleBlockSize) != 1)
                         usage();
                 break;
-             case 'v':
+             case 'V':
                 verbose = true;
                 break;
 
