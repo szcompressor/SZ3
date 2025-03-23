@@ -334,8 +334,8 @@ namespace QoZ {
                             }
             
                             double temp1=0.5-0.5/cur_rate,temp2=0.5+0.5/cur_rate;
-                            sample_starts[i]=((temp1*cur_length)/(2*stride))*2*stride+start_idx[i];
-                            sample_ends[i]=((temp2*cur_length)/(2*stride))*2*stride+start_idx[i];
+                            sample_starts[i]=static_cast<size_t>((temp1*cur_length)/(2*stride))*2*stride+start_idx[i];
+                            sample_ends[i]=static_cast<size_t>((temp2*cur_length)/(2*stride))*2*stride+start_idx[i];
                             if(sample_ends[i]>end_idx[i])
                                 sample_ends[i]=end_idx[i];
 
@@ -489,6 +489,8 @@ namespace QoZ {
 
             if (!interp_metas.empty()){
                 interpMeta_list = interp_metas;
+                std::cout<<blockwiseTuning<<" "<<interpMeta_list.size()<<std::endl;
+
             }                    
             //timer.start();
 
@@ -558,13 +560,11 @@ namespace QoZ {
             write(alpha,c);
             write(beta,c);
             write(maxStep,c);
-            std::cout<<"sp2"<<std::endl;
             write(levelwise_predictor_levels,c);
             write(blockwiseTuning,c);
             write(fixBlockSize,c);
             write(frozen_dim,c);
             write(cross_block,c);
-            std::cout<<"sp3"<<std::endl;
             //write(conf.regressiveInterp,buffer_pos);
             if(blockwiseTuning){
                 size_t meta_num=interpMeta_list.size();
@@ -575,7 +575,6 @@ namespace QoZ {
                 write(interpMeta_list.data(),levelwise_predictor_levels,c);
                
             }
-            std::cout<<"sp4"<<std::endl;
 
             quantizer.save(c);
         }
