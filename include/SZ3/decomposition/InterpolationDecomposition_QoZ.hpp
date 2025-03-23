@@ -7147,7 +7147,7 @@ namespace QoZ {
                             const std::string &interp_func,const Interp_Meta & meta, size_t stride = 1,int tuning=0,int cross_block=0) {
             double predict_error = 0;
             size_t stride2x = stride * 2;
-            uint8_t paradigm=meta.interpParadigm;
+            //uint8_t paradigm=meta.interpParadigm;
             uint8_t direction=meta.interpDirection;
             assert(direction<24);
             //max_error = 0;
