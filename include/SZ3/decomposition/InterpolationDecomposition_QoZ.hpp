@@ -211,7 +211,7 @@ namespace QoZ {
             if(end_level>=start_level or end_level<0){
                 end_level=0;
             }
-            std::cout<<start_level<<" "<<end<<level<< std::endl;
+            std::cout<<start_level<<" "<<end_level<< std::endl;
 
             if(!anchor){
                 quant_inds[quant_index++] = quantizer.quantize_and_overwrite(*data, 0);
