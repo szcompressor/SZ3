@@ -201,7 +201,7 @@ namespace QoZ {
 
             }
             double eb = quantizer.get_eb();
-
+            std::cout<<eb<<std::endl;
             if (start_level<=0 or start_level>interpolation_level ){
 
                 start_level=interpolation_level;
@@ -211,7 +211,7 @@ namespace QoZ {
             if(end_level>=start_level or end_level<0){
                 end_level=0;
             }
-
+            std::cout<<start_level<<" "<<end<<level<< std::endl;
 
             if(!anchor){
                 quant_inds[quant_index++] = quantizer.quantize_and_overwrite(*data, 0);
@@ -224,6 +224,7 @@ namespace QoZ {
                 }
                 start_level--;
             }
+            std::cout<<anchor<< std::endl;
            // double predict_error=0.0;
             int levelwise_predictor_levels=interpMeta_list.size();
             std::cout<<"ap3"<<std::endl;
