@@ -26,7 +26,7 @@ size_t SZ_compress_Interp(Config &conf, T *data, uchar *cmpData, size_t cmpCap) 
     calAbsErrorBound(conf, data);
 
     auto sz = make_compressor_sz_generic<T, N>(
-        make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
+        SZ3::QoZ::make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
         HuffmanEncoder<int>(), Lossless_zstd());
     return sz->compress(conf, data, cmpData, cmpCap);
     //        return cmpData;
@@ -37,7 +37,7 @@ void SZ_decompress_Interp(const Config &conf, const uchar *cmpData, size_t cmpSi
     assert(conf.cmprAlgo == ALGO_INTERP);
     auto cmpDataPos = cmpData;
     auto sz = make_compressor_sz_generic<T, N>(
-        make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
+        SZ3::QoZ::make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
         HuffmanEncoder<int>(), Lossless_zstd());
     sz->decompress(conf, cmpDataPos, cmpSize, decData);
 }
@@ -415,8 +415,8 @@ std::pair<double,double> CompressTest(const Config &conf,const std::vector< std:
                             orig_range=orig_ranges[idx];
                             std::vector<size_t> starts{i,j};
                             blockwise_profiling<T>(cur_block.data(),block_dims,starts,ssim_size,mean,sigma2,range);
-                            cov=blockwise_cov<T>(sampled_blocks[k].data(),cur_block.data(),block_dims,starts,ssim_size,orig_mean,mean);
-                            metric+=SSIM(orig_range,orig_mean,orig_sigma2,mean,sigma2,cov)/ssim_block_num;
+                            cov=calc_blockwise_cov<T>(sampled_blocks[k].data(),cur_block.data(),block_dims,starts,ssim_size,orig_mean,mean);
+                            metric+=calc_SSIM(orig_range,orig_mean,orig_sigma2,mean,sigma2,cov)/ssim_block_num;
                             idx++;
 
 
@@ -432,9 +432,9 @@ std::pair<double,double> CompressTest(const Config &conf,const std::vector< std:
                                 orig_range=orig_ranges[idx];
                                 std::vector<size_t> starts{i,j,kk};
                                 blockwise_profiling<T>(cur_block.data(),block_dims,starts,ssim_size,mean,sigma2,range);
-                                cov=blockwise_cov<T>(sampled_blocks[k].data(),cur_block.data(),block_dims,starts,ssim_size,orig_mean,mean);
+                                cov=calc_blockwise_cov<T>(sampled_blocks[k].data(),cur_block.data(),block_dims,starts,ssim_size,orig_mean,mean);
                                 //printf("%.8f %.8f %.8f %.8f %.8f %.8f %.8f\n",orig_range,orig_sigma2,orig_mean,range,sigma2,mean,cov);
-                                metric+=SSIM(orig_range,orig_mean,orig_sigma2,mean,sigma2,cov)/ssim_block_num;
+                                metric+=calc_SSIM(orig_range,orig_mean,orig_sigma2,mean,sigma2,cov)/ssim_block_num;
                          
                                 idx++;
                             }
