@@ -130,7 +130,7 @@ void sampleBlocks(T *data,std::vector<size_t> &dims, size_t sampleBlockSize,std:
     for(int i=0;i<N;i++){                        
         totalblock_num*=static_cast<int>((dims[i]-1)/sampleBlockSize);
     }               
-    size_t idx=0,block_idx=0;   
+    size_t idx=0;//block_idx=0;   
     if(profiling){
         size_t num_filtered_blocks=starts.size();    
         if(var_first==0){  
@@ -293,13 +293,13 @@ std::pair<double,double> CompressTest(const Config &conf,const std::vector< std:
                         LinearQuantizer<T>(testConfig.absErrorBound, testConfig.quantbinCnt / 2)
                         );//make or object?
         for (int k=0;k<num_sampled_blocks;k++){
-            size_t sampleOutSize;
+            //size_t sampleOutSize;
             std::vector<T> cur_block(testConfig.num);
             std::copy(sampled_blocks[k].begin(),sampled_blocks[k].end(),cur_block.begin());
             
              
             double decomp_square_error;
-            auto quant_bins = sz->compress(testConfig, cur_block.data());
+            auto quant_bins = sz.compress(testConfig, cur_block.data());
 
             
           
@@ -366,7 +366,7 @@ std::pair<double,double> CompressTest(const Config &conf,const std::vector< std:
     }
     else if(algo == ALGO_INTERP){
 
-        auto sz = make_decomposition_interpolation<T, N, LinearQuantizer<T> >(
+        auto sz = SZ3::QoZ::make_decomposition_interpolation<T, N, LinearQuantizer<T> >(
                         testConfig,
                         LinearQuantizer<T>(testConfig.absErrorBound, testConfig.quantbinCnt / 2)
                         );//make or object?
@@ -374,13 +374,13 @@ std::pair<double,double> CompressTest(const Config &conf,const std::vector< std:
 
         
         for (int k=0;k<num_sampled_blocks;k++){
-            size_t sampleOutSize;
+            //size_t sampleOutSize;
             std::vector<T> cur_block(testConfig.num);
             std::copy(sampled_blocks[k].begin(),sampled_blocks[k].end(),cur_block.begin());
             
              
             double decomp_square_error;
-            auto quant_bins = sz->compress(testConfig, cur_block.data(), 1,decomp_square_error,q_bin_counts);
+            auto quant_bins = sz.compress(testConfig, cur_block.data(), 1,decomp_square_error,q_bin_counts);
 
             
             
@@ -467,7 +467,7 @@ std::pair<double,double> CompressTest(const Config &conf,const std::vector< std:
             last_pos=q_bin_counts[k];
         }      
     }
-    size_t sampleOutSize;
+    //size_t sampleOutSize;
     
     //auto cmprData=sz->encoding_lossless(totalOutSize,q_bins);             
     //delete[]cmprData;

@@ -31,7 +31,7 @@ namespace QoZ {
         }
 
 
-        T *decompress(const Config &conf, std::vector<int> &quant_inds, T *decData) {
+        T *decompress(const Config &conf, std::vector<int> &quant_inds, T *decData) override  {
             
             init();   
           
@@ -145,7 +145,8 @@ namespace QoZ {
             quantizer.postdecompress_data();
             return decData;
         }
-        std::vector<int> compress(const Config &conf, T *data){
+        std::vector<int> compress(const Config &conf, T *data) override 
+        {
             double temp;
             std::vector<int> quant_bin_counts;
             return compress(conf, data,0,0,0,temp,quant_bin_counts);
@@ -638,7 +639,7 @@ namespace QoZ {
             
         }
        
-        void build_grid(Config &conf, T *data,size_t maxStep,int tuning=0){
+        void build_grid(const Config &conf, T *data,size_t maxStep,int tuning=0){
             
             assert(maxStep>0);
 
