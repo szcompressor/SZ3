@@ -589,7 +589,7 @@ namespace SZ3 {
         int adaptiveMultiDimStride=8;
         //std::vector<double> lorenzo1_coeffs;
         //std::vector<double> lorenzo2_coeffs;
-        bool verbose=1;
+        bool verbose= false;
        
         bool pdTuningRealComp=0;
         int pdTuningAbConf=0;

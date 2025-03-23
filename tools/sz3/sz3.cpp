@@ -239,6 +239,7 @@ int main(int argc, char *argv[]) {
     // int status;
     if (argc == 1) usage();
     int width = -1;
+    bool verbose = false;
 
     for (i = 1; i < argc; i++) {
         if (argv[i][0] != '-' || argv[i][2]) {
@@ -388,6 +389,10 @@ int main(int argc, char *argv[]) {
                 if (++i == argc || sscanf(argv[i], "%d", &sampleBlockSize) != 1)
                         usage();
                 break;
+             case 'v':
+                verbose = true;
+                break;
+
             default:
                 usage();
                 break;
@@ -446,6 +451,8 @@ int main(int argc, char *argv[]) {
         conf.maxStep=maxStep;
     if(sampleBlockSize>0)
         conf.sampleBlockSize=sampleBlockSize;
+    if(verbose)
+        conf.verbose = true;
     
 
 
