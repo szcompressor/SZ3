@@ -187,7 +187,7 @@ namespace SZ3{
                 size_t sample_num = block_size*block_size*block_size;
                 sampling_data.resize(sample_num, 0);
 
-                size_t startx=starts[0],starty=starts[1],startz=starts[2],dimx=dims[0],dimy=dims[1],dimz=dims[2];
+                size_t startx=starts[0],starty=starts[1],startz=starts[2],dimy=dims[1],dimz=dims[2];
                 size_t square_block_size=block_size*block_size,dimyz=dimy*dimz;
                 for (size_t i = 0; i < block_size; i++) {
                     for (size_t j = 0; j < block_size; j++) {
@@ -203,7 +203,7 @@ namespace SZ3{
             else if (N==2){
                 size_t sample_num = block_size*block_size;
                 sampling_data.resize(sample_num, 0);
-                size_t startx=starts[0],starty=starts[1],dimx=dims[0],dimy=dims[1];
+                size_t startx=starts[0],starty=starts[1],dimy=dims[1];
                 
                 for (size_t i = 0; i < block_size; i++) {
                     for (size_t j = 0; j < block_size; j++) {
@@ -221,7 +221,7 @@ namespace SZ3{
                 size_t sample_num = block_size;
                 sampling_data.resize(sample_num, 0);
 
-                size_t startx=starts[0],dimx=dims[0];
+                size_t startx=starts[0];
                 
                 for (size_t i = 0; i < block_size; i++) {
                     

@@ -105,7 +105,7 @@ namespace SZ3{
             size_t N=dims.size();
 
             if(N==2){
-                size_t dimx=dims[0],dimy=dims[1],startx=starts[0],starty=starts[1],element_num=blocksize*blocksize;
+                size_t dimy=dims[1],startx=starts[0],starty=starts[1],element_num=blocksize*blocksize;
                 double covsum=0;
                 
                 for(size_t i=startx;i<startx+blocksize;i++){
@@ -123,7 +123,7 @@ namespace SZ3{
             
 
             else if(N==3){
-                size_t dimx=dims[0],dimy=dims[1],dimz=dims[2],startx=starts[0],starty=starts[1],startz=starts[2],element_num=blocksize*blocksize*blocksize;
+                size_t dimy=dims[1],dimz=dims[2],startx=starts[0],starty=starts[1],startz=starts[2],element_num=blocksize*blocksize*blocksize;
                 size_t dimyz=dimy*dimz;
                 double covsum=0;
                 for(size_t i=startx;i<startx+blocksize;i++){

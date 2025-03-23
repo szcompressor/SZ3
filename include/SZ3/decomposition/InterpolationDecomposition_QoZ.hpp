@@ -109,7 +109,7 @@ namespace QoZ {
                 }
                 
                 auto inter_block_range = std::make_shared<multi_dimensional_range<T, N>>(decData,std::begin(global_dimensions), std::end(global_dimensions),
-                                                           cur_blocksize, 0,0);//blockOrder);
+                                                           cur_blocksize, 0);//,0);//blockOrder);
                 auto inter_begin = inter_block_range->begin();
                 auto inter_end = inter_block_range->end();
                 
@@ -278,7 +278,7 @@ namespace QoZ {
                 auto inter_block_range = std::make_shared<
                         multi_dimensional_range<T, N>>(data, std::begin(global_dimensions),
                                                            std::end(global_dimensions),
-                                                           cur_blocksize, 0,0);//conf.blockOrder);
+                                                           cur_blocksize, 0);//,0);//conf.blockOrder);
                 auto inter_begin = inter_block_range->begin();
                 auto inter_end = inter_block_range->end();
                 for (auto block = inter_begin; block != inter_end; ++block) {
