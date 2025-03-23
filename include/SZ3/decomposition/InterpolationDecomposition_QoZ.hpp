@@ -34,7 +34,7 @@ namespace QoZ {
             
             init();   
           
-            //QoZ::Timer timer(true);
+            //Timer timer(true);
             this->quant_inds = quant_inds.data();
             //timer.stop("decode");
             //timer.start();
@@ -79,7 +79,7 @@ namespace QoZ {
                     quantizer.set_eb(eb*cur_ratio);
                 }
 
-                QoZ::Interp_Meta cur_meta;
+                Interp_Meta cur_meta;
                 if(!blockwiseTuning){
                     if (levelwise_predictor_levels==0){
                         cur_meta=interp_meta;
@@ -107,7 +107,7 @@ namespace QoZ {
                     cur_blocksize=blocksize*stride;
                 }
                 
-                auto inter_block_range = std::make_shared<QoZ::multi_dimensional_range<T, N>>(decData,std::begin(global_dimensions), std::end(global_dimensions),
+                auto inter_block_range = std::make_shared<multi_dimensional_range<T, N>>(decData,std::begin(global_dimensions), std::end(global_dimensions),
                                                            cur_blocksize, 0,0);//blockOrder);
                 auto inter_begin = inter_block_range->begin();
                 auto inter_end = inter_block_range->end();
@@ -234,7 +234,7 @@ namespace QoZ {
                 }
                 quantizer.set_eb(cur_eb);
 
-                QoZ::Interp_Meta cur_meta;
+                Interp_Meta cur_meta;
                 if (levelwise_predictor_levels==0){
                     cur_meta=interp_meta;
                     
@@ -247,7 +247,7 @@ namespace QoZ {
                         cur_meta=conf.interpMeta_list[levelwise_predictor_levels-1];
                     }
                 }
-                QoZ::Interp_Meta cur_level_meta;
+                Interp_Meta cur_level_meta;
                 if(conf.blockwiseTuning)
                     cur_level_meta=cur_meta;
                 size_t stride = 1U << (level - 1);
@@ -259,7 +259,7 @@ namespace QoZ {
                     cur_blocksize=blocksize*stride;
                 }       
                 auto inter_block_range = std::make_shared<
-                        QoZ::multi_dimensional_range<T, N>>(data, std::begin(global_dimensions),
+                        multi_dimensional_range<T, N>>(data, std::begin(global_dimensions),
                                                            std::end(global_dimensions),
                                                            cur_blocksize, 0,0);//conf.blockOrder);
                 auto inter_begin = inter_block_range->begin();
@@ -344,12 +344,12 @@ namespace QoZ {
                             }
                         } 
 
-                        QoZ::Interp_Meta best_meta,cur_meta;
+                        Interp_Meta best_meta,cur_meta;
                         double best_loss=std::numeric_limits<double>::max();
                         std::vector<uint8_t> interpAlgo_Candidates={cur_level_meta.interpAlgo};
                         std::vector<uint8_t> interpParadigm_Candidates={0};
                         std::vector<uint8_t> cubicSplineType_Candidates={cur_level_meta.cubicSplineType};
-                        std::vector<uint8_t> interpDirection_Candidates={0, (uint8_t)(QoZ::factorial(N) -1)};
+                        std::vector<uint8_t> interpDirection_Candidates={0, (uint8_t)(factorial(N) -1)};
                         if(conf.frozen_dim>=0){
                             if(conf.frozen_dim==0)
                                 interpDirection_Candidates={6,7};
@@ -370,8 +370,8 @@ namespace QoZ {
                                 interpParadigm_Candidates.push_back(i);
                             if(conf.dynamicDimCoeff){
                                
-                                QoZ::calculate_interp_error_vars<T,N>(orig_sampled_block.data(),block_dims,interp_vars,cur_level_meta.interpAlgo,cur_level_meta.cubicSplineType,2,1,cur_eb);//cur_eb or 0?
-                                QoZ::preprocess_vars<N>(interp_vars);
+                                calculate_interp_error_vars<T,N>(orig_sampled_block.data(),block_dims,interp_vars,cur_level_meta.interpAlgo,cur_level_meta.cubicSplineType,2,1,cur_eb);//cur_eb or 0?
+                                preprocess_vars<N>(interp_vars);
 
                             }
                        
@@ -388,11 +388,11 @@ namespace QoZ {
                                         continue;
                                     cur_meta.interpDirection=interp_direction;
                                     for(auto &cubic_spline_type:cubicSplineType_Candidates){
-                                        if (interp_op!=QoZ::INTERP_ALGO_CUBIC and cubic_spline_type!=0)
+                                        if (interp_op!=INTERP_ALGO_CUBIC and cubic_spline_type!=0)
                                             break;
                                         cur_meta.cubicSplineType=cubic_spline_type;
                                         for(auto adj_interp:adjInterp_Candidates){
-                                            if (interp_op!=QoZ::INTERP_ALGO_CUBIC and adj_interp!=0)
+                                            if (interp_op!=INTERP_ALGO_CUBIC and adj_interp!=0)
                                                 break;
 
                                             cur_meta.adjInterp=adj_interp;
@@ -786,7 +786,7 @@ namespace QoZ {
         
 
 
-        double block_interpolation_1d_crossblock(T *data, const std::array<size_t,N> &begin_idx, const std::array<size_t,N> &end_idx,const size_t &direction,const size_t &math_stride, const std::string &interp_func, const PredictorBehavior pb,const QoZ::Interp_Meta &meta,int cross_block=1,int tuning=0) {//cross block: 0: no cross 1: only front-cross 2: all cross
+        double block_interpolation_1d_crossblock(T *data, const std::array<size_t,N> &begin_idx, const std::array<size_t,N> &end_idx,const size_t &direction,const size_t &math_stride, const std::string &interp_func, const PredictorBehavior pb,const Interp_Meta &meta,int cross_block=1,int tuning=0) {//cross block: 0: no cross 1: only front-cross 2: all cross
             size_t math_begin_idx=begin_idx[direction],math_end_idx=end_idx[direction];
             size_t n = (math_end_idx - math_begin_idx) / math_stride + 1;
 
@@ -1013,7 +1013,7 @@ namespace QoZ {
             return predict_error;
         }
       
-        double block_interpolation_1d(T *data, size_t begin, size_t end, size_t stride,const std::string &interp_func,const PredictorBehavior pb,const QoZ::Interp_Meta &meta,int tuning=0) {
+        double block_interpolation_1d(T *data, size_t begin, size_t end, size_t stride,const std::string &interp_func,const PredictorBehavior pb,const Interp_Meta &meta,int tuning=0) {
             size_t n = (end - begin) / stride + 1;
             if (n <= 1) {
                 return 0;
@@ -1125,7 +1125,7 @@ namespace QoZ {
            // quant_index=quant_idx;
             return predict_error;
         } 
-        double block_interpolation_1d_crossblock_2d(T *data, const std::array<size_t,N> &begin_idx, const std::array<size_t,N> &end_idx,const size_t &direction, std::array<size_t,N> &steps,const size_t &math_stride, const std::string &interp_func, const PredictorBehavior pb,const QoZ::Interp_Meta &meta,int cross_block=1,int tuning=0) {//cross block: 0: no cross 1: only front-cross 2: all cross
+        double block_interpolation_1d_crossblock_2d(T *data, const std::array<size_t,N> &begin_idx, const std::array<size_t,N> &end_idx,const size_t &direction, std::array<size_t,N> &steps,const size_t &math_stride, const std::string &interp_func, const PredictorBehavior pb,const Interp_Meta &meta,int cross_block=1,int tuning=0) {//cross block: 0: no cross 1: only front-cross 2: all cross
             
             for(size_t i=0;i<N;i++){
                 if(end_idx[i]<begin_idx[i])
@@ -1489,7 +1489,7 @@ namespace QoZ {
           //  quant_index=quant_idx;
             return predict_error;
         }
-        double block_interpolation_1d_crossblock_3d(T *data, const std::array<size_t,N> &begin_idx, const std::array<size_t,N> &end_idx,const size_t &direction, std::array<size_t,N> &steps,const size_t &math_stride, const std::string &interp_func, const PredictorBehavior pb,const QoZ::Interp_Meta &meta,int cross_block=1,int tuning=0) {//cross block: 0: no cross 1: only front-cross 2: all cross
+        double block_interpolation_1d_crossblock_3d(T *data, const std::array<size_t,N> &begin_idx, const std::array<size_t,N> &end_idx,const size_t &direction, std::array<size_t,N> &steps,const size_t &math_stride, const std::string &interp_func, const PredictorBehavior pb,const Interp_Meta &meta,int cross_block=1,int tuning=0) {//cross block: 0: no cross 1: only front-cross 2: all cross
             
             for(size_t i=0;i<N;i++){
                 if(end_idx[i]<begin_idx[i])
@@ -1854,7 +1854,7 @@ namespace QoZ {
           //  quant_index=quant_idx;
             return predict_error;
         }
-        double block_interpolation_1d_regressive(T *data, size_t begin, size_t end, size_t stride,const std::string &interp_func,const PredictorBehavior pb,const QoZ::Interp_Meta &meta,const std::vector<float>& coeff,int tuning=0) {
+        double block_interpolation_1d_regressive(T *data, size_t begin, size_t end, size_t stride,const std::string &interp_func,const PredictorBehavior pb,const Interp_Meta &meta,const std::vector<float>& coeff,int tuning=0) {
             size_t n = (end - begin) / stride + 1;
             if (n <= 1) {
                 return 0;
@@ -1973,7 +1973,7 @@ namespace QoZ {
         } 
 
 
-        double block_interpolation_2d(T *data, size_t begin1, size_t end1, size_t begin2, size_t end2, size_t stride1,size_t stride2,const std::string &interp_func,const PredictorBehavior pb,const std::array<float,2> &dim_coeffs,const QoZ::Interp_Meta &meta,int tuning=0) {
+        double block_interpolation_2d(T *data, size_t begin1, size_t end1, size_t begin2, size_t end2, size_t stride1,size_t stride2,const std::string &interp_func,const PredictorBehavior pb,const std::array<float,2> &dim_coeffs,const Interp_Meta &meta,int tuning=0) {
             size_t n = (end1 - begin1) / stride1 + 1;
             if (n <= 1) {
                 return 0;
@@ -2434,7 +2434,7 @@ namespace QoZ {
            // quant_index=quant_idx;
             return predict_error;
         }
-        double block_interpolation_2d_crossblock(T *data, const std::array<size_t,N> &begin_idx, const std::array<size_t,N> &end_idx,const std::array<size_t,2> &directions,const size_t &math_stride, const std::string &interp_func, const PredictorBehavior pb,const std::array<float,2> &dim_coeffs,const QoZ::Interp_Meta &meta,int cross_block=1,int tuning=0) {
+        double block_interpolation_2d_crossblock(T *data, const std::array<size_t,N> &begin_idx, const std::array<size_t,N> &end_idx,const std::array<size_t,2> &directions,const size_t &math_stride, const std::string &interp_func, const PredictorBehavior pb,const std::array<float,2> &dim_coeffs,const Interp_Meta &meta,int cross_block=1,int tuning=0) {
             size_t direction1=directions[0],direction2=directions[1];
             size_t math_begin_idx1=begin_idx[direction1],math_end_idx1=end_idx[direction1],math_begin_idx2=begin_idx[direction2],math_end_idx2=end_idx[direction2];
             size_t n = (math_end_idx1 - math_begin_idx1) / math_stride + 1, m = (math_end_idx2 - math_begin_idx2) / math_stride + 1;
@@ -2946,7 +2946,7 @@ namespace QoZ {
           //  quant_index=quant_idx;  
             return predict_error;
         }
-        double block_interpolation_2d_crossblock_3d(T *data, const std::array<size_t,N> &begin_idx, const std::array<size_t,N> &end_idx,const std::array<size_t,2> &directions, std::array<size_t,N> &steps,const size_t &math_stride, const std::string &interp_func, const PredictorBehavior pb,const std::array<float,2> &dim_coeffs,const QoZ::Interp_Meta &meta,int cross_block=1,int tuning=0) {
+        double block_interpolation_2d_crossblock_3d(T *data, const std::array<size_t,N> &begin_idx, const std::array<size_t,N> &end_idx,const std::array<size_t,2> &directions, std::array<size_t,N> &steps,const size_t &math_stride, const std::string &interp_func, const PredictorBehavior pb,const std::array<float,2> &dim_coeffs,const Interp_Meta &meta,int cross_block=1,int tuning=0) {
             for(size_t i=0;i<N;i++){
                 if(end_idx[i]<begin_idx[i])
                     return 0;
@@ -3706,7 +3706,7 @@ namespace QoZ {
            
             return predict_error;
         }
-        double block_interpolation_3d(T *data, size_t begin1, size_t end1, size_t begin2, size_t end2, size_t begin3, size_t end3, size_t stride1,size_t stride2,size_t stride3, const std::string &interp_func, const PredictorBehavior pb,const std::array<float,3> &dim_coeffs,const QoZ::Interp_Meta &meta,int tuning=0) {
+        double block_interpolation_3d(T *data, size_t begin1, size_t end1, size_t begin2, size_t end2, size_t begin3, size_t end3, size_t stride1,size_t stride2,size_t stride3, const std::string &interp_func, const PredictorBehavior pb,const std::array<float,3> &dim_coeffs,const Interp_Meta &meta,int tuning=0) {
             size_t n = (end1 - begin1) / stride1 + 1;
             if (n <= 1) {
                 return 0;
@@ -5119,7 +5119,7 @@ namespace QoZ {
           //  quant_index=quant_idx;
             return predict_error;
         }
-        double block_interpolation_3d_crossblock(T *data, const std::array<size_t,N> &begin_idx, const std::array<size_t,N> &end_idx,const std::array<size_t,3> &directions,const size_t &math_stride, const std::string &interp_func, const PredictorBehavior pb,const std::array<float,3> &dim_coeffs,const QoZ::Interp_Meta &meta,int cross_block=1,int tuning=0) {
+        double block_interpolation_3d_crossblock(T *data, const std::array<size_t,N> &begin_idx, const std::array<size_t,N> &end_idx,const std::array<size_t,3> &directions,const size_t &math_stride, const std::string &interp_func, const PredictorBehavior pb,const std::array<float,3> &dim_coeffs,const Interp_Meta &meta,int cross_block=1,int tuning=0) {
             size_t direction1=directions[0],direction2=directions[1],direction3=directions[2];
             size_t math_begin_idx1=begin_idx[direction1],math_end_idx1=end_idx[direction1],math_begin_idx2=begin_idx[direction2],math_end_idx2=end_idx[direction2],math_begin_idx3=begin_idx[direction3],math_end_idx3=end_idx[direction3];
             size_t n = (math_end_idx1 - math_begin_idx1) / math_stride + 1, m = (math_end_idx2 - math_begin_idx2) / math_stride + 1, p = (math_end_idx3 - math_begin_idx3) / math_stride + 1;
@@ -6525,7 +6525,7 @@ namespace QoZ {
         }
 
 
-        double block_interpolation_2d_cross(T *data, size_t begin1, size_t end1, size_t begin2, size_t end2, size_t stride1,size_t stride2, const std::string &interp_func, const PredictorBehavior pb,const QoZ::Interp_Meta &meta,int tuning=0) {
+        double block_interpolation_2d_cross(T *data, size_t begin1, size_t end1, size_t begin2, size_t end2, size_t stride1,size_t stride2, const std::string &interp_func, const PredictorBehavior pb,const Interp_Meta &meta,int tuning=0) {
             size_t n = (end1 - begin1) / stride1 + 1;
             if (n <= 1) {
                 return 0;
@@ -6703,7 +6703,7 @@ namespace QoZ {
             return predict_error;
         }
 
-        double block_interpolation_2d_aftercross(T *data, size_t begin1, size_t end1, size_t begin2, size_t end2, size_t stride1,size_t stride2, const std::string &interp_func, const PredictorBehavior pb,const QoZ::Interp_Meta &meta,int tuning=0) {
+        double block_interpolation_2d_aftercross(T *data, size_t begin1, size_t end1, size_t begin2, size_t end2, size_t stride1,size_t stride2, const std::string &interp_func, const PredictorBehavior pb,const Interp_Meta &meta,int tuning=0) {
             size_t n = (end1 - begin1) / stride1 + 1;
             
             size_t m = (end2 - begin2) / stride2 + 1;
@@ -6876,7 +6876,7 @@ namespace QoZ {
         template<uint NN = N>
         typename std::enable_if<NN == 1, double>::type
         block_interpolation(T *data, std::array<size_t, N> begin, std::array<size_t, N> end, const PredictorBehavior pb,
-                            const std::string &interp_func,const QoZ::Interp_Meta & meta, size_t stride = 1,int tuning=0,int cross_block=0) {//regressive to reduce into meta.
+                            const std::string &interp_func,const Interp_Meta & meta, size_t stride = 1,int tuning=0,int cross_block=0) {//regressive to reduce into meta.
             if(!cross_block)
                 return block_interpolation_1d(data, begin[0], end[0], stride, interp_func, pb,meta,tuning);
             else
@@ -6888,7 +6888,7 @@ namespace QoZ {
         template<uint NN = N>
         typename std::enable_if<NN == 2, double>::type
         block_interpolation(T *data, std::array<size_t, N> begin, std::array<size_t, N> end, const PredictorBehavior pb,
-                            const std::string &interp_func,const QoZ::Interp_Meta & meta, size_t stride = 1,int tuning=0,int cross_block=0) {
+                            const std::string &interp_func,const Interp_Meta & meta, size_t stride = 1,int tuning=0,int cross_block=0) {
             double predict_error = 0;
             size_t stride2x = stride * 2;
             //bool full_adjacent_interp=false;
@@ -6962,7 +6962,7 @@ namespace QoZ {
         template<uint NN = N>
         typename std::enable_if<NN == 3, double>::type
         block_interpolation(T *data, std::array<size_t, N> begin, std::array<size_t, N> end, const PredictorBehavior pb,
-                            const std::string &interp_func,const QoZ::Interp_Meta & meta, size_t stride = 1,int tuning=0,int cross_block=0) {//cross block: 0 or conf.num
+                            const std::string &interp_func,const Interp_Meta & meta, size_t stride = 1,int tuning=0,int cross_block=0) {//cross block: 0 or conf.num
 
             double predict_error = 0;
             size_t stride2x = stride * 2;
@@ -7123,7 +7123,7 @@ namespace QoZ {
         template<uint NN = N>
         typename std::enable_if<NN == 4, double>::type
         block_interpolation(T *data, std::array<size_t, N> begin, std::array<size_t, N> end, const PredictorBehavior pb,
-                            const std::string &interp_func,const QoZ::Interp_Meta & meta, size_t stride = 1,int tuning=0,int cross_block=0) {
+                            const std::string &interp_func,const Interp_Meta & meta, size_t stride = 1,int tuning=0,int cross_block=0) {
             double predict_error = 0;
             size_t stride2x = stride * 2;
             uint8_t paradigm=meta.interpParadigm;
@@ -7208,7 +7208,7 @@ namespace QoZ {
         bool anchor=false;
         int interpolation_level = -1;
         uint blocksize;
-        QoZ::Interp_Meta interp_meta;
+        Interp_Meta interp_meta;
 
         double eb_ratio = 0.5;
         double alpha;
@@ -7235,7 +7235,7 @@ namespace QoZ {
         
 
 
-        std::vector <QoZ::Interp_Meta> interpMeta_list;
+        std::vector <Interp_Meta> interpMeta_list;
         int fixBlockSize;
             //int trimToZero;
 
