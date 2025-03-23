@@ -151,9 +151,9 @@ namespace QoZ {
             return compress(conf, data,0,0,0,temp,quant_bin_counts);
         }
 
-        std::vector<int> compress(const Config &conf, T *data,int tuning,double & predict_error){/
+        std::vector<int> compress(const Config &conf, T *data,int tuning,double & predict_error){
             //double temp;
-            std::vector<int> quant_bin_counts;
+            std::vector<size_t> quant_bin_counts;
             return compress(conf, data,tuning,0,0,predict_error,quant_bin_counts);
         }
 

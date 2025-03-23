@@ -126,13 +126,13 @@ void sampleBlocks(T *data,std::vector<size_t> &dims, size_t sampleBlockSize,std:
     std::vector< std::vector<T> >().swap(sampled_blocks);                               
     size_t totalblock_num=1;
     for(int i=0;i<N;i++){                        
-        totalblock_num*=(int)((dims[i]-1)/sampleBlockSize);
+        totalblock_num*=static_cast<int>((dims[i]-1)/sampleBlockSize);
     }               
     size_t idx=0,block_idx=0;   
     if(profiling){
         size_t num_filtered_blocks=starts.size();    
         if(var_first==0){  
-            size_t sample_stride=(size_t)(num_filtered_blocks/(totalblock_num*sample_rate));
+            size_t sample_stride=static_cast<size_t>(num_filtered_blocks/(totalblock_num*sample_rate));
             if(sample_stride<=0)
                 sample_stride=1;
             
@@ -175,7 +175,7 @@ void sampleBlocks(T *data,std::vector<size_t> &dims, size_t sampleBlockSize,std:
     }               
     else{
         if(var_first==0){
-            size_t sample_stride=(size_t)(1.0/sample_rate);
+            size_t sample_stride=static_cast<size_t>(1.0/sample_rate);
             if(sample_stride<=0)
                 sample_stride=1;
             if (N==2){                        
@@ -284,8 +284,7 @@ std::pair<double,double> CompressTest(const Config &conf,const std::vector< std:
     std::vector<T> flattened_cur_blocks;
     size_t idx=0;   
     std::shared_ptr< concepts::DecompositionInterface<T,int,N>> sz;
-    size_t totalOutSize=0;
-    std::vector<size_t> q_bin_counts;     
+    //size_t totalOutSize=0;
     if(algo == ALGO_LORENZO_REG){
         auto sz = make_decomposition_lorenzo_regression<T, N, LinearQuantizer<T> >(
                         testConfig,
@@ -473,7 +472,7 @@ std::pair<double,double> CompressTest(const Config &conf,const std::vector< std:
     size_t estimated_size = 1.2*sizeof(int)*q_bins.size();
 
     uchar * cmpData = new uchar[estimated_size];
-    auto lossless = make_compressor_sz_encodinglossless(HuffmanEncoder<int>(), Lossless_zstd());
+    auto lossless = make_compressor_sz_encodinglossless<HuffmanEncoder<int>, Lossless_zstd>(HuffmanEncoder<int>(), Lossless_zstd());
 
     auto totalOutSize = lossless.compress(q_bins,cmpData,estimated_size);
 
@@ -684,14 +683,14 @@ double Tuning(Config &conf, T *data){
 
     for (size_t i = 0; i < N; i++) {
         if ( max_interp_level < ceil(log2(conf.dims[i]))) {
-             max_interp_level = (uint) ceil(log2(conf.dims[i]));
+             max_interp_level = static_cast<uint> (ceil(log2(conf.dims[i])));
         }
                 
     }
     
     if (conf.maxStep>0){
         anchor_rate=1/(pow(conf.maxStep,N));   
-        int temp_max_interp_level=(uint)log2(conf.maxStep);//to be catious: the max_interp_level is different from the ones in szinterpcompressor, which includes the level of anchor grid.
+        int temp_max_interp_level=static_cast<uint>(log2(conf.maxStep));//to be catious: the max_interp_level is different from the ones in szinterpcompressor, which includes the level of anchor grid.
         if (temp_max_interp_level<=max_interp_level){                  
             max_interp_level=temp_max_interp_level;
         }
@@ -730,7 +729,7 @@ double Tuning(Config &conf, T *data){
 
     
 
-    while(conf.autoTuningRate>0 and conf.sampleBlockSize>=2*minimum_sbs and (pow(conf.sampleBlockSize+1,N)/(double)conf.num)>1.5*conf.autoTuningRate)
+    while(conf.autoTuningRate>0 and conf.sampleBlockSize>=2*minimum_sbs and (pow(conf.sampleBlockSize+1,N)/conf.num)>1.5*conf.autoTuningRate)
         conf.sampleBlockSize/=2;
 
     if (conf.sampleBlockSize<minimum_sbs){
@@ -738,7 +737,7 @@ double Tuning(Config &conf, T *data){
         conf.autoTuningRate=0.0;
     }
     else{
-        int max_lps_level=(uint)log2(conf.sampleBlockSize);//to be catious: the max_interp_level is different from the ones in szinterpcompressor, which includes the level of anchor grid.
+        int max_lps_level=static_cast<uint>(log2(conf.sampleBlockSize));//to be catious: the max_interp_level is different from the ones in szinterpcompressor, which includes the level of anchor grid.
 
         if (conf.levelwisePredictionSelection>max_lps_level)
             conf.levelwisePredictionSelection=max_lps_level;
@@ -754,7 +753,7 @@ double Tuning(Config &conf, T *data){
            
     size_t totalblock_num=1;  
     for(int i=0;i<N;i++){                      
-        totalblock_num*=(size_t)((conf.dims[i]-1)/sampleBlockSize);
+        totalblock_num*=static_cast<size_t>((conf.dims[i]-1)/sampleBlockSize);
     }
 
     std::vector<std::vector<size_t> >starts;
@@ -771,27 +770,27 @@ double Tuning(Config &conf, T *data){
 
 
     size_t num_filtered_blocks=starts.size();
-    if(num_filtered_blocks<=(int)(0.3*conf.predictorTuningRate))//temp. to refine
+    if(num_filtered_blocks<=static_cast<int>(0.3*conf.predictorTuningRate))//temp. to refine
         conf.profiling=0;
     double profiling_coeff=1;//It seems that this coefficent is useless. Need further test
   
     if(conf.profiling){
-        profiling_coeff=((double)num_filtered_blocks)/(totalblock_num);
+        profiling_coeff=static_cast<double>(num_filtered_blocks)/totalblock_num;
     }
     std::vector<size_t> global_dims=conf.dims;
     size_t global_num=conf.num;
 
 
     
-
+    double rel_bound = 0.0;
     
     if (conf.autoTuningRate>0){
 
         if (conf.rng<0)
-            conf.rng=QoZ::data_range<T>(data,conf.num);
+            conf.rng=data_range<T>(data,conf.num);
         if(conf.relErrorBound<=0)
             conf.relErrorBound=conf.absErrorBound/conf.rng;
-        double rel_bound = conf.relErrorBound;
+        rel_bound = conf.relErrorBound;
         if(rel_bound>=3e-4 or conf.tuningTarget==TUNING_TARGET_SSIM)//rencently changed, need to fix later
             conf.testLorenzo=0;
         if (conf.testLorenzo>0)
