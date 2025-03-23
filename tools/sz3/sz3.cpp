@@ -54,6 +54,20 @@ inline void usage() {
     //    printf("		-P <point-wise relative error bound>: specifying point-wise relative error bound\n");
     printf("		-S <PSNR>: specifying PSNR\n");
     printf("		-N <normErr>: specifying normErr\n");
+    printf("    -q <level>: level for activation of qoz/hpez features.\n");
+    printf("        Level 0: SZ3.1 (No QoZ features).\n");
+    printf("        Level 1: QoZ1 (Anchor-point-based level-wise interpolation tuning).\n");
+    printf("        Level 2: HPEZ l2 (level 1 plus multi-dim interp, natural cubic spline, interpolation re-ordering and dynamic dimension freezing).\n");
+    printf("        Level 3: HPEZ l3 (level 2 plus dynamic dimension weights).\n");
+    printf("        Level 4: HPEZ l4 (level 3 plus block-wise interpolation tuning).\n");
+    printf("    -T <QoZ tuning target> \n");
+    printf("    tuning targets as follows: \n");
+    printf("        PSNR (peak signal-to-noise ratio)\n");
+    printf("        CR (compression ratio)\n");
+    printf("        SSIM (structural similarity)\n");
+    printf("        AC (autocorrelation)\n");
+    printf("    -C <anchor stride> : stride of anchor points.\n");
+    printf("    -B <sampling block size> : block size of sampled data block for auto-tuning.\n");
     printf("* dimensions: \n");
     printf("	-1 <nx> : dimension for 1D data such as data[nx]\n");
     printf("	-2 <nx> <ny> : dimensions for 2D data such as data[ny][nx]\n");
@@ -208,7 +222,13 @@ int main(int argc, char *argv[]) {
     char *psnrErrorBound = nullptr;
     char *normErrorBound = nullptr;
 
+    char *tuningTarget = nullptr;
+    int maxStep=0;
+    int sampleBlockSize=0;
+
     bool sz2mode = false;
+    int qoz = -1;
+    bool testLorenzo=false;
 
     size_t r4 = 0;
     size_t r3 = 0;
@@ -346,6 +366,28 @@ int main(int argc, char *argv[]) {
                 if (++i == argc) usage();
                 psnrErrorBound = argv[i];
                 break;
+
+
+            case 'q':
+                if (++i == argc || sscanf(argv[i], "%d", &qoz) != 1)
+                    usage();
+                break;
+            case 'l':
+                testLorenzo = true;
+                break;
+            case 'T':
+                if (++i == argc)
+                    usage();
+                tuningTarget = argv[i];
+                break;
+            case 'C':
+                if (++i == argc || sscanf(argv[i], "%d", &maxStep) != 1)
+                        usage();
+                break;
+            case 'B':
+                if (++i == argc || sscanf(argv[i], "%d", &sampleBlockSize) != 1)
+                        usage();
+                break;
             default:
                 usage();
                 break;
@@ -394,6 +436,20 @@ int main(int argc, char *argv[]) {
         conf.loadcfg(conPath);
     }
 
+    if (qoz>=0){
+        conf.QoZ=qoz;
+    }
+    if (testLorenzo){
+        conf.testLorenzo=1;
+    }
+    if(maxStep>0)
+        conf.maxStep=maxStep;
+    if(sampleBlockSize>0)
+        conf.sampleBlockSize=sampleBlockSize;
+    
+
+
+
     if (errBoundMode != nullptr) {
         {
             // backward compatible with SZ2
@@ -440,6 +496,30 @@ int main(int argc, char *argv[]) {
             exit(0);
         }
     }
+
+    if (tuningTarget!= nullptr) {
+       
+        if (strcmp(tuningTarget, "PSNR") == 0) {
+            conf.tuningTarget = QoZ::TUNING_TARGET_RD;
+        }
+        else if (strcmp(tuningTarget, "CR") == 0) {
+            conf.tuningTarget = QoZ::TUNING_TARGET_CR;
+        }
+        else if (strcmp(tuningTarget, "SSIM") == 0) {
+            conf.tuningTarget = QoZ::TUNING_TARGET_SSIM;
+        }
+        else if (strcmp(tuningTarget, "AC") == 0) {
+            conf.tuningTarget = QoZ::TUNING_TARGET_AC;
+        }
+        else {
+            printf("Error: wrong tuning target setting by using the option '-T'\n");
+            usage();
+            exit(0);
+        }
+        
+    }
+
+    
 
     if (compression) {
         if (dataType == SZ_FLOAT) {

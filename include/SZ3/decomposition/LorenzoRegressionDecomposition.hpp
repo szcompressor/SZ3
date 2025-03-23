@@ -44,7 +44,8 @@ class LorenzoRegressionDecomposition : public concepts::DecompositionInterface<T
     std::vector<int> compress(const Config &conf, T *data) override {
         if (N == 1) {
             return compress_1d(data);
-        } else {
+        } 
+        else {
             return compress_3d(data);
         }
     }

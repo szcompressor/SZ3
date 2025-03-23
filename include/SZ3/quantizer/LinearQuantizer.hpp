@@ -96,6 +96,10 @@ class LinearQuantizer : public concepts::QuantizerInterface<T, int> {
         }
     }
 
+    ALWAYS_INLINE void insert_unpred(T ori){
+            unpred.push_back(ori);
+        }
+
     // recover the data using the quantization index
     ALWAYS_INLINE T recover(T pred, int quant_index) override {
         if (quant_index) {
