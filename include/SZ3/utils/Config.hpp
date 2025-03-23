@@ -12,7 +12,7 @@
 
 #include "SZ3/def.hpp"
 #include "SZ3/utils/ByteUtil.hpp"
-#include "SZ3/utils/Config_basic.hpp"
+//#include "SZ3/utils/Config_basic.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
 #include "SZ3/utils/inih/INIReader.h"
 #include "SZ3/version.hpp"
