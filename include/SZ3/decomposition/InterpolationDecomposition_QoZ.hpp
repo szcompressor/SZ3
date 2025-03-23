@@ -489,7 +489,6 @@ namespace QoZ {
 
             if (!interp_metas.empty()){
                 interpMeta_list = interp_metas;
-                std::cout<<blockwiseTuning<<" "<<interpMeta_list.size()<<std::endl;
 
             }                    
             //timer.start();
