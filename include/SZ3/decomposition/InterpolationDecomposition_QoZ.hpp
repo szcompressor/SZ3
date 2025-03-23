@@ -145,7 +145,7 @@ namespace QoZ {
             quantizer.postdecompress_data();
             return decData;
         }
-        std::vector<int> compress(const Config &conf, T *data) 
+        std::vector<int> compress(const Config &conf, T *data) override 
         {
             double temp;
             std::vector<int> quant_bin_counts;
@@ -155,10 +155,10 @@ namespace QoZ {
         std::vector<int> compress(const Config &conf, T *data,int tuning,double & predict_error){
             //double temp;
             std::vector<size_t> quant_bin_counts;
-            return compress(conf, data,tuning,0,0,predict_error,quant_bin_counts);
+            return compress_with_tuning(conf, data,tuning,0,0,predict_error,quant_bin_counts);
         }
 
-        std::vector<int> compress(const Config &conf, T *data,int tuning,double & predict_error,std::vector<size_t> &quant_bin_counts){//compresstest
+        std::vector<int> compress_with_tuning(const Config &conf, T *data,int tuning,double & predict_error,std::vector<size_t> &quant_bin_counts){//compresstest
             //double temp;
             return compress(conf, data,tuning,0,0,predict_error,quant_bin_counts);
         }
@@ -166,7 +166,7 @@ namespace QoZ {
        
 
         // compress given the error bound
-        std::vector<int> compress(const Config &conf, T *data,int tuning,int start_level,int end_level,double & predict_error,std::vector<size_t> &quant_bin_counts) {
+        std::vector<int> compress_with_tuning(const Config &conf, T *data,int tuning,int start_level,int end_level,double & predict_error,std::vector<size_t> &quant_bin_counts) {
             //tuning 0: normal compress 1:tuning to return qbins and psnr 2: tuning to return prediction loss
             //Timer timer;
             //timer.start();
