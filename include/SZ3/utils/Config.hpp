@@ -9,7 +9,7 @@
 #include <iostream>
 #include <numeric>
 #include <vector>
-
+#include <array>
 #include "SZ3/def.hpp"
 #include "SZ3/utils/ByteUtil.hpp"
 //#include "SZ3/utils/Config_basic.hpp"
