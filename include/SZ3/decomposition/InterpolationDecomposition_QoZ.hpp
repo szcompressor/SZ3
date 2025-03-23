@@ -148,7 +148,7 @@ namespace QoZ {
         std::vector<int> compress(const Config &conf, T *data) override 
         {
             double temp;
-            std::vector<int> quant_bin_counts;
+            std::vector<size_t> quant_bin_counts;
             return compress_with_tuning(conf, data,0,0,0,temp,quant_bin_counts);
         }
 
