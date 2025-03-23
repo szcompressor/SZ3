@@ -29,12 +29,12 @@ class SZEncodingLosslessCompressor  {
                       "must implement the lossless interface");
     }
 
-    size_t compress( std::vector<int> &quant_inds, uchar *cmpData, size_t cmpCap) override {
+    size_t compress( std::vector<int> &quant_inds, uchar *cmpData, size_t cmpCap)  {
         //std::vector<int> quant_inds = decomposition.compress(conf, data);
 
         encoder.preprocess_encode(quant_inds, radius * 2);
         size_t bufferSize = std::max<size_t>(
-            1000, 2.0 * (decomposition.size_est() + encoder.size_est() + sizeof(int) * quant_inds.size()));
+            1000, 2.0 * ( encoder.size_est() + sizeof(int) * quant_inds.size()));
 
         auto buffer = static_cast<uchar *>(malloc(bufferSize));
         uchar *buffer_pos = buffer;
@@ -53,7 +53,7 @@ class SZEncodingLosslessCompressor  {
         return cmpSize;
     }
 
-     std::vector<int> decompress( uchar const *cmpData, size_t cmpSize) override {
+     std::vector<int> decompress( uchar const *cmpData, size_t cmpSize)  {
         uchar *buffer = nullptr;
         size_t bufferSize = 0;
         lossless.decompress(cmpData, cmpSize, buffer, bufferSize);
