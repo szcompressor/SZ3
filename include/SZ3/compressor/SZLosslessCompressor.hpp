@@ -39,7 +39,6 @@ class SZEncodingLosslessCompressor  {
         auto buffer = static_cast<uchar *>(malloc(bufferSize));
         uchar *buffer_pos = buffer;
 
-        decomposition.save(buffer_pos);
         encoder.save(buffer_pos);
 
         //store the size of quant_inds is necessary as it is not always equal to conf.num
