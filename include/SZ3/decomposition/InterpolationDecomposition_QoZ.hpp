@@ -553,7 +553,6 @@ namespace QoZ {
 
         void save(uchar *&c) override {
 
-            std::cout<<"sp1"<<std::endl;
             write(global_dimensions.data(), N, c);
             write(blocksize, c);
             write(interp_meta, c);
@@ -589,9 +588,9 @@ namespace QoZ {
             read(levelwise_predictor_levels,c, remaining_length);
             read(blockwiseTuning,c, remaining_length);
             read(fixBlockSize,c, remaining_length);
-            int frozen_dim=-1;
+            //int frozen_dim=-1;
             read(frozen_dim,c, remaining_length);
-            int cross_block=0;
+            //int cross_block=0;
             read(cross_block,c, remaining_length);
             //int regressiveInterp;   
             //read(regressiveInterp,c, remaining_length);     
