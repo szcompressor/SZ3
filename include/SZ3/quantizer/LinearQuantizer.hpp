@@ -96,7 +96,7 @@ class LinearQuantizer : public concepts::QuantizerInterface<T, int> {
         }
     }
 
-    ALWAYS_INLINE void insert_unpred(T ori){
+    ALWAYS_INLINE void insert_unpred(T ori) override{
             unpred.push_back(ori);
         }
 

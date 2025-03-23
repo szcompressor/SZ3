@@ -500,16 +500,16 @@ int main(int argc, char *argv[]) {
     if (tuningTarget!= nullptr) {
        
         if (strcmp(tuningTarget, "PSNR") == 0) {
-            conf.tuningTarget = QoZ::TUNING_TARGET_RD;
+            conf.tuningTarget = TUNING_TARGET_RD;
         }
         else if (strcmp(tuningTarget, "CR") == 0) {
-            conf.tuningTarget = QoZ::TUNING_TARGET_CR;
+            conf.tuningTarget = TUNING_TARGET_CR;
         }
         else if (strcmp(tuningTarget, "SSIM") == 0) {
-            conf.tuningTarget = QoZ::TUNING_TARGET_SSIM;
+            conf.tuningTarget = TUNING_TARGET_SSIM;
         }
         else if (strcmp(tuningTarget, "AC") == 0) {
-            conf.tuningTarget = QoZ::TUNING_TARGET_AC;
+            conf.tuningTarget = TUNING_TARGET_AC;
         }
         else {
             printf("Error: wrong tuning target setting by using the option '-T'\n");
@@ -519,7 +519,7 @@ int main(int argc, char *argv[]) {
         
     }
 
-    
+
 
     if (compression) {
         if (dataType == SZ_FLOAT) {

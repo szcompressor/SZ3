@@ -41,7 +41,7 @@ void SZ_decompress_Interp(const Config &conf, const uchar *cmpData, size_t cmpSi
         HuffmanEncoder<int>(), Lossless_zstd());
     sz->decompress(conf, cmpDataPos, cmpSize, decData);
 }
-
+/*
 template <class T, uint N>
 double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> dims, size_t num, double eb,
                                                   int interp_op, int direction_op, int block_size, uchar *buffer,
@@ -61,7 +61,7 @@ double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> d
 
     auto compression_ratio = num * sizeof(T) * 1.0 / outSize;
     return compression_ratio;
-}
+}*/
 
 template<class T, uint N>
 inline void init_alphalist(std::vector<double> &alpha_list,const double &rel_bound, Config &conf){
@@ -476,7 +476,7 @@ std::pair<double,double> CompressTest(const Config &conf,const std::vector< std:
     uchar * cmpData = new uchar[estimated_size];
     auto lossless = SZEncodingLosslessCompressor<HuffmanEncoder<int>, Lossless_zstd>(HuffmanEncoder<int>(), Lossless_zstd(),testConfig.quantbinCnt / 2);
 
-    auto totalOutSize = lossless->compress(q_bins,cmpData,estimated_size);
+    auto totalOutSize = lossless.compress(q_bins,cmpData,estimated_size);
 
     delete [] cmpData;
 
@@ -875,7 +875,7 @@ double Tuning(Config &conf, T *data){
         
         if(conf.levelwisePredictionSelection>0 and (N==2 or N==3)){
             std::vector<Interp_Meta> interpMeta_list(conf.levelwisePredictionSelection);
-            auto sz = make_decomposition_interpolation(conf, LinearQuantizer<T>(conf.absErrorBound,conf.quantbinCnt / 2));  
+            auto sz = SZ3::QoZ::InterpolationDecomposition<T,N,LinearQuantizer<T> >(conf, LinearQuantizer<T>(conf.absErrorBound,conf.quantbinCnt / 2));  
             double best_accumulated_interp_loss_1=0;
             double best_accumulated_interp_loss_2=0;
             std::vector<std::vector<double> > linear_interp_vars(conf.levelwisePredictionSelection),cubic_noknot_vars(conf.levelwisePredictionSelection),cubic_nat_vars(conf.levelwisePredictionSelection);
@@ -1375,7 +1375,7 @@ double Tuning(Config &conf, T *data){
         double bestm=0;
         size_t num_sampled_blocks=sampled_blocks.size();
         size_t per_block_ele_num=pow(sampleBlockSize+1,N);
-        size_t ele_num=num_sampled_blocks*per_block_ele_num;
+        //size_t ele_num=num_sampled_blocks*per_block_ele_num;
         std::vector<double> orig_means;//(num_sampled_blocks,0);
         std::vector<double> orig_sigma2s;//(num_sampled_blocks,0);
         std::vector<double> orig_ranges;//(num_sampled_blocks,0);
