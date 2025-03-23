@@ -7278,7 +7278,7 @@ namespace QoZ {
     };
 template <class T, uint N, class Quantizer>
 InterpolationDecomposition<T, N, Quantizer> make_decomposition_interpolation(const Config &conf, Quantizer quantizer) {
-    return InterpolationDecomposition<T, N, Quantizer>(conf, quantizer);
+    return SZ3::QoZ::InterpolationDecomposition<T, N, Quantizer>(conf, quantizer);
 }
 
 
