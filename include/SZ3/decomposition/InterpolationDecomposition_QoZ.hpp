@@ -187,11 +187,12 @@ namespace QoZ {
 
             interpMeta_list = conf.interpMeta_list;
 
-            std::vector<int> quant_inds_vec(num_elements);
-            quant_inds = quant_inds_vec.data();
+            
             std::cout<<"ap1"<<std::endl;
 
             init();
+            std::vector<int> quant_inds_vec(num_elements);
+            quant_inds = quant_inds_vec.data();
             std::cout<<"ap2"<<std::endl;
 
             if (tuning){
@@ -224,7 +225,7 @@ namespace QoZ {
                 }
                 start_level--;
             }
-            std::cout<<anchor<< std::endl;
+            
            // double predict_error=0.0;
             int levelwise_predictor_levels=interpMeta_list.size();
             std::cout<<"ap3"<<std::endl;
