@@ -19,11 +19,11 @@ namespace SZ3 {
 
 namespace QoZ {
     template<class T, uint N, class Quantizer>
-    class SZInterpolationDecomposition : public SZ3::concepts::DecompositionInterface<T, int, N> {//added heritage
+    class QoZInterpolationDecomposition : public SZ3::concepts::DecompositionInterface<T, int, N> {//added heritage
     public:
 
 
-        SZInterpolationDecomposition(const Config &conf, Quantizer quantizer) :
+        QoZInterpolationDecomposition(const Config &conf, Quantizer quantizer) :
                 quantizer(quantizer) {
 
             static_assert(std::is_base_of<concepts::QuantizerInterface<T, int>, Quantizer>::value,
@@ -7277,8 +7277,8 @@ namespace QoZ {
 
     };
 template <class T, uint N, class Quantizer>
-InterpolationDecomposition<T, N, Quantizer> make_decomposition_interpolation(const Config &conf, Quantizer quantizer) {
-    return SZ3::QoZ::InterpolationDecomposition<T, N, Quantizer>(conf, quantizer);
+QoZInterpolationDecomposition<T, N, Quantizer> make_decomposition_interpolation(const Config &conf, Quantizer quantizer) {
+    return QoZInterpolationDecomposition<T, N, Quantizer>(conf, quantizer);
 }
 
 
