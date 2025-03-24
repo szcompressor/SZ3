@@ -8,7 +8,7 @@ SZ3: A Modular Error-bounded Lossy Compression Framework for Scientific Datasets
 
 ## QoZ integration
 
-This branch of SZ3 integrates QoZ, the quality-oriented compression module. In the **sz3** executable, you can introduce new arguments to test QoZ-integrated SZ3 compression:
+This branch of SZ3 integrates QoZ, the quality-oriented compression optimization module. In the **sz3** executable, you can introduce new arguments to test QoZ-integrated SZ3 compression:
 
 * **-q 0**: SZ3.1 compression in QoZ backend.
 *  **-q 1**: QoZ 1.1 compression.
