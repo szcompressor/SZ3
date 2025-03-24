@@ -6,6 +6,7 @@ SZ3: A Modular Error-bounded Lossy Compression Framework for Scientific Datasets
 * Supervisor: Franck Cappello
 * Other Contributors: Robert Underwood, Sihuan Li, Ali M. Gok
 
+
 ## Installation
 
 * mkdir build && cd build
@@ -39,6 +40,9 @@ Scripts without parameters below should work fine by replacing SZ2 with SZ3.
 | -T        | Tucker Tensor Decomposition     | Will be supported later                  |
 | -P        | Point-wise relative error bound | Will be supported later                  |
 
+## QoZ integration
+
+The initial QoZ (quality-oriented compression optimization module) integration into SZ3 has been available in the branch **QoZ** (https://github.com/szcompressor/SZ3/tree/QoZ). Check it for details.
 
 ## API
 
