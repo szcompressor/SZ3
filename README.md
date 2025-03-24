@@ -20,7 +20,7 @@ This branch of SZ3 integrates QoZ, the quality-oriented compression module. In t
 
 You can also add the following parameters to the config file instead: QoZ (-q), testLorenzo (-l), verbose (-V), and tuningTarget (-T). Without new arguments/parameters, the original sz3 will be executed. 
 
-**Notice**: Setting **-q -1** will cover all new settings, forcing the usage of the original SZ3. You need to set -q to at least 0 to activate QoZ features.
+**Notice**: Not setting **-q** or setting **-q -1** will cover all other new settings, forcing the usage of the original SZ3. You need to set -q to at least 0 to activate QoZ features.
 
 ## QoZ citations
 
