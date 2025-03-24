@@ -6,6 +6,27 @@ SZ3: A Modular Error-bounded Lossy Compression Framework for Scientific Datasets
 * Supervisor: Franck Cappello
 * Other Contributors: Robert Underwood, Sihuan Li, Ali M. Gok
 
+## QoZ integration
+
+This branch of SZ3 integrates QoZ, the quality-oriented compression module. In the **sz3** executable, you can introduce new arguments to test QoZ-integrated SZ3 compression:
+
+* **-q 0**: SZ3.1 compression in QoZ backend.
+*  **-q 1**: QoZ 1.1 compression.
+*  **-q 2** or **-q 3**: 2 intermediate optimization levels of QoZ 2.0 compression (having faster speeds but slightly worse rate-distortion).
+*  **-q 4**: Full QoZ 2.0 compression (for the results reported in the paper).
+* **-l**: Activate Lorenzo tuning in QoZ compression.
+* **-V**: Show auto-tuning information during QoZ compression.
+
+You can also add the following parameters to the config file instead: QoZ (-q), testLorenzo (-l), verbose (-V). Without new arguments/parameters, original sz3 will be executed.
+
+## QoZ citations
+
+If you used QoZ in your work, the appropriate citations are:
+
+* QoZ 2.0 (HPEZ): **[SIGMOD 24]** Jinyang Liu, Sheng Di, Kai Zhao, Xin Liang, Sian Jin, Zizhe Jian, Jiajun Huang, Shixun Wu, Zizhong Chen, and Franck Cappello. 2023. "[High-performance Effective Scientific Error-bounded Lossy Compression with Auto-tuned Multi-component Interpolation.](https://dl.acm.org/doi/abs/10.1145/3639259)" in Proceedings of the ACM on Management of Data 2, no. 1 (2024): 1-27.
+* QoZ 1.0: **[SC 22]** Jinyang Liu, Sheng Di, Sian Jin, Kai Zhao, Xin Liang, Zizhong Chen, and Franck Cappello. "[Dynamic quality metric oriented error bounded lossy compression for scientific datasets.](https://ieeexplore.ieee.org/abstract/document/10046076)" In SC22: International Conference for High Performance Computing, Networking, Storage and Analysis, pp. 1-15. IEEE, 2022.
+
+ 
 ## Installation
 
 * mkdir build && cd build
