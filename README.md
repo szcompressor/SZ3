@@ -16,8 +16,11 @@ This branch of SZ3 integrates QoZ, the quality-oriented compression module. In t
 *  **-q 4**: Full QoZ 2.0 compression (for the results reported in the paper).
 * **-l**: Activate Lorenzo tuning in QoZ compression.
 * **-V**: Show auto-tuning information during QoZ compression.
+* **-T CR**: Compression-ratio-preferred auto-tuning (the default is rate-PSNR-preferred **-T PSNR**).  
 
-You can also add the following parameters to the config file instead: QoZ (-q), testLorenzo (-l), verbose (-V). Without new arguments/parameters, original sz3 will be executed.
+You can also add the following parameters to the config file instead: QoZ (-q), testLorenzo (-l), verbose (-V), and tuningTarget (-T). Without new arguments/parameters, the original sz3 will be executed. 
+
+**Notice**: Setting **-q -1** will cover all new settings, forcing the usage of the original SZ3. You need to set -q to at least 0 to activate QoZ features.
 
 ## QoZ citations
 
