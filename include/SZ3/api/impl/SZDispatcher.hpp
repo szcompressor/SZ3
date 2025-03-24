@@ -27,9 +27,9 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
             std::vector<T> dataCopy(data, data + conf.num);
 
 
-            bool qoz_tuning = conf.QoZ >=0 or (conf.predictorTuningRate > 0 or conf.autoTuningRate > 0);
-            bool qoz_interp = conf.QoZ >=0 or (conf.alpha != -1 and conf.beta != -1) or conf.maxStep > 0 or conf.interpMeta.interpParadigm !=0 or conf.interpMeta.cubicSplineType != 0 or conf.interpMeta.adjInterp != 0;
-
+            bool qoz_tuning = conf.QoZ >=0;// or (conf.predictorTuningRate > 0 or conf.autoTuningRate > 0);
+            bool qoz_interp = conf.QoZ >=0;// or (conf.alpha != -1 and conf.beta != -1) or conf.maxStep > 0 or conf.interpMeta.interpParadigm !=0 or conf.interpMeta.cubicSplineType != 0 or conf.interpMeta.adjInterp != 0;
+            //temp, will modify when deeper merge
 
             if (conf.cmprAlgo == ALGO_LORENZO_REG) {
                 cmpSize = SZ_compress_LorenzoReg<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
