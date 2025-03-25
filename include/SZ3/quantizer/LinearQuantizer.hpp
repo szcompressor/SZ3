@@ -109,6 +109,10 @@ class LinearQuantizer : public concepts::QuantizerInterface<T, int> {
 
     ALWAYS_INLINE T recover_unpred() { return unpred[index++]; }
 
+    ALWAYS_INLINE void insert_unpred(T ori){
+            unpred.push_back(ori);
+        }
+
     size_t size_est() { return unpred.size() * sizeof(T); }
 
     void save(unsigned char *&c) const override {

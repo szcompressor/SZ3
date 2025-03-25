@@ -150,6 +150,11 @@ class Config {
         interpDirection = cfg.GetInteger("AlgoSettings", "InterpolationDirection", interpDirection);
         blockSize = cfg.GetInteger("AlgoSettings", "BlockSize", blockSize);
         quantbinCnt = cfg.GetInteger("AlgoSettings", "QuantizationBinTotal", quantbinCnt);
+
+        maxStep = cfg.GetInteger("AlgoSettings", "maxStep", maxStep);
+        alpha = cfg.GetReal("AlgoSettings", "alpha", alpha);
+        beta = cfg.GetReal("AlgoSettings", "beta", beta);
+
     }
 
     size_t save(unsigned char *&c) {
@@ -336,6 +341,9 @@ class Config {
     int blockSize = 0;
     int stride = 0;        // not used now
     uint8_t pred_dim = 0;  // not used now
+    int maxStep = 0;
+    double alpha = 1.25;
+    double beta= 2.0;
 };
 
 }  // namespace SZ3

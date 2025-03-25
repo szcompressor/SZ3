@@ -30,13 +30,35 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         //            lossless.postdecompress_data(buffer);
         double eb = quantizer.get_eb();
 
-        *dec_data = quantizer.recover(0, this->quant_inds[quant_index++]);
+        //*dec_data = quantizer.recover(0, this->quant_inds[quant_index++]);
+
+        if(maxStep > 0){
+            *dec_data = quantizer.recover(0, this->quant_inds[quant_index++]);
+        }
+        
+        else{
+            recover_anchor_grid(dec_data);                   
+            interpolation_level--;           
+        }
 
         for (uint level = interpolation_level; level > 0 && level <= interpolation_level; level--) {
-            if (level >= 3) {
-                quantizer.set_eb(eb * eb_ratio);
-            } else {
-                quantizer.set_eb(eb);
+            if (alpha<0) {
+                if (level >= 3) {
+                    quantizer.set_eb(eb * eb_ratio);
+                } else {
+                    quantizer.set_eb(eb);
+                }
+            }
+            
+            else if (alpha>=1){
+                
+                
+                double cur_ratio=pow(alpha,level-1);
+                if (cur_ratio>beta){
+                    cur_ratio=beta;
+                }
+                
+                quantizer.set_eb(eb/cur_ratio);
             }
             size_t stride = 1U << (level - 1);
             auto inter_block_range = std::make_shared<multi_dimensional_range<T, N>>(
@@ -76,16 +98,36 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         double eb = quantizer.get_eb();
 
         //            quant_inds.push_back(quantizer.quantize_and_overwrite(*data, 0));
-        quant_inds[quant_index++] = quantizer.quantize_and_overwrite(*data, 0);
+
+
+        if(!anchor){
+            quant_inds[quant_index++] = quantizer.quantize_and_overwrite(*data, 0);
+        }
+        else {
+            build_anchor_grid(data);
+            interpolation_level--;
+        }
+
+
+        
 
         //            Timer timer;
         //            timer.start();
 
         for (uint level = interpolation_level; level > 0 && level <= interpolation_level; level--) {
-            if (level >= 3) {
-                quantizer.set_eb(eb * eb_ratio);
-            } else {
-                quantizer.set_eb(eb);
+            if (alpha<0) {
+                if (level >= 3) {
+                    cur_eb=eb * eb_ratio;
+                } else {
+                    cur_eb=eb;
+                }
+            }
+            else if (alpha>=1){              
+                double cur_ratio=pow(alpha,level-1);
+                if (cur_ratio>beta){
+                    cur_ratio=beta;
+                }            
+                cur_eb=eb/cur_ratio;
             }
             size_t stride = 1U << (level - 1);
 
@@ -118,6 +160,10 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         write(blocksize, c);
         write(interpolator_id, c);
         write(direction_sequence_id, c);
+        write(maxStep, c);
+        write(alpha, c);
+        write(beta, c);
+
 
         quantizer.save(c);
     }
@@ -127,6 +173,9 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         read(blocksize, c, remaining_length);
         read(interpolator_id, c, remaining_length);
         read(direction_sequence_id, c, remaining_length);
+        read(maxStep, c, remaining_length);
+        read(alpha, c, remaining_length);
+        read(beta, c, remaining_length);
 
         quantizer.load(c, remaining_length);
     }
@@ -139,6 +188,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
     void init() {
         quant_index = 0;
         assert(blocksize % 2 == 0 && "Interpolation block size should be even numbers");
+        assert((maxStep & maxStep-1) == 0 && "Anchor stride should be 0 or 2's exponentials");
         num_elements = 1;
         interpolation_level = -1;
         for (int i = 0; i < N; i++) {
@@ -147,6 +197,14 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             }
             num_elements *= global_dimensions[i];
         }
+
+        if (maxStep>0){
+            int max_interpolation_level=(uint)log2(maxStep)+1;
+            if (max_interpolation_level<=interpolation_level){ 
+                interpolation_level=max_interpolation_level;
+            }
+        }
+
 
         dimension_offsets[N - 1] = 1;
         for (int i = N - 2; i >= 0; i--) {
@@ -162,6 +220,98 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             dimension_sequences.push_back(sequence);
         } while (std::next_permutation(sequence.begin(), sequence.end()));
     }
+
+    void build_grid(T *data){
+        assert(maxStep>0);
+        if (N==1){
+            for (size_t x = 0; x<global_dimensions[0]; x += maxStep){
+                quantizer.insert_unpred(*(data + x));
+                quant_inds.push_back(0);
+            }
+        }
+        else if (N==2){
+            for (size_t x = 0; x < global_dimensions[0]; x += maxStep){
+                for (size_t y = 0; y < global_dimensions[1]; y += maxStep){
+                    quantizer.insert_unpred(*(data + x * global_dimensions[1] + y));
+                    quant_inds.push_back(0);
+                }
+            }
+        }
+        else if(N==3){
+            for (size_t x = 0; x < global_dimensions[0]; x += maxStep){
+                for (size_t y = 0; y < global_dimensions[1]; y += maxStep){
+                    for(size_t z = 0; z < global_dimensions[2]; z += maxStep){
+                        quantizer.insert_unpred(*(data + x * dimension_offsets[0] + y * dimension_offsets[1] + z) );
+                        quant_inds.push_back(0);
+                    }           
+                }
+            }
+        }
+        else if(N==4){
+            for (size_t x = 0; x < global_dimensions[0]; x += maxStep){
+                for (size_t y = 0; y < global_dimensions[1]; y += maxStep){
+                    for(size_t z = 0; z < global_dimensions[2]; z += maxStep){
+                        for(size_t w = 0; w < global_dimensions[3]; w += maxStep){
+                            quantizer.insert_unpred(*(data + x * dimension_offsets[0] + y * dimension_offsets[1] + z * dimension_offsets[2] + w) );
+                            quant_inds.push_back(0);
+                        }
+                    }           
+                }
+            }
+        }
+
+    }
+
+    void recover_grid(T *decData){
+        assert(maxStep>0);
+        if (N==1){
+            for (size_t x=0;x<global_dimensions[0];x+=maxStep){
+                decData[x]=quantizer.recover_unpred();
+                quant_index++;
+            }
+        }
+        else if (N==2){
+            for (size_t x=0;x<global_dimensions[0];x+=maxStep){
+                for (size_t y=0;y<global_dimensions[1];y+=maxStep){
+                    decData[x*dimension_offsets[0]+y]=quantizer.recover_unpred();
+                    quant_index++;
+                }
+            }
+        }
+        else if(N==3){
+            std::array<size_t,3>anchor_strides={maxStep,maxStep,maxStep};
+            if(frozen_dim>=0)
+                anchor_strides[frozen_dim]=1;
+            for (size_t x=0;x<global_dimensions[0];x+=anchor_strides[0]){
+                for (size_t y=0;y<global_dimensions[1];y+=anchor_strides[1]){
+                    for(size_t z=0;z<global_dimensions[2];z+=anchor_strides[2]){
+                        decData[x*dimension_offsets[0]+y*dimension_offsets[1]+z]=quantizer.recover_unpred();
+                        quant_index++;
+                    }    
+                }
+            }
+
+        }
+        else if(N==4){
+            std::array<size_t,4>anchor_strides={maxStep,maxStep,maxStep,maxStep};
+            if(frozen_dim>=0)
+                anchor_strides[frozen_dim]=1;
+            for (size_t x=0;x<global_dimensions[0];x+=anchor_strides[0]){
+                for (size_t y=0;y<global_dimensions[1];y+=anchor_strides[1]){
+                    for(size_t z=0;z<global_dimensions[2];z+=anchor_strides[2]){
+                        for(size_t w=0;w<global_dimensions[3];w+=anchor_strides[3]){
+                            decData[x*dimension_offsets[0]+y*dimension_offsets[1]+z*dimension_offsets[2]+w]=quantizer.recover_unpred();
+                            quant_index++;
+                        }
+                    }    
+                }
+            }
+
+        }
+    }
+
+
+
 
     inline void quantize(size_t idx, T &d, T pred) {
         quant_inds[quant_index++] = (quantizer.quantize_and_overwrite(d, pred));
@@ -398,6 +548,10 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
     std::array<size_t, N> dimension_offsets;
     std::vector<std::array<int, N>> dimension_sequences;
     int direction_sequence_id;
+
+    int maxStep = 0;
+    double alpha = -1;
+    double beta = -1;
 };
 
 template <class T, uint N, class Quantizer>
