@@ -466,173 +466,341 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         }
         strides[direction]=stride;
         size_t stride2x = 2 * stride;            
-
-        if (1){//(interp_func == "linear") {
-            begins[direction] = 1;
-            ends[direction] = n-1;
-            steps[direction] = 2;
-            for(size_t i=begins[0];i<ends[0];i+=steps[0]){
-                for(size_t j=begins[1];j<ends[1];j+=steps[1]){
-                    T *d = data + begin + i * strides[0]+j*strides[1];
-                    quantize(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
-                }
-            }
-            if (n % 2 == 0) {
-                begins[direction]=n-1;
-                ends[direction]=n;
+        if (pb == PB_predict_overwrite){
+            if (interp_func == "linear") {
+                begins[direction] = 1;
+                ends[direction] = n-1;
+                steps[direction] = 2;
                 for(size_t i=begins[0];i<ends[0];i+=steps[0]){
                     for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                         T *d = data + begin + i * strides[0]+j*strides[1];
-                        if (n < 3)                              
-                            quantize(d - data, *d, *(d - stride));
-                        else 
-                            quantize(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
-                        
+                        quantize(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
                     }
-                } 
-            }
-
-        } 
-        /*
-        else if(interp_func == "cubic"){
-            size_t stride3x = 3 * stride;
-
-            T *d;
-            size_t i_start= 3;
-
-            begins[direction]=i_start;
-            ends[direction]=(n>=3)?(n-3):0;
-            steps[direction]=2;
-          
-            for(size_t i=begins[0];i<ends[0];i+=steps[0]){
-                for(size_t j=begins[1];j<ends[1];j+=steps[1]){
-                    d = data + begin + i * strides[0]+j*strides[1];
-                    quantize(d - data, *d,
-                                interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)) );
-                    
                 }
-            }
-            std::vector<size_t> boundary;
-            boundary.push_back(1);
+                if (n % 2 == 0) {
+                    begins[direction]=n-1;
+                    ends[direction]=n;
+                    for(size_t i=begins[0];i<ends[0];i+=steps[0]){
+                        for(size_t j=begins[1];j<ends[1];j+=steps[1]){
+                            T *d = data + begin + i * strides[0]+j*strides[1];
+                            if (n < 3)                              
+                                quantize(d - data, *d, *(d - stride));
+                            else 
+                                quantize(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
+                            
+                        }
+                    } 
+                }
 
-            if(n%2==1){
-                if(n>3)
-                    boundary.push_back(n-2);
-            }
-            else{
-                if(n>4)
-                    boundary.push_back(n-3);
-                if (n>2)
-                    boundary.push_back(n-1);
-            }
+            } 
+            else if(interp_func == "cubic"){
+                size_t stride3x = 3 * stride;
 
-            for(auto ii:boundary){
-               // std::cout<<ii<<std::endl;
+                T *d;
+                size_t i_start= 3;
 
-                begins[direction]=ii;
-                ends[direction]=ii+1;
-
+                begins[direction]=i_start;
+                ends[direction]=(n>=3)?(n-3):0;
+                steps[direction]=2;
+              
                 for(size_t i=begins[0];i<ends[0];i+=steps[0]){
                     for(size_t j=begins[1];j<ends[1];j+=steps[1]){
-                        
                         d = data + begin + i * strides[0]+j*strides[1];
-                        size_t main_idx=ii;
-                        if( main_idx>=3 ){
-                            if(main_idx+3<n )
-                                quantize(d - data, *d,
-                                        interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                            else if(main_idx+1<n)
-                                quantize(d - data, *d,
-                                        interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
-                            else 
-                                quantize(d - data, *d,
-                                        interp_linear1(*(d - stride3x), *(d - stride)));
-                        }
-                        else{
-                            if(main_idx+3<n  )
-                                quantize(d - data, *d,
-                                        interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
-                            else if(main_idx+1<n  )
-                                quantize(d - data, *d,
-                                        interp_linear( *(d - stride), *(d + stride)));   
-                            else 
-                                quantize(d - data, *d,
-                                        *(d - stride));
-                        }  
-                    } 
+                        quantize(d - data, *d,
+                                    interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)) );
+                        
+                    }
+                }
+                std::vector<size_t> boundary;
+                boundary.push_back(1);
+
+                if(n%2==1){
+                    if(n>3)
+                        boundary.push_back(n-2);
+                }
+                else{
+                    if(n>4)
+                        boundary.push_back(n-3);
+                    if (n>2)
+                        boundary.push_back(n-1);
+                }
+
+                for(auto ii:boundary){
+                   // std::cout<<ii<<std::endl;
+
+                    begins[direction]=ii;
+                    ends[direction]=ii+1;
+
+                    for(size_t i=begins[0];i<ends[0];i+=steps[0]){
+                        for(size_t j=begins[1];j<ends[1];j+=steps[1]){
+                            
+                            d = data + begin + i * strides[0]+j*strides[1];
+                            size_t main_idx=ii;
+                            if( main_idx>=3 ){
+                                if(main_idx+3<n )
+                                    quantize(d - data, *d,
+                                            interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                else if(main_idx+1<n)
+                                    quantize(d - data, *d,
+                                            interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                else 
+                                    quantize(d - data, *d,
+                                            interp_linear1(*(d - stride3x), *(d - stride)));
+                            }
+                            else{
+                                if(main_idx+3<n  )
+                                    quantize(d - data, *d,
+                                            interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
+                                else if(main_idx+1<n  )
+                                    quantize(d - data, *d,
+                                            interp_linear( *(d - stride), *(d + stride)));   
+                                else 
+                                    quantize(d - data, *d,
+                                            *(d - stride));
+                            }  
+                        } 
+                    }
+                }
+            }
+            else{
+                size_t stride3x = 3 * stride;
+                T *d;
+
+               
+                size_t i_start= 3;
+
+                begins[direction]=i_start;
+                ends[direction]=(n>=3)?(n-3):0;
+                steps[direction]=2;
+              
+                for(size_t i=begins[0];i<ends[0];i+=steps[0]){
+                    for(size_t j=begins[1];j<ends[1];j+=steps[1]){
+                        d = data + begin + i * strides[0]+j*strides[1];
+                        quantize(d - data, *d,
+                                    interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)) );
+                        
+                    }
+                }
+                std::vector<size_t> boundary;
+                boundary.push_back(1);
+
+                if(n%2==1){
+                    if(n>3)
+                        boundary.push_back(n-2);
+                }
+                else{
+                    if(n>4)
+                        boundary.push_back(n-3);
+                    if (n>2)
+                        boundary.push_back(n-1);
+                }
+
+                for(auto ii:boundary){
+                   // std::cout<<ii<<std::endl;
+
+                    begins[direction]=ii;
+                    ends[direction]=ii+1;
+
+                    for(size_t i=begins[0];i<ends[0];i+=steps[0]){
+                        for(size_t j=begins[1];j<ends[1];j+=steps[1]){
+                            
+                            d = data + begin + i * strides[0]+j*strides[1];
+                            size_t main_idx=ii;
+                            if( main_idx>=3 ){
+                                if(main_idx+3<n )
+                                    quantize(d - data, *d,
+                                            interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                else if(main_idx+1<n)
+                                    quantize(d - data, *d,
+                                            interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                else 
+                                    quantize(d - data, *d,
+                                            interp_linear1(*(d - stride3x), *(d - stride)));
+                            }
+                            else{
+                                if(main_idx+3<n  )
+                                    quantize(d - data, *d,
+                                            interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
+                                else if(main_idx+1<n  )
+                                    quantize(d - data, *d,
+                                            interp_linear( *(d - stride), *(d + stride)));   
+                                else 
+                                    quantize(d - data, *d,
+                                            *(d - stride));
+                            }  
+                        } 
+                    }
                 }
             }
         }
         else{
-            size_t stride3x = 3 * stride;
-            T *d;
-
-           
-            size_t i_start= 3;
-
-            begins[direction]=i_start;
-            ends[direction]=(n>=3)?(n-3):0;
-            steps[direction]=2;
-          
-            for(size_t i=begins[0];i<ends[0];i+=steps[0]){
-                for(size_t j=begins[1];j<ends[1];j+=steps[1]){
-                    d = data + begin + i * strides[0]+j*strides[1];
-                    quantize(d - data, *d,
-                                interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)) );
-                    
-                }
-            }
-            std::vector<size_t> boundary;
-            boundary.push_back(1);
-
-            if(n%2==1){
-                if(n>3)
-                    boundary.push_back(n-2);
-            }
-            else{
-                if(n>4)
-                    boundary.push_back(n-3);
-                if (n>2)
-                    boundary.push_back(n-1);
-            }
-
-            for(auto ii:boundary){
-               // std::cout<<ii<<std::endl;
-
-                begins[direction]=ii;
-                ends[direction]=ii+1;
-
+            if (interp_func == "linear") {
+                begins[direction] = 1;
+                ends[direction] = n-1;
+                steps[direction] = 2;
                 for(size_t i=begins[0];i<ends[0];i+=steps[0]){
                     for(size_t j=begins[1];j<ends[1];j+=steps[1]){
-                        
-                        d = data + begin + i * strides[0]+j*strides[1];
-                        size_t main_idx=ii;
-                        if( main_idx>=3 ){
-                            if(main_idx+3<n )
-                                quantize(d - data, *d,
-                                        interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                            else if(main_idx+1<n)
-                                quantize(d - data, *d,
-                                        interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                        T *d = data + begin + i * strides[0]+j*strides[1];
+                        recover(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
+                    }
+                }
+                if (n % 2 == 0) {
+                    begins[direction]=n-1;
+                    ends[direction]=n;
+                    for(size_t i=begins[0];i<ends[0];i+=steps[0]){
+                        for(size_t j=begins[1];j<ends[1];j+=steps[1]){
+                            T *d = data + begin + i * strides[0]+j*strides[1];
+                            if (n < 3)                              
+                                recover(d - data, *d, *(d - stride));
                             else 
-                                quantize(d - data, *d,
-                                        interp_linear1(*(d - stride3x), *(d - stride)));
+                                recover(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
+                            
                         }
-                        else{
-                            if(main_idx+3<n  )
-                                quantize(d - data, *d,
-                                        interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
-                            else if(main_idx+1<n  )
-                                quantize(d - data, *d,
-                                        interp_linear( *(d - stride), *(d + stride)));   
-                            else 
-                                quantize(d - data, *d,
-                                        *(d - stride));
-                        }  
                     } 
                 }
+
+            } 
+            else if(interp_func == "cubic"){
+                size_t stride3x = 3 * stride;
+
+                T *d;
+                size_t i_start= 3;
+
+                begins[direction]=i_start;
+                ends[direction]=(n>=3)?(n-3):0;
+                steps[direction]=2;
+              
+                for(size_t i=begins[0];i<ends[0];i+=steps[0]){
+                    for(size_t j=begins[1];j<ends[1];j+=steps[1]){
+                        d = data + begin + i * strides[0]+j*strides[1];
+                        recover(d - data, *d,
+                                    interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)) );
+                        
+                    }
+                }
+                std::vector<size_t> boundary;
+                boundary.push_back(1);
+
+                if(n%2==1){
+                    if(n>3)
+                        boundary.push_back(n-2);
+                }
+                else{
+                    if(n>4)
+                        boundary.push_back(n-3);
+                    if (n>2)
+                        boundary.push_back(n-1);
+                }
+
+                for(auto ii:boundary){
+                   // std::cout<<ii<<std::endl;
+
+                    begins[direction]=ii;
+                    ends[direction]=ii+1;
+
+                    for(size_t i=begins[0];i<ends[0];i+=steps[0]){
+                        for(size_t j=begins[1];j<ends[1];j+=steps[1]){
+                            
+                            d = data + begin + i * strides[0]+j*strides[1];
+                            size_t main_idx=ii;
+                            if( main_idx>=3 ){
+                                if(main_idx+3<n )
+                                    recover(d - data, *d,
+                                            interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                else if(main_idx+1<n)
+                                    recover(d - data, *d,
+                                            interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                else 
+                                    recover(d - data, *d,
+                                            interp_linear1(*(d - stride3x), *(d - stride)));
+                            }
+                            else{
+                                if(main_idx+3<n  )
+                                    recover(d - data, *d,
+                                            interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
+                                else if(main_idx+1<n  )
+                                    recover(d - data, *d,
+                                            interp_linear( *(d - stride), *(d + stride)));   
+                                else 
+                                    recover(d - data, *d,
+                                            *(d - stride));
+                            }  
+                        } 
+                    }
+                }
             }
-        }*/
+            else{
+                size_t stride3x = 3 * stride;
+                T *d;
+
+               
+                size_t i_start= 3;
+
+                begins[direction]=i_start;
+                ends[direction]=(n>=3)?(n-3):0;
+                steps[direction]=2;
+              
+                for(size_t i=begins[0];i<ends[0];i+=steps[0]){
+                    for(size_t j=begins[1];j<ends[1];j+=steps[1]){
+                        d = data + begin + i * strides[0]+j*strides[1];
+                        recover(d - data, *d,
+                                    interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)) );
+                        
+                    }
+                }
+                std::vector<size_t> boundary;
+                boundary.push_back(1);
+
+                if(n%2==1){
+                    if(n>3)
+                        boundary.push_back(n-2);
+                }
+                else{
+                    if(n>4)
+                        boundary.push_back(n-3);
+                    if (n>2)
+                        boundary.push_back(n-1);
+                }
+
+                for(auto ii:boundary){
+                   // std::cout<<ii<<std::endl;
+
+                    begins[direction]=ii;
+                    ends[direction]=ii+1;
+
+                    for(size_t i=begins[0];i<ends[0];i+=steps[0]){
+                        for(size_t j=begins[1];j<ends[1];j+=steps[1]){
+                            
+                            d = data + begin + i * strides[0]+j*strides[1];
+                            size_t main_idx=ii;
+                            if( main_idx>=3 ){
+                                if(main_idx+3<n )
+                                    recover(d - data, *d,
+                                            interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                else if(main_idx+1<n)
+                                    recover(d - data, *d,
+                                            interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                else 
+                                    recover(d - data, *d,
+                                            interp_linear1(*(d - stride3x), *(d - stride)));
+                            }
+                            else{
+                                if(main_idx+3<n  )
+                                    recover(d - data, *d,
+                                            interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
+                                else if(main_idx+1<n  )
+                                    recover(d - data, *d,
+                                            interp_linear( *(d - stride), *(d + stride)));   
+                                else 
+                                    recover(d - data, *d,
+                                            *(d - stride));
+                            }  
+                        } 
+                    }
+                }
+            }
+
+        }
         return predict_error;
     }
     double block_interpolation_1d_fastest_first_3d_data(T *data, const std::array<size_t,N> &begin_idx, const std::array<size_t,N> &end_idx,const size_t &direction, std::array<size_t,N> &steps,const size_t &math_stride, const std::string &interp_func, const PredictorBehavior pb) {//cross block: 0: no cross 1: only front-cross 2: all cross    
@@ -661,99 +829,170 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         }
         strides[direction]=stride;
         size_t stride2x = 2 * stride;
-        if (interp_func == "linear") {
-            begins[direction]=1;
-            ends[direction]=n-1;
-            steps[direction]=2;
-            for(size_t i=begins[0];i<ends[0];i+=steps[0]){
-                for(size_t j=begins[1];j<ends[1];j+=steps[1]){
-                    for(size_t k=begins[2];k<ends[2];k+=steps[2]){
-                        T *d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
-                        quantize(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
-                    }
-                }
-
-            }
-            if (n % 2 == 0) {
-                begins[direction]=n-1;
-                ends[direction]=n;
+        if (pb == PB_predict_overwrite){
+            if (interp_func == "linear") {
+                begins[direction]=1;
+                ends[direction]=n-1;
+                steps[direction]=2;
                 for(size_t i=begins[0];i<ends[0];i+=steps[0]){
                     for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                         for(size_t k=begins[2];k<ends[2];k+=steps[2]){
                             T *d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
-                            if(math_end_idx+math_stride<global_end_idx)
-                                quantize(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
-                            else if (n < 3)                             
-                                quantize(d - data, *d, *(d - stride));
-                            else 
-                                quantize(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
+                            quantize(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
+                        }
+                    }
+
+                }
+                if (n % 2 == 0) {
+                    begins[direction]=n-1;
+                    ends[direction]=n;
+                    for(size_t i=begins[0];i<ends[0];i+=steps[0]){
+                        for(size_t j=begins[1];j<ends[1];j+=steps[1]){
+                            for(size_t k=begins[2];k<ends[2];k+=steps[2]){
+                                T *d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
+                                if(math_end_idx+math_stride<global_end_idx)
+                                    quantize(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
+                                else if (n < 3)                             
+                                    quantize(d - data, *d, *(d - stride));
+                                else 
+                                    quantize(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
+                            }
                         }
                     }
                 }
-            }
-        } 
-        else if (interp_func == "cubic"){
-            size_t stride3x = 3 * stride;
-            T *d;
-            
-            size_t i_start = 3;
-            begins[direction]=i_start;
-            ends[direction]=(n>=3)?(n-3):0;
-            steps[direction]=2;
-            for(size_t i=begins[0];i<ends[0];i+=steps[0]){
-                for(size_t j=begins[1];j<ends[1];j+=steps[1]){
-                    for(size_t k=begins[2];k<ends[2];k+=steps[2]){
-                        d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
-                        quantize(d - data, *d,
-                                    interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                    }
-                }
-            }
-            std::vector<size_t> boundary;
-            boundary.push_back(1);
-
-            if(n%2==1){
-                if(n>3)
-                    boundary.push_back(n-2);
-            }
-            else{
-                if(n>4)
-                    boundary.push_back(n-3);
-                if (n>2)
-                    boundary.push_back(n-1);
-            }
-
-            for(auto ii:boundary){
-                begins[direction]=ii;
-                ends[direction]=ii+1;
+            } 
+            else if (interp_func == "cubic"){
+                size_t stride3x = 3 * stride;
+                T *d;
+                
+                size_t i_start = 3;
+                begins[direction]=i_start;
+                ends[direction]=(n>=3)?(n-3):0;
+                steps[direction]=2;
                 for(size_t i=begins[0];i<ends[0];i+=steps[0]){
                     for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                         for(size_t k=begins[2];k<ends[2];k+=steps[2]){
                             d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
-                            size_t main_idx=ii;
-                            if( main_idx>=3){
-                                if(main_idx+3<n )
-                                    quantize(d - data, *d,
-                                            interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                                else if(main_idx+1<n)
-                                    quantize(d - data, *d,
-                                            interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
-                                else 
-                                    quantize(d - data, *d,
-                                            interp_linear1(*(d - stride3x), *(d - stride)));
-                                    
+                            quantize(d - data, *d,
+                                        interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                        }
+                    }
+                }
+                std::vector<size_t> boundary;
+                boundary.push_back(1);
+
+                if(n%2==1){
+                    if(n>3)
+                        boundary.push_back(n-2);
+                }
+                else{
+                    if(n>4)
+                        boundary.push_back(n-3);
+                    if (n>2)
+                        boundary.push_back(n-1);
+                }
+
+                for(auto ii:boundary){
+                    begins[direction]=ii;
+                    ends[direction]=ii+1;
+                    for(size_t i=begins[0];i<ends[0];i+=steps[0]){
+                        for(size_t j=begins[1];j<ends[1];j+=steps[1]){
+                            for(size_t k=begins[2];k<ends[2];k+=steps[2]){
+                                d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
+                                size_t main_idx=ii;
+                                if( main_idx>=3){
+                                    if(main_idx+3<n )
+                                        quantize(d - data, *d,
+                                                interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                    else if(main_idx+1<n)
+                                        quantize(d - data, *d,
+                                                interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                    else 
+                                        quantize(d - data, *d,
+                                                interp_linear1(*(d - stride3x), *(d - stride)));
+                                        
+                                }
+                                else{
+                                    if(main_idx+3<n )
+                                        quantize(d - data, *d,
+                                                interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
+                                        
+                                    else if(main_idx+1<n)
+                                        quantize(d - data, *d,
+                                                interp_linear( *(d - stride), *(d + stride)));
+                                    else 
+                                        quantize(d - data, *d,
+                                                *(d - stride));
+                                }
                             }
-                            else{
-                                if(main_idx+3<n )
-                                    quantize(d - data, *d,
-                                            interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
-                                    
-                                else if(main_idx+1<n)
-                                    quantize(d - data, *d,
-                                            interp_linear( *(d - stride), *(d + stride)));
-                                else 
-                                    quantize(d - data, *d,
-                                            *(d - stride));
+                        }
+                    }
+                }
+            }
+            else{
+                size_t stride3x = 3 * stride;
+                T *d;
+
+                
+                size_t i_start = 3;
+                begins[direction]=i_start;
+                ends[direction]=(n>=3)?(n-3):0;
+                steps[direction]=2;
+                for(size_t i=begins[0];i<ends[0];i+=steps[0]){
+                    for(size_t j=begins[1];j<ends[1];j+=steps[1]){
+                        for(size_t k=begins[2];k<ends[2];k+=steps[2]){
+                            d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
+                            quantize(d - data, *d,
+                                        interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                        }
+                    }
+                }
+                std::vector<size_t> boundary;
+                boundary.push_back(1);
+
+                if(n%2==1){
+                    if(n>3)
+                        boundary.push_back(n-2);
+                }
+                else{
+                    if(n>4)
+                        boundary.push_back(n-3);
+                    if (n>2)
+                        boundary.push_back(n-1);
+                }
+
+                for(auto ii:boundary){
+                    begins[direction]=ii;
+                    ends[direction]=ii+1;
+                    for(size_t i=begins[0];i<ends[0];i+=steps[0]){
+                        for(size_t j=begins[1];j<ends[1];j+=steps[1]){
+                            for(size_t k=begins[2];k<ends[2];k+=steps[2]){
+                                d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
+                                size_t main_idx=ii;
+                                if( main_idx>=3){
+                                    if(main_idx+3<n )
+                                        quantize(d - data, *d,
+                                                interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                    else if(main_idx+1<n)
+                                        quantize(d - data, *d,
+                                                interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                    else 
+                                        quantize(d - data, *d,
+                                                interp_linear1(*(d - stride3x), *(d - stride)));
+                                        
+                                }
+                                else{
+                                    if(main_idx+3<n )
+                                        quantize(d - data, *d,
+                                                interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
+                                        
+                                    else if(main_idx+1<n)
+                                        quantize(d - data, *d,
+                                                interp_linear( *(d - stride), *(d + stride)));
+                                    else 
+                                        quantize(d - data, *d,
+                                                *(d - stride));
+                                }
                             }
                         }
                     }
@@ -761,73 +1000,175 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             }
         }
         else{
-            size_t stride3x = 3 * stride;
-            T *d;
+            if (interp_func == "linear") {
+                begins[direction]=1;
+                ends[direction]=n-1;
+                steps[direction]=2;
+                for(size_t i=begins[0];i<ends[0];i+=steps[0]){
+                    for(size_t j=begins[1];j<ends[1];j+=steps[1]){
+                        for(size_t k=begins[2];k<ends[2];k+=steps[2]){
+                            T *d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
+                            recover(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
+                        }
+                    }
 
-            
-            size_t i_start = 3;
-            begins[direction]=i_start;
-            ends[direction]=(n>=3)?(n-3):0;
-            steps[direction]=2;
-            for(size_t i=begins[0];i<ends[0];i+=steps[0]){
-                for(size_t j=begins[1];j<ends[1];j+=steps[1]){
-                    for(size_t k=begins[2];k<ends[2];k+=steps[2]){
-                        d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
-                        quantize(d - data, *d,
-                                    interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                }
+                if (n % 2 == 0) {
+                    begins[direction]=n-1;
+                    ends[direction]=n;
+                    for(size_t i=begins[0];i<ends[0];i+=steps[0]){
+                        for(size_t j=begins[1];j<ends[1];j+=steps[1]){
+                            for(size_t k=begins[2];k<ends[2];k+=steps[2]){
+                                T *d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
+                                if(math_end_idx+math_stride<global_end_idx)
+                                    recover(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
+                                else if (n < 3)                             
+                                    recover(d - data, *d, *(d - stride));
+                                else 
+                                    recover(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
+                            }
+                        }
                     }
                 }
-            }
-            std::vector<size_t> boundary;
-            boundary.push_back(1);
-
-            if(n%2==1){
-                if(n>3)
-                    boundary.push_back(n-2);
-            }
-            else{
-                if(n>4)
-                    boundary.push_back(n-3);
-                if (n>2)
-                    boundary.push_back(n-1);
-            }
-
-            for(auto ii:boundary){
-                begins[direction]=ii;
-                ends[direction]=ii+1;
+            } 
+            else if (interp_func == "cubic"){
+                size_t stride3x = 3 * stride;
+                T *d;
+                
+                size_t i_start = 3;
+                begins[direction]=i_start;
+                ends[direction]=(n>=3)?(n-3):0;
+                steps[direction]=2;
                 for(size_t i=begins[0];i<ends[0];i+=steps[0]){
                     for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                         for(size_t k=begins[2];k<ends[2];k+=steps[2]){
                             d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
-                            size_t main_idx=ii;
-                            if( main_idx>=3){
-                                if(main_idx+3<n )
-                                    quantize(d - data, *d,
-                                            interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                                else if(main_idx+1<n)
-                                    quantize(d - data, *d,
-                                            interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
-                                else 
-                                    quantize(d - data, *d,
-                                            interp_linear1(*(d - stride3x), *(d - stride)));
-                                    
-                            }
-                            else{
-                                if(main_idx+3<n )
-                                    quantize(d - data, *d,
-                                            interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
-                                    
-                                else if(main_idx+1<n)
-                                    quantize(d - data, *d,
-                                            interp_linear( *(d - stride), *(d + stride)));
-                                else 
-                                    quantize(d - data, *d,
-                                            *(d - stride));
+                            recover(d - data, *d,
+                                        interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                        }
+                    }
+                }
+                std::vector<size_t> boundary;
+                boundary.push_back(1);
+
+                if(n%2==1){
+                    if(n>3)
+                        boundary.push_back(n-2);
+                }
+                else{
+                    if(n>4)
+                        boundary.push_back(n-3);
+                    if (n>2)
+                        boundary.push_back(n-1);
+                }
+
+                for(auto ii:boundary){
+                    begins[direction]=ii;
+                    ends[direction]=ii+1;
+                    for(size_t i=begins[0];i<ends[0];i+=steps[0]){
+                        for(size_t j=begins[1];j<ends[1];j+=steps[1]){
+                            for(size_t k=begins[2];k<ends[2];k+=steps[2]){
+                                d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
+                                size_t main_idx=ii;
+                                if( main_idx>=3){
+                                    if(main_idx+3<n )
+                                        recover(d - data, *d,
+                                                interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                    else if(main_idx+1<n)
+                                        recover(d - data, *d,
+                                                interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                    else 
+                                        recover(d - data, *d,
+                                                interp_linear1(*(d - stride3x), *(d - stride)));
+                                        
+                                }
+                                else{
+                                    if(main_idx+3<n )
+                                        recover(d - data, *d,
+                                                interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
+                                        
+                                    else if(main_idx+1<n)
+                                        recover(d - data, *d,
+                                                interp_linear( *(d - stride), *(d + stride)));
+                                    else 
+                                        recover(d - data, *d,
+                                                *(d - stride));
+                                }
                             }
                         }
                     }
                 }
             }
+            else{
+                size_t stride3x = 3 * stride;
+                T *d;
+
+                
+                size_t i_start = 3;
+                begins[direction]=i_start;
+                ends[direction]=(n>=3)?(n-3):0;
+                steps[direction]=2;
+                for(size_t i=begins[0];i<ends[0];i+=steps[0]){
+                    for(size_t j=begins[1];j<ends[1];j+=steps[1]){
+                        for(size_t k=begins[2];k<ends[2];k+=steps[2]){
+                            d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
+                            recover(d - data, *d,
+                                        interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                        }
+                    }
+                }
+                std::vector<size_t> boundary;
+                boundary.push_back(1);
+
+                if(n%2==1){
+                    if(n>3)
+                        boundary.push_back(n-2);
+                }
+                else{
+                    if(n>4)
+                        boundary.push_back(n-3);
+                    if (n>2)
+                        boundary.push_back(n-1);
+                }
+
+                for(auto ii:boundary){
+                    begins[direction]=ii;
+                    ends[direction]=ii+1;
+                    for(size_t i=begins[0];i<ends[0];i+=steps[0]){
+                        for(size_t j=begins[1];j<ends[1];j+=steps[1]){
+                            for(size_t k=begins[2];k<ends[2];k+=steps[2]){
+                                d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
+                                size_t main_idx=ii;
+                                if( main_idx>=3){
+                                    if(main_idx+3<n )
+                                        recover(d - data, *d,
+                                                interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                    else if(main_idx+1<n)
+                                        recover(d - data, *d,
+                                                interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                    else 
+                                        recover(d - data, *d,
+                                                interp_linear1(*(d - stride3x), *(d - stride)));
+                                        
+                                }
+                                else{
+                                    if(main_idx+3<n )
+                                        recover(d - data, *d,
+                                                interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
+                                        
+                                    else if(main_idx+1<n)
+                                        recover(d - data, *d,
+                                                interp_linear( *(d - stride), *(d + stride)));
+                                    else 
+                                        recover(d - data, *d,
+                                                *(d - stride));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
         }
 
       //  quant_index=quant_idx;
