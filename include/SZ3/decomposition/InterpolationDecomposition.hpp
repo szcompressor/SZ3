@@ -474,7 +474,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             for(size_t i=begins[0];i<ends[0];i+=steps[0]){
                 for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                     T *d = data + begin + i * strides[0]+j*strides[1];
-                    predict_error+=quantize(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
+                    quantize(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
                 }
             }
             if (n % 2 == 0) {
@@ -484,9 +484,9 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                     for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                         T *d = data + begin + i * strides[0]+j*strides[1];
                         if (n < 3)                              
-                            predict_error+=quantize_integrated(d - data, *d, *(d - stride));
+                            quantize(d - data, *d, *(d - stride));
                         else 
-                            predict_error+=quantize_integrated(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
+                            quantize(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
                         
                     }
                 } 
@@ -510,7 +510,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             for(size_t i=begins[0];i<ends[0];i+=steps[0]){
                 for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                     d = data + begin + i * strides[0]+j*strides[1];
-                    predict_error+=quantize(d - data, *d,
+                    quantize(d - data, *d,
                                 interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)) );
                     
                 }
@@ -543,24 +543,24 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                         size_t math_cur_idx=math_begin_idx+main_idx*math_stride;
                         if( main_idx>=3 ){
                             if(main_idx+3<n )
-                                predict_error+=quantize(d - data, *d,
+                                quantize(d - data, *d,
                                         interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
                             else if(main_idx+1<n)
-                                predict_error+=quantize(d - data, *d,
+                                quantize(d - data, *d,
                                         interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
                             else 
-                                predict_error+=quantize_integrated(d - data, *d,
+                                quantize(d - data, *d,
                                         interp_linear1(*(d - stride3x), *(d - stride)));
                         }
                         else{
                             if(main_idx+3<n  )
-                                predict_error+=quantize(d - data, *d,
+                                quantize(d - data, *d,
                                         interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
                             else if(main_idx+1<n  )
-                                predict_error+=quantize(d - data, *d,
+                                quantize(d - data, *d,
                                         interp_linear( *(d - stride), *(d + stride)));   
                             else 
-                                predict_error+=quantize(d - data, *d,
+                                quantize(d - data, *d,
                                         *(d - stride));
                         }  
                     } 
@@ -584,7 +584,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             for(size_t i=begins[0];i<ends[0];i+=steps[0]){
                 for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                     d = data + begin + i * strides[0]+j*strides[1];
-                    predict_error+=quantize(d - data, *d,
+                    quantize(d - data, *d,
                                 interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)) );
                     
                 }
@@ -617,24 +617,24 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                         size_t math_cur_idx=math_begin_idx+main_idx*math_stride;
                         if( main_idx>=3 ){
                             if(main_idx+3<n )
-                                predict_error+=quantize(d - data, *d,
+                                quantize(d - data, *d,
                                         interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
                             else if(main_idx+1<n)
-                                predict_error+=quantize(d - data, *d,
+                                quantize(d - data, *d,
                                         interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
                             else 
-                                predict_error+=quantize_integrated(d - data, *d,
+                                quantize(d - data, *d,
                                         interp_linear1(*(d - stride3x), *(d - stride)));
                         }
                         else{
                             if(main_idx+3<n  )
-                                predict_error+=quantize(d - data, *d,
+                                quantize(d - data, *d,
                                         interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
                             else if(main_idx+1<n  )
-                                predict_error+=quantize(d - data, *d,
+                                quantize(d - data, *d,
                                         interp_linear( *(d - stride), *(d + stride)));   
                             else 
-                                predict_error+=quantize(d - data, *d,
+                                quantize(d - data, *d,
                                         *(d - stride));
                         }  
                     } 
@@ -677,7 +677,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                     for(size_t k=begins[2];k<ends[2];k+=steps[2]){
                         T *d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
-                        predict_error+=quantize(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
+                        quantize(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
                     }
                 }
 
@@ -690,11 +690,11 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                         for(size_t k=begins[2];k<ends[2];k+=steps[2]){
                             T *d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
                             if(math_end_idx+math_stride<global_end_idx)
-                                predict_error+=quantize(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
+                                quantize(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
                             else if (n < 3)                             
-                                predict_error+=quantize(d - data, *d, *(d - stride));
+                                quantize(d - data, *d, *(d - stride));
                             else 
-                                predict_error+=quantize(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
+                                quantize(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
                         }
                     }
                 }
@@ -716,7 +716,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                     for(size_t k=begins[2];k<ends[2];k+=steps[2]){
                         d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
-                        predict_error+=quantize(d - data, *d,
+                        quantize(d - data, *d,
                                     interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
                     }
                 }
@@ -746,26 +746,26 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                             size_t math_cur_idx=math_begin_idx+main_idx*math_stride;
                             if( main_idx>=3){
                                 if(main_idx+3<n )
-                                    predict_error+=quantize(d - data, *d,
+                                    quantize(d - data, *d,
                                             interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
                                 else if(main_idx+1<n)
-                                    predict_error+=quantize(d - data, *d,
+                                    quantize(d - data, *d,
                                             interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
                                 else 
-                                    predict_error+=quantize(d - data, *d,
+                                    quantize(d - data, *d,
                                             interp_linear1(*(d - stride3x), *(d - stride)));
                                     
                             }
                             else{
                                 if(main_idx+3<n )
-                                    predict_error+=quantize_integrated(d - data, *d,
+                                    quantize(d - data, *d,
                                             interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
                                     
                                 else if(main_idx+1<n)
-                                    predict_error+=quantize_integrated(d - data, *d,
+                                    quantize(d - data, *d,
                                             interp_linear( *(d - stride), *(d + stride)));
                                 else 
-                                    predict_error+=quantize_integrated(d - data, *d,
+                                    quantize(d - data, *d,
                                             *(d - stride));
                             }
                         }
@@ -789,7 +789,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                     for(size_t k=begins[2];k<ends[2];k+=steps[2]){
                         d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
-                        predict_error+=quantize(d - data, *d,
+                        quantize(d - data, *d,
                                     interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
                     }
                 }
@@ -819,26 +819,26 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                             size_t math_cur_idx=math_begin_idx+main_idx*math_stride;
                             if( main_idx>=3){
                                 if(main_idx+3<n )
-                                    predict_error+=quantize(d - data, *d,
+                                    quantize(d - data, *d,
                                             interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
                                 else if(main_idx+1<n)
-                                    predict_error+=quantize(d - data, *d,
+                                    quantize(d - data, *d,
                                             interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
                                 else 
-                                    predict_error+=quantize(d - data, *d,
+                                    quantize(d - data, *d,
                                             interp_linear1(*(d - stride3x), *(d - stride)));
                                     
                             }
                             else{
                                 if(main_idx+3<n )
-                                    predict_error+=quantize_integrated(d - data, *d,
+                                    quantize(d - data, *d,
                                             interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
                                     
                                 else if(main_idx+1<n)
-                                    predict_error+=quantize_integrated(d - data, *d,
+                                    quantize(d - data, *d,
                                             interp_linear( *(d - stride), *(d + stride)));
                                 else 
-                                    predict_error+=quantize_integrated(d - data, *d,
+                                    quantize(d - data, *d,
                                             *(d - stride));
                             }
                         }
@@ -918,7 +918,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         begin_idx[dims[0]]=(begin[dims[0]] ? begin[dims[0]] + stride : 0);
         steps[dims[0]]=stride;
 
-        predict_error += block_interpolation_fastest_first_3d_data(data, begin_idx,
+        predict_error += block_interpolation_1d_fastest_first_3d_data(data, begin_idx,
                                                             end_idx,dims[1],steps,
                                                             stride, interp_func, pb);
 
