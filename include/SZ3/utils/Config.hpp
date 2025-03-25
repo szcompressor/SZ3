@@ -40,9 +40,9 @@ constexpr const char *ALGO_STR[] = {"ALGO_LORENZO_REG", "ALGO_INTERP_LORENZO", "
 constexpr const ALGO ALGO_OPTIONS[] = {ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP,
                                        ALGO_NOPRED,      ALGO_LOSSLESS};
 
-enum INTERP_ALGO { INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC };
-constexpr const char *INTERP_ALGO_STR[] = {"INTERP_ALGO_LINEAR", "INTERP_ALGO_CUBIC"};
-constexpr INTERP_ALGO INTERP_ALGO_OPTIONS[] = {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC};
+enum INTERP_ALGO { INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC, INTERP_ALGO_CUBIC_NATURAL};
+constexpr const char *INTERP_ALGO_STR[] = {"INTERP_ALGO_LINEAR", "INTERP_ALGO_CUBIC", "INTERP_ALGO_CUBIC_NATURAL"};
+constexpr INTERP_ALGO INTERP_ALGO_OPTIONS[] = {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC, INTERP_ALGO_CUBIC_NATURAL};
 
 template <class T>
 const char *enum2Str(T e) {
@@ -150,6 +150,11 @@ class Config {
         interpDirection = cfg.GetInteger("AlgoSettings", "InterpolationDirection", interpDirection);
         blockSize = cfg.GetInteger("AlgoSettings", "BlockSize", blockSize);
         quantbinCnt = cfg.GetInteger("AlgoSettings", "QuantizationBinTotal", quantbinCnt);
+
+        maxStep = cfg.GetInteger("AlgoSettings", "maxStep", maxStep);
+        alpha = cfg.GetReal("AlgoSettings", "alpha", alpha);
+        beta = cfg.GetReal("AlgoSettings", "beta", beta);
+
     }
 
     size_t save(unsigned char *&c) {
@@ -336,6 +341,9 @@ class Config {
     int blockSize = 0;
     int stride = 0;        // not used now
     uint8_t pred_dim = 0;  // not used now
+    int maxStep = 0;
+    double alpha = 1.25;
+    double beta= 2.0;
 };
 
 }  // namespace SZ3

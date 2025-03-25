@@ -17,6 +17,10 @@ size_t SZ_compress_Interp(Config &conf, T *data, uchar *cmpData, size_t cmpCap) 
     assert(N == conf.N);
     assert(conf.cmprAlgo == ALGO_INTERP);
     calAbsErrorBound(conf, data);
+    if (conf.maxStep<=0){
+        std::array<size_t,4> anchor_strides={256,64,32,16};
+        conf.maxStep = anchor_strides[N-1];
+    }
 
     auto sz = make_compressor_sz_generic<T, N>(
         make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
@@ -61,8 +65,13 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     assert(conf.cmprAlgo == ALGO_INTERP_LORENZO);
 
     //        Timer timer(true);
-
     calAbsErrorBound(conf, data);
+
+    if (conf.maxStep<=0){
+        std::array<size_t,4> anchor_strides={256,64,32,16};
+        conf.maxStep = anchor_strides[N-1];
+    }
+
 
     size_t sampling_num, sampling_block;
     std::vector<size_t> sample_dims(N);
@@ -71,7 +80,6 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         conf.cmprAlgo = ALGO_INTERP;
         return SZ_compress_Interp<T, N>(conf, data, cmpData, cmpCap);
     }
-
     double best_lorenzo_ratio = 0, best_interp_ratio = 0, ratio;
     size_t bufferCap = conf.num * sizeof(T);
     auto buffer = static_cast<uchar *>(malloc(bufferCap));
@@ -93,10 +101,9 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         //    printf("Lorenzo ratio = %.2f\n", ratio);
         best_lorenzo_ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;
     }
-
     {
         // tune interp
-        for (auto &interp_op : {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC}) {
+        for (auto &interp_op : {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC, INTERP_ALGO_CUBIC_NATURAL}) {
             ratio = do_not_use_this_interp_compress_block_test<T, N>(
                 sampling_data.data(), sample_dims, sampling_num, conf.absErrorBound, interp_op, conf.interpDirection,
                 sampling_block, buffer, bufferCap);
@@ -119,6 +126,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     bool useInterp = !(best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 80 && best_interp_ratio < 80);
     size_t cmpSize = 0;
     if (useInterp) {
+
         conf.cmprAlgo = ALGO_INTERP;
         cmpSize = SZ_compress_Interp<T, N>(conf, data, cmpData, cmpCap);
     } else {

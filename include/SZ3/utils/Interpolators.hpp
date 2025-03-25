@@ -37,6 +37,29 @@ inline T interp_cubic(T a, T b, T c, T d) {
 }
 
 template <class T>
+inline T interp_cubic_natural(T a, T b, T c, T d) {
+   return (-3 * a + 23 * b + 23 * c - 3 * d) / 40;
+}
+
+template<class T>
+inline T lorenzo_1d(T a, T b) {
+    return 2*b-a;
+}
+
+template<class T>
+inline T lorenzo_2d(T a, T b, T c) {
+    return (b+c-a);
+}
+
+template<class T>
+inline T lorenzo_3d(T a, T b, T c, T d, T e,T f,T g) {
+    return (a-b-c+d-e+f+g);
+}
+
+    
+
+
+template <class T>
 inline T interp_cubic_front(T a, T b, T c, T d) {
     return (5 * a + 15 * b - 5 * c + d) / 16;
 }
