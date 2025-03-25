@@ -32,7 +32,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
 
         //*dec_data = quantizer.recover(0, this->quant_inds[quant_index++]);
 
-        if(maxStep > 0){
+        if(maxStep == 0){
             *dec_data = quantizer.recover(0, this->quant_inds[quant_index++]);
         }
         
@@ -100,7 +100,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         //            quant_inds.push_back(quantizer.quantize_and_overwrite(*data, 0));
 
 
-        if(maxStep > 0){
+        if(maxStep == 0){
             quant_inds[quant_index++] = quantizer.quantize_and_overwrite(*data, 0);
         }
         else {
@@ -276,7 +276,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         else if (N==2){
             for (size_t x = 0; x < global_dimensions[0]; x += maxStep){
                 for (size_t y = 0; y < global_dimensions[1]; y += maxStep){
-                    decData[x * dimension_offsets[0] + y]=quantizer.recover_unpred();
+                    decData[x * dimension_offsets[0] + y] = quantizer.recover_unpred();
                     quant_index++;
                 }
             }
@@ -285,7 +285,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             for (size_t x = 0; x < global_dimensions[0]; x += maxStep){
                 for (size_t y = 0; y < global_dimensions[1]; y += maxStep){
                     for(size_t z = 0; z < global_dimensions[2]; z += maxStep){
-                        decData[x * dimension_offsets[0] + y * dimension_offsets[1] + z]=quantizer.recover_unpred();
+                        decData[x * dimension_offsets[0] + y * dimension_offsets[1] + z] = quantizer.recover_unpred();
                         quant_index++;
                     }           
                 }
@@ -296,7 +296,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 for (size_t y = 0; y < global_dimensions[1]; y += maxStep){
                     for(size_t z = 0; z < global_dimensions[2]; z += maxStep){
                         for(size_t w = 0; w < global_dimensions[3]; w += maxStep){
-                            decData[x * dimension_offsets[0] + y * dimension_offsets[1] + z * dimension_offsets[2] + w]=quantizer.recover_unpred();
+                            decData[x * dimension_offsets[0] + y * dimension_offsets[1] + z * dimension_offsets[2] + w] = quantizer.recover_unpred();
                             quant_index++;
                         }
                     }           
