@@ -223,7 +223,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         } while (std::next_permutation(sequence.begin(), sequence.end()));
     }
 
-    void build_grid(T *data){
+    void build_anchor_grid(T *data){
         assert(maxStep>0);
         if (N==1){
             for (size_t x = 0; x<global_dimensions[0]; x += maxStep){
@@ -264,7 +264,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
 
     }
 
-    void recover_grid(T *decData){
+    void recover_anchor_grid(T *decData){
         assert(maxStep>0);
 
         if (N==1){
