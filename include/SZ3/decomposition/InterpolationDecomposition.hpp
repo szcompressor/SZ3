@@ -759,14 +759,14 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                             else{
                                 if(main_idx+3<n )
                                     predict_error+=quantize_integrated(d - data, *d,
-                                            interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)),mode);
+                                            interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
                                     
                                 else if(main_idx+1<n)
                                     predict_error+=quantize_integrated(d - data, *d,
-                                            interp_linear( *(d - stride), *(d + stride)),mode);
+                                            interp_linear( *(d - stride), *(d + stride)));
                                 else 
                                     predict_error+=quantize_integrated(d - data, *d,
-                                            *(d - stride),mode);
+                                            *(d - stride));
                             }
                         }
                     }
@@ -832,14 +832,14 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                             else{
                                 if(main_idx+3<n )
                                     predict_error+=quantize_integrated(d - data, *d,
-                                            interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)),mode);
+                                            interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
                                     
                                 else if(main_idx+1<n)
                                     predict_error+=quantize_integrated(d - data, *d,
-                                            interp_linear( *(d - stride), *(d + stride)),mode);
+                                            interp_linear( *(d - stride), *(d + stride)));
                                 else 
                                     predict_error+=quantize_integrated(d - data, *d,
-                                            *(d - stride),mode);
+                                            *(d - stride));
                             }
                         }
                     }
