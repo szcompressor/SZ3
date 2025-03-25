@@ -89,6 +89,9 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         blocksize = 32;
         interpolator_id = conf.interpAlgo;
         direction_sequence_id = conf.interpDirection;
+        maxStep = conf.maxStep;
+        alpha = conf.alpha;
+        beta = conf.beta;
 
         init();
 
