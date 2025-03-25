@@ -870,7 +870,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                                                                        const int direction, size_t stride = 1) {
         double predict_error = 0;
         size_t stride2x = stride * 2;
-        const std::array<size_t, N> dims = dimension_sequences[direction];
+        const std::array<int, N> dims = dimension_sequences[direction];
         std::array<size_t, N>steps;
         std::array<size_t, N> begin_idx=begin,end_idx=end;
         steps[dims[0]]=1;
