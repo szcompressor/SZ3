@@ -445,7 +445,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             if(end_idx[i]<begin_idx[i])
                 return 0;
         }
-
         size_t math_begin_idx=begin_idx[direction],math_end_idx=end_idx[direction];
         size_t n = (math_end_idx - math_begin_idx) / math_stride + 1;
         if (n <= 1) {
@@ -487,22 +486,17 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                                 quantize(d - data, *d, *(d - stride));
                             else 
                                 quantize(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
-                            
                         }
                     } 
                 }
-
             } 
             else if(interp_func == "cubic"){
                 size_t stride3x = 3 * stride;
-
                 T *d;
                 size_t i_start= 3;
-
                 begins[direction]=i_start;
                 ends[direction]=(n>=3)?(n-3):0;
                 steps[direction]=2;
-              
                 for(size_t i=begins[0];i<ends[0];i+=steps[0]){
                     for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                         d = data + begin + i * strides[0]+j*strides[1];
@@ -527,20 +521,16 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
 
                 for(auto ii:boundary){
                    // std::cout<<ii<<std::endl;
-
                     begins[direction]=ii;
                     ends[direction]=ii+1;
-
                     for(size_t i=begins[0];i<ends[0];i+=steps[0]){
-                        for(size_t j=begins[1];j<ends[1];j+=steps[1]){
-                            
+                        for(size_t j=begins[1];j<ends[1];j+=steps[1]){      
                             d = data + begin + i * strides[0]+j*strides[1];
-                            size_t main_idx=ii;
-                            if( main_idx>=3 ){
-                                if(main_idx+3<n )
+                            if( ii>=3 ){
+                                if(ii+3<n )
                                     quantize(d - data, *d,
                                             interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                                else if(main_idx+1<n)
+                                else if(ii+1<n)
                                     quantize(d - data, *d,
                                             interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
                                 else 
@@ -548,10 +538,10 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                                             interp_linear1(*(d - stride3x), *(d - stride)));
                             }
                             else{
-                                if(main_idx+3<n  )
+                                if(ii+3<n  )
                                     quantize(d - data, *d,
                                             interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
-                                else if(main_idx+1<n  )
+                                else if(ii+1<n  )
                                     quantize(d - data, *d,
                                             interp_linear( *(d - stride), *(d + stride)));   
                                 else 
@@ -600,17 +590,14 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
 
                     begins[direction]=ii;
                     ends[direction]=ii+1;
-
                     for(size_t i=begins[0];i<ends[0];i+=steps[0]){
-                        for(size_t j=begins[1];j<ends[1];j+=steps[1]){
-                            
+                        for(size_t j=begins[1];j<ends[1];j+=steps[1]){        
                             d = data + begin + i * strides[0]+j*strides[1];
-                            size_t main_idx=ii;
-                            if( main_idx>=3 ){
-                                if(main_idx+3<n )
+=                           if( ii>=3 ){
+                                if(ii+3<n )
                                     quantize(d - data, *d,
                                             interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                                else if(main_idx+1<n)
+                                else if(ii+1<n)
                                     quantize(d - data, *d,
                                             interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
                                 else 
@@ -618,10 +605,10 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                                             interp_linear1(*(d - stride3x), *(d - stride)));
                             }
                             else{
-                                if(main_idx+3<n  )
+                                if(ii+3<n  )
                                     quantize(d - data, *d,
                                             interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
-                                else if(main_idx+1<n  )
+                                else if(ii+1<n  )
                                     quantize(d - data, *d,
                                             interp_linear( *(d - stride), *(d + stride)));   
                                 else 
@@ -702,12 +689,11 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                         for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                             
                             d = data + begin + i * strides[0]+j*strides[1];
-                            size_t main_idx=ii;
-                            if( main_idx>=3 ){
-                                if(main_idx+3<n )
+                            if( ii>=3 ){
+                                if(ii+3<n )
                                     recover(d - data, *d,
                                             interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                                else if(main_idx+1<n)
+                                else if(ii+1<n)
                                     recover(d - data, *d,
                                             interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
                                 else 
@@ -715,10 +701,10 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                                             interp_linear1(*(d - stride3x), *(d - stride)));
                             }
                             else{
-                                if(main_idx+3<n  )
+                                if(ii+3<n  )
                                     recover(d - data, *d,
                                             interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
-                                else if(main_idx+1<n  )
+                                else if(ii+1<n  )
                                     recover(d - data, *d,
                                             interp_linear( *(d - stride), *(d + stride)));   
                                 else 
@@ -732,8 +718,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             else{
                 size_t stride3x = 3 * stride;
                 T *d;
-
-               
                 size_t i_start= 3;
 
                 begins[direction]=i_start;
@@ -772,12 +756,11 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                         for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                             
                             d = data + begin + i * strides[0]+j*strides[1];
-                            size_t main_idx=ii;
-                            if( main_idx>=3 ){
-                                if(main_idx+3<n )
+                            if( ii>=3 ){
+                                if(ii+3<n )
                                     recover(d - data, *d,
                                             interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                                else if(main_idx+1<n)
+                                else if(ii+1<n)
                                     recover(d - data, *d,
                                             interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
                                 else 
@@ -785,10 +768,10 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                                             interp_linear1(*(d - stride3x), *(d - stride)));
                             }
                             else{
-                                if(main_idx+3<n  )
+                                if(ii+3<n  )
                                     recover(d - data, *d,
                                             interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
-                                else if(main_idx+1<n  )
+                                else if(ii+1<n  )
                                     recover(d - data, *d,
                                             interp_linear( *(d - stride), *(d + stride)));   
                                 else 
@@ -899,25 +882,23 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                         for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                             for(size_t k=begins[2];k<ends[2];k+=steps[2]){
                                 d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
-                                size_t main_idx=ii;
-                                if( main_idx>=3){
-                                    if(main_idx+3<n )
+                                if( ii>=3){
+                                    if(ii+3<n )
                                         quantize(d - data, *d,
                                                 interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                                    else if(main_idx+1<n)
+                                    else if(ii+1<n)
                                         quantize(d - data, *d,
                                                 interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
                                     else 
                                         quantize(d - data, *d,
-                                                interp_linear1(*(d - stride3x), *(d - stride)));
-                                        
+                                                interp_linear1(*(d - stride3x), *(d - stride))); 
                                 }
                                 else{
-                                    if(main_idx+3<n )
+                                    if(ii+3<n )
                                         quantize(d - data, *d,
                                                 interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
                                         
-                                    else if(main_idx+1<n)
+                                    else if(ii+1<n)
                                         quantize(d - data, *d,
                                                 interp_linear( *(d - stride), *(d + stride)));
                                     else 
@@ -932,8 +913,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             else{
                 size_t stride3x = 3 * stride;
                 T *d;
-
-                
                 size_t i_start = 3;
                 begins[direction]=i_start;
                 ends[direction]=(n>=3)?(n-3):0;
@@ -968,12 +947,11 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                         for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                             for(size_t k=begins[2];k<ends[2];k+=steps[2]){
                                 d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
-                                size_t main_idx=ii;
-                                if( main_idx>=3){
-                                    if(main_idx+3<n )
+                                if( ii>=3){
+                                    if(ii+3<n )
                                         quantize(d - data, *d,
                                                 interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                                    else if(main_idx+1<n)
+                                    else if(ii+1<n)
                                         quantize(d - data, *d,
                                                 interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
                                     else 
@@ -982,11 +960,11 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                                         
                                 }
                                 else{
-                                    if(main_idx+3<n )
+                                    if(ii+3<n )
                                         quantize(d - data, *d,
                                                 interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
                                         
-                                    else if(main_idx+1<n)
+                                    else if(ii+1<n)
                                         quantize(d - data, *d,
                                                 interp_linear( *(d - stride), *(d + stride)));
                                     else 
@@ -1069,12 +1047,11 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                         for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                             for(size_t k=begins[2];k<ends[2];k+=steps[2]){
                                 d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
-                                size_t main_idx=ii;
-                                if( main_idx>=3){
-                                    if(main_idx+3<n )
+                                if( ii>=3){
+                                    if(ii+3<n )
                                         recover(d - data, *d,
                                                 interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                                    else if(main_idx+1<n)
+                                    else if(ii+1<n)
                                         recover(d - data, *d,
                                                 interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
                                     else 
@@ -1083,11 +1060,11 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                                         
                                 }
                                 else{
-                                    if(main_idx+3<n )
+                                    if(ii+3<n )
                                         recover(d - data, *d,
                                                 interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
                                         
-                                    else if(main_idx+1<n)
+                                    else if(ii+1<n)
                                         recover(d - data, *d,
                                                 interp_linear( *(d - stride), *(d + stride)));
                                     else 
@@ -1138,12 +1115,11 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                         for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                             for(size_t k=begins[2];k<ends[2];k+=steps[2]){
                                 d = data + begin + i * strides[0]+j*strides[1]+k*strides[2];
-                                size_t main_idx=ii;
-                                if( main_idx>=3){
-                                    if(main_idx+3<n )
+                                if( ii>=3){
+                                    if(ii+3<n )
                                         recover(d - data, *d,
                                                 interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                                    else if(main_idx+1<n)
+                                    else if(ii+1<n)
                                         recover(d - data, *d,
                                                 interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
                                     else 
@@ -1152,11 +1128,11 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                                         
                                 }
                                 else{
-                                    if(main_idx+3<n )
+                                    if(ii+3<n )
                                         recover(d - data, *d,
                                                 interp_quad_1( *(d - stride), *(d + stride), *(d + stride3x)));
                                         
-                                    else if(main_idx+1<n)
+                                    else if(ii+1<n)
                                         recover(d - data, *d,
                                                 interp_linear( *(d - stride), *(d + stride)));
                                     else 
