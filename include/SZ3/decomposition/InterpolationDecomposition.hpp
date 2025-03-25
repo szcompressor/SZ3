@@ -467,7 +467,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         strides[direction]=stride;
         size_t stride2x = 2 * stride;            
 
-        if (interp_func == "linear") {
+        if (1){//(interp_func == "linear") {
             begins[direction] = 1;
             ends[direction] = n-1;
             steps[direction] = 2;
@@ -493,6 +493,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             }
 
         } 
+        /*
         else if(interp_func == "cubic"){
             size_t stride3x = 3 * stride;
 
@@ -631,7 +632,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                     } 
                 }
             }
-        }
+        }*/
         return predict_error;
     }
     double block_interpolation_1d_fastest_first_3d_data(T *data, const std::array<size_t,N> &begin_idx, const std::array<size_t,N> &end_idx,const size_t &direction, std::array<size_t,N> &steps,const size_t &math_stride, const std::string &interp_func, const PredictorBehavior pb) {//cross block: 0: no cross 1: only front-cross 2: all cross    
