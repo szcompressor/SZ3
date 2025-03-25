@@ -593,7 +593,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                     for(size_t i=begins[0];i<ends[0];i+=steps[0]){
                         for(size_t j=begins[1];j<ends[1];j+=steps[1]){        
                             d = data + begin + i * strides[0]+j*strides[1];
-=                           if( ii>=3 ){
+                           if( ii>=3 ){
                                 if(ii+3<n )
                                     quantize(d - data, *d,
                                             interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
