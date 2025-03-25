@@ -445,13 +445,14 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             if(end_idx[i]<begin_idx[i])
                 return 0;
         }
+
         size_t math_begin_idx=begin_idx[direction],math_end_idx=end_idx[direction];
         size_t n = (math_end_idx - math_begin_idx) / math_stride + 1;
         if (n <= 1) {
             return 0;
         }
       //  size_t quant_idx=quant_index;
-        
+        double predict_error = 0.0;
         size_t begin=0,global_end_idx=global_dimensions[direction];
         for(size_t i=0;i<N;i++)
             begin+=dimension_offsets[i]*begin_idx[i];
@@ -654,7 +655,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         }
         //size_t quant_idx=quant_index;
 
-        double predict_error = 0;
+        double predict_error = 0.0;
         size_t begin=0,global_end_idx=global_dimensions[direction];
         for(size_t i=0;i<N;i++)
             begin+=dimension_offsets[i]*begin_idx[i];
