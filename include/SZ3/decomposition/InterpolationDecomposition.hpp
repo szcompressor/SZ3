@@ -201,7 +201,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         }
 
         if (maxStep>0){
-            int max_interpolation_level=(uint)log2(maxStep)+1;
+            int max_interpolation_level=static_cast<uint>(log2(maxStep))+1;
             if (max_interpolation_level<=interpolation_level){ 
                 interpolation_level=max_interpolation_level;
             }
