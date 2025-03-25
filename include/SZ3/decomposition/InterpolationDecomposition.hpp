@@ -450,12 +450,10 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         if (n <= 1) {
             return 0;
         }
-      //  size_t quant_idx=quant_index;
         double predict_error = 0.0;
         size_t begin=0;
         for(size_t i=0;i<N;i++)
             begin+=dimension_offsets[i]*begin_idx[i];
-
         size_t stride=math_stride*dimension_offsets[direction];
         std::array<size_t,N>begins,ends,strides;
         for(size_t i=0;i<N;i++){
@@ -502,12 +500,10 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                         d = data + begin + i * strides[0]+j*strides[1];
                         quantize(d - data, *d,
                                     interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)) );
-                        
                     }
                 }
                 std::vector<size_t> boundary;
                 boundary.push_back(1);
-
                 if(n%2==1){
                     if(n>3)
                         boundary.push_back(n-2);
@@ -518,9 +514,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                     if (n>2)
                         boundary.push_back(n-1);
                 }
-
                 for(auto ii:boundary){
-                   // std::cout<<ii<<std::endl;
                     begins[direction]=ii;
                     ends[direction]=ii+1;
                     for(size_t i=begins[0];i<ends[0];i+=steps[0]){
@@ -555,25 +549,19 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             else{
                 size_t stride3x = 3 * stride;
                 T *d;
-
-               
                 size_t i_start= 3;
-
                 begins[direction]=i_start;
                 ends[direction]=(n>=3)?(n-3):0;
-                steps[direction]=2;
-              
+                steps[direction]=2;     
                 for(size_t i=begins[0];i<ends[0];i+=steps[0]){
                     for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                         d = data + begin + i * strides[0]+j*strides[1];
                         quantize(d - data, *d,
-                                    interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)) );
-                        
+                                    interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)) );                      
                     }
                 }
                 std::vector<size_t> boundary;
                 boundary.push_back(1);
-
                 if(n%2==1){
                     if(n>3)
                         boundary.push_back(n-2);
@@ -584,16 +572,13 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                     if (n>2)
                         boundary.push_back(n-1);
                 }
-
                 for(auto ii:boundary){
-                   // std::cout<<ii<<std::endl;
-
                     begins[direction]=ii;
                     ends[direction]=ii+1;
                     for(size_t i=begins[0];i<ends[0];i+=steps[0]){
                         for(size_t j=begins[1];j<ends[1];j+=steps[1]){        
                             d = data + begin + i * strides[0]+j*strides[1];
-                           if( ii>=3 ){
+                            if( ii>=3 ){
                                 if(ii+3<n )
                                     quantize(d - data, *d,
                                             interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
@@ -645,14 +630,11 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                         }
                     } 
                 }
-
             } 
             else if(interp_func == "cubic"){
                 size_t stride3x = 3 * stride;
-
                 T *d;
                 size_t i_start= 3;
-
                 begins[direction]=i_start;
                 ends[direction]=(n>=3)?(n-3):0;
                 steps[direction]=2;
@@ -661,13 +643,11 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                     for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                         d = data + begin + i * strides[0]+j*strides[1];
                         recover(d - data, *d,
-                                    interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)) );
-                        
+                                    interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)) );                        
                     }
                 }
                 std::vector<size_t> boundary;
                 boundary.push_back(1);
-
                 if(n%2==1){
                     if(n>3)
                         boundary.push_back(n-2);
@@ -678,13 +658,9 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                     if (n>2)
                         boundary.push_back(n-1);
                 }
-
                 for(auto ii:boundary){
-                   // std::cout<<ii<<std::endl;
-
                     begins[direction]=ii;
                     ends[direction]=ii+1;
-
                     for(size_t i=begins[0];i<ends[0];i+=steps[0]){
                         for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                             
@@ -728,13 +704,11 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                     for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                         d = data + begin + i * strides[0]+j*strides[1];
                         recover(d - data, *d,
-                                    interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)) );
-                        
+                                    interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)) );                       
                     }
                 }
                 std::vector<size_t> boundary;
                 boundary.push_back(1);
-
                 if(n%2==1){
                     if(n>3)
                         boundary.push_back(n-2);
@@ -745,13 +719,9 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                     if (n>2)
                         boundary.push_back(n-1);
                 }
-
                 for(auto ii:boundary){
-                   // std::cout<<ii<<std::endl;
-
                     begins[direction]=ii;
                     ends[direction]=ii+1;
-
                     for(size_t i=begins[0];i<ends[0];i+=steps[0]){
                         for(size_t j=begins[1];j<ends[1];j+=steps[1]){
                             
@@ -782,7 +752,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                     }
                 }
             }
-
         }
         return predict_error;
     }
@@ -796,13 +765,10 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         if (n <= 1) {
             return 0;
         }
-        //size_t quant_idx=quant_index;
-
         double predict_error = 0.0;
         size_t begin=0,global_end_idx=global_dimensions[direction];
         for(size_t i=0;i<N;i++)
             begin+=dimension_offsets[i]*begin_idx[i];
-
         size_t stride=math_stride*dimension_offsets[direction];
         std::array<size_t,N>begins,ends,strides;
         for(size_t i=0;i<N;i++){
@@ -824,7 +790,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                             quantize(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
                         }
                     }
-
                 }
                 if (n % 2 == 0) {
                     begins[direction]=n-1;
@@ -846,8 +811,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             } 
             else if (interp_func == "cubic"){
                 size_t stride3x = 3 * stride;
-                T *d;
-                
+                T *d;               
                 size_t i_start = 3;
                 begins[direction]=i_start;
                 ends[direction]=(n>=3)?(n-3):0;
@@ -869,7 +833,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                         boundary.push_back(n-2);
                 }
                 else{
-                    if(n>4)
+                    if (n>4)
                         boundary.push_back(n-3);
                     if (n>2)
                         boundary.push_back(n-1);
@@ -928,7 +892,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 }
                 std::vector<size_t> boundary;
                 boundary.push_back(1);
-
                 if(n%2==1){
                     if(n>3)
                         boundary.push_back(n-2);
@@ -939,7 +902,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                     if (n>2)
                         boundary.push_back(n-1);
                 }
-
                 for(auto ii:boundary){
                     begins[direction]=ii;
                     ends[direction]=ii+1;
@@ -956,8 +918,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                                                 interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
                                     else 
                                         quantize(d - data, *d,
-                                                interp_linear1(*(d - stride3x), *(d - stride)));
-                                        
+                                                interp_linear1(*(d - stride3x), *(d - stride)));                                  
                                 }
                                 else{
                                     if(ii+3<n )
@@ -1011,8 +972,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             } 
             else if (interp_func == "cubic"){
                 size_t stride3x = 3 * stride;
-                T *d;
-                
+                T *d;         
                 size_t i_start = 3;
                 begins[direction]=i_start;
                 ends[direction]=(n>=3)?(n-3):0;
@@ -1028,7 +988,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 }
                 std::vector<size_t> boundary;
                 boundary.push_back(1);
-
                 if(n%2==1){
                     if(n>3)
                         boundary.push_back(n-2);
@@ -1039,7 +998,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                     if (n>2)
                         boundary.push_back(n-1);
                 }
-
                 for(auto ii:boundary){
                     begins[direction]=ii;
                     ends[direction]=ii+1;
@@ -1078,9 +1036,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             }
             else{
                 size_t stride3x = 3 * stride;
-                T *d;
-
-                
+                T *d;     
                 size_t i_start = 3;
                 begins[direction]=i_start;
                 ends[direction]=(n>=3)?(n-3):0;
@@ -1096,7 +1052,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 }
                 std::vector<size_t> boundary;
                 boundary.push_back(1);
-
                 if(n%2==1){
                     if(n>3)
                         boundary.push_back(n-2);
@@ -1107,7 +1062,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                     if (n>2)
                         boundary.push_back(n-1);
                 }
-
                 for(auto ii:boundary){
                     begins[direction]=ii;
                     ends[direction]=ii+1;
@@ -1124,8 +1078,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                                                 interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
                                     else 
                                         recover(d - data, *d,
-                                                interp_linear1(*(d - stride3x), *(d - stride)));
-                                        
+                                                interp_linear1(*(d - stride3x), *(d - stride)));                         
                                 }
                                 else{
                                     if(ii+3<n )
@@ -1144,13 +1097,9 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                     }
                 }
             }
-
         }
-
-      //  quant_index=quant_idx;
         return predict_error;
     }
-
 
 
     template <uint NN = N>
