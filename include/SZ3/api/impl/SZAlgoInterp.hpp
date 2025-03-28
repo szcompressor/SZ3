@@ -51,8 +51,9 @@ double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> d
     conf.blockSize = block_size;
     conf.interpAlgo = interp_op;
     conf.interpDirection = direction_op;
-    auto sz = SZBlockInterpolationCompressor<T, N, LinearQuantizer<T>, HuffmanEncoder<int>, Lossless_zstd>(
-        LinearQuantizer<T>(eb), HuffmanEncoder<int>(), Lossless_zstd());
+    auto sz = make_compressor_sz_generic<T, N>(
+        make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
+        HuffmanEncoder<int>(), Lossless_zstd());
 
     size_t outSize = sz.compress(conf, data1.data(), buffer, bufferCap);
 
