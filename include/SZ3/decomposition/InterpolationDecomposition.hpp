@@ -851,7 +851,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                         for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
                             d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
                             quantize(d - data, *d,
-                                     nterp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                    interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
                         }
                     }
                 }
