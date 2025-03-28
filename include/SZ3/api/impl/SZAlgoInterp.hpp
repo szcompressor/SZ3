@@ -17,7 +17,6 @@ size_t SZ_compress_Interp(Config &conf, T *data, uchar *cmpData, size_t cmpCap) 
     assert(N == conf.N);
     assert(conf.cmprAlgo == ALGO_INTERP);
     calAbsErrorBound(conf, data);
-    std::cout<<"p4"<<std::endl;
     if (conf.interp_anchorStride <= 0){
         std::array<size_t, 4> anchor_strides = {512,64,32,16};
         conf.interp_anchorStride = anchor_strides[N - 1];
@@ -27,8 +26,6 @@ size_t SZ_compress_Interp(Config &conf, T *data, uchar *cmpData, size_t cmpCap) 
         make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
         HuffmanEncoder<int>(), Lossless_zstd());
     return sz->compress(conf, data, cmpData, cmpCap);
-    std::cout<<"p5"<<std::endl;
-    //        return cmpData;
 }
 
 template <class T, uint N>
@@ -75,7 +72,6 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         conf.interp_anchorStride = anchor_strides[N - 1];
     }
 
-    std::cout<<"p0"<<std::endl;
     size_t sampling_num, sampling_block;
     std::vector<size_t> sample_dims(N);
     std::vector<T> sampling_data = sampling<T, N>(data, conf.dims, sampling_num, sample_dims, sampling_block);
@@ -86,7 +82,6 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     double best_lorenzo_ratio = 0, best_interp_ratio = 0, ratio;
     size_t bufferCap = conf.num * sizeof(T);
     auto buffer = static_cast<uchar *>(malloc(bufferCap));
-    std::cout<<"p1"<<std::endl;
     Config lorenzo_config = conf;
     {
         // test lorenzo
@@ -105,7 +100,6 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         //    printf("Lorenzo ratio = %.2f\n", ratio);
         best_lorenzo_ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;
     }
-    std::cout<<"p2"<<std::endl;
     {
         // tune interp
         for (auto &interp_op : {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC, INTERP_ALGO_CUBIC_NATURAL}) {
@@ -127,7 +121,6 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
             conf.interpDirection = direction_op;
         }
     }
-    std::cout<<"p3"<<std::endl;
     bool useInterp = !(best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 80 && best_interp_ratio < 80);
     size_t cmpSize = 0;
     if (useInterp) {
