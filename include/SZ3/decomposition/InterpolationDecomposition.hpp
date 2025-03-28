@@ -415,7 +415,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         return predict_error;
     }
     
-    double block_interpolation_1d_fastest_dim_first_2d(
+    double block_interpolation_1d_fastest_dim_first(
         T *data,
         const std::array<size_t, N> &begin_idx,
         const std::array<size_t, N> &end_idx,
@@ -451,15 +451,97 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 begins[direction] = 1;
                 ends[direction] = n - 1;
                 steps[direction] = 2;
-                for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                    for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                        T *d = data + begin + i * strides[0] + j * strides[1];
+                if constexpr (N == 1){
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        T *d = data + begin + i * strides[0]; 
                         quantize(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
+                        
+                    }
+                }
+                else if constexpr (N == 2){
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                            T *d = data + begin + i * strides[0] + j * strides[1];
+                            quantize(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
+                        }
+                    }
+                }
+                else if constexpr (N == 3){
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                            for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                T *d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
+                                quantize(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
+                            }
+                        }
+                    }
+                }
+                else {
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                            for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                for (size_t l = begins[3]; l < ends[3]; l += steps[3]) {
+                                    T *d = data + begin + i * strides[0] + j * strides[1] + k * strides[2] + l * strides[3];
+                                    quantize(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
+                                }
+                            }
+                        }
                     }
                 }
                 if (n % 2 == 0) {
                     begins[direction] = n - 1;
                     ends[direction] = n;
+
+
+                    if constexpr (N == 1){
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            T *d = data + begin + i * strides[0]; 
+                            if (n < 3)
+                                quantize(d - data, *d, *(d - stride));
+                            else
+                                quantize(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
+                            
+                        }
+                    }
+                    else if constexpr (N == 2){
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                                T *d = data + begin + i * strides[0] + j * strides[1];
+                                if (n < 3)
+                                    quantize(d - data, *d, *(d - stride));
+                                else
+                                    quantize(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
+                            }
+                        }
+                    }
+                    else if constexpr (N == 3){
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                                for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                    T *d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
+                                    if (n < 3)
+                                        quantize(d - data, *d, *(d - stride));
+                                    else
+                                        quantize(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
+                                }
+                            }
+                        }
+                    }
+                    else {
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                                for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                    for (size_t l = begins[3]; l < ends[3]; l += steps[3]) {
+                                        T *d = data + begin + i * strides[0] + j * strides[1] + k * strides[2] + l * strides[3];
+                                        if (n < 3)
+                                            quantize(d - data, *d, *(d - stride));
+                                        else
+                                            quantize(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
+                                    }
+                                }
+                            }
+                        }
+                    }
                     for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
                         for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
                             T *d = data + begin + i * strides[0] + j * strides[1];
@@ -477,11 +559,45 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 begins[direction] = i_start;
                 ends[direction] = (n >= 3) ? (n - 3) : 0;
                 steps[direction] = 2;
-                for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                    for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                        d = data + begin + i * strides[0] + j * strides[1];
+                if constexpr (N == 1){
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        d = data + begin + i * strides[0]; 
                         quantize(d - data, *d,
-                                 interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                        
+                    }
+                }
+                else if constexpr (N == 2){
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                            d = data + begin + i * strides[0] + j * strides[1];
+                            quantize(d - data, *d,
+                                    interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                        }
+                    }
+                }
+                else if constexpr (N == 3){
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                            for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
+                                quantize(d - data, *d,
+                                        interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                            }
+                        }
+                    }
+                }
+                else {
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                            for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                for (size_t l = begins[3]; l < ends[3]; l += steps[3]) {
+                                    d = data + begin + i * strides[0] + j * strides[1] + k * strides[2] + l * strides[3];
+                                    quantize(d - data, *d,
+                                            interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                }
+                            }
+                        }
                     }
                 }
                 std::vector<size_t> boundary;
@@ -498,9 +614,9 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 for (auto ii : boundary) {
                     begins[direction] = ii;
                     ends[direction] = ii + 1;
-                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                            d = data + begin + i * strides[0] + j * strides[1];
+                    if constexpr (N == 1){
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            d = data + begin + i * strides[0]; 
                             if (ii >= 3) {
                                 if (ii + 3 < n)
                                     quantize(d - data, *d,
@@ -520,6 +636,91 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                                 else
                                     quantize(d - data, *d, *(d - stride));
                             }
+                            
+                        }
+                    }
+                    else if constexpr (N == 2){
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                                d = data + begin + i * strides[0] + j * strides[1];
+                                if (ii >= 3) {
+                                    if (ii + 3 < n)
+                                        quantize(d - data, *d,
+                                                 interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                    else if (ii + 1 < n)
+                                        quantize(d - data, *d,
+                                                 interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                    else
+                                        quantize(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
+                                } else {
+                                    if (ii + 3 < n)
+                                        quantize(d - data, *d,
+                                                 interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
+                                    else if (ii + 1 < n)
+                                        quantize(d - data, *d,
+                                                 interp_linear(*(d - stride), *(d + stride)));
+                                    else
+                                        quantize(d - data, *d, *(d - stride));
+                                }
+                            }
+                        }
+                    }
+                    else if constexpr (N == 3){
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                                for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                    d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
+                                    if (ii >= 3) {
+                                        if (ii + 3 < n)
+                                            quantize(d - data, *d,
+                                                     interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                        else if (ii + 1 < n)
+                                            quantize(d - data, *d,
+                                                     interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                        else
+                                            quantize(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
+                                    } else {
+                                        if (ii + 3 < n)
+                                            quantize(d - data, *d,
+                                                     interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
+                                        else if (ii + 1 < n)
+                                            quantize(d - data, *d,
+                                                     interp_linear(*(d - stride), *(d + stride)));
+                                        else
+                                            quantize(d - data, *d, *(d - stride));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else {
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                                for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                    for (size_t l = begins[3]; l < ends[3]; l += steps[3]) {
+                                        d = data + begin + i * strides[0] + j * strides[1] + k * strides[2] + l * strides[3];
+                                        if (ii >= 3) {
+                                            if (ii + 3 < n)
+                                                quantize(d - data, *d,
+                                                         interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                            else if (ii + 1 < n)
+                                                quantize(d - data, *d,
+                                                         interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                            else
+                                                quantize(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
+                                        } else {
+                                            if (ii + 3 < n)
+                                                quantize(d - data, *d,
+                                                         interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
+                                            else if (ii + 1 < n)
+                                                quantize(d - data, *d,
+                                                         interp_linear(*(d - stride), *(d + stride)));
+                                            else
+                                                quantize(d - data, *d, *(d - stride));
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -530,11 +731,45 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 begins[direction] = i_start;
                 ends[direction] = (n >= 3) ? (n - 3) : 0;
                 steps[direction] = 2;
-                for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                    for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                        d = data + begin + i * strides[0] + j * strides[1];
+                if constexpr (N == 1){
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        d = data + begin + i * strides[0]; 
                         quantize(d - data, *d,
-                                 interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                        
+                    }
+                }
+                else if constexpr (N == 2){
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                            d = data + begin + i * strides[0] + j * strides[1];
+                            quantize(d - data, *d,
+                                    interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                        }
+                    }
+                }
+                else if constexpr (N == 3){
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                            for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
+                                quantize(d - data, *d,
+                                        interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                            }
+                        }
+                    }
+                }
+                else {
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                            for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                for (size_t l = begins[3]; l < ends[3]; l += steps[3]) {
+                                    d = data + begin + i * strides[0] + j * strides[1] + k * strides[2] + l * strides[3];
+                                    quantize(d - data, *d,
+                                            interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                }
+                            }
+                        }
                     }
                 }
                 std::vector<size_t> boundary;
@@ -551,9 +786,9 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 for (auto ii : boundary) {
                     begins[direction] = ii;
                     ends[direction] = ii + 1;
-                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                            d = data + begin + i * strides[0] + j * strides[1];
+                    if constexpr (N == 1){
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            d = data + begin + i * strides[0]; 
                             if (ii >= 3) {
                                 if (ii + 3 < n)
                                     quantize(d - data, *d,
@@ -573,6 +808,91 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                                 else
                                     quantize(d - data, *d, *(d - stride));
                             }
+                            
+                        }
+                    }
+                    else if constexpr (N == 2){
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                                d = data + begin + i * strides[0] + j * strides[1];
+                                if (ii >= 3) {
+                                    if (ii + 3 < n)
+                                        quantize(d - data, *d,
+                                                 interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                    else if (ii + 1 < n)
+                                        quantize(d - data, *d,
+                                                 interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                    else
+                                        quantize(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
+                                } else {
+                                    if (ii + 3 < n)
+                                        quantize(d - data, *d,
+                                                 interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
+                                    else if (ii + 1 < n)
+                                        quantize(d - data, *d,
+                                                 interp_linear(*(d - stride), *(d + stride)));
+                                    else
+                                        quantize(d - data, *d, *(d - stride));
+                                }
+                            }
+                        }
+                    }
+                    else if constexpr (N == 3){
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                                for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                    d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
+                                    if (ii >= 3) {
+                                        if (ii + 3 < n)
+                                            quantize(d - data, *d,
+                                                     interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                        else if (ii + 1 < n)
+                                            quantize(d - data, *d,
+                                                     interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                        else
+                                            quantize(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
+                                    } else {
+                                        if (ii + 3 < n)
+                                            quantize(d - data, *d,
+                                                     interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
+                                        else if (ii + 1 < n)
+                                            quantize(d - data, *d,
+                                                     interp_linear(*(d - stride), *(d + stride)));
+                                        else
+                                            quantize(d - data, *d, *(d - stride));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else {
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                                for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                    for (size_t l = begins[3]; l < ends[3]; l += steps[3]) {
+                                        d = data + begin + i * strides[0] + j * strides[1] + k * strides[2] + l * strides[3];
+                                        if (ii >= 3) {
+                                            if (ii + 3 < n)
+                                                quantize(d - data, *d,
+                                                         interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                            else if (ii + 1 < n)
+                                                quantize(d - data, *d,
+                                                         interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                            else
+                                                quantize(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
+                                        } else {
+                                            if (ii + 3 < n)
+                                                quantize(d - data, *d,
+                                                         interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
+                                            else if (ii + 1 < n)
+                                                quantize(d - data, *d,
+                                                         interp_linear(*(d - stride), *(d + stride)));
+                                            else
+                                                quantize(d - data, *d, *(d - stride));
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -582,15 +902,97 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 begins[direction] = 1;
                 ends[direction] = n - 1;
                 steps[direction] = 2;
-                for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                    for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                        T *d = data + begin + i * strides[0] + j * strides[1];
+                if constexpr (N == 1){
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        T *d = data + begin + i * strides[0]; 
                         recover(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
+                        
+                    }
+                }
+                else if constexpr (N == 2){
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                            T *d = data + begin + i * strides[0] + j * strides[1];
+                            recover(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
+                        }
+                    }
+                }
+                else if constexpr (N == 3){
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                            for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                T *d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
+                                recover(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
+                            }
+                        }
+                    }
+                }
+                else {
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                            for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                for (size_t l = begins[3]; l < ends[3]; l += steps[3]) {
+                                    T *d = data + begin + i * strides[0] + j * strides[1] + k * strides[2] + l * strides[3];
+                                    recover(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
+                                }
+                            }
+                        }
                     }
                 }
                 if (n % 2 == 0) {
                     begins[direction] = n - 1;
                     ends[direction] = n;
+
+
+                    if constexpr (N == 1){
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            T *d = data + begin + i * strides[0]; 
+                            if (n < 3)
+                                recover(d - data, *d, *(d - stride));
+                            else
+                                recover(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
+                            
+                        }
+                    }
+                    else if constexpr (N == 2){
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                                T *d = data + begin + i * strides[0] + j * strides[1];
+                                if (n < 3)
+                                    recover(d - data, *d, *(d - stride));
+                                else
+                                    recover(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
+                            }
+                        }
+                    }
+                    else if constexpr (N == 3){
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                                for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                    T *d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
+                                    if (n < 3)
+                                        recover(d - data, *d, *(d - stride));
+                                    else
+                                        recover(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
+                                }
+                            }
+                        }
+                    }
+                    else {
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                                for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                    for (size_t l = begins[3]; l < ends[3]; l += steps[3]) {
+                                        T *d = data + begin + i * strides[0] + j * strides[1] + k * strides[2] + l * strides[3];
+                                        if (n < 3)
+                                            recover(d - data, *d, *(d - stride));
+                                        else
+                                            recover(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
+                                    }
+                                }
+                            }
+                        }
+                    }
                     for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
                         for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
                             T *d = data + begin + i * strides[0] + j * strides[1];
@@ -608,12 +1010,44 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 begins[direction] = i_start;
                 ends[direction] = (n >= 3) ? (n - 3) : 0;
                 steps[direction] = 2;
-                for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                    for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                        for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
-                            d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
+                if constexpr (N == 1){
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        d = data + begin + i * strides[0]; 
+                        recover(d - data, *d,
+                                interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                        
+                    }
+                }
+                else if constexpr (N == 2){
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                            d = data + begin + i * strides[0] + j * strides[1];
                             recover(d - data, *d,
                                     interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                        }
+                    }
+                }
+                else if constexpr (N == 3){
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                            for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
+                                recover(d - data, *d,
+                                        interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                            }
+                        }
+                    }
+                }
+                else {
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                            for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                for (size_t l = begins[3]; l < ends[3]; l += steps[3]) {
+                                    d = data + begin + i * strides[0] + j * strides[1] + k * strides[2] + l * strides[3];
+                                    recover(d - data, *d,
+                                            interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                }
+                            }
                         }
                     }
                 }
@@ -631,28 +1065,111 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 for (auto ii : boundary) {
                     begins[direction] = ii;
                     ends[direction] = ii + 1;
-                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                            for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
-                                d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
+                    if constexpr (N == 1){
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            d = data + begin + i * strides[0]; 
+                            if (ii >= 3) {
+                                if (ii + 3 < n)
+                                    recover(d - data, *d,
+                                             interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                else if (ii + 1 < n)
+                                    recover(d - data, *d,
+                                             interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                else
+                                    recover(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
+                            } else {
+                                if (ii + 3 < n)
+                                    recover(d - data, *d,
+                                             interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
+                                else if (ii + 1 < n)
+                                    recover(d - data, *d,
+                                             interp_linear(*(d - stride), *(d + stride)));
+                                else
+                                    recover(d - data, *d, *(d - stride));
+                            }
+                            
+                        }
+                    }
+                    else if constexpr (N == 2){
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                                d = data + begin + i * strides[0] + j * strides[1];
                                 if (ii >= 3) {
                                     if (ii + 3 < n)
                                         recover(d - data, *d,
-                                                interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                                 interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
                                     else if (ii + 1 < n)
                                         recover(d - data, *d,
-                                                interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                                 interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
                                     else
                                         recover(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
                                 } else {
                                     if (ii + 3 < n)
                                         recover(d - data, *d,
-                                                interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
+                                                 interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
                                     else if (ii + 1 < n)
                                         recover(d - data, *d,
-                                                interp_linear(*(d - stride), *(d + stride)));
+                                                 interp_linear(*(d - stride), *(d + stride)));
                                     else
                                         recover(d - data, *d, *(d - stride));
+                                }
+                            }
+                        }
+                    }
+                    else if constexpr (N == 3){
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                                for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                    d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
+                                    if (ii >= 3) {
+                                        if (ii + 3 < n)
+                                            recover(d - data, *d,
+                                                     interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                        else if (ii + 1 < n)
+                                            recover(d - data, *d,
+                                                     interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                        else
+                                            recover(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
+                                    } else {
+                                        if (ii + 3 < n)
+                                            recover(d - data, *d,
+                                                     interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
+                                        else if (ii + 1 < n)
+                                            recover(d - data, *d,
+                                                     interp_linear(*(d - stride), *(d + stride)));
+                                        else
+                                            recover(d - data, *d, *(d - stride));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else {
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                                for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                    for (size_t l = begins[3]; l < ends[3]; l += steps[3]) {
+                                        d = data + begin + i * strides[0] + j * strides[1] + k * strides[2] + l * strides[3];
+                                        if (ii >= 3) {
+                                            if (ii + 3 < n)
+                                                recover(d - data, *d,
+                                                         interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                            else if (ii + 1 < n)
+                                                recover(d - data, *d,
+                                                         interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                            else
+                                                recover(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
+                                        } else {
+                                            if (ii + 3 < n)
+                                                recover(d - data, *d,
+                                                         interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
+                                            else if (ii + 1 < n)
+                                                recover(d - data, *d,
+                                                         interp_linear(*(d - stride), *(d + stride)));
+                                            else
+                                                recover(d - data, *d, *(d - stride));
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -665,12 +1182,44 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 begins[direction] = i_start;
                 ends[direction] = (n >= 3) ? (n - 3) : 0;
                 steps[direction] = 2;
-                for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                    for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                        for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
-                            d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
+                if constexpr (N == 1){
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        d = data + begin + i * strides[0]; 
+                        recover(d - data, *d,
+                                interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                        
+                    }
+                }
+                else if constexpr (N == 2){
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                            d = data + begin + i * strides[0] + j * strides[1];
                             recover(d - data, *d,
                                     interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                        }
+                    }
+                }
+                else if constexpr (N == 3){
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                            for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
+                                recover(d - data, *d,
+                                        interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                            }
+                        }
+                    }
+                }
+                else {
+                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                            for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                for (size_t l = begins[3]; l < ends[3]; l += steps[3]) {
+                                    d = data + begin + i * strides[0] + j * strides[1] + k * strides[2] + l * strides[3];
+                                    recover(d - data, *d,
+                                            interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                }
+                            }
                         }
                     }
                 }
@@ -688,28 +1237,111 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 for (auto ii : boundary) {
                     begins[direction] = ii;
                     ends[direction] = ii + 1;
-                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                            for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
-                                d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
+                    if constexpr (N == 1){
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            d = data + begin + i * strides[0]; 
+                            if (ii >= 3) {
+                                if (ii + 3 < n)
+                                    recover(d - data, *d,
+                                             interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                else if (ii + 1 < n)
+                                    recover(d - data, *d,
+                                             interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                else
+                                    recover(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
+                            } else {
+                                if (ii + 3 < n)
+                                    recover(d - data, *d,
+                                             interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
+                                else if (ii + 1 < n)
+                                    recover(d - data, *d,
+                                             interp_linear(*(d - stride), *(d + stride)));
+                                else
+                                    recover(d - data, *d, *(d - stride));
+                            }
+                            
+                        }
+                    }
+                    else if constexpr (N == 2){
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                                d = data + begin + i * strides[0] + j * strides[1];
                                 if (ii >= 3) {
                                     if (ii + 3 < n)
                                         recover(d - data, *d,
-                                                interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                                 interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
                                     else if (ii + 1 < n)
                                         recover(d - data, *d,
-                                                interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                                 interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
                                     else
                                         recover(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
                                 } else {
                                     if (ii + 3 < n)
                                         recover(d - data, *d,
-                                                interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
+                                                 interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
                                     else if (ii + 1 < n)
                                         recover(d - data, *d,
-                                                interp_linear(*(d - stride), *(d + stride)));
+                                                 interp_linear(*(d - stride), *(d + stride)));
                                     else
                                         recover(d - data, *d, *(d - stride));
+                                }
+                            }
+                        }
+                    }
+                    else if constexpr (N == 3){
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                                for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                    d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
+                                    if (ii >= 3) {
+                                        if (ii + 3 < n)
+                                            recover(d - data, *d,
+                                                     interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                        else if (ii + 1 < n)
+                                            recover(d - data, *d,
+                                                     interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                        else
+                                            recover(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
+                                    } else {
+                                        if (ii + 3 < n)
+                                            recover(d - data, *d,
+                                                     interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
+                                        else if (ii + 1 < n)
+                                            recover(d - data, *d,
+                                                     interp_linear(*(d - stride), *(d + stride)));
+                                        else
+                                            recover(d - data, *d, *(d - stride));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else {
+                        for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                            for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                                for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                                    for (size_t l = begins[3]; l < ends[3]; l += steps[3]) {
+                                        d = data + begin + i * strides[0] + j * strides[1] + k * strides[2] + l * strides[3];
+                                        if (ii >= 3) {
+                                            if (ii + 3 < n)
+                                                recover(d - data, *d,
+                                                         interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                            else if (ii + 1 < n)
+                                                recover(d - data, *d,
+                                                         interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                            else
+                                                recover(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
+                                        } else {
+                                            if (ii + 3 < n)
+                                                recover(d - data, *d,
+                                                         interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
+                                            else if (ii + 1 < n)
+                                                recover(d - data, *d,
+                                                         interp_linear(*(d - stride), *(d + stride)));
+                                            else
+                                                recover(d - data, *d, *(d - stride));
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1070,7 +1702,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         begin_idx[dims[1]] = (begin[dims[1]] ? begin[dims[1]] + stride2x : 0);
         steps[dims[1]] = stride2x;
 
-        predict_error += block_interpolation_1d_fastest_dim_first_2d(data, begin_idx,
+        predict_error += block_interpolation_1d_fastest_dim_first(data, begin_idx,
                                                             end_idx, dims[0], steps,
                                                             stride, interp_func, pb);
 
@@ -1078,7 +1710,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         begin_idx[dims[0]] = (begin[dims[0]] ? begin[dims[0]] + stride : 0);
         steps[dims[0]] = stride;
        
-        predict_error += block_interpolation_1d_fastest_dim_first_2d(data, begin_idx,
+        predict_error += block_interpolation_1d_fastest_dim_first(data, begin_idx,
                                                             end_idx, dims[1], steps,
                                                             stride, interp_func, pb);
         return predict_error;
@@ -1101,7 +1733,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         steps[dims[1]] = stride2x;
         steps[dims[2]] = stride2x;
 
-        predict_error += block_interpolation_1d_fastest_dim_first_3d(data, begin_idx,
+        predict_error += block_interpolation_1d_fastest_dim_first(data, begin_idx,
                                                             end_idx, dims[0], steps,
                                                             stride, interp_func, pb);
         
@@ -1109,7 +1741,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         begin_idx[dims[0]] = (begin[dims[0]] ? begin[dims[0]] + stride : 0);
         steps[dims[0]] = stride;
 
-        predict_error += block_interpolation_1d_fastest_dim_first_3d(data, begin_idx,
+        predict_error += block_interpolation_1d_fastest_dim_first(data, begin_idx,
                                                             end_idx, dims[1], steps,
                                                             stride, interp_func, pb);
 
@@ -1118,7 +1750,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         begin_idx[dims[1]] = (begin[dims[1]] ? begin[dims[1]] + stride : 0);
         steps[dims[1]] = stride;
 
-        predict_error += block_interpolation_1d_fastest_dim_first_3d(data, begin_idx,
+        predict_error += block_interpolation_1d_fastest_dim_first(data, begin_idx,
                                                             end_idx, dims[2], steps,
                                                             stride, interp_func, pb);
         return predict_error;
