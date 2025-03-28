@@ -853,7 +853,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                         for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
                             d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
                             quantize(d - data, *d,
-                                    interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                     interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
                         }
                     }
                 }
@@ -877,22 +877,22 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                                 d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
                                 if (ii >= 3) {
                                     if (ii + 3 < n)
-                                        recover(d - data, *d,
-                                                interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                                        quantize(d - data, *d,
+                                                 interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
                                     else if (ii + 1 < n)
-                                        recover(d - data, *d,
-                                                interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                                        quantize(d - data, *d,
+                                                 interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
                                     else
-                                        recover(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
+                                        quantize(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
                                 } else {
                                     if (ii + 3 < n)
-                                        recover(d - data, *d,
-                                                interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
+                                        quantize(d - data, *d,
+                                                 interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
                                     else if (ii + 1 < n)
-                                        recover(d - data, *d,
-                                                interp_linear(*(d - stride), *(d + stride)));
+                                        quantize(d - data, *d,
+                                                 interp_linear(*(d - stride), *(d + stride)));
                                     else
-                                        recover(d - data, *d, *(d - stride));
+                                        quantize(d - data, *d, *(d - stride));
                                 }
                             }
                         }
