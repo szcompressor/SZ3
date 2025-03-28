@@ -55,7 +55,7 @@ double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> d
         make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
         HuffmanEncoder<int>(), Lossless_zstd());
 
-    size_t outSize = sz.compress(conf, data1.data(), buffer, bufferCap);
+    size_t outSize = sz->compress(conf, data1.data(), buffer, bufferCap);
 
     auto compression_ratio = num * sizeof(T) * 1.0 / outSize;
     return compression_ratio;
