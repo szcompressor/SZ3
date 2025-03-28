@@ -151,9 +151,9 @@ class Config {
         blockSize = cfg.GetInteger("AlgoSettings", "BlockSize", blockSize);
         quantbinCnt = cfg.GetInteger("AlgoSettings", "QuantizationBinTotal", quantbinCnt);
 
-        maxStep = cfg.GetInteger("AlgoSettings", "maxStep", maxStep);
-        alpha = cfg.GetReal("AlgoSettings", "alpha", alpha);
-        beta = cfg.GetReal("AlgoSettings", "beta", beta);
+        interp_anchorStride = cfg.GetInteger("AlgoSettings", "interp_anchorStride", interp_anchorStride);
+        interp_alpha = cfg.GetReal("AlgoSettings", "interp_alpha", interp_alpha);
+        interp_beta = cfg.GetReal("AlgoSettings", "interp_beta", interp_beta);
 
     }
 
@@ -341,9 +341,9 @@ class Config {
     int blockSize = 0;
     int stride = 0;        // not used now
     uint8_t pred_dim = 0;  // not used now
-    int maxStep = 0;
-    double alpha = 1.25;
-    double beta= 2.0;
+    int interp_anchorStride = 0;
+    double interp_alpha = 1.25;
+    double interp_beta = 2.0;
 };
 
 }  // namespace SZ3

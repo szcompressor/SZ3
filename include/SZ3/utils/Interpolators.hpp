@@ -43,17 +43,17 @@ inline T interp_cubic_natural(T a, T b, T c, T d) {
 
 template<class T>
 inline T lorenzo_1d(T a, T b) {
-    return 2*b-a;
+    return 2 * b - a;
 }
 
 template<class T>
 inline T lorenzo_2d(T a, T b, T c) {
-    return (b+c-a);
+    return (b + c - a);
 }
 
 template<class T>
 inline T lorenzo_3d(T a, T b, T c, T d, T e,T f,T g) {
-    return (a-b-c+d-e+f+g);
+    return (a - b - c + d - e + f + g);
 }
 
     
