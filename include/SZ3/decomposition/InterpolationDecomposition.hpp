@@ -542,15 +542,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                             }
                         }
                     }
-                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                            T *d = data + begin + i * strides[0] + j * strides[1];
-                            if (n < 3)
-                                quantize(d - data, *d, *(d - stride));
-                            else
-                                quantize(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
-                        }
-                    }
                 }
             } else if (interp_func == "cubic") {
                 size_t stride3x = 3 * stride;
