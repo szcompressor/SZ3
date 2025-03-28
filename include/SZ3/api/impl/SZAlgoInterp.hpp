@@ -17,9 +17,9 @@ size_t SZ_compress_Interp(Config &conf, T *data, uchar *cmpData, size_t cmpCap) 
     assert(N == conf.N);
     assert(conf.cmprAlgo == ALGO_INTERP);
     calAbsErrorBound(conf, data);
-    if (conf.maxStep<=0){
-        std::array<size_t,4> anchor_strides={256,64,32,16};
-        conf.maxStep = anchor_strides[N-1];
+    if (conf.interp_anchorStride <= 0){
+        std::array<size_t,4> anchor_strides = {512,64,32,16};
+        conf.interp_anchorStride = anchor_strides[N-1];
     }
 
     auto sz = make_compressor_sz_generic<T, N>(
