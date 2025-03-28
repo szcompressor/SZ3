@@ -84,7 +84,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         beta = conf.interp_beta;
 
         init();
-
+        std::cout<<"ap1"<<std::endl;
         std::vector<int> quant_inds_vec(num_elements);
         quant_inds = quant_inds_vec.data();
 
@@ -97,8 +97,10 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             build_anchor_grid(data);
             interpolation_level--;
         }
+        std::cout<<"ap2"<<std::endl;
         for (uint level = interpolation_level; level > 0 && level <= interpolation_level; level--) {
             double cur_eb;
+            std::cout<<"ap3"<<std::endl;
             if (alpha<0){
                 if (level >= 3){
                     cur_eb = eb * eb_ratio;
@@ -729,7 +731,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         std::array<size_t, N> &steps,
         const size_t &math_stride,
         const std::string &interp_func,
-        const PredictorBehavior pb) { // cross block: 0: no cross 1: only front-cross 2: all cross
+        const PredictorBehavior pb) { 
         for (size_t i = 0; i < N; i++) {
             if (end_idx[i] < begin_idx[i])
                 return 0;
