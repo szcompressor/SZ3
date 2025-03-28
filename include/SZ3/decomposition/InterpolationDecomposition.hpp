@@ -210,13 +210,13 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         assert(anchorStride > 0);
         if (N == 1){
             for (size_t x = 0; x < global_dimensions[0]; x += anchorStride){
-                quant_inds[quant_index++] = quantizer.insert_unpred(*(data + x));
+                quant_inds[quant_index++] = quantizer.force_save_unpred(*(data + x));
             }
         }
         else if (N == 2){
             for (size_t x = 0; x < global_dimensions[0]; x += anchorStride){
                 for (size_t y = 0; y < global_dimensions[1]; y += anchorStride){
-                    quant_inds[quant_index++] = quantizer.insert_unpred(*(data + x * global_dimensions[1] + y));
+                    quant_inds[quant_index++] = quantizer.force_save_unpred(*(data + x * global_dimensions[1] + y));
                 }
             }
         }
@@ -224,7 +224,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             for (size_t x = 0; x < global_dimensions[0]; x += anchorStride){
                 for (size_t y = 0; y < global_dimensions[1]; y += anchorStride){
                     for(size_t z = 0; z < global_dimensions[2]; z += anchorStride){
-                        quant_inds[quant_index++] =  quantizer.insert_unpred(*(data + x * dimension_offsets[0] + y * dimension_offsets[1] + z));
+                        quant_inds[quant_index++] =  quantizer.force_save_unpred(*(data + x * dimension_offsets[0] + y * dimension_offsets[1] + z));
                     }           
                 }
             }
@@ -234,7 +234,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 for (size_t y = 0; y < global_dimensions[1]; y += anchorStride){
                     for(size_t z = 0; z < global_dimensions[2]; z += anchorStride){
                         for(size_t w = 0; w < global_dimensions[3]; w += anchorStride){
-                            quant_inds[quant_index++] = quantizer.insert_unpred(*(data + x * dimension_offsets[0] + y * dimension_offsets[1] + z * dimension_offsets[2] + w));
+                            quant_inds[quant_index++] = quantizer.force_save_unpred(*(data + x * dimension_offsets[0] + y * dimension_offsets[1] + z * dimension_offsets[2] + w));
                         }
                     }           
                 }
@@ -276,7 +276,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 for (size_t y = 0; y < global_dimensions[1]; y += anchorStride){
                     for(size_t z = 0; z < global_dimensions[2]; z += anchorStride){
                         for(size_t w = 0; w < global_dimensions[3]; w += anchorStride){
-                            decData[x * dimension_offsets[0] + y * dimension_offsets[1] + z * dimension_offsets[2] + w] = quantizer.recover();
+                            decData[x * dimension_offsets[0] + y * dimension_offsets[1] + z * dimension_offsets[2] + w] = quantizer.recover_unpred();
                             quant_index++;
                         }
                     }           
