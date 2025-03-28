@@ -17,16 +17,15 @@ size_t SZ_compress_Interp(Config &conf, T *data, uchar *cmpData, size_t cmpCap) 
     assert(N == conf.N);
     assert(conf.cmprAlgo == ALGO_INTERP);
     calAbsErrorBound(conf, data);
-    if (conf.maxStep<=0){
-        std::array<size_t,4> anchor_strides={256,64,32,16};
-        conf.maxStep = anchor_strides[N-1];
+    if (conf.interp_anchorStride <= 0){
+        std::array<size_t, 4> anchor_strides = {512,64,32,16};
+        conf.interp_anchorStride = anchor_strides[N - 1];
     }
 
     auto sz = make_compressor_sz_generic<T, N>(
         make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
         HuffmanEncoder<int>(), Lossless_zstd());
     return sz->compress(conf, data, cmpData, cmpCap);
-    //        return cmpData;
 }
 
 template <class T, uint N>
@@ -40,7 +39,7 @@ void SZ_decompress_Interp(const Config &conf, const uchar *cmpData, size_t cmpSi
 }
 
 template <class T, uint N>
-double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> dims, size_t num, double eb,
+double interp_compress_test(T *data, std::vector<size_t> dims, size_t num, double eb,
                                                   int interp_op, int direction_op, int block_size, uchar *buffer,
                                                   size_t bufferCap) {
     std::vector<T> data1(data, data + num);
@@ -51,10 +50,11 @@ double do_not_use_this_interp_compress_block_test(T *data, std::vector<size_t> d
     conf.blockSize = block_size;
     conf.interpAlgo = interp_op;
     conf.interpDirection = direction_op;
-    auto sz = SZBlockInterpolationCompressor<T, N, LinearQuantizer<T>, HuffmanEncoder<int>, Lossless_zstd>(
-        LinearQuantizer<T>(eb), HuffmanEncoder<int>(), Lossless_zstd());
+    auto sz = make_compressor_sz_generic<T, N>(
+        make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
+        HuffmanEncoder<int>(), Lossless_zstd());
 
-    size_t outSize = sz.compress(conf, data1.data(), buffer, bufferCap);
+    size_t outSize = sz->compress(conf, data1.data(), buffer, bufferCap);
 
     auto compression_ratio = num * sizeof(T) * 1.0 / outSize;
     return compression_ratio;
@@ -67,11 +67,10 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     //        Timer timer(true);
     calAbsErrorBound(conf, data);
 
-    if (conf.maxStep<=0){
-        std::array<size_t,4> anchor_strides={256,64,32,16};
-        conf.maxStep = anchor_strides[N-1];
+    if (conf.interp_anchorStride <= 0){
+        std::array<size_t, 4> anchor_strides = {512,64,32,16};
+        conf.interp_anchorStride = anchor_strides[N - 1];
     }
-
 
     size_t sampling_num, sampling_block;
     std::vector<size_t> sample_dims(N);
@@ -104,7 +103,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     {
         // tune interp
         for (auto &interp_op : {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC, INTERP_ALGO_CUBIC_NATURAL}) {
-            ratio = do_not_use_this_interp_compress_block_test<T, N>(
+            ratio = interp_compress_test<T, N>(
                 sampling_data.data(), sample_dims, sampling_num, conf.absErrorBound, interp_op, conf.interpDirection,
                 sampling_block, buffer, bufferCap);
             if (ratio > best_interp_ratio) {
@@ -114,7 +113,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         }
 
         int direction_op = factorial(N) - 1;
-        ratio = do_not_use_this_interp_compress_block_test<T, N>(sampling_data.data(), sample_dims, sampling_num,
+        ratio = interp_compress_test<T, N>(sampling_data.data(), sample_dims, sampling_num,
                                                                  conf.absErrorBound, conf.interpAlgo, direction_op,
                                                                  sampling_block, buffer, bufferCap);
         if (ratio > best_interp_ratio * 1.02) {
@@ -122,11 +121,9 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
             conf.interpDirection = direction_op;
         }
     }
-
     bool useInterp = !(best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 80 && best_interp_ratio < 80);
     size_t cmpSize = 0;
     if (useInterp) {
-
         conf.cmprAlgo = ALGO_INTERP;
         cmpSize = SZ_compress_Interp<T, N>(conf, data, cmpData, cmpCap);
     } else {

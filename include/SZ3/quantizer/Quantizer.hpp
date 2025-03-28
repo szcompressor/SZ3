@@ -30,7 +30,7 @@ class QuantizerInterface {
      */
     virtual Ti recover(Ti pred, To quant_index) = 0;
 
-    virtual void insert_unpred(Ti ori) = 0;
+    virtual int force_save_unpred(Ti ori) = 0;
 
     
 
