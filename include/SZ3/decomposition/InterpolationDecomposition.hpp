@@ -1424,7 +1424,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         begin_idx[dims[2]]=(begin[dims[2]] ? begin[dims[2]] + stride2x : 0);
         steps[dims[1]]=stride2x;
         steps[dims[2]]=stride2x;
-        predict_error += block_interpolation_1d_fastest_fastest_dim_first(data, begin_idx,
+        predict_error += block_interpolation_1d_fastest_dim_first(data, begin_idx,
                                                             end_idx, dims[0], steps,
                                                             stride, interp_func, pb);
         
@@ -1433,7 +1433,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         begin_idx[dims[0]]=(begin[dims[0]] ? begin[dims[0]] + stride : 0);
         steps[dims[0]]=stride;
 
-        predict_error += block_interpolation_1d_fastest_fastest_dim_first(data, begin_idx,
+        predict_error += block_interpolation_1d_fastest_dim_first(data, begin_idx,
                                                             end_idx, dims[1], steps,
                                                             stride, interp_func, pb);
 
@@ -1442,7 +1442,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
 
         begin_idx[dims[1]]=(begin[dims[1]] ? begin[dims[1]] + stride : 0);
         steps[dims[1]]=stride;
-        predict_error += block_interpolation_1d_fastest_fastest_dim_first(data, begin_idx,
+        predict_error += block_interpolation_1d_fastest_dim_first(data, begin_idx,
                                                             end_idx, dims[2], steps,
                                                             stride, interp_func, pb);
         return predict_error;
