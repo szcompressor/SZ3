@@ -3,8 +3,6 @@
 #ifndef SZ_SAMPLE_HPP
 #define SZ_SAMPLE_HPP
 
-#include "SZ3/utils/Interpolators.hpp"
-#include "SZ3/utils/CoeffRegression.hpp"
 namespace SZ3 {
 
     
@@ -170,6 +168,71 @@ namespace SZ3 {
 //        printf("Generate sampling data, block = %lu percent = %.3f%% Time = %.3f \n", sampling_block, sample_num * 100.0 / num,
 //               sampling_time);
        // return sampling_data;
+    }
+
+    template<class T, uint N>
+    void sampleBlocks(T *data,std::vector<size_t> &dims, size_t sampleBlockSize,std::vector< std::vector<T> > & sampled_blocks,double sample_rate,int profiling ,std::vector<std::vector<size_t> > &starts,int var_first=0){
+        for(int i=0;i<sampled_blocks.size();i++){
+                    std::vector< T >().swap(sampled_blocks[i]);                
+                }
+                std::vector< std::vector<T> >().swap(sampled_blocks);
+        for(int i=0;i<sampled_blocks.size();i++){
+            std::vector< T >().swap(sampled_blocks[i]);                  
+        }
+        std::vector< std::vector<T> >().swap(sampled_blocks);                               
+        size_t totalblock_num=1;
+        for(int i=0;i<N;i++){                        
+            totalblock_num*=(int)((dims[i]-1)/sampleBlockSize);
+        }               
+        size_t idx=0,block_idx=0;   
+        if(profiling){
+            size_t num_filtered_blocks=starts.size();    
+            
+            size_t sample_stride=(size_t)(num_filtered_blocks/(totalblock_num*sample_rate));
+            if(sample_stride<=0)
+                sample_stride=1;
+            
+            for(size_t i=0;i<num_filtered_blocks;i+=sample_stride){
+                std::vector<T> s_block;
+                QoZ::sample_blocks<T,N>(data, s_block,dims, starts[i],sampleBlockSize+1);
+                sampled_blocks.push_back(s_block);
+                
+            }
+        }               
+        else{
+            
+            size_t sample_stride=(size_t)(1.0/sample_rate);
+            if(sample_stride<=0)
+                sample_stride=1;
+            if constexpr (N==2){                        
+                for (size_t x_start=0;x_start<dims[0]-sampleBlockSize;x_start+=sampleBlockSize){                           
+                    for (size_t y_start=0;y_start<dims[1]-sampleBlockSize;y_start+=sampleBlockSize){
+                        if (idx%sample_stride==0){
+                            std::vector<size_t> starts{x_start,y_start};
+                            std::vector<T> s_block;
+                            QoZ::sample_blocks<T,N>(data, s_block,dims, starts,sampleBlockSize+1);
+                            sampled_blocks.push_back(s_block);
+                        }
+                        idx+=1;
+                    }
+                }
+            }
+            else if constexpr (N==3){                  
+                for (size_t x_start=0;x_start<dims[0]-sampleBlockSize;x_start+=sampleBlockSize){                          
+                    for (size_t y_start=0;y_start<dims[1]-sampleBlockSize;y_start+=sampleBlockSize){
+                        for (size_t z_start=0;z_start<dims[2]-sampleBlockSize;z_start+=sampleBlockSize){
+                            if (idx%sample_stride==0){
+                                std::vector<size_t> starts{x_start,y_start,z_start};
+                                std::vector<T> s_block;
+                                QoZ::sample_blocks<T,N>(data, s_block,dims, starts,sampleBlockSize+1);
+                                sampled_blocks.push_back(s_block);
+                            }
+                            idx+=1;
+                        }
+                    }
+                }
+            }
+        }
     }
 
    
