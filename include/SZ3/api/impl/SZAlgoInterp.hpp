@@ -71,16 +71,14 @@ double interp_compress_test(T *data, const Config &theConf, std::vector<size_t> 
 }
 
 template <class T, uint N>
-double interp_compress_test_qoz(const std::vector< std::vector<T> > sampled_blocks, const Config &theConf,
-                                                  int interp_op, int direction_op, int block_size, uchar *cmpData,
+double interp_compress_test_qoz(const std::vector< std::vector<T> > sampled_blocks, const Config conf,
+                                                  int block_size, uchar *cmpData,
                                                   size_t cmpCap) {
 
-    std::vector<size_t> dims(block_size, N);
 
-    Config conf = theConf;
-    conf.setDims(dims.begin(), dims.end());
-    conf.interpAlgo = interp_op;
-    conf.interpDirection = direction_op;
+    //conf.setDims(dims.begin(), dims.end());
+    //conf.interpAlgo = interp_op;
+    //conf.interpDirection = direction_op;
     //conf.tuning = true;
 
     
@@ -229,26 +227,51 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     }
     {
         // tune interp
+        conf.interpDirection = 0; 
+        conf.interp_alpha = 1.25;
+        conf.interp_beta = 2.0;
+        auto testConfig = conf;
+        std::vector<size_t> dims(block_size, N);
+        testConfig.setDims(dims.begin(), dims.end());
         for (auto &interp_op : {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC, INTERP_ALGO_CUBIC_NATURAL}) {
             //ratio = interp_compress_test<T, N>(
             //    sampling_data.data(), conf, sample_dims, sampling_num, conf.absErrorBound, interp_op, conf.interpDirection,
             //    sampling_block, buffer, bufferCap);
+
+            testConfig.interpDirection = interp_op;
             ratio = interp_compress_test_qoz<T, N>(
-                sampled_blocks, conf, interp_op, conf.interpDirection, sampleBlockSize, buffer, bufferCap);
+                sampled_blocks, testConfig, sampleBlockSize, buffer, bufferCap);
             if (ratio > best_interp_ratio) {
                 best_interp_ratio = ratio;
                 conf.interpAlgo = interp_op;
             }
         }
-
-        int direction_op = factorial(N) - 1;
+        testConfig.interpAlgo = conf.interpAlgo;
+        testConfig.interpDirection = factorial(N) - 1;
         //ratio = interp_compress_test<T, N>(sampling_data.data(), conf, sample_dims, sampling_num,
         //                                                         conf.absErrorBound, conf.interpAlgo, direction_op,
         //                                                         sampling_block, buffer, bufferCap);
-        ratio = interp_compress_test_qoz<T, N>(sampled_blocks, conf, conf.interpAlgo, direction_op, sampleBlockSize, buffer, bufferCap);
+        ratio = interp_compress_test_qoz<T, N>(sampled_blocks, testConfig, sampleBlockSize, buffer, bufferCap);
         if (ratio > best_interp_ratio * 1.02) {
             best_interp_ratio = ratio;
             conf.interpDirection = direction_op;
+        }
+        testConfig.interpDirection = conf.interpDirection;
+
+        auto alphalist = {1.0, 1.5, 2.0};
+        auto betalist = {1.0, 2.5, 3.0};
+        for (auto i = 0; i < alphalist.size(); i++){
+            auto alpha = alphalist[i];
+            auto beta = betalist[i];
+            testConfig.interp_alpha = alpha;
+            testConfig.interp_beta = beta;
+            ratio = interp_compress_test_qoz<T, N>(sampled_blocks, testConfig, sampleBlockSize, buffer, bufferCap);
+            if (ratio > best_interp_ratio * 1.02) {
+                best_interp_ratio = ratio;
+                conf.interp_alpha = alpha;
+                conf.interp_beta = beta;
+            }
+
         }
     }
     bool useInterp = !(best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 80 && best_interp_ratio < 80);
