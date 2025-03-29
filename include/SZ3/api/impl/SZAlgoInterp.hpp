@@ -285,8 +285,8 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
             conf.interpDirection = testConfig.interpDirection;
         }
         testConfig.interpDirection = conf.interpDirection;
-        auto alphalist = std::vector<double>{1.0, 1.5, 2.0};
-        auto betalist = std::vector<double>{1.0, 2.5, 3.0};
+        auto alphalist = std::vector<double>{1.5, 2.0};
+        auto betalist = std::vector<double>{2.5, 3.0};
         for (auto i = 0; i < alphalist.size(); i++){
             auto alpha = alphalist[i];
             auto beta = betalist[i];
