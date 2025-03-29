@@ -39,12 +39,12 @@ void SZ_decompress_Interp(const Config &conf, const uchar *cmpData, size_t cmpSi
 }
 
 template <class T, uint N>
-double interp_compress_test(T *data, std::vector<size_t> dims, size_t num, double eb,
+double interp_compress_test(T *data, const Config & theConf, std::vector<size_t> dims, size_t num, double eb,
                                                   int interp_op, int direction_op, int block_size, uchar *buffer,
                                                   size_t bufferCap) {
     std::vector<T> data1(data, data + num);
 
-    Config conf;
+    Config conf = theConf;
     conf.absErrorBound = eb;
     conf.setDims(dims.begin(), dims.end());
     conf.blockSize = block_size;
@@ -105,7 +105,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         // tune interp
         for (auto &interp_op : {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC, INTERP_ALGO_CUBIC_NATURAL}) {
             ratio = interp_compress_test<T, N>(
-                sampling_data.data(), sample_dims, sampling_num, conf.absErrorBound, interp_op, conf.interpDirection,
+                sampling_data.data(), conf, sample_dims, sampling_num, conf.absErrorBound, interp_op, conf.interpDirection,
                 sampling_block, buffer, bufferCap);
             if (ratio > best_interp_ratio) {
                 best_interp_ratio = ratio;
@@ -114,7 +114,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         }
 
         int direction_op = factorial(N) - 1;
-        ratio = interp_compress_test<T, N>(sampling_data.data(), sample_dims, sampling_num,
+        ratio = interp_compress_test<T, N>(sampling_data.data(), conf, sample_dims, sampling_num,
                                                                  conf.absErrorBound, conf.interpAlgo, direction_op,
                                                                  sampling_block, buffer, bufferCap);
         if (ratio > best_interp_ratio * 1.02) {
