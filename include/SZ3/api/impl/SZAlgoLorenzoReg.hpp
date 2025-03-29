@@ -78,7 +78,6 @@ std::shared_ptr<SZIterateCompressor<T, N, ComposedPredictor<T, N>, Quantizer, En
     std::vector<std::shared_ptr<concepts::PredictorInterface<T, N>>> predictors;
 
     int methodCnt = (conf.lorenzo + conf.lorenzo2 + conf.regression + conf.regression2);
-    int use_single_predictor = (methodCnt == 1);
     if (methodCnt == 0) {
         fprintf(stderr, "All lorenzo and regression methods are disabled.\n");
         throw std::invalid_argument("All lorenzo and regression methods are disabled.");
