@@ -50,7 +50,7 @@ double interp_compress_test(T *data, const Config &theConf, std::vector<size_t> 
     conf.blockSize = block_size;
     conf.interpAlgo = interp_op;
     conf.interpDirection = direction_op;
-    conf.tuning = true;
+    //conf.tuning = true;
     conf.interp_anchorStride = 0;
     
     auto sz = SZBlockInterpolationCompressor<T, N, LinearQuantizer<T>, HuffmanEncoder<int>, Lossless_zstd>(
@@ -133,7 +133,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         }
     }
     bool useInterp = !(best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 80 && best_interp_ratio < 80);
-    std::cout<<best_lorenzo_ratio<<" "<<best_interp_ratio<<std::endl;
+    //std::cout<<best_lorenzo_ratio<<" "<<best_interp_ratio<<std::endl;
     size_t cmpSize = 0;
     if (useInterp) {
         conf.cmprAlgo = ALGO_INTERP;

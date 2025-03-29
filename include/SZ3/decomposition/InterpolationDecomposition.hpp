@@ -88,7 +88,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         quant_inds = quant_inds_vec.data();
         double eb = quantizer.get_eb();
 
-       
+        /*
         if(conf.tuning){
             auto range = std::make_shared<multi_dimensional_range<T, N>>(data, std::begin(global_dimensions),
                                                                      std::end(global_dimensions), blocksize, 0);
@@ -113,59 +113,59 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                                         interpolators[interpolator_id], direction_sequence_id, stride_ip);
                 }
             }
+        }*/
+       // else{
+        if (anchorStride == 0){
+            quant_inds[quant_index++] = quantizer.quantize_and_overwrite(*data, 0);
         }
-        else{
-            if (anchorStride == 0){
-                quant_inds[quant_index++] = quantizer.quantize_and_overwrite(*data, 0);
-            }
-            else {
-                build_anchor_grid(data);
-                interpolation_level--;
-            }
-            for (uint level = interpolation_level; level > 0 && level <= interpolation_level; level--) {
-                double cur_eb = eb;
-                //if (!conf.tuning){
-                    if (alpha < 0){
-                        if (level >= 3){
-                            cur_eb = eb * eb_ratio;
-                        } else {
-                            cur_eb = eb;
-                        }
+        else {
+            build_anchor_grid(data);
+            interpolation_level--;
+        }
+        for (uint level = interpolation_level; level > 0 && level <= interpolation_level; level--) {
+            double cur_eb = eb;
+            //if (!conf.tuning){
+                if (alpha < 0){
+                    if (level >= 3){
+                        cur_eb = eb * eb_ratio;
+                    } else {
+                        cur_eb = eb;
                     }
-                    else if (alpha >= 1){              
-                        double cur_ratio = pow(alpha, level - 1);
-                        if (cur_ratio > beta){
-                            cur_ratio = beta;
-                        }            
-                        cur_eb = eb / cur_ratio;
-                    }
-                //}
-                quantizer.set_eb(cur_eb);
-                size_t stride = 1U << (level - 1);
-
-                auto interp_block_size = blocksize * stride;
-
-
-                auto inter_block_range = std::make_shared<multi_dimensional_range<T, N>>(
-                    data, std::begin(global_dimensions), std::end(global_dimensions), interp_block_size, 0);
-
-                auto inter_begin = inter_block_range->begin();
-                auto inter_end = inter_block_range->end();
-
-                for (auto block = inter_begin; block != inter_end; ++block) {
-                    auto end_idx = block.get_global_index();
-                    for (int i = 0; i < N; i++) {
-                        end_idx[i] += interp_block_size;
-                        if (end_idx[i] > global_dimensions[i] - 1) {
-                            end_idx[i] = global_dimensions[i] - 1;
-                        }
-                    }
-
-                    block_interpolation(data, block.get_global_index(), end_idx, PB_predict_overwrite,
-                                        interpolators[interpolator_id], direction_sequence_id, stride);
                 }
+                else if (alpha >= 1){              
+                    double cur_ratio = pow(alpha, level - 1);
+                    if (cur_ratio > beta){
+                        cur_ratio = beta;
+                    }            
+                    cur_eb = eb / cur_ratio;
+                }
+            //}
+            quantizer.set_eb(cur_eb);
+            size_t stride = 1U << (level - 1);
+
+            auto interp_block_size = blocksize * stride;
+
+
+            auto inter_block_range = std::make_shared<multi_dimensional_range<T, N>>(
+                data, std::begin(global_dimensions), std::end(global_dimensions), interp_block_size, 0);
+
+            auto inter_begin = inter_block_range->begin();
+            auto inter_end = inter_block_range->end();
+
+            for (auto block = inter_begin; block != inter_end; ++block) {
+                auto end_idx = block.get_global_index();
+                for (int i = 0; i < N; i++) {
+                    end_idx[i] += interp_block_size;
+                    if (end_idx[i] > global_dimensions[i] - 1) {
+                        end_idx[i] = global_dimensions[i] - 1;
+                    }
+                }
+
+                block_interpolation(data, block.get_global_index(), end_idx, PB_predict_overwrite,
+                                    interpolators[interpolator_id], direction_sequence_id, stride);
             }
         }
+        //}
 
         quantizer.postcompress_data();
         return quant_inds_vec;
