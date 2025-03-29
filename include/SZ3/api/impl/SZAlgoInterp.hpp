@@ -113,6 +113,7 @@ double interp_compress_test_qoz(const std::vector< std::vector<T> > sampled_bloc
     auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
     free(buffer);
     auto compression_ratio = conf.num * sizeof(T) * 1.0 / cmpSize;
+    std::cout<<conf.num<<" "<<cmpSize<<std::endl;
     return compression_ratio;
 }
 
