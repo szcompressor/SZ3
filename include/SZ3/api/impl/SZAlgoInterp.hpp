@@ -151,6 +151,25 @@ double lorenzo_compress_test_qoz(const std::vector< std::vector<T> > sampled_blo
             auto quant_bins = sz.compress(conf, cur_block.data());
             total_quant_bins.insert(total_quant_bins.end(), quant_bins.begin(), quant_bins.end());
         }
+        auto encoder = HuffmanEncoder<int>();
+        auto lossless = Lossless_zstd();
+        encoder.preprocess_encode(total_quant_bins, conf.quantbinCnt);
+        size_t bufferSize = std::max<size_t>(
+            1000, 1.2 * (encoder.size_est() + sizeof(T) * total_quant_bins.size()));
+
+        auto buffer = static_cast<uchar *>(malloc(bufferSize));
+        uchar *buffer_pos = buffer;
+        sz.save(buffer_pos);
+        encoder.save(buffer_pos);
+
+        //store the size of quant_inds is necessary as it is not always equal to conf.num
+        write<size_t>(total_quant_bins.size(), buffer_pos);
+        encoder.encode(total_quant_bins, buffer_pos);
+        encoder.postprocess_encode();
+        auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
+        free(buffer);
+        auto compression_ratio = conf.num * sampled_blocks.size() * sizeof(T) * 1.0 / cmpSize;
+        return compression_ratio;
     }
     else{
         auto sz = make_compressor_typetwo_lorenzo_regression_tuning<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2), HuffmanEncoder<int>(), Lossless_zstd());
@@ -159,30 +178,15 @@ double lorenzo_compress_test_qoz(const std::vector< std::vector<T> > sampled_blo
             auto quant_bins = sz->get_quant_inds(conf, cur_block.data());
             total_quant_bins.insert(total_quant_bins.end(), quant_bins.begin(), quant_bins.end());
         }
+        auto cmpSize = sz->post_quant(total_quant_bins, cmpData, cmpCap);
+        auto compression_ratio = conf.num * sampled_blocks.size() * sizeof(T) * 1.0 / cmpSize;
+        return compression_ratio;
     }
     
 
     
 
-    auto encoder = HuffmanEncoder<int>();
-    auto lossless = Lossless_zstd();
-    encoder.preprocess_encode(total_quant_bins, conf.quantbinCnt);
-    size_t bufferSize = std::max<size_t>(
-        1000, 1.2 * (encoder.size_est() + sizeof(T) * total_quant_bins.size()));
-
-    auto buffer = static_cast<uchar *>(malloc(bufferSize));
-    uchar *buffer_pos = buffer;
-    sz.save(buffer_pos);
-    encoder.save(buffer_pos);
-
-    //store the size of quant_inds is necessary as it is not always equal to conf.num
-    write<size_t>(total_quant_bins.size(), buffer_pos);
-    encoder.encode(total_quant_bins, buffer_pos);
-    encoder.postprocess_encode();
-    auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
-    free(buffer);
-    auto compression_ratio = conf.num * sampled_blocks.size() * sizeof(T) * 1.0 / cmpSize;
-    return compression_ratio;
+    
 
 
 }

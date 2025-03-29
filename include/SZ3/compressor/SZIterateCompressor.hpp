@@ -134,8 +134,38 @@ class SZIterateCompressor : public concepts::CompressorInterface<T> {
                     quantizer.quantize_and_overwrite(*element, predictor_withfallback->predict(element));
             }
         }
-
+        predictor.postcompress_data(block_range->begin());
         return quant_inds;
+    }
+
+    size_t post_quant(std::vector<int> &quant_inds, uchar *cmpData, size_t cmpCap) {
+        quantizer.postcompress_data();
+        if (quantizer.get_out_range().first != 0) {
+            fprintf(stderr, "The output range of the quantizer must start from 0 for this compressor\n");
+            throw std::runtime_error("The output range of the quantizer must start from 0 for this compressor");
+        }
+        encoder.preprocess_encode(quant_inds, quantizer.get_out_range().second);
+
+        size_t bufferSize = 1.2 * (quantizer.size_est() + encoder.size_est() + sizeof(T) * quant_inds.size());
+        auto buffer = static_cast<uchar *>(malloc(bufferSize));
+        uchar *buffer_pos = buffer;
+
+        write(conf.num, buffer_pos);
+        write(global_dimensions.data(), N, buffer_pos);
+        write(block_size, buffer_pos);
+
+        predictor.save(buffer_pos);
+        quantizer.save(buffer_pos);
+
+        encoder.save(buffer_pos);
+        encoder.encode(quant_inds, buffer_pos);
+        encoder.postprocess_encode();
+
+        // assert(buffer_pos - buffer < bufferSize);
+
+        auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
+        free(buffer);
+        return cmpSize;
     }
 
     T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *decData) override {
