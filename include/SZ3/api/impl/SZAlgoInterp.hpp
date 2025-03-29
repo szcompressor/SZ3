@@ -68,7 +68,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     calAbsErrorBound(conf, data);
 
     if (conf.interp_anchorStride <= 0){
-        std::array<size_t, 4> anchor_strides = {512,64,32,16};
+        std::array<size_t, 4> anchor_strides = {4096,128,32,16};
         conf.interp_anchorStride = anchor_strides[N - 1];
     }
 
@@ -102,6 +102,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     }
     {
         // tune interp
+        conf.tuning = true;
         for (auto &interp_op : {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC, INTERP_ALGO_CUBIC_NATURAL}) {
             ratio = interp_compress_test<T, N>(
                 sampling_data.data(), sample_dims, sampling_num, conf.absErrorBound, interp_op, conf.interpDirection,
@@ -120,8 +121,9 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
             best_interp_ratio = ratio;
             conf.interpDirection = direction_op;
         }
+        conf.tuning = false;
     }
-    bool useInterp = !(best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 80 && best_interp_ratio < 80);
+    bool useInterp = !(N != 4 && best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 80 && best_interp_ratio < 80);
     std::cout<<best_lorenzo_ratio<<" "<<best_interp_ratio<<std::endl;
     size_t cmpSize = 0;
     if (useInterp) {
