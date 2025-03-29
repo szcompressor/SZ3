@@ -142,13 +142,20 @@ double interp_compress_test_qoz(const std::vector< std::vector<T> > sampled_bloc
 
 template <class T, uint N>
 double lorenzo_compress_test_qoz(const std::vector< std::vector<T> > sampled_blocks, const Config &conf, uchar *cmpData, size_t cmpCap) {
-    auto sz = make_decomposition_lorenzo_regression<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2));
+
+    std::shared_ptr<SZGenericCompressor<T, N, Decomposition, Encoder, Lossless>> sz;
+    if ((N == 3 && !conf.regression2) || (N == 1 && !conf.regression && !conf.regression2)) {
+        sz = make_decomposition_lorenzo_regression<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2));
+    }
+    else{
+        sz = make_compressor_typetwo_lorenzo_regression<T, N>(conf, quantizer, HuffmanEncoder<int>(), Lossless_zstd());
+    }
     std::vector<int> total_quant_bins;
 
     for (int k = 0; k < sampled_blocks.size(); k++){
         auto cur_block = sampled_blocks[k];
     
-        auto quant_bins = sz.compress(conf, cur_block.data());
+        auto quant_bins = sz->compress(conf, cur_block.data());
 
         total_quant_bins.insert(total_quant_bins.end(), quant_bins.begin(), quant_bins.end());
     }
