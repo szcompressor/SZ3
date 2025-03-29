@@ -189,7 +189,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         conf.interp_anchorStride = anchor_strides[N - 1];
     }
     
-    std::array<double,4> sample_Rates={0.01, 0.01, 0.01, 0.01};
+    std::array<double,4> sample_Rates={0.01, 0.01, 0.005, 0.005};
     auto sampleRate = sample_Rates[N - 1];
     std::array<size_t,4> sampleBlock_Sizes={4096, 128, 32, 16};
     size_t sampleBlockSize = sampleBlock_Sizes[N - 1];
@@ -253,8 +253,8 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     {
         // tune interp
         conf.interpDirection = 0; 
-        conf.interp_alpha = 1.25;
-        conf.interp_beta = 2.0;
+        conf.interp_alpha = -1.0;
+        conf.interp_beta = -1.0;
         auto testConfig = conf;
         std::vector<size_t> dims(N, sampleBlockSize + 1);
         testConfig.setDims(dims.begin(), dims.end());
@@ -285,8 +285,8 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
             conf.interpDirection = testConfig.interpDirection;
         }
         testConfig.interpDirection = conf.interpDirection;
-        auto alphalist = std::vector<double>{1.0, 1.5, 2.0};
-        auto betalist = std::vector<double>{1.0, 2.5, 3.0};
+        auto alphalist = std::vector<double>{1.0, 1.25, 1.5, 2.0};
+        auto betalist = std::vector<double>{1.0, 2.0, 2.5, 3.0};
         for (auto i = 0; i < alphalist.size(); i++){
             auto alpha = alphalist[i];
             auto beta = betalist[i];
