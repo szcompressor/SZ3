@@ -31,7 +31,44 @@ namespace SZ3 {
         assert(dims.size() == N);
         if (stride == 0)
             stride = block_size;
-        if constexpr (N==3){
+        if constexpr (N==4){
+            size_t dimx=dims[0],dimy=dims[1],dimz=dims[2],dimw=dims[3],dimyzw=dimy*dimz*dimw,dimzw=dimz*dimw;
+            
+            for (size_t i = 0; i < dimx-block_size; i+=block_size) {
+                for (size_t j = 0; j < dimy-block_size; j+=block_size) {
+                    for (size_t k = 0; k < dimz-block_size; k+=block_size) {
+                        for (size_t l = 0; l < dimw-block_size; l+=block_size) {
+                        //std::cout<<i<<" "<<j<<" "<<k<<std::endl;
+                            size_t start_idx=i*dimyzw+j*dimzw+k*dimw+l;
+                            T min=data[start_idx];
+                            T max=data[start_idx];
+                            for (int ii=0;ii<=block_size;ii+=stride){
+                                for(int jj=0;jj<=block_size;jj+=stride){
+                                    for (int kk=0;kk<=block_size;kk+=stride){
+                                        for (int ll=0;ll<=block_size;ll+=stride){
+                                            size_t cur_idx=start_idx+ii*dimyzw+jj*dimzw+kk*dimw+ll;
+                                            T cur_value=data[cur_idx];
+                                            if (cur_value<min)
+                                                min=cur_value;
+                                            else if (cur_value>max)
+                                                max=cur_value;
+                                        }
+
+                                    }
+                                }
+                            }
+                            if (max-min>abseb){
+                                size_t a[4]={i,j,k,i};
+                                starts.push_back(std::vector<size_t>(a,a+4));
+                            }
+                        }
+
+                    }
+                }
+            }
+        }
+
+        else if constexpr (N==3){
             size_t dimx=dims[0],dimy=dims[1],dimz=dims[2],dimyz=dimy*dimz;
             
             for (size_t i = 0; i < dimx-block_size; i+=block_size) {
@@ -97,6 +134,37 @@ namespace SZ3 {
             }
 
         }
+        else{
+             size_t dimx=dims[0];
+        
+            for (size_t i = 0; i < dimx-block_size; i+=block_size) {
+                    
+                size_t start_idx=i;
+                T min=data[start_idx];
+                T max=data[start_idx];
+                for (int ii=0;ii<=block_size;ii+=stride){
+                    
+                           
+                    size_t cur_idx=start_idx+ii;
+                    T cur_value=data[cur_idx];
+                    if (cur_value<min)
+                        min=cur_value;
+                    else if (cur_value>max)
+                        max=cur_value;
+
+                    
+                }
+                    
+                if (max-min>abseb){
+                     size_t a[1]={i};
+                    starts.push_back(std::vector<size_t>(a,a+1));
+                }
+
+
+                       
+            }
+
+        }
         //current has a problem. May return no blocks. Thinking how to better solve it.
 //        auto sampling_time = timer.stop();
 //        printf("Generate sampling data, block = %lu percent = %.3f%% Time = %.3f \n", sampling_block, sample_num * 100.0 / num,
@@ -111,7 +179,28 @@ namespace SZ3 {
     sample_blocks(T *data, std::vector<T> & sampling_data, std::vector<size_t> &dims, std::vector<size_t> &starts,size_t block_size) {
         assert(dims.size() == N);
         assert(starts.size() == N);
-        if constexpr (N==3){
+        else if constexpr (N==4){
+        
+            size_t sample_num = block_size*block_size*block_size*block_size;
+            sampling_data.resize(sample_num, 0);
+
+            size_t startx=starts[0],starty=starts[1],startz=starts[2],startw=starts[3],dimy=dims[1],dimz=dims[2],dimw=dims[3];
+            size_t cubic_block_size=block_size*block_size*block_size,square_block_size=block_size*block_size,dimyzw=dimy*dimz*dimw,dimzw=dimz*dimw;
+            for (size_t i = 0; i < block_size; i++) {
+                for (size_t j = 0; j < block_size; j++) {
+                    for (size_t k = 0; k < block_size; k++) {
+                        for (size_t l = 0; l < block_size; l++) {
+                            size_t sample_idx=i*cubic_block_size+j*square_block_size+k*block_size+l;
+                            size_t idx=(i+startx)*dimyzw+(j+starty)*dimzw+(k+startz)*dimw+(l+startw);
+                            sampling_data[sample_idx]=data[idx];
+                        }
+                        
+                    }
+                }
+            }
+        }
+
+        else if constexpr (N==3){
         
             size_t sample_num = block_size*block_size*block_size;
             sampling_data.resize(sample_num, 0);
@@ -204,7 +293,21 @@ namespace SZ3 {
             size_t sample_stride = static_cast<size_t>(1.0/sample_rate);
             if(sample_stride<=0)
                 sample_stride=1;
-            if constexpr (N==2){                        
+            if constexpr (N==1){                        
+                for (size_t x_start=0;x_start<dims[0]-sampleBlockSize;x_start+=sampleBlockSize){                           
+                   
+                    if (idx%sample_stride==0){
+                        std::vector<size_t> starts{x_start};
+                        std::vector<T> s_block;
+                        sample_blocks<T,N>(data, s_block,dims, starts,sampleBlockSize+1);
+                        sampled_blocks.push_back(s_block);
+                    }
+                    idx+=1;
+                    
+                }
+            }
+
+            else if constexpr (N==2){                        
                 for (size_t x_start=0;x_start<dims[0]-sampleBlockSize;x_start+=sampleBlockSize){                           
                     for (size_t y_start=0;y_start<dims[1]-sampleBlockSize;y_start+=sampleBlockSize){
                         if (idx%sample_stride==0){
@@ -228,6 +331,23 @@ namespace SZ3 {
                                 sampled_blocks.push_back(s_block);
                             }
                             idx+=1;
+                        }
+                    }
+                }
+            }
+            else if constexpr (N==4){                  
+                for (size_t x_start=0;x_start<dims[0]-sampleBlockSize;x_start+=sampleBlockSize){                          
+                    for (size_t y_start=0;y_start<dims[1]-sampleBlockSize;y_start+=sampleBlockSize){
+                        for (size_t z_start=0;z_start<dims[2]-sampleBlockSize;z_start+=sampleBlockSize){
+                            for (size_t w_start=0;w_start<dims[3]-sampleBlockSize;w_start+=sampleBlockSize){
+                                if (idx%sample_stride==0){
+                                    std::vector<size_t> starts{x_start,y_start,z_start,w_start};
+                                    std::vector<T> s_block;
+                                    sample_blocks<T,N>(data, s_block,dims, starts,sampleBlockSize+1);
+                                    sampled_blocks.push_back(s_block);
+                                }
+                                idx+=1;
+                            }
                         }
                     }
                 }
