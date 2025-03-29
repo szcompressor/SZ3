@@ -161,8 +161,8 @@ double lorenzo_compress_test_qoz(const std::vector< std::vector<T> > sampled_blo
 
     auto buffer = static_cast<uchar *>(malloc(bufferSize));
     uchar *buffer_pos = buffer;
-    sz.save(buffer_pos);
-    encoder.save(buffer_pos);
+    //sz.save(buffer_pos);
+    //encoder.save(buffer_pos);
 
     //store the size of quant_inds is necessary as it is not always equal to conf.num
     write<size_t>(total_quant_bins.size(), buffer_pos);
@@ -258,7 +258,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         auto testConfig = conf;
         std::vector<size_t> dims(N, sampleBlockSize + 1);
         testConfig.setDims(dims.begin(), dims.end());
-        for (auto &interp_op : {INTERP_ALGO_CUBIC_NATURAL, INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC}) {
+        for (auto &interp_op : {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC, INTERP_ALGO_CUBIC_NATURAL}) {
             //ratio = interp_compress_test<T, N>(
             //    sampling_data.data(), conf, sample_dims, sampling_num, conf.absErrorBound, interp_op, conf.interpDirection,
             //    sampling_block, buffer, bufferCap);
