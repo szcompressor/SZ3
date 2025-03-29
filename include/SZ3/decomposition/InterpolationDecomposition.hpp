@@ -67,7 +67,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                     }
                 }
                 block_interpolation(dec_data, block.get_global_index(), end_idx, PB_recover,
-                                    interpolators[interpolator_id], direction_sequence_id, stride);
+                                    interpolators[cur_interpolator_id], direction_sequence_id, stride);
             }
         }
         quantizer.postdecompress_data();
