@@ -197,7 +197,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         conf.interp_anchorStride = anchor_strides[N - 1];
     }
     
-    std::array<double,4> sample_Rates={0.01, 0.01, 0.005, 0.005};
+    std::array<double,4> sample_Rates={0.005, 0.005, 0.005, 0.005};
     auto sampleRate = sample_Rates[N - 1];
     std::array<size_t,4> sampleBlock_Sizes={4096, 128, 32, 16};
     size_t sampleBlockSize = sampleBlock_Sizes[N - 1];
@@ -270,8 +270,8 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
             //ratio = interp_compress_test<T, N>(
             //    sampling_data.data(), conf, sample_dims, sampling_num, conf.absErrorBound, interp_op, conf.interpDirection,
             //    sampling_block, buffer, bufferCap);
-            if(N <= 2 and interp_op == INTERP_ALGO_CUBIC_NATURAL)
-                continue;
+            //if(N <= 2 and interp_op == INTERP_ALGO_CUBIC_NATURAL)
+            //    continue;
 
             testConfig.interpAlgo = interp_op;
             ratio = interp_compress_test_qoz<T, N>(
