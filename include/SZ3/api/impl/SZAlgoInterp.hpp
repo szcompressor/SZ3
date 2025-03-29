@@ -241,12 +241,13 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
             testConfig.interpDirection = interp_op;
             ratio = interp_compress_test_qoz<T, N>(
                 sampled_blocks, testConfig, sampleBlockSize, buffer, bufferCap);
+            std::cout<<ratio<<std::endl;
             if (ratio > best_interp_ratio) {
                 best_interp_ratio = ratio;
                 conf.interpAlgo = interp_op;
             }
         }
-        std::cout<<best_interp_ratio<<std::endl;
+        
         testConfig.interpAlgo = conf.interpAlgo;
         testConfig.interpDirection = factorial(N) - 1;
         //ratio = interp_compress_test<T, N>(sampling_data.data(), conf, sample_dims, sampling_num,
