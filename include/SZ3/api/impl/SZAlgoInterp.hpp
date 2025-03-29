@@ -119,7 +119,7 @@ double interp_compress_test_qoz(const std::vector< std::vector<T> > sampled_bloc
 }
 
 template <class T, uint N>
-double lorenzo_compress_test_qoz(const std::vector< std::vector<T> > sampled_blocks, const Config conf, uchar *cmpData, size_t cmpCap) {
+double lorenzo_compress_test_qoz(const std::vector< std::vector<T> > sampled_blocks, const Config &conf, uchar *cmpData, size_t cmpCap) {
     auto sz = make_decomposition_lorenzo_regression<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2));
     std::vector<int> total_quant_bins;
 
