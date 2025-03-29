@@ -57,6 +57,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 dec_data, std::begin(global_dimensions), std::end(global_dimensions), stride * blocksize, 0);
             auto inter_begin = inter_block_range->begin();
             auto inter_end = inter_block_range->end();
+            auto cur_interpolator_id = level >=3 ? 0 : interpolator_id;
             for (auto block = inter_begin; block != inter_end; ++block) {
                 auto end_idx = block.get_global_index();
                 for (int i = 0; i < N; i++) {
@@ -151,7 +152,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
 
             auto inter_begin = inter_block_range->begin();
             auto inter_end = inter_block_range->end();
-
+            auto cur_interpolator_id = level >=3 ? 0 : interpolator_id;
             for (auto block = inter_begin; block != inter_end; ++block) {
                 auto end_idx = block.get_global_index();
                 for (int i = 0; i < N; i++) {
@@ -162,11 +163,10 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 }
 
                 block_interpolation(data, block.get_global_index(), end_idx, PB_predict_overwrite,
-                                    interpolators[interpolator_id], direction_sequence_id, stride);
+                                    interpolators[cur_interpolator_id], direction_sequence_id, stride);
             }
         }
         //}
-
         quantizer.postcompress_data();
         return quant_inds_vec;
     }

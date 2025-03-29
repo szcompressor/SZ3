@@ -128,7 +128,7 @@ double interp_compress_test_qoz(const std::vector< std::vector<T> > sampled_bloc
     auto buffer = static_cast<uchar *>(malloc(bufferSize));
     uchar *buffer_pos = buffer;
     //sz.save(buffer_pos);
-    //encoder.save(buffer_pos);
+    encoder.save(buffer_pos);
 
     //store the size of quant_inds is necessary as it is not always equal to conf.num
     write<size_t>(total_quant_bins.size(), buffer_pos);
@@ -161,7 +161,7 @@ double lorenzo_compress_test_qoz(const std::vector< std::vector<T> > sampled_blo
 
     auto buffer = static_cast<uchar *>(malloc(bufferSize));
     uchar *buffer_pos = buffer;
-    sz.save(buffer_pos);
+    //sz.save(buffer_pos);
     encoder.save(buffer_pos);
 
     //store the size of quant_inds is necessary as it is not always equal to conf.num
