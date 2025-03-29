@@ -52,12 +52,16 @@ double interp_compress_test(T *data, const Config &theConf, std::vector<size_t> 
     conf.interpDirection = direction_op;
     conf.tuning = true;
     conf.interp_anchorStride = 0;
+    auto sz = SZBlockInterpolationCompressor<T, N, LinearQuantizer<T>, HuffmanEncoder<int>, Lossless_zstd>(
+        LinearQuantizer<T>(eb), HuffmanEncoder<int>(), Lossless_zstd());
+    size_t outSize = sz.compress(conf, data1.data(), buffer, bufferCap);
+    /*
     auto sz = make_compressor_sz_generic<T, N>(
         make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
         HuffmanEncoder<int>(), Lossless_zstd());
-
+    
     size_t outSize = sz->compress(conf, data1.data(), buffer, bufferCap);
-
+    */
     auto compression_ratio = num * sizeof(T) * 1.0 / outSize;
     return compression_ratio;
 }
