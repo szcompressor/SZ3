@@ -138,7 +138,7 @@ class SZIterateCompressor : public concepts::CompressorInterface<T> {
         return quant_inds;
     }
 
-    size_t post_quant(std::vector<int> &quant_inds, uchar *cmpData, size_t cmpCap) {
+    size_t post_quant(const Config &conf, std::vector<int> &quant_inds, uchar *cmpData, size_t cmpCap) {
         quantizer.postcompress_data();
         if (quantizer.get_out_range().first != 0) {
             fprintf(stderr, "The output range of the quantizer must start from 0 for this compressor\n");
