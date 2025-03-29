@@ -39,7 +39,7 @@ void SZ_decompress_Interp(const Config &conf, const uchar *cmpData, size_t cmpSi
 }
 
 template <class T, uint N>
-double interp_compress_test(T *data, const Config & theConf, std::vector<size_t> dims, size_t num, double eb,
+double interp_compress_test(T *data, const Config &theConf, std::vector<size_t> dims, size_t num, double eb,
                                                   int interp_op, int direction_op, int block_size, uchar *buffer,
                                                   size_t bufferCap) {
     std::vector<T> data1(data, data + num);
@@ -51,6 +51,7 @@ double interp_compress_test(T *data, const Config & theConf, std::vector<size_t>
     conf.interpAlgo = interp_op;
     conf.interpDirection = direction_op;
     conf.tuning = true;
+    conf.interp_anchorStride = 0;
     auto sz = make_compressor_sz_generic<T, N>(
         make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
         HuffmanEncoder<int>(), Lossless_zstd());
@@ -85,21 +86,23 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     auto buffer = static_cast<uchar *>(malloc(bufferCap));
     Config lorenzo_config = conf;
     {
-        // test lorenzo
-        lorenzo_config.cmprAlgo = ALGO_LORENZO_REG;
-        lorenzo_config.setDims(sample_dims.begin(), sample_dims.end());
-        lorenzo_config.lorenzo = true;
-        lorenzo_config.lorenzo2 = true;
-        lorenzo_config.regression = false;
-        lorenzo_config.regression2 = false;
-        lorenzo_config.openmp = false;
-        lorenzo_config.blockSize = 5;
-        //        lorenzo_config.quantbinCnt = 65536 * 2;
-        std::vector<T> data1(sampling_data);
-        size_t sampleOutSize = SZ_compress_LorenzoReg<T, N>(lorenzo_config, data1.data(), buffer, bufferCap);
-        //            delete[]cmprData;
-        //    printf("Lorenzo ratio = %.2f\n", ratio);
-        best_lorenzo_ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;
+        if(N < 4){
+            // test lorenzo
+            lorenzo_config.cmprAlgo = ALGO_LORENZO_REG;
+            lorenzo_config.setDims(sample_dims.begin(), sample_dims.end());
+            lorenzo_config.lorenzo = true;
+            lorenzo_config.lorenzo2 = true;
+            lorenzo_config.regression = false;
+            lorenzo_config.regression2 = false;
+            lorenzo_config.openmp = false;
+            lorenzo_config.blockSize = 5;
+            //        lorenzo_config.quantbinCnt = 65536 * 2;
+            std::vector<T> data1(sampling_data);
+            size_t sampleOutSize = SZ_compress_LorenzoReg<T, N>(lorenzo_config, data1.data(), buffer, bufferCap);
+            //            delete[]cmprData;
+            //    printf("Lorenzo ratio = %.2f\n", ratio);
+            best_lorenzo_ratio = sampling_num * 1.0 * sizeof(T) / sampleOutSize;
+        }
     }
     {
         // tune interp
@@ -122,7 +125,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
             conf.interpDirection = direction_op;
         }
     }
-    bool useInterp = !(N != 4 && best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 80 && best_interp_ratio < 80);
+    bool useInterp = !(best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 80 && best_interp_ratio < 80);
     std::cout<<best_lorenzo_ratio<<" "<<best_interp_ratio<<std::endl;
     size_t cmpSize = 0;
     if (useInterp) {
