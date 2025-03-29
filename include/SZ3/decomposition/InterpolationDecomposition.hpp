@@ -45,7 +45,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                     quantizer.set_eb(eb);
                 }
             }
-            else if (alpha>=1){
+            else if (alpha >= 1){
                 double cur_ratio = pow(alpha, level - 1);
                 if (cur_ratio > beta){
                     cur_ratio = beta;
@@ -97,20 +97,22 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             interpolation_level--;
         }
         for (uint level = interpolation_level; level > 0 && level <= interpolation_level; level--) {
-            double cur_eb;
-            if (alpha<0){
-                if (level >= 3){
-                    cur_eb = eb * eb_ratio;
-                } else {
-                    cur_eb = eb;
+            double cur_eb = eb;
+            if (!conf.tuning){
+                if (alpha < 0){
+                    if (level >= 3){
+                        cur_eb = eb * eb_ratio;
+                    } else {
+                        cur_eb = eb;
+                    }
                 }
-            }
-            else if (alpha>=1){              
-                double cur_ratio = pow(alpha, level - 1);
-                if (cur_ratio > beta){
-                    cur_ratio = beta;
-                }            
-                cur_eb = eb / cur_ratio;
+                else if (alpha >= 1){              
+                    double cur_ratio = pow(alpha, level - 1);
+                    if (cur_ratio > beta){
+                        cur_ratio = beta;
+                    }            
+                    cur_eb = eb / cur_ratio;
+                }
             }
             quantizer.set_eb(cur_eb);
             size_t stride = 1U << (level - 1);
