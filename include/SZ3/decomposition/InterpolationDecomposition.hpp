@@ -86,7 +86,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         init();
         std::vector<int> quant_inds_vec(num_elements);
         quant_inds = quant_inds_vec.data();
-
+        std::cout<<"ap1"<<std::endl;
         double eb = quantizer.get_eb();
 
         if (anchorStride == 0){
@@ -96,6 +96,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             build_anchor_grid(data);
             interpolation_level--;
         }
+        std::cout<<"ap1"<<std::endl;
         for (uint level = interpolation_level; level > 0 && level <= interpolation_level; level--) {
             double cur_eb = eb;
             //if (!conf.tuning){
@@ -115,6 +116,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 }
            // }
             quantizer.set_eb(cur_eb);
+             std::cout<<"ap2"<<std::endl;
             size_t stride = 1U << (level - 1);
 
             auto interp_block_size = conf.tuning ? blocksize : blocksize * stride;
@@ -137,6 +139,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 block_interpolation(data, block.get_global_index(), end_idx, PB_predict_overwrite,
                                     interpolators[interpolator_id], direction_sequence_id, stride);
             }
+             std::cout<<"ap3"<<std::endl;
         }
 
         quantizer.postcompress_data();
