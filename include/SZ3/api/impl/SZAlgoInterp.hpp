@@ -178,7 +178,7 @@ double lorenzo_compress_test_qoz(const std::vector< std::vector<T> > sampled_blo
             auto quant_bins = sz->get_quant_inds(conf, cur_block.data());
             total_quant_bins.insert(total_quant_bins.end(), quant_bins.begin(), quant_bins.end());
         }
-        auto cmpSize = sz->post_quant(conf, total_quant_bins, cmpData, cmpCap);
+        auto cmpSize = sz->post_quant(total_quant_bins, cmpData, cmpCap);
         auto compression_ratio = conf.num * sampled_blocks.size() * sizeof(T) * 1.0 / cmpSize;
         return compression_ratio;
     }
