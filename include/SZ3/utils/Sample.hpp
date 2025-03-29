@@ -201,7 +201,7 @@ namespace SZ3 {
         }               
         else{
             
-            size_t sample_stride=(size_t)(1.0/sample_rate);
+            size_t sample_stride = static_cast<size_t>(1.0/sample_rate);
             if(sample_stride<=0)
                 sample_stride=1;
             if constexpr (N==2){                        
