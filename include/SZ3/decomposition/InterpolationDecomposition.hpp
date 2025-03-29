@@ -1383,20 +1383,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         double predict_error = 0;
         size_t stride2x = stride * 2;
         const std::array<int, N> dims = dimension_sequences[direction];
-
-        for (size_t j = (begin[dims[1]] ? begin[dims[1]] + stride2x : 0); j <= end[dims[1]]; j += stride2x) {
-            size_t begin_offset = begin[dims[0]] * dimension_offsets[dims[0]] + j * dimension_offsets[dims[1]];
-            predict_error += block_interpolation_1d(
-                data, begin_offset, begin_offset + (end[dims[0]] - begin[dims[0]]) * dimension_offsets[dims[0]],
-                stride * dimension_offsets[dims[0]], interp_func, pb);
-        }
-        for (size_t i = (begin[dims[0]] ? begin[dims[0]] + stride : 0); i <= end[dims[0]]; i += stride) {
-            size_t begin_offset = i * dimension_offsets[dims[0]] + begin[dims[1]] * dimension_offsets[dims[1]];
-            predict_error += block_interpolation_1d(
-                data, begin_offset, begin_offset + (end[dims[1]] - begin[dims[1]]) * dimension_offsets[dims[1]],
-                stride * dimension_offsets[dims[1]], interp_func, pb);
-        }
-        /*
         std::array<size_t, N> steps;
         std::array<size_t, N> begin_idx = begin, end_idx = end;
         steps[dims[0]] =1 ;
@@ -1414,7 +1400,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         predict_error += block_interpolation_1d_fastest_dim_first(data, begin_idx,
                                                             end_idx, dims[1], steps,
                                                             stride, interp_func, pb);
-       */
         return predict_error;
     }
 
