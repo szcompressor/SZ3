@@ -86,7 +86,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         init();
         std::vector<int> quant_inds_vec(num_elements);
         quant_inds = quant_inds_vec.data();
-        std::cout<<"ap1"<<std::endl;
         double eb = quantizer.get_eb();
 
         if (anchorStride == 0){
@@ -116,7 +115,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 }
            // }
             quantizer.set_eb(cur_eb);
-             std::cout<<"ap2"<<std::endl;
+             std::cout<<level<<std::endl;
             size_t stride = 1U << (level - 1);
 
             auto interp_block_size = conf.tuning ? blocksize : blocksize * stride;
