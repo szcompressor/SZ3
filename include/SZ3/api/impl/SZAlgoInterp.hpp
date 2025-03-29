@@ -108,12 +108,12 @@ double interp_compress_test_qoz(const std::vector< std::vector<T> > sampled_bloc
     size_t level_num = prefix.size();
     size_t last_pos = 0;
     for(int k = level_num - 1; k >= 0; k--){
-        for (size_t l = 0; l < num_sampled_blocks; l++){
-            for (size_t m = last_pos; m < prefix[k]; m++){
+        for (size_t l = 0; l < sampled_blocks.size(); l++){
+            for (size_t m = last_pos; m < (k == 0 ? conf.num : prefix[k - 1]); m++){
                 total_quant_bins.push_back(block_q_bins[l][m]);
             }
         }
-        last_pos=prefix[k];
+        last_pos = prefix[k];
     }    
     std::cout<<total_quant_bins.size()<<std::endl;
 
