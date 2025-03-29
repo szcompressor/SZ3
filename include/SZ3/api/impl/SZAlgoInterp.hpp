@@ -253,12 +253,12 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     {
         // tune interp
         conf.interpDirection = 0; 
-        conf.interp_alpha = 1.0;
-        conf.interp_beta = 1.0;
+        conf.interp_alpha = 1.25;
+        conf.interp_beta = 2.0;
         auto testConfig = conf;
         std::vector<size_t> dims(N, sampleBlockSize + 1);
         testConfig.setDims(dims.begin(), dims.end());
-        for (auto &interp_op : {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC, INTERP_ALGO_CUBIC_NATURAL}) {
+        for (auto &interp_op : {INTERP_ALGO_CUBIC_NATURAL, INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC}) {
             //ratio = interp_compress_test<T, N>(
             //    sampling_data.data(), conf, sample_dims, sampling_num, conf.absErrorBound, interp_op, conf.interpDirection,
             //    sampling_block, buffer, bufferCap);
@@ -285,8 +285,8 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
             conf.interpDirection = testConfig.interpDirection;
         }
         testConfig.interpDirection = conf.interpDirection;
-        auto alphalist = std::vector<double>{1.25, 1.5, 2.0};
-        auto betalist = std::vector<double>{2.0, 2.5, 3.0};
+        auto alphalist = std::vector<double>{1.0, 1.5, 2.0};
+        auto betalist = std::vector<double>{1.0, 2.5, 3.0};
         for (auto i = 0; i < alphalist.size(); i++){
             auto alpha = alphalist[i];
             auto beta = betalist[i];
