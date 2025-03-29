@@ -71,7 +71,7 @@ std::shared_ptr<concepts::CompressorInterface<T>> make_compressor_typetwo_lorenz
 }
 
 template <class T, uint N, class Quantizer, class Encoder, class Lossless>
-std::shared_ptr<SZIterateCompressor<T, N, concepts::PredictorInterface<T, N>, Quantizer, Encoder, Lossless> > make_compressor_typetwo_lorenzo_regression_tuning(const Config &conf,
+std::shared_ptr<SZIterateCompressor<T, N, ComposedPredictor<T, N>, Quantizer, Encoder, Lossless> > make_compressor_typetwo_lorenzo_regression_tuning(const Config &conf,
                                                                                              Quantizer quantizer,
                                                                                              Encoder encoder,
                                                                                              Lossless lossless) {
@@ -84,37 +84,17 @@ std::shared_ptr<SZIterateCompressor<T, N, concepts::PredictorInterface<T, N>, Qu
         throw std::invalid_argument("All lorenzo and regression methods are disabled.");
     }
     if (conf.lorenzo) {
-        if (use_single_predictor) {
-            return make_compressor_sz_iterate<T, N>(conf, LorenzoPredictor<T, N, 1>(conf.absErrorBound), quantizer,
-                                                    encoder, lossless);
-        } else {
-            predictors.push_back(std::make_shared<LorenzoPredictor<T, N, 1>>(conf.absErrorBound));
-        }
+        predictors.push_back(std::make_shared<LorenzoPredictor<T, N, 1>>(conf.absErrorBound));
     }
     if (conf.lorenzo2) {
-        if (use_single_predictor) {
-            return make_compressor_sz_iterate<T, N>(conf, LorenzoPredictor<T, N, 2>(conf.absErrorBound), quantizer,
-                                                    encoder, lossless);
-        } else {
-            predictors.push_back(std::make_shared<LorenzoPredictor<T, N, 2>>(conf.absErrorBound));
-        }
+        predictors.push_back(std::make_shared<LorenzoPredictor<T, N, 2>>(conf.absErrorBound));
     }
     if (conf.regression) {
-        if (use_single_predictor) {
-            return make_compressor_sz_iterate<T, N>(conf, RegressionPredictor<T, N>(conf.blockSize, conf.absErrorBound),
-                                                    quantizer, encoder, lossless);
-        } else {
-            predictors.push_back(std::make_shared<RegressionPredictor<T, N>>(conf.blockSize, conf.absErrorBound));
-        }
+        predictors.push_back(std::make_shared<RegressionPredictor<T, N>>(conf.blockSize, conf.absErrorBound));
     }
 
     if (conf.regression2) {
-        if (use_single_predictor) {
-            return make_compressor_sz_iterate<T, N>(
-                conf, PolyRegressionPredictor<T, N>(conf.blockSize, conf.absErrorBound), quantizer, encoder, lossless);
-        } else {
-            predictors.push_back(std::make_shared<PolyRegressionPredictor<T, N>>(conf.blockSize, conf.absErrorBound));
-        }
+        predictors.push_back(std::make_shared<PolyRegressionPredictor<T, N>>(conf.blockSize, conf.absErrorBound));
     }
     return make_compressor_sz_iterate<T, N>(conf, ComposedPredictor<T, N>(predictors), quantizer, encoder, lossless);
 }
