@@ -313,7 +313,8 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
 
         }
     }
-    bool useInterp = !(best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 50 && best_interp_ratio < 50);
+    //bool useInterp = !(best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 50 && best_interp_ratio < 50);
+    bool useInterp = !(best_lorenzo_ratio >= best_interp_ratio * 1.1 && best_lorenzo_ratio < 50 && best_interp_ratio < 50);
     //std::cout<<best_lorenzo_ratio<<" "<<best_interp_ratio<<std::endl;
     size_t cmpSize = 0;
     if (useInterp) {
