@@ -71,7 +71,7 @@ std::shared_ptr<concepts::CompressorInterface<T>> make_compressor_typetwo_lorenz
 }
 
 template <class T, uint N, class Quantizer, class Encoder, class Lossless>
-std::shared_ptr<SZIterateCompressor<T, N, Predictor, Quantizer, Encoder, Lossless> > make_compressor_typetwo_lorenzo_regression_tuning(const Config &conf,
+std::shared_ptr<SZIterateCompressor<T, N, concepts::PredictorInterface<T, N>, Quantizer, Encoder, Lossless> > make_compressor_typetwo_lorenzo_regression_tuning(const Config &conf,
                                                                                              Quantizer quantizer,
                                                                                              Encoder encoder,
                                                                                              Lossless lossless) {
