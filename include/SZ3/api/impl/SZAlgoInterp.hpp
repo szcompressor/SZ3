@@ -86,7 +86,7 @@ double interp_compress_test_qoz(const std::vector< std::vector<T> > sampled_bloc
     auto sz = make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2));
 
     std::vector<int> total_quant_bins;
-
+    /*
     int max_level = log2(block_size);
     std::vector<size_t> prefix(max_level,0);
     int side_length = block_size, level = 0;
@@ -95,16 +95,16 @@ double interp_compress_test_qoz(const std::vector< std::vector<T> > sampled_bloc
         prefix[level++] = pow(side_length, N);
     }
     std::vector<std::vector<int> > block_q_bins;
-
+    */
     for (int k = 0; k < sampled_blocks.size(); k++){
         auto cur_block = sampled_blocks[k];
     
         auto quant_bins = sz.compress(conf, cur_block.data());
 
-        //total_quant_bins.insert(total_quant_bins.end(), quant_bins.begin(), quant_bins.end());
-        block_q_bins.push_back(quant_bins);
+        total_quant_bins.insert(total_quant_bins.end(), quant_bins.begin(), quant_bins.end());
+        //block_q_bins.push_back(quant_bins);
     }
-
+    /*
     size_t level_num = prefix.size();
     size_t last_pos = 0;
     for(int k = level_num - 1; k >= 0; k--){
@@ -116,7 +116,7 @@ double interp_compress_test_qoz(const std::vector< std::vector<T> > sampled_bloc
         last_pos = prefix[k];
     }    
     std::cout<<total_quant_bins.size()<<std::endl;
-
+    */
 
 
     auto encoder = HuffmanEncoder<int>();
@@ -189,7 +189,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         conf.interp_anchorStride = anchor_strides[N - 1];
     }
     
-    std::array<double,4> sample_Rates={0.01, 0.01, 0.005, 0.005};
+    std::array<double,4> sample_Rates={0.01, 0.01, 0.01, 0.01};
     auto sampleRate = sample_Rates[N - 1];
     std::array<size_t,4> sampleBlock_Sizes={4096, 128, 32, 16};
     size_t sampleBlockSize = sampleBlock_Sizes[N - 1];
