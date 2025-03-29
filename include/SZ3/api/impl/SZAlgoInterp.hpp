@@ -153,10 +153,10 @@ double lorenzo_compress_test_qoz(const std::vector< std::vector<T> > sampled_blo
         }
     }
     else{
-        auto sz = make_compressor_typetwo_lorenzo_regression<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2), HuffmanEncoder<int>(), Lossless_zstd());
+        auto sz = make_compressor_typetwo_lorenzo_regression_tuning<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2), HuffmanEncoder<int>(), Lossless_zstd());
         for (int k = 0; k < sampled_blocks.size(); k++){
             auto cur_block = sampled_blocks[k];
-            auto quant_bins = sz.compress(conf, cur_block.data());
+            auto quant_bins = sz->get_quant_inds(conf, cur_block.data());
             total_quant_bins.insert(total_quant_bins.end(), quant_bins.begin(), quant_bins.end());
         }
     }
@@ -168,7 +168,7 @@ double lorenzo_compress_test_qoz(const std::vector< std::vector<T> > sampled_blo
     auto lossless = Lossless_zstd();
     encoder.preprocess_encode(total_quant_bins, conf.quantbinCnt);
     size_t bufferSize = std::max<size_t>(
-        1000, 1.2 * (sz.size_est() + encoder.size_est() + sizeof(T) * total_quant_bins.size()));
+        1000, 1.2 * (encoder.size_est() + sizeof(T) * total_quant_bins.size()));
 
     auto buffer = static_cast<uchar *>(malloc(bufferSize));
     uchar *buffer_pos = buffer;
