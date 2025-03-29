@@ -89,6 +89,7 @@ double interp_compress_test_qoz(const std::vector< std::vector<T> > sampled_bloc
 
     for (int k = 0; k < sampled_blocks.size(); k++){
         auto cur_block = sampled_blocks[k];
+        std::cout<<cur_block.size()<<std::endl;
     
         auto quant_bins = sz.compress(conf, cur_block.data());
 
@@ -112,7 +113,7 @@ double interp_compress_test_qoz(const std::vector< std::vector<T> > sampled_bloc
     encoder.postprocess_encode();
     auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
     free(buffer);
-    auto compression_ratio = conf.num * sizeof(T) * 1.0 / cmpSize;
+    auto compression_ratio = conf.num * sampled_blocks.size() * sizeof(T) * 1.0 / cmpSize;
     std::cout<<conf.num<<" "<<cmpSize<<std::endl;
     return compression_ratio;
 }
@@ -147,7 +148,7 @@ double lorenzo_compress_test_qoz(const std::vector< std::vector<T> > sampled_blo
     encoder.postprocess_encode();
     auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
     free(buffer);
-    auto compression_ratio = conf.num * sizeof(T) * 1.0 / cmpSize;
+    auto compression_ratio = conf.num * sampled_blocks.size() * sizeof(T) * 1.0 / cmpSize;
     return compression_ratio;
 
 
