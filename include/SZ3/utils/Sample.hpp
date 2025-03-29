@@ -179,7 +179,7 @@ namespace SZ3 {
     sample_blocks(T *data, std::vector<T> & sampling_data, std::vector<size_t> &dims, std::vector<size_t> &starts,size_t block_size) {
         assert(dims.size() == N);
         assert(starts.size() == N);
-        else if constexpr (N==4){
+        if constexpr (N==4){
         
             size_t sample_num = block_size*block_size*block_size*block_size;
             sampling_data.resize(sample_num, 0);
