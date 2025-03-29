@@ -115,7 +115,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 }
            // }
             quantizer.set_eb(cur_eb);
-             std::cout<<level<<std::endl;
+             std::cout<<level<<" "<<cur_eb<<std::endl;
             size_t stride = 1U << (level - 1);
 
             auto interp_block_size = conf.tuning ? blocksize : blocksize * stride;
