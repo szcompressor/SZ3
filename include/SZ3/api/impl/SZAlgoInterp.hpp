@@ -192,6 +192,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     profiling_block<T, N>(data, conf.dims, starts, sampleBlockSize, conf.absErrorBound, profStride);
     size_t num_filtered_blocks = starts.size();
     bool profiling = num_filtered_blocks * per_block_ele_num >= 0.5 * sampleRate * conf.num;//temp. to refine
+    std::cout<<profiling<<std::endl;
     sampleBlocks<T, N>(data, conf.dims, sampleBlockSize, sampled_blocks, sampleRate, profiling, starts);
     sampling_num = sampled_blocks.size() * per_block_ele_num;
 
