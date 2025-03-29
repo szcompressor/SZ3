@@ -241,7 +241,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     auto buffer = static_cast<uchar *>(malloc(bufferCap));
     Config lorenzo_config = conf;
     {
-        if(N < 4){
+        if(0){
             // test lorenzo
             std::vector<size_t> sample_dims(N, sampleBlockSize + 1);
             lorenzo_config.cmprAlgo = ALGO_LORENZO_REG;
@@ -310,7 +310,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
 
         }
     }
-    bool useInterp = !(best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 80 && best_interp_ratio < 80);
+    bool useInterp = !(best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 32 && best_interp_ratio < 80);
     std::cout<<best_lorenzo_ratio<<" "<<best_interp_ratio<<std::endl;
     size_t cmpSize = 0;
     if (useInterp) {
