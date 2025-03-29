@@ -98,7 +98,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         }
         for (uint level = interpolation_level; level > 0 && level <= interpolation_level; level--) {
             double cur_eb = eb;
-            if (!conf.tuning){
+            //if (!conf.tuning){
                 if (alpha < 0){
                     if (level >= 3){
                         cur_eb = eb * eb_ratio;
@@ -113,7 +113,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                     }            
                     cur_eb = eb / cur_ratio;
                 }
-            }
+           // }
             quantizer.set_eb(cur_eb);
             size_t stride = 1U << (level - 1);
 

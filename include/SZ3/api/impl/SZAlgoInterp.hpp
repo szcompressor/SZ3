@@ -50,6 +50,7 @@ double interp_compress_test(T *data, std::vector<size_t> dims, size_t num, doubl
     conf.blockSize = block_size;
     conf.interpAlgo = interp_op;
     conf.interpDirection = direction_op;
+    conf.tuning = true;
     auto sz = make_compressor_sz_generic<T, N>(
         make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
         HuffmanEncoder<int>(), Lossless_zstd());
@@ -102,7 +103,6 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     }
     {
         // tune interp
-        conf.tuning = true;
         for (auto &interp_op : {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC, INTERP_ALGO_CUBIC_NATURAL}) {
             ratio = interp_compress_test<T, N>(
                 sampling_data.data(), sample_dims, sampling_num, conf.absErrorBound, interp_op, conf.interpDirection,
@@ -121,7 +121,6 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
             best_interp_ratio = ratio;
             conf.interpDirection = direction_op;
         }
-        conf.tuning = false;
     }
     bool useInterp = !(N != 4 && best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 80 && best_interp_ratio < 80);
     std::cout<<best_lorenzo_ratio<<" "<<best_interp_ratio<<std::endl;
