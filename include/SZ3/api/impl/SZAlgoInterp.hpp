@@ -72,9 +72,8 @@ double interp_compress_test(T *data, const Config &theConf, std::vector<size_t> 
 
 template <class T, uint N>
 double interp_compress_test_qoz(const std::vector< std::vector<T> > sampled_blocks, const Config &theConf,
-                                                  int interp_op, int direction_op, int block_size, uchar *buffer,
-                                                  size_t bufferCap) {
-    std::vector<T> data1(data, data + num);
+                                                  int interp_op, int direction_op, int block_size, uchar *cmpData,
+                                                  size_t cmpCap) {
 
     std::vector<size_t> dims(block_size, N);
 
@@ -101,14 +100,17 @@ double interp_compress_test_qoz(const std::vector< std::vector<T> > sampled_bloc
     auto encoder = HuffmanEncoder<int>();
     auto lossless = Lossless_zstd();
     encoder.preprocess_encode(total_quant_bins, sz.get_out_range().second);
+    size_t bufferSize = std::max<size_t>(
+        1000, 1.2 * (sz.size_est() + encoder.size_est() + sizeof(T) * total_quant_bins.size()));
 
+    auto buffer = static_cast<uchar *>(malloc(bufferSize));
     uchar *buffer_pos = buffer;
     sz.save(buffer_pos);
     encoder.save(buffer_pos);
 
     //store the size of quant_inds is necessary as it is not always equal to conf.num
-    write<size_t>(quant_inds.size(), buffer_pos);
-    encoder.encode(quant_inds, buffer_pos);
+    write<size_t>(total_quant_bins.size(), buffer_pos);
+    encoder.encode(total_quant_bins, buffer_pos);
     encoder.postprocess_encode();
     auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
     free(buffer);
@@ -131,7 +133,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     std::array<double,4> sample_Rates={0.01, 0.01, 0.005, 0.005};
     auto sampleRate = sample_Rates[N - 1];
     std::array<size_t,4> sampleBlock_Sizes={4096, 128, 32, 16};
-    size_t sampleBlockSize = anchor_strides[N - 1];
+    size_t sampleBlockSize = sampleBlock_Sizes[N - 1];
     size_t shortest_edge = conf.dims[0];
     for (size_t i = 0; i < N; i++){
         shortest_edge = conf.dims[i] < shortest_edge ? conf.dims[i] : shortest_edge;

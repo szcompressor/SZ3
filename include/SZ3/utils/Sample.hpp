@@ -182,7 +182,7 @@ namespace SZ3 {
         std::vector< std::vector<T> >().swap(sampled_blocks);                               
         size_t totalblock_num=1;
         for(int i=0;i<N;i++){                        
-            totalblock_num*=(int)((dims[i]-1)/sampleBlockSize);
+            totalblock_num*=static_cast<int>((dims[i]-1)/sampleBlockSize);
         }               
         size_t idx=0;   
         if(profiling){
