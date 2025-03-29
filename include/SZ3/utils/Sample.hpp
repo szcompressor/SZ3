@@ -184,7 +184,7 @@ namespace SZ3 {
         for(int i=0;i<N;i++){                        
             totalblock_num*=(int)((dims[i]-1)/sampleBlockSize);
         }               
-        size_t idx=0,block_idx=0;   
+        size_t idx=0;   
         if(profiling){
             size_t num_filtered_blocks=starts.size();    
             
