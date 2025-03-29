@@ -121,6 +121,8 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
 
             auto interp_block_size = conf.tuning ? blocksize : blocksize * stride;
 
+            std::cout<<interp_block_size<<std::endl;
+
             auto inter_block_range = std::make_shared<multi_dimensional_range<T, N>>(
                 data, std::begin(global_dimensions), std::end(global_dimensions), interp_block_size, 0);
 
