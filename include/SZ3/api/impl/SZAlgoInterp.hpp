@@ -87,13 +87,37 @@ double interp_compress_test_qoz(const std::vector< std::vector<T> > sampled_bloc
 
     std::vector<int> total_quant_bins;
 
+    int max_level = log2(block_size);
+    std::vector<size_t> prefix(max_level,0);
+    int side_length = block_size, level = 0;
+    while(level < max_level){
+        side_length = (block_size + 1) / 2;
+        prefix[level++] = pow(side_length, N);
+    }
+    std::vector<std::vector<int> > block_q_bins;
+
     for (int k = 0; k < sampled_blocks.size(); k++){
         auto cur_block = sampled_blocks[k];
     
         auto quant_bins = sz.compress(conf, cur_block.data());
 
-        total_quant_bins.insert(total_quant_bins.end(), quant_bins.begin(), quant_bins.end());
+        //total_quant_bins.insert(total_quant_bins.end(), quant_bins.begin(), quant_bins.end());
+        block_q_bins.push_back(quant_bins);
     }
+
+    size_t level_num = prefix.size();
+    size_t last_pos = 0;
+    for(int k = level_num - 1; k >= 0; k--){
+        for (size_t l = 0; l < num_sampled_blocks; l++){
+            for (size_t m = last_pos; m < prefix[k]; m++){
+                total_quant_bins.push_back(block_q_bins[l][m]);
+            }
+        }
+        last_pos=prefix[k];
+    }    
+    std::cout<<total_quant_bins.size()<<std::endl;
+
+
 
     auto encoder = HuffmanEncoder<int>();
     auto lossless = Lossless_zstd();
@@ -191,8 +215,8 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     auto profStride = sampleBlockSize / 4;
     profiling_block<T, N>(data, conf.dims, starts, sampleBlockSize, conf.absErrorBound, profStride);
     size_t num_filtered_blocks = starts.size();
-    //bool profiling = num_filtered_blocks * per_block_ele_num >= 0.5 * sampleRate * conf.num;//temp. to refine
-    bool profiling = false;
+    bool profiling = num_filtered_blocks * per_block_ele_num >= 0.5 * sampleRate * conf.num;//temp. to refine
+    //bool profiling = false;
     sampleBlocks<T, N>(data, conf.dims, sampleBlockSize, sampled_blocks, sampleRate, profiling, starts);
     sampling_num = sampled_blocks.size() * per_block_ele_num;
 
