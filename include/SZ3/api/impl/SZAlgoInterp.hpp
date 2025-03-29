@@ -246,18 +246,20 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
                 conf.interpAlgo = interp_op;
             }
         }
+        std::cout<<best_interp_ratio<<std::endl;
         testConfig.interpAlgo = conf.interpAlgo;
         testConfig.interpDirection = factorial(N) - 1;
         //ratio = interp_compress_test<T, N>(sampling_data.data(), conf, sample_dims, sampling_num,
         //                                                         conf.absErrorBound, conf.interpAlgo, direction_op,
         //                                                         sampling_block, buffer, bufferCap);
         ratio = interp_compress_test_qoz<T, N>(sampled_blocks, testConfig, sampleBlockSize, buffer, bufferCap);
+        std::cout<<ratio<<std::endl;
         if (ratio > best_interp_ratio * 1.02) {
             best_interp_ratio = ratio;
             conf.interpDirection = testConfig.interpDirection;
         }
         testConfig.interpDirection = conf.interpDirection;
-
+        std::cout<<ratio<<std::endl;
         auto alphalist = std::vector<double>{1.0, 1.5, 2.0};
         auto betalist = std::vector<double>{1.0, 2.5, 3.0};
         for (auto i = 0; i < alphalist.size(); i++){
@@ -266,6 +268,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
             testConfig.interp_alpha = alpha;
             testConfig.interp_beta = beta;
             ratio = interp_compress_test_qoz<T, N>(sampled_blocks, testConfig, sampleBlockSize, buffer, bufferCap);
+            std::cout<<ratio<<std::endl;
             if (ratio > best_interp_ratio * 1.02) {
                 best_interp_ratio = ratio;
                 conf.interp_alpha = alpha;
@@ -275,7 +278,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         }
     }
     bool useInterp = !(best_lorenzo_ratio > best_interp_ratio && best_lorenzo_ratio < 80 && best_interp_ratio < 80);
-    //std::cout<<best_lorenzo_ratio<<" "<<best_interp_ratio<<std::endl;
+    std::cout<<best_lorenzo_ratio<<" "<<best_interp_ratio<<std::endl;
     size_t cmpSize = 0;
     if (useInterp) {
         conf.cmprAlgo = ALGO_INTERP;
