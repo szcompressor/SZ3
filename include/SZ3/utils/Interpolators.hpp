@@ -38,7 +38,7 @@ inline T interp_cubic(T a, T b, T c, T d) {
 
 template <class T>
 inline T interp_cubic_natural(T a, T b, T c, T d) {
-   return (-3 * a + 23 * b + 23 * c - 3 * d) / 40;
+   return 0.575 * (b + c) - 0.075 * (a + d);
 }
 
 template<class T>

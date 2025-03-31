@@ -41,8 +41,8 @@ constexpr const ALGO ALGO_OPTIONS[] = {ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, AL
                                        ALGO_NOPRED,      ALGO_LOSSLESS};
 
 enum INTERP_ALGO { INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC, INTERP_ALGO_CUBIC_NATURAL};
-constexpr const char *INTERP_ALGO_STR[] = {"INTERP_ALGO_LINEAR", "INTERP_ALGO_CUBIC", "INTERP_ALGO_CUBIC_NATURAL"};
-constexpr INTERP_ALGO INTERP_ALGO_OPTIONS[] = {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC, INTERP_ALGO_CUBIC_NATURAL};
+constexpr const char *INTERP_ALGO_STR[] = {"INTERP_ALGO_LINEAR", "INTERP_ALGO_CUBIC"};
+constexpr INTERP_ALGO INTERP_ALGO_OPTIONS[] = {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC};
 
 template <class T>
 const char *enum2Str(T e) {
@@ -344,6 +344,7 @@ class Config {
     int interp_anchorStride = 0;
     double interp_alpha = 1.25;
     double interp_beta = 2.0;
+    //bool tuning = false;
 };
 
 }  // namespace SZ3

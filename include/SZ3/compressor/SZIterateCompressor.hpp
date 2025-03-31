@@ -109,6 +109,65 @@ class SZIterateCompressor : public concepts::CompressorInterface<T> {
         return cmpSize;
     }
 
+    std::vector<int> get_quant_inds(const Config &conf, T *data) {
+        std::vector<int> quant_inds(num_elements);
+        auto block_range = std::make_shared<multi_dimensional_range<T, N>>(data, std::begin(global_dimensions),
+                                                                           std::end(global_dimensions), block_size, 0);
+
+        auto element_range = std::make_shared<multi_dimensional_range<T, N>>(data, std::begin(global_dimensions),
+                                                                             std::end(global_dimensions), 1, 0);
+
+        predictor.precompress_data(block_range->begin());
+        quantizer.precompress_data();
+        size_t quant_count = 0;
+        for (auto block = block_range->begin(); block != block_range->end(); ++block) {
+            element_range->update_block_range(block, block_size);
+
+            concepts::PredictorInterface<T, N> *predictor_withfallback = &predictor;
+            if (!predictor.precompress_block(element_range)) {
+                predictor_withfallback = &fallback_predictor;
+            }
+            predictor_withfallback->precompress_block_commit();
+
+            for (auto element = element_range->begin(); element != element_range->end(); ++element) {
+                quant_inds[quant_count++] =
+                    quantizer.quantize_and_overwrite(*element, predictor_withfallback->predict(element));
+            }
+        }
+        predictor.postcompress_data(block_range->begin());
+        return quant_inds;
+    }
+
+    size_t post_quant(std::vector<int> &quant_inds, uchar *cmpData, size_t cmpCap) {
+        quantizer.postcompress_data();
+        if (quantizer.get_out_range().first != 0) {
+            fprintf(stderr, "The output range of the quantizer must start from 0 for this compressor\n");
+            throw std::runtime_error("The output range of the quantizer must start from 0 for this compressor");
+        }
+        encoder.preprocess_encode(quant_inds, quantizer.get_out_range().second);
+
+        size_t bufferSize = 1.2 * (quantizer.size_est() + encoder.size_est() + sizeof(T) * quant_inds.size());
+        auto buffer = static_cast<uchar *>(malloc(bufferSize));
+        uchar *buffer_pos = buffer;
+
+        write(quant_inds.size(), buffer_pos);
+        write(global_dimensions.data(), N, buffer_pos);
+        write(block_size, buffer_pos);
+
+        predictor.save(buffer_pos);
+        quantizer.save(buffer_pos);
+
+        encoder.save(buffer_pos);
+        encoder.encode(quant_inds, buffer_pos);
+        encoder.postprocess_encode();
+
+        // assert(buffer_pos - buffer < bufferSize);
+
+        auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
+        free(buffer);
+        return cmpSize;
+    }
+
     T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *decData) override {
         //            Timer timer(true);
         uchar *buffer = nullptr;
