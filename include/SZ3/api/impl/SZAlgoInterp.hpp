@@ -241,8 +241,8 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     auto buffer = static_cast<uchar *>(malloc(bufferCap));
     Config lorenzo_config = conf;
     {
-        //if(N == 1){
-        if (N <= 3){
+        if(N == 1){
+        //if (N <= 3){
             // test lorenzo
             std::vector<size_t> sample_dims(N, sampleBlockSize + 1);
             lorenzo_config.cmprAlgo = ALGO_LORENZO_REG;
@@ -267,7 +267,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         auto testConfig = conf;
         std::vector<size_t> dims(N, sampleBlockSize + 1);
         testConfig.setDims(dims.begin(), dims.end());
-        for (auto &interp_op : {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC, INTERP_ALGO_CUBIC_NATURAL}) {
+        for (auto &interp_op : {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC}) {
             //ratio = interp_compress_test<T, N>(
             //    sampling_data.data(), conf, sample_dims, sampling_num, conf.absErrorBound, interp_op, conf.interpDirection,
             //    sampling_block, buffer, bufferCap);

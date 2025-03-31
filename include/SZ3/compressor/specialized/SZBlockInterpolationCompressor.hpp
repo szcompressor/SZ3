@@ -224,7 +224,7 @@ class SZBlockInterpolationCompressor {
                     }
                 }
             }
-        } else if(interp_func == "cubic"){
+        } else {
             if (pb == PB_predict_overwrite) {
                 T *d = data + begin + stride;
                 quantize(*d, interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
@@ -249,43 +249,6 @@ class SZBlockInterpolationCompressor {
                 for (size_t i = 3; i + 3 < n; i += 2) {
                     d = data + begin + i * stride;
                     recover(*d, interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                }
-                if (n % 2 == 0) {
-                    d = data + begin + (n - 3) * stride;
-                    recover(*d, interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
-                    d += 2 * stride;
-                    recover(*d, interp_quad_3(*(d - stride5x), *(d - stride3x), *(d - stride)));
-                } else {
-                    d = data + begin + (n - 2) * stride;
-                    recover(*d, interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
-                }
-            }
-        }
-        else{
-            if (pb == PB_predict_overwrite) {
-                T *d = data + begin + stride;
-                quantize(*d, interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
-
-                for (size_t i = 3; i + 3 < n; i += 2) {
-                    d = data + begin + i * stride;
-                    quantize(*d, interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                }
-                if (n % 2 == 0) {
-                    d = data + begin + (n - 3) * stride;
-                    quantize(*d, interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
-                    d += 2 * stride;
-                    quantize(*d, interp_quad_3(*(d - stride5x), *(d - stride3x), *(d - stride)));
-                } else {
-                    d = data + begin + (n - 2) * stride;
-                    quantize(*d, interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
-                }
-            } else {
-                T *d = data + begin + stride;
-                recover(*d, interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
-
-                for (size_t i = 3; i + 3 < n; i += 2) {
-                    d = data + begin + i * stride;
-                    recover(*d, interp_cubic_natural(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
                 }
                 if (n % 2 == 0) {
                     d = data + begin + (n - 3) * stride;
@@ -511,7 +474,7 @@ class SZBlockInterpolationCompressor {
 
     int interpolator_id;
     int direction_sequence_id;
-    std::vector<std::string> interpolators = {"linear", "cubic", "cubic_natural"};
+    std::vector<std::string> interpolators = {"linear", "cubic"};
     std::vector<int> quant_inds;
     size_t quant_index = 0;  // for decompress
     Quantizer quantizer;
