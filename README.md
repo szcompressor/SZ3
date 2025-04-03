@@ -1,6 +1,6 @@
 SZ3: A Modular Error-bounded Lossy Compression Framework for Scientific Datasets
 =====
-(C) 2016 by Mathematics and Computer Science (MCS), Argonne National Laboratory. See COPYRIGHT in top-level directory.
+(C) 2016 by Mathematics and Computer Science (MCS), Argonne National Laboratory. See COPYRIGHT in the top-level directory.
 
 * Major Authors: Sheng Di, Kai Zhao, Xin Liang
 * Supervisor: Franck Cappello
@@ -31,7 +31,7 @@ given by the executable.
 
 ## Backward Compatibility with SZ2
 For backward compatibility, most of the SZ2 command line parameters are supported in SZ3. **Exceptions are listed below**.
-Scripts without parameters below should work fine by replacing SZ2 with SZ3.
+Scripts without the parameters below should work fine by replacing SZ2 with SZ3.
 
 | Parameter | Explanation                     | SZ3 roadmap                              |
 |-----------|---------------------------------|------------------------------------------|
@@ -43,6 +43,8 @@ Scripts without parameters below should work fine by replacing SZ2 with SZ3.
 ## QoZ integration
 
 The initial QoZ (quality-oriented compression optimization module) integration into SZ3 has been available in the branch **QoZ** (https://github.com/szcompressor/SZ3/tree/QoZ). Check it for details.
+
+The branch **sz3.3_develop** (https://github.com/szcompressor/SZ3/tree/sz3.3_develop) is a lightweight QoZ integration version of SZ3, which is in development and will be the next main version of SZ3. 
 
 ## API
 
@@ -78,7 +80,7 @@ The initial QoZ (quality-oriented compression optimization module) integration i
 [//]: # (* Decompression example:)
 [//]: # (`h5repack -f NONE -i ~/Data/CESM-ATM-tylor/1800x3600/CLDLOW_1_1800_3600.dat.sz3.h5 -o ~/Data/CESM-ATM-tylor/1800x3600/CLDLOW_1_1800_3600.dat.sz3.out.h5`)
 [//]: # ()
-[//]: # (* Alternatively, the error bound information can also be given through sz3.config &#40;when there are no cd_values for h5repack&#41;. Example &#40;You need to put sz3.config in the current local directory so that it will read sz3.config to get error bounds&#41;:)
+[//]: # (* Alternatively, the error bound information can also be given through sz3.config &#40; when there are no cd_values for h5repack&#41;. Example &#40;You need to put sz3.config in the current local directory so that it will read sz3.config to get error bounds&#41;:)
 [//]: # (`h5repack -f UD=32024,0 -i ~/Data/CESM-ATM-tylor/1800x3600/CLDLOW_1_1800_3600.dat.h5 -o ~/Data/CESM-ATM-tylor/1800x3600/CLDLOW_1_1800_3600.dat.sz3.h5`)
 
 
@@ -87,22 +89,23 @@ The initial QoZ (quality-oriented compression optimization module) integration i
 
 Version New features
 
-* SZ 3.0.0 SZ3 is the C++ version of SZ with modular and composable design.
+* SZ 3.0.0 SZ3 is the C++ version of SZ with a modular and composable design.
 * SZ 3.0.1 Improve the build process.
 * SZ 3.1.0 The default algorithm is now interpolation+Lorenzo.
 * SZ 3.1.1 Add OpenMP support. Works for all algorithms. Please enable it using the config file. 
-* SZ 3.1.2 Support configuration file (INI format). Example can be found in 'tools/sz3/sz3.config'.
+* SZ 3.1.2 Support configuration file (INI format). An example can be found in 'tools/sz3/sz3.config'.
 * SZ 3.1.3 Support more error control mode: PSNR, L2Norm, ABS_AND_REL, ABS_OR_REL. Support INT32 and INT64 datatype.
 * SZ 3.1.4 Support running on Windows. Please refer to https://github.com/szcompressor/SZ3/issues/5#issuecomment-1094039224 for instructions.
 * SZ 3.1.5 Support HDF5 by H5Z-SZ3. Please add "-DBUILD_H5Z_FILTER=ON" to enable this function for CMake.
 * SZ 3.1.6 Support C API and Python API.
 * SZ 3.1.7 Initial MDZ(https://github.com/szcompressor/SZ3/tree/master/tools/mdz) support.
-* SZ 3.1.8 namespace changed from SZ to SZ3. H5Z-SZ3 supports configuration file now.
+* SZ 3.1.8 namespace changed from SZ to SZ3. H5Z-SZ3 supports configuration files now.
 * SZ 3.2.0 API reconstructed for FZ. H5Z-SZ3 rewrite. Compression version checking.
+* SZ 3.3.0 (in development) Add several QoZ 1.0/2.0 features to improve compression speed and data quality.  
 
 ## Citations
 
-**Kindly note**: If you mention SZ in your paper, the most appropriate citation is including these three references (**TBD22, ICDE21, Bigdata18**), because they cover the design and implementation of the latest version of SZ.
+**Kindly note**: If you mention SZ in your paper, the most appropriate citation is to include these three references (**TBD22, ICDE21, Bigdata18**) because they cover the design and implementation of the latest version of SZ.
 
 * SZ3 Framework: Xin Liang, Kai Zhao, Sheng Di, Sihuan Li, Robert Underwood, Ali M Gok, Jiannan Tian, Junjing Deng, Jon C Calhoun, Dingwen Tao, Zizhong Chen, and Franck Cappello.
   "[SZ3: A modular framework for composing prediction-based error-bounded lossy compressors](https://ieeexplore.ieee.org/abstract/document/9866018)",
