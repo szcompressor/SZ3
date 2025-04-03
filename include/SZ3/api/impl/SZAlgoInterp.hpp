@@ -18,8 +18,8 @@ size_t SZ_compress_Interp(Config &conf, T *data, uchar *cmpData, size_t cmpCap) 
     assert(N == conf.N);
     assert(conf.cmprAlgo == ALGO_INTERP);
     calAbsErrorBound(conf, data);
-    if (conf.interp_anchorStride <= 0){
-        std::array<size_t, 4> anchor_strides = {512,64,32,16};
+    if (conf.interp_anchorStride < 0){
+        std::array<size_t, 4> anchor_strides = {4096, 128, 32, 16};
         conf.interp_anchorStride = anchor_strides[N - 1];
     }
 
@@ -119,14 +119,14 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     //        Timer timer(true);
     calAbsErrorBound(conf, data);
 
-    if (conf.interp_anchorStride <= 0){
+    if (conf.interp_anchorStride < 0){
         std::array<size_t, 4> anchor_strides = {4096, 128, 32, 16};
         conf.interp_anchorStride = anchor_strides[N - 1];
     }
     
-    std::array<double,4> sample_Rates={0.005, 0.005, 0.005, 0.005};
+    std::array<double,4> sample_Rates = {0.005, 0.005, 0.005, 0.005};
     auto sampleRate = sample_Rates[N - 1];
-    std::array<size_t,4> sampleBlock_Sizes={4096, 128, 32, 16};
+    std::array<size_t,4> sampleBlock_Sizes = {4096, 128, 32, 16};
     size_t sampleBlockSize = sampleBlock_Sizes[N - 1];
     size_t shortest_edge = conf.dims[0];
     for (size_t i = 0; i < N; i++){

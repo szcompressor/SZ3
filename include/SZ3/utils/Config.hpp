@@ -341,7 +341,7 @@ class Config {
     int blockSize = 0;
     int stride = 0;        // not used now
     uint8_t pred_dim = 0;  // not used now
-    int interp_anchorStride = 0;
+    int interp_anchorStride = -1;// -1: using dynamic default setting 
     double interp_alpha = 1.25;
     double interp_beta = 2.0;
 };
