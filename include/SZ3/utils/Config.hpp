@@ -40,7 +40,7 @@ constexpr const char *ALGO_STR[] = {"ALGO_LORENZO_REG", "ALGO_INTERP_LORENZO", "
 constexpr const ALGO ALGO_OPTIONS[] = {ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP,
                                        ALGO_NOPRED,      ALGO_LOSSLESS};
 
-enum INTERP_ALGO { INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC };
+enum INTERP_ALGO { INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC, INTERP_ALGO_CUBIC_NATURAL};
 constexpr const char *INTERP_ALGO_STR[] = {"INTERP_ALGO_LINEAR", "INTERP_ALGO_CUBIC"};
 constexpr INTERP_ALGO INTERP_ALGO_OPTIONS[] = {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC};
 
@@ -150,6 +150,11 @@ class Config {
         interpDirection = cfg.GetInteger("AlgoSettings", "InterpolationDirection", interpDirection);
         blockSize = cfg.GetInteger("AlgoSettings", "BlockSize", blockSize);
         quantbinCnt = cfg.GetInteger("AlgoSettings", "QuantizationBinTotal", quantbinCnt);
+
+        interp_anchorStride = cfg.GetInteger("AlgoSettings", "interp_anchorStride", interp_anchorStride);
+        interp_alpha = cfg.GetReal("AlgoSettings", "interp_alpha", interp_alpha);
+        interp_beta = cfg.GetReal("AlgoSettings", "interp_beta", interp_beta);
+
     }
 
     size_t save(unsigned char *&c) {
@@ -336,6 +341,9 @@ class Config {
     int blockSize = 0;
     int stride = 0;        // not used now
     uint8_t pred_dim = 0;  // not used now
+    int interp_anchorStride = 0;
+    double interp_alpha = 1.25;
+    double interp_beta = 2.0;
 };
 
 }  // namespace SZ3

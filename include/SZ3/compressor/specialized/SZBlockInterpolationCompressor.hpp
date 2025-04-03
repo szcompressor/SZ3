@@ -261,6 +261,7 @@ class SZBlockInterpolationCompressor {
                 }
             }
         }
+
         return predict_error;
     }
 

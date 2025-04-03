@@ -30,6 +30,10 @@ class QuantizerInterface {
      */
     virtual Ti recover(Ti pred, To quant_index) = 0;
 
+    virtual int force_save_unpred(Ti ori) = 0;
+
+    
+
     /**
      ** serialize the quantizer and store it to a buffer
      * @param c One large buffer is pre-allocated, and the start location of the serialized quantizer in the buffer is
