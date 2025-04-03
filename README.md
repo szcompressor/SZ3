@@ -43,6 +43,7 @@ Scripts without the parameters below should work fine by replacing SZ2 with SZ3.
 ## QoZ integration
 
 The initial QoZ (quality-oriented compression optimization module) integration into SZ3 has been available in the branch **QoZ** (https://github.com/szcompressor/SZ3/tree/QoZ). Check it for details.
+
 The branch **sz3.3_develop** (https://github.com/szcompressor/SZ3/tree/sz3.3_develop) is a lightweight QoZ integration version of SZ3, which is in development and will be the next main version of SZ3. 
 
 ## API
