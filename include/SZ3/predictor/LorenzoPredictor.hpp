@@ -11,7 +11,7 @@ namespace SZ {
 template <class T, uint N, uint L, class Quantizer>
 class LorenzoPredictor : public concepts::PredictorInterface<T, N> {
 public:
-  using block_iter = typename multi_dimensional_data<T, N>::block_iterator;
+  using block_iter = typename block_data<T, N>::block_iterator;
 
   static const uint8_t predictor_id = 0b00000001;
 
@@ -73,45 +73,45 @@ public:
     for (size_t i = 2; i < min_size; i++) {
       size_t bmi = min_size - i;
       if constexpr (N == 1) {
-        T *c = block.get_data(i);
-        T pred = lorenzo_predict(block, c);
+        T *c = block.get_block_data(i);
+        T pred = predict(block, c, {i});
         err += fabs(*c - pred) + this->noise;
 
-        c = block.get_data(bmi);
-        pred = lorenzo_predict(block, c);
+        c = block.get_block_data(bmi);
+        pred = predict(block, c, {bmi});
         err += fabs(*c - pred) + this->noise;
 
       } else if constexpr (N == 2) {
-        T *c = block.get_data(i, i);
-        T pred = lorenzo_predict(block, c);
+        T *c = block.get_block_data(i, i);
+        T pred = predict(block, c, {i, i});
         err += fabs(*c - pred) + this->noise;
 
-        c = block.get_data(i, bmi);
-        pred = lorenzo_predict(block, c);
+        c = block.get_block_data(i, bmi);
+        pred = predict(block, c, {i, bmi});
         err += fabs(*c - pred) + this->noise;
 
-        c = block.get_data(bmi, i);
-        pred = lorenzo_predict(block, c);
+        c = block.get_block_data(bmi, i);
+        pred = predict(block, c, {bmi, i});
         err += fabs(*c - pred) + this->noise;
 
-        c = block.get_data(bmi, bmi);
-        pred = lorenzo_predict(block, c);
+        c = block.get_block_data(bmi, bmi);
+        pred = predict(block, c, {bmi, bmi});
         err += fabs(*c - pred) + this->noise;
       } else if constexpr (N == 3) {
-        T *c = block.get_data(i, i, i);
-        T pred = lorenzo_predict(block, c);
+        T *c = block.get_block_data(i, i, i);
+        T pred = predict(block, c, {i, i, i});
         err += fabs(*c - pred) + this->noise;
 
-        c = block.get_data(i, i, bmi);
-        pred = lorenzo_predict(block, c);
+        c = block.get_block_data(i, i, bmi);
+        pred = predict(block, c, {i, i, bmi});
         err += fabs(*c - pred) + this->noise;
 
-        c = block.get_data(i, bmi, i);
-        pred = lorenzo_predict(block, c);
+        c = block.get_block_data(i, bmi, i);
+        pred = predict(block, c, {i, bmi, i});
         err += fabs(*c - pred) + this->noise;
 
-        c = block.get_data(i, bmi, bmi);
-        pred = lorenzo_predict(block, c);
+        c = block.get_block_data(i, bmi, bmi);
+        pred = predict(block, c, {i, bmi, bmi});
         err += fabs(*c - pred) + this->noise;
       }
     }
@@ -123,65 +123,64 @@ public:
   size_t get_padding() { return 2; }
 
   // Helper functions for Lorenzo prediction
-  ALWAYS_INLINE T prev1(T *c, size_t x) { return c[-x]; }
+  ALWAYS_INLINE T prev1(T *d, size_t i) { return d[-i]; }
 
-  ALWAYS_INLINE T prev2(T *c, const std::array<size_t, N> &ds, size_t y,
-                        size_t x) {
-    return c[-y * ds[0] - x];
+  ALWAYS_INLINE T prev2(T *d, const std::array<size_t, N> &ds, size_t j,
+                        size_t i) {
+    return d[-j * ds[0] - i];
   }
 
-  ALWAYS_INLINE T prev3(T *c, const std::array<size_t, N> &ds, size_t z,
-                        size_t y, size_t x) {
-    return c[-z * ds[1] - y * ds[0] - x];
+  ALWAYS_INLINE T prev3(T *d, const std::array<size_t, N> &ds, size_t k,
+                        size_t j, size_t i) {
+    return d[-k * ds[1] - j * ds[0] - i];
   }
 
-  ALWAYS_INLINE T prev4(T *c, const std::array<size_t, N> &ds, size_t w,
-                        size_t z, size_t y, size_t x) {
-    return c[-w * ds[2] - z * ds[1] - y * ds[0] - x];
+  ALWAYS_INLINE T prev4(T *d, const std::array<size_t, N> &ds, size_t t,
+                        size_t k, size_t j, size_t i) {
+    return d[-t * ds[2] - k * ds[1] - j * ds[0] - i];
   }
 
-  // Unified Lorenzo predictor that handles all dimension and layer combinations
-  ALWAYS_INLINE T lorenzo_predict(const block_iter &block, T *c) {
-    auto ds = block.mddata->get_dim_strides();
+  ALWAYS_INLINE T predict(const block_iter &block, T *d, const std::array<size_t, N>& index) {
+    auto ds = block.get_dim_strides();
     if constexpr (N == 1 && L == 1) {
-      return prev1(c, 1);
+      return prev1(d, 1);
     } else if constexpr (N == 2 && L == 1) {
-      return prev2(c, ds, 0, 1) + prev2(c, ds, 1, 0) - prev2(c, ds, 1, 1);
+      return prev2(d, ds, 0, 1) + prev2(d, ds, 1, 0) - prev2(d, ds, 1, 1);
     } else if constexpr (N == 3 && L == 1) {
-      return prev3(c, ds, 0, 0, 1) + prev3(c, ds, 0, 1, 0) +
-             prev3(c, ds, 1, 0, 0) - prev3(c, ds, 0, 1, 1) -
-             prev3(c, ds, 1, 0, 1) - prev3(c, ds, 1, 1, 0) +
-             prev3(c, ds, 1, 1, 1);
+      return prev3(d, ds, 0, 0, 1) + prev3(d, ds, 0, 1, 0) +
+             prev3(d, ds, 1, 0, 0) - prev3(d, ds, 0, 1, 1) -
+             prev3(d, ds, 1, 0, 1) - prev3(d, ds, 1, 1, 0) +
+             prev3(d, ds, 1, 1, 1);
     } else if constexpr (N == 4 && L == 1) {
-      return prev4(c, ds, 0, 0, 0, 1) + prev4(c, ds, 0, 0, 1, 0) -
-             prev4(c, ds, 0, 0, 1, 1) + prev4(c, ds, 0, 1, 0, 0) -
-             prev4(c, ds, 0, 1, 0, 1) - prev4(c, ds, 0, 1, 1, 0) +
-             prev4(c, ds, 0, 1, 1, 1) + prev4(c, ds, 1, 0, 0, 0) -
-             prev4(c, ds, 1, 0, 0, 1) - prev4(c, ds, 1, 0, 1, 0) +
-             prev4(c, ds, 1, 0, 1, 1) - prev4(c, ds, 1, 1, 0, 0) +
-             prev4(c, ds, 1, 1, 0, 1) + prev4(c, ds, 1, 1, 1, 0) -
-             prev4(c, ds, 1, 1, 1, 1);
+      return prev4(d, ds, 0, 0, 0, 1) + prev4(d, ds, 0, 0, 1, 0) -
+             prev4(d, ds, 0, 0, 1, 1) + prev4(d, ds, 0, 1, 0, 0) -
+             prev4(d, ds, 0, 1, 0, 1) - prev4(d, ds, 0, 1, 1, 0) +
+             prev4(d, ds, 0, 1, 1, 1) + prev4(d, ds, 1, 0, 0, 0) -
+             prev4(d, ds, 1, 0, 0, 1) - prev4(d, ds, 1, 0, 1, 0) +
+             prev4(d, ds, 1, 0, 1, 1) - prev4(d, ds, 1, 1, 0, 0) +
+             prev4(d, ds, 1, 1, 0, 1) + prev4(d, ds, 1, 1, 1, 0) -
+             prev4(d, ds, 1, 1, 1, 1);
     } else if constexpr (N == 1 && L == 2) {
-      return 2 * prev1(c, 1) - prev1(c, 2);
+      return 2 * prev1(d, 1) - prev1(d, 2);
     } else if constexpr (N == 2 && L == 2) {
-      return 2 * prev2(c, ds, 0, 1) - prev2(c, ds, 0, 2) +
-             2 * prev2(c, ds, 1, 0) - 4 * prev2(c, ds, 1, 1) +
-             2 * prev2(c, ds, 1, 2) - prev2(c, ds, 2, 0) +
-             2 * prev2(c, ds, 2, 1) - prev2(c, ds, 2, 2);
+      return 2 * prev2(d, ds, 0, 1) - prev2(d, ds, 0, 2) +
+             2 * prev2(d, ds, 1, 0) - 4 * prev2(d, ds, 1, 1) +
+             2 * prev2(d, ds, 1, 2) - prev2(d, ds, 2, 0) +
+             2 * prev2(d, ds, 2, 1) - prev2(d, ds, 2, 2);
     } else if constexpr (N == 3 && L == 2) {
-      return 2 * prev3(c, ds, 0, 0, 1) - prev3(c, ds, 0, 0, 2) +
-             2 * prev3(c, ds, 0, 1, 0) - 4 * prev3(c, ds, 0, 1, 1) +
-             2 * prev3(c, ds, 0, 1, 2) - prev3(c, ds, 0, 2, 0) +
-             2 * prev3(c, ds, 0, 2, 1) - prev3(c, ds, 0, 2, 2) +
-             2 * prev3(c, ds, 1, 0, 0) - 4 * prev3(c, ds, 1, 0, 1) +
-             2 * prev3(c, ds, 1, 0, 2) - 4 * prev3(c, ds, 1, 1, 0) +
-             8 * prev3(c, ds, 1, 1, 1) - 4 * prev3(c, ds, 1, 1, 2) +
-             2 * prev3(c, ds, 1, 2, 0) - 4 * prev3(c, ds, 1, 2, 1) +
-             2 * prev3(c, ds, 1, 2, 2) - prev3(c, ds, 2, 0, 0) +
-             2 * prev3(c, ds, 2, 0, 1) - prev3(c, ds, 2, 0, 2) +
-             2 * prev3(c, ds, 2, 1, 0) - 4 * prev3(c, ds, 2, 1, 1) +
-             2 * prev3(c, ds, 2, 1, 2) - prev3(c, ds, 2, 2, 0) +
-             2 * prev3(c, ds, 2, 2, 1) - prev3(c, ds, 2, 2, 2);
+      return 2 * prev3(d, ds, 0, 0, 1) - prev3(d, ds, 0, 0, 2) +
+             2 * prev3(d, ds, 0, 1, 0) - 4 * prev3(d, ds, 0, 1, 1) +
+             2 * prev3(d, ds, 0, 1, 2) - prev3(d, ds, 0, 2, 0) +
+             2 * prev3(d, ds, 0, 2, 1) - prev3(d, ds, 0, 2, 2) +
+             2 * prev3(d, ds, 1, 0, 0) - 4 * prev3(d, ds, 1, 0, 1) +
+             2 * prev3(d, ds, 1, 0, 2) - 4 * prev3(d, ds, 1, 1, 0) +
+             8 * prev3(d, ds, 1, 1, 1) - 4 * prev3(d, ds, 1, 1, 2) +
+             2 * prev3(d, ds, 1, 2, 0) - 4 * prev3(d, ds, 1, 2, 1) +
+             2 * prev3(d, ds, 1, 2, 2) - prev3(d, ds, 2, 0, 0) +
+             2 * prev3(d, ds, 2, 0, 1) - prev3(d, ds, 2, 0, 2) +
+             2 * prev3(d, ds, 2, 1, 0) - 4 * prev3(d, ds, 2, 1, 1) +
+             2 * prev3(d, ds, 2, 1, 2) - prev3(d, ds, 2, 2, 0) +
+             2 * prev3(d, ds, 2, 2, 1) - prev3(d, ds, 2, 2, 2);
     }
     // Handle unsupported cases
     else {
@@ -191,16 +190,18 @@ public:
     }
   }
 
+
+
   void compress(const block_iter &block, std::vector<int> &quant_inds) {
-    block.iterate_block([&](T *c) {
-      T pred = lorenzo_predict(block, c);
+    block_iter::foreach (block, [&](T *c, const std::array<size_t, N>& index) {
+      T pred = predict(block, c, index);
       quant_inds.push_back(quantizer.quantize_and_overwrite(*c, pred));
     });
   }
 
   void decompress(const block_iter &block, int *&quant_inds_pos) {
-    block.iterate_block([&](T *c) {
-      T pred = lorenzo_predict(block, c);
+    block_iter::foreach (block, [&](T *c, const std::array<size_t, N>& index) {
+      T pred = predict(block, c, index);
       *c = quantizer.recover(pred, *(quant_inds_pos++));
     });
   }

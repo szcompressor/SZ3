@@ -1,10 +1,8 @@
-#ifndef _SZ_MULTI_DIMENSIONAL_DATA_HPP
-#define _SZ_MULTI_DIMENSIONAL_DATA_HPP
+#ifndef _SZ_block_data_HPP
+#define _SZ_block_data_HPP
 
-#include <cassert>
 #include <cstddef>
 #include <memory>
-#include <iterator>
 #include <type_traits>
 #include <stdexcept>
 #include <algorithm>
@@ -12,88 +10,89 @@
 #include <vector>
 #include <iostream>
 #include <array>
-#include <typeinfo>
 
 namespace SZ {
     template<class T, uint N>
-    class multi_dimensional_data : public std::enable_shared_from_this<multi_dimensional_data<T, N>> {
+    class block_data : public std::enable_shared_from_this<block_data<T, N>> {
     public:
 
         class block_iterator {
         public:
-            block_iterator(std::shared_ptr<multi_dimensional_data> &&mddata_, size_t block_size_) noexcept:
+            block_iterator(std::shared_ptr<block_data> &&mddata_, size_t block_size_) noexcept:
                     mddata(mddata_), block_size(block_size_) {
-                std::fill(l.begin(), l.end(), 0);
+                std::fill(offset.begin(), offset.end(), 0);
             }
 
-            inline bool next() {
+            ALWAYS_INLINE bool next() {
                 size_t i = N - 1;
-                l[i] += block_size;
-                while (i && (l[i] >= mddata->dims[i])) {
-                    l[i] = 0;
-                    l[--i] += block_size;
+                offset[i] += block_size;
+                while (i && (offset[i] >= mddata->dims[i])) {
+                    offset[i] = 0;
+                    offset[--i] += block_size;
                 }
-                return (l[0] < mddata->dims[0]);
+                return (offset[0] < mddata->dims[0]);
             }
 
-            inline std::array<std::pair<size_t, size_t>, N> get_block_range() const {
+            ALWAYS_INLINE std::array<std::pair<size_t, size_t>, N> get_block_range() const {
                 std::array<std::pair<size_t, size_t>, N> range;
                 for (int i = 0; i < N; i++) {
-                    range[i].first = l[i];
-                    range[i].second = std::min(l[i] + block_size, mddata->dims[i]);
+                    range[i].first = offset[i];
+                    range[i].second = std::min(offset[i] + block_size, mddata->dims[i]);
                 }
                 return range;
             }
 
-            template<class ... Idx>
-            ALWAYS_INLINE T *get_data(Idx ... args) const {
+            /**
+             *
+             * @tparam args relative index in the block
+             * @return
+             */
+            template <class ... Idx>
+            ALWAYS_INLINE T *get_block_data(Idx ... args) const {
                 auto ds = get_dim_strides();
                 auto idx = std::vector<size_t>{static_cast<size_t>(std::forward<Idx>(args))...};
-                size_t offset = 0;
+                size_t off = 0;
                 for (int i = 0; i < N; i++) {
-                    offset += (idx[i] + l[i]) * ds[i];
+                    off += (idx[i] + offset[i]) * ds[i];
                 }
-                return mddata->dataptr() + offset;
+                return mddata->dataptr() + off;
             }
 
-            inline std::array<size_t, N> get_dim_strides() const {
-                return mddata->get_dim_strides();
+            ALWAYS_INLINE std::array<size_t, N> get_dim_strides() const {
+                return mddata->ds_padding;
             }
 
-            template <typename Func>
-            void iterate_block(Func &&func) const {
-                auto range = this->get_block_range();
-                auto d = this->mddata;
-
+            template<typename Func>
+            static ALWAYS_INLINE void foreach(const block_iterator &block, Func &&func) {
+                auto range = block.get_block_range();
                 if constexpr (N == 1) {
-                    for (size_t i = range[0].first; i < range[0].second; i++) {
-                        T *c = d->get_data(i);
-                        func(c);
+                    T *d = block.get_block_data(0);
+                    for (size_t i = 0; i < range[0].second - range[0].first; i++) {
+                        func(d++, {i});
                     }
                 } else if constexpr (N == 2) {
-                    for (size_t i = range[0].first; i < range[0].second; i++) {
-                        for (size_t j = range[1].first; j < range[1].second; j++) {
-                            T *c = d->get_data(i, j);
-                            func(c);
+                    for (size_t i = 0; i < range[0].second - range[0].first; i++) {
+                        T *d = block.get_block_data(i, 0);
+                        for (size_t j = 0; j < range[1].second - range[1].first; j++) {
+                            func(d++, {i, j});
                         }
                     }
                 } else if constexpr (N == 3) {
-                    for (size_t i = range[0].first; i < range[0].second; i++) {
-                        for (size_t j = range[1].first; j < range[1].second; j++) {
-                            for (size_t k = range[2].first; k < range[2].second; k++) {
-                                T *c = d->get_data(i, j, k);
-                                func(c);
+                    for (size_t i = 0; i < range[0].second - range[0].first; i++) {
+                        for (size_t j = 0; j < range[1].second - range[1].first; j++) {
+                            T *d = block.get_block_data(i, j, 0);
+                            for (size_t k = 0; k < range[2].second - range[2].first; k++) {
+                                func(d++, {i, j, k});
                             }
                         }
                     }
                 } else if constexpr (N == 4) {
-                    for (size_t i = range[0].first; i < range[0].second; i++) {
-                        for (size_t j = range[1].first; j < range[1].second; j++) {
-                            for (size_t k = range[2].first; k < range[2].second; k++) {
-                                for (size_t t = range[3].first; t < range[3].second; t++) {
-                                    T *c = d->get_data(i, j, k, t);
-                                    func(c);
-                                    // func(block, i, j, k, t);
+                    for (size_t i = 0; i < range[0].second - range[0].first; i++) {
+                        for (size_t j = 0; j < range[1].second - range[1].first; j++) {
+                            for (size_t k = 0; k < range[2].second - range[2].first; k++) {
+                                T *d = block.get_block_data(i, j, k, 0);
+                                for (size_t t = 0; t < range[3].second - range[3].first; t++) {
+                                    func(d++, {i, j, k, t});
                                 }
                             }
                         }
@@ -101,16 +100,16 @@ namespace SZ {
                 }
             }
 
-            friend multi_dimensional_data;
-            std::shared_ptr<multi_dimensional_data> mddata;
+            friend block_data;
+            std::shared_ptr<block_data> mddata;
         private:
-            std::array<size_t, N> l;
+            std::array<size_t, N> offset;
             size_t block_size;
         };
 
 
         /**Begin**/
-        multi_dimensional_data(const T *data_,
+        block_data(const T *data_,
                                const std::vector<size_t> &dims_,
                                size_t padding_ = 0
         ) : padding(padding_) {
@@ -132,7 +131,7 @@ namespace SZ {
             }
         }
 
-        multi_dimensional_data(T *data_,
+        block_data(T *data_,
                                const std::vector<size_t> &dims_,
                                size_t padding_ = 0
         ) : padding(padding_) {
@@ -154,37 +153,6 @@ namespace SZ {
         block_iterator block_iter(size_t block_size) {
             return block_iterator(this->shared_from_this(), block_size);
         }
-
-        inline void cal_dim_strides() {
-            size_t cur_stride = 1, cur_stride_pading = 1;
-            for (int i = N - 1; i >= 0; i--) {
-                ds[i] = cur_stride;
-                ds_padding[i] = cur_stride_pading;
-                cur_stride *= dims[i];
-                cur_stride_pading *= (dims[i] + padding);
-            }
-            num = cur_stride;
-            num_padding = cur_stride_pading;
-        }
-
-        inline std::array<size_t, N> get_dims() const {
-            return dims;
-        }
-
-        inline std::array<size_t, N> get_dim_strides() const {
-            return ds_padding;
-        }
-
-        template<class ... Idx>
-        inline T *get_data(Idx ... args) {
-            auto idx = std::vector<size_t>{static_cast<size_t>(std::forward<Idx>(args))...};
-            size_t offset = 0;
-            for (int i = 0; i < N; i++) {
-                offset += idx[i] * ds_padding[i];
-            }
-            return dataptr() + offset;
-        }
-
 
         void copy_data_in(const T *input) {
             if (padding == 0) {
@@ -247,11 +215,24 @@ namespace SZ {
         }
 
     protected:
-        inline T *dataptr() {
+        ALWAYS_INLINE T *dataptr() {
             return data;
         }
 
     private:
+
+       ALWAYS_INLINE void cal_dim_strides() {
+            size_t cur_stride = 1, cur_stride_pading = 1;
+            for (int i = N - 1; i >= 0; i--) {
+                ds[i] = cur_stride;
+                ds_padding[i] = cur_stride_pading;
+                cur_stride *= dims[i];
+                cur_stride_pading *= (dims[i] + padding);
+            }
+            num = cur_stride;
+            num_padding = cur_stride_pading;
+        }
+
         std::array<size_t, N> dims;            // dimension
         std::array<size_t, N> ds, ds_padding; // stride
         std::vector<T> internal_buffer;

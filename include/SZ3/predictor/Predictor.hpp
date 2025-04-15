@@ -1,7 +1,7 @@
 #ifndef _SZ_PREDICTOR_HPP
 #define _SZ_PREDICTOR_HPP
 
-#include "SZ3/utils/MDdata.hpp"
+#include "SZ3/utils/BlockIterator.hpp"
 #include "SZ3/def.hpp"
 
 namespace SZ {
@@ -12,7 +12,7 @@ namespace SZ {
         template<class T, uint N>
         class PredictorInterface {
         public:
-            using block_iter = typename multi_dimensional_data<T, N>::block_iterator;
+            using block_iter = typename block_data<T, N>::block_iterator;
 
             virtual ~PredictorInterface() = default;
 

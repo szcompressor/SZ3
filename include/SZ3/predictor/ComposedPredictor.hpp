@@ -12,7 +12,7 @@ namespace SZ {
     template<class T, uint N>
     class ComposedPredictor : public concepts::PredictorInterface<T, N> {
     public:
-        using block_iter = typename multi_dimensional_data<T, N>::block_iterator;
+        using block_iter = typename block_data<T, N>::block_iterator;
 
         ComposedPredictor(std::vector<std::shared_ptr<concepts::PredictorInterface<T, N>>> predictors) {
             this->predictors = predictors;

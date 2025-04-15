@@ -33,7 +33,7 @@ namespace SZ {
 
         uchar *compress(const Config &conf, const T *data, size_t &compressed_size) {
             Timer timer(true);
-            auto mddata = std::make_shared<SZ::multi_dimensional_data<T, N>>(data, dims, predictor.get_padding());
+            auto mddata = std::make_shared<SZ::block_data<T, N>>(data, dims, predictor.get_padding());
             auto block = mddata->block_iter(block_size);
             std::vector<int> quant_inds;
             quant_inds.reserve(num);
@@ -98,7 +98,7 @@ namespace SZ {
 
             int *quant_inds_pos = &quant_inds[0];
 
-            auto mddata = std::make_shared<SZ::multi_dimensional_data<T, N>>(decData, dims, predictor.get_padding());
+            auto mddata = std::make_shared<SZ::block_data<T, N>>(decData, dims, predictor.get_padding());
             auto block = mddata->block_iter(block_size);
             do {
                 auto isvalid = predictor.predecompress(block);
