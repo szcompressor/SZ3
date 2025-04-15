@@ -46,7 +46,7 @@ namespace SZ {
             }
 
             template<class ... Idx>
-            inline T *get_data(Idx ... args) const {
+            ALWAYS_INLINE T *get_data(Idx ... args) const {
                 auto ds = get_dim_strides();
                 auto idx = std::vector<size_t>{static_cast<size_t>(std::forward<Idx>(args))...};
                 size_t offset = 0;
@@ -58,6 +58,47 @@ namespace SZ {
 
             inline std::array<size_t, N> get_dim_strides() const {
                 return mddata->get_dim_strides();
+            }
+
+            template <typename Func>
+            void iterate_block(Func &&func) const {
+                auto range = this->get_block_range();
+                auto d = this->mddata;
+
+                if constexpr (N == 1) {
+                    for (size_t i = range[0].first; i < range[0].second; i++) {
+                        T *c = d->get_data(i);
+                        func(c);
+                    }
+                } else if constexpr (N == 2) {
+                    for (size_t i = range[0].first; i < range[0].second; i++) {
+                        for (size_t j = range[1].first; j < range[1].second; j++) {
+                            T *c = d->get_data(i, j);
+                            func(c);
+                        }
+                    }
+                } else if constexpr (N == 3) {
+                    for (size_t i = range[0].first; i < range[0].second; i++) {
+                        for (size_t j = range[1].first; j < range[1].second; j++) {
+                            for (size_t k = range[2].first; k < range[2].second; k++) {
+                                T *c = d->get_data(i, j, k);
+                                func(c);
+                            }
+                        }
+                    }
+                } else if constexpr (N == 4) {
+                    for (size_t i = range[0].first; i < range[0].second; i++) {
+                        for (size_t j = range[1].first; j < range[1].second; j++) {
+                            for (size_t k = range[2].first; k < range[2].second; k++) {
+                                for (size_t t = range[3].first; t < range[3].second; t++) {
+                                    T *c = d->get_data(i, j, k, t);
+                                    func(c);
+                                    // func(block, i, j, k, t);
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             friend multi_dimensional_data;
@@ -166,7 +207,7 @@ namespace SZ {
             } else if (N == 4) {
                 for (size_t i = 0; i < dims[0]; i++) {
                     for (size_t j = 0; j < dims[1]; j++) {
-                        for (size_t k = 0; j < dims[2]; k++) {
+                        for (size_t k = 0; k < dims[2]; k++) {
                             memcpy(&internal_buffer[(i + padding) * ds_padding[0] + (j + padding) * ds_padding[1] + (k + padding) * ds_padding[2] +
                                                     padding],
                                    &input[i * ds[0] + j * ds[1] + k * ds[2]], dims[3] * sizeof(T));
@@ -194,7 +235,7 @@ namespace SZ {
             } else if (N == 4) {
                 for (size_t i = 0; i < dims[0]; i++) {
                     for (size_t j = 0; j < dims[1]; j++) {
-                        for (size_t k = 0; j < dims[2]; k++) {
+                        for (size_t k = 0; k < dims[2]; k++) {
                             memcpy(&output[i * ds[0] + j * ds[1] + k * ds[2]], &data[i * ds_padding[0] + j * ds_padding[1] + k * ds_padding[2]],
                                    dims[3] * sizeof(T));
                         }
