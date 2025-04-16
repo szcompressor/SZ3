@@ -29,7 +29,7 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
         for (int i = 0; i < predictors.size(); i++) {
             isvalid[i] = predictors[i]->precompress(block);
             if (isvalid[i]) {
-                block_iter::foreach_sampling (block, [&](T *c, const std::array<size_t, N> &index) {
+                block_iter::foreach_sampling(block, [&](T *c, const std::array<size_t, N> &index) {
                     predict_error[i] += predictors[i]->estimate_error(block, c, index);
                 });
             } else {

@@ -52,7 +52,8 @@ std::shared_ptr<concepts::CompressorInterface<T>> make_compressor_lorenzo_regres
     if (conf.regression) {
         if (use_single_predictor) {
             return make_compressor_sz_generic<T, N>(
-                make_decomposition_blockwise<T, N>(conf, RegressionPredictor<T, N>(conf.blockSize, conf.absErrorBound), quantizer),
+                make_decomposition_blockwise<T, N>(conf, RegressionPredictor<T, N>(conf.blockSize, conf.absErrorBound),
+                                                   quantizer),
                 encoder, lossless);
         } else {
             predictors.push_back(std::make_shared<RegressionPredictor<T, N>>(conf.blockSize, conf.absErrorBound));

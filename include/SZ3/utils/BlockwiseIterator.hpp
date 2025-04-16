@@ -3,8 +3,7 @@
 
 #include <algorithm>
 #include <array>
-#include <cstddef>
-#include <iostream>
+#include <cstring>
 #include <memory>
 #include <numeric>
 #include <stdexcept>
@@ -12,16 +11,40 @@
 #include <vector>
 
 namespace SZ3 {
+
+/**
+ * @brief A class representing block data with N dimensions.
+ *
+ * This class provides functionality for managing multidimensional data blocks,
+ * including iterating over blocks, copying data in and out, and handling padding.
+ *
+ * @tparam T The type of the data elements.
+ * @tparam N The number of dimensions.
+ */
 template <class T, uint N>
 class block_data : public std::enable_shared_from_this<block_data<T, N>> {
    public:
+    /**
+     * @brief A nested class for iterating over blocks of data.
+     */
     class block_iterator {
        public:
+        /**
+         * @brief Constructs a block iterator.
+         *
+         * @param mddata_ A shared pointer to the block data.
+         * @param block_size_ The size of each block.
+         */
         block_iterator(std::shared_ptr<block_data> &&mddata_, size_t block_size_) noexcept
             : mddata(mddata_), block_size(block_size_) {
             std::fill(offset.begin(), offset.end(), 0);
         }
 
+        /**
+         * @brief Advances the iterator to the next block.
+         *
+         * @return true if the iterator successfully moved to the next block, false otherwise.
+         */
         ALWAYS_INLINE bool next() {
             size_t i = N - 1;
             offset[i] += block_size;
@@ -32,6 +55,11 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
             return (offset[0] < mddata->dims[0]);
         }
 
+        /**
+         * @brief Gets the range of the current block in each dimension.
+         *
+         * @return An array of pairs representing the [start, end) indices of the block in each dimension.
+         */
         ALWAYS_INLINE std::array<std::pair<size_t, size_t>, N> get_block_range() const {
             std::array<std::pair<size_t, size_t>, N> range;
             for (int i = 0; i < N; i++) {
@@ -42,14 +70,15 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
         }
 
         /**
+         * @brief Gets a pointer to the data of the current block.
          *
-         * @tparam args relative index in the block
-         * @return
+         * @tparam args The relative indices within the block.
+         * @return A pointer to the data at the specified indices.
          */
         template <class... Idx>
         ALWAYS_INLINE T *get_block_data(Idx... args) const {
             auto ds = get_dim_strides();
-            auto idx = std::vector<size_t>{static_cast<size_t>(std::forward<Idx>(args))...};
+            auto idx = std::array<size_t, N>{static_cast<size_t>(std::forward<Idx>(args))...};
             size_t off = 0;
             for (int i = 0; i < N; i++) {
                 off += (idx[i] + offset[i]) * ds[i];
@@ -57,8 +86,20 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
             return mddata->dataptr() + off;
         }
 
+        /**
+         * @brief Gets the strides for each dimension, including padding.
+         *
+         * @return An array of strides for each dimension.
+         */
         ALWAYS_INLINE std::array<size_t, N> get_dim_strides() const { return mddata->ds_padding; }
 
+        /**
+         * @brief Iterates over all elements in the current block and applies a function.
+         *
+         * @tparam Func The type of the function to apply.
+         * @param block The block iterator.
+         * @param func The function to apply to each element.
+         */
         template <typename Func>
         static ALWAYS_INLINE void foreach (const block_iterator &block, Func && func) {
             auto range = block.get_block_range();
@@ -95,24 +136,29 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
                     }
                 }
             } else {
-                fprintf(stderr, "N (dimension) should be less than 5\n");
                 throw std::invalid_argument("N (dimension) should be less than 5");
             }
         }
 
+        /**
+         * @brief Iterates over sampled elements in the current block and applies a function.
+         *
+         * @tparam Func The type of the function to apply.
+         * @param block The block iterator.
+         * @param func The function to apply to sampled elements.
+         */
         template <typename Func>
         static ALWAYS_INLINE void foreach_sampling(const block_iterator &block, Func &&func) {
-            auto range = block.get_block_range();
             size_t min_size = std::numeric_limits<size_t>::max();
-            for (const auto &r : range) {
+            for (const auto &r : block.get_block_range()) {
                 min_size = std::min(min_size, r.second - r.first);
             }
             if constexpr (N == 1) {
                 func(block.get_block_data(0), {0});
                 func(block.get_block_data(min_size - 1), {min_size - 1});
             } else if constexpr (N <= 4) {
-                for (size_t i = 2; i < min_size - 1; i++) {
-                    size_t j = min_size - i;
+                for (size_t i = 0; i < min_size; i++) {
+                    size_t j = min_size - 1 - i;
                     if constexpr (N == 2) {
                         func(block.get_block_data(i, i), {i, i});
                         func(block.get_block_data(i, j), {i, j});
@@ -133,7 +179,6 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
                     }
                 }
             } else {
-                fprintf(stderr, "N (dimension) should be less than 5\n");
                 throw std::invalid_argument("N (dimension) should be less than 5");
             }
         }
@@ -146,27 +191,14 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
         size_t block_size;
     };
 
-    /**Begin**/
-    block_data(const T *data_, const std::vector<size_t> &dims_, size_t padding_ = 0) : padding(padding_) {
-        if (dims_.size() != N) {
-            throw std::invalid_argument("#dims does not match!");
-        }
-        std::copy_n(dims_.begin(), N, dims.begin());
-        cal_dim_strides();
-
-        if (padding > 0) {
-            internal_buffer.resize(num_padding);
-            size_t offset = std::accumulate(ds_padding.begin(), ds_padding.end(), static_cast<size_t>(0));
-            data = &internal_buffer[padding * offset];
-            copy_data_in(data_);
-        } else {
-            internal_buffer.resize(num);
-            data = internal_buffer.data();
-            copy_data_in(data_);
+    ~block_data() {
+        if (padding > 0 && !internal_buffer.empty() && data_cp_dst != nullptr) {
+            copy_data_with_padding(data_cp_dst, ds, data_padding, ds_padding, dims);
         }
     }
 
-    block_data(T *data_, const std::vector<size_t> &dims_, size_t padding_ = 0) : padding(padding_) {
+    block_data(T *data_, const std::vector<size_t> &dims_, size_t padding_ = 0, bool data_valid = true)
+        : padding(padding_) {
         if (dims_.size() != N) {
             throw std::invalid_argument("#dims does not match!");
         }
@@ -176,78 +208,21 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
         if (padding > 0) {
             internal_buffer.resize(num_padding);
             size_t offset = std::accumulate(ds_padding.begin(), ds_padding.end(), static_cast<size_t>(0));
-            data = &internal_buffer[padding * offset];
+            data_padding = &internal_buffer[padding * offset];
+            if (data_valid) {
+                copy_data_with_padding(data_padding, ds_padding, data_, ds, dims);
+            } else {
+                data_cp_dst = data_;
+            }
         } else {
-            data = data_;
+            data_padding = data_;
         }
     }
 
     block_iterator block_iter(size_t block_size) { return block_iterator(this->shared_from_this(), block_size); }
 
-    void copy_data_in(const T *input) {
-        if (padding == 0) {
-            std::copy(input, input + num, internal_buffer.begin());
-            return;
-        }
-        if (N == 1) {
-            memcpy(&internal_buffer[padding], &input[0], dims[0] * sizeof(T));
-        } else if (N == 2) {
-            for (size_t i = 0; i < dims[0]; i++) {
-                memcpy(&internal_buffer[(i + padding) * ds_padding[0] + padding], &input[i * ds[0]],
-                       dims[1] * sizeof(T));
-            }
-        } else if (N == 3) {
-            for (size_t i = 0; i < dims[0]; i++) {
-                for (size_t j = 0; j < dims[1]; j++) {
-                    memcpy(&internal_buffer[(i + padding) * ds_padding[0] + (j + padding) * ds_padding[1] + padding],
-                           &input[i * ds[0] + j * ds[1]], dims[2] * sizeof(T));
-                }
-            }
-        } else if (N == 4) {
-            for (size_t i = 0; i < dims[0]; i++) {
-                for (size_t j = 0; j < dims[1]; j++) {
-                    for (size_t k = 0; k < dims[2]; k++) {
-                        memcpy(&internal_buffer[(i + padding) * ds_padding[0] + (j + padding) * ds_padding[1] +
-                                                (k + padding) * ds_padding[2] + padding],
-                               &input[i * ds[0] + j * ds[1] + k * ds[2]], dims[3] * sizeof(T));
-                    }
-                }
-            }
-        } else {
-            throw std::invalid_argument("N (dimension) should be less than 5");
-        }
-    }
-
-    void copy_data_out(T *output) {
-        if (N == 1) {
-            memcpy(&output[0], &data[0], dims[0] * sizeof(T));
-        } else if (N == 2) {
-            for (size_t i = 0; i < dims[0]; i++) {
-                memcpy(&output[i * ds[0]], &data[i * ds_padding[0]], dims[1] * sizeof(T));
-            }
-        } else if (N == 3) {
-            for (size_t i = 0; i < dims[0]; i++) {
-                for (size_t j = 0; j < dims[1]; j++) {
-                    memcpy(&output[i * ds[0] + j * ds[1]], &data[i * ds_padding[0] + j * ds_padding[1]],
-                           dims[2] * sizeof(T));
-                }
-            }
-        } else if (N == 4) {
-            for (size_t i = 0; i < dims[0]; i++) {
-                for (size_t j = 0; j < dims[1]; j++) {
-                    for (size_t k = 0; k < dims[2]; k++) {
-                        memcpy(&output[i * ds[0] + j * ds[1] + k * ds[2]],
-                               &data[i * ds_padding[0] + j * ds_padding[1] + k * ds_padding[2]], dims[3] * sizeof(T));
-                    }
-                }
-            }
-        } else {
-            throw std::invalid_argument("N (dimension) should be less than 5");
-        }
-    }
-
    protected:
-    ALWAYS_INLINE T *dataptr() { return data; }
+    ALWAYS_INLINE T *dataptr() { return data_padding; }
 
    private:
     ALWAYS_INLINE void cal_dim_strides() {
@@ -262,10 +237,44 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
         num_padding = cur_stride_pading;
     }
 
+    void copy_data_with_padding(T *dst, const std::array<size_t, N> &dst_stride, const T *src,
+                                const std::array<size_t, N> &src_stride, const std::array<size_t, N> &dims) {
+        if (dst == nullptr || src == nullptr) {
+            throw std::invalid_argument("Null pointer passed to copy_data_with_padding");
+            return;
+        }
+        if constexpr (N == 1) {
+            memcpy(&dst[0], &src[0], dims[0] * sizeof(T));
+        } else if constexpr (N == 2) {
+            for (size_t i = 0; i < dims[0]; i++) {
+                memcpy(&dst[i * dst_stride[0]], &src[i * src_stride[0]], dims[1] * sizeof(T));
+            }
+        } else if constexpr (N == 3) {
+            for (size_t i = 0; i < dims[0]; i++) {
+                for (size_t j = 0; j < dims[1]; j++) {
+                    memcpy(&dst[i * dst_stride[0] + j * dst_stride[1]], &src[i * src_stride[0] + j * src_stride[1]],
+                           dims[2] * sizeof(T));
+                }
+            }
+        } else if constexpr (N == 4) {
+            for (size_t i = 0; i < dims[0]; i++) {
+                for (size_t j = 0; j < dims[1]; j++) {
+                    for (size_t k = 0; k < dims[2]; k++) {
+                        memcpy(&dst[i * dst_stride[0] + j * dst_stride[1] + k * dst_stride[2]],
+                               &src[i * src_stride[0] + j * src_stride[1] + k * src_stride[2]], dims[3] * sizeof(T));
+                    }
+                }
+            }
+        } else {
+            throw std::invalid_argument("N (dimension) should be less than 5");
+        }
+    }
+
     std::array<size_t, N> dims;            // dimension
     std::array<size_t, N> ds, ds_padding;  // stride
     std::vector<T> internal_buffer;
-    T *data;  // data pointer
+    T *data_cp_dst = nullptr;
+    T *data_padding;  // point to either data_ or internal_buffer depending on padding
     size_t padding;
     size_t num, num_padding;
 };

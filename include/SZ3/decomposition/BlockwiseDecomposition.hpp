@@ -26,8 +26,7 @@ class BlockwiseDecomposition : public concepts::DecompositionInterface<T, int, N
     }
 
     std::vector<int> compress(const Config &conf, T *data) override {
-        auto data_with_padding =
-            std::make_shared<block_data<T, N>>(static_cast<const T *>(data), conf.dims, predictor.get_padding());
+        auto data_with_padding = std::make_shared<block_data<T, N>>(data, conf.dims, predictor.get_padding(), true);
         auto block = data_with_padding->block_iter(conf.blockSize);
         std::vector<int> quant_inds;
         quant_inds.reserve(conf.num);
@@ -49,8 +48,8 @@ class BlockwiseDecomposition : public concepts::DecompositionInterface<T, int, N
     T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) override {
         int *quant_inds_pos = &quant_inds[0];
 
-        // TODO update the dec_data copy logic for block_data
-        auto data_with_padding = std::make_shared<block_data<T, N>>(dec_data, conf.dims, predictor.get_padding());
+        auto data_with_padding =
+            std::make_shared<block_data<T, N>>(dec_data, conf.dims, predictor.get_padding(), false);
         auto block = data_with_padding->block_iter(conf.blockSize);
         do {
             concepts::PredictorInterface<T, N> *predictor_withfallback = &predictor;
@@ -63,8 +62,6 @@ class BlockwiseDecomposition : public concepts::DecompositionInterface<T, int, N
             });
 
         } while (block.next());
-
-        data_with_padding->copy_data_out(dec_data);
 
         return dec_data;
     }

@@ -3,8 +3,8 @@
 
 #include <iostream>
 
-#include "SZ3/predictor/Predictor.hpp"
 #include "SZ3/encoder/HuffmanEncoder.hpp"
+#include "SZ3/predictor/Predictor.hpp"
 #include "SZ3/quantizer/LinearQuantizer.hpp"
 
 namespace SZ3 {
