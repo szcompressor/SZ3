@@ -29,78 +29,49 @@ namespace SZ {
 
         bool precompress(const block_iter &block) {
             auto range = block.get_block_range();
+            // auto d = block.mddata;
+            auto ds = block.get_dim_strides();
 
-            std::array<double, N> dims{0};
-            double num_elements = 1;
-            for (int i = 0; i < N; i++) {
-                dims[i] = range[i].second - range[i].first;
-                if (dims[i]<=1){
+            for (const auto &r: range) {
+                if (r.second - r.first <= 1) {
                     return false;
                 }
-                num_elements *= dims[i];
             }
 
-            std::array<double, N + 1> sum{0};
-            block_iter::foreach(block, [&](T *c, const std::array<size_t, N> &index) {
-                for (int i=0;i<N;i++){
-                    sum[i] += index[i] * (*c);
+            if (N == 3) {
+                T *cur_data_pos = block.get_block_data(0,0,0);
+                double fx = 0.0, fy = 0.0, fz = 0.0, f = 0, sum_x, sum_y;
+                int size_x = range[0].second - range[0].first;
+                int size_y = range[1].second - range[1].first;
+                int size_z = range[2].second - range[2].first;
+                for (int i = 0; i < size_x; i++) {
+                    sum_x = 0;
+                    for (int j = 0; j < size_y; j++) {
+                        sum_y = 0;
+                        for (int k = 0; k < size_z; k++) {
+                            T curData = *cur_data_pos;
+                            sum_y += curData;
+                            fz += curData * k;
+                            cur_data_pos++;
+                        }
+                        fy += sum_y * j;
+                        sum_x += sum_y;
+                        cur_data_pos += (ds[1] - size_z);
+                    }
+                    fx += sum_x * i;
+                    f += sum_x;
+                    cur_data_pos += (ds[0] - size_y * ds[1]);
                 }
-                sum[N] += *c;
-            });
-            std::fill(current_coeffs.begin(), current_coeffs.end(), 0);
-            current_coeffs[N] = sum[N] / num_elements;
-            for (int i = 0; i < N; i++) {
-                current_coeffs[i] = (2 * sum[i] / (dims[i] - 1) - sum[N]) * 6 / num_elements / (dims[i] + 1);
-                current_coeffs[N] -= (dims[i] - 1) * current_coeffs[i] / 2;
+                double coeff = 1.0 / (size_x * size_y * size_z);
+                current_coeffs[0] = (2 * fx / (size_x - 1) - f) * 6 * coeff / (size_x + 1);
+                current_coeffs[1] = (2 * fy / (size_y - 1) - f) * 6 * coeff / (size_y + 1);
+                current_coeffs[2] = (2 * fz / (size_z - 1) - f) * 6 * coeff / (size_z + 1);
+                current_coeffs[3] = f * coeff - ((size_x - 1) * current_coeffs[0] / 2 + (size_y - 1) * current_coeffs[1] / 2 +
+                                                 (size_z - 1) * current_coeffs[2] / 2);
+            } else {
+                throw std::invalid_argument("regression only support 3D right now");
             }
             return true;
-
-
-            // // if (N == 3) {
-            // auto ds = block.get_dim_strides();
-            //     T *cur_data_pos = block.get_block_data(0,0,0);
-            //     double fx = 0.0, fy = 0.0, fz = 0.0, f = 0, sum_x, sum_y;
-            //     int size_x = range[0].second - range[0].first;
-            //     int size_y = range[1].second - range[1].first;
-            //     int size_z = range[2].second - range[2].first;
-            //     for (int i = 0; i < size_x; i++) {
-            //         sum_x = 0;
-            //         for (int j = 0; j < size_y; j++) {
-            //             sum_y = 0;
-            //             for (int k = 0; k < size_z; k++) {
-            //                 T curData = *cur_data_pos;
-            //                 sum_y += curData;
-            //                 fz += curData * k;
-            //                 cur_data_pos++;
-            //             }
-            //             fy += sum_y * j;
-            //             sum_x += sum_y;
-            //             cur_data_pos += (ds[1] - size_z);
-            //         }
-            //         fx += sum_x * i;
-            //         f += sum_x;
-            //         cur_data_pos += (ds[0] - size_y * ds[1]);
-            //     }
-            //     double coeff = 1.0 / (size_x * size_y * size_z);
-            // std::array<T, N + 1> current_coeffs1;
-            //     current_coeffs1[0] = (2 * fx / (size_x - 1) - f) * 6 * coeff / (size_x + 1);
-            //     current_coeffs1[1] = (2 * fy / (size_y - 1) - f) * 6 * coeff / (size_y + 1);
-            //     current_coeffs1[2] = (2 * fz / (size_z - 1) - f) * 6 * coeff / (size_z + 1);
-            //     current_coeffs1[3] = f * coeff - ((size_x - 1) * current_coeffs[0] / 2 + (size_y - 1) * current_coeffs[1] / 2 +
-            //                                      (size_z - 1) * current_coeffs[2] / 2);
-            // if (fabs(current_coeffs1[0]- current_coeffs[0] ) >0.001
-            //     ||  fabs(current_coeffs1[1]- current_coeffs[1])>0.001
-            //     ||  fabs(current_coeffs1[2]- current_coeffs[2])>0.001
-            //     ||  fabs(current_coeffs1[3]- current_coeffs[3])>0.001){
-            //     printf("coeff: %f %f %f %f\n", current_coeffs[0], current_coeffs[1], current_coeffs[2], current_coeffs[3]);
-            //     printf("coeff1: %f %f %f %f\n", current_coeffs1[0], current_coeffs1[1], current_coeffs1[2], current_coeffs1[3]);
-            // }
-            // // printf("coeff: %f %f %f %f\n", current_coeffs[0], current_coeffs[1], current_coeffs[2], current_coeffs[3]);
-            // // printf("coeff1: %f %f %f %f\n", current_coeffs1[0], current_coeffs1[1], current_coeffs1[2], current_coeffs1[3]);
-            // // } else {
-            // //     throw std::invalid_argument("regression only support 3D right now");
-            // // }
-            // return true;
         }
 
         inline bool predecompress(const block_iter &block) {
