@@ -209,17 +209,17 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
 
     void build_anchor_grid(T *data) {
         assert(anchorStride > 0);
-        if (N == 1) {
+        if constexpr (N == 1) {
             for (size_t x = 0; x < global_dimensions[0]; x += anchorStride) {
                 quant_inds[quant_index++] = quantizer.force_save_unpred(*(data + x));
             }
-        } else if (N == 2) {
+        } else if constexpr (N == 2) {
             for (size_t x = 0; x < global_dimensions[0]; x += anchorStride) {
                 for (size_t y = 0; y < global_dimensions[1]; y += anchorStride) {
                     quant_inds[quant_index++] = quantizer.force_save_unpred(*(data + x * global_dimensions[1] + y));
                 }
             }
-        } else if (N == 3) {
+        } else if constexpr (N == 3) {
             for (size_t x = 0; x < global_dimensions[0]; x += anchorStride) {
                 for (size_t y = 0; y < global_dimensions[1]; y += anchorStride) {
                     for (size_t z = 0; z < global_dimensions[2]; z += anchorStride) {
@@ -228,7 +228,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                     }
                 }
             }
-        } else if (N == 4) {
+        } else if constexpr (N == 4) {
             for (size_t x = 0; x < global_dimensions[0]; x += anchorStride) {
                 for (size_t y = 0; y < global_dimensions[1]; y += anchorStride) {
                     for (size_t z = 0; z < global_dimensions[2]; z += anchorStride) {
@@ -246,19 +246,19 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
     void recover_anchor_grid(T *decData) {
         assert(anchorStride > 0);
 
-        if (N == 1) {
+        if constexpr (N == 1) {
             for (size_t x = 0; x < global_dimensions[0]; x += anchorStride) {
                 decData[x] = quantizer.recover_unpred();
                 quant_index++;  // not really necessary
             }
-        } else if (N == 2) {
+        } else if constexpr (N == 2) {
             for (size_t x = 0; x < global_dimensions[0]; x += anchorStride) {
                 for (size_t y = 0; y < global_dimensions[1]; y += anchorStride) {
                     decData[x * dimension_offsets[0] + y] = quantizer.recover_unpred();
                     quant_index++;
                 }
             }
-        } else if (N == 3) {
+        } else if constexpr (N == 3) {
             for (size_t x = 0; x < global_dimensions[0]; x += anchorStride) {
                 for (size_t y = 0; y < global_dimensions[1]; y += anchorStride) {
                     for (size_t z = 0; z < global_dimensions[2]; z += anchorStride) {
@@ -267,7 +267,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                     }
                 }
             }
-        } else if (N == 4) {
+        } else if constexpr (N == 4) {
             for (size_t x = 0; x < global_dimensions[0]; x += anchorStride) {
                 for (size_t y = 0; y < global_dimensions[1]; y += anchorStride) {
                     for (size_t z = 0; z < global_dimensions[2]; z += anchorStride) {
