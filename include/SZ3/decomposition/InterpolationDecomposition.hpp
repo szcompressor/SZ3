@@ -171,7 +171,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
     std::pair<int, int> get_out_range() override { return quantizer.get_out_range(); }
 
    private:
-    // enum PredictorBehavior { PB_predict_overwrite, PB_predict, PB_recover };
 
     void init() {
         quant_index = 0;
@@ -283,12 +282,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         }
     }
 
-    // inline void quantize(size_t idx, T &d, T pred) {
-    //     quant_inds[quant_index++] = (quantizer.quantize_and_overwrite(d, pred));
-    // }
-    //
-    // inline void recover(size_t idx, T &d, T pred) { d = quantizer.recover(pred, quant_inds[quant_index++]); }
-
     template <class QuantizeFunc>
     double interpolation_1d(T *data, size_t begin, size_t end, size_t stride, const std::string &interp_func,
                             QuantizeFunc &&quantize_func) {
@@ -337,6 +330,47 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         return predict_error;
     }
 
+    template <typename Func>
+    ALWAYS_INLINE void foreach (T *data, size_t offset, const std::array<size_t, N> &begins,
+                                const std::array<size_t, N> &ends, const std::array<size_t, N> &steps,
+                                const std::array<size_t, N> &strides, Func && func) {
+        if constexpr (N == 1) {
+            for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                T *d = data + offset + i * strides[0];
+                func(d);
+            }
+        } else if constexpr (N == 2) {
+            for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                    T *d = data + offset + i * strides[0] + j * strides[1];
+                    func(d);
+                }
+            }
+        } else if constexpr (N == 3) {
+            for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                    for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                        T *d = data + offset + i * strides[0] + j * strides[1] + k * strides[2];
+                        func(d);
+                    }
+                }
+            }
+        } else if constexpr (N == 4) {
+            for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
+                for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
+                    for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
+                        for (size_t l = begins[3]; l < ends[3]; l += steps[3]) {
+                            T *d = data + offset + i * strides[0] + j * strides[1] + k * strides[2] + l * strides[3];
+                            func(d);
+                        }
+                    }
+                }
+            }
+        } else {
+            throw std::invalid_argument("N (dimension) should be less than 5");
+        }
+    }
+
     template <class QuantizeFunc>
     double interpolation_1d_fastest_dim_first(T *data, const std::array<size_t, N> &begin_idx,
                                               const std::array<size_t, N> &end_idx, const size_t &direction,
@@ -351,8 +385,8 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             return 0;
         }
         double predict_error = 0.0;
-        size_t begin = 0;
-        for (size_t i = 0; i < N; i++) begin += dimension_offsets[i] * begin_idx[i];
+        size_t offset = 0;
+        for (size_t i = 0; i < N; i++) offset += dimension_offsets[i] * begin_idx[i];
         size_t stride = math_stride * dimension_offsets[direction];
         std::array<size_t, N> begins, ends, strides;
         for (size_t i = 0; i < N; i++) {
@@ -362,140 +396,32 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         }
         strides[direction] = stride;
         size_t stride2x = 2 * stride;
-        // if (pb == PB_predict_overwrite) {
         if (interp_func == "linear") {
             begins[direction] = 1;
             ends[direction] = n - 1;
             steps[direction] = 2;
-            if constexpr (N == 1) {
-                for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                    T *d = data + begin + i * strides[0];
-                    quantize_func(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
-                }
-            } else if constexpr (N == 2) {
-                for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                    for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                        T *d = data + begin + i * strides[0] + j * strides[1];
-                        quantize_func(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
-                    }
-                }
-            } else if constexpr (N == 3) {
-                for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                    for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                        for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
-                            T *d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
-                            quantize_func(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
-                        }
-                    }
-                }
-            } else {
-                for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                    for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                        for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
-                            for (size_t l = begins[3]; l < ends[3]; l += steps[3]) {
-                                T *d = data + begin + i * strides[0] + j * strides[1] + k * strides[2] + l * strides[3];
-                                quantize_func(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
-                            }
-                        }
-                    }
-                }
-            }
+            foreach (data, offset, begins, ends, steps, strides,
+                     [&](T *d) { quantize_func(d - data, *d, interp_linear(*(d - stride), *(d + stride))); });
             if (n % 2 == 0) {
                 begins[direction] = n - 1;
                 ends[direction] = n;
-
-                if constexpr (N == 1) {
-                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                        T *d = data + begin + i * strides[0];
-                        if (n < 3)
-                            quantize_func(d - data, *d, *(d - stride));
-                        else
-                            quantize_func(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
-                    }
-                } else if constexpr (N == 2) {
-                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                            T *d = data + begin + i * strides[0] + j * strides[1];
-                            if (n < 3)
-                                quantize_func(d - data, *d, *(d - stride));
-                            else
-                                quantize_func(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
-                        }
-                    }
-                } else if constexpr (N == 3) {
-                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                            for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
-                                T *d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
-                                if (n < 3)
-                                    quantize_func(d - data, *d, *(d - stride));
-                                else
-                                    quantize_func(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
-                            }
-                        }
-                    }
-                } else {
-                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                            for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
-                                for (size_t l = begins[3]; l < ends[3]; l += steps[3]) {
-                                    T *d = data + begin + i * strides[0] + j * strides[1] + k * strides[2] +
-                                           l * strides[3];
-                                    if (n < 3)
-                                        quantize_func(d - data, *d, *(d - stride));
-                                    else
-                                        quantize_func(d - data, *d, lorenzo_1d(*(d - stride2x), *(d - stride)));
-                                }
-                            }
-                        }
-                    }
-                }
+                foreach (data, offset, begins, ends, steps, strides, [&](T *d) {
+                    if (n < 3)
+                        quantize_func(d - data, *d, *(d - stride));
+                    else
+                        quantize_func(d - data, *d, interp_linear1(*(d - stride2x), *(d - stride)));
+                });
             }
         } else {
             size_t stride3x = 3 * stride;
-            T *d;
             size_t i_start = 3;
             begins[direction] = i_start;
             ends[direction] = (n >= 3) ? (n - 3) : 0;
             steps[direction] = 2;
-            if constexpr (N == 1) {
-                for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                    d = data + begin + i * strides[0];
-                    quantize_func(d - data, *d,
-                                  interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                }
-            } else if constexpr (N == 2) {
-                for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                    for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                        d = data + begin + i * strides[0] + j * strides[1];
-                        quantize_func(d - data, *d,
-                                      interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                    }
-                }
-            } else if constexpr (N == 3) {
-                for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                    for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                        for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
-                            d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
-                            quantize_func(d - data, *d,
-                                          interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                        }
-                    }
-                }
-            } else {
-                for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                    for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                        for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
-                            for (size_t l = begins[3]; l < ends[3]; l += steps[3]) {
-                                d = data + begin + i * strides[0] + j * strides[1] + k * strides[2] + l * strides[3];
-                                quantize_func(
-                                    d - data, *d,
-                                    interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                            }
-                        }
-                    }
-                }
-            }
+            foreach (data, offset, begins, ends, steps, strides, [&](T *d) {
+                quantize_func(d - data, *d,
+                              interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+            });
             std::vector<size_t> boundary;
             boundary.push_back(1);
             if (n % 2 == 1) {
@@ -507,112 +433,24 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             for (auto ii : boundary) {
                 begins[direction] = ii;
                 ends[direction] = ii + 1;
-                if constexpr (N == 1) {
-                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                        d = data + begin + i * strides[0];
-                        if (ii >= 3) {
-                            if (ii + 3 < n)
-                                quantize_func(
-                                    d - data, *d,
-                                    interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                            else if (ii + 1 < n)
-                                quantize_func(d - data, *d,
-                                              interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
-                            else
-                                quantize_func(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
-                        } else {
-                            if (ii + 3 < n)
-                                quantize_func(d - data, *d,
-                                              interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
-                            else if (ii + 1 < n)
-                                quantize_func(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
-                            else
-                                quantize_func(d - data, *d, *(d - stride));
-                        }
+                foreach (data, offset, begins, ends, steps, strides, [&](T *d) {
+                    if (ii >= 3) {
+                        if (ii + 3 < n)
+                            quantize_func(d - data, *d,
+                                          interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
+                        else if (ii + 1 < n)
+                            quantize_func(d - data, *d, interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
+                        else
+                            quantize_func(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
+                    } else {
+                        if (ii + 3 < n)
+                            quantize_func(d - data, *d, interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
+                        else if (ii + 1 < n)
+                            quantize_func(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
+                        else
+                            quantize_func(d - data, *d, *(d - stride));
                     }
-                } else if constexpr (N == 2) {
-                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                            d = data + begin + i * strides[0] + j * strides[1];
-                            if (ii >= 3) {
-                                if (ii + 3 < n)
-                                    quantize_func(
-                                        d - data, *d,
-                                        interp_cubic(*(d - stride3x), *(d - stride), *(d + stride), *(d + stride3x)));
-                                else if (ii + 1 < n)
-                                    quantize_func(d - data, *d,
-                                                  interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
-                                else
-                                    quantize_func(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
-                            } else {
-                                if (ii + 3 < n)
-                                    quantize_func(d - data, *d,
-                                                  interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
-                                else if (ii + 1 < n)
-                                    quantize_func(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
-                                else
-                                    quantize_func(d - data, *d, *(d - stride));
-                            }
-                        }
-                    }
-                } else if constexpr (N == 3) {
-                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                            for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
-                                d = data + begin + i * strides[0] + j * strides[1] + k * strides[2];
-                                if (ii >= 3) {
-                                    if (ii + 3 < n)
-                                        quantize_func(d - data, *d,
-                                                      interp_cubic(*(d - stride3x), *(d - stride), *(d + stride),
-                                                                   *(d + stride3x)));
-                                    else if (ii + 1 < n)
-                                        quantize_func(d - data, *d,
-                                                      interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
-                                    else
-                                        quantize_func(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
-                                } else {
-                                    if (ii + 3 < n)
-                                        quantize_func(d - data, *d,
-                                                      interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
-                                    else if (ii + 1 < n)
-                                        quantize_func(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
-                                    else
-                                        quantize_func(d - data, *d, *(d - stride));
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    for (size_t i = begins[0]; i < ends[0]; i += steps[0]) {
-                        for (size_t j = begins[1]; j < ends[1]; j += steps[1]) {
-                            for (size_t k = begins[2]; k < ends[2]; k += steps[2]) {
-                                for (size_t l = begins[3]; l < ends[3]; l += steps[3]) {
-                                    d = data + begin + i * strides[0] + j * strides[1] + k * strides[2] +
-                                        l * strides[3];
-                                    if (ii >= 3) {
-                                        if (ii + 3 < n)
-                                            quantize_func(d - data, *d,
-                                                          interp_cubic(*(d - stride3x), *(d - stride), *(d + stride),
-                                                                       *(d + stride3x)));
-                                        else if (ii + 1 < n)
-                                            quantize_func(d - data, *d,
-                                                          interp_quad_2(*(d - stride3x), *(d - stride), *(d + stride)));
-                                        else
-                                            quantize_func(d - data, *d, interp_linear1(*(d - stride3x), *(d - stride)));
-                                    } else {
-                                        if (ii + 3 < n)
-                                            quantize_func(d - data, *d,
-                                                          interp_quad_1(*(d - stride), *(d + stride), *(d + stride3x)));
-                                        else if (ii + 1 < n)
-                                            quantize_func(d - data, *d, interp_linear(*(d - stride), *(d + stride)));
-                                        else
-                                            quantize_func(d - data, *d, *(d - stride));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                });
             }
         }
         return predict_error;
