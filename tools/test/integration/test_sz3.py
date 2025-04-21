@@ -69,10 +69,6 @@ def test_file(file_path, dims, mode, error_bound):
     if os.path.exists(decompressed_file):
         os.remove(decompressed_file)
 
-    if os.path.exists(decompressed_file):
-        os.remove(decompressed_file)
-    return abs_err, rel_err
-
 
 def load_test_files(file_list_path):
     """
