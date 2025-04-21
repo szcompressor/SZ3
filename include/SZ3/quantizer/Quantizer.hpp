@@ -30,7 +30,7 @@ class   QuantizerInterface {
      */
     ALWAYS_INLINE virtual Ti recover(Ti pred, To quant_index) = 0;
 
-    virtual void force_save_unpred(Ti ori) = 0;
+    virtual To force_save_unpred(Ti ori) = 0;
 
     /**
      ** serialize the quantizer and store it to a buffer
