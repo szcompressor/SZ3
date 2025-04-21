@@ -112,6 +112,11 @@
 
         ALWAYS_INLINE T recover_unpred() { return unpred[index++]; }
 
+        ALWAYS_INLINE int force_save_unpred(T ori) override{
+            unpred.push_back(ori);
+            return 0;
+        }
+
         size_t size_est() { return unpred.size() * sizeof(T); }
 
         void save(unsigned char *&c) const override {
