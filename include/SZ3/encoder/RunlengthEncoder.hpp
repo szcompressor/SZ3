@@ -15,6 +15,7 @@ class RunlengthEncoder : public concepts::EncoderInterface<T> {
     void preprocess_encode(const std::vector<T> &bins, int stateNum) override {}
 
     size_t encode(const std::vector<T> &bins, uchar *&bytes) override {
+        auto bytespos = bytes;
         int max = 0;
         size_t s = 0;
         for (size_t i = 1; i < bins.size(); i++) {
@@ -29,7 +30,7 @@ class RunlengthEncoder : public concepts::EncoderInterface<T> {
         }
         write(bins[bins.size() - 1], bytes);
         write(int(bins.size() - s), bytes);
-        return 0;
+        return bytes - bytespos;
     }
 
     void postprocess_encode() override {}
@@ -43,6 +44,9 @@ class RunlengthEncoder : public concepts::EncoderInterface<T> {
         for (size_t i = 0; i < bins.size();) {
             read(value, bytes);
             read(cnt, bytes);
+            if (i + cnt > bins.size()) {
+                throw std::runtime_error("Decoded length exceeds targetLength");
+            }
             for (size_t j = i; j < i + cnt; j++) {
                 bins[j] = value;
             }

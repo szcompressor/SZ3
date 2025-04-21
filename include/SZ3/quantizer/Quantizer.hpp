@@ -10,7 +10,7 @@ namespace SZ3::concepts {
  * @tparam To quantized data type
  */
 template <class Ti, class To>
-class QuantizerInterface {
+class   QuantizerInterface {
    public:
     virtual ~QuantizerInterface() = default;
 

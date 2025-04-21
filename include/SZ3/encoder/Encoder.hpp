@@ -2,7 +2,7 @@
 #define _SZ_ENCODER_HPP
 
 #include <vector>
-
+#include "SZ3/def.hpp"
 namespace SZ3 {
 namespace concepts {
 
