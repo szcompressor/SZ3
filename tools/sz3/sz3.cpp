@@ -234,6 +234,7 @@ int main(int argc, char *argv[]) {
                 exit(0);
             case 'v':
                 printf("SZ3 Version: %s\n", SZ3_VER);
+                printf("SZ3 Data Format Version: %s\n", SZ3_DATA_VER);
                 printf("\nThird-party libraries copyright notices:\n");
                 printf("----------------------------------------\n");
                 printf("ska_hash:\n");
