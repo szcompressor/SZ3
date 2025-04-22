@@ -3,6 +3,25 @@
 using namespace SZ3;
 
 template <class T, uint N>
+void SZ3_interpolation_compress(Config &conf, T *data, char *dst, size_t &outSize) {
+    calAbsErrorBound(conf, data);
+
+    auto sz = make_compressor_sz_generic<T, N>(
+        make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
+        HuffmanEncoder<int>(), Lossless_zstd());
+    sz->compress(conf, data, reinterpret_cast<uchar *>(dst), outSize);
+}
+
+template <class T, uint N>
+void SZ3_interpolation_decompress(const Config &conf, const char *cmpData, size_t cmpSize, T *decData) {
+    auto cmpDataPos = reinterpret_cast<const uchar *>(cmpData);
+    auto sz = make_compressor_sz_generic<T, N>(
+        make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
+        HuffmanEncoder<int>(), Lossless_zstd());
+    sz->decompress(conf, cmpDataPos, cmpSize, decData);
+}
+
+template <class T, uint N>
 class MyDecomposition : public concepts::DecompositionInterface<T, int, N> {
    public:
     MyDecomposition(const Config &conf) : num(conf.num), quantizer(conf.absErrorBound) {}
@@ -42,17 +61,17 @@ class MyDecomposition : public concepts::DecompositionInterface<T, int, N> {
 };
 
 template <class T, uint N>
-void SZ3_customized_compress(Config &conf, T *data, uchar *dst, size_t &outSize) {
+void SZ3_customized_compress(Config &conf, T *data, char *dst, size_t &outSize) {
     calAbsErrorBound(conf, data);
 
     auto sz = make_compressor_sz_generic<T, N>(MyDecomposition<T, N>(conf), HuffmanEncoder<int>(), Lossless_zstd());
 
-    outSize = sz->compress(conf, data, dst, outSize);
+    outSize = sz->compress(conf, data, reinterpret_cast<uchar *>(dst), outSize);
 }
 
 template <class T, uint N>
-void SZ3_customized_decompress(const Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
-    auto cmpDataPos = cmpData;
+void SZ3_customized_decompress(const Config &conf, const char *cmpData, size_t cmpSize, T *decData) {
+    auto cmpDataPos = reinterpret_cast<const uchar *>(cmpData);
     auto sz = make_compressor_sz_generic<T, N>(MyDecomposition<T, N>(conf), HuffmanEncoder<int>(), Lossless_zstd());
 
     sz->decompress(conf, cmpDataPos, cmpSize, decData);
@@ -85,7 +104,8 @@ int main(int argc, char **argv) {
 
     std::vector<float> input_data_copy(input_data);
     std::vector<float> dec_data(conf.num);
-    std::vector<uchar> cmpData(conf.num * sizeof(float) * 2);
+    auto dec_data_pos = dec_data.data();
+    std::vector<char> cmpData(conf.num * sizeof(float) * 2);
     size_t cmpSize = cmpData.size();
 
     // set error bound
@@ -97,18 +117,20 @@ int main(int argc, char **argv) {
     // conf.relErrorBound = atof(argv[argp++]);
 
     // compress, decompress, and verify
-    if (dim == 1) {
-        SZ3_customized_compress<float, 1>(conf, input_data.data(), cmpData.data(), cmpSize);
-        SZ3_customized_decompress<float, 1>(conf, cmpData.data(), cmpSize, dec_data.data());
-        SZ3::verify<float>(input_data_copy.data(), dec_data.data(), conf.num);
-    } else if (dim == 2) {
-        SZ3_customized_compress<float, 2>(conf, input_data.data(), cmpData.data(), cmpSize);
-        SZ3_customized_decompress<float, 2>(conf, cmpData.data(), cmpSize, dec_data.data());
-        SZ3::verify<float>(input_data_copy.data(), dec_data.data(), conf.num);
-    } else if (dim == 3) {
+    if (dim == 3) {
+        SZ_compress<float>(conf, input_data.data(), cmpData.data(), cmpSize);
+        SZ_decompress<float>(conf, cmpData.data(), cmpSize, dec_data_pos);
+
+        SZ3_interpolation_compress<float, 3>(conf, input_data.data(), cmpData.data(), cmpSize);
+        SZ3_interpolation_decompress<float, 3>(conf, cmpData.data(), cmpSize, dec_data_pos);
+
         SZ3_customized_compress<float, 3>(conf, input_data.data(), cmpData.data(), cmpSize);
-        SZ3_customized_decompress<float, 3>(conf, cmpData.data(), cmpSize, dec_data.data());
-        SZ3::verify<float>(input_data_copy.data(), dec_data.data(), conf.num);
+        SZ3_customized_decompress<float, 3>(conf, cmpData.data(), cmpSize, dec_data_pos);
+
+        SZ3::verify<float>(input_data_copy.data(), dec_data_pos, conf.num);
+    } else {
+        printf("Data dimension not equal to 3 is not supported.\n");
+        return 0;
     }
 
     // write compressed data and decompressed data to the same folder as original data

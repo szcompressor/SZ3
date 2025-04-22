@@ -15,8 +15,6 @@
 #include "SZ3/utils/Timer.hpp"
 
 /**
- * TODO
- * add truncate as Decomposition
  */
 namespace SZ3 {
 template <class T, uint N, class Lossless>

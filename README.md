@@ -18,8 +18,9 @@ Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [
 
 ## 3rd party libraries/tools
 
-* Zstandard (https://facebook.github.io/zstd/). Zstandard v1.4.5 is included and will be used if libzstd can not be found by
+* [Zstandard](https://facebook.github.io/zstd/) v1.4.5 is included and will be used if libzstd can not be found by
   pkg-config.
+* The source code of ska_hash and INIReader are included in SZ3.
 
 ## Testing Examples
 
