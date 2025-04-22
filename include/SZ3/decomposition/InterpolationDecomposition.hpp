@@ -29,14 +29,15 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         this->quant_inds = quant_inds.data();
         double eb = quantizer.get_eb();
 
-        if (anchor_stride == 0) {
-            *dec_data = quantizer.recover(0, this->quant_inds[quant_index++]);
+        if (anchor_stride == 0) { //check whether used anchor points
+            *dec_data = quantizer.recover(0, this->quant_inds[quant_index++]); //no anchor points
         } else {
-            recover_anchor_grid(dec_data);
+            recover_anchor_grid(dec_data); //recover anchor points
             interp_level--;
         }
 
         for (uint level = interp_level; level > 0 && level <= interp_level; level--) {
+            //set level-wise error bound
             if (eb_alpha < 0) {
                 if (level >= 3) {
                     quantizer.set_eb(eb * eb_ratio);
@@ -81,7 +82,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         interp_id = conf.interpAlgo;
         direction_sequence_id = conf.interpDirection;
         anchor_stride = conf.interp_anchorStride;
-        blocksize = 32;
+        blocksize = 32; //a empirical value. Can be very large but not helpful
         eb_alpha = conf.interp_alpha;
         eb_beta = conf.interp_beta;
 
@@ -90,14 +91,15 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         quant_inds = quant_inds_vec.data();
         double eb = quantizer.get_eb();
 
-        if (anchor_stride == 0) {
-            quant_inds[quant_index++] = quantizer.quantize_and_overwrite(*data, 0);
-        } else {
-            build_anchor_grid(data);
+        if (anchor_stride == 0) { // check whether to use anchor points
+            quant_inds[quant_index++] = quantizer.quantize_and_overwrite(*data, 0); //no
+        } else { 
+            build_anchor_grid(data); //losslessly saving anchor points
             interp_level--;
         }
         for (uint level = interp_level; level > 0 && level <= interp_level; level--) {
             double cur_eb = eb;
+            //set level-wise error bound
             if (eb_alpha < 0) {
                 if (level >= 3) {
                     cur_eb = eb * eb_ratio;
@@ -248,7 +250,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         }
     }
 
-    void build_anchor_grid(T *data) {
+    void build_anchor_grid(T *data) { //store anchor points. steplength: anchor_stride on each dimension
         std::array<size_t, N> strides;
         std::array<size_t, N> begins{0};
         std::fill(strides.begin(), strides.end(), anchor_stride);
@@ -256,7 +258,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                  [&](T *d) { quant_inds[quant_index++] = quantizer.force_save_unpred(*d); });
     }
 
-    void recover_anchor_grid(T *data) {
+    void recover_anchor_grid(T *data) { //recover anchor points. steplength: anchor_stride on each dimension
         std::array<size_t, N> strides;
         std::array<size_t, N> begins{0};
         std::fill(strides.begin(), strides.end(), anchor_stride);
@@ -268,7 +270,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
 
     template <class QuantizeFunc>
     double interpolation_1d(T *data, size_t begin, size_t end, size_t stride, const std::string &interp_func,
-                            QuantizeFunc &&quantize_func) {
+                            QuantizeFunc &&quantize_func) { // the old API. do interpolations along a certain dimension. Moving through that dimension
         size_t n = (end - begin) / stride + 1;
         if (n <= 1) {
             return 0;
@@ -318,7 +320,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
     double interpolation_1d_fastest_dim_first(T *data, const std::array<size_t, N> &begin_idx,
                                               const std::array<size_t, N> &end_idx, const size_t &direction,
                                               std::array<size_t, N> &strides, const size_t &math_stride,
-                                              const std::string &interp_func, QuantizeFunc &&quantize_func) {
+                                              const std::string &interp_func, QuantizeFunc &&quantize_func) {  // the new API. do all interpolations along a certain dimension on the full data grid. Moving on the fastest-dim.
         for (size_t i = 0; i < N; i++) {
             if (end_idx[i] < begin_idx[i]) return 0;
         }
@@ -406,9 +408,9 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
     double interpolation(T *data, std::array<size_t, N> begin, std::array<size_t, N> end,
                          const std::string &interp_func, QuantizeFunc &&quantize_func, const int direction,
                          size_t stride = 1) {
-        if constexpr (N == 1) {
+        if constexpr (N == 1) { //old API
             return interpolation_1d(data, begin[0], end[0], stride, interp_func, quantize_func);
-        } else if constexpr (N == 2) {
+        } else if constexpr (N == 2) { //old API
             double predict_error = 0;
             size_t stride2x = stride * 2;
             const std::array<int, N> dims = dim_sequences[direction];
@@ -427,7 +429,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                     stride * original_dim_offsets[dims[1]], interp_func, quantize_func);
             }
             return predict_error;
-        } else if constexpr (N == 3 || N == 4) {
+        } else if constexpr (N == 3 || N == 4) { //new API (for faster speed)
             double predict_error = 0;
             size_t stride2x = stride * 2;
             const std::array<int, N> dims = dim_sequences[direction];
@@ -457,7 +459,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
     int interp_level = -1;
     int interp_id;
     uint blocksize;
-    double eb_ratio = 0.5;
+    double eb_ratio = 0.5; //the SZ3.2 eb reduction rate. To deprecate
     std::vector<std::string> interpolators = {"linear", "cubic"};
     int *quant_inds;
     size_t quant_index = 0;

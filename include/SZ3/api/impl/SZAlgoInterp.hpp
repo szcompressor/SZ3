@@ -18,7 +18,7 @@ size_t SZ_compress_Interp(Config &conf, T *data, uchar *cmpData, size_t cmpCap) 
     assert(N == conf.N);
     assert(conf.cmprAlgo == ALGO_INTERP);
     calAbsErrorBound(conf, data);
-    if (conf.interp_anchorStride < 0) {
+    if (conf.interp_anchorStride < 0) { //set default anchor stride
         std::array<size_t, 4> anchor_strides = {4096, 128, 32, 16};
         conf.interp_anchorStride = anchor_strides[N - 1];
     }
@@ -41,17 +41,15 @@ void SZ_decompress_Interp(const Config &conf, const uchar *cmpData, size_t cmpSi
 
 template <class T, uint N>
 double interp_compress_test(const std::vector<std::vector<T>> sampled_blocks, const Config conf, int block_size,
-                            uchar *cmpData, size_t cmpCap) {
+                            uchar *cmpData, size_t cmpCap) { //test interp cmp on a set of sampled data blocks and return the compression ratio
     auto sz =
         make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2));
 
     std::vector<int> total_quant_bins;
     for (int k = 0; k < sampled_blocks.size(); k++) {
         auto cur_block = sampled_blocks[k];
-
         auto quant_bins = sz.compress(conf, cur_block.data());
-
-        total_quant_bins.insert(total_quant_bins.end(), quant_bins.begin(), quant_bins.end());
+        total_quant_bins.insert(total_quant_bins.end(), quant_bins.begin(), quant_bins.end()); //merge the quant bins. Lossless them together
     }
 
     auto encoder = HuffmanEncoder<int>();
@@ -77,7 +75,7 @@ double interp_compress_test(const std::vector<std::vector<T>> sampled_blocks, co
 
 template <class T, uint N>
 double lorenzo_compress_test(const std::vector<std::vector<T>> sampled_blocks, const Config &conf, uchar *cmpData,
-                             size_t cmpCap) {
+                             size_t cmpCap) { //test lorenzo cmp on a set of sampled data blocks and return the compression ratio
     std::vector<int> total_quant_bins;
     // if ((N == 3 && !conf.regression2) || (N == 1 && !conf.regression && !conf.regression2)) {
     std::vector<std::shared_ptr<concepts::PredictorInterface<T, N>>> predictors;
@@ -90,7 +88,7 @@ double lorenzo_compress_test(const std::vector<std::vector<T>> sampled_blocks, c
     for (int k = 0; k < sampled_blocks.size(); k++) {
         auto cur_block = sampled_blocks[k];
         auto quant_bins = sz.compress(conf, cur_block.data());
-        total_quant_bins.insert(total_quant_bins.end(), quant_bins.begin(), quant_bins.end());
+        total_quant_bins.insert(total_quant_bins.end(), quant_bins.begin(), quant_bins.end()); //merge the quant bins. Lossless them together
     }
     auto encoder = HuffmanEncoder<int>();
     auto lossless = Lossless_zstd();
@@ -123,28 +121,26 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     //        Timer timer(true);
     calAbsErrorBound(conf, data);
 
-    if (conf.interp_anchorStride < 0) {
+    if (conf.interp_anchorStride < 0) { //set default anchor stride
         std::array<size_t, 4> anchor_strides = {4096, 128, 32, 16};
         conf.interp_anchorStride = anchor_strides[N - 1];
     }
 
-    std::array<double, 4> sample_Rates = {0.005, 0.005, 0.005, 0.005};
+    std::array<double, 4> sample_Rates = {0.005, 0.005, 0.005, 0.005}; //default data sample rate. todo: add a config var to control  
     auto sampleRate = sample_Rates[N - 1];
-    std::array<size_t, 4> sampleBlock_Sizes = {4096, 128, 32, 16};
+    std::array<size_t, 4> sampleBlock_Sizes = {4096, 128, 32, 16}; //default sampled data block rate. Should better be no smaller than the anchor stride. todo: add a config var to control  
     size_t sampleBlockSize = sampleBlock_Sizes[N - 1];
     size_t shortest_edge = conf.dims[0];
     for (size_t i = 0; i < N; i++) {
         shortest_edge = conf.dims[i] < shortest_edge ? conf.dims[i] : shortest_edge;
     }
-
+    //Automatically adjust sampleblocksize. 
     while (sampleBlockSize >= shortest_edge) sampleBlockSize /= 2;
-
     while (sampleBlockSize >= 16 and (pow(sampleBlockSize + 1, N) / conf.num) > 1.5 * sampleRate) sampleBlockSize /= 2;
-
     if (sampleBlockSize < 8) sampleBlockSize = 8;
 
     bool to_tune = pow(sampleBlockSize + 1, N) <= 0.05 * conf.num;  // to further revise
-    if (!to_tune) {
+    if (!to_tune) { // if the sampled data would be too many (currently it is 5% of the input), skip the tuning
         conf.cmprAlgo = ALGO_INTERP;
         return SZ_compress_Interp<T, N>(conf, data, cmpData, cmpCap);
     }
@@ -152,12 +148,12 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     size_t per_block_ele_num = pow(sampleBlockSize + 1, N);
     size_t sampling_num;
     std::vector<std::vector<size_t>> starts;
-    auto profStride = sampleBlockSize / 4;
-    profiling_block<T, N>(data, conf.dims, starts, sampleBlockSize, conf.absErrorBound, profStride);
+    auto profStride = sampleBlockSize / 4; //larger is faster, smaller is better 
+    profiling_block<T, N>(data, conf.dims, starts, sampleBlockSize, conf.absErrorBound, profStride); //filter out the non-constant data blocks
     size_t num_filtered_blocks = starts.size();
     bool profiling = num_filtered_blocks * per_block_ele_num >= 0.5 * sampleRate * conf.num;  // temp. to refine
     // bool profiling = false;
-    sampleBlocks<T, N>(data, conf.dims, sampleBlockSize, sampled_blocks, sampleRate, profiling, starts);
+    sampleBlocks<T, N>(data, conf.dims, sampleBlockSize, sampled_blocks, sampleRate, profiling, starts); //sample out same data blocks
     sampling_num = sampled_blocks.size() * per_block_ele_num;
 
     if (sampling_num == 0 or sampling_num >= conf.num * 0.2) {
@@ -194,6 +190,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
             conf.interpDirection = testConfig.interpDirection;
         }
         testConfig.interpDirection = conf.interpDirection;
+        //test more alpha-beta pairs for best compression ratio,
         auto alphalist = std::vector<double>{1.0, 1.5, 2.0};
         auto betalist = std::vector<double>{1.0, 2.5, 3.0};
         for (auto i = 0; i < alphalist.size(); i++) {
@@ -229,7 +226,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     }
 
     bool useInterp =
-        !(best_lorenzo_ratio >= best_interp_ratio * 1.1 && best_lorenzo_ratio < 50 && best_interp_ratio < 50);
+        !(best_lorenzo_ratio >= best_interp_ratio * 1.1 && best_lorenzo_ratio < 50 && best_interp_ratio < 50); //1.1 is a fix coefficient. subject to revise
     size_t cmpSize = 0;
     if (useInterp) {
         conf.cmprAlgo = ALGO_INTERP;
