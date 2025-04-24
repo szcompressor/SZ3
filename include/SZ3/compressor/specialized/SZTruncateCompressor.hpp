@@ -1,5 +1,5 @@
-#ifndef SZ_Truncate_COMPRESSOR_HPP
-#define SZ_Truncate_COMPRESSOR_HPP
+#ifndef SZ3_Truncate_COMPRESSOR_HPP
+#define SZ3_Truncate_COMPRESSOR_HPP
 
 #include <cstring>
 

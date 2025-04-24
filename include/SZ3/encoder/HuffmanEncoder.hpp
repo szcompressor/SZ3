@@ -1,5 +1,5 @@
-#ifndef _SZ_HUFFMAN_ENCODER_HPP
-#define _SZ_HUFFMAN_ENCODER_HPP
+#ifndef SZ3_HUFFMAN_ENCODER_HPP
+#define SZ3_HUFFMAN_ENCODER_HPP
 
 #include <cstdint>
 

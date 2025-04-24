@@ -2,8 +2,8 @@
 // Created by Kai Zhao on 7/1/21.
 //
 
-#ifndef SZ_MDZ_H
-#define SZ_MDZ_H
+#ifndef SZ3_MDZ_H
+#define SZ3_MDZ_H
 
 #include <SZ3/compressor/SZGenericCompressor.hpp>
 #include <SZ3/compressor/SZIterateCompressor.hpp>

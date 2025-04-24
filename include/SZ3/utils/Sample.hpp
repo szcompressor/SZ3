@@ -1,5 +1,5 @@
-#ifndef SZ_SAMPLE_HPP
-#define SZ_SAMPLE_HPP
+#ifndef SZ3_SAMPLE_HPP
+#define SZ3_SAMPLE_HPP
 
 namespace SZ3 {
 template <class T, uint N>

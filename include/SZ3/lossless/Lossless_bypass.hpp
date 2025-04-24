@@ -2,8 +2,8 @@
 // Created by Kai Zhao on 4/21/20.
 //
 
-#ifndef SZ_LOSSLESS_BYPASS_HPP
-#define SZ_LOSSLESS_BYPASS_HPP
+#ifndef SZ3_LOSSLESS_BYPASS_HPP
+#define SZ3_LOSSLESS_BYPASS_HPP
 
 #include <cstring>
 #include "SZ3/def.hpp"

@@ -1,5 +1,5 @@
-#ifndef _SZ_COMPOSED_PREDICTOR_HPP
-#define _SZ_COMPOSED_PREDICTOR_HPP
+#ifndef SZ3_COMPOSED_PREDICTOR_HPP
+#define SZ3_COMPOSED_PREDICTOR_HPP
 
 #include <cassert>
 #include <iostream>

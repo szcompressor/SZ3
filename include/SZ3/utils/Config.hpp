@@ -2,8 +2,8 @@
 // Created by Kai Zhao on 4/28/20.
 //
 
-#ifndef SZ_Config_HPP
-#define SZ_Config_HPP
+#ifndef SZ3_Config_HPP
+#define SZ3_Config_HPP
 
 #include <cstdint>
 #include <iostream>

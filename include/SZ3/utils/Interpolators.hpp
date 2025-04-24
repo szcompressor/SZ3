@@ -2,8 +2,8 @@
 // Created by Kai Zhao on 9/1/20.
 //
 
-#ifndef SZ_INTERPOLATORS_HPP
-#define SZ_INTERPOLATORS_HPP
+#ifndef SZ3_INTERPOLATORS_HPP
+#define SZ3_INTERPOLATORS_HPP
 
 #include "SZ3/def.hpp"
 

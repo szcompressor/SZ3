@@ -2,8 +2,8 @@
 // Created by Kai Zhao on 4/21/20.
 //
 
-#ifndef SZ_LOSSLESS_ZSTD_HPP
-#define SZ_LOSSLESS_ZSTD_HPP
+#ifndef SZ3_LOSSLESS_ZSTD_HPP
+#define SZ3_LOSSLESS_ZSTD_HPP
 
 #include "SZ3/def.hpp"
 #include "SZ3/lossless/Lossless.hpp"
@@ -27,8 +27,8 @@ class Lossless_zstd : public concepts::LosslessInterface {
     size_t compress(const uchar *src, size_t srcLen, uchar *dst, size_t dstCap) override {
         write(srcLen, dst);
         if (dstCap < ZSTD_compressBound(srcLen)) {
-            fprintf(stderr, "%s\n", SZ_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
-            throw std::length_error(SZ_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
+            fprintf(stderr, "%s\n", SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
+            throw std::length_error(SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
         }
         size_t dstLen = ZSTD_compress(dst, dstCap, src, srcLen, compression_level);
         return dstLen + sizeof(size_t);

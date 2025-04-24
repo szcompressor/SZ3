@@ -1,5 +1,5 @@
-#ifndef _SZ_PREDICTOR_HPP
-#define _SZ_PREDICTOR_HPP
+#ifndef SZ3_PREDICTOR_HPP
+#define SZ3_PREDICTOR_HPP
 
 #include "SZ3/def.hpp"
 #include "SZ3/utils/BlockwiseIterator.hpp"

@@ -1,11 +1,11 @@
-#ifndef _DEF_HPP
-#define _DEF_HPP
+#ifndef SZ3_DEF_HPP
+#define SZ3_DEF_HPP
 
 namespace SZ3 {
 
 typedef unsigned int uint;
 typedef unsigned char uchar;
-#define SZ_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH \
+#define SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH \
     "The buffer for compressed data is not large enough."
 }  // namespace SZ3
 

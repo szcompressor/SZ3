@@ -1,5 +1,5 @@
-#ifndef _SZ_LORENZO_PREDICTOR_HPP
-#define _SZ_LORENZO_PREDICTOR_HPP
+#ifndef SZ3_LORENZO_PREDICTOR_HPP
+#define SZ3_LORENZO_PREDICTOR_HPP
 
 #include "SZ3/predictor/Predictor.hpp"
 

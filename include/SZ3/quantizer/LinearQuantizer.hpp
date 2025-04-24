@@ -1,5 +1,5 @@
-    #ifndef _SZ_LINEAR_QUANTIZER_HPP
-    #define _SZ_LINEAR_QUANTIZER_HPP
+    #ifndef SZ3_LINEAR_QUANTIZER_HPP
+    #define SZ3_LINEAR_QUANTIZER_HPP
 
     #include <cassert>
     #include <cstring>

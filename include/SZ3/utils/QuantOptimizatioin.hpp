@@ -1,5 +1,5 @@
-#ifndef SZ_optimize_quant_intervals_hpp
-#define SZ_optimize_quant_intervals_hpp
+#ifndef SZ3_optimize_quant_intervals_hpp
+#define SZ3_optimize_quant_intervals_hpp
 
 #include <vector>
 

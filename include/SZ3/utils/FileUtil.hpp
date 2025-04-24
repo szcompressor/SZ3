@@ -2,8 +2,8 @@
 // Created by Kai Zhao on 12/9/19.
 //
 
-#ifndef _SZ_FILE_UTIL
-#define _SZ_FILE_UTIL
+#ifndef SZ3_FILE_UTIL
+#define SZ3_FILE_UTIL
 
 #include <cassert>
 #include <fstream>

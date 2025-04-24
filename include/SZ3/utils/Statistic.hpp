@@ -2,8 +2,8 @@
 // Created by Kai Zhao on 4/20/20.
 //
 
-#ifndef SZ_STATISTIC_HPP
-#define SZ_STATISTIC_HPP
+#ifndef SZ3_STATISTIC_HPP
+#define SZ3_STATISTIC_HPP
 
 #include "Config.hpp"
 

@@ -1,5 +1,5 @@
-#ifndef _SZ_BYPASS_ENCODER_HPP
-#define _SZ_BYPASS_ENCODER_HPP
+#ifndef SZ3_BYPASS_ENCODER_HPP
+#define SZ3_BYPASS_ENCODER_HPP
 
 #include <cassert>
 #include <vector>

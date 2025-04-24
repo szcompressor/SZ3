@@ -1,5 +1,5 @@
-#ifndef _SZ_ENCODER_HPP
-#define _SZ_ENCODER_HPP
+#ifndef SZ3_ENCODER_HPP
+#define SZ3_ENCODER_HPP
 
 #include <vector>
 #include "SZ3/def.hpp"
