@@ -38,7 +38,7 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
             }
 
         } catch (std::length_error &e) {
-            if (std::string(e.what()) == SZ_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH) {
+            if (std::string(e.what()) == SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH) {
                 isCmpCapSufficient = false;
                 printf("SZ is downgraded to lossless mode.\n");
             } else {
