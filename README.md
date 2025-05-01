@@ -6,6 +6,14 @@ SZ3: A Modular Error-bounded Lossy Compression Framework for Scientific Datasets
 * Supervisor: Franck Cappello
 * Other Contributors: Robert Underwood, Sihuan Li, Ali M. Gok
 
+## SZ3.3
+
+This is an under-development version of SZ3, which integrates lightweight QoZ features into SZ3 and is ready for testing.
+
+If you use this version of SZ3 in your work, besides the core citations for SZ3, we would kindly request you cite the following papers:
+
+* QoZ 2.0 (HPEZ): **[SIGMOD 24]** Jinyang Liu, Sheng Di, Kai Zhao, Xin Liang, Sian Jin, Zizhe Jian, Jiajun Huang, Shixun Wu, Zizhong Chen, and Franck Cappello. 2023. "[High-performance Effective Scientific Error-bounded Lossy Compression with Auto-tuned Multi-component Interpolation.](https://dl.acm.org/doi/abs/10.1145/3639259)" in Proceedings of the ACM on Management of Data 2, no. 1 (2024): 1-27.
+* QoZ 1.0: **[SC 22]** Jinyang Liu, Sheng Di, Sian Jin, Kai Zhao, Xin Liang, Zizhong Chen, and Franck Cappello. "[Dynamic quality metric oriented error bounded lossy compression for scientific datasets.](https://ieeexplore.ieee.org/abstract/document/10046076)" In SC22: International Conference for High Performance Computing, Networking, Storage and Analysis, pp. 1-15. IEEE, 2022.
 
 ## Installation
 
