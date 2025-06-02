@@ -48,5 +48,6 @@ int main(int argc, char **argv) {
     }
     printf("Smoke test %s", max_err <= conf.absErrorBound ? "passed" : "failed");
     //    printf("%lu ", conf.num);
+    delete[] cmpData;
     return 0;
 }
