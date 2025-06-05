@@ -32,7 +32,7 @@ herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config &conf) {
     std::vector<unsigned int> cd_values(cd_nelmts, 0);
     auto buffer = reinterpret_cast<unsigned char *>(cd_values.data());
 
-    conf.save(buffer);
+    // conf.save(buffer);
     auto confSizeReal = conf.save(buffer);
     cd_nelmts = std::ceil(confSizeReal / 1.0 / sizeof(int));
 
