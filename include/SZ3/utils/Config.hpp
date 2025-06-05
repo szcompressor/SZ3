@@ -197,7 +197,7 @@ class Config {
         write(stride, c);
         write(pred_dim, c);
 
-        // printf("%lu\n", c - c0);
+ //       printf("%lu\n", c - c0);
         return c - c0;
     }
 
@@ -308,6 +308,7 @@ class Config {
     }
 
     static size_t size_est() {
+        return 160;
         return sizeof(Config) + sizeof(size_t) * 5;  // sizeof(size_t) * 5 is for dims vector
     }
 
