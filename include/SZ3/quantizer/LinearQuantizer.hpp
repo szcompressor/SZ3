@@ -46,12 +46,13 @@ class LinearQuantizer : public concepts::QuantizerInterface<T, int> {
                 quant_index_shifted = this->radius + half_index;
             }
             T decompressed_data = pred + quant_index * this->error_bound;
-            if (fabs(decompressed_data - data) > this->error_bound) {
-                unpred.push_back(data);
-                return 0;
-            } else {
+            // if data is NaN, the error is NaN, and NaN <= error_bound is false
+            if (fabs(decompressed_data - data) <= this->error_bound) {
                 data = decompressed_data;
                 return quant_index_shifted;
+            } else {
+                unpred.push_back(data);
+                return 0;
             }
         } else {
             unpred.push_back(data);
@@ -81,13 +82,14 @@ class LinearQuantizer : public concepts::QuantizerInterface<T, int> {
                 quant_index_shifted = this->radius + half_index;
             }
             T decompressed_data = pred + quant_index * this->error_bound;
-            if (fabs(decompressed_data - ori) > this->error_bound) {
+            // if data is NaN, the error is NaN, and NaN <= error_bound is false
+            if (fabs(decompressed_data - ori) <= this->error_bound) {
+                dest = decompressed_data;
+                return quant_index_shifted;
+            } else {
                 unpred.push_back(ori);
                 dest = ori;
                 return 0;
-            } else {
-                dest = decompressed_data;
-                return quant_index_shifted;
             }
         } else {
             unpred.push_back(ori);
