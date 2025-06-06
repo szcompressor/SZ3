@@ -1,17 +1,17 @@
 #include <cmath>
 #include <cstdint>
 
-#include "SZ3/encoder/HuffmanEncoder.hpp"
-#include "SZ3/encoder/RunlengthEncoder.hpp"
 #include "SZ3/encoder/ArithmeticEncoder.hpp"
 #include "SZ3/encoder/BypassEncoder.hpp"
+#include "SZ3/encoder/HuffmanEncoder.hpp"
+#include "SZ3/encoder/RunlengthEncoder.hpp"
 #include "gtest/gtest.h"
 
 template <typename Encoder, typename T>
 void runFunctionalTest() {
     int N = 1000;
-    std::vector<SZ3::uchar> buffer_data(N * sizeof(T));
-    std::vector<SZ3::uchar> buffer_conf(N * sizeof(T));
+    std::vector<SZ3::uchar> buffer_data(N * sizeof(T) * 2);
+    std::vector<SZ3::uchar> buffer_conf(N * sizeof(T) * 2);
     std::vector<T> data(N);
     for (int i = 0; i < N; i++) {
         data[i] = i % 100;

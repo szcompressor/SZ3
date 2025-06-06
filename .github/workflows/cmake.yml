@@ -1,46 +1,100 @@
 name: CMake
 
-on: [push]
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 env:
-  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
 
 jobs:
   build:
-    # The CMake configure and build commands are platform agnostic and should work equally
-    # well on Windows or Mac.  You can convert this to a matrix build if you need
-    # cross-platform coverage.
-    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
 
     steps:
-    - uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-    - name: Create Build Environment
-      # Some projects don't allow in-source building, so create a separate build directory
-      # We'll use this as our working directory for all subsequent commands
-      run: cmake -E make_directory ${{github.workspace}}/build
+      # ─── Install HDF5 before configuring CMake ─────────────────────────────
+      # Ubuntu: use apt-get
+      - name: Install HDF5 (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libhdf5-dev
 
-    - name: Configure CMake
-      # Use a bash shell so we can use the same syntax for environment variable
-      # access regardless of the host operating system
-      shell: bash
-      working-directory: ${{github.workspace}}/build
-      # Note the current convention is to use the -S and -B options here to specify source 
-      # and build directories, but this is only available with CMake 3.13 and higher.  
-      # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+      # macOS: use Homebrew
+      - name: Install HDF5 (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew update
+          brew install hdf5
 
-    - name: Build
-      working-directory: ${{github.workspace}}/build
-      shell: bash
-      # Execute the build.  You can specify a specific target with "--target <NAME>"
-      run: cmake --build . --config $BUILD_TYPE
+      # Windows: use Chocolatey
+      - name: Install HDF5 (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          choco install hdf5 --confirm
+          RefreshEnv
 
-#     - name: Test
-#       working-directory: ${{github.workspace}}/build
-#       shell: bash
-#       # Execute tests defined by the CMake configuration.  
-#       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-#       run: ctest -C $BUILD_TYPE
+      # ─── Create build directory ────────────────────────────────────────────
+      - name: Create build directory
+        run: cmake -E make_directory build
+
+      # ─── Configure CMake (Linux/macOS) ───────────────────────────────────
+      - name: Configure CMake (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        working-directory: build
+        run: |
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DBUILD_TESTING=ON \
+            -DBUILD_H5Z_FILTER=ON
+
+      # ─── Configure CMake (Windows) ──────────────────────────────────────
+      - name: Configure CMake (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        working-directory: build
+        run: |
+          cmake .. `
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+            -DBUILD_TESTING=ON `
+            -DBUILD_H5Z_FILTER=ON
+
+      # ─── Build (Linux/macOS) ─────────────────────────────────────────────
+      - name: Build (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        working-directory: build
+        run: cmake --build . --config ${{ env.BUILD_TYPE }}
+
+      # ─── Build (Windows) ─────────────────────────────────────────────────
+      - name: Build (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        working-directory: build
+        run: cmake --build . --config ${{ env.BUILD_TYPE }}
+
+      # ─── Run Tests (Linux/macOS) ─────────────────────────────────────────
+      - name: Run Tests (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        working-directory: build
+        run: |
+          ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
+
+      # ─── Run Tests (Windows) ──────────────────────────────────────────────
+      - name: Run Tests (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        working-directory: build
+        run: |
+          ctest --output-on-failure -C ${{ env.BUILD_TYPE }}

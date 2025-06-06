@@ -70,6 +70,7 @@ endif ()
 
 option(BUILD_TESTING "Build tests" OFF)
 if (BUILD_TESTING)
+    enable_testing()
     add_subdirectory(tools/test)
 endif ()
 
