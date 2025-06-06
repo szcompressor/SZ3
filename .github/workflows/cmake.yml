@@ -54,8 +54,7 @@ jobs:
         working-directory: build
         run: |
           cmake .. `
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
-            -DBUILD_TESTING=ON 
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
 
       # ─── Build (Linux/macOS) ─────────────────────────────────────────────
       - name: Build (Linux/macOS)
