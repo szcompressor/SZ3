@@ -285,7 +285,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     bool isLoaded() const { return loaded; }
 
    private:
-    HuffmanTree *huffmanTree = NULL;
+    HuffmanTree *huffmanTree = nullptr;
     node treeRoot;
     unsigned int nodeCount = 0;
     uchar sysEndianType;  // 0: little endian, 1: big endian
@@ -626,21 +626,21 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     }
 
     void SZ_FreeHuffman() {
-        if (huffmanTree != NULL) {
+        if (huffmanTree != nullptr) {
             size_t i;
             free(huffmanTree->pool);
-            huffmanTree->pool = NULL;
+            huffmanTree->pool = nullptr;
             free(huffmanTree->qqq);
-            huffmanTree->qqq = NULL;
+            huffmanTree->qqq = nullptr;
             for (i = 0; i < huffmanTree->stateNum; i++) {
-                if (huffmanTree->code[i] != NULL) free(huffmanTree->code[i]);
+                if (huffmanTree->code[i] != nullptr) free(huffmanTree->code[i]);
             }
             free(huffmanTree->code);
-            huffmanTree->code = NULL;
+            huffmanTree->code = nullptr;
             free(huffmanTree->cout);
-            huffmanTree->cout = NULL;
+            huffmanTree->cout = nullptr;
             free(huffmanTree);
-            huffmanTree = NULL;
+            huffmanTree = nullptr;
         }
     }
 };
