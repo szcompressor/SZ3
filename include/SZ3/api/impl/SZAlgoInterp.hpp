@@ -136,7 +136,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     }
     //Automatically adjust sampleblocksize. 
     while (sampleBlockSize >= shortest_edge) sampleBlockSize /= 2;
-    while (sampleBlockSize >= 16 and (pow(sampleBlockSize + 1, N) / conf.num) > 1.5 * sampleRate) sampleBlockSize /= 2;
+    while (sampleBlockSize >= 16 && (pow(sampleBlockSize + 1, N) / conf.num) > 1.5 * sampleRate) sampleBlockSize /= 2;
     if (sampleBlockSize < 8) sampleBlockSize = 8;
 
     bool to_tune = pow(sampleBlockSize + 1, N) <= 0.05 * conf.num;  // to further revise
