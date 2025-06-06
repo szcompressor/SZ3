@@ -156,7 +156,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     sampleBlocks<T, N>(data, conf.dims, sampleBlockSize, sampled_blocks, sampleRate, profiling, starts); //sample out same data blocks
     sampling_num = sampled_blocks.size() * per_block_ele_num;
 
-    if (sampling_num == 0 or sampling_num >= conf.num * 0.2) {
+    if (sampling_num == 0 || sampling_num >= conf.num * 0.2) {
         conf.cmprAlgo = ALGO_INTERP;
         return SZ_compress_Interp<T, N>(conf, data, cmpData, cmpCap);
     }
