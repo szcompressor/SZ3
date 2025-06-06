@@ -9,6 +9,7 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include <cstdint>
 
 #include "SZ3/def.hpp"
 
