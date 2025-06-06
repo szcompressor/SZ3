@@ -1,10 +1,9 @@
 import sys
 import ctypes
-from ctypes.util import find_library
 import numpy as np
 
 """
-Python API for SZ2/SZ3
+Python API for SZ3
 """
 
 
@@ -21,7 +20,6 @@ class SZ:
                 "win32": "SZ3c.dll",
             }.get(sys.platform, "libSZ3c.so")
 
-
         self.sz = ctypes.cdll.LoadLibrary(szpath)
 
         self.sz.SZ_compress_args.argtypes = (ctypes.c_int, ctypes.c_void_p, ctypes.POINTER(ctypes.c_size_t),
@@ -34,8 +32,7 @@ class SZ:
                                           ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t,
                                           ctypes.c_size_t)
 
-        self.libc = ctypes.CDLL(ctypes.util.find_library('c'))
-        self.libc.free.argtypes = (ctypes.c_void_p,)
+        self.sz.free_buf.argtype = (ctypes.c_void_p)
 
     def __sz_datatype(self, dtype, data=None):
         if dtype == np.float32:
@@ -81,7 +78,7 @@ class SZ:
                                            r5, r4, r3, r2, r1)
 
         data_dec = np.array(data_dec_c[:np.prod(original_shape)], dtype=original_dtype).reshape(original_shape)
-        self.libc.free(data_dec_c)
+        self.sz.free_buf(data_dec_c)
         return data_dec
 
     def compress(self, data, eb_mode, eb_abs, eb_rel, eb_pwr):
@@ -107,5 +104,5 @@ class SZ:
         cmpr_ratio = data.size * data.itemsize / cmpr_size.value
 
         data_cmpr = np.array(data_cmpr_c[:cmpr_size.value], dtype=np.uint8)
-        self.libc.free(data_cmpr_c)
+        self.sz.free_buf(data_cmpr_c)
         return data_cmpr, cmpr_ratio
