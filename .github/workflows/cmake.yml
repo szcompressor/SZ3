@@ -175,7 +175,6 @@ jobs:
                cmake .. `
                -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
                -DBUILD_TESTING=ON `
-          #            -DBUILD_H5Z_FILTER=ON `
                -DCMAKE_TOOLCHAIN_FILE=$Env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake `
                -DVCPKG_TARGET_TRIPLET=x64-windows
 
