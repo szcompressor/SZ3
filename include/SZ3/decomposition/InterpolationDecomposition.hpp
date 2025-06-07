@@ -90,13 +90,14 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         std::vector<int> quant_inds_vec(num_elements);
         quant_inds = quant_inds_vec.data();
         double eb = quantizer.get_eb();
-
+        anchor_stride = 0;
         if (anchor_stride == 0) {  // check whether to use anchor points
             quant_inds[quant_index++] = quantizer.quantize_and_overwrite(*data, 0);  // no
         } else {
             build_anchor_grid(data);  // losslessly saving anchor points
             interp_level--;
         }
+
         for (uint level = interp_level; level > 0 && level <= interp_level; level--) {
             double cur_eb = eb;
             // set level-wise error bound
