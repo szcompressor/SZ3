@@ -57,9 +57,18 @@ jobs:
           ./tools/sz3/sz3 -f -i ../input.dat -3 ${{ env.DIMS }} -M ${{ env.MODE }} ${{ env.TOL }} -a \
                            -o out.dat -z out.sz3 \
             | tee sz3.log
-          ERR=$(grep -Po '(?<=Max absolute error = )[-0-9Ee+]+' sz3.log)
+          ERR=$(grep -E 'Max absolute error =' sz3.log \
+                | sed -E 's/.*Max absolute error = *([0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?).*/\1/')
+
+          if [ -z "$ERR" ]; then
+            echo "Could not parse Max absolute error!"
+            exit 1
+          fi
+
           echo "Parsed error: $ERR"
-          awk "BEGIN{ if ($ERR > ${{ env.TOL }}) exit 1; }"
+
+          # Compare numerically: fail if > TOL
+          awk -v err="$ERR" -v tol="${{ env.TOL }}" 'BEGIN { if (err > tol) exit 1; }'
 
       - name: Compute SHA256 of compressed
         id: calc
@@ -117,9 +126,18 @@ jobs:
           ./tools/sz3/sz3 -f -i ../input.dat -3 ${{ env.DIMS }} -M ${{ env.MODE }} ${{ env.TOL }} -a \
                            -o out.dat -z out.sz3 \
             | tee sz3.log
-          ERR=$(grep -Po '(?<=Max absolute error = )[-0-9Ee+]+' sz3.log)
+          ERR=$(grep -E 'Max absolute error =' sz3.log \
+                | sed -E 's/.*Max absolute error = *([0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?).*/\1/')
+
+          if [ -z "$ERR" ]; then
+            echo "Could not parse Max absolute error!"
+            exit 1
+          fi
+
           echo "Parsed error: $ERR"
-          awk "BEGIN{ if ($ERR > ${{ env.TOL }}) exit 1; }"
+
+          # Compare numerically: fail if > TOL
+          awk -v err="$ERR" -v tol="${{ env.TOL }}" 'BEGIN { if (err > tol) exit 1; }'
 
       - name: Compute SHA256 of compressed
         id: calc
