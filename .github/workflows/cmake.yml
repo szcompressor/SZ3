@@ -212,9 +212,8 @@ jobs:
         shell: pwsh
         working-directory: build
         run: |
-          .\tools\sz3\Release\sz3.exe -f -z temp-linux-out-sz3 -a \
-                                     -o out_recon.dat \
-            2>&1 | Tee-Object sz3-decompress.log
+          .\tools\sz3\Release\sz3.exe -f -z temp-linux-out-sz3 -a -o out_recon.dat `
+            2>&1 | Tee-Object sz3.log
 
           $match = Select-String -Pattern 'Max absolute error =\s*([0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?)' -Path sz3.log
           if (-not $match) {
