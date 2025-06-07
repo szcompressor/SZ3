@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.18)
-project(SZ3 VERSION 3.2.2)
+project(SZ3 VERSION 3.3.0)
 
 #data version defines the version of the compressed data format
 #it is not always equal to the program version (e.g., SZ3 v3.1.0 and SZ3 v.3.1.1 may use the same data version of v.3.1.0)
 #only update data version if the new version of the program changes compressed data format
-set(SZ3_DATA_VERSION 3.2.1)
+set(SZ3_DATA_VERSION 3.3.0)
 
 include(GNUInstallDirs)
-include(CTest)
+
 
 option(BUILD_SHARED_LIBS "build shared libraries by default" ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -66,6 +66,12 @@ if (ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
 else ()
     add_subdirectory(tools/zstd)
     target_link_libraries(${PROJECT_NAME} INTERFACE zstd)
+endif ()
+
+option(BUILD_TESTING "Build tests" OFF)
+if (BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tools/test)
 endif ()
 
 find_package(GSL)

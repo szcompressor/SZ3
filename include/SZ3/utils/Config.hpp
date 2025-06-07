@@ -2,8 +2,8 @@
 // Created by Kai Zhao on 4/28/20.
 //
 
-#ifndef SZ_Config_HPP
-#define SZ_Config_HPP
+#ifndef SZ3_Config_HPP
+#define SZ3_Config_HPP
 
 #include <cstdint>
 #include <iostream>
@@ -40,7 +40,7 @@ constexpr const char *ALGO_STR[] = {"ALGO_LORENZO_REG", "ALGO_INTERP_LORENZO", "
 constexpr const ALGO ALGO_OPTIONS[] = {ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP,
                                        ALGO_NOPRED,      ALGO_LOSSLESS};
 
-enum INTERP_ALGO { INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC };
+enum INTERP_ALGO { INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC};//, INTERP_ALGO_CUBIC_NATURAL};
 constexpr const char *INTERP_ALGO_STR[] = {"INTERP_ALGO_LINEAR", "INTERP_ALGO_CUBIC"};
 constexpr INTERP_ALGO INTERP_ALGO_OPTIONS[] = {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC};
 
@@ -150,6 +150,11 @@ class Config {
         interpDirection = cfg.GetInteger("AlgoSettings", "InterpolationDirection", interpDirection);
         blockSize = cfg.GetInteger("AlgoSettings", "BlockSize", blockSize);
         quantbinCnt = cfg.GetInteger("AlgoSettings", "QuantizationBinTotal", quantbinCnt);
+
+        interp_anchorStride = cfg.GetInteger("AlgoSettings", "interp_anchorStride", interp_anchorStride);
+        interp_alpha = cfg.GetReal("AlgoSettings", "interp_alpha", interp_alpha);
+        interp_beta = cfg.GetReal("AlgoSettings", "interp_beta", interp_beta);
+
     }
 
     size_t save(unsigned char *&c) {
@@ -197,7 +202,7 @@ class Config {
         write(stride, c);
         write(pred_dim, c);
 
-        // printf("%lu\n", c - c0);
+ //       printf("%lu\n", c - c0);
         return c - c0;
     }
 
@@ -308,6 +313,7 @@ class Config {
     }
 
     static size_t size_est() {
+        return 160;
         return sizeof(Config) + sizeof(size_t) * 5;  // sizeof(size_t) * 5 is for dims vector
     }
 
@@ -336,6 +342,9 @@ class Config {
     int blockSize = 0;
     int stride = 0;        // not used now
     uint8_t pred_dim = 0;  // not used now
+    int interp_anchorStride = -1;// -1: using dynamic default setting 
+    double interp_alpha = 1.25; // level-wise eb reduction rate
+    double interp_beta = 2.0;  // maximum eb reduction rate 
 };
 
 }  // namespace SZ3

@@ -1,5 +1,5 @@
-#ifndef _SZ_EXAALT_COMPRESSSOR_HPP
-#define _SZ_EXAALT_COMPRESSSOR_HPP
+#ifndef SZ3_EXAALT_COMPRESSSOR_HPP
+#define SZ3_EXAALT_COMPRESSSOR_HPP
 
 #include "SZ3/def.hpp"
 #include "SZ3/encoder/Encoder.hpp"

@@ -157,10 +157,9 @@ template <class T>
 void decompress(char *inPath, char *cmpPath, char *decPath, SZ3::Config conf, int binaryOutput, int printCmpResults) {
     size_t cmpSize;
     auto cmpData = SZ3::readfile<char>(cmpPath, cmpSize);
-    T *decData = new T[conf.num];
 
     SZ3::Timer timer(true);
-    SZ_decompress<T>(conf, cmpData.get(), cmpSize, decData);
+    auto decData = SZ_decompress<T>(conf, cmpData.get(), cmpSize);
     double compress_time = timer.stop();
 
     char outputFilePath[1024];
@@ -233,7 +232,17 @@ int main(int argc, char *argv[]) {
                 usage();
                 exit(0);
             case 'v':
-                printf("version: %s\n", SZ3_VER);
+                printf("SZ3 Version: %s\n", SZ3_VER);
+                printf("SZ3 Data Format Version: %s\n", SZ3_DATA_VER);
+                printf("\nThird-party libraries copyright notices:\n");
+                printf("----------------------------------------\n");
+                printf("ska_hash:\n");
+                printf("  Copyright (c) 2017 Malte Skarupke\n");
+                printf("  Licensed under the Boost Software License - Version 1.0\n");
+                printf("\n");
+                printf("INIReader:\n");
+                printf("  Copyright (c) 2009, Ben Hoyt\n");
+                printf("  inih is released under the New BSD license\n");
                 exit(0);
             case 'b':
                 binaryOutput = true;

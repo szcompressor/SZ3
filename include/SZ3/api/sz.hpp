@@ -56,11 +56,13 @@ size_t SZ_compress(const SZ3::Config &config, const T *data, char *cmpData, size
     Config conf(config);
     
     if (cmpCap < SZ_compress_size_bound<T>(conf)) {
-        fprintf(stderr, "%s\n", SZ_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
-        throw std::invalid_argument(SZ_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
+        fprintf(stderr, "%s\n", SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
+        throw std::invalid_argument(SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
     }
-    
+
+    // printf("%lu\n", conf.size_est());
     auto cmpDataPos = reinterpret_cast<uchar *>(cmpData) + conf.size_est();
+    memset(cmpData, 0, conf.size_est());
     auto cmpDataCap = cmpCap - conf.size_est();
 
     size_t cmpDataLen = 0;
