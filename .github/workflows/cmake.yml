@@ -1,10 +1,6 @@
 name: Cross-Platform SZ3 Verification
 
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+on: [push]
 
 env:
   BUILD_TYPE: Release
