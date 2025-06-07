@@ -630,8 +630,9 @@ namespace QoZ {
                 num_elements *= global_dimensions[i];
             }
             if (maxStep>0){
-                anchor=true;//recently moved out of if
-                int max_interpolation_level=static_cast<uint> (log2(maxStep))+1;
+                anchor = true;
+                interpolation_level += 1;
+                int max_interpolation_level=(uint)log2(maxStep)+1;
                 if (max_interpolation_level<=interpolation_level){ 
                     interpolation_level=max_interpolation_level;
                 }
