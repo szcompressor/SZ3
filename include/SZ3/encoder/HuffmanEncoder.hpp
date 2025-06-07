@@ -217,7 +217,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             }
         }
         write(outSize, bytes);
-        bytes += outSize; // move pointer to end of encoded array
+        bytes += outSize;  // move pointer to end of encoded array
         return outSize;
     }
 
@@ -428,7 +428,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             n->freq = a->freq + b->freq;
             n->t = 0;
             // printf("new_node: c = %d, freq = %zu, t = %d, left = %d, right = %d \n", n->c, n->freq, n->t, n->left->c,
-                   // n->right->c);
+            // n->right->c);
             // n->c = 0;
         }
         return n;
@@ -544,9 +544,19 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         int stateNum = max - offset + 2;
         huffmanTree = createHuffmanTree(stateNum);
 
-        for (const auto &f : frequency) {
-            qinsert(new_node(f.second, f.first - offset, nullptr, nullptr));
+        // ordered_map many have different iterator order on win/linux, so we need to convert it to a vector
+        std::vector<size_t> frequencyList(stateNum, 0);
+        for (const auto &kv : frequency) {
+            frequencyList[kv.first - offset] = kv.second;
         }
+        for (size_t i = 0; i < stateNum; i++) {
+            if (frequencyList[i] != 0) {
+                qinsert(new_node(frequencyList[i], i, nullptr, nullptr));
+            }
+        }
+        // for (const auto &f : frequency) {
+        //     qinsert(new_node(f.second, f.first - offset, nullptr, nullptr));
+        // }
 
         while (huffmanTree->qend > 2) {
             auto left = qremove();
