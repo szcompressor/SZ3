@@ -16,7 +16,7 @@
 
 unsigned char *readByteData(char *srcFilePath, size_t *byteLength, int *status) {
     FILE *pFile = fopen(srcFilePath, "rb");
-    if (pFile == NULL) {
+    if (pFile == nullptr) {
         printf("Failed to open input file. 1\n");
         return 0;
     }
@@ -27,7 +27,7 @@ unsigned char *readByteData(char *srcFilePath, size_t *byteLength, int *status) 
     unsigned char *byteBuf = (unsigned char *) malloc((*byteLength) * sizeof(unsigned char)); //sizeof(char)==1
 
     pFile = fopen(srcFilePath, "rb");
-    if (pFile == NULL) {
+    if (pFile == nullptr) {
         printf("Failed to open input file. 2\n");
         return 0;
     }
@@ -39,7 +39,7 @@ unsigned char *readByteData(char *srcFilePath, size_t *byteLength, int *status) 
 
 void writeByteData(unsigned char *bytes, size_t byteLength, char *tgtFilePath, int *status) {
     FILE *pFile = fopen(tgtFilePath, "wb");
-    if (pFile == NULL) {
+    if (pFile == nullptr) {
         printf("Failed to open input file. 3\n");
         *status = 0;
         return;

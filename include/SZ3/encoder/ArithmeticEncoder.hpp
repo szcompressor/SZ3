@@ -39,12 +39,12 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
         ariCoder.numOfRealStates = 0;
         ariCoder.numOfValidStates = 0;
         ariCoder.total_frequency = 0;
-        ariCoder.cumulative_frequency = NULL;
+        ariCoder.cumulative_frequency = nullptr;
         this->transform = transform;
     }
 
     ~ArithmeticEncoder() override {
-        if (ariCoder.cumulative_frequency != NULL) {
+        if (ariCoder.cumulative_frequency != nullptr) {
             free(ariCoder.cumulative_frequency);
         }
     }
@@ -305,7 +305,7 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
         memset(ariCoder.cumulative_frequency, 0, ariCoder.numOfRealStates * sizeof(Prob));
 
         size_t i = 0;
-        const uchar *low_p = NULL, *high_p = NULL, *state_p = NULL;
+        const uchar *low_p = nullptr, *high_p = nullptr, *state_p = nullptr;
         int state = 0;
         if (total_frequency <= 65536) {
             if (numOfRealStates <= 256) {

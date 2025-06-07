@@ -40,7 +40,7 @@ unsigned char *SZ_compress_args(int dataType, void *data, size_t *outSize, int e
         exit(0);
     }
 
-    unsigned char *cmpr_data = NULL;
+    unsigned char *cmpr_data = nullptr;
     if (dataType == SZ_FLOAT) {
         cmpr_data = reinterpret_cast<unsigned char *>(SZ_compress<float>(conf, static_cast<float *>(data), *outSize));
 #if (!SZ3_DEBUG_TIMINGS)

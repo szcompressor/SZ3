@@ -95,7 +95,7 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
         }
         for (size_t i = 0; i < predictors.size(); i++) {
             //                predictors[i]->print();
-            printf("Blocks:%ld, Percentage:%.2f\n", cnt[i], 1.0 * cnt[i] / cnt_total);
+            printf("Blocks:%zu, Percentage:%.2f\n", cnt[i], 1.0 * cnt[i] / cnt_total);
         }
     }
 
