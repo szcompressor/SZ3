@@ -155,14 +155,14 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Bootstrap vcpkg & install HDF5
-        shell: pwsh
-        run: |
-          git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
-          cd C:\vcpkg
-          .\bootstrap-vcpkg.bat
-          .\vcpkg.exe install hdf5:x64-windows
-          echo "VCPKG_ROOT=C:\vcpkg" | Out-File -FilePath $Env:GITHUB_ENV -Encoding ASCII
+#      - name: Bootstrap vcpkg & install HDF5
+#        shell: pwsh
+#        run: |
+#          git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
+#          cd C:\vcpkg
+#          .\bootstrap-vcpkg.bat
+#          .\vcpkg.exe install hdf5:x64-windows
+#          echo "VCPKG_ROOT=C:\vcpkg" | Out-File -FilePath $Env:GITHUB_ENV -Encoding ASCII
 
       - name: Create build dir
         shell: pwsh
@@ -175,7 +175,7 @@ jobs:
           cmake .. `
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
             -DBUILD_TESTING=ON `
-            -DBUILD_H5Z_FILTER=ON `
+#            -DBUILD_H5Z_FILTER=ON `
             -DCMAKE_TOOLCHAIN_FILE=$Env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake `
             -DVCPKG_TARGET_TRIPLET=x64-windows
 
