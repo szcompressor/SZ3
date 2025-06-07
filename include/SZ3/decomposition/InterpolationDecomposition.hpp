@@ -90,7 +90,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         std::vector<int> quant_inds_vec(num_elements);
         quant_inds = quant_inds_vec.data();
         double eb = quantizer.get_eb();
-        anchor_stride = 0;
         if (anchor_stride == 0) {  // check whether to use anchor points
             quant_inds[quant_index++] = quantizer.quantize_and_overwrite(*data, 0);  // no
         } else {
@@ -180,13 +179,17 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         assert((anchor_stride & anchor_stride - 1) == 0 && "Anchor stride should be 0 or 2's exponentials");
         num_elements = 1;
         interp_level = -1;
+	bool use_anchor = false;
         for (int i = 0; i < N; i++) {
             if (interp_level < ceil(log2(original_dimensions[i]))) {
                 interp_level = static_cast<uint>(ceil(log2(original_dimensions[i])));
             }
+	    if (original_dimensions[i] > anchor_stride)
+	        use_anchor = true;
             num_elements *= original_dimensions[i];
         }
-
+        if (!use_anchor)
+            anchor_stride = 0;
         if (anchor_stride > 0) {
             int max_interpolation_level = static_cast<uint>(log2(anchor_stride)) + 1;
             if (max_interpolation_level <= interp_level) {
