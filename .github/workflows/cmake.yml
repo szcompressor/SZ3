@@ -38,7 +38,7 @@ jobs:
       - name: Build
         shell: bash
         working-directory: build
-        run: cmake --build . --config ${{ env.BUILD_TYPE }}
+        run: cmake --build . --config ${{ env.BUILD_TYPE }} --parallel 4
 
       - name: Run CTest
         shell: bash
@@ -106,7 +106,7 @@ jobs:
       - name: Build
         shell: bash
         working-directory: build
-        run: cmake --build . --config ${{ env.BUILD_TYPE }}
+        run: cmake --build . --config ${{ env.BUILD_TYPE }} --parallel 4
 
       - name: Run CTest
         shell: bash
@@ -170,7 +170,7 @@ jobs:
       - name: Build
         shell: pwsh
         working-directory: build
-        run: cmake --build . --config ${{ env.BUILD_TYPE }}
+        run: cmake --build . --config ${{ env.BUILD_TYPE }} --parallel 4
 
       #      - name: Run CTest
       #        shell: pwsh
