@@ -61,43 +61,6 @@
             }
         }
 
-        /**
-         * For metaLorenzo only, will be removed together with metalorenzo
-         * @param ori
-         * @param pred
-         * @param dest
-         * @return
-         */
-        ALWAYS_INLINE int quantize_and_overwrite(T ori, T pred, T &dest) {
-            T diff = ori - pred;
-            auto quant_index = static_cast<int64_t>(fabs(diff) * this->error_bound_reciprocal) + 1;
-            if (quant_index < this->radius * 2) {
-                quant_index >>= 1;
-                int half_index = quant_index;
-                quant_index <<= 1;
-                int quant_index_shifted;
-                if (diff < 0) {
-                    quant_index = -quant_index;
-                    quant_index_shifted = this->radius - half_index;
-                } else {
-                    quant_index_shifted = this->radius + half_index;
-                }
-                T decompressed_data = pred + quant_index * this->error_bound;
-                // if data is NaN, the error is NaN, and NaN <= error_bound is false
-                if (fabs(decompressed_data - ori) <= this->error_bound) {
-                    dest = decompressed_data;
-                    return quant_index_shifted;
-                } else {
-                    unpred.push_back(ori);
-                    dest = ori;
-                    return 0;
-                }
-            } else {
-                unpred.push_back(ori);
-                dest = ori;
-                return 0;
-            }
-        }
 
         // recover the data using the quantization index
         ALWAYS_INLINE T recover(T pred, int quant_index) override {
@@ -144,7 +107,6 @@
             read(unpred_size, c, remaining_length);
             unpred.resize(unpred_size);
             read(unpred.data(), unpred_size, c, remaining_length);
-
             index = 0;
         }
 
