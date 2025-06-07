@@ -157,10 +157,9 @@ template <class T>
 void decompress(char *inPath, char *cmpPath, char *decPath, SZ3::Config conf, int binaryOutput, int printCmpResults) {
     size_t cmpSize;
     auto cmpData = SZ3::readfile<char>(cmpPath, cmpSize);
-    T *decData = new T[conf.num];
 
     SZ3::Timer timer(true);
-    SZ_decompress<T>(conf, cmpData.get(), cmpSize, decData);
+    auto decData = SZ_decompress<T>(conf, cmpData.get(), cmpSize);
     double compress_time = timer.stop();
 
     char outputFilePath[1024];
