@@ -28,7 +28,6 @@ std::shared_ptr<concepts::CompressorInterface<T>> make_compressor_lorenzo_regres
     int methodCnt = (conf.lorenzo + conf.lorenzo2 + conf.regression);
     int use_single_predictor = (methodCnt == 1);
     if (methodCnt == 0) {
-        fprintf(stderr, "All lorenzo and regression methods are disabled.\n");
         throw std::invalid_argument("All lorenzo and regression methods are disabled.");
     }
     if (conf.lorenzo) {

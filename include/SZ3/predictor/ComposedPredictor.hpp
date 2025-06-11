@@ -18,7 +18,6 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
     ComposedPredictor(std::vector<std::shared_ptr<concepts::PredictorInterface<T, N>>> predictors)
         : predictors(predictors) {
         if (predictors.empty()) {
-            fprintf(stderr, "Empty predictor list for ComposedPredictor.\n");
             throw std::invalid_argument("Empty predictor list for ComposedPredictor.");
         }
     }

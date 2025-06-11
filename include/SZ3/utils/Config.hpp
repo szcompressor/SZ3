@@ -265,7 +265,6 @@ class Config {
         // auto c0 = c;
         read(sz3MagicNumber, c);
         if (sz3MagicNumber != SZ3_MAGIC_NUMBER) {
-            fprintf(stderr, "magic number mismatch, the input data is not compressed by SZ3\n");
             throw std::invalid_argument("magic number mismatch, the input data is not compressed by SZ3");
         }
         read(sz3DataVer, c);

@@ -97,7 +97,6 @@
             uchar uid_read;
             read(uid_read, c, remaining_length);
             if (uid_read != uid) {
-                fprintf(stderr, "LinearQuantizer uid mismatch\n");
                 throw std::invalid_argument("LinearQuantizer uid mismatch");
             }
             read(this->error_bound, c, remaining_length);

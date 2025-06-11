@@ -28,7 +28,6 @@ class Lossless_zstd : public concepts::LosslessInterface {
     size_t compress(const uchar *src, size_t srcLen, uchar *dst, size_t dstCap) override {
         write(srcLen, dst);
         if (dstCap < ZSTD_compressBound(srcLen)) {
-            fprintf(stderr, "%s\n", SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
             throw std::length_error(SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
         }
         size_t dstLen = ZSTD_compress(dst, dstCap, src, srcLen, compression_level);

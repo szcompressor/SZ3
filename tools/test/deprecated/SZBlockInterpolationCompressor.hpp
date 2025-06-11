@@ -135,7 +135,6 @@ class SZBlockInterpolationCompressor {
         //            predictor.print();
 
         if (quantizer.get_out_range().first != 0) {
-            fprintf(stderr, "The output range of the quantizer must start from 0 for this compressor\n");
             throw std::runtime_error("The output range of the quantizer must start from 0 for this compressor");
         }
         encoder.preprocess_encode(quant_inds, quantizer.get_out_range().second);

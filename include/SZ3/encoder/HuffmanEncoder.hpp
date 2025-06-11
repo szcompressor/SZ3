@@ -99,7 +99,6 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     void preprocess_encode(const T *bins, size_t num_bin, int stateNum) {
         nodeCount = 0;
         if (num_bin == 0) {
-            fprintf(stderr, "Huffman bins should not be empty\n");
             throw std::invalid_argument("Huffman bins should not be empty");
         }
         init(bins, num_bin);
