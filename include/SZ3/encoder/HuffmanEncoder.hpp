@@ -527,7 +527,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 #endif  // INTPTR_MAX == INT64_MAX
 
         for (size_t i = 0; i < length; i++) {
-            frequency[s[i]]++;
+            frequency[s[i]] += 1;
         }
 
         for (const auto &kv : frequency) {
@@ -543,7 +543,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         int stateNum = max - offset + 2;
         huffmanTree = createHuffmanTree(stateNum);
 
-        // ordered_map many have different iterator order on win/linux, so we need to convert it to a vector
+        // to produce the same huffman three on linux & win, we need to iterate through ordered_map in a fixed order
         std::vector<size_t> frequencyList(stateNum, 0);
         for (const auto &kv : frequency) {
             frequencyList[kv.first - offset] = kv.second;
