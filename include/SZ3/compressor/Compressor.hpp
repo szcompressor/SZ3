@@ -1,5 +1,5 @@
-#ifndef SZ_COMPRESSOR_HPP
-#define SZ_COMPRESSOR_HPP
+#ifndef SZ3_COMPRESSOR_HPP
+#define SZ3_COMPRESSOR_HPP
 
 #include "SZ3/def.hpp"
 #include "SZ3/utils/Config.hpp"
