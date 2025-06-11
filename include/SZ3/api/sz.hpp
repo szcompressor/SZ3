@@ -54,15 +54,15 @@ template <class T>
 size_t SZ_compress(const SZ3::Config &config, const T *data, char *cmpData, size_t cmpCap) {
     using namespace SZ3;
     Config conf(config);
-    
+
     if (cmpCap < SZ_compress_size_bound<T>(conf)) {
         fprintf(stderr, "%s\n", SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
         throw std::invalid_argument(SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
     }
 
-    // printf("%lu\n", conf.size_est());
-    auto cmpDataPos = reinterpret_cast<uchar *>(cmpData) + conf.size_est();
-    memset(cmpData, 0, conf.size_est());
+    auto confEstSize = conf.size_est();
+    auto cmpDataPos = reinterpret_cast<uchar *>(cmpData) + confEstSize;
+    memset(cmpData, 0, confEstSize);
     auto cmpDataCap = cmpCap - conf.size_est();
 
     size_t cmpDataLen = 0;
@@ -80,8 +80,12 @@ size_t SZ_compress(const SZ3::Config &config, const T *data, char *cmpData, size
     }
 
     auto cmpConfPos = reinterpret_cast<uchar *>(cmpData);
-    conf.save(cmpConfPos);
-    return conf.size_est() + cmpDataLen;
+    auto confSize = conf.save(cmpConfPos);
+    if (confSize > confEstSize) {
+        throw std::length_error("buffer allocated for config is not large enough.");
+    }
+
+    return confSize + cmpDataLen;
 }
 
 /**

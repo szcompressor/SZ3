@@ -18,9 +18,9 @@ size_t SZ_compress_Interp(Config &conf, T *data, uchar *cmpData, size_t cmpCap) 
     assert(N == conf.N);
     assert(conf.cmprAlgo == ALGO_INTERP);
     calAbsErrorBound(conf, data);
-    if (conf.interp_anchorStride < 0) { //set default anchor stride
+    if (conf.interpAnchorStride < 0) { //set default anchor stride
         std::array<size_t, 4> anchor_strides = {4096, 128, 32, 16};
-        conf.interp_anchorStride = anchor_strides[N - 1];
+        conf.interpAnchorStride = anchor_strides[N - 1];
     }
 
     auto sz = make_compressor_sz_generic<T, N>(
@@ -121,9 +121,9 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     //        Timer timer(true);
     calAbsErrorBound(conf, data);
 
-    if (conf.interp_anchorStride < 0) { //set default anchor stride
+    if (conf.interpAnchorStride < 0) { //set default anchor stride
         std::array<size_t, 4> anchor_strides = {4096, 128, 32, 16};
-        conf.interp_anchorStride = anchor_strides[N - 1];
+        conf.interpAnchorStride = anchor_strides[N - 1];
     }
 
     std::array<double, 4> sample_Rates = {0.005, 0.005, 0.005, 0.005}; //default data sample rate. todo: add a config var to control  
@@ -168,8 +168,8 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     {
         // tune interp
         conf.interpDirection = 0;
-        conf.interp_alpha = 1.25;
-        conf.interp_beta = 2.0;
+        conf.interpAlpha = 1.25;
+        conf.interpBeta = 2.0;
         auto testConfig = conf;
         std::vector<size_t> dims(N, sampleBlockSize + 1);
         testConfig.setDims(dims.begin(), dims.end());
@@ -196,13 +196,13 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         for (auto i = 0; i < alphalist.size(); i++) {
             auto alpha = alphalist[i];
             auto beta = betalist[i];
-            testConfig.interp_alpha = alpha;
-            testConfig.interp_beta = beta;
+            testConfig.interpAlpha = alpha;
+            testConfig.interpBeta = beta;
             ratio = interp_compress_test<T, N>(sampled_blocks, testConfig, sampleBlockSize, buffer, bufferCap);
             if (ratio > best_interp_ratio * 1.02) {
                 best_interp_ratio = ratio;
-                conf.interp_alpha = alpha;
-                conf.interp_beta = beta;
+                conf.interpAlpha = alpha;
+                conf.interpBeta = beta;
             }
         }
     }

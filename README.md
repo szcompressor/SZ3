@@ -85,15 +85,4 @@ Version New features
 
 ## 3rd party libraries/tools
 * [Zstandard](https://facebook.github.io/zstd/) v1.4.5 will be fetched if libzstd can not be found by pkg-config.
-* The source code of ska_hash and INIReader are included in SZ3.
-
-## Backward Compatibility with SZ2
-For backward compatibility, most of the SZ2 command line parameters are supported in SZ3. **Exceptions are listed below**.
-Scripts without the parameters below should work fine by replacing SZ2 with SZ3.
-
-| Parameter | Explanation                     | SZ3 roadmap                              |
-|-----------|---------------------------------|------------------------------------------|
-| -c        | Config file                     | SZ3 has different config format with SZ2 |
-| -p        | Print configuration info        | Will be supported soon                   |
-| -T        | Tucker Tensor Decomposition     | Will be supported later                  |
-| -P        | Point-wise relative error bound | Will be supported later                  |
+* The source code of ska_hash is included in SZ3.
