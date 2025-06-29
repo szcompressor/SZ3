@@ -90,6 +90,9 @@ if (BUILD_MDZ)
     add_subdirectory(tools/mdz)
 endif ()
 
+if (USE_HASH_MAP_SKA)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC USE_HASH_MAP_SKA)
+endif ()
 
 install(TARGETS ${PROJECT_NAME}
         EXPORT SZ3Targets
