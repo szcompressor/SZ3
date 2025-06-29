@@ -11,7 +11,7 @@ include(CTest)
 
 option(BUILD_SHARED_LIBS "build shared libraries by default" ON)
 option(USE_HASH_MAP_STD "use std unordered_map, not ska" ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
 if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
 else () #-Wunused-parameter -Wsign-compare
