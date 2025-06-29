@@ -424,7 +424,7 @@ public:
             return;
         EntryPointer * new_buckets(&*BucketAllocatorTraits::allocate(*this, num_buckets + 1));
         EntryPointer * end_it = new_buckets + static_cast<ptrdiff_t>(num_buckets + 1);
-        *new_buckets = EntryPointer(1);
+        *new_buckets = EntryPointer(nullptr) + ptrdiff_t(1);
         ++new_buckets;
         std::fill(new_buckets, end_it, nullptr);
         std::swap(entries, new_buckets);
