@@ -91,7 +91,7 @@ if (BUILD_MDZ)
 endif ()
 
 if (USE_HASH_MAP_SKA)
-    target_compile_definitions(${PROJECT_NAME} PUBLIC USE_HASH_MAP_SKA)
+    target_compile_definitions(${PROJECT_NAME} INTERFACE USE_HASH_MAP_SKA)
 endif ()
 
 install(TARGETS ${PROJECT_NAME}
