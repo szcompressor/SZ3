@@ -10,6 +10,7 @@ include(GNUInstallDirs)
 include(CTest)
 
 option(BUILD_SHARED_LIBS "build shared libraries by default" ON)
+option(USE_HASH_MAP_SKA "use ska unordered_map, not std" OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
@@ -89,6 +90,9 @@ if (BUILD_MDZ)
     add_subdirectory(tools/mdz)
 endif ()
 
+if (USE_HASH_MAP_SKA)
+    target_compile_definitions(${PROJECT_NAME} INTERFACE USE_HASH_MAP_SKA)
+endif ()
 
 install(TARGETS ${PROJECT_NAME}
         EXPORT SZ3Targets
