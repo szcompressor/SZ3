@@ -90,7 +90,8 @@
             write(this->radius, c);
             size_t unpred_size = unpred.size();
             write(unpred_size, c);
-            write(unpred.data(), unpred.size(), c);
+            if (!unpred.empty())
+                write(unpred.data(), unpred.size(), c);
         }
 
         void load(const unsigned char *&c, size_t &remaining_length) override {
@@ -105,7 +106,8 @@
             size_t unpred_size = 0;
             read(unpred_size, c, remaining_length);
             unpred.resize(unpred_size);
-            read(unpred.data(), unpred_size, c, remaining_length);
+            if (unpred_size > 0)
+                read(unpred.data(), unpred_size, c, remaining_length);
             index = 0;
         }
 
