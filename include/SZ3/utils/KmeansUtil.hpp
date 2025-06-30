@@ -2,8 +2,8 @@
 // Created by Kai Zhao on 12/9/19.
 //
 
-#ifndef _SZ_KMEANS_UTIL
-#define _SZ_KMEANS_UTIL
+#ifndef SZ3_KMEANS_UTIL
+#define SZ3_KMEANS_UTIL
 
 #include <algorithm>
 #include <functional>

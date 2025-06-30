@@ -1,5 +1,5 @@
-#ifndef _SZ_EXAALT_COMPRESSSOR_HPP
-#define _SZ_EXAALT_COMPRESSSOR_HPP
+#ifndef SZ3_EXAALT_COMPRESSSOR_HPP
+#define SZ3_EXAALT_COMPRESSSOR_HPP
 
 #include "SZ3/def.hpp"
 #include "SZ3/encoder/Encoder.hpp"
@@ -96,7 +96,6 @@ class SZExaaltCompressor : public SZ3::concepts::CompressorInterface<T> {
 
         
         if (quantizer.get_out_range().first != 0) {
-            fprintf(stderr, "The output range of the quantizer must start from 0 for this compressor\n");
             throw std::runtime_error("The output range of the quantizer must start from 0 for this compressor");
         }
         encoder.preprocess_encode(quant_inds, quantizer.get_out_range().second);

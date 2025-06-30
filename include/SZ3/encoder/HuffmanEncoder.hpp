@@ -1,5 +1,5 @@
-#ifndef _SZ_HUFFMAN_ENCODER_HPP
-#define _SZ_HUFFMAN_ENCODER_HPP
+#ifndef SZ3_HUFFMAN_ENCODER_HPP
+#define SZ3_HUFFMAN_ENCODER_HPP
 
 #include <cstdint>
 
@@ -86,7 +86,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
      * @param bins
      * @param stateNum
      */
-    void preprocess_encode(const std::vector<T> &bins, int stateNum)override {
+    void preprocess_encode(const std::vector<T> &bins, int stateNum) override {
         preprocess_encode(bins.data(), bins.size(), stateNum);
     }
 
@@ -99,7 +99,6 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     void preprocess_encode(const T *bins, size_t num_bin, int stateNum) {
         nodeCount = 0;
         if (num_bin == 0) {
-            fprintf(stderr, "Huffman bins should not be empty\n");
             throw std::invalid_argument("Huffman bins should not be empty");
         }
         init(bins, num_bin);
@@ -128,7 +127,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         //            return c - cc;
     }
 
-    size_t size_est() override{
+    size_t size_est() override {
         size_t b = (nodeCount <= 256) ? sizeof(unsigned char)
                                       : ((nodeCount <= 65536) ? sizeof(unsigned short) : sizeof(unsigned int));
         return 1 + 2 * nodeCount * b + nodeCount * sizeof(unsigned char) + nodeCount * sizeof(T) + sizeof(int) +
@@ -136,7 +135,9 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     }
 
     // perform encoding
-    size_t encode(const std::vector<T> &bins, uchar *&bytes) override{ return encode(bins.data(), bins.size(), bytes); }
+    size_t encode(const std::vector<T> &bins, uchar *&bytes) override {
+        return encode(bins.data(), bins.size(), bytes);
+    }
 
     // perform encoding
     size_t encode(const T *bins, size_t num_bin, uchar *&bytes) {
@@ -214,14 +215,14 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                 }
             }
         }
-        *reinterpret_cast<size_t *>(bytes) = outSize;
-        bytes += sizeof(size_t) + outSize;
+        write(outSize, bytes);
+        bytes += outSize;  // move pointer to end of encoded array
         return outSize;
     }
 
-    void postprocess_encode() override{ SZ_FreeHuffman(); }
+    void postprocess_encode() override { SZ_FreeHuffman(); }
 
-    void preprocess_decode() override{}
+    void preprocess_decode() override {}
 
     // perform decoding
     std::vector<T> decode(const uchar *&bytes, size_t targetLength) override {
@@ -230,8 +231,8 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         size_t i = 0, byteIndex = 0, count = 0;
         int r;
         node n = treeRoot;
-        size_t encodedLength = *reinterpret_cast<const size_t *>(bytes);
-        bytes += sizeof(size_t);
+        size_t encodedLength = 0;
+        read(encodedLength, bytes);
         if (n->t)  // root->t==1 means that all state values are the same (constant)
         {
             for (count = 0; count < targetLength; count++) out[count] = n->c + offset;
@@ -283,7 +284,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     bool isLoaded() const { return loaded; }
 
    private:
-    HuffmanTree *huffmanTree = NULL;
+    HuffmanTree *huffmanTree = nullptr;
     node treeRoot;
     unsigned int nodeCount = 0;
     uchar sysEndianType;  // 0: little endian, 1: big endian
@@ -419,11 +420,14 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             n->c = c;
             n->freq = freq;
             n->t = 1;
+            // printf("new_node: c = %d, freq = %zu, t = %d \n", n->c, n->freq, n->t);
         } else {
             n->left = a;
             n->right = b;
             n->freq = a->freq + b->freq;
             n->t = 0;
+            // printf("new_node: c = %d, freq = %zu, t = %d, left = %d, right = %d \n", n->c, n->freq, n->t, n->left->c,
+            // n->right->c);
             // n->c = 0;
         }
         return n;
@@ -447,7 +451,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     }
 
     node qremove() {
-        int i, l;
+        int i = 1, l;
         node n = huffmanTree->qq[i = 1];
         node p;
         if (huffmanTree->qend < 2) return nullptr;
@@ -485,6 +489,9 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                 (huffmanTree->code[n->c])[1] = out2 << (128 - len);
             }
             huffmanTree->cout[n->c] = static_cast<unsigned char>(len);
+            // std::cout << "build_code: c = " << n->c << ", len = " << len << ", out1 = " << out1 << ", out2 = " << out2
+            //           << ", code0 = " << (huffmanTree->code[n->c])[0] << ", code1 = " << (huffmanTree->code[n->c])[1]
+            //           << std::endl;
             return;
         }
         int index = len >> 6;  //=len/64
@@ -513,14 +520,14 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         T max = s[0];
         offset = s[0];  // offset is min
 
-#if INTPTR_MAX == INT64_MAX  // 64bit system
+#if (SZ3_USE_SKA_HASH) && (INTPTR_MAX == INT64_MAX)  // use ska for 64bit system
         ska::unordered_map<T, size_t> frequency;
 #else   // most likely 32bit system
         std::unordered_map<T, size_t> frequency;
 #endif  // INTPTR_MAX == INT64_MAX
 
         for (size_t i = 0; i < length; i++) {
-            frequency[s[i]]++;
+            frequency[s[i]] += 1;
         }
 
         for (const auto &kv : frequency) {
@@ -536,11 +543,25 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         int stateNum = max - offset + 2;
         huffmanTree = createHuffmanTree(stateNum);
 
-        for (const auto &f : frequency) {
-            qinsert(new_node(f.second, f.first - offset, nullptr, nullptr));
+        // to produce the same huffman three on linux & win, we need to iterate through ordered_map in a fixed order
+        std::vector<size_t> frequencyList(stateNum, 0);
+        for (const auto &kv : frequency) {
+            frequencyList[kv.first - offset] = kv.second;
         }
+        for (size_t i = 0; i < stateNum; i++) {
+            if (frequencyList[i] != 0) {
+                qinsert(new_node(frequencyList[i], i, nullptr, nullptr));
+            }
+        }
+        // for (const auto &f : frequency) {
+        //     qinsert(new_node(f.second, f.first - offset, nullptr, nullptr));
+        // }
 
-        while (huffmanTree->qend > 2) qinsert(new_node(0, 0, qremove(), qremove()));
+        while (huffmanTree->qend > 2) {
+            auto left = qremove();
+            auto right = qremove();
+            qinsert(new_node(0, 0, left, right));
+        }
 
         build_code(huffmanTree->qq[1], 0, 0, 0);
         treeRoot = huffmanTree->qq[1];
@@ -614,21 +635,21 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     }
 
     void SZ_FreeHuffman() {
-        if (huffmanTree != NULL) {
+        if (huffmanTree != nullptr) {
             size_t i;
             free(huffmanTree->pool);
-            huffmanTree->pool = NULL;
+            huffmanTree->pool = nullptr;
             free(huffmanTree->qqq);
-            huffmanTree->qqq = NULL;
+            huffmanTree->qqq = nullptr;
             for (i = 0; i < huffmanTree->stateNum; i++) {
-                if (huffmanTree->code[i] != NULL) free(huffmanTree->code[i]);
+                if (huffmanTree->code[i] != nullptr) free(huffmanTree->code[i]);
             }
             free(huffmanTree->code);
-            huffmanTree->code = NULL;
+            huffmanTree->code = nullptr;
             free(huffmanTree->cout);
-            huffmanTree->cout = NULL;
+            huffmanTree->cout = nullptr;
             free(huffmanTree);
-            huffmanTree = NULL;
+            huffmanTree = nullptr;
         }
     }
 };
