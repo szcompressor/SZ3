@@ -60,6 +60,13 @@ else ()
     target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_DEBUG_TIMINGS=0)
 endif ()
 
+option(SZ3_USE_SKA_HASH "use ska hashmap instead of std hashmap, default is ska for better speed" ON)
+if (SZ3_USE_SKA_HASH)
+    target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_USE_SKA_HASH=1)
+else ()
+    target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_USE_SKA_HASH=0)
+endif ()
+
 pkg_search_module(ZSTD IMPORTED_TARGET libzstd)
 if (ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
     target_link_libraries(${PROJECT_NAME} INTERFACE PkgConfig::ZSTD)

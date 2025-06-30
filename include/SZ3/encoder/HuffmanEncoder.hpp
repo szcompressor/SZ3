@@ -520,7 +520,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         T max = s[0];
         offset = s[0];  // offset is min
 
-#if INTPTR_MAX == INT64_MAX  // 64bit system
+#if (SZ3_USE_SKA_HASH) && (INTPTR_MAX == INT64_MAX)  // use ska for 64bit system
         ska::unordered_map<T, size_t> frequency;
 #else   // most likely 32bit system
         std::unordered_map<T, size_t> frequency;
