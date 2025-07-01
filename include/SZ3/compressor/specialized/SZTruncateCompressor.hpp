@@ -1,5 +1,5 @@
-#ifndef SZ_Truncate_COMPRESSOR_HPP
-#define SZ_Truncate_COMPRESSOR_HPP
+#ifndef SZ3_Truncate_COMPRESSOR_HPP
+#define SZ3_Truncate_COMPRESSOR_HPP
 
 #include <cstring>
 
@@ -15,8 +15,6 @@
 #include "SZ3/utils/Timer.hpp"
 
 /**
- * TODO
- * add truncate as Decomposition
  */
 namespace SZ3 {
 template <class T, uint N, class Lossless>

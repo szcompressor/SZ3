@@ -3,15 +3,14 @@
 //
 
 #include "sz3c.h"
-#include "SZ3/api/sz.hpp"
 
+#include "SZ3/api/sz.hpp"
 
 using namespace SZ3;
 
-unsigned char *SZ_compress_args(int dataType, void *data, size_t *outSize,
-                                int errBoundMode, double absErrBound, double relBoundRatio, double pwrBoundRatio,
-                                size_t r5, size_t r4, size_t r3, size_t r2, size_t r1) {
-
+unsigned char *SZ_compress_args(int dataType, void *data, size_t *outSize, int errBoundMode, double absErrBound,
+                                double relBoundRatio, double pwrBoundRatio, size_t r5, size_t r4, size_t r3, size_t r2,
+                                size_t r1) {
     SZ3::Config conf;
     if (r2 == 0) {
         conf = SZ3::Config(r1);
@@ -24,10 +23,10 @@ unsigned char *SZ_compress_args(int dataType, void *data, size_t *outSize,
     } else {
         conf = SZ3::Config(r5 * r4, r3, r2, r1);
     }
-//    conf.loadcfg(conPath);
+    //    conf.loadcfg(conPath);
     conf.absErrorBound = absErrBound;
     conf.relErrorBound = relBoundRatio;
-//    conf.pwrErrorBound = pwrBoundRatio;
+    //    conf.pwrErrorBound = pwrBoundRatio;
     if (errBoundMode == ABS) {
         conf.errorBoundMode = EB_ABS;
     } else if (errBoundMode == REL) {
@@ -41,7 +40,7 @@ unsigned char *SZ_compress_args(int dataType, void *data, size_t *outSize,
         exit(0);
     }
 
-    unsigned char *cmpr_data = NULL;
+    unsigned char *cmpr_data = nullptr;
     if (dataType == SZ_FLOAT) {
         cmpr_data = reinterpret_cast<unsigned char *>(SZ_compress<float>(conf, static_cast<float *>(data), *outSize));
 #if (!SZ3_DEBUG_TIMINGS)
@@ -53,17 +52,16 @@ unsigned char *SZ_compress_args(int dataType, void *data, size_t *outSize,
         exit(0);
     }
 
-    //convert c++ memory (by 'new' operator) to c memory (by malloc)
+    // convert c++ memory (by 'new' operator) to c memory (by malloc)
     auto *cmpr = static_cast<unsigned char *>(malloc(*outSize));
     memcpy(cmpr, cmpr_data, *outSize);
-    delete[]cmpr_data;
+    delete[] cmpr_data;
 
     return cmpr;
-
 }
 
-void *SZ_decompress(int dataType, unsigned char *bytes, size_t byteLength,
-                    size_t r5, size_t r4, size_t r3, size_t r2, size_t r1) {
+void *SZ_decompress(int dataType, unsigned char *bytes, size_t byteLength, size_t r5, size_t r4, size_t r3, size_t r2,
+                    size_t r1) {
     size_t n = 0;
     if (r2 == 0) {
         n = r1;
@@ -93,3 +91,5 @@ void *SZ_decompress(int dataType, unsigned char *bytes, size_t byteLength,
         exit(0);
     }
 }
+
+void free_buf(void *p) { free(p); }

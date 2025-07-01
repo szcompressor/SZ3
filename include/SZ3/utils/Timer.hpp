@@ -2,8 +2,8 @@
 // Created by Kai Zhao on 10/30/20.
 //
 
-#ifndef SZ_TIMER_HPP
-#define SZ_TIMER_HPP
+#ifndef SZ3_TIMER_HPP
+#define SZ3_TIMER_HPP
 
 #include <chrono>
 #include <iostream>
