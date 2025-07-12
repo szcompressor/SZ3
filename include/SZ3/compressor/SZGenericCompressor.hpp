@@ -1,5 +1,5 @@
-#ifndef SZ_COMPRESSOR_TYPE_ONE_HPP
-#define SZ_COMPRESSOR_TYPE_ONE_HPP
+#ifndef SZ3_COMPRESSOR_TYPE_ONE_HPP
+#define SZ3_COMPRESSOR_TYPE_ONE_HPP
 
 #include <cstring>
 
@@ -39,7 +39,6 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         std::vector<int> quant_inds = decomposition.compress(conf, data);
 
         if (decomposition.get_out_range().first != 0) {
-            fprintf(stderr, "The output range of the decomposition must start from 0 for this compressor\n");
             throw std::runtime_error("The output range of the decomposition must start from 0 for this compressor");
         }
         encoder.preprocess_encode(quant_inds, decomposition.get_out_range().second);

@@ -33,12 +33,11 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
             } else if (conf.cmprAlgo == ALGO_NOPRED) {
                 cmpSize = SZ_compress_nopred<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
             } else {
-                fprintf(stderr, "Unknown compression algorithm\n");
                 throw std::invalid_argument("Unknown compression algorithm");
             }
 
         } catch (std::length_error &e) {
-            if (std::string(e.what()) == SZ_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH) {
+            if (std::string(e.what()) == SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH) {
                 isCmpCapSufficient = false;
                 printf("SZ is downgraded to lossless mode.\n");
             } else {
@@ -80,7 +79,6 @@ void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize
         auto decDataPos = reinterpret_cast<uchar *>(decData);
         zstd.decompress(cmpData, cmpSize, decDataPos, decDataSize);
         if (decDataSize != conf.num * sizeof(T)) {
-            fprintf(stderr, "Decompressed data size does not match the original data size\n");
             throw std::runtime_error("Decompressed data size does not match the original data size");
         }
     } else if (conf.cmprAlgo == ALGO_LORENZO_REG) {
@@ -90,7 +88,6 @@ void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize
     } else if (conf.cmprAlgo == ALGO_NOPRED) {
         SZ_decompress_nopred<T, N>(conf, cmpData, cmpSize, decData);
     } else {
-        fprintf(stderr, "Unknown compression algorithm\n");
         throw std::invalid_argument("Unknown compression algorithm");
     }
 }

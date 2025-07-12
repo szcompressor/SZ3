@@ -1,15 +1,11 @@
-#ifndef _SZ_REGRESSION_PREDICTOR_HPP
-#define _SZ_REGRESSION_PREDICTOR_HPP
+#ifndef SZ3_REGRESSION_PREDICTOR_HPP
+#define SZ3_REGRESSION_PREDICTOR_HPP
 
-#include <cstring>
-#include <fstream>
 #include <iostream>
 
-#include "SZ3/def.hpp"
 #include "SZ3/encoder/HuffmanEncoder.hpp"
 #include "SZ3/predictor/Predictor.hpp"
 #include "SZ3/quantizer/LinearQuantizer.hpp"
-#include "SZ3/utils/Iterator.hpp"
 
 namespace SZ3 {
 
@@ -17,6 +13,8 @@ namespace SZ3 {
 template <class T, uint N>
 class RegressionPredictor : public concepts::PredictorInterface<T, N> {
    public:
+    using block_iter = typename block_data<T, N>::block_iterator;
+
     static const uint8_t predictor_id = 0b00000010;
 
     RegressionPredictor() : quantizer_independent(0), quantizer_liner(0), prev_coeffs{0}, current_coeffs{0} {}
@@ -27,96 +25,44 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
           prev_coeffs{0},
           current_coeffs{0} {}
 
-    RegressionPredictor(uint block_size, double eb1, double eb2)
-        : quantizer_independent(eb1), quantizer_liner(eb2), prev_coeffs{0}, current_coeffs{0} {}
+    bool precompress(const block_iter &block) override {
+        auto range = block.get_block_range();
 
-    using Range = multi_dimensional_range<T, N>;
-    using iterator = typename multi_dimensional_range<T, N>::iterator;
-
-    void precompress_data(const iterator &) const noexcept override{}
-
-    void postcompress_data(const iterator &) const noexcept override{}
-
-    void predecompress_data(const iterator &) const noexcept override{}
-
-    void postdecompress_data(const iterator &) const noexcept override{}
-
-    inline T estimate_error(const iterator &iter) const noexcept override{ return fabs(*iter - predict(iter)); }
-
-    bool precompress_block(const std::shared_ptr<Range> &range) noexcept override{
-        auto dims = range->get_dimensions();
-        size_t num_elements = 1;
-        for (const auto &dim : dims) {
-            num_elements *= dim;
-            if (dim <= 1) {
+        std::array<double, N> dims{0};
+        double num_elements = 1;
+        for (int i = 0; i < N; i++) {
+            dims[i] = range[i].second - range[i].first;
+            if (dims[i] <= 1) {
                 return false;
             }
+            num_elements *= dims[i];
         }
 
-        T num_elements_recip = 1.0 / num_elements;
         std::array<double, N + 1> sum{0};
-
-        {
-            auto range_begin = range->begin();
-            auto range_end = range->end();
-            for (auto iter = range_begin; iter != range_end; ++iter) {
-                double sum_cumulative = 0;
-                for (int t = 0; t < dims[N - 1]; t++) {
-                    T data = *iter;
-                    sum_cumulative += data;
-                    sum[N - 1] += static_cast<double>(iter.get_local_index(N - 1)) * data;
-                    iter.move();
-                }
-                for (int i = 0; i < N - 1; i++) {
-                    sum[i] += sum_cumulative * iter.get_local_index(i);
-                }
-                sum[N] += sum_cumulative;
+        block_iter::foreach (block, [&](T *c, const std::array<size_t, N> &index) {
+            for (int i = 0; i < N; i++) {
+                sum[i] += index[i] * (*c);
             }
-        }
-
+            sum[N] += *c;
+        });
         std::fill(current_coeffs.begin(), current_coeffs.end(), 0);
-        current_coeffs[N] = sum[N] * num_elements_recip;
+        current_coeffs[N] = sum[N] / num_elements;
         for (int i = 0; i < N; i++) {
-            current_coeffs[i] = (2 * sum[i] / (dims[i] - 1) - sum[N]) * 6 * num_elements_recip / (dims[i] + 1);
+            current_coeffs[i] = (2 * sum[i] / (dims[i] - 1) - sum[N]) * 6 / num_elements / (dims[i] + 1);
             current_coeffs[N] -= (dims[i] - 1) * current_coeffs[i] / 2;
         }
         return true;
     }
 
-    void precompress_block_commit() noexcept override{
+    void precompress_block_commit() noexcept override {
         pred_and_quantize_coefficients();
         std::copy(current_coeffs.begin(), current_coeffs.end(), prev_coeffs.begin());
     }
 
-    inline T predict(const iterator &iter) const noexcept override{
-        T pred = 0;
-        for (auto i = 0; i < N; i++) {
-            pred += iter.get_local_index(i) * current_coeffs[i];
-        }
-        pred += current_coeffs[N];
-        return pred;
-    }
-
-    void save(uchar *&c) const override{
-        c[0] = 0b00000010;
-        c += sizeof(uint8_t);
-        *reinterpret_cast<size_t *>(c) = regression_coeff_quant_inds.size();
-        c += sizeof(size_t);
-        if (!regression_coeff_quant_inds.empty()) {
-            quantizer_independent.save(c);
-            quantizer_liner.save(c);
-            HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
-            encoder.preprocess_encode(regression_coeff_quant_inds,
-                                      std::max(quantizer_independent.get_out_range().second, quantizer_liner.get_out_range().second));
-            encoder.save(c);
-            encoder.encode(regression_coeff_quant_inds, c);
-            encoder.postprocess_encode();
-        }
-    }
-
-    bool predecompress_block(const std::shared_ptr<Range> &range) noexcept override {
-        for (const auto &dim : range->get_dimensions()) {
-            if (dim <= 1) {
+    bool predecompress(const block_iter &block) override {
+        auto range = block.get_block_range();
+        for (const auto &r : range) {
+            if (r.second - r.first <= 1) {
                 return false;
             }
         }
@@ -124,15 +70,46 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
         return true;
     }
 
-    void load(const uchar *&c, size_t &remaining_length) override{
-        // TODO: adjust remaining_length
-        c += sizeof(uint8_t);
-        remaining_length -= sizeof(uint8_t);
+    ALWAYS_INLINE T estimate_error(const block_iter &block, T *d, const std::array<size_t, N> &index) override {
+        return fabs(*d - predict(block, d, index));
+    }
 
-        size_t coeff_size = *reinterpret_cast<const size_t *>(c);
-        c += sizeof(size_t);
-        remaining_length -= sizeof(size_t);
-        if (coeff_size != 0) {
+    ALWAYS_INLINE T predict(const block_iter &block, T *d, const std::array<size_t, N> &index) override {
+        if constexpr (N == 1) {
+            return current_coeffs[0] * index[0] + current_coeffs[1];
+        } else if constexpr (N == 2) {
+            return current_coeffs[0] * index[0] + current_coeffs[1] * index[1] + current_coeffs[2];
+        } else if constexpr (N == 3) {
+            return current_coeffs[0] * index[0] + current_coeffs[1] * index[1] + current_coeffs[2] * index[2] +
+                   current_coeffs[3];
+        } else if constexpr (N == 4) {
+            return current_coeffs[0] * index[0] + current_coeffs[1] * index[1] + current_coeffs[2] * index[2] +
+                   current_coeffs[3] * index[3] + current_coeffs[4];
+        } else {
+            static_assert(N <= 4, "Unsupported dimension or layer configuration");
+            return T(0);
+        }
+    }
+
+    void save(uchar *&c) override {
+        write(regression_coeff_quant_inds.size(), c);
+        if (!regression_coeff_quant_inds.empty()) {
+            quantizer_independent.save(c);
+            quantizer_liner.save(c);
+            HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
+            encoder.preprocess_encode(
+                regression_coeff_quant_inds,
+                std::max(quantizer_independent.get_out_range().second, quantizer_liner.get_out_range().second));
+            encoder.save(c);
+            encoder.encode(regression_coeff_quant_inds, c);
+            encoder.postprocess_encode();
+        }
+    }
+
+    void load(const uchar *&c, size_t &remaining_length) override {
+        size_t coeff_size = 0;
+        read(coeff_size, c, remaining_length);
+        if (coeff_size > 0) {
             quantizer_independent.load(c, remaining_length);
             quantizer_liner.load(c, remaining_length);
             HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
@@ -145,7 +122,7 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
         }
     }
 
-    void print() const override{
+    void print() const override {
         std::cout << "Regression predictor, indendent term eb = " << quantizer_independent.get_eb() << "\n";
         std::cout << "Regression predictor, linear term eb = " << quantizer_liner.get_eb() << "\n";
         // int count = 0;
@@ -161,54 +138,12 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
         std::cout << std::endl;
     }
 
-    //        void clear() {
-    //            quantizer_liner.clear();
-    //            quantizer_independent.clear();
-    //            regression_coeff_quant_inds.clear();
-    //            regression_coeff_index = 0;
-    //            current_coeffs = {0};
-    //            prev_coeffs = {0};
-    //        }
-
-    std::array<T, N + 1> get_current_coeffs() { return current_coeffs; }
-
-    void set_current_coeffs(std::array<T, N + 1> coeff) { current_coeffs = coeff; }
-
    private:
     LinearQuantizer<T> quantizer_liner, quantizer_independent;
     std::vector<int> regression_coeff_quant_inds;
     size_t regression_coeff_index = 0;
     std::array<T, N + 1> current_coeffs;
     std::array<T, N + 1> prev_coeffs;
-
-    //        template<uint NN = N>
-    //        inline typename std::enable_if<NN == 3, std::array<double, N + 1>>::type
-    //        compute_regression_coefficients(const std::shared_ptr<Range> &range) const {
-    //            auto dims = range->get_dimensions();
-    //            std::array<double, N + 1> sum{0};
-    //
-    //            auto range_begin = range->begin();
-    //            auto range_end = range->end();
-    //            auto iter = range_begin;
-    //            for (int t0 = 0; t0 < dims[0]; t0++) {
-    //                double sum_cumulative_0 = 0;
-    //                for (int t1 = 0; t1 < dims[1]; t1++) {
-    //                    double sum_cumulative_1 = 0;
-    //                    for (int t2 = 0; t2 < dims[2]; t2++) {
-    //                        T data = *iter;
-    //                        sum_cumulative_1 += data;
-    //                        sum[N - 1] += t2 * data;
-    //                        iter.move();
-    //                    }
-    //                    sum[1] += sum_cumulative_1 * t1;
-    //                    sum_cumulative_0 += sum_cumulative_1;
-    //                    ++iter;
-    //                }
-    //                sum[0] += sum_cumulative_0 * t0;
-    //                sum[N] += sum_cumulative_0;
-    //            }
-    //            return sum;
-    //        }
 
     void pred_and_quantize_coefficients() {
         for (int i = 0; i < static_cast<int>(N); i++) {
@@ -226,9 +161,6 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
         }
         current_coeffs[N] =
             quantizer_independent.recover(current_coeffs[N], regression_coeff_quant_inds[regression_coeff_index++]);
-        //            for (auto &coeffs : current_coeffs) {
-        //                coeffs = quantizer.recover(coeffs, regression_coeff_quant_inds[regression_coeff_index++]);
-        //            }
     }
 };
 
