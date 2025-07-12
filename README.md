@@ -36,14 +36,16 @@ Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [
 * Compatible with both SZ3 and SZ2
 * Requiring SZ2/3 dynamic library
 
-#### SZ3 Fortran API
-* Special thanks to [Oscar Mojica](https://github.com/ofmla) for providing the Fortran API
-* Visit [this Github repository](https://github.com/ofmla/sz3_simple_example) for details
-
 #### H5Z-SZ3
 * Located in 'tools/H5Z-SZ3'
 * Please add "-DBUILD_H5Z_FILTER=ON" to enable this function for CMake.
 * sz3ToHDF5 and HDF5ToSz3 are provided for testing.
+
+#### Third-Party APIs
+
+* [SZ3 Fortran API](https://github.com/ofmla/sz3_simple_example) (by [Oscar Mojica](https://github.com/ofmla))
+* [SZ3 Rust API](https://github.com/juntyr/sz3-rs) (by [Juniper Tyree](https://github.com/juntyr))
+* [SZ3 Numcodecs API](https://github.com/juntyr/numcodecs-rs/blob/main/codecs/sz3/) (by [Juniper Tyree](https://github.com/juntyr))
 
 [//]: # (* Use examples/print_h5repack_args.c to construct the cd_values parameters based on the specified error configuration.)
 [//]: # ()
