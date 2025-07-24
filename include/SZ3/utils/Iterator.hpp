@@ -1,5 +1,5 @@
-#ifndef _SZ_ITERATOR_HPP
-#define _SZ_ITERATOR_HPP
+#ifndef SZ3_ITERATOR_HPP
+#define SZ3_ITERATOR_HPP
 
 #include <algorithm>
 #include <array>

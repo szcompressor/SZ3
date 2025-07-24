@@ -1,10 +1,9 @@
 import sys
 import ctypes
-from ctypes.util import find_library
 import numpy as np
 
 """
-Python API for SZ2/SZ3
+Python API for SZ3
 """
 
 
@@ -21,7 +20,6 @@ class SZ:
                 "win32": "SZ3c.dll",
             }.get(sys.platform, "libSZ3c.so")
 
-
         self.sz = ctypes.cdll.LoadLibrary(szpath)
 
         self.sz.SZ_compress_args.argtypes = (ctypes.c_int, ctypes.c_void_p, ctypes.POINTER(ctypes.c_size_t),
@@ -34,8 +32,7 @@ class SZ:
                                           ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t,
                                           ctypes.c_size_t)
 
-        self.libc = ctypes.CDLL(ctypes.util.find_library('c'))
-        self.libc.free.argtypes = (ctypes.c_void_p,)
+        self.sz.free_buf.argtype = (ctypes.c_void_p)
 
     def __sz_datatype(self, dtype, data=None):
         if dtype == np.float32:
@@ -80,8 +77,24 @@ class SZ:
                                            data_cmpr.size,
                                            r5, r4, r3, r2, r1)
 
-        data_dec = np.array(data_dec_c[:np.prod(original_shape)], dtype=original_dtype).reshape(original_shape)
-        self.libc.free(data_dec_c)
+        # Calculate total number of elements
+        total_elements = np.prod(original_shape)
+        
+        # Use np.frombuffer for fast memory copy
+        # Cast the ctypes pointer to void pointer, then use addressof to get memory address
+        buffer_ptr = ctypes.cast(data_dec_c, ctypes.c_void_p)
+        buffer_size = total_elements * np.dtype(original_dtype).itemsize
+        
+        # Create numpy array directly from memory buffer
+        data_dec = np.frombuffer((ctypes.c_ubyte * buffer_size).from_address(buffer_ptr.value),
+                                 dtype=original_dtype,
+                                 count=total_elements
+                                 ).reshape(original_shape)
+        
+        # Make a copy since we're going to free the original memory
+        data_dec = data_dec.copy()
+        
+        self.sz.free_buf(data_dec_c)
         return data_dec
 
     def compress(self, data, eb_mode, eb_abs, eb_rel, eb_pwr):
@@ -106,6 +119,15 @@ class SZ:
 
         cmpr_ratio = data.size * data.itemsize / cmpr_size.value
 
-        data_cmpr = np.array(data_cmpr_c[:cmpr_size.value], dtype=np.uint8)
-        self.libc.free(data_cmpr_c)
+        # Use np.frombuffer for fast memory copy
+        buffer_ptr = ctypes.cast(data_cmpr_c, ctypes.c_void_p)
+        buffer_size = cmpr_size.value
+        
+        # Create numpy array directly from memory buffer
+        data_cmpr = np.frombuffer((ctypes.c_ubyte * buffer_size).from_address(buffer_ptr.value),
+                                  dtype=np.uint8,
+                                  count=buffer_size
+                                  ).copy()  # Make a copy since we're going to free the original memory
+        
+        self.sz.free_buf(data_cmpr_c)
         return data_cmpr, cmpr_ratio

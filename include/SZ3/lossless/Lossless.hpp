@@ -2,8 +2,8 @@
 // Created by Kai Zhao on 6/12/20.
 //
 
-#ifndef SZ_LOSSLESS_HPP
-#define SZ_LOSSLESS_HPP
+#ifndef SZ3_LOSSLESS_HPP
+#define SZ3_LOSSLESS_HPP
 
 namespace SZ3::concepts {
 

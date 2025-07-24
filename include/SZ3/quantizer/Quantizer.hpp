@@ -1,5 +1,5 @@
-#ifndef _SZ_QUANTIZER_HPP
-#define _SZ_QUANTIZER_HPP
+#ifndef SZ3_QUANTIZER_HPP
+#define SZ3_QUANTIZER_HPP
 
 namespace SZ3::concepts {
 
@@ -10,7 +10,7 @@ namespace SZ3::concepts {
  * @tparam To quantized data type
  */
 template <class Ti, class To>
-class QuantizerInterface {
+class   QuantizerInterface {
    public:
     virtual ~QuantizerInterface() = default;
 
@@ -20,7 +20,7 @@ class QuantizerInterface {
      * @param pred predicted value for this data point
      * @return quantized error
      */
-    virtual To quantize_and_overwrite(Ti &data, Ti pred) = 0;
+    ALWAYS_INLINE virtual To quantize_and_overwrite(Ti &data, Ti pred) = 0;
 
     /**
      * reconstructed the data point
@@ -28,7 +28,9 @@ class QuantizerInterface {
      * @param quant_index quantized error
      * @return reconstructed value of the data point
      */
-    virtual Ti recover(Ti pred, To quant_index) = 0;
+    ALWAYS_INLINE virtual Ti recover(Ti pred, To quant_index) = 0;
+
+    virtual To force_save_unpred(Ti ori) = 0;
 
     /**
      ** serialize the quantizer and store it to a buffer
