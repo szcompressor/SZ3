@@ -13,9 +13,9 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
     assert(N == conf.N);
     calAbsErrorBound(conf, data);
     size_t cmpSize = 0;
-    
+
     // if absErrorBound is 0, use lossless only mode
-    if (conf.absErrorBound == 0 ) {
+    if (conf.absErrorBound == 0) {
         conf.cmprAlgo = ALGO_LOSSLESS;
     }
 
@@ -52,11 +52,11 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
         auto zstd = Lossless_zstd();
         return zstd.compress(reinterpret_cast<const uchar *>(data), conf.num * sizeof(T), cmpData, cmpCap);
     }
-    
+
     // if lossy compression ratio < 3, test if lossless only mode has a better ratio than lossy
     if (conf.num * sizeof(T) / 1.0 / cmpSize < 3) {
         auto zstd = Lossless_zstd();
-        auto zstdCmpCap = ZSTD_compressBound(conf.num * sizeof(T));
+        auto zstdCmpCap = ZSTD_compressBound(conf.num * sizeof(T)) + sizeof(size_t);
         auto zstdCmpData = static_cast<uchar *>(malloc(zstdCmpCap));
         size_t zstdCmpSize =
             zstd.compress(reinterpret_cast<const uchar *>(data), conf.num * sizeof(T), zstdCmpData, zstdCmpCap);
@@ -69,7 +69,6 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
     }
     return cmpSize;
 }
-
 
 template <class T, uint N>
 void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
