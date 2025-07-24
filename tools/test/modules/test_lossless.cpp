@@ -17,7 +17,7 @@ void runFunctionalTest() {
     for (size_t i = 0; i < N; i++) {
         src[i] = static_cast<SZ3::uchar>(dis(gen));
     }
-    std::vector<SZ3::uchar> dst(ZSTD_compressBound(src.size()));
+    std::vector<SZ3::uchar> dst(ZSTD_compressBound(src.size())+ sizeof(size_t));
     size_t compressedSize = lossless.compress(src.data(), src.size(), dst.data(), dst.size());
 
     std::vector<SZ3::uchar> decompressed(N);
