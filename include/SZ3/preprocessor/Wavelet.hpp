@@ -1,7 +1,7 @@
 #ifndef SZ3_WAVELET_HPP
 #define SZ3_WAVELET_HPP
 
-#ifdef ENABLE_GSL
+#ifdef SZ3_ENABLE_GSL
 
 #include "SZ3/preprocessor/PreProcessor.hpp"
 #include <gsl/gsl_wavelet.h>
