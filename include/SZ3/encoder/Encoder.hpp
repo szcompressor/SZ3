@@ -2,6 +2,7 @@
 #define SZ3_ENCODER_HPP
 
 #include <vector>
+
 #include "SZ3/def.hpp"
 namespace SZ3 {
 namespace concepts {
@@ -12,7 +13,7 @@ namespace concepts {
  * Examples: huffman, runlenth, etc.
  * @tparam T
  */
-template <class T>
+template <class T, class TAllocator = std::allocator<T>>
 class EncoderInterface {
    public:
     virtual ~EncoderInterface() = default;
@@ -24,7 +25,7 @@ class EncoderInterface {
      * @param stateNum stateNum > 0 indicates the bins has a range of [0, stateNum). stateNum == 0 means no such
      * guarantee
      */
-    virtual void preprocess_encode(const std::vector<T> &bins, int stateNum) = 0;
+    virtual void preprocess_encode(const std::vector<T, TAllocator> &bins, int stateNum) = 0;
 
     /**
      * encode the input (in vector<T> format) to a more compact representative(in byte stream format)
@@ -32,7 +33,7 @@ class EncoderInterface {
      * @param bytes output in byte stream
      * @return size of output (# of bytes)
      */
-    virtual size_t encode(const std::vector<T> &bins, uchar *&bytes) = 0;
+    virtual size_t encode(const std::vector<T, TAllocator> &bins, uchar *&bytes) = 0;
 
     /**
      * reverse of encode()
@@ -40,7 +41,7 @@ class EncoderInterface {
      * @param targetLength size of the output vector
      * @return output in vector
      */
-    virtual std::vector<T> decode(const uchar *&bytes, size_t targetLength) = 0;
+    virtual std::vector<T, TAllocator> decode(const uchar *&bytes, size_t targetLength) = 0;
 
     /**
      * serialize the encoder and store it to a buffer
