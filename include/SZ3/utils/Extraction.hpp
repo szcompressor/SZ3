@@ -2,8 +2,8 @@
 // Created by Kai Zhao on 4/20/20.
 //
 
-#ifndef SZ_EXTRACTION_HPP
-#define SZ_EXTRACTION_HPP
+#ifndef SZ3_EXTRACTION_HPP
+#define SZ3_EXTRACTION_HPP
 
 namespace SZ3 {
 

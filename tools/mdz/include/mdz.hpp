@@ -2,8 +2,8 @@
 // Created by Kai Zhao on 7/1/21.
 //
 
-#ifndef SZ_MDZ_H
-#define SZ_MDZ_H
+#ifndef SZ3_MDZ_H
+#define SZ3_MDZ_H
 
 #include <SZ3/compressor/SZGenericCompressor.hpp>
 #include <SZ3/compressor/SZIterateCompressor.hpp>
@@ -125,7 +125,6 @@ template <typename T, uint N>
 float *VQ(Config conf, size_t ts, T *data, size_t &compressed_size, bool decom, int method, float level_start,
           float level_offset, int level_num) {
     if (level_num == 0) {
-        fprintf(stderr, "VQ/VQT not availble on current dataset, please use ADP or MT\n");
         throw std::runtime_error("VQ/VQT not availble on current dataset, please use ADP or MT");
     }
 
@@ -284,7 +283,6 @@ template <typename T, uint N>
 uchar *LAMMPS_compress(Config conf, T *data, int method, size_t &compressed_size, float level_start, float level_offset,
                        int level_num, T *ts0) {
     if ((method == 0 || method == 1) && level_num == 0) {
-        fprintf(stderr, "VQ/VQT not available on current dataset, please use ADP or MT\n");
         throw std::runtime_error("VQ/VQT not available on current dataset, please use ADP or MT");
     }
     compressed_size = conf.num * sizeof(T);

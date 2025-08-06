@@ -9,6 +9,7 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include <cstdint>
 
 #include "SZ3/def.hpp"
 
@@ -131,19 +132,19 @@ inline int64_t bytesToInt64_bigEndian(const unsigned char *b) {
     return res;
 }
 
-inline void int16ToBytes_bigEndian(unsigned char *b, int16_t num) {
+inline void int16ToBytes_bigEndian(unsigned char *b, uint16_t num) {
     b[0] = static_cast<unsigned char>(num >> 8);
     b[1] = static_cast<unsigned char>(num);
 }
 
-inline void int32ToBytes_bigEndian(unsigned char *b, int32_t num) {
+inline void int32ToBytes_bigEndian(unsigned char *b, uint32_t num) {
     b[0] = static_cast<unsigned char>(num >> 24);
     b[1] = static_cast<unsigned char>(num >> 16);
     b[2] = static_cast<unsigned char>(num >> 8);
     b[3] = static_cast<unsigned char>(num);
 }
 
-inline void int64ToBytes_bigEndian(unsigned char *b, int64_t num) {
+inline void int64ToBytes_bigEndian(unsigned char *b, uint64_t num) {
     b[0] = static_cast<unsigned char>(num >> 56);
     b[1] = static_cast<unsigned char>(num >> 48);
     b[2] = static_cast<unsigned char>(num >> 40);

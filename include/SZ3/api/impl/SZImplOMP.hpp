@@ -80,7 +80,6 @@ size_t SZ_compress_OMP(Config &conf, const T *data, uchar *cmpData, size_t cmpCa
         } else if (conf_t[tid].N==4) {
             cmp_size_t[tid] = SZ_compress_dispatcher<T, 4>(conf_t[tid], data_t, compressed_t[tid], cmp_size_cap);
         } else {
-            fprintf(stderr, "Unsupported N = %d\n", conf_t[tid].N);
             throw std::invalid_argument("Unsupported N");
         }
 

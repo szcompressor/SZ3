@@ -34,7 +34,6 @@ namespace SZ3 {
             int status = gsl_wavelet_transform_forward(w, dwtdata.data(), 1, m, work);
 
             if (status != GSL_SUCCESS) {
-                fprintf(stderr, "Error: wavelets transform failed.\n");
                 throw std::runtime_error("Error: wavelets transform failed.");
             }
 
@@ -70,7 +69,6 @@ namespace SZ3 {
             int status = gsl_wavelet_transform_inverse(w, dwtdata.data(), 1, m, work);
 
             if (status != GSL_SUCCESS) {
-                fprintf(stderr, "Error: wavelets transform failed.\n");
                 throw std::runtime_error("Error: wavelets transform failed.");
             }
 

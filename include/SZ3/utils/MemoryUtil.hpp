@@ -2,8 +2,8 @@
 // Created by Kai Zhao on 4/21/20.
 //
 
-#ifndef SZ_MEMORYOPS_HPP
-#define SZ_MEMORYOPS_HPP
+#ifndef SZ3_MEMORYOPS_HPP
+#define SZ3_MEMORYOPS_HPP
 
 #include <cassert>
 #include <cstring>
