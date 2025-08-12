@@ -32,7 +32,7 @@ def parse_errors(output):
     return abs_err, rel_err
 
 
-def test_file(file_path, dims, mode, error_bound):
+def test_file(sz3_path, file_path, dims, mode, error_bound):
     """
     Run the SZ3 command with the given file, reversed dimensions, error control mode, and error bound.
     - file_path: path to the original binary file.
@@ -51,7 +51,7 @@ def test_file(file_path, dims, mode, error_bound):
 
     # Build the single command that compresses and decompresses the file.
     # Note: no -z is provided, only -i (input) and -o (decompressed output).
-    cmd = f"sz3 -f -i {file_path} -o {decompressed_file} -3 {dims_str} -M {mode} {error_bound} -a"
+    cmd = f"{sz3_path} -f -i {file_path} -o {decompressed_file} -3 {dims_str} -M {mode} {error_bound} -a"
 
     print("Running command:")
     print(cmd)
@@ -69,6 +69,7 @@ def test_file(file_path, dims, mode, error_bound):
     if os.path.exists(decompressed_file):
         os.remove(decompressed_file)
 
+    return abs_err, rel_err
 
 def load_test_files(file_list_path):
     """
@@ -94,10 +95,11 @@ def load_test_files(file_list_path):
 
 
 def main():
-    if len(sys.argv) > 1:
-        file_list_path = sys.argv[1]
+    if len(sys.argv) > 2:
+        sz3_path = sys.argv[1]
+        file_list_path = sys.argv[2]
     else:
-        print("Usage: python test_sz3.py <path_to_datalist>")
+        print("Usage: python test_sz3.py <path_to_sz3_executable> <path_to_datalist>")
         exit()
 
     test_files = load_test_files(file_list_path)
@@ -117,7 +119,7 @@ def main():
             for bound in bounds:
                 print("=" * 60)
                 print(f"Testing file: {file_path}\nMode: {mode}\nError Bound: {bound}")
-                abs_err, rel_err = test_file(file_path, dims, mode, bound)
+                abs_err, rel_err = test_file(sz3_path, file_path, dims, mode, bound)
 
                 # Check results depending on the mode
                 if mode == "ABS":

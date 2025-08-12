@@ -43,10 +43,10 @@
 ~/data/nyx-512x512x512/velocity_y.dat 512 512 512
 ~/data/nyx-512x512x512/velocity_z.dat 512 512 512
 ~/data/nyx-512x512x512/dark_matter_density.dat 512 512 512
-~/data/hacc-280953867/vz.f32 280953867
-~/data/hacc-280953867/vx.f32 280953867
-~/data/hacc-280953867/vy.f32 280953867
-~/data/hacc-280953867/zz.f32 280953867
-~/data/hacc-280953867/xx.f32 280953867
-~/data/hacc-280953867/yy.f32 280953867
-~/data/qmcpack-288x115x69x69/einspline_288_115_69_69.pre.f32.dat 288 115 69 69
+~/data/hacc-280953867/vz.f32 280953867  1 1
+~/data/hacc-280953867/vx.f32 280953867  1 1
+~/data/hacc-280953867/vy.f32 280953867  1 1
+~/data/hacc-280953867/zz.f32 280953867  1 1
+~/data/hacc-280953867/xx.f32 280953867  1 1
+~/data/hacc-280953867/yy.f32 280953867  1 1
+~/data/qmcpack-288x115x69x69/einspline_288_115_69_69.pre.f32.dat 33120 69 69
