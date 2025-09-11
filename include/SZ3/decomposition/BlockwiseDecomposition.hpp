@@ -10,7 +10,7 @@
 #include "SZ3/quantizer/LinearQuantizer.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/FileUtil.hpp"
-#include "SZ3/utils/Iterator.hpp"
+#include "SZ3/utils/BlockwiseIterator.hpp"
 #include "SZ3/utils/Timer.hpp"
 
 namespace SZ3 {

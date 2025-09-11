@@ -6,7 +6,6 @@
 #define SZ3_MDZ_H
 
 #include <SZ3/compressor/SZGenericCompressor.hpp>
-#include <SZ3/compressor/SZIterateCompressor.hpp>
 #include <SZ3/def.hpp>
 #include <SZ3/encoder/HuffmanEncoder.hpp>
 #include <SZ3/lossless/Lossless_zstd.hpp>
@@ -21,19 +20,20 @@
 #include <SZ3/utils/Timer.hpp>
 
 #include "SZ3/compressor/specialized/SZExaaltCompressor.hpp"
+#include "SZ3/decomposition/BlockwiseDecomposition.hpp"
 #include "SZ3/decomposition/TimeSeriesDecomposition.hpp"
 #include "SZ3/utils/KmeansUtil.hpp"
 
 using namespace SZ3;
-double total_compress_time = 0;
-double total_decompress_time = 0;
-const char *compressor_names[] = {"VQ", "VQT", "MT", "LR", "TS"};
+inline double total_compress_time = 0;
+inline double total_decompress_time = 0;
+inline const char *compressor_names[] = {"VQ", "VQT", "MT", "LR", "TS"};
 
 template <typename T, uint N, class Predictor>
 std::shared_ptr<concepts::CompressorInterface<T>> make_sz2(const Config &conf, Predictor predictor) {
-    return make_compressor_sz_iterate<T, N>(conf, predictor,
-                                            LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2),
-                                            HuffmanEncoder<int>(), Lossless_zstd());
+    return make_compressor_sz_generic<T, N>(
+        make_decomposition_blockwise<T, N>(conf, predictor, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
+        HuffmanEncoder<int>(), Lossless_zstd());
     //    return new SZGeneralCompressor<T, N, SZGeneralFrontend<T, N, Predictor, LinearQuantizer<T>>,
     //            HuffmanEncoder<int>, Lossless_zstd>(
     //            SZGeneralFrontend<T, N, Predictor, LinearQuantizer<T>>(conf, predictor,
