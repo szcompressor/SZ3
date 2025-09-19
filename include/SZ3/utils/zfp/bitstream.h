@@ -6,6 +6,9 @@
 #include <cstdlib>
 #include "types.h"
 
+namespace SZ3 {
+namespace ZFP {
+
 typedef unsigned char uchar;
 typedef unsigned int uint;
 
@@ -34,13 +37,13 @@ in mind:
 // bit stream I/O
 class MemoryBitStream {
 public:
-  MemoryBitStream() : ptr(0), begin(0), end(0) {}
+  MemoryBitStream() : ptr(nullptr), begin(nullptr), end(nullptr) {}
   MemoryBitStream(void* p, size_t n) { open(p, n); }
 
   // open stream for reading or writing
   void open(void* p, size_t n)
   {
-    begin = ptr = (uchar*)p;
+    begin = ptr = static_cast<uchar*>(p);
     end = ptr + n;
     buffer = 1u;
   }
@@ -167,5 +170,8 @@ MemoryBitStream::align()
   buffer = 1u;
   return true;
 }
+
+} // namespace ZFP
+} // namespace SZ3
 
 #endif

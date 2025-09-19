@@ -4,6 +4,10 @@
 #include <climits>
 #include "intcodec.h"
 
+namespace SZ3 {
+namespace ZFP {
+
+
 // embedded codec for general integer types using blocks of 4 integers
 template <class BitStream, typename Int, typename UInt>
 class IntCodec04 : public IntCodec<BitStream, Int, UInt> {
@@ -40,5 +44,8 @@ IntCodec04<BitStream, Int, UInt>::decode(BitStream& bitstream, Int* data, uint m
 {
   IntCodec<BitStream, Int, UInt>::decode(bitstream, data, minbits, maxbits, maxprec, 0x211u, 4);
 }
+
+} // namespace ZFP
+} // namespace SZ3
 
 #endif

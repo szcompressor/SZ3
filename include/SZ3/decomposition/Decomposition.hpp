@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "SZ3/def.hpp"
+#include "SZ3/utils/Config.hpp"
 
 namespace SZ3::concepts {
 

@@ -2,6 +2,8 @@
 #define ZFP_TRANSFORM_H
 
 #include "types.h"
+namespace SZ3 {
+namespace ZFP {
 
 // basis parameter clift = 2^62 tan(pi/4 t), -1 <= t <= 1
 #define ZFP_CLIFT_MIN     -0x4000000000000000ll // min value = -1
@@ -26,7 +28,7 @@
 
 #define ZFP_CLIFT_32 int32(ZFP_CLIFT_64 >> 32)
 
-namespace ZFP {
+
 
 template <typename Int>
 struct TransformParameter {};
@@ -214,6 +216,7 @@ void Transform<Fixed, clift>::inv_lift(Fixed* p, uint s)
   p -= s; *p = x;
 }
 
-}
+} // namespace ZFP
+} // namespace SZ3
 
 #endif

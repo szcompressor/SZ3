@@ -9,6 +9,7 @@
 #include "types.h"
 #include "zfptransform.h"
 
+namespace SZ3 {
 namespace ZFP {
 
 // base codec for nD blocks
@@ -88,6 +89,7 @@ protected:
   static const int ebias = (1 << (ebits - 1)) - 1; // floating-point exponent bias
 };
 
-}
+} // namespace ZFP
+} // namespace SZ3
 
 #endif

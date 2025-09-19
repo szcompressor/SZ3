@@ -4,6 +4,8 @@
 #include "fixedpoint32.h"
 #include "fixedpoint64.h"
 
+namespace SZ3 {
+namespace ZFP {
 #ifdef __GNUC__
   #define align_(n) __attribute__((aligned(n)))
 #else
@@ -42,5 +44,8 @@ struct ScalarTraits<double> {
   typedef uint64 UInt;
   static const uint ebits = 11;
 };
+
+} // namespace ZFP
+} // namespace SZ3
 
 #endif

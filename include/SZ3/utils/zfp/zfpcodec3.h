@@ -7,6 +7,7 @@
 #include "zfpcodec.h"
 #include "intcodec64.h"
 
+namespace SZ3 {
 namespace ZFP {
 
 // generic compression codec for 3D blocks of 4*4*4 scalars
@@ -381,6 +382,7 @@ public:
   Codec3d(BitStream& bitstream, uint nmin = 0, uint nmax = 0, uint pmax = 0, int emin = INT_MIN) : Codec3<BitStream, double>(bitstream, nmin, nmax, pmax, emin) {}
 };
 
-}
+} // namespace ZFP
+} // namespace SZ3
 
 #endif

@@ -7,6 +7,7 @@
 #include "zfpcodec.h"
 #include "intcodec16.h"
 
+namespace SZ3 {
 namespace ZFP {
 
 // generic compression codec for 2D blocks of 4*4 scalars
@@ -298,6 +299,7 @@ public:
   Codec2d(BitStream& bitstream, uint nmin = 0, uint nmax = 0, uint pmax = 0, int emin = INT_MIN) : Codec2<BitStream, double>(bitstream, nmin, nmax, pmax, emin) {}
 };
 
-}
+} // namespace ZFP
+} // namespace SZ3
 
 #endif

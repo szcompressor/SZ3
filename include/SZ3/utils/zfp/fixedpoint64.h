@@ -6,6 +6,8 @@
 #include <climits>
 #include <stdexcept>
 
+namespace SZ3 {
+namespace ZFP {
 namespace FixedPoint {
 
 typedef unsigned int uint;
@@ -243,6 +245,8 @@ operator>>(const FixedPoint64<n>& x, int y)
   return FixedPoint64<n>(x) >>= y;
 }
 
-}
+} // namespace FixedPoint
+} // namespace ZFP
+} // namespace SZ3
 
 #endif

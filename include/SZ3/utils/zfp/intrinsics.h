@@ -4,6 +4,9 @@
 #include <climits>
 #include "types.h"
 
+namespace SZ3 {
+namespace ZFP {
+
 #if defined(__GNUC__)
 #elif defined(__IBMCPP__)
   #include <builtins.h>
@@ -118,5 +121,8 @@ sfls<int64>(int64 x)
 {
   return ufls<uint64>(x < 0 ? -uint64(x) : +uint64(x));
 }
+
+} // namespace ZFP
+} // namespace SZ3
 
 #endif

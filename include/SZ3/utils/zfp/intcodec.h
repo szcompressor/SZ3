@@ -6,6 +6,10 @@
 #include "bitstream.h"
 #include "intrinsics.h"
 
+namespace SZ3 {
+namespace ZFP {
+
+
 // base codec for blocks of signed integer
 template <class BitStream, typename Int, typename UInt>
 class IntCodec {
@@ -148,5 +152,8 @@ inline void IntCodec<BitStream, Int, UInt>::decode(BitStream& bitstream, Int* da
 exit:
   bitstream = stream;
 }
+
+} // namespace ZFP
+} // namespace SZ3
 
 #endif
