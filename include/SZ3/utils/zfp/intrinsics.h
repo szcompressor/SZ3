@@ -9,9 +9,9 @@
   #include <builtins.h>
 #elif defined(_WIN64)
   #include <intrin.h>
-  #ifndef HAVE_C99_MATH
-    // for old versions of MSVC that do not have C99 math support
-    inline long int lrint(double x) { return  (long int)x; }
+  #if defined(_MSC_VER) && _MSC_VER < 1800 && !defined(HAVE_C99_MATH)
+    // for old versions of MSVC (before VS2013) that do not have C99 math support
+    inline long int lrint(double x) { return (long int)x; }
     inline long long int llrint(double x) { return (long long int)x; }
   #endif
 #else
