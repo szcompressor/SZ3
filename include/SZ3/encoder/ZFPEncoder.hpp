@@ -37,7 +37,7 @@ class ZFPEncoder : public concepts::EncoderInterface<Int> {
         uint maxprec = CHAR_BIT * sizeof(Int);
         auto emax_pos = &data[1];
         auto int_pos = &data[1 + n_blocks];
-        int block_size = N == 3 ? 64 : (N == 2 ? 16 : 4);
+        int block_size = (N == 3 ? 64 : (N == 2 ? 16 : 4));
 
         stream.write(n_blocks, sizeof(size_t) * 8);
         for (auto i = 0; i < n_blocks; i++) {
@@ -71,7 +71,7 @@ class ZFPEncoder : public concepts::EncoderInterface<Int> {
 
         size_t n_blocks = stream.read(sizeof(size_t) * 8);
         uint maxprec = CHAR_BIT * sizeof(Int);
-        int block_size = N == 3 ? 64 : (N == 2 ? 16 : 4);
+        int block_size = (N == 3 ? 64 : (N == 2 ? 16 : 4));
 
         std::vector<int> output(1 + n_blocks + n_blocks * block_size);
         output[0] = n_blocks;

@@ -112,6 +112,7 @@ class ZFPDecomposition : public concepts::DecompositionInterface<T, To, N> {
         size_t n_blocks = transformed[0];
         auto emax_pos = &transformed[1];
         auto transformed_pos = &transformed[1 + n_blocks];
+        int block_size = (N == 3 ? 64 : (N == 2 ? 16 : 4));
 
         std::vector<uint> dims(conf.dims.begin(), conf.dims.end());
         std::vector<uint> s(N, 1);  // stride
@@ -120,7 +121,6 @@ class ZFPDecomposition : public concepts::DecompositionInterface<T, To, N> {
         }
         if constexpr (N == 1) {
             for (auto x = 0; x < dims[0]; x += 4, p += 4) {
-                int block_size = 4;
                 int emax = *emax_pos++;
                 Fixed q[block_size];
                 for (uint i = 0; i < block_size; i++) {
@@ -137,7 +137,6 @@ class ZFPDecomposition : public concepts::DecompositionInterface<T, To, N> {
         } else if constexpr (N == 2) {
             for (uint y = 0; y < dims[1]; y += 4, p += 4 * (dims[0] - (dims[0] + 3) / 4)) {
                 for (uint x = 0; x < dims[0]; x += 4, p += 4) {
-                    int block_size = 16;
                     int emax = *emax_pos++;
                     Fixed q[block_size];
                     for (uint i = 0; i < block_size; i++) {
@@ -157,7 +156,6 @@ class ZFPDecomposition : public concepts::DecompositionInterface<T, To, N> {
             for (uint z = 0; z < dims[2]; z += 4, p += 4 * dims[0] * (dims[1] - (dims[1] + 3) / 4)) {
                 for (uint y = 0; y < dims[1]; y += 4, p += 4 * (dims[0] - (dims[0] + 3) / 4)) {
                     for (uint x = 0; x < dims[0]; x += 4, p += 4) {
-                        int block_size = 64;
                         int emax = *emax_pos++;
                         Fixed q[block_size];
                         for (uint i = 0; i < block_size; i++) {
