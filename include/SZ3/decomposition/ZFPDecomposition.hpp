@@ -19,11 +19,10 @@ class ZFPDecomposition : public concepts::DecompositionInterface<T, To, N> {
     std::vector<To> compress(const Config &conf, T *data) override {
         const T *p = data;
         size_t n_blocks = 1;
-        int block_size = 1;
         for (uint i = 0; i < N; i++) {
             n_blocks *= (conf.dims[i] + 3) / 4;
-            block_size *= 4;
         }
+        constexpr int block_size = (N == 3 ? 64 : (N == 2 ? 16 : 4));
         std::vector<int> output(1 + n_blocks + n_blocks * block_size);
         output[0] = n_blocks;
         auto output_emax = &output[1];
@@ -112,7 +111,7 @@ class ZFPDecomposition : public concepts::DecompositionInterface<T, To, N> {
         size_t n_blocks = transformed[0];
         auto emax_pos = &transformed[1];
         auto transformed_pos = &transformed[1 + n_blocks];
-        int block_size = (N == 3 ? 64 : (N == 2 ? 16 : 4));
+        constexpr int block_size = (N == 3 ? 64 : (N == 2 ? 16 : 4));
 
         std::vector<uint> dims(conf.dims.begin(), conf.dims.end());
         std::vector<uint> s(N, 1);  // stride
