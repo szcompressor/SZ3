@@ -11,7 +11,7 @@ inline void profiling_block(T *data, std::vector<size_t> &dims, std::vector<std:
 
         size_t dimx = dims[0], dimy = dims[1], dimz = dims[2], dimw = dims[3], dimyzw = dimy * dimz * dimw,
                dimzw = dimz * dimw;
-        if  (dimx < block_size or dimy < block_size or dimz < block_size or dimw < block_size) {
+        if  (dimx < block_size || dimy < block_size || dimz < block_size || dimw < block_size) {
             return;
         }
         for (size_t i = 0; i < dimx - block_size; i += block_size) {
@@ -45,7 +45,7 @@ inline void profiling_block(T *data, std::vector<size_t> &dims, std::vector<std:
         }
     } else if constexpr (N == 3) {
         size_t dimx = dims[0], dimy = dims[1], dimz = dims[2], dimyz = dimy * dimz;
-        if  (dimx < block_size or dimy < block_size or dimz < block_size) {
+        if  (dimx < block_size || dimy < block_size || dimz < block_size) {
             return;
         }
         for (size_t i = 0; i < dimx - block_size; i += block_size) {
@@ -75,7 +75,7 @@ inline void profiling_block(T *data, std::vector<size_t> &dims, std::vector<std:
         }
     } else if constexpr (N == 2) {
         size_t dimx = dims[0], dimy = dims[1];
-        if  (dimx < block_size or dimy < block_size) {
+        if  (dimx < block_size || dimy < block_size) {
             return;
         }
         for (size_t i = 0; i < dimx - block_size; i += block_size) {
@@ -130,7 +130,7 @@ inline void sample_blocks(T *data, std::vector<T> &sampling_data, std::vector<si
     assert(dims.size() == N);
     assert(starts.size() == N);
     if constexpr (N == 4) {
-        if (dims[0] < block_size or dims[1] < block_size or dims[2] < block_size or dims[3] < block_size) {
+        if (dims[0] < block_size || dims[1] < block_size || dims[2] < block_size || dims[3] < block_size) {
             return;
         }
         size_t sample_num = block_size * block_size * block_size * block_size;
@@ -151,7 +151,7 @@ inline void sample_blocks(T *data, std::vector<T> &sampling_data, std::vector<si
             }
         }
     } else if constexpr (N == 3) {
-        if (dims[0] < block_size or dims[1] < block_size or dims[2] < block_size) {
+        if (dims[0] < block_size || dims[1] < block_size || dims[2] < block_size) {
             return;
         }        
         size_t sample_num = block_size * block_size * block_size;
@@ -168,7 +168,7 @@ inline void sample_blocks(T *data, std::vector<T> &sampling_data, std::vector<si
             }
         }
     } else if constexpr (N == 2) {
-        if (dims[0] < block_size or dims[1] < block_size) {
+        if (dims[0] < block_size || dims[1] < block_size) {
             return;
         }       
         size_t sample_num = block_size * block_size;
