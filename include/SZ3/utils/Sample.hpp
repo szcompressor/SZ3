@@ -10,6 +10,9 @@ inline void profiling_block(T *data, std::vector<size_t> &dims, std::vector<std:
     if constexpr (N == 4) {
         size_t dimx = dims[0], dimy = dims[1], dimz = dims[2], dimw = dims[3], dimyzw = dimy * dimz * dimw,
                dimzw = dimz * dimw;
+        if (dimx < block_size || dimy < block_size || dimz < block_size || dimw < block_size) {
+            return;
+        }
         for (size_t i = 0; i < dimx - block_size; i += block_size) {
             for (size_t j = 0; j < dimy - block_size; j += block_size) {
                 for (size_t k = 0; k < dimz - block_size; k += block_size) {
@@ -41,6 +44,9 @@ inline void profiling_block(T *data, std::vector<size_t> &dims, std::vector<std:
         }
     } else if constexpr (N == 3) {
         size_t dimx = dims[0], dimy = dims[1], dimz = dims[2], dimyz = dimy * dimz;
+        if (dimx < block_size || dimy < block_size || dimz < block_size) {
+            return;
+        }
         for (size_t i = 0; i < dimx - block_size; i += block_size) {
             for (size_t j = 0; j < dimy - block_size; j += block_size) {
                 for (size_t k = 0; k < dimz - block_size; k += block_size) {
@@ -68,6 +74,9 @@ inline void profiling_block(T *data, std::vector<size_t> &dims, std::vector<std:
         }
     } else if constexpr (N == 2) {
         size_t dimx = dims[0], dimy = dims[1];
+        if (dimx < block_size || dimy < block_size) {
+            return;
+        }
         for (size_t i = 0; i < dimx - block_size; i += block_size) {
             for (size_t j = 0; j < dimy - block_size; j += block_size) {
                 size_t start_idx = i * dimy + j;
@@ -91,6 +100,9 @@ inline void profiling_block(T *data, std::vector<size_t> &dims, std::vector<std:
         }
     } else {
         size_t dimx = dims[0];
+        if (dimx < block_size) {
+            return;
+        }
         for (size_t i = 0; i < dimx - block_size; i += block_size) {
             size_t start_idx = i;
             T min = data[start_idx];
@@ -117,6 +129,9 @@ inline void sample_blocks(T *data, std::vector<T> &sampling_data, std::vector<si
     assert(dims.size() == N);
     assert(starts.size() == N);
     if constexpr (N == 4) {
+        if (dims[0] < block_size || dims[1] < block_size || dims[2] < block_size || dims[3] < block_size) {
+            return;
+        }
         size_t sample_num = block_size * block_size * block_size * block_size;
         sampling_data.resize(sample_num, 0);
         size_t startx = starts[0], starty = starts[1], startz = starts[2], startw = starts[3], dimy = dims[1],
@@ -135,6 +150,9 @@ inline void sample_blocks(T *data, std::vector<T> &sampling_data, std::vector<si
             }
         }
     } else if constexpr (N == 3) {
+        if (dims[0] < block_size || dims[1] < block_size || dims[2] < block_size) {
+            return;
+        }
         size_t sample_num = block_size * block_size * block_size;
         sampling_data.resize(sample_num, 0);
         size_t startx = starts[0], starty = starts[1], startz = starts[2], dimy = dims[1], dimz = dims[2];
@@ -149,6 +167,9 @@ inline void sample_blocks(T *data, std::vector<T> &sampling_data, std::vector<si
             }
         }
     } else if constexpr (N == 2) {
+        if (dims[0] < block_size || dims[1] < block_size) {
+            return;
+        }
         size_t sample_num = block_size * block_size;
         sampling_data.resize(sample_num, 0);
         size_t startx = starts[0], starty = starts[1], dimy = dims[1];
@@ -160,6 +181,9 @@ inline void sample_blocks(T *data, std::vector<T> &sampling_data, std::vector<si
             }
         }
     } else if constexpr (N == 1) {
+        if (dims[0] < block_size) {
+            return;
+        }
         size_t sample_num = block_size;
         sampling_data.resize(sample_num, 0);
         size_t startx = starts[0];
@@ -175,6 +199,11 @@ template <class T, uint N>
 void sampleBlocks(T *data, std::vector<size_t> &dims, size_t sampleBlockSize,
                   std::vector<std::vector<T>> &sampled_blocks, double sample_rate, int profiling,
                   std::vector<std::vector<size_t>> &starts, int var_first = 0) {
+    for (int i = 0; i < N; i++) {
+        if (dims[i] < sampleBlockSize) {
+            return;
+        }
+    }
     for (int i = 0; i < sampled_blocks.size(); i++) {
         std::vector<T>().swap(sampled_blocks[i]);
     }
