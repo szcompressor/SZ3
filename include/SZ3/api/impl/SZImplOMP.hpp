@@ -13,11 +13,11 @@
 #endif
 namespace SZ3 {
 template <class T, uint N>
-size_t SZ_compress_OMP(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
+size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCap) {
 #ifdef _OPENMP
-    unsigned char *buffer_pos = cmpData;
+    unsigned char* buffer_pos = cmpData;
 
-    std::vector<uchar *> compressed_t;
+    std::vector<uchar*> compressed_t;
     std::vector<size_t> cmp_size_t, cmp_start_t;
     std::vector<T> min_t, max_t;
     std::vector<Config> conf_t;
@@ -26,7 +26,9 @@ size_t SZ_compress_OMP(Config &conf, const T *data, uchar *cmpData, size_t cmpCa
     // double eb;
 #pragma omp parallel
 #pragma omp single
-    { nThreads = omp_get_num_threads(); }
+    {
+        nThreads = omp_get_num_threads();
+    }
     if (conf.dims[0] < nThreads) {
         nThreads = conf.dims[0];
         omp_set_num_threads(nThreads);
@@ -50,7 +52,7 @@ size_t SZ_compress_OMP(Config &conf, const T *data, uchar *cmpData, size_t cmpCa
         size_t num_t_base = std::accumulate(++it, dims_t.end(), static_cast<size_t>(1), std::multiplies<size_t>());
         size_t num_t = dims_t[0] * num_t_base;
 
-        const T *data_t = data + lo * num_t_base;
+        const T* data_t = data + lo * num_t_base;
         // std::vector<T> data_t(data + lo * num_t_base, data + lo * num_t_base + num_t);
         if (conf.errorBoundMode != EB_ABS) {
             auto minmax = std::minmax_element(data_t, data_t + num_t);
@@ -69,15 +71,15 @@ size_t SZ_compress_OMP(Config &conf, const T *data, uchar *cmpData, size_t cmpCa
         conf_t[tid] = conf;
         conf_t[tid].setDims(dims_t.begin(), dims_t.end());
         size_t cmp_size_cap = ZSTD_compressBound(conf_t[tid].num * sizeof(T));
-        compressed_t[tid] = static_cast<uchar *>(malloc(cmp_size_cap));
+        compressed_t[tid] = static_cast<uchar*>(malloc(cmp_size_cap));
         // we have to use conf_t[tid].N instead of N since each chunk may be a slice of the original data
-        if (conf_t[tid].N==1) {
+        if (conf_t[tid].N == 1) {
             cmp_size_t[tid] = SZ_compress_dispatcher<T, 1>(conf_t[tid], data_t, compressed_t[tid], cmp_size_cap);
-        } else if (conf_t[tid].N==2) {
+        } else if (conf_t[tid].N == 2) {
             cmp_size_t[tid] = SZ_compress_dispatcher<T, 2>(conf_t[tid], data_t, compressed_t[tid], cmp_size_cap);
-        }else if ( conf_t[tid].N==3) {
+        } else if (conf_t[tid].N == 3) {
             cmp_size_t[tid] = SZ_compress_dispatcher<T, 3>(conf_t[tid], data_t, compressed_t[tid], cmp_size_cap);
-        } else if (conf_t[tid].N==4) {
+        } else if (conf_t[tid].N == 4) {
             cmp_size_t[tid] = SZ_compress_dispatcher<T, 4>(conf_t[tid], data_t, compressed_t[tid], cmp_size_cap);
         } else {
             throw std::invalid_argument("Unsupported N");
@@ -115,7 +117,7 @@ size_t SZ_compress_OMP(Config &conf, const T *data, uchar *cmpData, size_t cmpCa
 }
 
 template <class T, uint N>
-void SZ_decompress_OMP(Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
+void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* decData) {
 #ifdef _OPENMP
 
     auto cmpr_data_pos = cmpData;
@@ -150,34 +152,49 @@ void SZ_decompress_OMP(Config &conf, const uchar *cmpData, size_t cmpSize, T *de
         auto it = dims_t.begin();
         size_t num_t_base = std::accumulate(++it, dims_t.end(), static_cast<size_t>(1), std::multiplies<size_t>());
 
-        SZ_decompress_dispatcher<T, N>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid],
-                                       decData + lo * num_t_base);
+        if (conf_t[tid].N == 1) {
+            SZ_decompress_dispatcher<T, 1>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid],
+                                           decData + lo * num_t_base);
+        } else if (conf_t[tid].N == 2) {
+            SZ_decompress_dispatcher<T, 2>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid],
+                                           decData + lo * num_t_base);
+        } else if (conf_t[tid].N == 3) {
+            SZ_decompress_dispatcher<T, 3>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid],
+                               decData + lo * num_t_base);
+        } else if (conf_t[tid].N == 4) {
+            SZ_decompress_dispatcher<T, 4>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid],
+                               decData + lo * num_t_base);
+        } else {
+            throw std::invalid_argument("Unsupported N");
+        }
     }
 #else
     SZ_decompress_dispatcher<T, N>(conf, cmpData, cmpSize, decData);
 #endif
 }
 
-template<class T>
-size_t SZ_compress_size_bound_omp(const Config &conf) {
+template <class T>
+size_t SZ_compress_size_bound_omp(const Config& conf) {
 #ifdef _OPENMP
     int nThreads = 1;
 #pragma omp parallel
 #pragma omp single
-    { nThreads = omp_get_num_threads(); }
+    {
+        nThreads = omp_get_num_threads();
+    }
     if (conf.dims[0] < nThreads) {
         nThreads = conf.dims[0];
     }
     size_t chunk_size = conf.dims[0] / nThreads * (conf.num / conf.dims[0]);
-    size_t last_chunk_size = (conf.dims[0] - conf.dims[0] / nThreads * (nThreads-1)) * (conf.num / conf.dims[0]);
+    size_t last_chunk_size = (conf.dims[0] - conf.dims[0] / nThreads * (nThreads - 1)) * (conf.num / conf.dims[0]);
     //for each thread, we save conf, compressed size, and compressed data
     return sizeof(int) + nThreads * conf.size_est() + nThreads * sizeof(size_t) +
-       (nThreads-1)  * ZSTD_compressBound(chunk_size * sizeof(T)) + ZSTD_compressBound(last_chunk_size * sizeof(T));
+           (nThreads - 1) * ZSTD_compressBound(chunk_size * sizeof(T)) +
+           ZSTD_compressBound(last_chunk_size * sizeof(T));
 #else
     return conf.size_est() + ZSTD_compressBound(conf.num * sizeof(T));
 #endif
 }
-
-}  // namespace SZ3
+} // namespace SZ3
 
 #endif
