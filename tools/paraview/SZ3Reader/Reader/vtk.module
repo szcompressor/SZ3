@@ -1,0 +1,11 @@
+NAME
+  SZ3Reader::vtkSZ3Reader
+LIBRARY_NAME
+  vtkSZ3Reader
+DESCRIPTION
+  "VTK module for reading SZ3 compressed files"
+DEPENDS
+  VTK::CommonExecutionModel
+  ParaView::VTKExtensionsCore
+  VTK::CommonCore
+  VTK::CommonDataModel
