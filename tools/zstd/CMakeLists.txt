@@ -2,7 +2,6 @@ include(FetchContent)
 FetchContent_Declare(
         zstdfetched
         URL "https://github.com/facebook/zstd/releases/download/v1.4.5/zstd-1.4.5.tar.gz"
-        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
         SOURCE_SUBDIR ""  # Disables automatic add_subdirectory()
 )
 FetchContent_MakeAvailable(zstdfetched)
