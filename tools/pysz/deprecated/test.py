@@ -1,5 +1,5 @@
 import numpy as np
-from pysz import SZ
+from cpysz import SZ
 import sys
 
 # prepare your data in numpy array format
