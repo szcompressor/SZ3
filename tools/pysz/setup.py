@@ -43,17 +43,6 @@ class BuildSZ3Extension(_build_ext):
             if package_dir.exists():
                 shutil.copy2(zstd_lib, package_dir / zstd_lib.name)
                 print(f"✓ Copied {zstd_lib.name} to package")
-                
-                # Fix rpath on macOS to load from package directory
-                if sys.platform == "darwin":
-                    for so_file in package_dir.glob("*.so"):
-                        subprocess.run([
-                            "install_name_tool", "-change",
-                            "@rpath/libzstd.dylib",
-                            "@loader_path/libzstd.dylib",
-                            str(so_file)
-                        ], check=False)  # Don't fail if already correct
-                    print(f"Fixed rpath for .so files")
 
     def download_and_build_sz3(self):
         """Download and build SZ3 from GitHub."""

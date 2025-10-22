@@ -10,21 +10,18 @@ pysz provides a clean Python interface to SZ3, a fast error-bounded lossy compre
 
 ## Requirements
 
-### Required Packages (you need to install these manually):
+### System Dependencies (install these first)
 
-- **Python development headers**
-  - It provides `Python.h` needed to compile C extensions
-  - `python3-devel` on RHEL/Fedora, `python3-dev` on Debian/Ubuntu
-  - Example: `apt-get install python3-dev`
-- **C++ compiler** (any C++17 compatible compiler: g++, clang++, MSVC, etc.)
-- **Git** (to clone SZ3 repository)
+- **CMake ≥ 3.13**
+- **Ninja** (recommended build tool)
+- **C++ compiler** (C++17-compatible: g++, clang++, MSVC)
+- **Git**
+- **Python development headers** (python3-dev or python3-devel)
 
-### Python Dependencies (installed automatically by pip)
-- Python >= 3.8
-- NumPy >= 1.20.0
-- Cython >= 3.0.10
-- CMake >= 3.13
-- Ninja >= 1.10
+### Python Dependencies (auto-installed by pip)
+- Python ≥ 3.8
+- NumPy ≥ 1.20.0
+- Cython ≥ 3.0.10
 
 ## Installation
 

@@ -1,4 +1,8 @@
 include(FetchContent)
+
+if(POLICY CMP0135)
+        cmake_policy(SET CMP0135 NEW)
+endif()
 FetchContent_Declare(
         zstdfetched
         URL "https://github.com/facebook/zstd/releases/download/v1.4.5/zstd-1.4.5.tar.gz"
