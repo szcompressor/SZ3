@@ -4,17 +4,27 @@ Python bindings for SZ3 - Error-bounded lossy compression for scientific data.
 
 ## Overview
 
-pysz provides a clean Python interface to SZ3, a fast error-bounded lossy compressor for scientific floating-point and integer data. Built with Cython 3.0+ for high performance.
+pysz provides a clean Python interface to SZ3, a fast error-bounded lossy compressor for scientific data. Built with Cython 3.0+ for high performance.
 
 **pysz is a standalone package** - SZ3 is automatically downloaded and built during installation.
 
 ## Requirements
 
+### Required Packages (you need to install these manually):
+
+- **Python development headers**
+  - It provides `Python.h` needed to compile C extensions
+  - `python3-devel` on RHEL/Fedora, `python3-dev` on Debian/Ubuntu
+  - Example: `apt-get install python3-dev`
+- **C++ compiler** (any C++17 compatible compiler: g++, clang++, MSVC, etc.)
+- **Git** (to clone SZ3 repository)
+
+### Python Dependencies (installed automatically by pip)
 - Python >= 3.8
 - NumPy >= 1.20.0
+- Cython >= 3.0.10
 - CMake >= 3.13
-- C++17 compatible compiler
-- git (for downloading SZ3)
+- Ninja >= 1.10
 
 ## Installation
 
@@ -34,7 +44,7 @@ pip install -e .
 
 **What happens during installation:**
 1. SZ3 is automatically cloned from GitHub
-2. SZ3 is built with CMake (including zstd dependency)
+2. SZ3 is built with CMake (zstd is automatically downloaded)
 3. Python bindings are compiled against the built SZ3
 4. Everything is packaged together
 

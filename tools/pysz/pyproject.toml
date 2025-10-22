@@ -1,10 +1,16 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel", "cython>=3.0.10", "numpy>=1.20.0"]
+requires = [
+    "setuptools>=61.0",
+    "cython>=3.0.10",
+    "numpy>=1.20.0",
+    "cmake>=3.13",
+    "ninja>=1.10",
+]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pysz"
-version = "1.0.0"
+version = "1.0.1"
 authors = [
     { name = "SZ3 Team" },
 ]
@@ -40,20 +46,3 @@ dependencies = [
 "Source" = "https://github.com/szcompressor/SZ3"
 "Bug Tracker" = "https://github.com/szcompressor/SZ3/issues"
 
-[tool.setuptools]
-packages = ["pysz"]
-package-dir = {"" = "src"}
-include-package-data = true
-
-[tool.setuptools.package-data]
-pysz = ["*.pxd", "*.pyx"]
-
-[tool.cibuildwheel]
-# Build for CPython 3.8-3.12
-build = "cp38-* cp39-* cp310-* cp311-* cp312-*"
-
-# Skip 32-bit builds and musllinux
-skip = ["*-win32", "*-manylinux_i686", "*-musllinux_*"]
-
-# Install build dependencies
-before-build = "pip install cython>=3.0.10 numpy>=1.20.0"
