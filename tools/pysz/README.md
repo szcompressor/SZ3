@@ -13,7 +13,6 @@ pysz provides a clean Python interface to SZ3, a fast error-bounded lossy compre
 ### System Dependencies (install these first)
 
 - **CMake ≥ 3.13**
-- **Ninja** (recommended build tool)
 - **C++ compiler** (C++17-compatible: g++, clang++, MSVC)
 - **Git**
 - **Python development headers** (python3-dev or python3-devel)

@@ -67,9 +67,12 @@ class BuildSZ3Extension(_build_ext):
         build_dir = sz3_dir / "build"
         build_dir.mkdir(exist_ok=True)
         
+        # Use Ninja if available, otherwise fallback to Make
+        generator = "-GNinja" if shutil.which("ninja") else "-GUnix Makefiles"
+        
         cmake_args = [
             "cmake",
-            "-GNinja",  # Use Ninja instead of Make
+            generator,
             "-DCMAKE_BUILD_TYPE=Release",
             "-DBUILD_TESTING=OFF",
             "-DSZ3_USE_BUNDLED_ZSTD=ON",
@@ -126,9 +129,11 @@ def create_extensions():
 if __name__ == "__main__":
     setup(
         name="pysz",
-        version="1.0.1",
+        version="1.0.2.dev1",
         packages=["pysz"],
         package_dir={"": "src"},
         ext_modules=create_extensions(),
         cmdclass={'build_ext': BuildSZ3Extension},
+        test_suite="tests",
+        tests_require=["pytest"],
     )
