@@ -15,7 +15,7 @@ authors = [
 description = "Python interface for SZ3: An error-bounded lossy compressor for scientific data"
 readme = "README.md"
 requires-python = ">=3.8"
-license = "BSD-3-Clause"
+license = {text = "BSD-3-Clause"}
 keywords = ["compression", "scientific data", "lossy compression", "SZ3", "error-bounded"]
 classifiers = [
     "Development Status :: 4 - Beta",
