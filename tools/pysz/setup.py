@@ -91,13 +91,20 @@ def create_extensions():
     include_dirs = [np.get_include()]
     library_dirs = []
     libraries = ['zstd']
-    extra_compile_args = ['-std=c++17', '-O3']
+
+    extra_compile_args = []
     extra_link_args = []
     
-    if sys.platform == 'darwin':
-        extra_compile_args.extend(['-stdlib=libc++', '-mmacosx-version-min=10.9'])
+    if sys.platform == 'win32':
+        # MSVC compiler flags (/O2 is max speed, /Ox is maximum optimizations)
+        extra_compile_args.extend(['/std:c++17', '/O2'])
+    elif sys.platform == 'darwin':
+        # macOS: GCC/Clang with libc++
+        extra_compile_args.extend(['-std=c++17', '-O3', '-stdlib=libc++', '-mmacosx-version-min=10.9'])
         extra_link_args.extend(['-stdlib=libc++', '-Wl,-rpath,@loader_path'])
     elif sys.platform == 'linux':
+        # Linux: GCC/Clang
+        extra_compile_args.extend(['-std=c++17', '-O3'])
         extra_link_args.extend(['-Wl,-rpath,$ORIGIN'])
     
     extensions = [

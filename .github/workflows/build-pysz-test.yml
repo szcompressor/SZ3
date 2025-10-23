@@ -19,8 +19,8 @@ jobs:
             arch: x86_64
           - os: macos-latest  # Apple Silicon
             arch: arm64
-#          - os: windows-latest
-#            arch: AMD64
+          - os: windows-latest
+            arch: AMD64
 
     steps:
       - uses: actions/checkout@v4
@@ -49,7 +49,7 @@ jobs:
           # Build only for the current architecture
           CIBW_ARCHS_LINUX: x86_64
           CIBW_ARCHS_MACOS: ${{ matrix.arch }}
-#          CIBW_ARCHS_WINDOWS: AMD64
+          CIBW_ARCHS_WINDOWS: AMD64
           
           # Install system dependencies before building
           CIBW_BEFORE_ALL_LINUX: yum install -y --nogpgcheck cmake git ninja-build
