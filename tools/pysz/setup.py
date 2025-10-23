@@ -71,9 +71,6 @@ class BuildSZ3Extension(_build_ext):
         build_dir.mkdir(exist_ok=True)
         
         cmake_args = ["cmake"]
-        if sys.platform != 'win32':
-            generator = "-GNinja" if shutil.which("ninja") else "-GUnix Makefiles"
-            cmake_args.append(generator)
         cmake_args.extend([
             "-DCMAKE_BUILD_TYPE=Release",
             "-DBUILD_TESTING=OFF",

@@ -27,7 +27,6 @@ If pre-built wheels aren't available for your platform, or if you want to build 
 - **C++ compiler** (C++17-compatible: g++, clang++, MSVC)
 - **Git**
 - **Python development headers** (python3-dev or python3-devel)
-- **Ninja** (optional, faster than Make)
 
 **Then build pysz from pip:**
 ```bash
