@@ -17,7 +17,6 @@ import numpy as np
 SZ3_VERSION = "3.3.1"
 
 class BuildSZ3Extension(_build_ext):
-    """Downloads and builds SZ3, then builds Python extensions."""
 
     def run(self):
         sz3_dir = self.download_and_build_sz3()
@@ -27,6 +26,8 @@ class BuildSZ3Extension(_build_ext):
             ext.include_dirs.insert(0, str(sz3_dir / "build" / "include"))
             ext.include_dirs.append(str(sz3_dir / "build" / "_deps" / "zstdfetched-src" / "lib"))
             ext.library_dirs.append(str(sz3_dir / "build" / "tools" / "zstd"))
+            ext.library_dirs.append(str(sz3_dir / "build" / "tools" / "zstd" / "Release"))
+            ext.library_dirs.append(str(sz3_dir / "build" / "tools" / "zstd" / "Debug"))
 
         super().run()
 
@@ -37,15 +38,17 @@ class BuildSZ3Extension(_build_ext):
         else:
             zstd_lib_name = "libzstd.so"
 
-        zstd_lib = sz3_dir / "build" / "tools" / "zstd" / zstd_lib_name
-        if zstd_lib.exists():
-            package_dir = Path(self.build_lib) / "pysz"
-            if package_dir.exists():
-                shutil.copy2(zstd_lib, package_dir / zstd_lib.name)
-                print(f"Copied {zstd_lib.name} to package")
+        zstd_base = sz3_dir / "build" / "tools" / "zstd"
+        package_dir = Path(self.build_lib) / "pysz"
+        if package_dir.exists():
+            for subdir in ["", "Release", "Debug"]:
+                zstd_lib = zstd_base / subdir / zstd_lib_name
+                if zstd_lib.exists():
+                    shutil.copy2(zstd_lib, package_dir / zstd_lib.name)
+                    print(f"Copied {zstd_lib.name} to package")
+                    break
 
     def download_and_build_sz3(self):
-        """Download and build SZ3 from GitHub."""
         build_temp = Path(self.build_temp).absolute()
         build_temp.mkdir(parents=True, exist_ok=True)
         sz3_dir = build_temp / "SZ3"
@@ -67,18 +70,17 @@ class BuildSZ3Extension(_build_ext):
         build_dir = sz3_dir / "build"
         build_dir.mkdir(exist_ok=True)
         
-        # Use Ninja if available, otherwise fallback to Make
-        generator = "-GNinja" if shutil.which("ninja") else "-GUnix Makefiles"
-        
-        cmake_args = [
-            "cmake",
-            generator,
+        cmake_args = ["cmake"]
+        if sys.platform != 'win32':
+            generator = "-GNinja" if shutil.which("ninja") else "-GUnix Makefiles"
+            cmake_args.append(generator)
+        cmake_args.extend([
             "-DCMAKE_BUILD_TYPE=Release",
             "-DBUILD_TESTING=OFF",
             "-DBUILD_SZ3_BINARY=OFF",
             "-DSZ3_USE_BUNDLED_ZSTD=ON",
             ".."
-        ]
+        ])
         subprocess.run(cmake_args, cwd=build_dir, check=True)
         subprocess.run(["cmake", "--build", ".", "-j"], cwd=build_dir, check=True)
         print(f"Built SZ3 v{SZ3_VERSION}")
@@ -88,23 +90,18 @@ class BuildSZ3Extension(_build_ext):
 
 
 def create_extensions():
-    """Create Cython extension modules."""
     include_dirs = [np.get_include()]
     library_dirs = []
     libraries = ['zstd']
-
     extra_compile_args = []
     extra_link_args = []
     
     if sys.platform == 'win32':
-        # MSVC compiler flags (/O2 is max speed, /Ox is maximum optimizations)
         extra_compile_args.extend(['/std:c++17', '/O2'])
     elif sys.platform == 'darwin':
-        # macOS: GCC/Clang with libc++
         extra_compile_args.extend(['-std=c++17', '-O3', '-stdlib=libc++', '-mmacosx-version-min=10.9'])
         extra_link_args.extend(['-stdlib=libc++', '-Wl,-rpath,@loader_path'])
     elif sys.platform == 'linux':
-        # Linux: GCC/Clang
         extra_compile_args.extend(['-std=c++17', '-O3'])
         extra_link_args.extend(['-Wl,-rpath,$ORIGIN'])
     
