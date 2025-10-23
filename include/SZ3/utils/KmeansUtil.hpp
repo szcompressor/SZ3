@@ -176,7 +176,7 @@ void cluster(DT *array, size_t n, int &k, size_t *clusters, DT *centroids) {
     double ratio_avg = 0;
     bool findk = false;
     size_t bestk = 0;
-    for (size_t k_ = 1; k_ < k; ++k_) {
+    for (int k_ = 1; k_ < k; ++k_) {
         auto C = [&D, &k_, &cost_calculator](size_t i, size_t j) -> DT {
             size_t col = i < j - 1 ? i : j - 1;
             return D.get(k_ - 1, col) + cost_calculator.calc(j, i);
@@ -357,7 +357,7 @@ void get_cluster(T *data, size_t num, float &level_start, float &level_offset, i
 
     level_offset = (cents[k - 1] - cents[0]) / (k - 1);
     level_start = cents[0];
-    for (size_t i = 1; i < k; i++) {
+    for (int i = 1; i < k; i++) {
         level_start += cents[i] - i * level_offset;
     }
     level_start /= k;

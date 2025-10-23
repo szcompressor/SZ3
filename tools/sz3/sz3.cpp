@@ -215,7 +215,7 @@ int main(int argc, char *argv[]) {
     size_t r2 = 0;
     size_t r1 = 0;
 
-    size_t i = 0;
+    int i = 0;
     // int status;
     if (argc == 1) usage();
     int width = -1;

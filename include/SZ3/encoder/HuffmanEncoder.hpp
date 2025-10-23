@@ -102,7 +102,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             throw std::invalid_argument("Huffman bins should not be empty");
         }
         init(bins, num_bin);
-        for (int i = 0; i < huffmanTree->stateNum; i++)
+        for (unsigned int i = 0; i < huffmanTree->stateNum; i++)
             if (huffmanTree->code[i]) nodeCount++;
         nodeCount = nodeCount * 2 - 1;
     }
@@ -548,7 +548,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         for (const auto &kv : frequency) {
             frequencyList[kv.first - offset] = kv.second;
         }
-        for (size_t i = 0; i < stateNum; i++) {
+        for (int i = 0; i < stateNum; i++) {
             if (frequencyList[i] != 0) {
                 qinsert(new_node(frequencyList[i], i, nullptr, nullptr));
             }

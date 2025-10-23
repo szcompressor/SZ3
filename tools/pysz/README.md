@@ -4,45 +4,46 @@ Python bindings for SZ3 - Error-bounded lossy compression for scientific data.
 
 ## Overview
 
-pysz provides a clean Python interface to SZ3, a fast error-bounded lossy compressor for scientific floating-point and integer data. Built with Cython 3.0+ for high performance.
-
-**pysz is a standalone package** - SZ3 is automatically downloaded and built during installation.
-
-## Requirements
-
-- Python >= 3.8
-- NumPy >= 1.20.0
-- CMake >= 3.13
-- C++17 compatible compiler
-- git (for downloading SZ3)
+pysz provides a clean Python interface to SZ3, a fast error-bounded lossy compressor for scientific data. Built with Cython 3.0+ for high performance.
 
 ## Installation
 
 ### From PyPI (recommended)
 
+**Pre-built binary wheels** are available for most platforms (Linux, macOS, Windows) and Python versions (3.8-3.13):
+
 ```bash
 pip install pysz
 ```
 
-### From source
+This is the easiest method - no build tools required! The binary wheels include everything you need.
 
+### Building from source
+
+If pre-built wheels aren't available for your platform, or if you want to build from source:
+
+**You need to first install the following tools:**
+- **CMake ≥ 3.13**
+- **C++ compiler** (C++17-compatible: g++, clang++, MSVC)
+- **Git**
+- **Python development headers** (python3-dev or python3-devel)
+
+**Then build pysz from pip:**
+```bash
+pip install pysz
+```
+**Or build pysz from source:**
 ```bash
 git clone https://github.com/szcompressor/SZ3.git
 cd SZ3/tools/pysz
 pip install -e .
 ```
 
-**What happens during installation:**
-1. SZ3 is automatically cloned from GitHub
-2. SZ3 is built with CMake (including zstd dependency)
+**What happens during source installation:**
+1. SZ3 is automatically downloaded from GitHub
+2. SZ3 is built with CMake (zstd is bundled)
 3. Python bindings are compiled against the built SZ3
 4. Everything is packaged together
-
-### Verify
-
-```bash
-python -c "from pysz import sz, pyConfig; print('pysz installed successfully')"
-```
 
 
 ## Quick Start

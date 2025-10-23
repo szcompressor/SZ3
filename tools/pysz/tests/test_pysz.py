@@ -3,7 +3,7 @@ Test script for pysz - Python interface for SZ3 compression
 
 Usage:
     pytest tests/                    # Run with pytest
-    python tests/test_basic.py       # Run standalone
+    python tests/test_pysz.py       # Run standalone
 """
 
 import sys
@@ -74,8 +74,6 @@ def test_compression():
     print("\n" + "=" * 70)
     print("All tests passed!")
     print("=" * 70)
-    
-    return True
 
 
 if __name__ == '__main__':

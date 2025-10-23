@@ -29,8 +29,8 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
     {
         nThreads = omp_get_num_threads();
     }
-    if (conf.dims[0] < nThreads) {
-        nThreads = conf.dims[0];
+    if (conf.dims[0] < static_cast<size_t>(nThreads)) {
+        nThreads = static_cast<int>(conf.dims[0]);
         omp_set_num_threads(nThreads);
     }
     printf("OpenMP enabled for compression, threads = %d\n", nThreads);
@@ -182,10 +182,10 @@ size_t SZ_compress_size_bound_omp(const Config& conf) {
     {
         nThreads = omp_get_num_threads();
     }
-    if (conf.dims[0] < nThreads) {
-        nThreads = conf.dims[0];
+    if (conf.dims[0] < static_cast<size_t>(nThreads)) {
+        nThreads = static_cast<int>(conf.dims[0]);
     }
-    size_t chunk_size = conf.dims[0] / nThreads * (conf.num / conf.dims[0]);
+    size_t chunk_size = conf.dims[0] / static_cast<size_t>(nThreads) * (conf.num / conf.dims[0]);
     size_t last_chunk_size = (conf.dims[0] - conf.dims[0] / nThreads * (nThreads - 1)) * (conf.num / conf.dims[0]);
     //for each thread, we save conf, compressed size, and compressed data
     return sizeof(int) + nThreads * conf.size_est() + nThreads * sizeof(size_t) +

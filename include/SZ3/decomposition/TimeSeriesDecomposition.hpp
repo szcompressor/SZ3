@@ -11,15 +11,14 @@
 #include "SZ3/utils/MemoryUtil.hpp"
 
 namespace SZ3 {
-
 template <class T, uint N, class Predictor, class Quantizer>
 class TimeSeriesDecomposition : public concepts::DecompositionInterface<T, int, N> {
-   public:
+public:
     using Block_iter = typename block_data<T, N - 1>::block_iterator;
 
-    TimeSeriesDecomposition(const Config &conf, Predictor predictor, Quantizer quantizer, T *data_ts0)
-        : fallback_predictor(LorenzoPredictor<T, N - 1, 1>(conf.absErrorBound)),
-          predictor(predictor),
+    TimeSeriesDecomposition(const Config& conf, Predictor predictor, Quantizer quantizer, T* data_ts0)
+        : predictor(predictor),
+          fallback_predictor(LorenzoPredictor<T, N - 1, 1>(conf.absErrorBound)),
           quantizer(quantizer),
           num_elements(conf.num),
           data_ts0(data_ts0) {
@@ -32,7 +31,7 @@ class TimeSeriesDecomposition : public concepts::DecompositionInterface<T, int, 
 
     ~TimeSeriesDecomposition() = default;
 
-    std::vector<int> compress(const Config &conf, T *data) override {
+    std::vector<int> compress(const Config& conf, T* data) override {
         std::vector<int> quant_inds(num_elements);
         size_t quant_count = 0;
         if (data_ts0 != nullptr) {
@@ -41,7 +40,7 @@ class TimeSeriesDecomposition : public concepts::DecompositionInterface<T, int, 
             }
         } else {
             std::vector<size_t> spatial_dims(N - 1);
-            for (int i = 0; i < N - 1; i++) {
+            for (uint i = 0; i < N - 1; i++) {
                 spatial_dims[i] = conf.dims[i + 1];
             };
 
@@ -49,16 +48,15 @@ class TimeSeriesDecomposition : public concepts::DecompositionInterface<T, int, 
                 std::make_shared<block_data<T, N - 1>>(data, spatial_dims, predictor.get_padding(), true);
             auto block = data_with_padding->block_iter(conf.blockSize);
             do {
-                concepts::PredictorInterface<T, N - 1> *predictor_withfallback = &predictor;
+                concepts::PredictorInterface<T, N - 1>* predictor_withfallback = &predictor;
                 if (!predictor.precompress(block)) {
                     predictor_withfallback = &fallback_predictor;
                 }
                 predictor_withfallback->precompress_block_commit();
-                Block_iter::foreach (block, [&](T *c, const std::array<size_t, N - 1> &index) {
+                Block_iter::foreach(block, [&](T* c, const std::array<size_t, N - 1>& index) {
                     T pred = predictor_withfallback->predict(block, c, index);
                     quant_inds[quant_count++] = quantizer.quantize_and_overwrite(*c, pred);
                 });
-
             } while (block.next());
         }
 
@@ -74,8 +72,8 @@ class TimeSeriesDecomposition : public concepts::DecompositionInterface<T, int, 
         return quant_inds;
     }
 
-    T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) override {
-        int const *quant_inds_pos = quant_inds.data();
+    T* decompress(const Config& conf, std::vector<int>& quant_inds, T* dec_data) override {
+        int const* quant_inds_pos = quant_inds.data();
         // std::array<size_t, N - 1> intra_block_dims;
         //            auto dec_data = new T[num_elements];
 
@@ -85,7 +83,7 @@ class TimeSeriesDecomposition : public concepts::DecompositionInterface<T, int, 
             }
         } else {
             std::vector<size_t> spatial_dims(N - 1);
-            for (int i = 0; i < N - 1; i++) {
+            for (uint i = 0; i < N - 1; i++) {
                 spatial_dims[i] = conf.dims[i + 1];
             };
 
@@ -93,15 +91,14 @@ class TimeSeriesDecomposition : public concepts::DecompositionInterface<T, int, 
                 std::make_shared<block_data<T, N - 1>>(dec_data, spatial_dims, predictor.get_padding(), false);
             auto block = data_with_padding->block_iter(conf.blockSize);
             do {
-                concepts::PredictorInterface<T, N - 1> *predictor_withfallback = &predictor;
+                concepts::PredictorInterface<T, N - 1>* predictor_withfallback = &predictor;
                 if (!predictor.predecompress(block)) {
                     predictor_withfallback = &fallback_predictor;
                 }
-                Block_iter::foreach (block, [&](T *c, const std::array<size_t, N - 1> &index) {
+                Block_iter::foreach(block, [&](T* c, const std::array<size_t, N - 1>& index) {
                     T pred = predictor_withfallback->predict(block, c, index);
                     *c = quantizer.recover(pred, *(quant_inds_pos++));
                 });
-
             } while (block.next());
         }
 
@@ -117,13 +114,13 @@ class TimeSeriesDecomposition : public concepts::DecompositionInterface<T, int, 
         return dec_data;
     }
 
-    void save(uchar *&c) override {
+    void save(uchar*& c) override {
         fallback_predictor.save(c);
         predictor.save(c);
         quantizer.save(c);
     }
 
-    void load(const uchar *&c, size_t &remaining_length) override {
+    void load(const uchar*& c, size_t& remaining_length) override {
         fallback_predictor.load(c, remaining_length);
         predictor.load(c, remaining_length);
         quantizer.load(c, remaining_length);
@@ -131,20 +128,20 @@ class TimeSeriesDecomposition : public concepts::DecompositionInterface<T, int, 
 
     std::pair<int, int> get_out_range() override { return quantizer.get_out_range(); }
 
-   private:
+private:
     Predictor predictor;
     LorenzoPredictor<T, N - 1, 1> fallback_predictor;
     Quantizer quantizer;
     size_t num_elements;
-    T *data_ts0 = nullptr;
+    T* data_ts0 = nullptr;
 };
 
 template <class T, uint N, class Predictor, class Quantizer>
-TimeSeriesDecomposition<T, N, Predictor, Quantizer> make_decomposition_timeseries(const Config &conf,
-                                                                                  Predictor predictor,
-                                                                                  Quantizer quantizer, T *data_ts0) {
+TimeSeriesDecomposition<T, N, Predictor, Quantizer> make_decomposition_timeseries(const Config& conf,
+    Predictor predictor,
+    Quantizer quantizer, T* data_ts0) {
     return TimeSeriesDecomposition<T, N, Predictor, Quantizer>(conf, predictor, quantizer, data_ts0);
 }
-}  // namespace SZ3
+} // namespace SZ3
 
 #endif
