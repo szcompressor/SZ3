@@ -42,7 +42,7 @@ class BuildSZ3Extension(_build_ext):
             package_dir = Path(self.build_lib) / "pysz"
             if package_dir.exists():
                 shutil.copy2(zstd_lib, package_dir / zstd_lib.name)
-                print(f"✓ Copied {zstd_lib.name} to package")
+                print(f"Copied {zstd_lib.name} to package")
 
     def download_and_build_sz3(self):
         """Download and build SZ3 from GitHub."""
@@ -75,6 +75,7 @@ class BuildSZ3Extension(_build_ext):
             generator,
             "-DCMAKE_BUILD_TYPE=Release",
             "-DBUILD_TESTING=OFF",
+            "-DBUILD_SZ3_BINARY=OFF",
             "-DSZ3_USE_BUNDLED_ZSTD=ON",
             ".."
         ]
