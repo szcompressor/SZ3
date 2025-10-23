@@ -55,7 +55,7 @@ from pysz import sz, pyConfig
 # Create test data
 data = np.random.rand(8, 8, 128).astype(np.float32)
 
-# Create config - use enums (like C++, no separate enum import needed!)
+# Create config
 config = pyConfig(data.shape)
 config.errorBoundMode = pyConfig.EB.ABS
 config.absErrorBound = 1e-3
