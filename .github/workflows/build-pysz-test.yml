@@ -53,9 +53,11 @@ jobs:
           
           # Install system dependencies before building
           CIBW_BEFORE_ALL_LINUX: yum install -y --nogpgcheck cmake git ninja-build
-          CIBW_BEFORE_ALL_MACOS: brew install cmake git ninja          # Test the built wheels
+          CIBW_BEFORE_ALL_MACOS: brew install cmake git ninja
+          
+          # Test the built wheels
           CIBW_TEST_REQUIRES: pytest numpy
-          CIBW_TEST_COMMAND: pytest {project}/tools/pysz/tests
+          CIBW_TEST_COMMAND: "pytest {project}/tests -v"
 
       - uses: actions/upload-artifact@v4
         with:

@@ -57,7 +57,7 @@ jobs:
           
           # Test the built wheels
           CIBW_TEST_REQUIRES: pytest numpy
-          CIBW_TEST_COMMAND: pytest {project}/tools/pysz/tests
+          CIBW_TEST_COMMAND: "pytest {project}/tests -v"
 
       - uses: actions/upload-artifact@v4
         with:
