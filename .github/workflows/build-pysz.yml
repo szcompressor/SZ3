@@ -49,8 +49,8 @@ jobs:
           CIBW_ARCHS_WINDOWS: AMD64
           
           # Install system dependencies before building
-          CIBW_BEFORE_ALL_LINUX: yum install -y cmake3 git && ln -sf /usr/bin/cmake3 /usr/bin/cmake
-          CIBW_BEFORE_ALL_MACOS: brew install cmake git
+          CIBW_BEFORE_ALL_LINUX: yum install -y cmake3 git && ln -sf /usr/bin/cmake3 /usr/bin/cmake && yum install -y ninja-build
+          CIBW_BEFORE_ALL_MACOS: brew install cmake git ninja
           
           # Test the built wheels
           CIBW_TEST_REQUIRES: pytest numpy
