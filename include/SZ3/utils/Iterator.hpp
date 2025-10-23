@@ -42,7 +42,7 @@ class multi_dimensional_range : public std::enable_shared_from_this<multi_dimens
 
         multi_dimensional_iterator(std::shared_ptr<multi_dimensional_range> &&range_,
                                    std::size_t current_offset_) noexcept
-            : range(range_), global_offset(current_offset_), local_index{} {}
+            : range(range_), local_index{}, global_offset(current_offset_) {}
 
         multi_dimensional_iterator &operator--() {
             size_t i = N - 1;
@@ -193,7 +193,7 @@ class multi_dimensional_range : public std::enable_shared_from_this<multi_dimens
     template <class ForwardIt1>
     multi_dimensional_range(T *data_, ForwardIt1 global_dims_begin, ForwardIt1 global_dims_end, size_t stride_,
                             ptrdiff_t offset_)
-        : data(data_), left_boundary{false} {
+        : left_boundary{false}, data(data_) {
         static_assert(std::is_convertible<typename std::iterator_traits<ForwardIt1>::value_type, std::size_t>::value,
                       "ForwardIt1 must be convertible to std::size_t");
         if (global_dims_end - global_dims_begin != N) {
