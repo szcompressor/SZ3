@@ -28,10 +28,10 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install cibuildwheel
-        run: pip install cibuildwheel==2.16.2
+        run: pip install cibuildwheel
 
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
@@ -73,7 +73,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install build dependencies
         run: pip install build
