@@ -40,6 +40,9 @@ jobs:
           # Build for Python 3.8-3.13
           CIBW_BUILD: cp38-* cp39-* cp310-* cp311-* cp312-* cp313-*
           
+          # Use manylinux_2_28 (AlmaLinux 8) instead of manylinux2014 (CentOS 7)
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+          
           # Skip 32-bit builds and musllinux
           CIBW_SKIP: "*-win32 *-manylinux_i686 *-musllinux_*"
           
@@ -49,10 +52,8 @@ jobs:
           CIBW_ARCHS_WINDOWS: AMD64
           
           # Install system dependencies before building
-          CIBW_BEFORE_ALL_LINUX: yum install -y cmake3 git && ln -sf /usr/bin/cmake3 /usr/bin/cmake && yum install -y ninja-build
-          CIBW_BEFORE_ALL_MACOS: brew install cmake git ninja
-          
-          # Test the built wheels
+          CIBW_BEFORE_ALL_LINUX: yum install -y cmake git ninja-build
+          CIBW_BEFORE_ALL_MACOS: brew install cmake git ninja          # Test the built wheels
           CIBW_TEST_REQUIRES: pytest numpy
           CIBW_TEST_COMMAND: pytest {project}/tools/pysz/tests
 
