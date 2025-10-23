@@ -244,7 +244,7 @@ class multi_dimensional_range : public std::enable_shared_from_this<multi_dimens
 
     void set_dimensions_auto() {
         // std::cout << "dimensions: ";
-        for (int i = 0; i < dimensions.size(); i++) {
+        for (size_t i = 0; i < dimensions.size(); i++) {
             // std::cout << "g[i]=" << global_dimensions[i] << ",str=" << access_stride << " ";
             dimensions[i] = (global_dimensions[i] - 1) / access_stride[i] + 1;
             // std::cout << dimensions[i] << " ";

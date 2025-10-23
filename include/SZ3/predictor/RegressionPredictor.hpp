@@ -30,7 +30,7 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
 
         std::array<double, N> dims{0};
         double num_elements = 1;
-        for (int i = 0; i < N; i++) {
+        for (uint i = 0; i < N; i++) {
             dims[i] = range[i].second - range[i].first;
             if (dims[i] <= 1) {
                 return false;
@@ -40,14 +40,14 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
 
         std::array<double, N + 1> sum{0};
         block_iter::foreach (block, [&](T *c, const std::array<size_t, N> &index) {
-            for (int i = 0; i < N; i++) {
+            for (uint i = 0; i < N; i++) {
                 sum[i] += index[i] * (*c);
             }
             sum[N] += *c;
         });
         std::fill(current_coeffs.begin(), current_coeffs.end(), 0);
         current_coeffs[N] = sum[N] / num_elements;
-        for (int i = 0; i < N; i++) {
+        for (uint i = 0; i < N; i++) {
             current_coeffs[i] = (2 * sum[i] / (dims[i] - 1) - sum[N]) * 6 / num_elements / (dims[i] + 1);
             current_coeffs[N] -= (dims[i] - 1) * current_coeffs[i] / 2;
         }
@@ -139,11 +139,11 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
     }
 
    private:
-    LinearQuantizer<T> quantizer_liner, quantizer_independent;
+    LinearQuantizer<T> quantizer_independent, quantizer_liner;
     std::vector<int> regression_coeff_quant_inds;
     size_t regression_coeff_index = 0;
-    std::array<T, N + 1> current_coeffs;
     std::array<T, N + 1> prev_coeffs;
+    std::array<T, N + 1> current_coeffs;
 
     void pred_and_quantize_coefficients() {
         for (int i = 0; i < static_cast<int>(N); i++) {

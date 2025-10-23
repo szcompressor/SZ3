@@ -41,7 +41,7 @@ class TimeSeriesDecomposition : public concepts::DecompositionInterface<T, int, 
             }
         } else {
             std::vector<size_t> spatial_dims(N - 1);
-            for (int i = 0; i < N - 1; i++) {
+            for (uint i = 0; i < N - 1; i++) {
                 spatial_dims[i] = conf.dims[i + 1];
             };
 
@@ -85,7 +85,7 @@ class TimeSeriesDecomposition : public concepts::DecompositionInterface<T, int, 
             }
         } else {
             std::vector<size_t> spatial_dims(N - 1);
-            for (int i = 0; i < N - 1; i++) {
+            for (uint i = 0; i < N - 1; i++) {
                 spatial_dims[i] = conf.dims[i + 1];
             };
 

@@ -36,7 +36,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             interp_level--;
         }
 
-        for (uint level = interp_level; level > 0 && level <= interp_level; level--) {
+        for (int level = interp_level; level > 0 && level <= interp_level; level--) {
             // set level-wise error bound
             if (eb_alpha < 0) {
                 if (level >= 3) {
@@ -59,7 +59,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             auto inter_end = inter_block_range->end();
             for (auto block = inter_begin; block != inter_end; ++block) {
                 auto end_idx = block.get_global_index();
-                for (int i = 0; i < N; i++) {
+                for (uint i = 0; i < N; i++) {
                     end_idx[i] += interp_block_size;
                     if (end_idx[i] > original_dimensions[i] - 1) {
                         end_idx[i] = original_dimensions[i] - 1;
@@ -97,7 +97,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             interp_level--;
         }
 
-        for (uint level = interp_level; level > 0 && level <= interp_level; level--) {
+        for (int level = interp_level; level > 0 && level <= interp_level; level--) {
             double cur_eb = eb;
             // set level-wise error bound
             if (eb_alpha < 0) {
@@ -126,7 +126,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
 
             for (auto block = inter_begin; block != inter_end; ++block) {
                 auto end_idx = block.get_global_index();
-                for (int i = 0; i < N; i++) {
+                for (uint i = 0; i < N; i++) {
                     end_idx[i] += interp_block_size;
                     if (end_idx[i] > original_dimensions[i] - 1) {
                         end_idx[i] = original_dimensions[i] - 1;
@@ -180,9 +180,9 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         num_elements = 1;
         interp_level = -1;
 	bool use_anchor = false;
-        for (int i = 0; i < N; i++) {
+        for (uint i = 0; i < N; i++) {
             if (interp_level < ceil(log2(original_dimensions[i]))) {
-                interp_level = static_cast<uint>(ceil(log2(original_dimensions[i])));
+                interp_level = static_cast<int>(ceil(log2(original_dimensions[i])));
             }
 	    if (original_dimensions[i] > anchor_stride)
 	        use_anchor = true;
@@ -191,7 +191,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         if (!use_anchor)
             anchor_stride = 0;
         if (anchor_stride > 0) {
-            int max_interpolation_level = static_cast<uint>(log2(anchor_stride)) + 1;
+            int max_interpolation_level = static_cast<int>(log2(anchor_stride)) + 1;
             if (max_interpolation_level <= interp_level) {
                 interp_level = max_interpolation_level;
             }
@@ -204,7 +204,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
 
         dim_sequences = std::vector<std::array<int, N>>();
         auto sequence = std::array<int, N>();
-        for (int i = 0; i < N; i++) {
+        for (uint i = 0; i < N; i++) {
             sequence[i] = i;
         }
         do {
@@ -433,14 +433,14 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
             std::array<size_t, N> strides;
             std::array<size_t, N> begin_idx = begin, end_idx = end;
             strides[dims[0]] = 1;
-            for (int i = 1; i < N; i++) {
+            for (uint i = 1; i < N; i++) {
                 begin_idx[dims[i]] = (begin[dims[i]] ? begin[dims[i]] + stride2x : 0);
                 strides[dims[i]] = stride2x;
             }
 
             predict_error += interpolation_1d_fastest_dim_first(data, begin_idx, end_idx, dims[0], strides, stride,
                                                                 interp_func, quantize_func);
-            for (int i = 1; i < N; i++) {
+            for (uint i = 1; i < N; i++) {
                 begin_idx[dims[i]] = begin[dims[i]];
                 begin_idx[dims[i - 1]] = (begin[dims[i - 1]] ? begin[dims[i - 1]] + stride : 0);
                 strides[dims[i - 1]] = stride;
@@ -466,7 +466,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
     std::array<size_t, N> original_dim_offsets;
     std::vector<std::array<int, N>> dim_sequences;
     int direction_sequence_id;
-    int anchor_stride = 0;
+    size_t anchor_stride = 0;
     double eb_alpha = -1;
     double eb_beta = -1;
     double eb_ratio = 0.5;  // To be deprecated

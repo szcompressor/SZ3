@@ -62,7 +62,7 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
          */
         ALWAYS_INLINE std::array<std::pair<size_t, size_t>, N> get_block_range() const {
             std::array<std::pair<size_t, size_t>, N> range;
-            for (int i = 0; i < N; i++) {
+            for (uint i = 0; i < N; i++) {
                 range[i].first = offset[i];
                 range[i].second = std::min(offset[i] + block_size, mddata->dims[i]);
             }
@@ -80,7 +80,7 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
             auto ds = get_dim_strides();
             auto idx = std::array<size_t, N>{static_cast<size_t>(std::forward<Idx>(args))...};
             size_t off = 0;
-            for (int i = 0; i < N; i++) {
+            for (uint i = 0; i < N; i++) {
                 off += (idx[i] + offset[i]) * ds[i];
             }
             return mddata->dataptr() + off;
