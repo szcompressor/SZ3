@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(SZ3 VERSION 3.3.0)
+project(SZ3 VERSION 3.3.1)
 
 #data version defines the version of the compressed data format
 #it is not always equal to the program version (e.g., SZ3 v3.1.0 and SZ3 v.3.1.1 may use the same data version of v.3.1.0)

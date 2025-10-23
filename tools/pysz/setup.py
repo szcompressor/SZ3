@@ -134,7 +134,7 @@ def create_extensions():
 if __name__ == "__main__":
     setup(
         name="pysz",
-        version="1.0.2.dev2",
+        version="1.0.2",
         packages=["pysz"],
         package_dir={"": "src"},
         ext_modules=create_extensions(),
