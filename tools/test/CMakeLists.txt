@@ -26,5 +26,6 @@ foreach (TEST_SRC IN LISTS TEST_SOURCES)
     add_executable(${TEST_NAME} ${TEST_SRC})
     target_link_libraries(${TEST_NAME} PRIVATE GTest::gtest_main SZ3)
     # Automatically discover tests for this executable
-    gtest_discover_tests(${TEST_NAME})
+    # Use PRE_TEST mode to avoid running executable at build time (important for Windows DLL path issues)
+    gtest_discover_tests(${TEST_NAME} DISCOVERY_MODE PRE_TEST)
 endforeach()

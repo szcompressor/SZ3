@@ -1,0 +1,46 @@
+[build-system]
+requires = [
+    "setuptools>=61.0",
+    "cython>=3.0.10",
+    "numpy>=1.20.0",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pysz"
+version = "1.0.2"
+authors = [
+    { name = "SZ3 Team" },
+]
+description = "Python interface for SZ3: An error-bounded lossy compressor for scientific data"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "BSD-3-Clause"}
+keywords = ["compression", "scientific data", "lossy compression", "SZ3", "error-bounded"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: C++",
+    "Programming Language :: Cython",
+    "Topic :: Scientific/Engineering",
+    "Topic :: System :: Archiving :: Compression",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+]
+dependencies = [
+    "numpy>=1.20.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/szcompressor/SZ3"
+"Documentation" = "https://github.com/szcompressor/SZ3/tree/master/tools/pysz"
+"Source" = "https://github.com/szcompressor/SZ3"
+"Bug Tracker" = "https://github.com/szcompressor/SZ3/issues"
+

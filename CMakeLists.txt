@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(SZ3 VERSION 3.3.0)
+project(SZ3 VERSION 3.3.1)
 
 #data version defines the version of the compressed data format
 #it is not always equal to the program version (e.g., SZ3 v3.1.0 and SZ3 v.3.1.1 may use the same data version of v.3.1.0)
@@ -13,8 +13,8 @@ option(BUILD_SHARED_LIBS "build shared libraries by default" ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
-else () #-Wunused-parameter -Wsign-compare
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-sign-compare -Wno-unused-parameter -Wsuggest-override -Wold-style-cast -Wcast-qual -Wzero-as-null-pointer-constant -Wextra-semi -Wnon-virtual-dtor -Wcast-align -Wunused-variable")
+else () #-Wunused-parameter
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wreorder -Wsign-compare -Wsuggest-override -Wold-style-cast -Wcast-qual -Wzero-as-null-pointer-constant -Wextra-semi -Wnon-virtual-dtor -Wcast-align -Wunused-variable")
 endif ()
 set(default_build_type "Release")
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -87,10 +87,11 @@ if (GSL_FOUND)
     target_link_libraries(${PROJECT_NAME} INTERFACE GSL::gsl)
 endif ()
 
-#if (BUILD_SZ3_BINARY)
-add_subdirectory(tools/sz3)
-add_subdirectory(tools/sz3c)
-#endif ()
+option(BUILD_SZ3_BINARY "build SZ3 tools" ON)
+if (BUILD_SZ3_BINARY)
+    add_subdirectory(tools/sz3)
+    add_subdirectory(tools/sz3c)
+endif ()
 
 option(BUILD_H5Z_FILTER "build the H5Z-SZ3 filter" OFF)
 if (BUILD_H5Z_FILTER)

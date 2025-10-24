@@ -32,7 +32,8 @@ inline const char *compressor_names[] = {"VQ", "VQT", "MT", "LR", "TS"};
 template <typename T, uint N, class Predictor>
 std::shared_ptr<concepts::CompressorInterface<T>> make_sz2(const Config &conf, Predictor predictor) {
     return make_compressor_sz_generic<T, N>(
-        make_decomposition_blockwise<T, N>(conf, predictor, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
+        make_decomposition_blockwise<T, N>(conf, predictor,
+                                           LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
         HuffmanEncoder<int>(), Lossless_zstd());
     //    return new SZGeneralCompressor<T, N, SZGeneralFrontend<T, N, Predictor, LinearQuantizer<T>>,
     //            HuffmanEncoder<int>, Lossless_zstd>(
@@ -133,7 +134,7 @@ float *VQ(Config conf, size_t ts, T *data, size_t &compressed_size, bool decom, 
     sz->set_level(level_start, level_offset, level_num);
 
     Timer timer(true);
-    compressed_size = conf.num * sizeof(T);
+    compressed_size = 2 * conf.num * sizeof(T);
     auto compressed = static_cast<uchar *>(malloc(compressed_size));
     sz->compress(conf, data, compressed, compressed_size);
     total_compress_time += timer.stop("Compression");
@@ -160,7 +161,7 @@ float *MT(Config conf, size_t ts, T *data, size_t &compressed_size, bool decom, 
     auto sz = make_sz_timebased<T, N>(conf, ts0);
 
     Timer timer(true);
-    compressed_size = conf.num * sizeof(T);
+    compressed_size = 2 * conf.num * sizeof(T);
     auto compressed = static_cast<uchar *>(malloc(compressed_size));
     sz->compress(conf, data, compressed, compressed_size);
     total_compress_time += timer.stop("Compression");
@@ -188,7 +189,7 @@ float *SZ2(Config conf, size_t ts, T *data, size_t &compressed_size, bool decom)
     auto sz = make_sz<T, N>(conf);
 
     Timer timer(true);
-    compressed_size = conf.num * sizeof(T);
+    compressed_size = 2 * conf.num * sizeof(T);
     auto compressed = static_cast<uchar *>(malloc(compressed_size));
     sz->compress(conf, data, compressed, compressed_size);
 
@@ -285,7 +286,7 @@ uchar *LAMMPS_compress(Config conf, T *data, int method, size_t &compressed_size
     if ((method == 0 || method == 1) && level_num == 0) {
         throw std::runtime_error("VQ/VQT not available on current dataset, please use ADP or MT");
     }
-    compressed_size = conf.num * sizeof(T);
+    compressed_size = 2 * conf.num * sizeof(T);
     auto compressed_data = new uchar[compressed_size];
     std::shared_ptr<concepts::CompressorInterface<T>> sz;
     if (method == 0 || method == 1) {
@@ -453,8 +454,8 @@ inline typename std::enable_if<N == 1 || N == 2, size_t>::type MDZ_Compress(Conf
     if (lossless_first_frame) {
         auto zstd = SZ3::Lossless_zstd();
         size_t inSize = conf.dims[1] * sizeof(T);
-        uchar *buffer = new uchar[inSize];
-        auto cmpSize = zstd.compress(reinterpret_cast<uchar *>(data_ts0.data()), inSize, buffer, inSize);
+        uchar *buffer = new uchar[inSize * 2];
+        auto cmpSize = zstd.compress(reinterpret_cast<uchar *>(data_ts0.data()), inSize, buffer, inSize * 2);
         delete[] buffer;
         //        printf("outsize %lu\n", cmpSize);
         total_compressed_size += cmpSize;

@@ -25,7 +25,7 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
     bool precompress(const block_iter &block) override {
         std::vector<double> predict_error(predictors.size(), 0);
         std::vector<bool> isvalid(predictors.size());
-        for (int i = 0; i < predictors.size(); i++) {
+        for (size_t i = 0; i < predictors.size(); i++) {
             isvalid[i] = predictors[i]->precompress(block);
             if (isvalid[i]) {
                 block_iter::foreach_sampling(block, [&](T *c, const std::array<size_t, N> &index) {

@@ -147,14 +147,14 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      #      - name: Bootstrap vcpkg & install HDF5
-      #        shell: pwsh
-      #        run: |
-      #          git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
-      #          cd C:\vcpkg
-      #          .\bootstrap-vcpkg.bat
-      #          .\vcpkg.exe install hdf5:x64-windows
-      #          echo "VCPKG_ROOT=C:\vcpkg" | Out-File -FilePath $Env:GITHUB_ENV -Encoding ASCII
+      - name: Bootstrap vcpkg & install HDF5
+        shell: pwsh
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
+          cd C:\vcpkg
+          .\bootstrap-vcpkg.bat
+          .\vcpkg.exe install hdf5:x64-windows
+          echo "VCPKG_ROOT=C:\vcpkg" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Create build dir
         shell: pwsh
@@ -165,17 +165,20 @@ jobs:
         working-directory: build
         run: |
           cmake .. `
-          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} 
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+            -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake `
+            -DVCPKG_TARGET_TRIPLET=x64-windows `
+            -DBUILD_H5Z_FILTER=ON
 
       - name: Build
         shell: pwsh
         working-directory: build
         run: cmake --build . --config ${{ env.BUILD_TYPE }} --parallel 4
 
-      #      - name: Run CTest
-      #        shell: pwsh
-      #        working-directory: build
-      #        run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
+      - name: Run CTest
+        shell: pwsh
+        working-directory: build
+        run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
 
       - name: Download test data
         shell: pwsh
@@ -228,6 +231,66 @@ jobs:
             Write-Error "Error $err exceeds tolerance ${{ env.TOL }}"
             exit 1
           }
+
+  build-windows-mingw:
+    name: Build & Test (Windows MinGW)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup MSYS2 with MinGW64
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-hdf5
+            make
+
+      - name: Create build dir
+        run: cmake -E make_directory build
+
+      - name: Configure
+        working-directory: build
+        run: |
+          cmake .. \
+            -G "Ninja" \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DBUILD_TESTING=ON \
+            -DBUILD_H5Z_FILTER=ON
+
+      - name: Build
+        working-directory: build
+        run: cmake --build . --config ${{ env.BUILD_TYPE }} --parallel 4
+
+      - name: Run CTest
+        working-directory: build
+        run: |
+          export PATH="$PWD/bin:$PWD/lib:$PATH"
+          ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
+
+      - name: Download test data
+        run: |
+          curl -L -o input.dat ${{ env.TEST_URL }}
+
+      - name: Run sz3 and check error
+        working-directory: build
+        run: |
+          ./tools/sz3/sz3.exe -f -i ../input.dat -3 ${{ env.DIMS }} -M ${{ env.MODE }} ${{ env.TOL }} -a \
+                           -o out.dat -z out.sz3 \
+            | tee sz3.log
+          ERR=$(grep -E 'Max absolute error =' sz3.log \
+                | sed -E 's/.*Max absolute error = *([0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?).*/\1/')
+
+          [ -n "$ERR" ] || { echo "Could not parse Max absolute error!"; exit 1; }
+          echo "Parsed error: $ERR"
+          awk -v err="$ERR" -v tol="${{ env.TOL }}" 'BEGIN { if (err > tol) exit 1; }'
 
   compare:
     name: Compare Digests (Linux vs macOS)
