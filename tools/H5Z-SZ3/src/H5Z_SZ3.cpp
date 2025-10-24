@@ -20,9 +20,9 @@ const H5Z_class2_t H5Z_SZ3[1] = {{
     static_cast<H5Z_func_t>(H5Z_filter_sz3),                /* The actual filter function */
 }};
 
-H5PL_type_t H5PLget_plugin_type(void) { return H5PL_TYPE_FILTER; }
+HDF5SZ3_EXPORT H5PL_type_t H5PLget_plugin_type(void) { return H5PL_TYPE_FILTER; }
 
-const void *H5PLget_plugin_info(void) { return H5Z_SZ3; }
+HDF5SZ3_EXPORT const void *H5PLget_plugin_info(void) { return H5Z_SZ3; }
 
 herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config &conf) {
     static char const *_funcname_ = "set_SZ3_conf_to_H5";
