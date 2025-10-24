@@ -147,14 +147,14 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      #      - name: Bootstrap vcpkg & install HDF5
-      #        shell: pwsh
-      #        run: |
-      #          git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
-      #          cd C:\vcpkg
-      #          .\bootstrap-vcpkg.bat
-      #          .\vcpkg.exe install hdf5:x64-windows
-      #          echo "VCPKG_ROOT=C:\vcpkg" | Out-File -FilePath $Env:GITHUB_ENV -Encoding ASCII
+      - name: Bootstrap vcpkg & install HDF5
+        shell: pwsh
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
+          cd C:\vcpkg
+          .\bootstrap-vcpkg.bat
+          .\vcpkg.exe install hdf5:x64-windows
+          echo "VCPKG_ROOT=C:\vcpkg" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Create build dir
         shell: pwsh
@@ -165,17 +165,20 @@ jobs:
         working-directory: build
         run: |
           cmake .. `
-          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} 
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+            -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake `
+            -DVCPKG_TARGET_TRIPLET=x64-windows `
+            -DBUILD_H5Z_FILTER=ON
 
       - name: Build
         shell: pwsh
         working-directory: build
         run: cmake --build . --config ${{ env.BUILD_TYPE }} --parallel 4
 
-      #      - name: Run CTest
-      #        shell: pwsh
-      #        working-directory: build
-      #        run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
+      - name: Run CTest
+        shell: pwsh
+        working-directory: build
+        run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
 
       - name: Download test data
         shell: pwsh
