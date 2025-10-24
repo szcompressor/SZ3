@@ -4,7 +4,7 @@
 #include <iterator>
 #include <memory>
 
-#include "H5PLextern.h"
+
 
 hid_t H5Z_SZ_ERRCLASS = -1;
 
