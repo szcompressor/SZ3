@@ -141,7 +141,7 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
         p += sizeof(int);
         int64ToBytes_bigEndian(p, total_frequency);
         p += sizeof(uint64_t);
-        size_t i = 0;
+        int i = 0;
         if (total_frequency <= 65536) {
             uint16_t low, high;
             if (numOfRealStates <= 256) {

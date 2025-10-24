@@ -271,7 +271,9 @@ jobs:
 
       - name: Run CTest
         working-directory: build
-        run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
+        run: |
+          export PATH="$PWD/bin:$PWD/lib:$PATH"
+          ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
 
       - name: Download test data
         run: |
