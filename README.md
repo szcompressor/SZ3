@@ -31,7 +31,7 @@ Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [
 * Compatible with SZ2 API
 
 #### SZ3 Python API
-* pip install pysz
+* available via `pip install pysz`
 * [Source code in 'tools/pysz'](https://github.com/szcompressor/SZ3/tree/master/tools/pysz)
 
 #### H5Z-SZ3
