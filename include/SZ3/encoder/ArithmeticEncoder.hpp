@@ -304,7 +304,7 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
         ariCoder.cumulative_frequency = static_cast<Prob *>(malloc(ariCoder.numOfRealStates * sizeof(Prob)));
         memset(ariCoder.cumulative_frequency, 0, ariCoder.numOfRealStates * sizeof(Prob));
 
-        size_t i = 0;
+        int i = 0;
         const uchar *low_p = nullptr, *high_p = nullptr, *state_p = nullptr;
         int state = 0;
         if (total_frequency <= 65536) {
