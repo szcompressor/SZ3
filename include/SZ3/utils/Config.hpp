@@ -1,6 +1,13 @@
-//
-// Created by Kai Zhao on 4/28/20.
-//
+/**
+ * @file Config.hpp
+ * @brief This file defines the configuration class and related utilities for SZ3.
+ *
+ * @note Do not delete any existing fields for backward compatibility.
+ *       These fields are critical for ensuring that serialized configurations
+ *       from older versions of SZ3 remain compatible with newer versions.
+ *       Removing or altering fields could break deserialization or cause
+ *       unexpected behavior in applications relying on SZ3.
+ */
 
 #ifndef SZ3_Config_HPP
 #define SZ3_Config_HPP
@@ -28,12 +35,42 @@
 #define SZ_UINT64 8
 #define SZ_INT64 9
 
+
 namespace SZ3 {
+
+/**
+ * @enum EB
+ * @brief Enumeration for error bound modes.
+ *
+ * - EB_ABS: Absolute error bound.
+ * - EB_REL: Relative error bound.
+ * - EB_PSNR: Peak Signal-to-Noise Ratio error bound.
+ * - EB_L2NORM: L2 norm error bound.
+ * - EB_ABS_AND_REL: Combined absolute and relative error bound.
+ * - EB_ABS_OR_REL: Either absolute or relative error bound.
+ */
 enum EB { EB_ABS, EB_REL, EB_PSNR, EB_L2NORM, EB_ABS_AND_REL, EB_ABS_OR_REL };
 
+/**
+ * @enum ALGO
+ * @brief Enumeration for compression algorithms.
+ *
+ * - ALGO_LORENZO_REG: SZ2 algorithm (Lorenzo with regression).
+ * - ALGO_INTERP_LORENZO: SZ3 algorithm (Interpolation with Lorenzo, with tuning).
+ * - ALGO_INTERP: Interpolation-only (without tuning).
+ * - ALGO_NOPRED: No prediction.
+ * - ALGO_LOSSLESS: Lossless compression.
+ */
 enum ALGO { ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP, ALGO_NOPRED, ALGO_LOSSLESS };
 
-enum INTERP_ALGO { INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC }; //, INTERP_ALGO_CUBIC_NATURAL};
+/**
+ * @enum INTERP_ALGO
+ * @brief Enumeration for interpolation algorithms.
+ *
+ * - INTERP_ALGO_LINEAR: Linear interpolation.
+ * - INTERP_ALGO_CUBIC: Cubic interpolation.
+ */
+enum INTERP_ALGO { INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC };
 
 const std::map<std::string, ALGO> ALGO_MAP = {
     {"ALGO_LORENZO_REG", ALGO_LORENZO_REG}, {"ALGO_INTERP_LORENZO", ALGO_INTERP_LORENZO},
@@ -81,14 +118,40 @@ ALWAYS_INLINE std::string enum_to_string(EnumType value, const std::map<std::str
     return "";
 }
 
+/**
+ * @class Config
+ * @brief Configuration class for SZ3.
+ *
+ * The Config class stores various parameters and settings used by SZ3, such as:
+ * - Dimensions of the data.
+ * - Compression algorithm and error bound settings.
+ * - Module-specific parameters like interpolation settings.
+ *
+ * It provides methods to load/save configurations from/to INI files, serialize/deserialize configurations,
+ * and estimate the size of the configuration.
+ */
 class Config {
 public:
+    /**
+     * @brief Constructor to initialize the configuration with dimensions.
+     *
+     * @tparam Dims Variadic template for dimension arguments.
+     * @param args Dimensions of the data.
+     */
     template <class... Dims>
     Config(Dims... args) {
         dims = std::vector<size_t>{static_cast<size_t>(std::forward<Dims>(args))...};
         setDims(dims.begin(), dims.end());
     }
 
+    /**
+     * @brief Set the dimensions of the data.
+     *
+     * @tparam Iter Iterator type for the dimension range.
+     * @param begin Iterator to the beginning of the dimensions.
+     * @param end Iterator to the end of the dimensions.
+     * @return Total number of elements in the data.
+     */
     template <class Iter>
     size_t setDims(Iter begin, Iter end) {
         auto dims_ = std::vector<size_t>(begin, end);
@@ -108,6 +171,12 @@ public:
         return num;
     }
 
+    /**
+     * @brief Load configuration from an INI file.
+     *
+     * @param ini_file_path Path to the INI file.
+     * @throws std::runtime_error If the file cannot be opened.
+     */
     void loadcfg(const std::string& ini_file_path) {
         std::ifstream file(ini_file_path);
         if (!file.is_open()) {
@@ -118,6 +187,11 @@ public:
         load_ini(buffer.str());
     }
 
+    /**
+     * @brief Load configuration from an INI content string.
+     *
+     * @param ini_content Content of the INI file as a string.
+     */
     void load_ini(const std::string& ini_content) {
         std::istringstream ss(ini_content);
         std::string line, section;
@@ -192,6 +266,11 @@ public:
         }
     }
 
+    /**
+     * @brief Save the current configuration to an INI format string.
+     *
+     * @return INI format string representing the current configuration.
+     */
     std::string save_ini() const {
         std::ostringstream ss;
 
@@ -219,6 +298,12 @@ public:
         return ss.str();
     }
 
+    /**
+     * @brief Serialize the configuration to a byte array.
+     *
+     * @param c Pointer to the byte array.
+     * @return Size of the serialized configuration.
+     */
     size_t save(unsigned char*& c) const {
         auto c0 = c;
         c += sizeof(uchar); //reserve space for conf size
@@ -265,6 +350,11 @@ public:
         return confSize;
     }
 
+    /**
+     * @brief Deserialize the configuration from a byte array.
+     *
+     * @param c Pointer to the byte array.
+     */
     void load(const unsigned char*& c) {
         uchar confSize = 0;
         read(confSize, c);
@@ -321,6 +411,9 @@ public:
         }
     }
 
+    /**
+     * @brief Print the current configuration to the console.
+     */
     void print() {
         // printf("===================== Begin SZ3 Configuration =====================\n");
         printf("\nsz3MagicNumber = %u\n", sz3MagicNumber);
@@ -333,6 +426,11 @@ public:
         std::cout << save_ini();
     }
 
+    /**
+     * @brief Estimate the size of the serialized configuration.
+     *
+     * @return Estimated size in bytes.
+     */
     size_t size_est() const {
         std::vector<uchar> buffer(sizeof(Config) + 1024);
         auto buffer_pos = buffer.data();
@@ -370,6 +468,8 @@ public:
     double interpAlpha = 1.25;   // level-wise eb reduction rate
     double interpBeta = 2.0;     // maximum eb reduction rate
 };
+
 } // namespace SZ3
 
 #endif  // SZ_CONFIG_HPP
+
