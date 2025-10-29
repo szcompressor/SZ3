@@ -131,6 +131,18 @@ void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* de
         conf_t[i].load(cmpr_data_pos);
     }
 
+    if (conf_t[0].sz3MagicNumber != SZ3_MAGIC_NUMBER) {
+        throw std::invalid_argument("magic number mismatch, the input data is not compressed by SZ3");
+    }
+    if (versionStr(conf_t[0].sz3DataVer) != SZ3_DATA_VER) {
+        std::stringstream ss;
+        printf("program v%s , program-data %s , input data v%s\n", SZ3_VER, SZ3_DATA_VER,
+               versionStr(conf_t[0].sz3DataVer).data());
+        ss << "Please use SZ3 v" << versionStr(conf_t[0].sz3DataVer) << " to decompress the data" << std::endl;
+        std::cerr << ss.str();
+        throw std::invalid_argument(ss.str());
+    }
+
     std::vector<size_t> cmp_start_t, cmp_size_t;
     cmp_size_t.resize(nThreads);
     read(cmp_size_t.data(), nThreads, cmpr_data_pos);
