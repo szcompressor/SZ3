@@ -39,6 +39,13 @@ Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [
 * Please add "-DBUILD_H5Z_FILTER=ON" to enable this function for CMake.
 * sz3ToHDF5 and HDF5ToSz3 are provided for testing.
 
+#### ParaView SZ3 Reader
+* Located in 'tools/paraview'
+* Please add "-DBUILD_PARAVIEW_PLUGIN=ON" to enable this function for CMake.
+* Developed using SZ3 C++ API.
+* More instructions can be viewed [here](tools/paraview/README.md).
+
+
 #### Third-Party APIs
 
 * [SZ3 Fortran API](https://github.com/ofmla/sz3_simple_example) (by [Oscar Mojica](https://github.com/ofmla))

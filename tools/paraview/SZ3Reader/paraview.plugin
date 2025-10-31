@@ -1,0 +1,10 @@
+NAME
+  SZ3Reader
+DESCRIPTION
+  Reader for direct visualization of data using the SZ3 compressor.
+REQUIRES_MODULES
+  ParaView::VTKExtensionsCore
+  VTK::CommonCore
+  VTK::CommonDataModel
+  VTK::CommonExecutionModel
+  VTK::vtksys

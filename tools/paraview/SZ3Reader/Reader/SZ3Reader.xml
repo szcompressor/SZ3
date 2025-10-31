@@ -1,0 +1,48 @@
+<ServerManagerConfiguration>
+  <ProxyGroup name="sources">
+    <SourceProxy name="SZ3Reader" class="vtkSZ3Reader" label="SZ3 Reader">
+      <Documentation
+        short_help="Read SZ3 files."
+        long_help="Read data files that are compressed using the SZ3 compressor.">
+      </Documentation>
+
+      <StringVectorProperty
+        name="FileName"
+        command="SetFileName"
+        number_of_elements="1">
+        <FileListDomain name="files"/>
+        <Documentation>
+          The name of the file to read.
+        </Documentation>
+      </StringVectorProperty>
+
+      <IntVectorProperty
+        name="DomainDimensions"
+        command="SetDomainDimensions"
+        number_of_elements="3"
+        default_values="0 0 0">
+        <IntRangeDomain name="range" min="1"/>
+        <Documentation>
+          Specify the dimensions of the domain (X, Y, Z).
+        </Documentation>
+      </IntVectorProperty>
+
+      <IntVectorProperty
+        name="DoublePrecision"
+        command="SetDoublePrecision"
+        number_of_elements="1"
+        default_values="0">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          Check to use double precision (float64). If unchecked, single precision (float32) will be used.
+        </Documentation>
+      </IntVectorProperty>
+
+      <Hints>
+        <ReaderFactory extensions="sz sz3"
+           file_description="SZ3 compressed file"/>
+      </Hints>
+
+    </SourceProxy>
+  </ProxyGroup>
+</ServerManagerConfiguration>
