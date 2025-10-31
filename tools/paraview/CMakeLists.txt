@@ -1,7 +1,7 @@
 find_package(ParaView REQUIRED)
 
-# Build the plugin by default (for ParaView v6.0).
-set(PARAVIEW_PLUGIN_ENABLE_SZ3Reader ON)
+# Enable the SZ3Reader plugin by default
+set(PARAVIEW_PLUGIN_ENABLE_SZ3Reader ON CACHE BOOL "Enable SZ3Reader plugin")
 
 # Scan the plugin.
 paraview_plugin_scan(
