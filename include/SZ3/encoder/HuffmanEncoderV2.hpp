@@ -15,40 +15,39 @@
 #include "SZ3/utils/ska_hash/unordered_map.hpp"
 
 namespace SZ3 {
-
 template <class T>
 class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
-   private:
+private:
     class Node {
-       public:
-        Node(T c_ = 0, Node *lp = nullptr, Node *rp = nullptr) {
+    public:
+        Node(T c_ = 0, Node* lp = nullptr, Node* rp = nullptr) {
             c = c_;
             p[0] = lp;
             p[1] = rp;
         }
 
         T c;
-        Node *p[2];
+        Node* p[2];
 
         inline uchar isLeaf() { return p[0] == nullptr; }
     };
 
     class HuffmanTree {
-       private:
+    private:
         uchar _constructed = 0;
 
         uchar len = 0;
         int vec = 0;
 
         class cmp {
-           public:
-            bool operator()(const std::pair<int, size_t> &u, const std::pair<int, size_t> &v) {
+        public:
+            bool operator()(const std::pair<int, size_t>& u, const std::pair<int, size_t>& v) {
                 return u.second == v.second ? u.first > v.first : u.second > v.second;
             }
         };
 
-       public:
-        void dfs_mp(Node *u) {
+    public:
+        void dfs_mp(Node* u) {
             if (u->isLeaf()) {
                 mplen[u->c] = len;
                 mpcode[u->c] = vec;
@@ -67,7 +66,7 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
             vec ^= 1 << --len;
         }
 
-        void dfs_vec(Node *u) {
+        void dfs_vec(Node* u) {
             if (u->isLeaf()) {
                 veclen[u->c] = len;
                 veccode[u->c] = vec;
@@ -173,17 +172,17 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
             // Timer timer(true);
 
             mbft = 1;
-            while ((1llu << mbft) < maxval) ++mbft;
+            while ((1llu << mbft) < static_cast<uint64_t>(maxval)) ++mbft;
 
             std::priority_queue<std::pair<int, size_t>, std::vector<std::pair<int, size_t>>, cmp> q;
 
             if (usemp) {
-                for (int i = 0; i < ht.size(); i++) {
-                    q.push({i, mpfreq[ht[i].c]});
+                for (size_t i = 0; i < ht.size(); i++) {
+                    q.push({static_cast<int>(i), mpfreq[ht[i].c]});
                 }
             } else {
-                for (int i = 0; i < ht.size(); i++) {
-                    q.push({i, vecfreq[ht[i].c]});
+                for (size_t i = 0; i < ht.size(); i++) {
+                    q.push({static_cast<int>(i), vecfreq[ht[i].c]});
                 }
             }
 
@@ -219,8 +218,8 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
 
     HuffmanTree tree;
 
-   public:
-    void preprocess_encode(const T *const bins, size_t num_bin, int stateNum, uchar flag = 0x00) {
+public:
+    void preprocess_encode(const T* const bins, size_t num_bin, int stateNum, uchar flag = 0x00) {
         // Timer timer(true);
 
         tree.init();
@@ -230,7 +229,7 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
         if (stateNum == 0) {
             __minval = *bins;
             __maxval = *bins;
-            for (int i = 1; i < num_bin; i++) {
+            for (size_t i = 1; i < num_bin; i++) {
                 __minval = std::min(__minval, *(bins + i));
                 __maxval = std::max(__maxval, *(bins + i));
             }
@@ -244,7 +243,12 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
 
         switch ((flag & 0xc0) >> 6) {
             case 0: {
-                tree.usemp = tree.maxval >= (1 << 12) && num_bin < 2 * __maxval || tree.maxval >= (1 << 28) ? 1 : 0;
+                if (tree.maxval >= (1 << 12) && num_bin < 2 * static_cast<size_t>(__maxval)
+                    || tree.maxval >= (1 << 28)) {
+                    tree.usemp = 1;
+                } else {
+                    tree.usemp = 0;
+                }
                 break;
             }
             case 1: {
@@ -263,7 +267,7 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
 
         if ((flag & 0x01) == 0x01) {
             tree.mbft = 1;
-            while ((1llu << tree.mbft) < tree.maxval) ++tree.mbft;
+            while ((1llu << tree.mbft) < static_cast<uint64_t>(tree.maxval)) ++tree.mbft;
             tree.n = 0;
             tree.setConstructed();
             return;
@@ -280,11 +284,11 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
             //                freq.reserve(num_bin);
 
             if (tree.offset == 0) {
-                for (int i = 0; i < num_bin; i++) {
+                for (size_t i = 0; i < num_bin; i++) {
                     ++freq[bins[i]];
                 }
             } else {
-                for (int i = 0; i < num_bin; i++) {
+                for (size_t i = 0; i < num_bin; i++) {
                     ++freq[bins[i] - tree.offset];
                 }
             }
@@ -302,18 +306,18 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
             std::vector<size_t> freq(tree.maxval);
 
             if (tree.offset == 0) {
-                for (int i = 0; i < num_bin; i++) {
+                for (size_t i = 0; i < num_bin; i++) {
                     ++freq[bins[i]];
                 }
             } else {
-                for (int i = 0; i < num_bin; i++) {
+                for (size_t i = 0; i < num_bin; i++) {
                     ++freq[bins[i] - tree.offset];
                 }
             }
 
             tree.ht.reserve(freq.size() << 1);
 
-            for (int i = 0; i < tree.maxval; i++) {
+            for (size_t i = 0; i < static_cast<size_t>(tree.maxval); i++) {
                 if (freq[i]) tree.addElementInVector(i, freq[i]);
             }
         }
@@ -325,15 +329,15 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
         // timer.stop("preprocess_encode");
     }
 
-    void preprocess_encode(const std::vector<T> &bins, int stateNum) override {
+    void preprocess_encode(const std::vector<T>& bins, int stateNum) override {
         preprocess_encode(bins.data(), bins.size(), stateNum);
     }
 
-    size_t encode(const std::vector<T> &bins, uchar *&bytes) override {
+    size_t encode(const std::vector<T>& bins, uchar*& bytes) override {
         return encode(bins.data(), bins.size(), bytes);
     }
 
-    size_t encode(const T *bins, size_t num_bin, uchar *&bytes) {
+    size_t encode(const T* bins, size_t num_bin, uchar*& bytes) {
         if (tree.maxval == 1) {
             int64ToBytes_bigEndian(bytes, num_bin ^ 0x1234abcd);
             bytes += 8;
@@ -344,7 +348,7 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
 
         assert(tree.isConstructed());
 
-        uchar *head = bytes;
+        uchar* head = bytes;
         bytes += 8;
 
         size_t len = 0;
@@ -371,17 +375,17 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
         if (tree.offset == 0) {
             if (tree.usemp) {
                 for (size_t i = 0; i < num_bin; i++) {
-                    const T &it = bins[i];
-                    const uchar &len_i = tree.mplen[it];
-                    const int &code_i = tree.mpcode[it];
+                    const T& it = bins[i];
+                    const uchar& len_i = tree.mplen[it];
+                    const int& code_i = tree.mpcode[it];
                     len += len_i;
                     writeBytes(bytes, code_i, len_i, mask, index);
                 }
             } else {
                 for (size_t i = 0; i < num_bin; i++) {
-                    const T &it = bins[i];
-                    const uchar &len_i = tree.veclen[it];
-                    const int &code_i = tree.veccode[it];
+                    const T& it = bins[i];
+                    const uchar& len_i = tree.veclen[it];
+                    const int& code_i = tree.veccode[it];
                     len += len_i;
                     writeBytes(bytes, code_i, len_i, mask, index);
                 }
@@ -389,17 +393,17 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
         } else {
             if (tree.usemp) {
                 for (size_t i = 0; i < num_bin; i++) {
-                    const T &it = bins[i];
-                    const uchar &len_i = tree.mplen[it - tree.offset];
-                    const int &code_i = tree.mpcode[it - tree.offset];
+                    const T& it = bins[i];
+                    const uchar& len_i = tree.mplen[it - tree.offset];
+                    const int& code_i = tree.mpcode[it - tree.offset];
                     len += len_i;
                     writeBytes(bytes, code_i, len_i, mask, index);
                 }
             } else {
                 for (size_t i = 0; i < num_bin; i++) {
-                    const T &it = bins[i];
-                    const uchar &len_i = tree.veclen[it - tree.offset];
-                    const int &code_i = tree.veccode[it - tree.offset];
+                    const T& it = bins[i];
+                    const uchar& len_i = tree.veclen[it - tree.offset];
+                    const int& code_i = tree.veccode[it - tree.offset];
                     len += len_i;
                     writeBytes(bytes, code_i, len_i, mask, index);
                 }
@@ -424,11 +428,13 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
         return bytes - head;
     }
 
-    void postprocess_encode() override {}
+    void postprocess_encode() override {
+    }
 
-    void preprocess_decode() override {}
+    void preprocess_decode() override {
+    }
 
-    std::vector<T> decode(const uchar *&bytes, size_t targetLength) override {
+    std::vector<T> decode(const uchar*& bytes, size_t targetLength) override {
         if (tree.maxval == 1) {
             size_t len = bytesToInt64_bigEndian(bytes) ^ 0x1234abcd;
             bytes += 8;
@@ -523,19 +529,19 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
 
             int maxBits = 16;
             size_t count = 0;
-            Node *t = &tree.ht[tree.root];
-            Node *n = t;
+            Node* t = &tree.ht[tree.root];
+            Node* n = t;
 
             size_t tableSize = 1 << maxBits;
             std::vector<T> valueTable(tableSize);
             std::vector<uint8_t> lengthTable(tableSize);
-            std::vector<Node *> nodeTable(tableSize);
+            std::vector<Node*> nodeTable(tableSize);
             size_t j;
             for (size_t i = 0; i < tableSize; i++) {
                 n = t;
                 j = 0;
                 size_t res = i;
-                while (!n->isLeaf() && j < maxBits) {
+                while (!n->isLeaf() && j < static_cast<size_t>(maxBits)) {
                     n = n->p[res & 0x00000001];
                     res >>= 1;
                     j++;
@@ -555,7 +561,7 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
             size_t i = 0;
 
             while (count < targetLength) {
-                while (leftBits < maxBits) {
+                while (static_cast<int>(leftBits) < maxBits) {
                     currentValue += (bytes[i] << leftBits);
                     leftBits += 8;
                     i++;
@@ -598,10 +604,10 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
             //     }
             // }
 
-            int byteIndex = 0;
-            int i = 0;
+            size_t byteIndex = 0;
+            size_t i = 0;
             uchar b;
-            Node *u = &tree.ht[tree.root];
+            Node* u = &tree.ht[tree.root];
             auto offset = tree.offset;
 
             for (; i + 8 < len; i += 8, byteIndex++) {
@@ -651,7 +657,7 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
 
             b = bytes[byteIndex];
 
-            for (int j = 0; j < len - i; j++) {
+            for (size_t j = 0; j < len - i; j++) {
                 u = u->p[(b >> j) & 1];
                 if (u->isLeaf()) {
                     out[outLen++] = u->c + tree.offset;
@@ -666,20 +672,21 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
         return out;
     }
 
-    void postprocess_decode() override {}
+    void postprocess_decode() override {
+    }
 
-    void save(uchar *&c) override {
+    void save(uchar*& c) override {
         //            saveAsCode(c);
         saveAsDFSOrder(c);
     }
 
-    void load(const uchar *&c, size_t &remaining_length) override {
+    void load(const uchar*& c, size_t& remaining_length) override {
         //            loadAsCode(c,remaining_length);
         loadAsDFSOrder(c, remaining_length);
     }
 
-   private:
-    static void writeBytesBit(uchar *&c, uchar val, uchar &mask, uchar &index) {
+private:
+    static void writeBytesBit(uchar*& c, uchar val, uchar& mask, uchar& index) {
         assert(val == 0 || val == 1);
 
         mask |= val << index++;
@@ -689,7 +696,7 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
         }
     }
 
-    static void writeBytes(uchar *&c, T val, uchar len, uchar &mask, uchar &index) {
+    static void writeBytes(uchar*& c, T val, uchar len, uchar& mask, uchar& index) {
         assert(len >= 1 && len <= sizeof(T) * 8);
 
         if (len + index >= 8) {
@@ -719,24 +726,24 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
         // }
     }
 
-    static void writeBytesByte(uchar *&c, uchar val) { *c++ = val; }
+    static void writeBytesByte(uchar*& c, uchar val) { *c++ = val; }
 
-    static void writeBytesClearMask(uchar *&c, uchar &mask, uchar &index) {
+    static void writeBytesClearMask(uchar*& c, uchar& mask, uchar& index) {
         if (index > 0) {
             *c++ = mask;
             // mask=i=0;
         }
     }
 
-    static uchar readBit(const uchar *const &c, int i) { return ((*(c + (i >> 3))) >> (i & 7)) & 1; }
+    static uchar readBit(const uchar* const & c, int i) { return ((*(c + (i >> 3))) >> (i & 7)) & 1; }
 
-    void saveAsCode(uchar *&c) {
+    void saveAsCode(uchar*& c) {
         // Timer timer(true);
 
         // uchar *head = c;
         // whether the tree is full binary tree
 
-        uchar &limit = tree.limit;
+        uchar& limit = tree.limit;
 
         std::vector<std::deque<T>> mp(limit + 1);
 
@@ -805,7 +812,7 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
             writeBytes(c, cnt, len, mask, index);
 
             if (cnt) {
-                for (const T &it : mp[len]) {
+                for (const T& it : mp[len]) {
                     writeBytes(c, it, tree.mbft, mask, index);
 
                     const int code = tree.usemp ? tree.mpcode[it] : tree.veccode[it];
@@ -834,7 +841,7 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
         // return;
     }
 
-    void saveAsDFSOrder(uchar *&c) {
+    void saveAsDFSOrder(uchar*& c) {
         // uchar *head = c;
 
         uchar mask = 0, index = 0;
@@ -853,12 +860,12 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
             return;
         }
 
-        std::stack<Node *> stk;
+        std::stack<Node*> stk;
 
         stk.push(&tree.ht[tree.root]);
 
         while (!stk.empty()) {
-            Node *u = stk.top();
+            Node* u = stk.top();
             stk.pop();
             if (u->isLeaf()) {
                 writeBytesBit(c, 0x01, mask, index);
@@ -885,7 +892,7 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
         //            printf("compressed huffman tree size = %d\n",(int)compressed_tree_size);
     }
 
-    void loadAsCode(const uchar *&bytes, size_t &remaining_length) {
+    void loadAsCode(const uchar*& bytes, size_t& remaining_length) {
         // Timer timer(true);
 
         tree.init();
@@ -898,9 +905,7 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
         tree.limit = ((*bytes) & 0x1f) + 1;
         ++bytes;
 
-        // assert(szT == sizeof(T));
-
-        for (int i = 0; i < sizeof(T); i++) {
+        for (size_t i = 0; i < sizeof(T); i++) {
             tree.offset |= static_cast<T>(*bytes) << (i << 3);
             ++bytes;
         }
@@ -946,7 +951,7 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
                     c |= static_cast<T>(readBit(bytes, i++)) << k;
                 }
 
-                Node *u = &tree.ht[tree.root];
+                Node* u = &tree.ht[tree.root];
                 int vec = 0;
 
                 for (uchar k = 0; k < tree.limit; k++) {
@@ -996,7 +1001,7 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
                     c |= static_cast<T>(readBit(bytes, i++)) << k;
                 }
 
-                Node *u = &tree.ht[0];
+                Node* u = &tree.ht[0];
                 int vec = 0;
 
                 for (int k = 0; k < len; k++) {
@@ -1029,14 +1034,14 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
         // timer.stop("loadAsCode");
     }
 
-    void loadAsDFSOrder(const uchar *&bytes, size_t &remaining_length) {
+    void loadAsDFSOrder(const uchar*& bytes, size_t& remaining_length) {
         tree.init();
 
         tree.usemp = (*bytes) >> 7;
         tree.mbft = (*bytes) & 0x3f;
         ++bytes;
 
-        for (int i = 0; i < sizeof(T); i++) {
+        for (size_t i = 0; i < sizeof(T); i++) {
             tree.offset |= static_cast<T>(*bytes) << (i << 3);
             ++bytes;
         }
@@ -1077,12 +1082,12 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
 
         tree.root = 0;
         tree.ht.push_back(Node());
-        std::stack<Node *> stk;
+        std::stack<Node*> stk;
         stk.push(&tree.ht[0]);
         size_t i = 1;
 
         while (!stk.empty()) {
-            Node *u = stk.top();
+            Node* u = stk.top();
 
             if (readBit(bytes, i++) == 0x00) {
                 tree.ht.push_back(Node());
@@ -1122,6 +1127,6 @@ class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
         tree.setConstructed();
     }
 };
-}  // namespace SZ3
+} // namespace SZ3
 
 #endif

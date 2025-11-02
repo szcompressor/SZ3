@@ -94,7 +94,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
             return 0;
         }
         std::vector<int> sites;
-        for (int j = 0; j < std::min<size_t>(dims[numDims - 1], 5); j++) {
+        for (size_t j = 0; j < std::min<size_t>(dims[numDims - 1], 5); j++) {
             // size_t lprev = 0, lavg = 0, lcnt = 0;
             size_t lprev = 0;
             for (size_t i = 1; i < std::min<size_t>(dims[numDims - 2], 100); i++) {
@@ -110,7 +110,8 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         for (size_t i = 0; i < sites.size(); i++) {
             frequency[sites[i]]++;
         }
-        int maxCount = 0, res = 0;
+        size_t maxCount = 0;
+        int res = 0;
         for (const auto &kv : frequency) {
             auto k = kv.first;
             auto f = kv.second;
