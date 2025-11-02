@@ -12,17 +12,18 @@
 #include "SZ3/utils/Config.hpp"
 
 namespace SZ3 {
-
 template <class T, uint N, class Quantizer>
 class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, N> {
-   public:
-    SZBioMDXtcDecomposition(const Config &conf, Quantizer quantizer) : quantizer(quantizer), conf(conf) {
+public:
+    SZBioMDXtcDecomposition(const Config& conf, Quantizer quantizer)
+        : conf(conf),
+          quantizer(quantizer) {
         if (N != 1 && N != 2 && N != 3) {
             throw std::invalid_argument("SZBioMDXtcDecomposition only support 1D, 2D or 3D data");
         }
     }
 
-    std::vector<int> compress(const Config &conf, T *data) override {
+    std::vector<int> compress(const Config& conf, T* data) override {
         if (N <= 2) {
             return compressSingleFrame(data);
         } else {
@@ -30,7 +31,7 @@ class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, 
         }
     }
 
-    T *decompress(const Config &conf, std::vector<int> &quantData, T *decData) override {
+    T* decompress(const Config& conf, std::vector<int>& quantData, T* decData) override {
         if (N <= 2) {
             return decompressSingleFrame(quantData, decData);
         } else {
@@ -38,13 +39,13 @@ class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, 
         }
     }
 
-    void save(uchar *&c) override {
+    void save(uchar*& c) override {
         write(firstFillFrame_, c);
         write(fillValue_, c);
         quantizer.save(c);
     }
 
-    void load(const uchar *&c, size_t &remaining_length) override {
+    void load(const uchar*& c, size_t& remaining_length) override {
         read(firstFillFrame_, c, remaining_length);
         read(fillValue_, c, remaining_length);
         quantizer.load(c, remaining_length);
@@ -61,8 +62,8 @@ class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, 
         return conf.num;
     }
 
-   private:
-    std::vector<int> compressSingleFrame(T *data) {
+private:
+    std::vector<int> compressSingleFrame(T* data) {
         std::vector<int> quantData(conf.num);
         for (size_t i = 0; i < conf.num; i++) {
             quantData[i] = quantizer.quantize_and_overwrite(data[i], 0);
@@ -71,7 +72,7 @@ class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, 
         return quantData;
     }
 
-    T *decompressSingleFrame(std::vector<int> &quantData, T *decData) {
+    T* decompressSingleFrame(std::vector<int>& quantData, T* decData) {
         for (size_t i = 0; i < conf.num; i++) {
             decData[i] = quantizer.recover(0, quantData[i]);
         }
@@ -81,7 +82,7 @@ class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, 
 
     /* Start from the last frame and look for frames filled with the same value.
      * Those frames do not need to be compressed - they can all just be filled. */
-    std::tuple<size_t, T> findFillValueAndFirstFilledFrame(T *data, std::vector<size_t> dims) {
+    std::tuple<size_t, T> findFillValueAndFirstFilledFrame(T* data, std::vector<size_t> dims) {
         size_t numDims = dims.size();
         if (numDims < 3) {
             return std::make_tuple(dims[0], 0);
@@ -117,7 +118,7 @@ class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, 
     }
 
     /* This just converts float to integer based on the absolute error. */
-    std::vector<int> compressMultiFrame(T *data) {
+    std::vector<int> compressMultiFrame(T* data) {
         auto dims = conf.dims;
         std::vector<size_t> stride({dims[1] * dims[2], dims[2], 1});
 
@@ -128,9 +129,12 @@ class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, 
         size_t lastFrame = std::min(dims[0], firstFillFrame_);
         std::vector<int> quantData(lastFrame * dims[1] * dims[2]);
 
-        for (size_t i = 0; i < lastFrame; i++) {        // time
-            for (size_t j = 0; j < dims[1]; j++) {      // atoms
-                for (size_t k = 0; k < dims[2]; k++) {  // xyz
+        for (size_t i = 0; i < lastFrame; i++) {
+            // time
+            for (size_t j = 0; j < dims[1]; j++) {
+                // atoms
+                for (size_t k = 0; k < dims[2]; k++) {
+                    // xyz
                     size_t idx = i * stride[0] + j * stride[1] + k;
                     quantData[idx] = quantizer.quantize_and_overwrite(data[idx], 0);
                 }
@@ -142,16 +146,19 @@ class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, 
     }
 
     /* This just converts integer to float based on the absolute error. */
-    T *decompressMultiFrame(std::vector<int> &quantData, T *decData) {
+    T* decompressMultiFrame(std::vector<int>& quantData, T* decData) {
         // printf("Decompressing 3D.\n");
         auto dims = conf.dims;
         std::vector<size_t> stride({dims[1] * dims[2], dims[2], 1});
 
         size_t lastFrame = std::min(dims[0], firstFillFrame_);
 
-        for (size_t i = 0; i < lastFrame; i++) {        // time
-            for (size_t j = 0; j < dims[1]; j++) {      // atoms
-                for (size_t k = 0; k < dims[2]; k++) {  // xyz
+        for (size_t i = 0; i < lastFrame; i++) {
+            // time
+            for (size_t j = 0; j < dims[1]; j++) {
+                // atoms
+                for (size_t k = 0; k < dims[2]; k++) {
+                    // xyz
                     size_t idx = i * stride[0] + j * stride[1] + k;
                     decData[idx] = quantizer.recover(0, quantData[idx]);
                 }
@@ -177,10 +184,9 @@ class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, 
 };
 
 template <class T, uint N, class Quantizer>
-SZBioMDXtcDecomposition<T, N, Quantizer> make_decomposition_biomdxtc(const Config &conf, Quantizer quantizer) {
+SZBioMDXtcDecomposition<T, N, Quantizer> make_decomposition_biomdxtc(const Config& conf, Quantizer quantizer) {
     return SZBioMDXtcDecomposition<T, N, Quantizer>(conf, quantizer);
 }
-
-}  // namespace SZ3
+} // namespace SZ3
 
 #endif
