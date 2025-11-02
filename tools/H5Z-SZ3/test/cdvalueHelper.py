@@ -51,7 +51,7 @@ class SZ3:
 
     def print_h5repack_args(self):
         cd_nelmts = len(self.cd_values)
-        args = f"-f UD=32024,0,{cd_nelmts},"
+        args = f"UD=32024,0,{cd_nelmts},"
         args += ",".join(map(str, self.cd_values))
         print(args)
 

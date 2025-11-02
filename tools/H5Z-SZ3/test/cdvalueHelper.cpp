@@ -20,7 +20,7 @@ inline void usage() {
     printf("* examples: \n");
     printf(
         "\tprint_h5repack_args -c sz3.conf\n"
-        "\t (output: -f UD=32024,0,11,4077060608,16843009,0,33554432,4054449152,1348619730,16818239,257,2147483904,2147483648,16777216)\n");
+        "\t (output: UD=32024,0,11,4077060608,16843009,0,33554432,4054449152,1348619730,16818239,257,2147483904,2147483648,16777216)\n");
     printf(
         "\tprint_h5repack_args -r '32024,0,11,4077060608,16843009,0,33554432,4054449152,1348619730,16818239,257,2147483904,2147483648,16777216' -o sz3.conf\n");
     exit(0);
@@ -116,7 +116,7 @@ int main(int argc, char* argv[]) {
             printf("h5repack can only take 20 cd_values, but got %d\n cd_values in SZ3", cd_nelmts);
             return 0;
         }
-        printf("-f UD=32024,0,%d", cd_nelmts);
+        printf("UD=32024,0,%d", cd_nelmts);
         for (int i = 0; i < cd_nelmts; i++) {
 #if SZ3_BIG_ENDIAN
             printf(",%u", SZ3::byteswap(cd_values[i]));
