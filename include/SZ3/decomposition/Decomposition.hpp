@@ -16,7 +16,7 @@ namespace SZ3::concepts {
  * @tparam To decomposed data type
  * @tparam N original data dimension
  */
-template <class Ti, class To, uint N>
+template <class Ti, class To, uint N, class ToAllocator = std::allocator<To>>
 class DecompositionInterface {
    public:
     virtual ~DecompositionInterface() = default;
@@ -26,7 +26,7 @@ class DecompositionInterface {
      * @param data original input
      * @return quantized prediction error
      */
-    virtual std::vector<To> compress(const Config &conf, Ti *data) = 0;
+    virtual std::vector<To, ToAllocator> compress(const Config &conf, Ti *data) = 0;
 
     /**
      * reverse of compress(), reconstruct the data
@@ -34,7 +34,7 @@ class DecompositionInterface {
      * @param dec_data place to write the reconstructed data
      * @return same value with dec_data
      */
-    virtual Ti *decompress(const Config &conf, std::vector<To> &quant_inds, Ti *dec_data) = 0;
+    virtual Ti *decompress(const Config &conf, std::vector<To, ToAllocator> &quant_inds, Ti *dec_data) = 0;
 
     /**
      * serialize the frontend and store it to a buffer

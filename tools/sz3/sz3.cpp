@@ -77,7 +77,7 @@ inline void usage_sz2() {
     printf("                          (the compressed file will be named as <input_file>.sz if not specified)\n");
     printf("	-x <decompressed file>: the decompression operation with an optionally specified output file\n");
     printf("                      (the decompressed file will be named as <cmpred_file>.out if not specified)\n");
-    //    printf("	-p: print meta data (configuration info)\n");
+    printf("	-p: print meta data (configuration info)\n");
     printf("	-h: print the help information\n");
     printf("	-v: print the version number\n");
     printf("* data type:\n");
@@ -127,7 +127,7 @@ inline void usage_sz2() {
 }
 
 template <class T>
-void compress(char *inPath, char *cmpPath, SZ3::Config conf) {
+void compress(char *inPath, char *cmpPath, SZ3::Config &conf) {
     T *data = new T[conf.num];
     SZ3::readfile<T>(inPath, conf.num, data);
     size_t bytesCap = 2 * conf.num * sizeof(T);
@@ -154,13 +154,12 @@ void compress(char *inPath, char *cmpPath, SZ3::Config conf) {
 }
 
 template <class T>
-void decompress(char *inPath, char *cmpPath, char *decPath, SZ3::Config conf, int binaryOutput, int printCmpResults) {
+void decompress(char *inPath, char *cmpPath, char *decPath, SZ3::Config &conf, int binaryOutput, int printCmpResults) {
     size_t cmpSize;
     auto cmpData = SZ3::readfile<char>(cmpPath, cmpSize);
-    T *decData = new T[conf.num];
 
     SZ3::Timer timer(true);
-    SZ_decompress<T>(conf, cmpData.get(), cmpSize, decData);
+    auto decData = SZ_decompress<T>(conf, cmpData.get(), cmpSize);
     double compress_time = timer.stop();
 
     char outputFilePath[1024];
@@ -191,6 +190,7 @@ void decompress(char *inPath, char *cmpPath, char *decPath, SZ3::Config conf, in
 int main(int argc, char *argv[]) {
     bool binaryOutput = true;
     int printCmpResults = 0;
+    int printMeta = 0;
     bool compression = false;
     bool decompression = false;
     int dataType = SZ_FLOAT;
@@ -215,7 +215,7 @@ int main(int argc, char *argv[]) {
     size_t r2 = 0;
     size_t r1 = 0;
 
-    size_t i = 0;
+    int i = 0;
     // int status;
     if (argc == 1) usage();
     int width = -1;
@@ -233,7 +233,13 @@ int main(int argc, char *argv[]) {
                 usage();
                 exit(0);
             case 'v':
-                printf("version: %s\n", SZ3_VER);
+                printf("SZ3 Version: %s\n", SZ3_VER);
+                printf("SZ3 Data Format Version: %s\n", SZ3_DATA_VER);
+                printf("\nThird-party libraries copyright notices:\n");
+                printf("----------------------------------------\n");
+                printf("ska_hash:\n");
+                printf("  Copyright (c) 2017 Malte Skarupke\n");
+                printf("  Licensed under the Boost Software License - Version 1.0\n");
                 exit(0);
             case 'b':
                 binaryOutput = true;
@@ -243,6 +249,9 @@ int main(int argc, char *argv[]) {
                 break;
             case 'a':
                 printCmpResults = 1;
+                break;
+            case 'p':
+                printMeta = 1;
                 break;
             case 'z':
                 compression = true;
@@ -372,7 +381,7 @@ int main(int argc, char *argv[]) {
         cmpPath = cmpPathTmp;
         delCmpPath = true;
     }
-    if (inPath == nullptr || errBoundMode == nullptr) {
+    if (inPath == nullptr || (errBoundMode == nullptr && conPath == nullptr)) {
         compression = false;
     }
     if (!compression && !decompression) {
@@ -410,30 +419,29 @@ int main(int argc, char *argv[]) {
                 conf.l2normErrorBound = atof(normErrorBound);
             }
         }
-        if (strcmp(errBoundMode, SZ3::EB_STR[SZ3::EB_ABS]) == 0) {
-            conf.errorBoundMode = SZ3::EB_ABS;
+
+        SZ3::match_enum(errBoundMode, SZ3::EB_MAP, conf.errorBoundMode);
+        if (strcmp(errBoundMode, "VR_REL") == 0) {
+            conf.errorBoundMode = SZ3::EB_REL;
+        }
+        if (conf.errorBoundMode == SZ3::EB_ABS) {
             if (errBound != nullptr) {
                 conf.absErrorBound = atof(errBound);
             }
-        } else if (strcmp(errBoundMode, SZ3::EB_STR[SZ3::EB_REL]) == 0 || strcmp(errBoundMode, "VR_REL") == 0) {
-            conf.errorBoundMode = SZ3::EB_REL;
+        } else if (conf.errorBoundMode == SZ3::EB_REL) {
             if (errBound != nullptr) {
                 conf.relErrorBound = atof(errBound);
             }
-        } else if (strcmp(errBoundMode, SZ3::EB_STR[SZ3::EB_PSNR]) == 0) {
-            conf.errorBoundMode = SZ3::EB_PSNR;
+        } else if (conf.errorBoundMode == SZ3::EB_PSNR) {
             if (errBound != nullptr) {
                 conf.psnrErrorBound = atof(errBound);
             }
-        } else if (strcmp(errBoundMode, SZ3::EB_STR[SZ3::EB_L2NORM]) == 0) {
-            conf.errorBoundMode = SZ3::EB_L2NORM;
+        } else if (conf.errorBoundMode == SZ3::EB_L2NORM) {
             if (errBound != nullptr) {
                 conf.l2normErrorBound = atof(errBound);
             }
-        } else if (strcmp(errBoundMode, SZ3::EB_STR[SZ3::EB_ABS_AND_REL]) == 0) {
-            conf.errorBoundMode = SZ3::EB_ABS_AND_REL;
-        } else if (strcmp(errBoundMode, SZ3::EB_STR[SZ3::EB_ABS_OR_REL]) == 0) {
-            conf.errorBoundMode = SZ3::EB_ABS_OR_REL;
+        } else if (conf.errorBoundMode == SZ3::EB_ABS_AND_REL) {
+        } else if (conf.errorBoundMode == SZ3::EB_ABS_OR_REL) {
         } else {
             printf("Error: wrong error bound mode setting by using the option '-M'\n");
             usage();
@@ -479,6 +487,9 @@ int main(int argc, char *argv[]) {
             usage();
             exit(0);
         }
+    }
+    if (printMeta) {
+        conf.print();
     }
     if (delCmpPath) {
         remove(cmpPath);

@@ -55,7 +55,6 @@ int main(int argc, char **argv) {
     }
 
     conf.blockSize = 128;
-    conf.stride = 128;
     conf.quantbinCnt = 1024;
     //    conf.enable_regression = false;
     //    conf.quant_state_num = 4096;

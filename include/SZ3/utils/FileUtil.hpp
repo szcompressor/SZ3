@@ -2,8 +2,8 @@
 // Created by Kai Zhao on 12/9/19.
 //
 
-#ifndef _SZ_FILE_UTIL
-#define _SZ_FILE_UTIL
+#ifndef SZ3_FILE_UTIL
+#define SZ3_FILE_UTIL
 
 #include <cassert>
 #include <fstream>
@@ -31,7 +31,6 @@ void readfile(const char *file, const size_t num, Type *data) {
     }
     fin.seekg(0, std::ios::end);
     if (fin.tellg() / sizeof(Type) != num) {
-        fprintf(stderr, "File size is not equal to the input setting\n");
         throw std::invalid_argument("File size is not equal to the input setting");
     }
     fin.seekg(0, std::ios::beg);

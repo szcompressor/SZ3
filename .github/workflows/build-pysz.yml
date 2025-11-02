@@ -1,0 +1,107 @@
+name: Build pysz
+
+on:
+  push:
+    tags:
+      - 'pysz-v*'  # Trigger on pysz tags like pysz-v1.0.2
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x86_64
+          - os: macos-13  # Intel
+            arch: x86_64
+          - os: macos-latest  # Apple Silicon
+            arch: arm64
+          - os: windows-latest
+            arch: AMD64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install cibuildwheel
+        run: pip install cibuildwheel
+
+      - name: Build wheels
+        run: python -m cibuildwheel --output-dir wheelhouse
+        working-directory: tools/pysz
+        env:
+          # Build for Python 3.8-3.13
+          CIBW_BUILD: cp38-* cp39-* cp310-* cp311-* cp312-* cp313-*
+          
+          # Use manylinux_2_28 (AlmaLinux 8) instead of manylinux2014 (CentOS 7)
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+          
+          # Skip 32-bit builds and musllinux
+          CIBW_SKIP: "*-win32 *-manylinux_i686 *-musllinux_*"
+          
+          # Build only for the current architecture
+          CIBW_ARCHS_LINUX: x86_64
+          CIBW_ARCHS_MACOS: ${{ matrix.arch }}
+          CIBW_ARCHS_WINDOWS: AMD64
+          
+          # Install system dependencies before building
+          CIBW_BEFORE_ALL_LINUX: yum install -y --nogpgcheck cmake git ninja-build
+          CIBW_BEFORE_ALL_MACOS: brew install cmake git ninja
+          
+          # Test the built wheels
+          CIBW_TEST_REQUIRES: pytest numpy
+          CIBW_TEST_COMMAND: "pytest {project}/tests -v"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}-${{ matrix.arch }}
+          path: tools/pysz/wheelhouse/*.whl
+
+  build_sdist:
+    name: Build source distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install build dependencies
+        run: pip install build
+
+      - name: Build sdist
+        run: python -m build --sdist
+        working-directory: tools/pysz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: tools/pysz/dist/*.tar.gz
+
+  upload_pypi:
+    name: Upload to PyPI
+    needs: [build_wheels, build_sdist]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/pysz-v')
+    
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: '*'
+          merge-multiple: true
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages-dir: dist/

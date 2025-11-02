@@ -1,5 +1,5 @@
-#ifndef _SZ_NO_PREDICTION_DECOMPOSITION_HPP
-#define _SZ_NO_PREDICTION_DECOMPOSITION_HPP
+#ifndef SZ3_NO_PREDICTION_DECOMPOSITION_HPP
+#define SZ3_NO_PREDICTION_DECOMPOSITION_HPP
 
 #include "Decomposition.hpp"
 #include "SZ3/def.hpp"
@@ -12,7 +12,7 @@ class NoPredictionDecomposition : public concepts::DecompositionInterface<T, int
    public:
     NoPredictionDecomposition(const Config &conf, Quantizer quantizer) : quantizer(quantizer) {
         static_assert(std::is_base_of<concepts::QuantizerInterface<T, int>, Quantizer>::value,
-                      "must implement the quatizer interface");
+                      "must implement the quantizer interface");
     }
 
     T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) override {

@@ -54,13 +54,14 @@ template <class T>
 size_t SZ_compress(const SZ3::Config &config, const T *data, char *cmpData, size_t cmpCap) {
     using namespace SZ3;
     Config conf(config);
-    
+
     if (cmpCap < SZ_compress_size_bound<T>(conf)) {
-        fprintf(stderr, "%s\n", SZ_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
-        throw std::invalid_argument(SZ_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
+        throw std::invalid_argument(SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
     }
-    
-    auto cmpDataPos = reinterpret_cast<uchar *>(cmpData) + conf.size_est();
+
+    auto confEstSize = conf.size_est();
+    auto cmpDataPos = reinterpret_cast<uchar *>(cmpData) + confEstSize;
+    memset(cmpData, 0, confEstSize);
     auto cmpDataCap = cmpCap - conf.size_est();
 
     size_t cmpDataLen = 0;
@@ -73,13 +74,16 @@ size_t SZ_compress(const SZ3::Config &config, const T *data, char *cmpData, size
     } else if (conf.N == 4) {
         cmpDataLen = SZ_compress_impl<T, 4>(conf, data, cmpDataPos, cmpDataCap);
     } else {
-        fprintf(stderr, "Data dimension higher than 4 is not supported.\n");
         throw std::invalid_argument("Data dimension higher than 4 is not supported.");
     }
 
     auto cmpConfPos = reinterpret_cast<uchar *>(cmpData);
-    conf.save(cmpConfPos);
-    return conf.size_est() + cmpDataLen;
+    auto confSize = conf.save(cmpConfPos);
+    if (confSize > confEstSize) {
+        throw std::length_error("buffer allocated for config is not large enough.");
+    }
+
+    return confSize + cmpDataLen;
 }
 
 /**
@@ -119,10 +123,22 @@ char *SZ_compress(const SZ3::Config &config, const T *data, size_t &cmpSize) {
 
  */
 template <class T>
-void SZ_decompress(SZ3::Config &config, char *cmpData, size_t cmpSize, T *&decData) {
+void SZ_decompress(SZ3::Config &config, const char *cmpData, size_t cmpSize, T *&decData) {
     using namespace SZ3;
     auto cmpConfPos = reinterpret_cast<const uchar *>(cmpData);
     config.load(cmpConfPos);
+    if (config.sz3MagicNumber != SZ3_MAGIC_NUMBER) {
+        throw std::invalid_argument("magic number mismatch, the input data is not compressed by SZ3");
+    }
+    if (versionStr(config.sz3DataVer) != SZ3_DATA_VER) {
+        std::stringstream ss;
+        printf("program v%s , program-data %s , input data v%s\n", SZ3_VER, SZ3_DATA_VER,
+               versionStr(config.sz3DataVer).data());
+        ss << "Please use SZ3 v" << versionStr(config.sz3DataVer) << " to decompress the data" << std::endl;
+        std::cerr << ss.str();
+        throw std::invalid_argument(ss.str());
+    }
+
 
     auto cmpDataPos = reinterpret_cast<const uchar *>(cmpData) + config.size_est();
     auto cmpDataSize = cmpSize - config.size_est();
@@ -139,7 +155,6 @@ void SZ_decompress(SZ3::Config &config, char *cmpData, size_t cmpSize, T *&decDa
     } else if (config.N == 4) {
         SZ_decompress_impl<T, 4>(config, cmpDataPos, cmpDataSize, decData);
     } else {
-        fprintf(stderr, "Data dimension higher than 4 is not supported.\n");
         throw std::invalid_argument("Data dimension higher than 4 is not supported.");
     }
 }
@@ -160,7 +175,7 @@ void SZ_decompress(SZ3::Config &config, char *cmpData, size_t cmpSize, T *&decDa
  float decompressedData = SZ_decompress(conf, cmpData, cmpSize)
  */
 template <class T>
-T *SZ_decompress(SZ3::Config &config, char *cmpData, size_t cmpSize) {
+T *SZ_decompress(SZ3::Config &config, const char *cmpData, size_t cmpSize) {
     using namespace SZ3;
     T *decData = nullptr;
     SZ_decompress<T>(config, cmpData, cmpSize, decData);

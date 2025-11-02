@@ -16,7 +16,7 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
     size_t cmpSize = 0;
 
     // if absErrorBound is 0, use lossless only mode
-    if (conf.absErrorBound == 0 ) {
+    if (conf.absErrorBound == 0) {
         conf.cmprAlgo = ALGO_LOSSLESS;
     }
 
@@ -38,14 +38,13 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
             } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
                 return SZ_compress_bioMDXtcBased<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
             } else {
-                fprintf(stderr, "Unknown compression algorithm\n");
                 throw std::invalid_argument("Unknown compression algorithm");
             }
 
         } catch (std::length_error &e) {
-            if (std::string(e.what()) == SZ_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH) {
+            if (std::string(e.what()) == SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH) {
                 isCmpCapSufficient = false;
-                printf("SZ is downgraded to lossless mode.\n");
+                printf("SZ is downgraded to lossless mode because the buffer for compressed data is not large enough.\n");
             } else {
                 throw;
             }
@@ -58,11 +57,11 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
         auto zstd = Lossless_zstd();
         return zstd.compress(reinterpret_cast<const uchar *>(data), conf.num * sizeof(T), cmpData, cmpCap);
     }
-    
+
     // if lossy compression ratio < 3, test if lossless only mode has a better ratio than lossy
     if (conf.num * sizeof(T) / 1.0 / cmpSize < 3) {
         auto zstd = Lossless_zstd();
-        auto zstdCmpCap = ZSTD_compressBound(conf.num * sizeof(T));
+        auto zstdCmpCap = ZSTD_compressBound(conf.num * sizeof(T)) + sizeof(size_t);
         auto zstdCmpData = static_cast<uchar *>(malloc(zstdCmpCap));
         size_t zstdCmpSize =
             zstd.compress(reinterpret_cast<const uchar *>(data), conf.num * sizeof(T), zstdCmpData, zstdCmpCap);
@@ -84,7 +83,6 @@ void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize
         auto decDataPos = reinterpret_cast<uchar *>(decData);
         zstd.decompress(cmpData, cmpSize, decDataPos, decDataSize);
         if (decDataSize != conf.num * sizeof(T)) {
-            fprintf(stderr, "Decompressed data size does not match the original data size\n");
             throw std::runtime_error("Decompressed data size does not match the original data size");
         }
     } else if (conf.cmprAlgo == ALGO_LORENZO_REG) {
@@ -98,7 +96,6 @@ void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize
     } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
         SZ_decompress_bioMDXtcBased<T, N>(conf, cmpData, cmpSize, decData);
     } else {
-        fprintf(stderr, "Unknown compression algorithm\n");
         throw std::invalid_argument("Unknown compression algorithm");
     }
 }

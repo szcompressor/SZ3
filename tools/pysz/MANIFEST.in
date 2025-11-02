@@ -1,0 +1,28 @@
+# Include README and LICENSE files
+include README.md
+include LICENSE
+
+# Include all Cython source files
+include src/pysz/*.pyx
+include src/pysz/*.pxd
+include src/pysz/*.py
+
+# Include tests
+include tests/*.py
+
+# Include build configuration
+include pyproject.toml
+include setup.py
+
+# Exclude build artifacts and cache
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude *.so
+global-exclude *.dylib
+global-exclude .DS_Store
+
+# Exclude Cython-generated files (will be regenerated during build)
+global-exclude *.c
+global-exclude *.cpp
+global-exclude *.html
+

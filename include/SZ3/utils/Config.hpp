@@ -1,19 +1,27 @@
-//
-// Created by Kai Zhao on 4/28/20.
-//
+/**
+ * @file Config.hpp
+ * @brief This file defines the configuration class and related utilities for SZ3.
+ *
+ * @note Do not delete any existing fields for backward compatibility.
+ *       These fields are critical for ensuring that serialized configurations
+ *       from older versions of SZ3 remain compatible with newer versions.
+ *       Removing or altering fields could break deserialization or cause
+ *       unexpected behavior in applications relying on SZ3.
+ */
 
-#ifndef SZ_Config_HPP
-#define SZ_Config_HPP
+#ifndef SZ3_Config_HPP
+#define SZ3_Config_HPP
 
 #include <cstdint>
+#include <fstream>
 #include <iostream>
+#include <map>
 #include <numeric>
 #include <vector>
 
 #include "SZ3/def.hpp"
 #include "SZ3/utils/ByteUtil.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
-#include "SZ3/utils/inih/INIReader.h"
 #include "SZ3/version.hpp"
 
 #define SZ_FLOAT 0
@@ -27,47 +35,127 @@
 #define SZ_UINT64 8
 #define SZ_INT64 9
 
+
 namespace SZ3 {
 
+/**
+ * @enum EB
+ * @brief Enumeration for error bound modes.
+ *
+ * - EB_ABS: Absolute error bound.
+ * - EB_REL: Relative error bound.
+ * - EB_PSNR: Peak Signal-to-Noise Ratio error bound.
+ * - EB_L2NORM: L2 norm error bound.
+ * - EB_ABS_AND_REL: Combined absolute and relative error bound.
+ * - EB_ABS_OR_REL: Either absolute or relative error bound.
+ */
 enum EB { EB_ABS, EB_REL, EB_PSNR, EB_L2NORM, EB_ABS_AND_REL, EB_ABS_OR_REL };
-constexpr const char *EB_STR[] = {"ABS", "REL", "PSNR", "NORM", "ABS_AND_REL", "ABS_OR_REL"};
-constexpr EB EB_OPTIONS[] = {EB_ABS, EB_REL, EB_PSNR, EB_L2NORM, EB_ABS_AND_REL, EB_ABS_OR_REL};
 
+/**
+ * @enum ALGO
+ * @brief Enumeration for compression algorithms.
+ *
+ * - ALGO_LORENZO_REG: SZ2 algorithm (Lorenzo with regression).
+ * - ALGO_INTERP_LORENZO: SZ3 algorithm (Interpolation with Lorenzo, with tuning).
+ * - ALGO_INTERP: Interpolation-only (without tuning).
+ * - ALGO_NOPRED: No prediction.
+ * - ALGO_LOSSLESS: Lossless compression.
+ */
 enum ALGO { ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP, ALGO_NOPRED, ALGO_LOSSLESS, ALGO_BIOMD, ALGO_BIOMDXTC };
-constexpr const char *ALGO_STR[] = {
-    "ALGO_LORENZO_REG", "ALGO_INTERP_LORENZO", "ALGO_INTERP",   "ALGO_NOPRED",
-    "ALGO_LOSSLESS",    "ALGO_BIOMD",          "ALGO_BIOMDXTC",
+
+/**
+ * @enum INTERP_ALGO
+ * @brief Enumeration for interpolation algorithms.
+ *
+ * - INTERP_ALGO_LINEAR: Linear interpolation.
+ * - INTERP_ALGO_CUBIC: Cubic interpolation.
+ */
+enum INTERP_ALGO { INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC };
+
+const std::map<std::string, ALGO> ALGO_MAP = {
+    {"ALGO_LORENZO_REG", ALGO_LORENZO_REG},
+    {"ALGO_INTERP_LORENZO", ALGO_INTERP_LORENZO},
+    {"ALGO_INTERP", ALGO_INTERP},
+    {"ALGO_NOPRED", ALGO_NOPRED},
+    {"ALGO_LOSSLESS", ALGO_LOSSLESS},
+    {"ALGO_BIOMD", ALGO_BIOMD},
+    {"ALGO_BIOMDXTC", ALGO_BIOMDXTC},
 };
 
-constexpr const ALGO ALGO_OPTIONS[] = {ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP,  ALGO_NOPRED,
-                                       ALGO_LOSSLESS,    ALGO_BIOMD,          ALGO_BIOMDXTC};
+const std::map<std::string, EB> EB_MAP = {
+    {"ABS", EB_ABS},
+    {"REL", EB_REL},
+    {"PSNR", EB_PSNR},
+    {"NORM", EB_L2NORM},
+    {"ABS_AND_REL", EB_ABS_AND_REL},
+    {"ABS_OR_REL", EB_ABS_OR_REL},
+};
 
-enum INTERP_ALGO { INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC };
-constexpr const char *INTERP_ALGO_STR[] = {"INTERP_ALGO_LINEAR", "INTERP_ALGO_CUBIC"};
-constexpr INTERP_ALGO INTERP_ALGO_OPTIONS[] = {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC};
+const std::map<std::string, INTERP_ALGO> INTERP_ALGO_MAP = {
+    {"INTERP_ALGO_LINEAR", INTERP_ALGO_LINEAR},
+    {"INTERP_ALGO_CUBIC", INTERP_ALGO_CUBIC},
+};
 
-template <class T>
-const char *enum2Str(T e) {
-    if (std::is_same<T, ALGO>::value) {
-        return ALGO_STR[e];
-    } else if (std::is_same<T, INTERP_ALGO>::value) {
-        return INTERP_ALGO_STR[e];
-    } else if (std::is_same<T, EB>::value) {
-        return EB_STR[e];
-    } else {
-        fprintf(stderr, "invalid enum type for enum2Str()\n ");
-        throw std::invalid_argument("invalid enum type for enum2Str()");
+ALWAYS_INLINE std::string to_lower(const std::string& s) {
+    std::string out = s;
+    std::transform(out.begin(), out.end(), out.begin(), ::tolower);
+    return out;
+}
+
+template <typename EnumType>
+ALWAYS_INLINE void match_enum(const std::string& input, const std::map<std::string, EnumType>& table, uint8_t& out) {
+    std::string input_lc = to_lower(input);
+    for (const auto& [key, val] : table) {
+        if (to_lower(key) == input_lc) {
+            out = static_cast<int>(val);
+        }
     }
 }
 
+template <typename EnumType>
+ALWAYS_INLINE std::string enum_to_string(EnumType value, const std::map<std::string, EnumType>& forward_map) {
+    for (const auto& [str, val] : forward_map) {
+        if (val == value) {
+            return str;
+        }
+    }
+    return "";
+}
+
+/**
+ * @class Config
+ * @brief Configuration class for SZ3.
+ *
+ * The Config class stores various parameters and settings used by SZ3, such as:
+ * - Dimensions of the data.
+ * - Compression algorithm and error bound settings.
+ * - Module-specific parameters like interpolation settings.
+ *
+ * It provides methods to load/save configurations from/to INI files, serialize/deserialize configurations,
+ * and estimate the size of the configuration.
+ */
 class Config {
-   public:
+public:
+    /**
+     * @brief Constructor to initialize the configuration with dimensions.
+     *
+     * @tparam Dims Variadic template for dimension arguments.
+     * @param args Dimensions of the data.
+     */
     template <class... Dims>
     Config(Dims... args) {
         dims = std::vector<size_t>{static_cast<size_t>(std::forward<Dims>(args))...};
         setDims(dims.begin(), dims.end());
     }
 
+    /**
+     * @brief Set the dimensions of the data.
+     *
+     * @tparam Iter Iterator type for the dimension range.
+     * @param begin Iterator to the beginning of the dimensions.
+     * @param end Iterator to the end of the dimensions.
+     * @return Total number of elements in the data.
+     */
     template <class Iter>
     size_t setDims(Iter begin, Iter end) {
         auto dims_ = std::vector<size_t>(begin, end);
@@ -82,84 +170,148 @@ class Config {
         }
         N = dims.size();
         num = std::accumulate(dims.begin(), dims.end(), static_cast<size_t>(1), std::multiplies<size_t>());
-        pred_dim = N;
+        predDim = N;
         blockSize = (N == 1 ? 128 : (N == 2 ? 16 : 6));
-        stride = blockSize;
         return num;
     }
 
-    void loadcfg(const std::string &cfgpath) {
-        INIReader cfg(cfgpath);
-
-        if (cfg.ParseError() != 0) {
-            std::cerr << "Can't load cfg file " << cfgpath << std::endl;
-            throw std::invalid_argument("Can't load cfg file");
+    /**
+     * @brief Load configuration from an INI file.
+     *
+     * @param ini_file_path Path to the INI file.
+     * @throws std::runtime_error If the file cannot be opened.
+     */
+    void loadcfg(const std::string& ini_file_path) {
+        std::ifstream file(ini_file_path);
+        if (!file.is_open()) {
+            throw std::runtime_error("Failed to open INI file: " + ini_file_path);
         }
-
-        auto cmprAlgoStr = cfg.Get("GlobalSettings", "CmprAlgo", "");
-        if (!cmprAlgoStr.empty()) {
-            if (cmprAlgoStr == ALGO_STR[ALGO_LORENZO_REG]) {
-                cmprAlgo = ALGO_LORENZO_REG;
-            } else if (cmprAlgoStr == ALGO_STR[ALGO_INTERP_LORENZO]) {
-                cmprAlgo = ALGO_INTERP_LORENZO;
-            } else if (cmprAlgoStr == ALGO_STR[ALGO_INTERP]) {
-                cmprAlgo = ALGO_INTERP;
-            } else if (cmprAlgoStr == ALGO_STR[ALGO_NOPRED]) {
-                cmprAlgo = ALGO_NOPRED;
-            } else if (cmprAlgoStr == ALGO_STR[ALGO_LOSSLESS]) {
-                cmprAlgo = ALGO_LOSSLESS;
-            } else if (cmprAlgoStr == ALGO_STR[ALGO_BIOMD]) {
-                cmprAlgo = ALGO_BIOMD;
-            } else if (cmprAlgoStr == ALGO_STR[ALGO_BIOMDXTC]) {
-                cmprAlgo = ALGO_BIOMDXTC;
-            } else {
-                fprintf(stderr, "Unknown compression algorithm %s\n", cmprAlgoStr.data());
-                throw std::invalid_argument("Unknown compression algorithm");
-            }
-        }
-        auto ebModeStr = cfg.Get("GlobalSettings", "ErrorBoundMode", "");
-        if (!ebModeStr.empty()) {
-            if (ebModeStr == EB_STR[EB_ABS]) {
-                errorBoundMode = EB_ABS;
-            } else if (ebModeStr == EB_STR[EB_REL]) {
-                errorBoundMode = EB_REL;
-            } else if (ebModeStr == EB_STR[EB_PSNR]) {
-                errorBoundMode = EB_PSNR;
-            } else if (ebModeStr == EB_STR[EB_L2NORM]) {
-                errorBoundMode = EB_L2NORM;
-            } else if (ebModeStr == EB_STR[EB_ABS_AND_REL]) {
-                errorBoundMode = EB_ABS_AND_REL;
-            } else if (ebModeStr == EB_STR[EB_ABS_OR_REL]) {
-                errorBoundMode = EB_ABS_OR_REL;
-            } else {
-                fprintf(stderr, "Unknown error bound mode %s\n", ebModeStr.data());
-                throw std::invalid_argument("Unknown error bound mode");
-            }
-        }
-        absErrorBound = cfg.GetReal("GlobalSettings", "AbsErrorBound", absErrorBound);
-        relErrorBound = cfg.GetReal("GlobalSettings", "RelErrorBound", relErrorBound);
-        psnrErrorBound = cfg.GetReal("GlobalSettings", "PSNRErrorBound", psnrErrorBound);
-        l2normErrorBound = cfg.GetReal("GlobalSettings", "L2NormErrorBound", l2normErrorBound);
-
-        openmp = cfg.GetBoolean("GlobalSettings", "OpenMP", openmp);
-        lorenzo = cfg.GetBoolean("AlgoSettings", "Lorenzo", lorenzo);
-        lorenzo2 = cfg.GetBoolean("AlgoSettings", "Lorenzo2ndOrder", lorenzo2);
-        regression = cfg.GetBoolean("AlgoSettings", "Regression", regression);
-        regression2 = cfg.GetBoolean("AlgoSettings", "Regression2ndOrder", regression2);
-
-        auto interpAlgoStr = cfg.Get("AlgoSettings", "InterpolationAlgo", "");
-        if (interpAlgoStr == INTERP_ALGO_STR[INTERP_ALGO_LINEAR]) {
-            interpAlgo = INTERP_ALGO_LINEAR;
-        } else if (interpAlgoStr == INTERP_ALGO_STR[INTERP_ALGO_CUBIC]) {
-            interpAlgo = INTERP_ALGO_CUBIC;
-        }
-        interpDirection = cfg.GetInteger("AlgoSettings", "InterpolationDirection", interpDirection);
-        blockSize = cfg.GetInteger("AlgoSettings", "BlockSize", blockSize);
-        quantbinCnt = cfg.GetInteger("AlgoSettings", "QuantizationBinTotal", quantbinCnt);
+        std::ostringstream buffer;
+        buffer << file.rdbuf();
+        load_ini(buffer.str());
     }
 
-    size_t save(unsigned char *&c) {
+    /**
+     * @brief Load configuration from an INI content string.
+     *
+     * @param ini_content Content of the INI file as a string.
+     */
+    void load_ini(const std::string& ini_content) {
+        std::istringstream ss(ini_content);
+        std::string line, section;
+
+        auto trim = [](std::string& s) {
+            s.erase(0, s.find_first_not_of(" \t\r\n"));
+            s.erase(s.find_last_not_of(" \t\r\n") + 1);
+        };
+
+        auto eq = [&](const std::string& a, const std::string& b) { return to_lower(a) == to_lower(b); };
+
+        auto parse_bool = [&](const std::string& s) {
+            auto ls = to_lower(s);
+            return ls == "true" || ls == "1" || ls == "yes" || ls == "on";
+        };
+
+        while (std::getline(ss, line)) {
+            trim(line);
+            if (line.empty() || line[0] == '#') continue;
+            if (line.front() == '[') {
+                section = line.substr(1, line.find(']') - 1);
+                continue;
+            }
+
+            auto sep = line.find('=');
+            if (sep == std::string::npos) continue;
+
+            std::string key = line.substr(0, sep);
+            std::string value = line.substr(sep + 1);
+            trim(key);
+            trim(value);
+
+            if (eq(section, "GlobalSettings")) {
+                if (eq(key, "CmprAlgo"))
+                    match_enum(value, ALGO_MAP, cmprAlgo);
+                else if (eq(key, "ErrorBoundMode"))
+                    match_enum(value, EB_MAP, errorBoundMode);
+                else if (eq(key, "AbsErrorBound"))
+                    absErrorBound = std::stod(value);
+                else if (eq(key, "RelErrorBound"))
+                    relErrorBound = std::stod(value);
+                else if (eq(key, "PSNRErrorBound"))
+                    psnrErrorBound = std::stod(value);
+                else if (eq(key, "L2NormErrorBound"))
+                    l2normErrorBound = std::stod(value);
+                else if (eq(key, "OpenMP"))
+                    openmp = parse_bool(value);
+            } else if (eq(section, "AlgoSettings")) {
+                if (eq(key, "Lorenzo"))
+                    lorenzo = parse_bool(value);
+                else if (eq(key, "Lorenzo2ndOrder"))
+                    lorenzo2 = parse_bool(value);
+                else if (eq(key, "Regression"))
+                    regression = parse_bool(value);
+                else if (eq(key, "Regression2ndOrder"))
+                    regression2 = parse_bool(value);
+                else if (eq(key, "InterpolationAlgo"))
+                    match_enum(value, INTERP_ALGO_MAP, interpAlgo);
+                else if (eq(key, "InterpolationDirection"))
+                    interpDirection = std::stoi(value);
+                else if (eq(key, "BlockSize"))
+                    blockSize = std::stoi(value);
+                else if (eq(key, "QuantizationBinTotal"))
+                    quantbinCnt = std::stoi(value);
+                else if (eq(key, "InterpolationAnchorStride"))
+                    interpAnchorStride = std::stoi(value);
+                else if (eq(key, "InterpolationAlpha"))
+                    interpAlpha = std::stod(value);
+                else if (eq(key, "InterpolationBeta"))
+                    interpBeta = std::stod(value);
+            }
+        }
+    }
+
+    /**
+     * @brief Save the current configuration to an INI format string.
+     *
+     * @return INI format string representing the current configuration.
+     */
+    std::string save_ini() const {
+        std::ostringstream ss;
+
+        ss << "[GlobalSettings]\n";
+        ss << "CmprAlgo = " << enum_to_string(static_cast<ALGO>(cmprAlgo), ALGO_MAP) << "\n";
+        ss << "ErrorBoundMode = " << enum_to_string(static_cast<EB>(errorBoundMode), EB_MAP) << "\n";
+        ss << "AbsErrorBound = " << absErrorBound << "\n";
+        ss << "RelErrorBound = " << relErrorBound << "\n";
+        ss << "PSNRErrorBound = " << psnrErrorBound << "\n";
+        ss << "L2NormErrorBound = " << l2normErrorBound << "\n";
+        ss << "OpenMP = " << (openmp ? "true" : "false") << "\n";
+
+        ss << "\n[AlgoSettings]\n";
+        ss << "Lorenzo = " << (lorenzo ? "true" : "false") << "\n";
+        ss << "Lorenzo2ndOrder = " << (lorenzo2 ? "true" : "false") << "\n";
+        ss << "Regression = " << (regression ? "true" : "false") << "\n";
+        ss << "Regression2ndOrder = " << (regression2 ? "true" : "false") << "\n";
+        ss << "BlockSize = " << blockSize << "\n";
+        ss << "QuantizationBinTotal = " << quantbinCnt << "\n";
+        ss << "InterpolationAlgo = " << enum_to_string(static_cast<INTERP_ALGO>(interpAlgo), INTERP_ALGO_MAP) << "\n";
+        ss << "InterpolationDirection = " << static_cast<int>(interpDirection) << "\n";
+        ss << "InterpolationAnchorStride = " << interpAnchorStride << "\n";
+        ss << "InterpolationAlpha = " << interpAlpha << "\n";
+        ss << "InterpolationBeta = " << interpBeta << "\n";
+        return ss.str();
+    }
+
+    /**
+     * @brief Serialize the configuration to a byte array.
+     *
+     * @param c Pointer to the byte array.
+     * @return Size of the serialized configuration.
+     */
+    size_t save(unsigned char*& c) const {
         auto c0 = c;
+        c += sizeof(uchar); //reserve space for conf size
+
         write(sz3MagicNumber, c);
         write(sz3DataVer, c);
         write(N, c);
@@ -193,39 +345,28 @@ class Config {
         write(boolvals, c);
 
         write(dataType, c);
-        write(lossless, c);
-        write(encoder, c);
-        write(interpAlgo, c);
-        write(interpDirection, c);
-
         write(quantbinCnt, c);
         write(blockSize, c);
-        write(stride, c);
-        write(pred_dim, c);
+        write(predDim, c);
 
-        // printf("%lu\n", c - c0);
-        return c - c0;
+        auto confSize = static_cast<uchar>(c - c0);
+        write(confSize, c0); //write conf size at reserved space
+        return confSize;
     }
 
-    void load(const unsigned char *&c) {
-        // auto c0 = c;
+    /**
+     * @brief Deserialize the configuration from a byte array.
+     *
+     * @param c Pointer to the byte array.
+     */
+    void load(const unsigned char*& c) {
+        uchar confSize = 0;
+        read(confSize, c);
+        auto c1 = c + confSize;
         read(sz3MagicNumber, c);
-        if (sz3MagicNumber != SZ3_MAGIC_NUMBER) {
-            fprintf(stderr, "magic number mismatch, the input data is not compressed by SZ3\n");
-            throw std::invalid_argument("magic number mismatch, the input data is not compressed by SZ3");
-        }
         read(sz3DataVer, c);
-        if (versionStr(sz3DataVer) != SZ3_DATA_VER) {
-            std::stringstream ss;
-            printf("program v%s , program-data %s , input data v%s\n", SZ3_VER, SZ3_DATA_VER,
-                   versionStr(sz3DataVer).data());
-            ss << "Please use SZ3 v" << versionStr(sz3DataVer) << " to decompress the data" << std::endl;
-            std::cerr<< ss.str();
-            throw std::invalid_argument(ss.str());
-        }
 
         read(N, c);
-
         uint8_t bitWidth;
         read(bitWidth, c);
         dims = bytes2vector<size_t>(c, bitWidth, N);
@@ -251,70 +392,53 @@ class Config {
             read(relErrorBound, c);
         }
 
-        uint8_t boolvals;
-        read(boolvals, c);
-        lorenzo = (boolvals >> 7) & 1;
-        lorenzo2 = (boolvals >> 6) & 1;
-        regression = (boolvals >> 5) & 1;
-        regression2 = (boolvals >> 4) & 1;
-        openmp = (boolvals >> 3) & 1;
-
-        read(dataType, c);
-        read(lossless, c);
-        read(encoder, c);
-        read(interpAlgo, c);
-        read(interpDirection, c);
-
-        read(quantbinCnt, c);
-        read(blockSize, c);
-        read(stride, c);
-        read(pred_dim, c);
-
-        // print();
-        // printf("%d\n", c - c0);
-        // if (c - c0 > size_est()) {
-        //     throw std::invalid_argument("Config loaded size is larger than estimated size");
-        // } else {
-        //     // for padding
-        //     c = c0 + size_est();
-        // }
-    }
-
-    void print() {
-        printf("===================== Begin SZ3 Configuration =====================\n");
-        // printf("sz3MagicNumber = %u\n", sz3MagicNumber);
-        printf("sz3DataVer = %s\n", versionStr(sz3DataVer).data());
-        printf("N = %d\n", N);
-        printf("dims = ");
-        for (auto dim : dims) {
-            printf("%zu ", dim);
+        if (c < c1) {
+            uint8_t boolvals;
+            read(boolvals, c);
+            lorenzo = (boolvals >> 7) & 1;
+            lorenzo2 = (boolvals >> 6) & 1;
+            regression = (boolvals >> 5) & 1;
+            regression2 = (boolvals >> 4) & 1;
+            openmp = (boolvals >> 3) & 1;
         }
-        printf("\nnum = %zu\n", num);
-        printf("CmprAlgo = %s\n", enum2Str(static_cast<ALGO>(cmprAlgo)));
-        printf("ErrorBoundMode = %s\n", enum2Str(static_cast<EB>(errorBoundMode)));
-        printf("AbsErrorBound = %f\n", absErrorBound);
-        printf("RelErrorBound = %f\n", relErrorBound);
-        printf("PSNRErrorBound = %f\n", psnrErrorBound);
-        printf("L2NormErrorBound = %f\n", l2normErrorBound);
-        printf("Lorenzo = %d\n", lorenzo);
-        printf("Lorenzo2ndOrder = %d\n", lorenzo2);
-        printf("Regression = %d\n", regression);
-        printf("Regression2ndOrder = %d\n", regression2);
-        printf("OpenMP = %d\n", openmp);
-        printf("DataType = %d\n", dataType);
-        printf("Lossless = %d\n", lossless);
-        printf("Encoder = %d\n", encoder);
-        printf("InterpolationAlgo = %s\n", enum2Str(static_cast<INTERP_ALGO>(interpAlgo)));
-        printf("InterpolationDirection = %d\n", interpDirection);
-        printf("QuantizationBinTotal = %d\n", quantbinCnt);
-        printf("BlockSize = %d\n", blockSize);
-        printf("Stride = %d\n", stride);
-        printf("PredDim = %d\n", pred_dim);
-        printf("===================== End SZ3 Configuration =====================\n");
+        if (c < c1) {
+            read(dataType, c);
+        }
+        if (c < c1) {
+            read(quantbinCnt, c);
+        }
+        if (c < c1) {
+            read(blockSize, c);
+        }
+        if (c < c1) {
+            read(predDim, c);
+        }
     }
 
-    static size_t size_est() {
-        return sizeof(Config) + sizeof(size_t) * 5;  // sizeof(size_t) * 5 is for dims vector
+    /**
+     * @brief Print the current configuration to the console.
+     */
+    void print() {
+        // printf("===================== Begin SZ3 Configuration =====================\n");
+        printf("\nsz3MagicNumber = %u\n", sz3MagicNumber);
+        printf("sz3DataVer = %s\n", versionStr(sz3DataVer).data());
+        std::cout << "Dimensions =";
+        for (auto d : dims) {
+            std::cout << " " << d;
+        }
+        std::cout << "\n";
+        std::cout << save_ini();
+    }
+
+    /**
+     * @brief Estimate the size of the serialized configuration.
+     *
+     * @return Estimated size in bytes.
+     */
+    size_t size_est() const {
+        std::vector<uchar> buffer(sizeof(Config) + 1024);
+        auto buffer_pos = buffer.data();
+        return save(buffer_pos);
     }
 
     uint32_t sz3MagicNumber = SZ3_MAGIC_NUMBER;
@@ -333,17 +457,23 @@ class Config {
     bool regression = true;
     bool regression2 = false;
     bool openmp = false;
-    uint8_t dataType = SZ_FLOAT;  // dataType is only used in HDF5 filter
-    uint8_t lossless = 1;         // 0-> skip lossless(use lossless_bypass); 1-> zstd
-    uint8_t encoder = 1;          // 0-> skip encoder; 1->HuffmanEncoder; 2->ArithmeticEncoder
-    uint8_t interpAlgo = INTERP_ALGO_CUBIC;
-    uint8_t interpDirection = 0;
     int quantbinCnt = 65536;
     int blockSize = 0;
-    int stride = 0;        // not used now
-    uint8_t pred_dim = 0;  // not used now
+    uint8_t predDim = 0;         // not used now
+    uint8_t dataType = SZ_FLOAT; // dataType is only used in HDF5 filter
+
+    /**
+     * The following parameters are only used by specific modules.
+     * They are saved and loaded in their module implementation, not in Config.
+     */
+    uint8_t interpAlgo = INTERP_ALGO_CUBIC;
+    uint8_t interpDirection = 0;
+    int interpAnchorStride = -1; // -1: using dynamic default setting
+    double interpAlpha = 1.25;   // level-wise eb reduction rate
+    double interpBeta = 2.0;     // maximum eb reduction rate
 };
 
-}  // namespace SZ3
+} // namespace SZ3
 
 #endif  // SZ_CONFIG_HPP
+

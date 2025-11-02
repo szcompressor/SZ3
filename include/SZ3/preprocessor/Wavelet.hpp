@@ -1,7 +1,7 @@
 #ifndef SZ3_WAVELET_HPP
 #define SZ3_WAVELET_HPP
 
-#ifdef ENABLE_GSL
+#ifdef SZ3_ENABLE_GSL
 
 #include "SZ3/preprocessor/PreProcessor.hpp"
 #include <gsl/gsl_wavelet.h>
@@ -34,7 +34,6 @@ namespace SZ3 {
             int status = gsl_wavelet_transform_forward(w, dwtdata.data(), 1, m, work);
 
             if (status != GSL_SUCCESS) {
-                fprintf(stderr, "Error: wavelets transform failed.\n");
                 throw std::runtime_error("Error: wavelets transform failed.");
             }
 
@@ -70,7 +69,6 @@ namespace SZ3 {
             int status = gsl_wavelet_transform_inverse(w, dwtdata.data(), 1, m, work);
 
             if (status != GSL_SUCCESS) {
-                fprintf(stderr, "Error: wavelets transform failed.\n");
                 throw std::runtime_error("Error: wavelets transform failed.");
             }
 
