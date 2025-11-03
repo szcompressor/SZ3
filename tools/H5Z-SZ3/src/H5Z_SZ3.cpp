@@ -72,7 +72,7 @@ herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config& conf) {
 }
 
 static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_id) {
-    printf("start H5Z_sz3_set_local\n");
+    // printf("start H5Z_sz3_set_local\n");
 
     // printf("start in H5Z_sz3_set_local, dcpl_id = %d\n", dcpl_id);
     static char const* _funcname_ = "H5Z_sz3_set_local";
@@ -178,7 +178,7 @@ void process_data(SZ3::Config& conf, void** buf, size_t* buf_size, size_t nbytes
  */
 static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[], size_t nbytes,
                              size_t* buf_size, void** buf) {
-    printf("start H5Z_filter_sz3\n");
+    // printf("start H5Z_filter_sz3\n");
 
     if (cd_nelmts == 0) // this is special data such as string, which should not be treated as values.
         return nbytes;
