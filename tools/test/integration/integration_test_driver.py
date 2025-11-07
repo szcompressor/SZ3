@@ -96,6 +96,13 @@ def main():
         print(f"Error: Invalid JSON in '{datasets_json}': {e}")
         sys.exit(1)
 
+    if len(sys.argv) > 2:
+        selected_dataset = sys.argv[2]
+        if selected_dataset not in datasets:
+            print(f"Dataset {selected_dataset} not found in {datasets_json}")
+            sys.exit(1)
+        datasets = {selected_dataset: datasets[selected_dataset]}
+
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_source_dir = os.path.abspath(os.path.join(script_dir, "..", "..", ".."))
 

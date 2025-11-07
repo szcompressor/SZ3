@@ -8,6 +8,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dataset: [hurricane, miranda, cesm-atm, scale-letkf, hacc]
+    name: Test ${{ matrix.dataset }}
 
     steps:
 
@@ -59,4 +63,4 @@ jobs:
 
     - name: Run integration test
       run: |
-        python tools/test/integration/integration_test_driver.py tools/test/integration/datasets.json
+        python tools/test/integration/integration_test_driver.py tools/test/integration/datasets.json ${{ matrix.dataset }}
