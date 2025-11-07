@@ -15,6 +15,24 @@ def get_tmpdir():
         return '/var/tmp/'
     return tempfile.gettempdir()
 
+def run_test(cmd, description):
+    print('\n\n', "="*80)
+    print(description)
+    print("command:", " ".join(cmd))
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    print(result.stdout)
+    
+    if result.stderr:
+        print("STDERR:", result.stderr)
+    if result.returncode == 0:
+        print("PASS")
+        print("="*80)
+        return True
+    else:
+        print("FAIL")
+        print("="*80)
+        return False
+
 def prepare_dataset(path, dataset_dir):
     """
     Prepares the dataset: if path is URL, download and extract; if local dir, copy it
@@ -119,31 +137,12 @@ def main():
                         continue
 
                     # Call H5 test
-                    print("="*80)
-                    print(f"Testing HDF5 {algo} {eb} on {dataset_name}/{field}")
                     cmd = [sys.executable, os.path.join(script_dir, "test_h5_filter.py"), h5_plugin_path, algo, str(eb), data_file, dtype] + [str(d) for d in dims]
-                    print("command:", " ".join(cmd))
-                    try:
-                        subprocess.run(cmd, check=True)
-                        print("PASS")
-                        results.append(True)
-                    except subprocess.CalledProcessError:
-                        print("FAIL")
-                        results.append(False)
-                    print("="*80)
+                    results.append(run_test(cmd, f"Testing HDF5 {algo} {eb} on {dataset_name}/{field}"))
 
                     # Call SZ3 test
-                    print("="*80)
-                    print(f"Testing SZ3 {algo} {eb} on {dataset_name}/{field}")
                     cmd = [sys.executable, os.path.join(script_dir, "test_sz3_executable.py"), sz3_executable_path, algo, str(eb), data_file, dtype] + [str(d) for d in dims]
-                    try:
-                        subprocess.run(cmd, check=True)
-                        print("PASS")
-                        results.append(True)
-                    except subprocess.CalledProcessError:
-                        print("FAIL")
-                        results.append(False)
-                    print("="*80)
+                    results.append(run_test(cmd, f"Testing SZ3 EXE {algo} {eb} on {dataset_name}/{field}"))
         
         if os.getenv('GITHUB_ACTIONS') == 'true':
             shutil.rmtree(dataset_dir)

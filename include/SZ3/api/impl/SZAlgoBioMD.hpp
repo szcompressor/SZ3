@@ -8,6 +8,7 @@
 #include "SZ3/lossless/Lossless_bypass.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
 #include "SZ3/encoder/HuffmanEncoderV2.hpp"
+#include "SZ3/encoder/HuffmanEncoder.hpp"
 #include "SZ3/quantizer/LinearQuantizer.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/Statistic.hpp"
@@ -21,7 +22,7 @@ size_t SZ_compress_bioMD(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
     calAbsErrorBound(conf, data);
 
     auto quantizer = LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2);
-    auto sz = make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf, quantizer), HuffmanEncoderV2<int>(),
+    auto sz = make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf, quantizer), HuffmanEncoder<int>(),
                                                Lossless_zstd());
     return sz->compress(conf, data, cmpData, cmpCap);
 }
@@ -31,7 +32,7 @@ void SZ_decompress_bioMD(const Config &conf, const uchar *cmpData, size_t cmpSiz
     assert(conf.cmprAlgo == ALGO_BIOMD);
 
     LinearQuantizer<T> quantizer;
-    auto sz = make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf, quantizer), HuffmanEncoderV2<int>(),
+    auto sz = make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf, quantizer), HuffmanEncoder<int>(),
                                                Lossless_zstd());
     sz->decompress(conf, cmpData, cmpSize, decData);
 }
