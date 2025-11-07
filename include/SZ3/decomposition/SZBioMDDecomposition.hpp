@@ -165,7 +165,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         std::vector<int> quant_bins(conf.num);
         auto dims = conf.dims;
         site = cal_site(data, conf.dims);
-        printf("# of site in the MD simulation guessed by SZ3 = %d\n", site);
+        // printf("# of site in the MD simulation guessed by SZ3 = %d\n", site);
 
         firstFillFrame_ = dims[0];
         fillValue_ = 0;
@@ -230,7 +230,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         auto dims = conf.dims;
         std::vector<size_t> stride({dims[1] * dims[2], dims[2], 1});
         site = cal_site(data + stride[0], conf.dims);
-        printf("# of site in the MD simulation guessed by SZ3 = %d\n", site);
+        // printf("# of site in the MD simulation guessed by SZ3 = %d\n", site);
 
         /* Find out if the last frames are all filled with the same value. */
         std::tuple<size_t, T> fillValueSettings = findFillValueAndFirstFilledFrame(data, dims);

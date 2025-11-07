@@ -1,0 +1,29 @@
+name: Integration Test
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python 3
+      uses: actions/setup-python@v3
+      with:
+        python-version: 3.12
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libhdf5-dev hdf5-tools
+        python -m pip install --upgrade pip
+        pip install numpy h5py requests --no-binary h5py
+
+    - name: Run integration test
+      run: |
+        python tools/test/integration/integration_test_driver.py tools/test/integration/datasets.json

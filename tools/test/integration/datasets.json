@@ -1,0 +1,71 @@
+{
+  "hurricane": {
+    "path": "https://g-8d6b0.fd635.8443.data.globus.org/ds131.2/Data-Reduction-Repo/raw-data/Hurricane-ISABEL/SDRBENCH-Hurricane-ISABEL-100x500x500.tar.gz",
+    "fields": {
+      "QCLOUDf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
+      "Wf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
+      "QRAINf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
+      "QGRAUPf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
+      "QCLOUDf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
+      "QSNOWf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
+      "Uf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
+      "TCf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
+      "Pf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
+      "QVAPORf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
+      "Vf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
+      "QICEf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
+      "CLOUDf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
+      "PRECIPf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"}
+    }
+  },
+  "miranda": {
+    "path": "https://g-8d6b0.fd635.8443.data.globus.org/ds131.2/Data-Reduction-Repo/raw-data/Miranda/SDRBENCH-Miranda-256x384x384.tar.gz",
+    "fields": {
+      "velocityx.d64": {"dims": [256,384,384], "dtype": "float64"},
+      "velocityy.d64": {"dims": [256,384,384], "dtype": "float64"},
+      "diffusivity.d64": {"dims": [256,384,384], "dtype": "float64"},
+      "pressure.d64": {"dims": [256,384,384], "dtype": "float64"},
+      "velocityz.d64": {"dims": [256,384,384], "dtype": "float64"},
+      "viscocity.d64": {"dims": [256,384,384], "dtype": "float64"},
+      "density.d64": {"dims": [256,384,384], "dtype": "float64"}
+    }
+  },
+  "cesm-atm": {
+    "path": "https://g-8d6b0.fd635.8443.data.globus.org/ds131.2/Data-Reduction-Repo/raw-data/CESM-ATM/SDRBENCH-CESM-ATM-1800x3600.tar.gz",
+    "fields": {
+      "CLDMED_1_1800_3600.f32": {"dims": [26,1800,3600], "dtype": "float32"},
+      "ODV_bcar1_1_1800_3600.f32": {"dims": [26,1800,3600], "dtype": "float32"},
+      "SNOWHICE_1_1800_3600.f32": {"dims": [26,1800,3600], "dtype": "float32"},
+      "QREFHT_1_1800_3600.f32": {"dims": [26,1800,3600], "dtype": "float32"},
+      "FLNS_1_1800_3600.f32": {"dims": [26,1800,3600], "dtype": "float32"}
+    }
+  },
+  "scale-letkf": {
+    "path": "https://g-8d6b0.fd635.8443.data.globus.org/ds131.2/Data-Reduction-Repo/raw-data/SCALE_LETKF/SDRBENCH-SCALE-98x1200x1200.tar.gz",
+    "fields": {
+      "T-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
+      "PRES-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
+      "U-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
+      "V-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
+      "QC-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
+      "QS-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
+      "QG-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
+      "QV-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
+      "W-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
+      "QI-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
+      "RH-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
+      "QR-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"}
+    }
+  },
+  "hacc": {
+    "path": "https://g-8d6b0.fd635.8443.data.globus.org/ds131.2/Data-Reduction-Repo/raw-data/EXASKY/HACC/EXASKY-HACC-data-medium-size.tar.gz",
+    "fields": {
+      "vz.f32": {"dims": [280953867], "dtype": "float32"},
+      "vx.f32": {"dims": [280953867], "dtype": "float32"},
+      "vy.f32": {"dims": [280953867], "dtype": "float32"},
+      "zz.f32": {"dims": [280953867], "dtype": "float32"},
+      "xx.f32": {"dims": [280953867], "dtype": "float32"},
+      "yy.f32": {"dims": [280953867], "dtype": "float32"}
+    }
+  }
+}
