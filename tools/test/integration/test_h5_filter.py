@@ -9,7 +9,6 @@ from cdvalueHelper import SZ3
 
 if len(sys.argv) > 1:
     os.environ["HDF5_PLUGIN_PATH"] = sys.argv[1]
-
 import h5py
 
 if not h5py.h5z.filter_avail(32024):
@@ -114,16 +113,6 @@ def compare_hdf5(original_h5, decompressed_h5, dataset_name='test'):
         print(f"Error comparing HDF5 files: {e}")
         sys.exit(1)
 
-def get_chunks(chunk_size, shape):
-    """
-    Returns the chunks tuple and string representation for a given chunk_size and shape.
-    """
-    if chunk_size is None:
-        return None, "unlimited"
-    else:
-        chunks = (min(chunk_size, shape[0]),) + shape[1:]
-        return chunks, str(chunk_size)
-
 def parse_shape(args):
     """
     Parses shape dimensions from command-line arguments.
@@ -157,8 +146,10 @@ def main():
     dtype = sys.argv[5]
     shape_args = sys.argv[6:]
 
-    h5_dataset_name = 'test'
+    h5_dataset_name = 'testdata_compressed'
     output_dir = tempfile.mkdtemp(prefix='output_hdf5_')
+    # output_dir='/var/tmp/output_hdf5_'
+    # os.makedirs(output_dir, exist_ok=True)
 
     shape = parse_shape(shape_args)
 
@@ -171,20 +162,20 @@ def main():
 
     compression, compression_opts = get_compression_args(cmpr_algo, bound)
 
-    # Determine if chunking is beneficial
-    should_chunk = len(shape) > 1 and shape[0] >= 10 and np.prod(shape[1:]) >= 10000
-    chunk_sizes = [None] + ([10, 100] if should_chunk else [])
 
     all_pass = True
-    for chunk_size in chunk_sizes:
-        chunks, chunk_str = get_chunks(chunk_size, shape)
+    for chunk in [False, True]:
+        print(f"Testing {raw_file} with algo = {cmpr_algo} AbsErrorBound = {bound} Chunk = {chunk}")
 
-        print(f"Testing {raw_file} with algo = {cmpr_algo} AbsErrorBound = {bound} ChunkSize = { chunk_str}")
+        compressed_h5 = os.path.join(output_dir, f"{base_name}_compressed_{chunk}.h5")
+        decompressed_h5 = os.path.join(output_dir, f"{base_name}_decompressed_{chunk}.h5")
 
-        compressed_h5 = os.path.join(output_dir, f"{base_name}_compressed_{chunk_str}.h5")
-        decompressed_h5 = os.path.join(output_dir, f"{base_name}_decompressed_{chunk_str}.h5")
-
-        write_hdf5(data, compressed_h5, h5_dataset_name, compression=compression, compression_opts=compression_opts, chunks=chunks)
+        if chunk:
+            # hd5py will automatically determine chunk sizes if chunks is not set
+            write_hdf5(data, compressed_h5, h5_dataset_name, compression=compression, compression_opts=compression_opts)
+        else:
+            write_hdf5(data, compressed_h5, h5_dataset_name, compression=compression, compression_opts=compression_opts, chunks=shape)
+        
 
         with h5py.File(compressed_h5, 'r') as f_in, h5py.File(decompressed_h5, 'w') as f_out:
             f_out.create_dataset(h5_dataset_name, data=f_in[h5_dataset_name][:])
@@ -196,7 +187,7 @@ def main():
         else:
             result = "FAIL"
 
-        print(f"Test Result for AbsErrorBound = {bound} ChunkSize = {chunk_str}: {result}")
+        print(f"Test Result for AbsErrorBound = {bound} ChunkSize = {chunk}: {result}")
 
         if result == "FAIL":
             all_pass = False
