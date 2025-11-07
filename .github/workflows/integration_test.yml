@@ -11,6 +11,7 @@ jobs:
     strategy:
       matrix:
         dataset: [hurricane, miranda, cesm-atm, scale-letkf, hacc]
+      fail-fast: false
     name: Test ${{ matrix.dataset }}
 
     steps:
