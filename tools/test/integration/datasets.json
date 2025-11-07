@@ -33,11 +33,11 @@
   "cesm-atm": {
     "path": "https://g-8d6b0.fd635.8443.data.globus.org/ds131.2/Data-Reduction-Repo/raw-data/CESM-ATM/SDRBENCH-CESM-ATM-1800x3600.tar.gz",
     "fields": {
-      "CLDMED_1_1800_3600.f32": {"dims": [26,1800,3600], "dtype": "float32"},
-      "ODV_bcar1_1_1800_3600.f32": {"dims": [26,1800,3600], "dtype": "float32"},
-      "SNOWHICE_1_1800_3600.f32": {"dims": [26,1800,3600], "dtype": "float32"},
-      "QREFHT_1_1800_3600.f32": {"dims": [26,1800,3600], "dtype": "float32"},
-      "FLNS_1_1800_3600.f32": {"dims": [26,1800,3600], "dtype": "float32"}
+      "CLDMED_1_1800_3600.f32": {"dims": [1800,3600], "dtype": "float32"},
+      "ODV_bcar1_1_1800_3600.f32": {"dims": [1800,3600], "dtype": "float32"},
+      "SNOWHICE_1_1800_3600.f32": {"dims": [1800,3600], "dtype": "float32"},
+      "QREFHT_1_1800_3600.f32": {"dims": [1800,3600], "dtype": "float32"},
+      "FLNS_1_1800_3600.f32": {"dims": [1800,3600], "dtype": "float32"}
     }
   },
   "scale-letkf": {

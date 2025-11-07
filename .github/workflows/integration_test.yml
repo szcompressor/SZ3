@@ -10,13 +10,53 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+
+    - name: Disk space report before modification
+      shell: bash
+      run: |
+        echo "Memory and swap:"
+        sudo free -h
+        echo
+        sudo swapon --show
+        echo
+
+        echo "Available storage:"
+        sudo df -h
+        echo
+
+    - name: Maximize build disk space
+      shell: bash
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+        sudo docker image prune --all --force
+        sudo docker builder prune -a
+        echo "Unmounting and removing swap file."
+        sudo swapoff -a
+        sudo rm -f /mnt/swapfile
+
+    - name: Disk space report after modification
+      shell: bash
+      run: |
+        echo "Memory and swap:"
+        sudo free -h
+        echo
+        sudo swapon --show
+        echo
+
+        echo "Available storage:"
+        sudo df -h
+
+    - uses: actions/checkout@v5
 
     - name: Set up Python 3
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v5
       with:
         python-version: 3.12
 
+    - name: Check GITHUB_ACTIONS env var
+      run: |
+        python3 -c "import os; print('GITHUB_ACTIONS:', repr(os.getenv('GITHUB_ACTIONS')))"
+        
     - name: Install dependencies
       run: |
         sudo apt-get update
