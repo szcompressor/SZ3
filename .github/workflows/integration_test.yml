@@ -50,10 +50,6 @@ jobs:
       with:
         python-version: 3.12
 
-    - name: Check GITHUB_ACTIONS env var
-      run: |
-        python3 -c "import os; print('GITHUB_ACTIONS:', repr(os.getenv('GITHUB_ACTIONS')))"
-        
     - name: Install dependencies
       run: |
         sudo apt-get update

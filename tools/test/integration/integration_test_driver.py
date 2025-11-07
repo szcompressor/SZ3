@@ -61,9 +61,12 @@ def prepare_dataset(path, dataset_dir):
         
         # Delete the tar file to save space if running in GitHub CI
         if os.getenv('GITHUB_ACTIONS') == 'true':
-            os.remove(tar_filename)
-            print(f"Deleted {tar_filename} to save space in CI")
-        
+            try:
+                os.remove(tar_filename)
+                print(f"Deleted {tar_filename} to save space in CI")
+            except Exception as e:
+                print(f"Failed to delete {tar_filename} in CI : {e}")
+
         # Find the data directory - if there's a single subdirectory, use it
         subdirs = [d for d in os.listdir(dataset_dir) if os.path.isdir(os.path.join(dataset_dir, d))]
         if len(subdirs) == 1:

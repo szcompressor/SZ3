@@ -153,7 +153,7 @@ def main():
 
     print(f"Test Result for AbsErrorBound = {bound}: {result}")
 
-    # rmtree(output_dir)
+    rmtree(output_dir)
 
     if result == "FAIL":
         sys.exit(1)
