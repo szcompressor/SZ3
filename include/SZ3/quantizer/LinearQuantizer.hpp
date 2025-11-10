@@ -20,12 +20,14 @@ public:
           radius(32768) {
     }
 
-    LinearQuantizer(double eb, int r = 32768)
+    LinearQuantizer(double eb, int r = 32768, bool _strict_eb = true)
         : error_bound(eb),
           error_bound_reciprocal(1.0 / eb),
-          radius(r) {
+          radius(r),
+          strict_eb(_strict_eb) {
         assert(eb != 0);
     }
+
 
     double get_eb() const { return error_bound; }
 
@@ -55,7 +57,7 @@ public:
             T decompressed_data = pred + quant_index * this->error_bound;
             // if data is NaN, the diff is NaN, and NaN <= 0 is false
             diff = fabs(decompressed_data - data) - this->error_bound;
-            if (diff <= 0 || diff <= get_floating_point_threshold(data)) {
+            if (diff <= 0 || (!strict_eb && diff <= get_floating_point_threshold(data))) {
                 data = decompressed_data;
                 return quant_index_shifted;
             } else {
@@ -179,6 +181,7 @@ private:
     double error_bound;
     double error_bound_reciprocal;
     int radius; // quantization interval radius
+    bool strict_eb = true;
 };
 } // namespace SZ3
 #endif
