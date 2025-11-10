@@ -11,13 +11,19 @@
 #include "SZ3/utils/MemoryUtil.hpp"
 
 namespace SZ3 {
-
 template <class T>
 class LinearQuantizer : public concepts::QuantizerInterface<T, int> {
-   public:
-    LinearQuantizer() : error_bound(1), error_bound_reciprocal(1), radius(32768) {}
+public:
+    LinearQuantizer()
+        : error_bound(1),
+          error_bound_reciprocal(1),
+          radius(32768) {
+    }
 
-    LinearQuantizer(double eb, int r = 32768) : error_bound(eb), error_bound_reciprocal(1.0 / eb), radius(r) {
+    LinearQuantizer(double eb, int r = 32768)
+        : error_bound(eb),
+          error_bound_reciprocal(1.0 / eb),
+          radius(r) {
         assert(eb != 0);
     }
 
@@ -32,7 +38,7 @@ class LinearQuantizer : public concepts::QuantizerInterface<T, int> {
 
     // quantize the data with a prediction value, and returns the quantization index and the decompressed data
     // int quantize(T data, T pred, T& dec_data);
-    ALWAYS_INLINE int quantize_and_overwrite(T &data, T pred) override {
+    ALWAYS_INLINE int quantize_and_overwrite(T& data, T pred) override {
         T diff = data - pred;
         auto quant_index = static_cast<int64_t>(fabs(diff) * this->error_bound_reciprocal) + 1;
         if (quant_index < this->radius * 2) {
@@ -47,8 +53,9 @@ class LinearQuantizer : public concepts::QuantizerInterface<T, int> {
                 quant_index_shifted = this->radius + half_index;
             }
             T decompressed_data = pred + quant_index * this->error_bound;
-            // if data is NaN, the error is NaN, and NaN <= error_bound is false
-            if (fabs(decompressed_data - data) <= this->error_bound) {
+            // if data is NaN, the diff is NaN, and NaN <= 0 is false
+            diff = fabs(decompressed_data - data) - this->error_bound;
+            if (diff <= 0 || diff <= get_floating_point_threshold(data)) {
                 data = decompressed_data;
                 return quant_index_shifted;
             } else {
@@ -83,7 +90,7 @@ class LinearQuantizer : public concepts::QuantizerInterface<T, int> {
 
     size_t size_est() { return unpred.size() * sizeof(T); }
 
-    void save(unsigned char *&c) const override {
+    void save(unsigned char*& c) const override {
         write(uid, c);
         write(this->error_bound, c);
         write(this->radius, c);
@@ -94,7 +101,7 @@ class LinearQuantizer : public concepts::QuantizerInterface<T, int> {
         }
     }
 
-    void load(const unsigned char *&c, size_t &remaining_length) override {
+    void load(const unsigned char*& c, size_t& remaining_length) override {
         uchar uid_read;
         read(uid_read, c, remaining_length);
         if (uid_read != uid) {
@@ -116,15 +123,62 @@ class LinearQuantizer : public concepts::QuantizerInterface<T, int> {
         printf("[LinearQuantizer] error_bound = %.8G, radius = %d, unpred = %zu\n", error_bound, radius, unpred.size());
     }
 
-   private:
+private:
+    /**
+     * Get the floating-point precision threshold (2 * ULP) for the given value.
+     * 
+     * This function calculates 2 times the Unit in the Last Place (ULP) for the input value.
+     * ULP is the smallest representable difference between two floating-point numbers
+     * in the vicinity of the given value. 
+     * This threshold is used to determine if small deviations from the error bound
+     * are acceptable due to floating-point precision limitations.
+     */
+    T get_floating_point_threshold(T value) {
+        if constexpr (std::is_same<T, float>::value) {
+            union {
+                float f;
+                uint32_t u;
+            } conv = {value};
+            int biased_exp = (conv.u >> 23) & 0xFF;
+
+            if (biased_exp == 0) {
+                return 2.0f * 1.401298464324817e-45f; // 2 * 2^(-149) for denormals
+            } else if (biased_exp == 255) {
+                return 0.0f; // Infinity/NaN
+            } else {
+                int unbiased_exp = biased_exp - 127;
+                int shift = unbiased_exp - 23 + 1; // +1 for *2
+                return (shift >= 0) ? static_cast<float>(1U << shift) : 1.0f / static_cast<float>(1U << (-shift));
+            }
+        } else if constexpr (std::is_same<T, double>::value) {
+            union {
+                double d;
+                uint64_t u;
+            } conv = {value};
+            int biased_exp = (conv.u >> 52) & 0x7FF;
+
+            if (biased_exp == 0) {
+                return 2.0 * 4.9406564584124654e-324; // 2 * 2^(-1074) for denormals
+            } else if (biased_exp == 2047) {
+                return 0.0; // Infinity/NaN
+            } else {
+                int unbiased_exp = biased_exp - 1023;
+                int shift = unbiased_exp - 52 + 1; // +1 for *2
+                return (shift >= 0) ? static_cast<double>(1ULL << shift) : 1.0 / static_cast<double>(1ULL << (-shift));
+            }
+        } else {
+            return 0; // Non-floating-point types
+        }
+    }
+
+
     std::vector<T> unpred;
-    size_t index = 0;  // used in decompression only
+    size_t index = 0; // used in decompression only
     uchar uid = 0b10;
 
     double error_bound;
     double error_bound_reciprocal;
-    int radius;  // quantization interval radius
+    int radius; // quantization interval radius
 };
-
-}  // namespace SZ3
+} // namespace SZ3
 #endif
