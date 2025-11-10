@@ -80,7 +80,8 @@ def write_hdf5(data, h5_file_path, dataset_name='test', compression=None, compre
     """
     try:
         with h5py.File(h5_file_path, 'w') as f:
-            f.create_dataset(dataset_name, data=data, compression=compression, compression_opts=compression_opts, chunks=chunks)
+            dset = f.create_dataset(dataset_name, data=data, compression=compression, compression_opts=compression_opts, chunks=chunks)
+            print(f"Actual chunk size for dataset '{dataset_name}': {dset.chunks}")
         print(f"Data written to HDF5 file '{h5_file_path}' with dataset name '{dataset_name}'")
     except Exception as e:
         print(f"Error writing HDF5 file: {e}")

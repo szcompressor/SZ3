@@ -9,10 +9,16 @@ import tempfile
 import shutil
 
 def get_tmpdir():
-    if os.path.exists('/scratch'):
-        return '/scratch/'
-    if os.path.exists('/var/tmp'):
-        return '/var/tmp/'
+    candidates = ['/scratch', '/var/tmp', '/tmp']
+    for cand in candidates:
+        if os.path.exists(cand):
+            try:
+                test_dir = os.path.join(cand, 'sz3_test_write')
+                os.makedirs(test_dir, exist_ok=True)
+                os.rmdir(test_dir)
+                return cand
+            except OSError:
+                pass
     return tempfile.gettempdir()
 
 def run_test(cmd, description):
@@ -33,7 +39,7 @@ def run_test(cmd, description):
         print("="*80)
         return False
 
-def prepare_dataset(path, dataset_dir):
+def prepare_dataset(path, dataset_dir, dataset_info=None):
     """
     Prepares the dataset: if path is URL, download and extract; if local dir, copy it
     Returns the actual directory that directly containing the files.
@@ -74,6 +80,16 @@ def prepare_dataset(path, dataset_dir):
         # Local path - assume it's a directory
         if os.path.isdir(path):
             if not os.path.exists(dataset_dir):
+                os.makedirs(dataset_dir)
+            if dataset_info:
+                for field in dataset_info["fields"].keys():
+                    src = os.path.join(path, field)
+                    dst = os.path.join(dataset_dir, field)
+                    if os.path.isfile(src):
+                        shutil.copy2(src, dst)
+                    else:
+                        print(f"Warning: field file {src} not found")
+            else:
                 shutil.copytree(path, dataset_dir)
             return dataset_dir
     return dataset_dir
@@ -130,7 +146,7 @@ def main():
 
     for dataset_name, dataset_info in datasets.items():
         dataset_dir = os.path.join(data_dir, dataset_name)
-        actual_data_dir = prepare_dataset(dataset_info["path"], dataset_dir)
+        actual_data_dir = prepare_dataset(dataset_info["path"], dataset_dir, dataset_info)
 
         for field, field_info in dataset_info["fields"].items():
             dims = field_info["dims"]

@@ -1,4 +1,15 @@
 {
+  "exaalt-small": {
+    "path": "https://g-8d6b0.fd635.8443.data.globus.org/ds131.2/Data-Reduction-Repo/raw-data/EXAALT/SDRBENCH-EXAALT-2869440.tar.gz",
+    "fields": {
+      "xx.dat2": {"dims": [2869440], "dtype": "float32"},
+      "yy.dat2": {"dims": [2869440], "dtype": "float32"},
+      "zz.dat2": {"dims": [2869440], "dtype": "float32"},
+      "vx.dat2": {"dims": [2869440], "dtype": "float32"},
+      "vy.dat2": {"dims": [2869440], "dtype": "float32"},
+      "vz.dat2": {"dims": [2869440], "dtype": "float32"}
+    }
+  }, 
   "hurricane": {
     "path": "https://g-8d6b0.fd635.8443.data.globus.org/ds131.2/Data-Reduction-Repo/raw-data/Hurricane-ISABEL/SDRBENCH-Hurricane-ISABEL-100x500x500.tar.gz",
     "fields": {
@@ -66,6 +77,28 @@
       "zz.f32": {"dims": [280953867], "dtype": "float32"},
       "xx.f32": {"dims": [280953867], "dtype": "float32"},
       "yy.f32": {"dims": [280953867], "dtype": "float32"}
+    }
+  }, 
+  "exaalt-copper": {
+    "path": "https://g-8d6b0.fd635.8443.data.globus.org/ds131.2/Data-Reduction-Repo/raw-data/EXAALT/SDRBENCH-exaalt-copper.tar.gz",
+    "fields": {
+      "dataset1-5423x3137.x.f32.dat": {"dims": [5423, 3137], "dtype": "float32"},
+      "dataset1-5423x3137.y.f32.dat": {"dims": [5423, 3137], "dtype": "float32"},
+      "dataset1-5423x3137.z.f32.dat": {"dims": [5423, 3137], "dtype": "float32"},
+      "dataset2-83x1077290.x.f32.dat": {"dims": [83, 1077290], "dtype": "float32"},
+      "dataset2-83x1077290.y.f32.dat": {"dims": [83, 1077290], "dtype": "float32"},
+      "dataset2-83x1077290.z.f32.dat": {"dims": [83, 1077290], "dtype": "float32"}
+    }
+  }, 
+  "exaalt-helium": {
+    "path": "https://g-8d6b0.fd635.8443.data.globus.org/ds131.2/Data-Reduction-Repo/raw-data/EXAALT/SDRBENCH-exaalt-helium.tar.gz",
+    "fields": {
+      "dataset1-7852x1037.x.f32.dat": {"dims": [7852, 1037], "dtype": "float32"},
+      "dataset1-7852x1037.y.f32.dat": {"dims": [7852, 1037], "dtype": "float32"},
+      "dataset1-7852x1037.z.f32.dat": {"dims": [7852, 1037], "dtype": "float32"},
+      "dataset2-2338x106711.x.f32.dat": {"dims": [2338, 106711], "dtype": "float32"},
+      "dataset2-2338x106711.y.f32.dat": {"dims": [2338, 106711], "dtype": "float32"},
+      "dataset2-2338x106711.z.f32.dat": {"dims": [2338, 106711], "dtype": "float32"}
     }
   }
 }

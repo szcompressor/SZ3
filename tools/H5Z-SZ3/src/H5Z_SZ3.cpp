@@ -52,7 +52,7 @@ herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config& conf) {
 }
 
 herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config& conf) {
-    static char const* _funcname_ = "get_SZ3_conf_from_H5";
+    // static char const* _funcname_ = "get_SZ3_conf_from_H5";
 
     size_t cd_nelmts = std::ceil(conf.size_est() / 1.0 / sizeof(int));
     std::vector<unsigned int> cd_values(cd_nelmts, 0);

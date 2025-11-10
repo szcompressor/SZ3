@@ -74,7 +74,7 @@ void process_data(const SZ3::Config &conf, const char *oriFilePath, int dataEndi
 }
 
 int main(int argc, char *argv[]) {
-    char oriFilePath[640], outputFilePath[640];
+    char oriFilePath[640], outputFilePath[1024];
 
     if (argc < 3) {
         printf("Test case: sz3ToHDF5 [dataType] [srcFilePath] [dimension sizes...]\n");
@@ -104,7 +104,7 @@ int main(int argc, char *argv[]) {
     }
     std::reverse(dimensions.begin(), dimensions.end());  // slowest to fastest
 
-    snprintf(outputFilePath, 640, "%s.sz3.h5", oriFilePath);
+    snprintf(outputFilePath, 1024, "%s.sz3.h5", oriFilePath);
 
     hid_t sid, cpid, fid;
     /* create HDF5 file */

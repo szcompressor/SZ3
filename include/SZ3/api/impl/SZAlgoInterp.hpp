@@ -8,7 +8,7 @@
 #include "SZ3/quantizer/LinearQuantizer.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/Extraction.hpp"
-#include "SZ3/utils/QuantOptimizatioin.hpp"
+#include "SZ3/utils/QuantOptimization.hpp"
 #include "SZ3/utils/Sample.hpp"
 #include "SZ3/utils/Statistic.hpp"
 

@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        dataset: [hurricane, miranda, cesm-atm, scale-letkf, hacc]
+        dataset: [exaalt-small, hurricane, miranda, cesm-atm, scale-letkf, hacc, exaalt-copper, exaalt-helium]
       fail-fast: false
     name: Test ${{ matrix.dataset }}
 

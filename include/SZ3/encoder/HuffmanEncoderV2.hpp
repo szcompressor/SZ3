@@ -850,10 +850,10 @@ private:
         writeBytes(c, tree.offset, sizeof(T) << 3, mask, index);
         int64ToBytes_bigEndian(c, tree.n);
         c += sizeof(size_t);
-        if (tree.usemp == 0x00) {
-            int64ToBytes_bigEndian(c, tree.maxval);
-            c += sizeof(size_t);
-        }
+        // if (tree.usemp == 0x00) {
+        int64ToBytes_bigEndian(c, tree.maxval);
+        c += sizeof(size_t);
+        // }
 
         if (tree.n == 0 || tree.n == 1) {
             writeBytesClearMask(c, mask, index);
@@ -1050,9 +1050,10 @@ private:
         bytes += sizeof(size_t);
         tree.ht.reserve(tree.n << 1);
 
+        
+        tree.maxval = bytesToInt64_bigEndian(bytes);
+        bytes += sizeof(size_t);
         if (tree.usemp == 0x00) {
-            tree.maxval = bytesToInt64_bigEndian(bytes);
-            bytes += sizeof(size_t);
             if (tree.n > 0) {
                 tree.veccode.resize(tree.maxval);
                 tree.veclen.resize(tree.maxval);
