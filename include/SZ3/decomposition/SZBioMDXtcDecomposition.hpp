@@ -12,6 +12,8 @@
 #include "SZ3/utils/Config.hpp"
 
 namespace SZ3 {
+static constexpr int XTC_radius = std::numeric_limits<int>::max() / 16;
+
 template <class T, uint N, class Quantizer>
 class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, N> {
 public:
@@ -66,7 +68,7 @@ private:
     std::vector<int> compressSingleFrame(T* data) {
         std::vector<int> quantData(conf.num);
         for (size_t i = 0; i < conf.num; i++) {
-            quantData[i] = quantizer.quantize_and_overwrite(data[i], 0);
+            quantData[i] = quantizer.quantize_and_overwrite(data[i], 0) - XTC_radius;
         }
         quantizer.postcompress_data();
         return quantData;
@@ -74,7 +76,7 @@ private:
 
     T* decompressSingleFrame(std::vector<int>& quantData, T* decData) {
         for (size_t i = 0; i < conf.num; i++) {
-            decData[i] = quantizer.recover(0, quantData[i]);
+            decData[i] = quantizer.recover(0, quantData[i] + XTC_radius);
         }
         quantizer.postdecompress_data();
         return decData;
@@ -136,7 +138,7 @@ private:
                 for (size_t k = 0; k < dims[2]; k++) {
                     // xyz
                     size_t idx = i * stride[0] + j * stride[1] + k;
-                    quantData[idx] = quantizer.quantize_and_overwrite(data[idx], 0);
+                    quantData[idx] = quantizer.quantize_and_overwrite(data[idx], 0) - XTC_radius;
                 }
             }
         }
@@ -160,7 +162,7 @@ private:
                 for (size_t k = 0; k < dims[2]; k++) {
                     // xyz
                     size_t idx = i * stride[0] + j * stride[1] + k;
-                    decData[idx] = quantizer.recover(0, quantData[idx]);
+                    decData[idx] = quantizer.recover(0, quantData[idx] + XTC_radius);
                 }
             }
         }

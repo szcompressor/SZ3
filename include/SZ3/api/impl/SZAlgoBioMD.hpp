@@ -43,7 +43,7 @@ size_t SZ_compress_bioMDXtcBased(Config &conf, T *data, uchar *cmpData, size_t c
     assert(conf.cmprAlgo == ALGO_BIOMDXTC);
     calAbsErrorBound(conf, data);
 
-    auto quantizer = LinearQuantizer<T>(conf.absErrorBound, std::numeric_limits<int>::max() / 16);
+    auto quantizer = LinearQuantizer<T>(conf.absErrorBound, XTC_radius);
     auto sz = make_compressor_sz_generic<T, N>(make_decomposition_biomdxtc<T, N>(conf, quantizer),
                                                XtcBasedEncoder<int>(), Lossless_bypass());
     return sz->compress(conf, data, cmpData, cmpCap);
