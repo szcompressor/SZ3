@@ -12,9 +12,11 @@
 #include "vtkPointData.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
+#include <fstream>
 #include <iostream>
+#include <vector>
 
-vtkStandardNewMacro(vtkSZ3Reader);
+vtkStandardNewMacro(vtkSZ3Reader)
 
 vtkSZ3Reader::vtkSZ3Reader()
 {
@@ -50,10 +52,6 @@ void vtkSZ3Reader::GetDomainDimensions(int& x, int& y, int& z)
 int vtkSZ3Reader::RequestData(
   vtkInformation* /*request*/, vtkInformationVector** /*inputVector*/, vtkInformationVector* outputVector)
 {
-
-  std::cout << "FileName: " << (this->FileName ? this->FileName : "(none)") << std::endl;
-  std::cout << "DomainDimensions: " << this->DomainDimensions[0] << ", " << this->DomainDimensions[1] << ", " << this->DomainDimensions[2] << std::endl;
-  std::cout << "DoublePrecision: " << this->UseDoublePrecision << std::endl;
 
   if (!this->FileName) {
     vtkErrorMacro("A FileName must be specified.");

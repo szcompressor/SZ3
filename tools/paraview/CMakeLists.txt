@@ -10,7 +10,7 @@ paraview_plugin_scan(
   REQUIRES_MODULES modules)
 
 # Ensure we have required modules.
-foreach (module IN LISTS REQUIRES_MODULES)
+foreach (module IN LISTS modules)
   if (NOT TARGET "${module}")
     message(FATAL_ERROR
       "The required ${module} module is not available in the "
