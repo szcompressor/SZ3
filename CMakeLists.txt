@@ -103,6 +103,10 @@ if (BUILD_MDZ)
     add_subdirectory(tools/mdz)
 endif ()
 
+option(BUILD_PARAVIEW_PLUGIN "build the ParaView plugin" OFF)
+if (BUILD_PARAVIEW_PLUGIN)
+    add_subdirectory(tools/paraview)
+endif ()
 
 install(TARGETS ${PROJECT_NAME}
         EXPORT SZ3Targets
