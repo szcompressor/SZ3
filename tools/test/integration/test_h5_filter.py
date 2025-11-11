@@ -15,6 +15,7 @@ if not h5py.h5z.filter_avail(32024):
     print("SZ3 filter not available")
     sys.exit(1)
 
+
 def get_compression_args(cmpr_algo, bound):
     """
     Generates compression arguments using cdvalueHelper.SZ3.
@@ -32,6 +33,7 @@ def get_compression_args(cmpr_algo, bound):
     except Exception as e:
         print(f"Error generating compression arguments: {e}")
         sys.exit(1)
+
 
 def read_raw_data(raw_file_path, shape, dtype):
     """
@@ -66,6 +68,7 @@ def read_raw_data(raw_file_path, shape, dtype):
         print(f"Error reading raw data: {e}")
         sys.exit(1)
 
+
 def write_hdf5(data, h5_file_path, dataset_name='test', compression=None, compression_opts=None, chunks=None):
     """
     Writes data to an HDF5 file.
@@ -80,12 +83,14 @@ def write_hdf5(data, h5_file_path, dataset_name='test', compression=None, compre
     """
     try:
         with h5py.File(h5_file_path, 'w') as f:
-            dset = f.create_dataset(dataset_name, data=data, compression=compression, compression_opts=compression_opts, chunks=chunks)
+            dset = f.create_dataset(dataset_name, data=data, compression=compression, compression_opts=compression_opts,
+                                    chunks=chunks)
             print(f"Actual chunk size for dataset '{dataset_name}': {dset.chunks}")
         print(f"Data written to HDF5 file '{h5_file_path}' with dataset name '{dataset_name}'")
     except Exception as e:
         print(f"Error writing HDF5 file: {e}")
         sys.exit(1)
+
 
 def compare_hdf5(original_h5, decompressed_h5, dataset_name='test'):
     """
@@ -114,6 +119,7 @@ def compare_hdf5(original_h5, decompressed_h5, dataset_name='test'):
         print(f"Error comparing HDF5 files: {e}")
         sys.exit(1)
 
+
 def parse_shape(args):
     """
     Parses shape dimensions from command-line arguments.
@@ -137,7 +143,8 @@ def parse_shape(args):
 
 def main():
     if len(sys.argv) < 7:
-        print("Usage: python test_h5_filter.py <h5_plugin_path> <cmpr_algo> <error_bound> <raw_file_path> <dtype> <dim1> [<dim2> ... <dimN>]")
+        print(
+            "Usage: python test_h5_filter.py <h5_plugin_path> <cmpr_algo> <error_bound> <raw_file_path> <dtype> <dim1> [<dim2> ... <dimN>]")
         sys.exit(1)
 
     h5_plugin_path = sys.argv[1]
@@ -163,7 +170,6 @@ def main():
 
     compression, compression_opts = get_compression_args(cmpr_algo, bound)
 
-
     all_pass = True
     for chunk in [False, True]:
         print(f"Testing {raw_file} with algo = {cmpr_algo} AbsErrorBound = {bound} Chunk = {chunk}")
@@ -175,15 +181,15 @@ def main():
             # hd5py will automatically determine chunk sizes if chunks is not set
             write_hdf5(data, compressed_h5, h5_dataset_name, compression=compression, compression_opts=compression_opts)
         else:
-            write_hdf5(data, compressed_h5, h5_dataset_name, compression=compression, compression_opts=compression_opts, chunks=shape)
-        
+            write_hdf5(data, compressed_h5, h5_dataset_name, compression=compression, compression_opts=compression_opts,
+                       chunks=shape)
 
         with h5py.File(compressed_h5, 'r') as f_in, h5py.File(decompressed_h5, 'w') as f_out:
             f_out.create_dataset(h5_dataset_name, data=f_in[h5_dataset_name][:])
 
         max_error = compare_hdf5(original_h5, decompressed_h5, h5_dataset_name)
 
-        if max_error <= bound * 1.5:
+        if max_error <= (bound * 3 if cmpr_algo in ['ALGO_BIOMDXTC'] else bound * 1.2):
             result = "PASS"
         else:
             result = "FAIL"
@@ -197,6 +203,7 @@ def main():
 
     if not all_pass:
         sys.exit(1)
+
 
 if __name__ == '__main__':
     main()

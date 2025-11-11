@@ -56,8 +56,7 @@ public:
             }
             T decompressed_data = pred + quant_index * this->error_bound;
             // if data is NaN, the diff is NaN, and NaN <= 0 is false
-            diff = fabs(decompressed_data - data) - this->error_bound;
-            if (diff <= 0 || (!strict_eb && diff <= get_floating_point_threshold(data))) {
+            if (!strict_eb || fabs(decompressed_data - data) <= this->error_bound) {
                 data = decompressed_data;
                 return quant_index_shifted;
             } else {
@@ -126,54 +125,6 @@ public:
     }
 
 private:
-    /**
-     * Get the floating-point precision threshold (2 * ULP) for the given value.
-     * 
-     * This function calculates 2 times the Unit in the Last Place (ULP) for the input value.
-     * ULP is the smallest representable difference between two floating-point numbers
-     * in the vicinity of the given value. 
-     * This threshold is used to determine if small deviations from the error bound
-     * are acceptable due to floating-point precision limitations.
-     */
-    T get_floating_point_threshold(T value) {
-        if constexpr (std::is_same<T, float>::value) {
-            union {
-                float f;
-                uint32_t u;
-            } conv = {value};
-            int biased_exp = (conv.u >> 23) & 0xFF;
-
-            if (biased_exp == 0) {
-                return 2.0f * 1.401298464324817e-45f; // 2 * 2^(-149) for denormals
-            } else if (biased_exp == 255) {
-                return 0.0f; // Infinity/NaN
-            } else {
-                int unbiased_exp = biased_exp - 127;
-                int shift = unbiased_exp - 23 + 1; // +1 for *2
-                return (shift >= 0) ? static_cast<float>(1U << shift) : 1.0f / static_cast<float>(1U << (-shift));
-            }
-        } else if constexpr (std::is_same<T, double>::value) {
-            union {
-                double d;
-                uint64_t u;
-            } conv = {value};
-            int biased_exp = (conv.u >> 52) & 0x7FF;
-
-            if (biased_exp == 0) {
-                return 2.0 * 4.9406564584124654e-324; // 2 * 2^(-1074) for denormals
-            } else if (biased_exp == 2047) {
-                return 0.0; // Infinity/NaN
-            } else {
-                int unbiased_exp = biased_exp - 1023;
-                int shift = unbiased_exp - 52 + 1; // +1 for *2
-                return (shift >= 0) ? static_cast<double>(1ULL << shift) : 1.0 / static_cast<double>(1ULL << (-shift));
-            }
-        } else {
-            return 0; // Non-floating-point types
-        }
-    }
-
-
     std::vector<T> unpred;
     size_t index = 0; // used in decompression only
     uchar uid = 0b10;

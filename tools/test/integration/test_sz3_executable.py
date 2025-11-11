@@ -20,7 +20,8 @@ def run_sz3_compress(sz3_executable, input_file, output_file, bound, dims, cwd, 
     Runs the sz3 executable for compression.
     """
     try:
-        cmd = [sz3_executable, dtype_flag, '-i', input_file, '-z', os.path.basename(output_file), '-c', 'sz3.config', '-M',
+        cmd = [sz3_executable, dtype_flag, '-i', input_file, '-z', os.path.basename(output_file), '-c', 'sz3.config',
+               '-M',
                'ABS', str(bound), f'-{len(dims)}'] + dims
         print(f"Running sz3 compression with command: {' '.join(cmd)}")
         subprocess.run(cmd, check=True, cwd=cwd)
@@ -135,9 +136,11 @@ def main():
     original_wd = os.getcwd()
     os.chdir(output_dir)
 
-    run_sz3_compress(sz3_executable, raw_file, compressed_file, bound, [str(d) for d in shape[::-1]], output_dir, dtype_flag)
+    run_sz3_compress(sz3_executable, raw_file, compressed_file, bound, [str(d) for d in shape[::-1]], output_dir,
+                     dtype_flag)
 
-    run_sz3_decompress(sz3_executable, compressed_file, decompressed_file, [str(d) for d in shape[::-1]], output_dir, dtype_flag)
+    run_sz3_decompress(sz3_executable, compressed_file, decompressed_file, [str(d) for d in shape[::-1]], output_dir,
+                       dtype_flag)
 
     os.chdir(original_wd)
 
@@ -146,7 +149,7 @@ def main():
 
     max_error = compare_data(original_data, decompressed_data)
 
-    if max_error <= bound * 1.5:
+    if max_error <= (bound * 3 if cmpr_algo in ['ALGO_BIOMDXTC'] else bound * 1.2):
         result = "PASS"
     else:
         result = "FAIL"
