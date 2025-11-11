@@ -16,7 +16,7 @@ jobs:
     outputs:
       digest: ${{ steps.calc.outputs.digest }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v5
 
       - name: Install HDF5
         run: |
@@ -84,7 +84,7 @@ jobs:
     outputs:
       digest: ${{ steps.calc.outputs.digest }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v5
 
       - name: Install HDF5
         run: |
@@ -145,7 +145,7 @@ jobs:
     runs-on: windows-latest
     needs: build-linux
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v5
 
       - name: Bootstrap vcpkg & install HDF5
         shell: pwsh
@@ -239,7 +239,7 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v5
 
       - name: Setup MSYS2 with MinGW64
         uses: msys2/setup-msys2@v2

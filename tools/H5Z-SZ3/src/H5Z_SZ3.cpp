@@ -35,45 +35,44 @@ herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config& conf) {
     auto confSizeReal = conf.save(buffer);
     cd_nelmts = std::ceil(confSizeReal / 1.0 / sizeof(int));
 
-    auto szfilter = H5Pget_filter_by_id(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, NULL, NULL, 0, NULL,
-                                        NULL); // check if filter is set
-    if (0 > szfilter) {
+    if (H5Zfilter_avail(H5Z_FILTER_SZ3) > 0) {
+        // filter already set, update filter
+        if (0 > H5Pmodify_filter(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values.data())) {
+            H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, 0, "failed to modify cd_values");
+        }
+    } else {
         // filter not set, set filter. Notice that calling H5Pset_filter twice with the same filter id
         // will cause unexpected errors for decompression
         if (0 > H5Pset_filter(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values.data())) {
             H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, 0, "failed to modify cd_values");
         }
-    } else {
-        // filter already set, update filter
-        if (0 > H5Pmodify_filter(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values.data()))
-            H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, 0, "failed to modify cd_values");
     }
 
     return 1;
 }
 
 herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config& conf) {
-    static char const* _funcname_ = "get_SZ3_conf_from_H5";
+    // static char const* _funcname_ = "get_SZ3_conf_from_H5";
 
     size_t cd_nelmts = std::ceil(conf.size_est() / 1.0 / sizeof(int));
     std::vector<unsigned int> cd_values(cd_nelmts, 0);
 
-    // read cd_values from HDF5
-    // note that cd_nelmts must be non-zero, otherwise, cd_values cannot be filled.
-    if (0 > H5Pget_filter_by_id(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, &cd_nelmts, cd_values.data(), 0, NULL,
-                                NULL))
-        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_CANTGET, 0, "unable to get current SZ cd_values");
-
-    // load cd_values into config
-    if (cd_nelmts != 0) {
-        auto buffer = reinterpret_cast<const unsigned char*>(cd_values.data());
-        conf.load(buffer);
+    if (H5Zfilter_avail(H5Z_FILTER_SZ3) > 0) {
+        // read cd_values from HDF5
+        // note that cd_nelmts must be non-zero, otherwise, cd_values cannot be filled.
+        H5Pget_filter_by_id(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY,
+                            &cd_nelmts, cd_values.data(), 0, NULL, NULL);
+        // if not empty, load cd_values into config
+        if (cd_nelmts > 0) {
+            auto buffer = reinterpret_cast<const unsigned char*>(cd_values.data());
+            conf.load(buffer);
+        }
     }
     return 1;
 }
 
 static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_id) {
-    printf("start H5Z_sz3_set_local\n");
+    // printf("start H5Z_sz3_set_local\n");
 
     // printf("start in H5Z_sz3_set_local, dcpl_id = %d\n", dcpl_id);
     static char const* _funcname_ = "H5Z_sz3_set_local";
@@ -179,7 +178,7 @@ void process_data(SZ3::Config& conf, void** buf, size_t* buf_size, size_t nbytes
  */
 static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[], size_t nbytes,
                              size_t* buf_size, void** buf) {
-    printf("start H5Z_filter_sz3\n");
+    // printf("start H5Z_filter_sz3\n");
 
     if (cd_nelmts == 0) // this is special data such as string, which should not be treated as values.
         return nbytes;

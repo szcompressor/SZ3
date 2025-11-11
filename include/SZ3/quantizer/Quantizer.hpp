@@ -1,6 +1,8 @@
 #ifndef SZ3_QUANTIZER_HPP
 #define SZ3_QUANTIZER_HPP
 
+#include <SZ3/def.hpp>
+
 namespace SZ3::concepts {
 
 /**

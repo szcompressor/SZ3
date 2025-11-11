@@ -6,10 +6,9 @@ The H5Z-SZ3 filter integrates the SZ3 compression library with HDF5, providing a
 ## Table of Contents
 - [Installation](#installation)
 - [Usage](#usage)
-  - [HDF5 Executables](#hdf5-executables)
-  - [Compression Methods](#compression-methods)
-  - [Decompression](#decompression)
-- [Integration in C/C++](#integration-in-cc)
+  - [HDF5 Executables](#use-h5z-sz3-in-hdf5-executables)
+  - [Python (h5py)](#python-h5py)
+  - [C/C++](#use-h5z-sz3-in-code-cc)
 
 ## Installation
 
@@ -31,7 +30,7 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HDF5_HOME/lib:$<PATH_TO_YOUR_H5Z-SZ3_LI
 
 Note, if the HDF5 in your system contains both `h5repack-shared` and `h5repack`, you need to use `h5repack-shared` for filters, as outlined in [H5Z-ZFP Issue #137](https://github.com/LLNL/H5Z-ZFP/issues/137).
 
-### Compression
+#### Compression
 
 **Method 1: Compression with default settings (see SZ3/utils/Config.hpp for defaults)**
 ```bash
@@ -54,10 +53,35 @@ Alternatively, use the script to generate parameters and compress at once:
 h5repack.sh ~/code/sz3/tools/sz3/sz3.config data.h5 data.sz3.h5
 ```
 
-### Decompression
+#### Decompression
 ```bash
 h5repack-shared -f NONE data.sz3.h5 data.sz3_decompressed.h5
 ```
 
-## Use H5Z-SZ3 in code (C/C++)
+### Python (h5py)
+To use H5Z-SZ3 with h5py in Python:
+
+1. Ensure h5py is linked against the same HDF5 library used to build the SZ3 filter (typically system HDF5).
+2. Set `HDF5_PLUGIN_PATH` to the directory containing `libhdf5sz3.so` or `libhdf5sz3.dylib` **before importing h5py**.
+3. Use h5py's compression interface with SZ3 filter ID 32024 and appropriate compression options.
+
+```python
+import os
+os.environ["HDF5_PLUGIN_PATH"] = "/path/to/h5z-sz3/lib"
+import h5py
+import numpy as np
+
+from cdvalueHelper import SZ3
+config = SZ3('ALGO_INTERP_LORENZO', absolute=1e-3)
+
+with h5py.File('data.h5', 'w') as f:
+    f.create_dataset('dataset', data=np.random.rand(100, 100), 
+                     compression=32024, compression_opts=tuple(config.cd_values))
+```
+
+**Note on HDF5 Runtime Compatibility**: If h5py was installed with its bundled HDF5 (common on macOS), it may not load plugins built against system HDF5 due to library conflicts. To resolve:
+- Rebuild h5py against system HDF5: `export HDF5_DIR=/path/to/system/hdf5 && pip install --force-reinstall --no-binary h5py h5py`
+- Ensure HDF5 versions match between h5py and the plugin.
+
+### Use H5Z-SZ3 in code (C/C++)
 See examples `sz3ToHDF5.cpp` and `dsz3FromHDF5.cpp` for how to use the H5Z-SZ3 filter in your C/C++ projects.

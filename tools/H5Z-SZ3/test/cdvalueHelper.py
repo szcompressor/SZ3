@@ -9,9 +9,22 @@ import sys
 import struct
 
 class SZ3:
-    def __init__(self, absolute=None, relative=None, psnr=None, l2norm=None):
+    def __init__(self, algo="ALGO_INTERP_LORENZO", absolute=None, relative=None, psnr=None, l2norm=None):
         if sum(x is not None for x in [absolute, relative, psnr, l2norm]) != 1:
             raise ValueError("Specify exactly one error bound: absolute, relative, psnr, or l2norm.")
+
+        algo_map = {
+            "ALGO_LORENZO_REG": 0,
+            "ALGO_INTERP_LORENZO": 1,
+            "ALGO_INTERP": 2,
+            "ALGO_NOPRED": 3,
+            "ALGO_LOSSLESS": 4,
+            "ALGO_BIOMD": 5,
+            "ALGO_BIOMDXTC": 6,
+        }
+        algo_val = algo_map.get(algo)
+        if algo_val is None:
+            raise ValueError(f"Unknown compression algorithm: {algo}")
 
         # placeholder values will be overwritten when the HDF5 filter calls the set_local function,
         serialized = bytearray()
@@ -22,7 +35,7 @@ class SZ3:
         serialized.extend(struct.pack('<B', 0))  # placeholder for dimension count
         serialized.extend(struct.pack('<B', 0))  # placeholder for dimension value bit width
         serialized.extend(struct.pack('<Q', 0))  # placeholder for total data elements
-        serialized.extend(struct.pack('<B', 1))  # compression algorithm, 1: ALGO_INTERP_LORENZO
+        serialized.extend(struct.pack('<B', algo_val))  # compression algorithm
 
         if absolute is not None:
             serialized.extend(struct.pack('<B', 0)) # Error bound mode for EB_ABS
@@ -38,7 +51,8 @@ class SZ3:
             serialized.extend(struct.pack('<d', l2norm))
 
 
-        serialized.extend(struct.pack('<B', 0)) # boolean flags
+        boolvals = (1 << 7) | (1 << 5)  # lorenzo and regression
+        serialized.extend(struct.pack('<B', boolvals)) # boolean flags
         serialized.extend(struct.pack('<B', 0))  # placeholder for data type
         serialized.extend(struct.pack('<I', 65536))  # quantization bin count
         serialized.extend(struct.pack('<I', 0))  # placeholder for block size
@@ -51,7 +65,7 @@ class SZ3:
 
     def print_h5repack_args(self):
         cd_nelmts = len(self.cd_values)
-        args = f"-f UD=32024,0,{cd_nelmts},"
+        args = f"UD=32024,0,{cd_nelmts},"
         args += ",".join(map(str, self.cd_values))
         print(args)
 
@@ -68,12 +82,12 @@ Examples:
   %(prog)s --rel 0.001
   %(prog)s --psnr 80
   %(prog)s --l2norm 0.01
-  
-Use with h5repack:
-  h5repack $(%(prog)s --abs 1e-3) input.h5 output.h5
-        """,
-        formatter_class=argparse.RawDescriptionHelpFormatter
+          """,
+ formatter_class=argparse.RawDescriptionHelpFormatter
     )
+
+    parser.add_argument('--algo', type=str, dest='algo', default='ALGO_INTERP_LORENZO',
+                      help='Compression algorithm')
 
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--abs', '--absolute', type=float, dest='absolute',
@@ -89,13 +103,13 @@ Use with h5repack:
 
     try:
         if args.absolute is not None:
-            config = SZ3(absolute=args.absolute)
+            config = SZ3(algo=args.algo, absolute=args.absolute)
         elif args.relative is not None:
-            config = SZ3(relative=args.relative)
+            config = SZ3(algo=args.algo, relative=args.relative)
         elif args.psnr is not None:
-            config = SZ3(psnr=args.psnr)
+            config = SZ3(algo=args.algo, psnr=args.psnr)
         else:
-            config = SZ3(l2norm=args.l2norm)
+            config = SZ3(algo=args.algo, l2norm=args.l2norm)
 
         config.print_h5repack_args()
         return 0
