@@ -39,6 +39,13 @@ Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [
 * Please add "-DBUILD_H5Z_FILTER=ON" to enable this function for CMake.
 * sz3ToHDF5 and HDF5ToSz3 are provided for testing.
 
+#### ParaView SZ3 Reader
+* Located in 'tools/paraview'
+* Please add "-DBUILD_PARAVIEW_PLUGIN=ON" to enable this function for CMake.
+* Developed using SZ3 C++ API.
+* More instructions can be viewed [here](tools/paraview/README.md).
+
+
 #### Third-Party APIs
 
 * [SZ3 Fortran API](https://github.com/ofmla/sz3_simple_example) (by [Oscar Mojica](https://github.com/ofmla))
@@ -70,7 +77,7 @@ Version New features
 * SZ 3.1.8 namespace changed from SZ to SZ3. H5Z-SZ3 supports configuration files now.
 * SZ 3.2.0 API reconstructed for FZ. H5Z-SZ3 rewrite. Compression version checking.
 * SZ 3.3.0 Add key QoZ v1 and v2 features to improve compression speed and data quality. The full QoZ is available from **a separate branch** (https://github.com/szcompressor/SZ3/tree/QoZ). 
-* SZ 3.3.1: SZ3 Windows support for both Visual Studio and MinGW toolchains. pySZ v1 released and available via `pip install pysz`.
+* SZ 3.3.1: SZ3 Windows support for both Visual Studio and MinGW toolchains. pySZ v1 released and available via `pip install pysz`. Bio algorithms added.
 
 ## 3rd party libraries/tools
 * [Zstandard](https://facebook.github.io/zstd/) v1.4.5 will be fetched if libzstd can not be found by pkg-config.

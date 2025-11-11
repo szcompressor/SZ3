@@ -9,6 +9,7 @@
 
 // #include <dlfcn.h>
 #include <cerrno>
+#include <cinttypes>
 #include <cstdio>
 #include <cstdlib>
 
@@ -22,7 +23,7 @@ int main(int argc, char *argv[]) {
     // int dimSize = 0;
     // size_t r5 = 0, r4 = 0, r3 = 0, r2 = 0, r1 = 0;
     size_t nbEle = 0;
-    char hdf5FilePath[640], outputFilePath[640];
+    char hdf5FilePath[640], outputFilePath[1024];
     hid_t file, dset, dcpl, space_id, dtype; /*Handles*/
     hid_t fid, sid, cpid, idsid;             /*Output Handles*/
     // H5Z_filter_t filter_id = 0;
@@ -123,9 +124,8 @@ int main(int argc, char *argv[]) {
                 else  // H5T_ORDER_BE
                     status = H5Dread(dset, H5T_IEEE_F32BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
                 /*Print the first 20 data values to check the correctness.*/
-                int i;
                 printf("reconstructed data = ");
-                for (i = 0; i < 20; i++) printf("%f ", data[i]);
+                for (int i = 0; i < 20; i++) printf("%f ", data[i]);
                 printf("\n");
 
                 // write out file data
@@ -144,9 +144,8 @@ int main(int argc, char *argv[]) {
                 else
                     status = H5Dread(dset, H5T_IEEE_F64BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
                 /*Print the first 10 data values to check the correctness.*/
-                int i;
                 printf("reconstructed data = ");
-                for (i = 0; i < 20; i++) printf("%f ", data[i]);
+                for (int i = 0; i < 20; i++) printf("%f ", data[i]);
                 printf("\n");
                 free(data);
             }
@@ -165,9 +164,8 @@ int main(int argc, char *argv[]) {
                         status = H5Dread(dset, H5T_STD_U8LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
                     else
                         status = H5Dread(dset, H5T_STD_U8BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
-                    int i;
                     printf("reconstructed data = ");
-                    for (i = 0; i < 20; i++) printf("%d ", data[i]);
+                    for (int i = 0; i < 20; i++) printf("%d ", data[i]);
                     printf("\n");
                     free(data);
                 } else if (dsize == 2) {
@@ -177,9 +175,8 @@ int main(int argc, char *argv[]) {
                         status = H5Dread(dset, H5T_STD_U16LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
                     else
                         status = H5Dread(dset, H5T_STD_U16BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
-                    int i;
                     printf("reconstructed data = ");
-                    for (i = 0; i < 20; i++) printf("%d ", data[i]);
+                    for (int i = 0; i < 20; i++) printf("%d ", data[i]);
                     printf("\n");
                     free(data);
                 } else if (dsize == 4) {
@@ -189,9 +186,8 @@ int main(int argc, char *argv[]) {
                         status = H5Dread(dset, H5T_STD_U32LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
                     else
                         status = H5Dread(dset, H5T_STD_U32BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
-                    int i;
                     printf("reconstructed data = ");
-                    for (i = 0; i < 20; i++) printf("%d ", data[i]);
+                    for (int i = 0; i < 20; i++) printf("%d ", data[i]);
                     printf("\n");
                     free(data);
                 } else if (dsize == 8) {
@@ -201,9 +197,8 @@ int main(int argc, char *argv[]) {
                         status = H5Dread(dset, H5T_STD_U64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
                     else
                         status = H5Dread(dset, H5T_STD_U64BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
-                    int i;
                     printf("reconstructed data = ");
-                    for (i = 0; i < 20; i++) printf("%llu ", data[i]);
+                    for (int i = 0; i < 20; i++) printf("%" PRIu64 " ", data[i]);
                     printf("\n");
                     free(data);
                 }
@@ -215,9 +210,8 @@ int main(int argc, char *argv[]) {
                         status = H5Dread(dset, H5T_STD_I8LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
                     else
                         status = H5Dread(dset, H5T_STD_I8BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
-                    int i;
                     printf("reconstructed data = ");
-                    for (i = 0; i < 20; i++) printf("%d ", data[i]);
+                    for (int i = 0; i < 20; i++) printf("%d ", data[i]);
                     printf("\n");
                     free(data);
                 } else if (dsize == 2) {
@@ -227,9 +221,8 @@ int main(int argc, char *argv[]) {
                         status = H5Dread(dset, H5T_STD_I16LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
                     else
                         status = H5Dread(dset, H5T_STD_I16BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
-                    int i;
                     printf("reconstructed data = ");
-                    for (i = 0; i < 20; i++) printf("%d ", data[i]);
+                    for (int i = 0; i < 20; i++) printf("%d ", data[i]);
                     printf("\n");
                     free(data);
                 } else if (dsize == 4) {
@@ -239,9 +232,8 @@ int main(int argc, char *argv[]) {
                         status = H5Dread(dset, H5T_STD_I32LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
                     else
                         status = H5Dread(dset, H5T_STD_I32BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
-                    int i;
                     printf("reconstructed data = ");
-                    for (i = 0; i < 20; i++) printf("%d ", data[i]);
+                    for (int i = 0; i < 20; i++) printf("%d ", data[i]);
                     printf("\n");
                     free(data);
                 } else if (dsize == 8) {
@@ -251,9 +243,8 @@ int main(int argc, char *argv[]) {
                         status = H5Dread(dset, H5T_STD_I64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
                     else
                         status = H5Dread(dset, H5T_STD_I64BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
-                    int i;
                     printf("reconstructed data = ");
-                    for (i = 0; i < 20; i++) printf("%lld ", data[i]);
+                    for (int i = 0; i < 20; i++) printf("%" PRId64 " ", data[i]);
                     printf("\n");
                     free(data);
                 }

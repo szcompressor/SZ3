@@ -14,7 +14,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
 else () #-Wunused-parameter
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wreorder -Wsign-compare -Wsuggest-override -Wold-style-cast -Wcast-qual -Wzero-as-null-pointer-constant -Wextra-semi -Wnon-virtual-dtor -Wcast-align -Wunused-variable")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wreorder -Wsign-compare -Wsuggest-override -Wold-style-cast -Wcast-qual -Wextra-semi -Wnon-virtual-dtor -Wcast-align -Wunused-variable")
 endif ()
 set(default_build_type "Release")
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -103,6 +103,10 @@ if (BUILD_MDZ)
     add_subdirectory(tools/mdz)
 endif ()
 
+option(BUILD_PARAVIEW_PLUGIN "build the ParaView plugin" OFF)
+if (BUILD_PARAVIEW_PLUGIN)
+    add_subdirectory(tools/paraview)
+endif ()
 
 install(TARGETS ${PROJECT_NAME}
         EXPORT SZ3Targets

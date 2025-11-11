@@ -16,4 +16,4 @@ repackArgs=$("${script_dir}/print_h5repack_args" -c "$configFile")
 echo $repackArgs
 
 echo "Executing h5repack-shared with the following parameters: $repackArgs $inputFile $outputFile"
-h5repack-shared $repackArgs $inputFile $outputFile
+h5repack-shared -f $repackArgs $inputFile $outputFile

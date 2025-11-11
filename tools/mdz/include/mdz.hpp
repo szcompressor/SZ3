@@ -15,7 +15,7 @@
 #include <SZ3/predictor/RegressionPredictor.hpp>
 #include <SZ3/quantizer/LinearQuantizer.hpp>
 #include <SZ3/utils/FileUtil.hpp>
-#include <SZ3/utils/QuantOptimizatioin.hpp>
+#include <SZ3/utils/QuantOptimization.hpp>
 #include <SZ3/utils/Statistic.hpp>
 #include <SZ3/utils/Timer.hpp>
 

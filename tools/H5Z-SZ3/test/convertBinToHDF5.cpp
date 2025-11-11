@@ -96,8 +96,18 @@ int main(int argc, char *argv[]) {
     if (strcmp(datatype, "-f") == 0) {
         FILE *f;
         f = fopen(infile, "rb");
+        if (f == NULL) {
+            printf("Error opening file\n");
+            exit(1);
+        }
         auto *data = static_cast<float *>(malloc(nbEle * sizeof(float)));
-        fread(data, sizeof(float), nbEle, f);
+        size_t elements_read = fread(data, sizeof(float), nbEle, f);
+        if (elements_read != nbEle) {
+            printf("Error reading file\n");
+            free(data);
+            fclose(f);
+            exit(1);
+        }
         fclose(f);
 
         dataset_id = H5Dcreate2(file_id, database, H5T_IEEE_F32LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -112,8 +122,18 @@ int main(int argc, char *argv[]) {
     } else if (strcmp(datatype, "-d") == 0) {
         FILE *f;
         f = fopen(infile, "rb");
+        if (f == NULL) {
+            printf("Error opening file\n");
+            exit(1);
+        }
         double *data = static_cast<double *>(malloc(nbEle * sizeof(double)));
-        fread(data, sizeof(double), nbEle, f);
+        size_t elements_read = fread(data, sizeof(double), nbEle, f);
+        if (elements_read != nbEle) {
+            printf("Error reading file\n");
+            free(data);
+            fclose(f);
+            exit(1);
+        }
         fclose(f);
 
         dataset_id = H5Dcreate2(file_id, database, H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -123,8 +143,18 @@ int main(int argc, char *argv[]) {
     } else if (strcmp(datatype, "-i32") == 0) {
         FILE *f;
         f = fopen(infile, "rb");
+        if (f == NULL) {
+            printf("Error opening file\n");
+            exit(1);
+        }
         int *data = static_cast<int *>(malloc(nbEle * sizeof(int)));
-        fread(data, sizeof(int), nbEle, f);
+        size_t elements_read = fread(data, sizeof(int), nbEle, f);
+        if (elements_read != nbEle) {
+            printf("Error reading file\n");
+            free(data);
+            fclose(f);
+            exit(1);
+        }
         fclose(f);
 
         dataset_id = H5Dcreate2(file_id, database, H5T_STD_I32LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -134,8 +164,18 @@ int main(int argc, char *argv[]) {
     } else if (strcmp(datatype, "-i64") == 0) {
         FILE *f;
         f = fopen(infile, "rb");
+        if (f == NULL) {
+            printf("Error opening file\n");
+            exit(1);
+        }
         int64_t *data = static_cast<int64_t *>(malloc(nbEle * sizeof(int64_t)));
-        fread(data, sizeof(int64_t), nbEle, f);
+        size_t elements_read = fread(data, sizeof(int64_t), nbEle, f);
+        if (elements_read != nbEle) {
+            printf("Error reading file\n");
+            free(data);
+            fclose(f);
+            exit(1);
+        }
         fclose(f);
 
         dataset_id = H5Dcreate2(file_id, database, H5T_STD_I64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);

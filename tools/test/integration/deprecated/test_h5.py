@@ -46,28 +46,28 @@ OpenMP = No
 
 def get_compression_args(comp_conf_path):
     """
-    Calls the external executable 'print_h5repack_args' with the configuration file
+    Calls the external executable 'cdvalueHelper' with the configuration file
     to get compression arguments.
 
     Parameters:
     - comp_conf_path (str): Path to the comp.conf file.
 
     Returns:
-    - str: Compression string obtained from 'print_h5repack_args'.
+    - str: Compression string obtained from 'cdvalueHelper'.
     """
     try:
-        print(f"Calling 'print_h5repack_args' with configuration file '{comp_conf_path}' to get compression parameters...")
-        result = subprocess.run(['./print_h5repack_args', '-c', comp_conf_path], capture_output=True, text=True, check=True)
+        print(f"Calling 'cdvalueHelper' with configuration file '{comp_conf_path}' to get compression parameters...")
+        result = subprocess.run(['./cdvalueHelper', '-c', comp_conf_path], capture_output=True, text=True, check=True)
         compression = result.stdout.strip()
         if not compression:
             raise ValueError("Compression argument is empty.")
         print(f"Compression parameters obtained: '{compression}'")
         return compression
     except FileNotFoundError:
-        print("Error: 'print_h5repack_args' executable not found in PATH.")
+        print("Error: 'cdvalueHelper' executable not found in PATH.")
         sys.exit(1)
     except subprocess.CalledProcessError as e:
-        print(f"Error executing 'print_h5repack_args': {e}")
+        print(f"Error executing 'cdvalueHelper': {e}")
         print(f"stderr: {e.stderr}")
         sys.exit(1)
     except Exception as e:
