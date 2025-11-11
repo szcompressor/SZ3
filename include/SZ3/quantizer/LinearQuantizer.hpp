@@ -56,7 +56,8 @@ public:
             }
             T decompressed_data = pred + quant_index * this->error_bound;
             // if data is NaN, the diff is NaN, and NaN <= 0 is false
-            if (!strict_eb || fabs(decompressed_data - data) <= this->error_bound) {
+            diff = fabs(decompressed_data - data);
+            if (diff <= this->error_bound || (!strict_eb && diff <= this->error_bound * 1.1)) {
                 data = decompressed_data;
                 return quant_index_shifted;
             } else {
