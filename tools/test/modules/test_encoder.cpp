@@ -55,18 +55,23 @@ TEST(EncoderTest, ArithmeticEncoder) { runAllTest<SZ3::ArithmeticEncoder<int>, i
 
 TEST(EncoderTest, BypassEncoder) { runAllTest<SZ3::BypassEncoder<int>, int>(); }
 
-TEST(EncoderTest, BitshuffleEncoder) { runAllTest<SZ3::BitshuffleEncoderV2<int>, int>(); }
 
-
-template<class T, uint BITS>
-class BitshuffleEncoderWrapper : public SZ3::BitshuffleEncoder<T> {
+template<class T, uint BITS, class BaseEncoder>
+class BitshuffleEncoderWrapper : public BaseEncoder {
 public:
-    BitshuffleEncoderWrapper() : SZ3::BitshuffleEncoder<T>(BITS) {}
+    BitshuffleEncoderWrapper() : BaseEncoder(BITS) {}
 };
 
 TEST(EncoderTest, BitshuffleEncoder) {
-    runAllTest<BitshuffleEncoderWrapper<int, 4>, int>();
-    runAllTest<BitshuffleEncoderWrapper<int, 8>, int>();
-    runAllTest<BitshuffleEncoderWrapper<float, 4>, float>();
-    runAllTest<BitshuffleEncoderWrapper<float, 8>, float>();
+    runAllTest<BitshuffleEncoderWrapper<int, 4, SZ3::BitshuffleEncoder<int>>, int>();
+    runAllTest<BitshuffleEncoderWrapper<int, 8, SZ3::BitshuffleEncoder<int>>, int>();
+    runAllTest<BitshuffleEncoderWrapper<float, 4, SZ3::BitshuffleEncoder<float>>, float>();
+    runAllTest<BitshuffleEncoderWrapper<float, 8, SZ3::BitshuffleEncoder<float>>, float>();
+}
+
+TEST(EncoderTest, BitshuffleEncoderV2) {
+    runAllTest<BitshuffleEncoderWrapper<int, 4, SZ3::BitshuffleEncoderV2<int>>, int>();
+    runAllTest<BitshuffleEncoderWrapper<int, 8, SZ3::BitshuffleEncoderV2<int>>, int>();
+    runAllTest<BitshuffleEncoderWrapper<float, 4, SZ3::BitshuffleEncoderV2<float>>, float>();
+    runAllTest<BitshuffleEncoderWrapper<float, 8, SZ3::BitshuffleEncoderV2<float>>, float>();
 }
