@@ -11,10 +11,10 @@
 
 namespace SZ3 {
 
-template<class T, uint N>
+template<class T, uint N, class Quantizer>
 class SVDDecomposition : public concepts::DecompositionInterface<T, int, N> {
 public:
-    SVDDecomposition(const Config& conf) : config(conf) {}
+    SVDDecomposition(const Config& conf, Quantizer svd_quantizer, Quantizer res_quantizer) : config(conf), svd_quantizer(svd_quantizer), res_quantizer(res_quantizer) {}
 
     ~SVDDecomposition() override = default;
 
@@ -41,30 +41,29 @@ public:
         }
 
         // 2. Quantize SVD Tensors
-        LinearQuantizer<T> quantizer(conf.absErrorBound);
         quantized_core_tensor_data.resize(temp_core_tensor.size());
         for (int i = 0; i < temp_core_tensor.size(); ++i) {
             T val = temp_core_tensor.data()[i];
-            quantized_core_tensor_data[i] = quantizer.quantize_and_overwrite(val, 0);
+            quantized_core_tensor_data[i] = svd_quantizer.quantize_and_overwrite(val, 0);
         }
         quantized_factor_matrices_data.resize(temp_factor_matrices.size());
         for (size_t i = 0; i < temp_factor_matrices.size(); ++i) {
             quantized_factor_matrices_data[i].resize(temp_factor_matrices[i].size());
             for (int j = 0; j < temp_factor_matrices[i].size(); ++j) {
                 T val = temp_factor_matrices[i].data()[j];
-                quantized_factor_matrices_data[i][j] = quantizer.quantize_and_overwrite(val, 0);
+                quantized_factor_matrices_data[i][j] = svd_quantizer.quantize_and_overwrite(val, 0);
             }
         }
         
         // Store dimensions for decompression
-        for(int i=0; i<N; ++i) core_tensor_dims[i] = temp_core_tensor.dimension(i);
+        for(uint i=0; i<N; ++i) core_tensor_dims[i] = temp_core_tensor.dimension(i);
         for(const auto& m : temp_factor_matrices) {
             factor_matrices_dims.push_back({(long)m.rows(), (long)m.cols()});
         }
 
 
         // 3. Reverse SVD (Reconstruction)
-        Eigen::Tensor<T, N> reconstructed_tensor = dequantize_and_reconstruct(quantizer);
+        Eigen::Tensor<T, N> reconstructed_tensor = dequantize_and_reconstruct(svd_quantizer);
 
         // 4. Calculate Difference
         std::vector<T> diff(conf.num);
@@ -75,24 +74,22 @@ public:
         // 5. Quantize Difference
         std::vector<int> quantized_diff(conf.num);
         for (size_t i = 0; i < conf.num; ++i) {
-            quantized_diff[i] = quantizer.quantize_and_overwrite(diff[i], 0);
+            quantized_diff[i] = res_quantizer.quantize_and_overwrite(diff[i], 0);
         }
 
         return quantized_diff;
     }
 
     T* decompress(const Config& conf, std::vector<int>& quant_inds, T* dec_data) override {
-        LinearQuantizer<T> quantizer(conf.absErrorBound);
 
         // 1. Dequantize Difference
         std::vector<T> diff(conf.num);
         for (size_t i = 0; i < conf.num; ++i) {
-            diff[i] = quantizer.recover(0, quant_inds[i]);
+            diff[i] = res_quantizer.recover(0, quant_inds[i]);
         }
 
         // 2. Reconstruct from SVD
-        Eigen::Tensor<T, N> reconstructed_tensor = dequantize_and_reconstruct(quantizer);
-
+        Eigen::Tensor<T, N> reconstructed_tensor = dequantize_and_reconstruct(svd_quantizer);
         // 3. Add Difference
         for (size_t i = 0; i < conf.num; ++i) {
             dec_data[i] = reconstructed_tensor.data()[i] + diff[i];
@@ -113,6 +110,8 @@ public:
             write(core_tensor_dims[i], c);
         }
         write(quantized_core_tensor_data.data(), quantized_core_tensor_data.size(), c);
+        svd_quantizer.save(c);
+        res_quantizer.save(c);
     }
 
     void load(const uchar*& c, size_t& remaining_length) override {
@@ -135,11 +134,11 @@ public:
         for(long dim : core_tensor_dims) core_size *= dim;
         quantized_core_tensor_data.resize(core_size);
         read(quantized_core_tensor_data.data(), quantized_core_tensor_data.size(), c);
+        svd_quantizer.load(c, remaining_length);
+        res_quantizer.load(c, remaining_length);
     }
 
-    std::pair<int, int> get_out_range() override {
-        return {std::numeric_limits<int>::min(), std::numeric_limits<int>::max()};
-    }
+    std::pair<int, int> get_out_range() override { return res_quantizer.get_out_range(); }
 
     void print() override { std::cout << "SVDDecomposition" << std::endl; }
 
@@ -149,6 +148,9 @@ private:
     std::vector<int> quantized_core_tensor_data;
     Eigen::array<long, N> core_tensor_dims;
     std::vector<std::array<long, 2>> factor_matrices_dims;
+    Quantizer svd_quantizer;
+    Quantizer res_quantizer;
+
 
     Eigen::Tensor<T, 2> matrix_to_tensor(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matrix) {
         Eigen::Tensor<T, 2> tensor(matrix.rows(), matrix.cols());
@@ -162,11 +164,11 @@ private:
 
     Eigen::Tensor<T, N> contract_tensor_matrix(const Eigen::Tensor<T, N>& tensor, const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& matrix, int mode) {
         Eigen::Tensor<T, 2> matrix_tensor = matrix_to_tensor(matrix);
-        Eigen::array<Eigen::IndexPair<int>, 1> product_dims = { Eigen::IndexPair<int>(mode, 0) };
+        Eigen::array<Eigen::IndexPair<int>, 1> product_dims = { Eigen::IndexPair<int>(mode, 1) };
         return tensor.contract(matrix_tensor, product_dims);
     }
 
-    Eigen::Tensor<T, N> dequantize_and_reconstruct(LinearQuantizer<T>& quantizer) {
+    Eigen::Tensor<T, N> dequantize_and_reconstruct(Quantizer quantizer) {
         Eigen::Tensor<T, N> core_tensor(core_tensor_dims);
         for(size_t i=0; i<quantized_core_tensor_data.size(); ++i) {
             core_tensor.data()[i] = quantizer.recover(0, quantized_core_tensor_data[i]);

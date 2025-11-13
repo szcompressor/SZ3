@@ -12,8 +12,10 @@ namespace SZ3 {
 template <class T, uint N>
 size_t SZ_compress_SVD(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
     if constexpr (std::is_floating_point<T>::value) {
+        LinearQuantizer<T> svd_quantizer(conf.absErrorBound);
+        LinearQuantizer<T> res_quantizer(conf.absErrorBound);
         auto compressor = make_compressor_sz_generic<T, N>(
-            SVDDecomposition<T, N>(conf),
+            SVDDecomposition<T, N, LinearQuantizer<T>>(conf, svd_quantizer, res_quantizer),
             HuffmanEncoder<int>(),
             Lossless_zstd()
         );
@@ -26,8 +28,10 @@ size_t SZ_compress_SVD(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
 template <class T, uint N>
 void SZ_decompress_SVD(Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
     if constexpr (std::is_floating_point<T>::value) {
+        LinearQuantizer<T> svd_quantizer;
+        LinearQuantizer<T> res_quantizer;
         auto compressor = make_compressor_sz_generic<T, N>(
-            SVDDecomposition<T, N>(conf),
+            SVDDecomposition<T, N, LinearQuantizer<T>>(conf, svd_quantizer, res_quantizer),
             HuffmanEncoder<int>(),
             Lossless_zstd()
         );
