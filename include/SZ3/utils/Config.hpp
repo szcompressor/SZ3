@@ -61,7 +61,7 @@ enum EB { EB_ABS, EB_REL, EB_PSNR, EB_L2NORM, EB_ABS_AND_REL, EB_ABS_OR_REL };
  * - ALGO_NOPRED: No prediction.
  * - ALGO_LOSSLESS: Lossless compression.
  */
-enum ALGO { ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP, ALGO_NOPRED, ALGO_LOSSLESS, ALGO_BIOMD, ALGO_BIOMDXTC };
+enum ALGO { ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP, ALGO_NOPRED, ALGO_LOSSLESS, ALGO_BIOMD, ALGO_BIOMDXTC, ALGO_SVD };
 
 /**
  * @enum INTERP_ALGO
@@ -80,6 +80,7 @@ const std::map<std::string, ALGO> ALGO_MAP = {
     {"ALGO_LOSSLESS", ALGO_LOSSLESS},
     {"ALGO_BIOMD", ALGO_BIOMD},
     {"ALGO_BIOMDXTC", ALGO_BIOMDXTC},
+    {"ALGO_SVD", ALGO_SVD},
 };
 
 const std::map<std::string, EB> EB_MAP = {
@@ -266,6 +267,12 @@ public:
                     interpAlpha = std::stod(value);
                 else if (eq(key, "InterpolationBeta"))
                     interpBeta = std::stod(value);
+                else if (eq(key, "SVDTargetRank"))
+                    svd_target_rank = std::stoi(value);
+                else if (eq(key, "SVDOversamplingParam"))
+                    svd_oversampling_param = std::stoi(value);
+                else if (eq(key, "SVDEnergyThreshold"))
+                    svd_energy_threshold = std::stod(value);
             }
         }
     }
@@ -299,6 +306,9 @@ public:
         ss << "InterpolationAnchorStride = " << interpAnchorStride << "\n";
         ss << "InterpolationAlpha = " << interpAlpha << "\n";
         ss << "InterpolationBeta = " << interpBeta << "\n";
+        ss << "SVDTargetRank = " << svd_target_rank << "\n";
+        ss << "SVDOversamplingParam = " << svd_oversampling_param << "\n";
+        ss << "SVDEnergyThreshold = " << svd_energy_threshold << "\n";
         return ss.str();
     }
 
@@ -348,6 +358,11 @@ public:
         write(quantbinCnt, c);
         write(blockSize, c);
         write(predDim, c);
+        
+        // SVD specific parameters
+        write(svd_target_rank, c);
+        write(svd_oversampling_param, c);
+        write(svd_energy_threshold, c);
 
         auto confSize = static_cast<uchar>(c - c0);
         write(confSize, c0); //write conf size at reserved space
@@ -413,6 +428,16 @@ public:
         if (c < c1) {
             read(predDim, c);
         }
+        // SVD specific parameters
+        if (c < c1) {
+            read(svd_target_rank, c);
+        }
+        if (c < c1) {
+            read(svd_oversampling_param, c);
+        }
+        if (c < c1) {
+            read(svd_energy_threshold, c);
+        }
     }
 
     /**
@@ -461,6 +486,11 @@ public:
     int blockSize = 0;
     uint8_t predDim = 0;         // not used now
     uint8_t dataType = SZ_FLOAT; // dataType is only used in HDF5 filter
+
+    // SVD specific parameters
+    int svd_target_rank = 0;
+    int svd_oversampling_param = 5; // Default oversampling parameter
+    double svd_energy_threshold = 0.99; // Default energy threshold for adaptive rank finding
 
     /**
      * The following parameters are only used by specific modules.

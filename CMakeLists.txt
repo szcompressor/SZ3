@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.18)
 project(SZ3 VERSION 3.3.1)
 
+include_directories(3rdparty/eigen-5.0.0)
+
 #data version defines the version of the compressed data format
 #it is not always equal to the program version (e.g., SZ3 v3.1.0 and SZ3 v.3.1.1 may use the same data version of v.3.1.0)
 #only update data version if the new version of the program changes compressed data format
@@ -75,7 +77,7 @@ else ()
     target_link_libraries(${PROJECT_NAME} INTERFACE zstd)
 endif ()
 
-option(BUILD_TESTING "Build tests" OFF)
+option(BUILD_TESTING "Build tests" ON)
 if (BUILD_TESTING)
     enable_testing()
     add_subdirectory(tools/test)
