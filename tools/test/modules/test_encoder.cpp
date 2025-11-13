@@ -5,6 +5,8 @@
 #include "SZ3/encoder/BypassEncoder.hpp"
 #include "SZ3/encoder/HuffmanEncoder.hpp"
 #include "SZ3/encoder/RunlengthEncoder.hpp"
+#include "SZ3/encoder/BitshuffleEncoder.hpp"
+#include "SZ3/encoder/BitshuffleEncoderV2.hpp"
 #include "gtest/gtest.h"
 
 template <typename Encoder, typename T>
@@ -52,3 +54,19 @@ TEST(EncoderTest, RunlengthEncoder) { runAllTest<SZ3::RunlengthEncoder<int>, int
 TEST(EncoderTest, ArithmeticEncoder) { runAllTest<SZ3::ArithmeticEncoder<int>, int>(); }
 
 TEST(EncoderTest, BypassEncoder) { runAllTest<SZ3::BypassEncoder<int>, int>(); }
+
+TEST(EncoderTest, BitshuffleEncoder) { runAllTest<SZ3::BitshuffleEncoderV2<int>, int>(); }
+
+
+template<class T, uint BITS>
+class BitshuffleEncoderWrapper : public SZ3::BitshuffleEncoder<T> {
+public:
+    BitshuffleEncoderWrapper() : SZ3::BitshuffleEncoder<T>(BITS) {}
+};
+
+TEST(EncoderTest, BitshuffleEncoder) {
+    runAllTest<BitshuffleEncoderWrapper<int, 4>, int>();
+    runAllTest<BitshuffleEncoderWrapper<int, 8>, int>();
+    runAllTest<BitshuffleEncoderWrapper<float, 4>, float>();
+    runAllTest<BitshuffleEncoderWrapper<float, 8>, float>();
+}

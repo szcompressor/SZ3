@@ -3,6 +3,8 @@
 
 #include "gtest/gtest.h"
 #include "SZ3/quantizer/LinearQuantizer.hpp"
+#include "SZ3/quantizer/NonLinearQuantizer.hpp"
+#include "SZ3/quantizer/TimeIntQuantizer.hpp"
 
 template <typename Quantizer, typename T>
 void runQuantizeRecoverTest() {
@@ -64,4 +66,21 @@ void runAllTest() {
 
 TEST(QuantizerTest, LinearQuantizer) {
     runAllTest<SZ3::LinearQuantizer<float>, float>();
+}
+
+TEST(QuantizerTest, NonLinearQuantizer) {
+    runAllTest<SZ3::NonLinearQuantizer<float>, float>();
+}
+
+TEST(QuantizerTest, TimeIntQuantizer) {
+    const int pred_dim = 4;
+    SZ3::TimeIntQuantizer<int> quantizer(pred_dim);
+    int data = 5;
+    int data_ori = data;
+
+    int quant_index = quantizer.quantize_and_overwrite(data, 2);
+
+    int recovered = quantizer.recover(2, quant_index);
+
+    EXPECT_EQ(data_ori, recovered);
 }
