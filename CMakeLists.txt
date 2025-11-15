@@ -37,6 +37,7 @@ target_include_directories(
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
+target_precompile_headers(${PROJECT_NAME} INTERFACE <SZ3/stdafx.hpp>)
 target_compile_features(${PROJECT_NAME}
         INTERFACE cxx_std_17
 )
@@ -52,7 +53,6 @@ FetchContent_Declare(
   GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
   GIT_TAG 3.4.0
 )
-set(EIGEN_BUILD_TESTING OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(eigen)
 target_link_libraries(${PROJECT_NAME} INTERFACE Eigen3::Eigen)
 

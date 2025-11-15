@@ -4,9 +4,7 @@
 #include "SZ3/decomposition/Decomposition.hpp"
 #include "SZ3/quantizer/LinearQuantizer.hpp"
 #include "SZ3/utils/Config.hpp"
-#include <Eigen/Dense>
-#include <Eigen/SVD>
-#include <unsupported/Eigen/CXX11/Tensor>
+#include "SZ3/stdafx.hpp"
 #include <iostream>
 #include <vector>
 #include <algorithm>
