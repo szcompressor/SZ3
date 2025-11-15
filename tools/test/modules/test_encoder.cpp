@@ -1,6 +1,7 @@
 #include <cmath>
 #include <cstdint>
 
+#include "SZ3/def.hpp"
 #include "SZ3/encoder/ArithmeticEncoder.hpp"
 #include "SZ3/encoder/BypassEncoder.hpp"
 #include "SZ3/encoder/HuffmanEncoder.hpp"
