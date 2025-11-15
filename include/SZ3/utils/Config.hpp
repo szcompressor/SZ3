@@ -273,6 +273,8 @@ public:
                     svd_oversampling_param = std::stoi(value);
                 else if (eq(key, "SVDEnergyThreshold"))
                     svd_energy_threshold = std::stod(value);
+                else if (eq(key, "SVDQuantEBScale"))
+                    svd_quant_eb_scale = std::stod(value);
             }
         }
     }
@@ -309,6 +311,7 @@ public:
         ss << "SVDTargetRank = " << svd_target_rank << "\n";
         ss << "SVDOversamplingParam = " << svd_oversampling_param << "\n";
         ss << "SVDEnergyThreshold = " << svd_energy_threshold << "\n";
+        ss << "SVDQuantEBScale = " << svd_quant_eb_scale << "\n";
         return ss.str();
     }
 
@@ -363,6 +366,7 @@ public:
         write(svd_target_rank, c);
         write(svd_oversampling_param, c);
         write(svd_energy_threshold, c);
+        write(svd_quant_eb_scale, c);
 
         auto confSize = static_cast<uchar>(c - c0);
         write(confSize, c0); //write conf size at reserved space
@@ -438,6 +442,9 @@ public:
         if (c < c1) {
             read(svd_energy_threshold, c);
         }
+        if (c < c1) {
+            read(svd_quant_eb_scale, c);
+        }
     }
 
     /**
@@ -491,6 +498,7 @@ public:
     int svd_target_rank = 0;
     int svd_oversampling_param = 5; // Default oversampling parameter
     double svd_energy_threshold = 0.99; // Default energy threshold for adaptive rank finding
+    double svd_quant_eb_scale = 0.01;
 
     /**
      * The following parameters are only used by specific modules.
