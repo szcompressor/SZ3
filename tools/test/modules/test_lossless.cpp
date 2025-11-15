@@ -34,5 +34,5 @@ void runAllTest() {
     runFunctionalTest<Lossless>();
 }
 
-TEST(LosslessTest, LosslessZstd) { runAllTest<SZ3::Lossless_zstd>(); }
-TEST(LosslessTest, LosslessBypass) { runAllTest<SZ3::Lossless_bypass>(); }
+TEST(SZ3.LosslessTest, LosslessZstd) { runAllTest<SZ3::Lossless_zstd>(); }
+TEST(SZ3.LosslessTest, LosslessBypass) { runAllTest<SZ3::Lossless_bypass>(); }
