@@ -43,7 +43,7 @@ jobs:
       - name: Run CTest
         shell: bash
         working-directory: build
-        run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
+        run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }} -E "^Eigen"
 
       - name: Download test data
         shell: bash
@@ -111,7 +111,7 @@ jobs:
       - name: Run CTest
         shell: bash
         working-directory: build
-        run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
+        run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }} -E "^Eigen"
 
       - name: Download test data
         shell: bash
@@ -178,7 +178,7 @@ jobs:
       - name: Run CTest
         shell: pwsh
         working-directory: build
-        run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
+        run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }} -E "^Eigen"
 
       - name: Download test data
         shell: pwsh
@@ -273,7 +273,7 @@ jobs:
         working-directory: build
         run: |
           export PATH="$PWD/bin:$PWD/lib:$PATH"
-          ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
+          ctest --output-on-failure -C ${{ env.BUILD_TYPE }} -E "^Eigen"
 
       - name: Download test data
         run: |

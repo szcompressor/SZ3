@@ -57,7 +57,7 @@ TEST(EncoderTest, ArithmeticEncoder) { runAllTest<SZ3::ArithmeticEncoder<int>, i
 TEST(EncoderTest, BypassEncoder) { runAllTest<SZ3::BypassEncoder<int>, int>(); }
 
 
-template<class T, uint BITS, class BaseEncoder>
+template<class T, SZ3::uint BITS, class BaseEncoder>
 class BitshuffleEncoderWrapper : public BaseEncoder {
 public:
     BitshuffleEncoderWrapper() : BaseEncoder(BITS) {}
