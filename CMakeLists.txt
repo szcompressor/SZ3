@@ -52,6 +52,7 @@ FetchContent_Declare(
   GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
   GIT_TAG 3.4.0
 )
+set(EIGEN_BUILD_TESTING OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(eigen)
 target_link_libraries(${PROJECT_NAME} INTERFACE Eigen3::Eigen)
 

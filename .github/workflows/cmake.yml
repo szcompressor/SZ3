@@ -1,4 +1,4 @@
-name: Cross-Platform SZ3 Verification
+name: SZ3 Cross-Platform Build and Test
 
 on: [ push ]
 
