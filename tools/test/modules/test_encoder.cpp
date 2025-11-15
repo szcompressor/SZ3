@@ -48,13 +48,13 @@ void runAllTest() {
     runFunctionalTest<Encoder, T>();
 }
 
-TEST(SZ3.EncoderTest, HuffmanEncoder) { runAllTest<SZ3::HuffmanEncoder<int>, int>(); }
+TEST(SZ3_EncoderTest, HuffmanEncoder) { runAllTest<SZ3::HuffmanEncoder<int>, int>(); }
 
-TEST(SZ3.EncoderTest, RunlengthEncoder) { runAllTest<SZ3::RunlengthEncoder<int>, int>(); }
+TEST(SZ3_EncoderTest, RunlengthEncoder) { runAllTest<SZ3::RunlengthEncoder<int>, int>(); }
 
-TEST(SZ3.EncoderTest, ArithmeticEncoder) { runAllTest<SZ3::ArithmeticEncoder<int>, int>(); }
+TEST(SZ3_EncoderTest, ArithmeticEncoder) { runAllTest<SZ3::ArithmeticEncoder<int>, int>(); }
 
-TEST(SZ3.EncoderTest, BypassEncoder) { runAllTest<SZ3::BypassEncoder<int>, int>(); }
+TEST(SZ3_EncoderTest, BypassEncoder) { runAllTest<SZ3::BypassEncoder<int>, int>(); }
 
 
 template<class T, SZ3::uint BITS, class BaseEncoder>
@@ -63,14 +63,14 @@ public:
     BitshuffleEncoderWrapper() : BaseEncoder(BITS) {}
 };
 
-TEST(SZ3.EncoderTest, BitshuffleEncoder) {
+TEST(SZ3_EncoderTest, BitshuffleEncoder) {
     runAllTest<BitshuffleEncoderWrapper<int, 4, SZ3::BitshuffleEncoder<int>>, int>();
     runAllTest<BitshuffleEncoderWrapper<int, 8, SZ3::BitshuffleEncoder<int>>, int>();
     runAllTest<BitshuffleEncoderWrapper<float, 4, SZ3::BitshuffleEncoder<float>>, float>();
     runAllTest<BitshuffleEncoderWrapper<float, 8, SZ3::BitshuffleEncoder<float>>, float>();
 }
 
-TEST(SZ3.EncoderTest, BitshuffleEncoderV2) {
+TEST(SZ3_EncoderTest, BitshuffleEncoderV2) {
     runAllTest<BitshuffleEncoderWrapper<int, 4, SZ3::BitshuffleEncoderV2<int>>, int>();
     runAllTest<BitshuffleEncoderWrapper<int, 8, SZ3::BitshuffleEncoderV2<int>>, int>();
     runAllTest<BitshuffleEncoderWrapper<float, 4, SZ3::BitshuffleEncoderV2<float>>, float>();

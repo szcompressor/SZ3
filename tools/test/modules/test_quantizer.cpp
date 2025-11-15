@@ -64,15 +64,15 @@ void runAllTest() {
     runFunctionalTest<Quantizer, T>();
 }
 
-TEST(SZ3.QuantizerTest, LinearQuantizer) {
+TEST(SZ3_QuantizerTest, LinearQuantizer) {
     runAllTest<SZ3::LinearQuantizer<float>, float>();
 }
 
-TEST(SZ3.QuantizerTest, NonLinearQuantizer) {
+TEST(SZ3_QuantizerTest, NonLinearQuantizer) {
     runAllTest<SZ3::NonLinearQuantizer<float>, float>();
 }
 
-TEST(SZ3.QuantizerTest, TimeIntQuantizer) {
+TEST(SZ3_QuantizerTest, TimeIntQuantizer) {
     const int pred_dim = 4;
     SZ3::TimeIntQuantizer<int> quantizer(pred_dim);
     int data = 5;
