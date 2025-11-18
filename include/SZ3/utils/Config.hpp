@@ -312,8 +312,6 @@ public:
         auto c0 = c;
         c += sizeof(uchar); //reserve space for conf size
 
-        write(sz3MagicNumber, c);
-        write(sz3DataVer, c);
         write(N, c);
         // write(dims.data(), dims.size(), c);
         auto bitWidth = vector_bit_width(dims);
@@ -363,8 +361,6 @@ public:
         uchar confSize = 0;
         read(confSize, c);
         auto c1 = c + confSize;
-        read(sz3MagicNumber, c);
-        read(sz3DataVer, c);
 
         read(N, c);
         uint8_t bitWidth;
