@@ -50,23 +50,22 @@ pip install -e .
 
 ```python
 import numpy as np
-from pysz import sz, pyConfig
+from pysz import sz, szConfig, szErrorBoundMode, szAlgorithm
 
 # Create test data
 data = np.random.rand(8, 8, 128).astype(np.float32)
 
 # Create config
-config = pyConfig(data.shape)
-config.errorBoundMode = pyConfig.EB.ABS
+config = szConfig()
+config.errorBoundMode = szErrorBoundMode.ABS
 config.absErrorBound = 1e-3
-config.cmprAlgo = pyConfig.ALGO.INTERP_LORENZO
 
 # Compress
 compressed, ratio = sz.compress(data, config)
 print(f"Compression ratio: {ratio:.2f}x")
 
 # Decompress
-decompressed = sz.decompress(compressed, np.float32, data.shape, config)
+decompressed, config = sz.decompress(compressed, np.float32, data.shape)
 
 # Verify
 max_err, psnr, nrmse = sz.verify(data, decompressed)
@@ -75,17 +74,10 @@ print(f"Max error: {max_err:.2e}, PSNR: {psnr:.2f} dB, NRMSE: {nrmse:.2e}")
 
 ## API Reference
 
-### pyConfig Class
+### szConfig Class
 
 Configuration object for SZ3 compression. It mirrors the C++ `Config` class.
-
-```python
-# Flexible initialization - all work the same:
-config = pyConfig(data.shape)       # Pass shape tuple directly (recommended)
-config = pyConfig((100, 200, 300))  # Pass tuple
-config = pyConfig([100, 200, 300])  # Pass list
-config = pyConfig(100, 200, 300)    # Pass individual dimensions
-```
+During compression, the dimensions are automatically inferred from the numpy array shape, so you don't need setup the config dimensions.
 
 ### sz.compress()
 
@@ -97,7 +89,7 @@ Compress a NumPy array. Dimensions are automatically inferred from data shape.
 
 **Parameters:**
 - `data` (ndarray): NumPy array (float32, float64, int32, or int64)
-- `config` (pyConfig or str): Config object or path to config file
+- `config` (szConfig): Config object
 
 **Returns:**
 - `compressed` (ndarray): Compressed data as uint8 array
@@ -106,7 +98,7 @@ Compress a NumPy array. Dimensions are automatically inferred from data shape.
 ### sz.decompress()
 
 ```python
-sz.decompress(compressed, dtype, shape, config) -> data
+sz.decompress(compressed, dtype, shape) -> (data, config)
 ```
 
 Decompress data back to NumPy array.
@@ -115,10 +107,10 @@ Decompress data back to NumPy array.
 - `compressed` (ndarray): Compressed uint8 array from `compress()`
 - `dtype` (type): NumPy dtype (np.float32, np.float64, np.int32, or np.int64)
 - `shape` (tuple): Shape of the original data
-- `config` (pyConfig or str): Config object or path to config file
 
 **Returns:**
 - `data` (ndarray): Decompressed data with the specified shape
+- `config` (szConfig): Config object used for decompression
 
 ### sz.verify()
 
@@ -149,22 +141,22 @@ Compare decompressed data with original data and calculate quality metrics.
 
 ```python
 import numpy as np
-from pysz import sz, pyConfig
+from pysz import sz, szConfig, szErrorBoundMode, szAlgorithm
 
 # Create data
 data = np.random.randn(100, 200, 300).astype(np.float32)
 
-# Create config - use enums
-config = pyConfig(data.shape)
-config.errorBoundMode = pyConfig.EB.ABS
+# Create config
+config = szConfig()
+config.errorBoundMode = szErrorBoundMode.ABS
 config.absErrorBound = 1e-3
 
 # Compress
 compressed, ratio = sz.compress(data, config)
 print(f"Compressed {data.nbytes} → {compressed.size} bytes ({ratio:.2f}x)")
 
-# Decompress
-decompressed = sz.decompress(compressed, np.float32, data.shape, config)
+# Decompress - returns (data, config)
+decompressed, dec_config = sz.decompress(compressed, np.float32, data.shape)
 
 # Verify quality
 max_err, psnr, nrmse = sz.verify(data, decompressed)
@@ -175,26 +167,25 @@ print(f"Max error: {max_err:.2e}, PSNR: {psnr:.2f} dB, NRMSE: {nrmse:.2e}")
 
 ```python
 import numpy as np
-from pysz import sz, pyConfig
+from pysz import sz, szConfig
 
 data = np.fromfile('testdata.dat', dtype=np.float32).reshape(8, 8, 128)
 
 # Load config from file
-config = pyConfig(data.shape)
+config = szConfig()
 config.loadcfg('sz3.config')
 compressed, ratio = sz.compress(data, config)
-decompressed = sz.decompress(compressed, np.float32, data.shape, config)
+decompressed, _ = sz.decompress(compressed, np.float32, data.shape)
 
-# Or pass file path directly
-compressed, ratio = sz.compress(data, 'sz3.config')
-decompressed = sz.decompress(compressed, np.float32, data.shape, 'sz3.config')
 ```
 
 ### Relative Error Bound
 
 ```python
-config = pyConfig(data.shape)
-config.errorBoundMode = pyConfig.EB.REL
+from pysz import szConfig, szErrorBoundMode
+
+config = szConfig()
+config.errorBoundMode = szErrorBoundMode.REL
 config.relErrorBound = 1e-4  # 0.01% relative error
 compressed, ratio = sz.compress(data, config)
 ```
@@ -203,26 +194,28 @@ compressed, ratio = sz.compress(data, config)
 ### Different Algorithms
 
 ```python
+from pysz import szConfig, szErrorBoundMode, szAlgorithm
+
 # Default: INTERP_LORENZO (best quality)
-config = pyConfig(data.shape)
-config.errorBoundMode = pyConfig.EB.ABS
+config = szConfig()
+config.errorBoundMode = szErrorBoundMode.ABS
 config.absErrorBound = 1e-3
 
 # Or try other algorithms
-config.cmprAlgo = pyConfig.ALGO.INTERP        # Interpolation only
-config.cmprAlgo = pyConfig.ALGO.LORENZO_REG   # Lorenzo/regression
-config.cmprAlgo = pyConfig.ALGO.LOSSLESS      # Lossless only
+config.cmprAlgo = szAlgorithm.INTERP        # Interpolation only
+config.cmprAlgo = szAlgorithm.LORENZO_REG   # Lorenzo/regression
+config.cmprAlgo = szAlgorithm.LOSSLESS      # Lossless only
 ```
 
 ### Double Precision
 
 ```python
 data_double = np.random.randn(50, 50, 50).astype(np.float64)
-config = pyConfig(data_double.shape)
-config.errorBoundMode = pyConfig.EB.ABS
+config = szConfig()
+config.errorBoundMode = szErrorBoundMode.ABS
 config.absErrorBound = 1e-6
 compressed, ratio = sz.compress(data_double, config)
-decompressed = sz.decompress(compressed, np.float64, data_double.shape, config)
+decompressed, _ = sz.decompress(compressed, np.float64, data_double.shape)
 ```
 
 ### Save/Load Compressed Data
@@ -234,7 +227,7 @@ compressed.tofile('data.sz')
 
 # Later: load and decompress
 compressed = np.fromfile('data.sz', dtype=np.uint8)
-decompressed = sz.decompress(compressed, np.float32, (8, 8, 128), config)
+decompressed, _ = sz.decompress(compressed, np.float32, (8, 8, 128))
 ```
 
 ## Troubleshooting
