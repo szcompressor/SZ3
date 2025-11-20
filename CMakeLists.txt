@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.18)
-project(SZ3 VERSION 3.3.1)
+project(SZ3 VERSION 3.3.2)
+
 #data version defines the version of the compressed data format
 #it is not always equal to the program version (e.g., SZ3 v3.1.0 and SZ3 v.3.1.1 may use the same data version of v.3.1.0)
 #only update data version if the new version of the program changes compressed data format
-set(SZ3_DATA_VERSION 3.3.0)
+set(SZ3_DATA_VERSION 3.3.2)
 
 include(GNUInstallDirs)
 
@@ -37,10 +38,13 @@ target_include_directories(
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
-target_precompile_headers(${PROJECT_NAME} INTERFACE <SZ3/stdafx.hpp>)
+
 target_compile_features(${PROJECT_NAME}
         INTERFACE cxx_std_17
 )
+
+target_precompile_headers(${PROJECT_NAME} INTERFACE <SZ3/stdafx.hpp>)
+
 
 find_package(OpenMP)
 if (OpenMP_FOUND)
@@ -56,12 +60,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(eigen)
 target_link_libraries(${PROJECT_NAME} INTERFACE Eigen3::Eigen)
 
-if (MSVC)
-    option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" ON)
-else ()
-    option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" OFF)
-endif ()
-
 option(SZ3_DEBUG_TIMINGS "print debug timing information" OFF)
 if (SZ3_DEBUG_TIMINGS)
     target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_DEBUG_TIMINGS=1)
@@ -76,6 +74,11 @@ else ()
     target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_USE_SKA_HASH=0)
 endif ()
 
+if (MSVC)
+    option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" ON)
+else ()
+    option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" OFF)
+endif ()
 pkg_search_module(ZSTD IMPORTED_TARGET libzstd)
 if (ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
     target_link_libraries(${PROJECT_NAME} INTERFACE PkgConfig::ZSTD)
@@ -84,7 +87,7 @@ else ()
     target_link_libraries(${PROJECT_NAME} INTERFACE zstd)
 endif ()
 
-option(BUILD_TESTING "Build tests" ON)
+option(BUILD_TESTING "Build tests" OFF)
 if (BUILD_TESTING)
     enable_testing()
     add_subdirectory(tools/test)

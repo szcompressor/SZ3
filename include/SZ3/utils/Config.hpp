@@ -35,19 +35,21 @@
 #define SZ_UINT64 8
 #define SZ_INT64 9
 
-
 namespace SZ3 {
 
 /**
  * @enum EB
  * @brief Enumeration for error bound modes.
  *
- * - EB_ABS: Absolute error bound.
- * - EB_REL: Relative error bound.
- * - EB_PSNR: Peak Signal-to-Noise Ratio error bound.
- * - EB_L2NORM: L2 norm error bound.
- * - EB_ABS_AND_REL: Combined absolute and relative error bound.
- * - EB_ABS_OR_REL: Either absolute or relative error bound.
+ * - EB_ABS: Absolute error bound. Limits the (de)compression errors to be within an absolute error. For example,
+ * absErrorBound=0.0001 means the decompressed value must be in [V-0.0001,V+0.0001], where V is the original true value.
+ * - EB_REL: Relative error bound ratio. Limits the (de)compression errors by considering the global data value range
+ * size (max_value - min_value). For example, relErrorBound=0.01 means the error bound is 0.01 * (max - min).
+ * - EB_PSNR: Peak Signal-to-Noise Ratio error bound. Expected PSNR. Only valid when ErrorBoundMode = PSNR.
+ * - EB_L2NORM: L2 norm error bound. Expected L2 norm error: sqrt((x1-x1')^2 + (x2-x2')^2 + ... + (xN-xN')^2)
+ * - EB_ABS_AND_REL: Combined absolute and relative error bound. Both absolute and relative bounds must be satisfied.
+ * - EB_ABS_OR_REL: Either absolute or relative error bound. Either the absolute or relative bound must be satisfied
+ * (whichever is stricter).
  */
 enum EB { EB_ABS, EB_REL, EB_PSNR, EB_L2NORM, EB_ABS_AND_REL, EB_ABS_OR_REL };
 
@@ -56,10 +58,12 @@ enum EB { EB_ABS, EB_REL, EB_PSNR, EB_L2NORM, EB_ABS_AND_REL, EB_ABS_OR_REL };
  * @brief Enumeration for compression algorithms.
  *
  * - ALGO_LORENZO_REG: SZ2 algorithm (Lorenzo with regression).
- * - ALGO_INTERP_LORENZO: SZ3 algorithm (Interpolation with Lorenzo, with tuning).
+ * - ALGO_INTERP_LORENZO: the default SZ3 algorithm (Interpolation with Lorenzo, with tuning).
  * - ALGO_INTERP: Interpolation-only (without tuning).
  * - ALGO_NOPRED: No prediction.
  * - ALGO_LOSSLESS: Lossless compression.
+ * - ALGO_BIOMD: data compression algorithm for biology molecular data.
+ * - ALGO_BIOMDXTC: The XTC data compression algorithm in GROMACS for biology molecular data.
  */
 enum ALGO { ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP, ALGO_NOPRED, ALGO_LOSSLESS, ALGO_BIOMD, ALGO_BIOMDXTC, ALGO_SVD };
 
@@ -73,12 +77,9 @@ enum ALGO { ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP, ALGO_NOPRED, ALG
 enum INTERP_ALGO { INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC };
 
 const std::map<std::string, ALGO> ALGO_MAP = {
-    {"ALGO_LORENZO_REG", ALGO_LORENZO_REG},
-    {"ALGO_INTERP_LORENZO", ALGO_INTERP_LORENZO},
-    {"ALGO_INTERP", ALGO_INTERP},
-    {"ALGO_NOPRED", ALGO_NOPRED},
-    {"ALGO_LOSSLESS", ALGO_LOSSLESS},
-    {"ALGO_BIOMD", ALGO_BIOMD},
+    {"ALGO_LORENZO_REG", ALGO_LORENZO_REG}, {"ALGO_INTERP_LORENZO", ALGO_INTERP_LORENZO},
+    {"ALGO_INTERP", ALGO_INTERP},           {"ALGO_NOPRED", ALGO_NOPRED},
+    {"ALGO_LOSSLESS", ALGO_LOSSLESS},       {"ALGO_BIOMD", ALGO_BIOMD},
     {"ALGO_BIOMDXTC", ALGO_BIOMDXTC},
     {"ALGO_SVD", ALGO_SVD},
 };
@@ -136,7 +137,7 @@ ALWAYS_INLINE std::string enum_to_string(EnumType value, const std::map<std::str
  * and estimate the size of the configuration.
  */
 class Config {
-public:
+   public:
     /**
      * @brief Constructor to initialize the configuration with dimensions.
      *
@@ -317,16 +318,14 @@ public:
 
     /**
      * @brief Serialize the configuration to a byte array.
-     *
+     * @note some fields are saved/loaded in specific modules, not here.
      * @param c Pointer to the byte array.
      * @return Size of the serialized configuration.
      */
     size_t save(unsigned char*& c) const {
         auto c0 = c;
-        c += sizeof(uchar); //reserve space for conf size
+        c += sizeof(uchar);  // reserve space for conf size
 
-        write(sz3MagicNumber, c);
-        write(sz3DataVer, c);
         write(N, c);
         // write(dims.data(), dims.size(), c);
         auto bitWidth = vector_bit_width(dims);
@@ -369,7 +368,7 @@ public:
         write(svd_quant_eb_scale, c);
 
         auto confSize = static_cast<uchar>(c - c0);
-        write(confSize, c0); //write conf size at reserved space
+        write(confSize, c0);  // write conf size at reserved space
         return confSize;
     }
 
@@ -382,8 +381,6 @@ public:
         uchar confSize = 0;
         read(confSize, c);
         auto c1 = c + confSize;
-        read(sz3MagicNumber, c);
-        read(sz3DataVer, c);
 
         read(N, c);
         uint8_t bitWidth;
@@ -448,7 +445,7 @@ public:
     }
 
     /**
-     * @brief Print the current configuration to the console.
+     * @brief Print the current configuration.
      */
     void print() {
         // printf("===================== Begin SZ3 Configuration =====================\n");
@@ -473,26 +470,12 @@ public:
         return save(buffer_pos);
     }
 
-    uint32_t sz3MagicNumber = SZ3_MAGIC_NUMBER;
-    uint32_t sz3DataVer = versionInt(SZ3_DATA_VER);
-    char N = 0;
-    std::vector<size_t> dims;
-    size_t num = 0;
-    uint8_t cmprAlgo = ALGO_INTERP_LORENZO;
-    uint8_t errorBoundMode = EB_ABS;
-    double absErrorBound = 1e-3;
-    double relErrorBound = 0.0;
-    double psnrErrorBound = 0.0;
-    double l2normErrorBound = 0.0;
-    bool lorenzo = true;
-    bool lorenzo2 = false;
-    bool regression = true;
-    bool regression2 = false;
-    bool openmp = false;
-    int quantbinCnt = 65536;
-    int blockSize = 0;
-    uint8_t predDim = 0;         // not used now
-    uint8_t dataType = SZ_FLOAT; // dataType is only used in HDF5 filter
+    uint32_t sz3MagicNumber = SZ3_MAGIC_NUMBER;      ///< SZ3 magic number for identification
+    uint32_t sz3DataVer = versionInt(SZ3_DATA_VER);  ///< SZ3 data version
+
+    char N = 0;                ///< Number of dimensions
+    std::vector<size_t> dims;  ///< Dimensions of the data
+    size_t num = 0;            ///< Total number of data points
 
     // SVD specific parameters
     int svd_target_rank = 0;
@@ -501,17 +484,38 @@ public:
     double svd_quant_eb_scale = 0.01;
 
     /**
-     * The following parameters are only used by specific modules.
-     * They are saved and loaded in their module implementation, not in Config.
+     * @brief Global settings for compression.
+     * These settings are generally applicable for all users.
      */
-    uint8_t interpAlgo = INTERP_ALGO_CUBIC;
-    uint8_t interpDirection = 0;
-    int interpAnchorStride = -1; // -1: using dynamic default setting
-    double interpAlpha = 1.25;   // level-wise eb reduction rate
-    double interpBeta = 2.0;     // maximum eb reduction rate
+    uint8_t cmprAlgo = ALGO_INTERP_LORENZO;  ///< Compression algorithm
+    uint8_t errorBoundMode = EB_ABS;         ///< Error bound mode
+    double absErrorBound = 1e-3;             ///< Absolute error bound
+    double relErrorBound = 0.0;              ///< Relative error bound
+    double psnrErrorBound = 0.0;             ///< PSNR error bound
+    double l2normErrorBound = 0.0;           ///< L2 norm error bound
+    bool openmp = false;                     ///< Use OpenMP for parallel processing
+
+    /**
+     * @brief Algorithm-specific settings.
+     * @note These are for advanced users or automatic tuning.
+     * @note Newly added settings should be saved/loaded in specific modules, not here.
+     */
+    int quantbinCnt = 65536;                 ///< Maximum number of quantization intervals
+    int blockSize = 0;                       ///< Block size for processing
+    uint8_t predDim = 0;                     ///< Prediction dimension (currently unused)
+    uint8_t dataType = SZ_FLOAT;             ///< Data type (used in HDF5 filter)
+    bool lorenzo = true;                     ///< Enable 1st order Lorenzo
+    bool lorenzo2 = false;                   ///< Enable 2nd order Lorenzo
+    bool regression = true;                  ///< Enable 1st order regression
+    bool regression2 = false;                ///< Enable 2nd order regression
+    uint8_t interpAlgo = INTERP_ALGO_CUBIC;  ///< Interpolation algorithm. Saved/loaded in InterpolationDecomposition.
+    uint8_t interpDirection = 0;             ///< Interpolation direction. Saved/loaded in InterpolationDecomposition.
+    int interpAnchorStride =
+        -1;  ///< Interpolation anchor stride (-1 for dynamic). Saved/loaded in InterpolationDecomposition.
+    double interpAlpha = 1.25;  ///< Interpolation eb tuning parameter. Saved/loaded in InterpolationDecomposition.
+    double interpBeta = 2.0;    ///< Interpolation eb tuning parameter. Saved/loaded in InterpolationDecomposition.
 };
 
-} // namespace SZ3
+}  // namespace SZ3
 
 #endif  // SZ_CONFIG_HPP
-

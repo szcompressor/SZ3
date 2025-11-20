@@ -2,7 +2,6 @@
 """Python interface for SZ3 compression library."""
 
 from pysz cimport sz as c_sz
-from pysz cimport pyConfig
 cimport cython
 from cython.operator cimport dereference
 import numpy as np
@@ -11,9 +10,164 @@ from libc.stdint cimport int8_t, int32_t, int64_t
 from libc.stddef cimport size_t
 from libc.string cimport memcpy
 from typing import Tuple
+from libcpp.vector cimport vector
+from libcpp.string cimport string
 
 # Initialize NumPy C API
 cnp.import_array()
+
+
+class szErrorBoundMode:
+    """Error bound modes"""
+    ABS = 0
+    REL = 1
+    PSNR = 2
+    L2NORM = 3
+    ABS_AND_REL = 4
+    ABS_OR_REL = 5
+
+
+class szAlgorithm:
+    """Compression algorithms"""
+    LORENZO_REG = 0
+    INTERP_LORENZO = 1
+    INTERP = 2
+    NOPRED = 3
+    LOSSLESS = 4
+
+
+cdef class szConfig:
+    """
+    Configuration class for SZ3 compression.
+    
+    Enum classes: szErrorBoundMode, szAlgorithm (module level)
+    
+    Parameters: Dimension sizes as individual ints, tuple, or list
+        szConfig(data.shape), szConfig(100, 200, 300), etc.
+    """
+
+    def __init__(self, *args):
+        """Initialize config with optional dimensions."""
+        self.conf = Config()
+        if args:
+            self.setDims(*args)
+    
+    def setDims(self, *args):
+        """Set dimensions. Accepts tuple/list or individual integers."""
+        cdef vector[size_t] dims
+        
+        # Handle both setDims(100, 200, 300) and setDims((100, 200, 300))
+        if len(args) == 1 and hasattr(args[0], '__iter__'):
+            dims_iter = args[0]
+        else:
+            dims_iter = args
+        
+        if not dims_iter:
+            raise ValueError("At least one dimension required")
+        
+        for arg in dims_iter:
+            if not isinstance(arg, int) or arg <= 0:
+                raise ValueError(f"Dimension must be positive integer, got {arg}")
+            dims.push_back(<size_t>arg)
+        
+        self.conf.setDims(dims.begin(), dims.end())
+
+    def loadcfg(self, cfgpath: str):
+        """Load configuration from INI file."""
+        cdef string cfgpathStr = cfgpath.encode('utf-8')
+        try:
+            self.conf.loadcfg(cfgpathStr)
+        except RuntimeError as e:
+            raise RuntimeError(f"Failed to load '{cfgpath}': {e}")
+    
+    # Read-only properties
+    @property
+    def dims(self):
+        """Get dimensions (read-only)."""
+        return tuple(self.conf.dims)
+    
+    @property
+    def num_elements(self):
+        """Get total number of elements (read-only)."""
+        return self.conf.num
+    
+    @property
+    def ndim(self):
+        """Get number of dimensions (read-only)."""
+        return self.conf.N
+    
+    # Error bounds (double)
+    @property
+    def absErrorBound(self):
+        return self.conf.absErrorBound
+    
+    @absErrorBound.setter
+    def absErrorBound(self, double value):
+        self.conf.absErrorBound = value
+    
+    @property
+    def relErrorBound(self):
+        return self.conf.relErrorBound
+    
+    @relErrorBound.setter
+    def relErrorBound(self, double value):
+        self.conf.relErrorBound = value
+    
+    @property
+    def psnrErrorBound(self):
+        return self.conf.psnrErrorBound
+    
+    @psnrErrorBound.setter
+    def psnrErrorBound(self, double value):
+        self.conf.psnrErrorBound = value
+    
+    @property
+    def l2normErrorBound(self):
+        return self.conf.l2normErrorBound
+    
+    @l2normErrorBound.setter
+    def l2normErrorBound(self, double value):
+        self.conf.l2normErrorBound = value
+    
+    # Enum properties (accept enum or int)
+    @property
+    def errorBoundMode(self):
+        """Get/set error bound mode. Use szErrorBoundMode enum."""
+        return self.conf.errorBoundMode
+    
+    @errorBoundMode.setter
+    def errorBoundMode(self, value):
+        if isinstance(value, int):
+            self.conf.errorBoundMode = value
+        elif hasattr(value, 'value'):  # Is an enum
+            self.conf.errorBoundMode = value.value
+        else:
+            raise TypeError(f"Expected int or Enum, got {type(value).__name__}")
+    
+    @property
+    def cmprAlgo(self):
+        """Get/set compression algorithm. Use szAlgorithm enum."""
+        return self.conf.cmprAlgo
+    
+    @cmprAlgo.setter
+    def cmprAlgo(self, value):
+        if isinstance(value, int):
+            self.conf.cmprAlgo = value
+        elif hasattr(value, 'value'):  # Is an enum
+            self.conf.cmprAlgo = value.value
+        else:
+            raise TypeError(f"Expected int or Enum, got {type(value).__name__}")
+    
+    @property
+    def openmp(self):
+        return self.conf.openmp
+    
+    @openmp.setter
+    def openmp(self, bint value):
+        self.conf.openmp = value
+
+    def __repr__(self):
+        return f"szConfig(dims={self.dims}, num_elements={self.num_elements})"
 
 
 cdef class sz:
@@ -36,8 +190,8 @@ cdef class sz:
         ----------
         data : numpy.ndarray
             Input data (float32, float64, int32, or int64)
-        config : pyConfig or str
-            Configuration object or path to config file
+        config : szConfig
+            Configuration object
         
         Returns
         -------
@@ -54,20 +208,15 @@ cdef class sz:
             )
         
         # Handle config parameter
-        cdef pyConfig.pyConfig conf
-        if isinstance(config, str):
-            # Config file path provided - convert shape to tuple
-            shape_tuple = tuple(<Py_ssize_t>data.shape[i] for i in range(data.ndim))
-            conf = pyConfig.pyConfig(*shape_tuple)
-            conf.loadcfg(config)
-        elif isinstance(config, pyConfig.pyConfig):
-            # Config object provided - set dimensions if needed
+        # We need to cast the python object to our cdef class to access C++ internals
+        cdef szConfig conf
+        if isinstance(config, szConfig):
             conf = config
-            if conf.num_elements != data.size:
-                shape_tuple = tuple(<Py_ssize_t>data.shape[i] for i in range(data.ndim))
-                conf.setDims(*shape_tuple)
+            # Always set dimensions based on input data
+            shape_tuple = tuple(<Py_ssize_t>data.shape[i] for i in range(data.ndim))
+            conf.setDims(*shape_tuple)
         else:
-            raise TypeError(f"config must be pyConfig or str, got {type(config)}")
+            raise TypeError(f"config must be szConfig, got {type(config)}")
         
         # Ensure C-contiguous for zero-copy
         if not data.flags['C_CONTIGUOUS']:
@@ -86,28 +235,28 @@ cdef class sz:
         # Compress into pre-allocated buffer
         if data.dtype == np.float32:
             compressed_size = c_sz.SZ_compress[float](
-                dereference(&conf.conf),
+                conf.conf,
                 <float*>data_ptr,
                 compressed_ptr,
                 buffer_size
             )
         elif data.dtype == np.float64:
             compressed_size = c_sz.SZ_compress[double](
-                dereference(&conf.conf),
+                conf.conf,
                 <double*>data_ptr,
                 compressed_ptr,
                 buffer_size
             )
         elif data.dtype == np.int32:
             compressed_size = c_sz.SZ_compress[int32_t](
-                dereference(&conf.conf),
+                conf.conf,
                 <int32_t*>data_ptr,
                 compressed_ptr,
                 buffer_size
             )
         elif data.dtype == np.int64:
             compressed_size = c_sz.SZ_compress[int64_t](
-                dereference(&conf.conf),
+                conf.conf,
                 <int64_t*>data_ptr,
                 compressed_ptr,
                 buffer_size
@@ -122,8 +271,9 @@ cdef class sz:
         ratio = original_size / float(compressed_size)
         return compressed, ratio
     
+
     @staticmethod
-    def decompress(cnp.ndarray compressed, dtype, shape, config) -> cnp.ndarray:
+    def decompress(cnp.ndarray compressed, dtype, shape) -> Tuple[cnp.ndarray, szConfig]:
         """
         Decompress SZ3-compressed data.
         
@@ -135,13 +285,13 @@ cdef class sz:
             Data type of original data
         shape : tuple
             Shape of the original data
-        config : pyConfig or str
-            Configuration object or path to config file
         
         Returns
         -------
         decompressed : numpy.ndarray
             Decompressed data with the specified shape
+        config : szConfig
+            Configuration object used during decompression (contains actual compression params)
         """
         # Validate compressed data
         if compressed.dtype != np.uint8:
@@ -155,20 +305,9 @@ cdef class sz:
                 f"Supported: float32, float64, int32, int64"
             )
         
-        # Handle config parameter
-        cdef pyConfig.pyConfig conf
-        if isinstance(config, str):
-            # Config file path provided
-            conf = pyConfig.pyConfig(*shape)
-            conf.loadcfg(config)
-        elif isinstance(config, pyConfig.pyConfig):
-            # Config object provided - set dimensions if needed
-            conf = config
-            expected_size = int(np.prod(shape))
-            if conf.num_elements != expected_size:
-                conf.setDims(*shape)
-        else:
-            raise TypeError(f"config must be pyConfig or str, got {type(config)}")
+        # Create a new config object for decompression
+        cdef szConfig conf = szConfig()
+        conf.setDims(*shape)
         
         # Ensure compressed data is contiguous
         if not compressed.flags['C_CONTIGUOUS']:
@@ -223,7 +362,7 @@ cdef class sz:
         
         # Data is now in our NumPy array! (zero-copy decompression)
         # Reshape to original dimensions
-        return result.reshape(shape)
+        return result.reshape(shape), conf
     
     @staticmethod
     def verify(cnp.ndarray src_data, cnp.ndarray dec_data) -> Tuple[float, float, float]:

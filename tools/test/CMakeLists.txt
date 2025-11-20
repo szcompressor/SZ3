@@ -9,7 +9,9 @@ if(NOT GTest_FOUND)
             GIT_REPOSITORY https://github.com/google/googletest.git
             GIT_TAG        v1.16.0
     )
-    set(BUILD_SHARED_LIBS OFF)
+    if (MSVC)
+        set(BUILD_SHARED_LIBS OFF)
+    endif ()
     FetchContent_MakeAvailable(googletest)
 else()
     message(STATUS "Using locally installed GTest")

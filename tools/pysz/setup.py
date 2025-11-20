@@ -14,7 +14,7 @@ import numpy as np
 
 
 
-SZ3_VERSION = "3.3.1"
+SZ3_VERSION = "3.3.2"
 
 class BuildSZ3Extension(_build_ext):
 
@@ -104,16 +104,6 @@ def create_extensions():
     
     extensions = [
         Extension(
-            "pysz.pyConfig",
-            sources=["src/pysz/pyConfig.pyx"],
-            include_dirs=include_dirs,
-            libraries=libraries,
-            library_dirs=library_dirs,
-            language='c++',
-            extra_compile_args=extra_compile_args,
-            extra_link_args=extra_link_args,
-        ),
-        Extension(
             "pysz.sz",
             sources=["src/pysz/sz.pyx"],
             include_dirs=include_dirs,
@@ -131,7 +121,7 @@ def create_extensions():
 if __name__ == "__main__":
     setup(
         name="pysz",
-        version="1.0.2",
+        version="1.0.3",
         packages=["pysz"],
         package_dir={"": "src"},
         ext_modules=create_extensions(),
