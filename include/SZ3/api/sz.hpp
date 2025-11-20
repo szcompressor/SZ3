@@ -1,57 +1,46 @@
+/**
+ * @file sz.hpp
+ * @brief SZ3 compression and decompression API.
+ *
+ * This header provides the main API functions for compressing and decompressing data using SZ3.
+ *
+ * Compressed Data Format of SZ3:
+ * The compressed data is always stored in little-endian order.
+ * The compressed data consists of three main sections:
+ * 1. Header (16 bytes): Contains metadata about the compressed data.
+ *    - Magic Number (4 bytes): Identifies the data as SZ3-compressed.
+ *    - Version (4 bytes): Indicates the version of the SZ3 format.
+ *    - Compressed Size (8 bytes): Specifies the size of the compressed payload.
+ * 2. Compressed Payload: The actual compressed data.
+ * 3. Configuration: Stores the compression configuration used.
+ *
+ * The layout can be visualized as follows:
+ * [ Header (16 bytes) | Compressed Payload | Configuration ]
+ */
+
 #ifndef SZ3_SZ_HPP
 #define SZ3_SZ_HPP
 
 #include "SZ3/api/impl/SZImpl.hpp"
 #include "SZ3/version.hpp"
 
+
 /**
- * API for compression
- * @tparam T source data type
- * @param config compression configuration. Please update the config with 1). data dimension and shape and 2). desired
-settings.
- * @param data source data
- * @param cmpData pre-allocated buffer for compressed data
- * @param cmpCap pre-allocated buffer size (in bytes) for compressed data
- * @return compressed data size (in bytes)
-
-The compression algorithms are:
-ALGO_INTERP_LORENZO:
- The default algorithm in SZ3. It is the implementation of our ICDE'21 paper.
- The whole dataset will be compressed by interpolation or lorenzo predictor with auto-optimized settings.
-ALGO_INTERP:
- The whole dataset will be compressed by interpolation predictor with default settings.
-ALGO_LORENZO_REG:
- The whole dataset will be compressed by lorenzo and/or regression based predictors block by block with default
-settings. The four predictors ( 1st-order lorenzo, 2nd-order lorenzo, 1st-order regression, 2nd-order regression) can be
-enabled or disabled independently by conf settings (lorenzo, lorenzo2, regression, regression2).
-
-Interpolation+lorenzo example:
-SZ3::Config conf(100, 200, 300); // 300 is the fastest dimension
-conf.cmprAlgo = SZ3::ALGO_INTERP_LORENZO;
-conf.errorBoundMode = SZ3::EB_ABS; // refer to def.hpp for all supported error bound mode
-conf.absErrorBound = 1E-3; // absolute error bound 1e-3
-char *compressedData = SZ_compress(conf, data, outSize);
-
-Interpolation example:
-SZ3::Config conf(100, 200, 300); // 300 is the fastest dimension
-conf.cmprAlgo = SZ3::ALGO_INTERP;
-conf.errorBoundMode = SZ3::EB_REL; // refer to def.hpp for all supported error bound mode
-conf.relErrorBound = 1E-3; // value-rang-based error bound 1e-3
-char *compressedData = SZ_compress(conf, data, outSize);
-
-Lorenzo/regression example :
-SZ3::Config conf(100, 200, 300); // 300 is the fastest dimension
-conf.cmprAlgo = SZ3::ALGO_LORENZO_REG;
-conf.lorenzo = true; // only use 1st order lorenzo
-conf.lorenzo2 = false;
-conf.regression = false;
-conf.regression2 = false;
-conf.errorBoundMode = SZ3::EB_ABS; // refer to def.hpp for all supported error bound mode
-conf.absErrorBound = 1E-3; // absolute error bound 1e-3
-char *compressedData = SZ_compress(conf, data, outSize);
+ * Compresses the input data using the provided configuration and stores the result in a pre-allocated buffer.
+ * @tparam T The data type of the source data.
+ * @param config The compression configuration.
+ * @param data Pointer to the source data array.
+ * @param cmpData Pointer to the pre-allocated buffer for compressed data.
+ * @param cmpCap The size of the pre-allocated buffer in bytes.
+ * @return The size of the compressed data in bytes.
+ * @example
+ * SZ3::Config conf(100, 200, 300); // 300 is the fastest dimension
+ * conf.errorBoundMode = SZ3::EB_ABS; // Refer to def.hpp for supported error bound modes
+ * conf.absErrorBound = 1E-3; // Absolute error bound of 1e-3
+ * size_t outSize = SZ_compress(conf, data, outBuff, outBuffCap);
  */
 template <class T>
-size_t SZ_compress(const SZ3::Config &config, const T *data, char *cmpData, size_t cmpCap) {
+size_t SZ_compress(const SZ3::Config& config, const T* data, char* cmpData, size_t cmpCap) {
     using namespace SZ3;
     Config conf(config);
 
@@ -59,46 +48,50 @@ size_t SZ_compress(const SZ3::Config &config, const T *data, char *cmpData, size
         throw std::invalid_argument(SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
     }
 
-    auto confEstSize = conf.size_est();
-    auto cmpDataPos = reinterpret_cast<uchar *>(cmpData) + confEstSize;
-    memset(cmpData, 0, confEstSize);
-    auto cmpDataCap = cmpCap - conf.size_est();
+    auto cmpDataPos = reinterpret_cast<uchar*>(cmpData);
 
-    size_t cmpDataLen = 0;
+    // save 16 bytes header
+    write(config.sz3MagicNumber, cmpDataPos); // magic number (4 bytes)
+    write(config.sz3DataVer, cmpDataPos);     // data version (4 bytes)
+    auto sizeHeaderPos = cmpDataPos;
+    cmpDataPos += 8; // reserve space for cmp data size (8 bytes)
+
+    // begin compression
+    auto cmpDataCap = cmpCap - 16 - conf.size_est() * 2;
+    uint64_t cmpDataSize = 0;
     if (conf.N == 1) {
-        cmpDataLen = SZ_compress_impl<T, 1>(conf, data, cmpDataPos, cmpDataCap);
+        cmpDataSize = SZ_compress_impl<T, 1>(conf, data, cmpDataPos, cmpDataCap);
     } else if (conf.N == 2) {
-        cmpDataLen = SZ_compress_impl<T, 2>(conf, data, cmpDataPos, cmpDataCap);
+        cmpDataSize = SZ_compress_impl<T, 2>(conf, data, cmpDataPos, cmpDataCap);
     } else if (conf.N == 3) {
-        cmpDataLen = SZ_compress_impl<T, 3>(conf, data, cmpDataPos, cmpDataCap);
+        cmpDataSize = SZ_compress_impl<T, 3>(conf, data, cmpDataPos, cmpDataCap);
     } else if (conf.N == 4) {
-        cmpDataLen = SZ_compress_impl<T, 4>(conf, data, cmpDataPos, cmpDataCap);
+        cmpDataSize = SZ_compress_impl<T, 4>(conf, data, cmpDataPos, cmpDataCap);
     } else {
         throw std::invalid_argument("Data dimension higher than 4 is not supported.");
     }
 
-    auto cmpConfPos = reinterpret_cast<uchar *>(cmpData);
-    auto confSize = conf.save(cmpConfPos);
-    if (confSize > confEstSize) {
-        throw std::length_error("buffer allocated for config is not large enough.");
-    }
+    // save compressed data size back in header
+    write(cmpDataSize, sizeHeaderPos);
 
-    return confSize + cmpDataLen;
+    // save config
+    cmpDataPos += cmpDataSize;
+    auto confSize = conf.save(cmpDataPos);
+
+    return 16 + cmpDataSize + confSize;
 }
 
 /**
- * API for compression
- * @tparam T  source data type
- * @param config config compression configuration
- * @param data source data
- * @param cmpSize compressed data size (in bytes)
- * @return compressed data, remember to 'delete []' when the data is no longer needed.
- *
- * Similar with SZ_compress(SZ3::Config &conf, const T *data, char *cmpData, size_t cmpCap)
- * The only difference is this one doesn't need the pre-allocated buffer (thus remember to do 'delete []' yourself)
+ * Compresses the input data using the provided configuration and returns a newly allocated buffer containing the compressed data.
+ * @tparam T The data type of the source data.
+ * @param config The compression configuration.
+ * @param data Pointer to the source data array.
+ * @param cmpSize Output parameter set to the size of the compressed data in bytes.
+ * @return Pointer to the newly allocated buffer containing the compressed data. The caller is responsible for deleting this buffer using 'delete[]'.
+ * @note This function allocates memory for the compressed data. Ensure to free it when no longer needed.
  */
 template <class T>
-char *SZ_compress(const SZ3::Config &config, const T *data, size_t &cmpSize) {
+char* SZ_compress(const SZ3::Config& config, const T* data, size_t& cmpSize) {
     using namespace SZ3;
 
     size_t bufferLen = SZ_compress_size_bound<T>(config);
@@ -109,27 +102,29 @@ char *SZ_compress(const SZ3::Config &config, const T *data, size_t &cmpSize) {
 }
 
 /**
- * API for decompression
- * @tparam T decompressed data type
- * @param config configuration placeholder. It will be overwritten by the compression configuration
- * @param cmpData compressed data
- * @param cmpSize compressed data size in bytes
- * @param decData pre-allocated buffer for decompressed data
-
- example:
- auto decData = new float[100*200*300];
- SZ3::Config conf;
- SZ_decompress(conf, cmpData, cmpSize, decData);
-
+ * Decompresses the compressed data into a pre-allocated buffer using the configuration loaded from the compressed data.
+ * @tparam T The data type of the decompressed data.
+ * @param config Configuration placeholder that will be overwritten with the compression configuration from the compressed data.
+ * @param cmpData Pointer to the compressed data.
+ * @param cmpSize The size of the compressed data in bytes.
+ * @param decData Reference to a pointer for the pre-allocated buffer for decompressed data. If null, a new buffer is allocated.
+ * @example
+ * auto decData = new float[100 * 200 * 300];
+ * SZ3::Config conf;
+ * SZ_decompress(conf, cmpData, cmpSize, decData);
  */
 template <class T>
-void SZ_decompress(SZ3::Config &config, const char *cmpData, size_t cmpSize, T *&decData) {
+void SZ_decompress(SZ3::Config& config, const char* cmpData, size_t cmpSize, T*& decData) {
     using namespace SZ3;
-    auto cmpConfPos = reinterpret_cast<const uchar *>(cmpData);
-    config.load(cmpConfPos);
+
+    auto cmpDataPos = reinterpret_cast<const uchar*>(cmpData);
+
+    read(config.sz3MagicNumber, cmpDataPos);
     if (config.sz3MagicNumber != SZ3_MAGIC_NUMBER) {
         throw std::invalid_argument("magic number mismatch, the input data is not compressed by SZ3");
     }
+
+    read(config.sz3DataVer, cmpDataPos);
     if (versionStr(config.sz3DataVer) != SZ3_DATA_VER) {
         std::stringstream ss;
         printf("program v%s , program-data %s , input data v%s\n", SZ3_VER, SZ3_DATA_VER,
@@ -139,9 +134,11 @@ void SZ_decompress(SZ3::Config &config, const char *cmpData, size_t cmpSize, T *
         throw std::invalid_argument(ss.str());
     }
 
+    uint64_t cmpDataSize = 0;
+    read(cmpDataSize, cmpDataPos);
 
-    auto cmpDataPos = reinterpret_cast<const uchar *>(cmpData) + config.size_est();
-    auto cmpDataSize = cmpSize - config.size_est();
+    auto cmpConfPos = cmpDataPos + cmpDataSize;
+    config.load(cmpConfPos);
 
     if (decData == nullptr) {
         decData = new T[config.num];
@@ -160,24 +157,21 @@ void SZ_decompress(SZ3::Config &config, const char *cmpData, size_t cmpSize, T *
 }
 
 /**
- * API for decompression
- * Similar with SZ_decompress(SZ3::Config &config, char *cmpData, size_t cmpSize, T *&decData)
- * The only difference is this one doesn't need pre-allocated buffer for decompressed data
- *
- * @tparam T decompressed data type
- * @param config configuration placeholder. It will be overwritten by the compression configuration
- * @param cmpData compressed data
- * @param cmpSize compressed data size in bytes
- * @return decompressed data, remember to 'delete []' when the data is no longer needed.
-
- example:
- SZ3::Config conf;
- float decompressedData = SZ_decompress(conf, cmpData, cmpSize)
+ * Decompresses the compressed data into a pre-allocated buffer using the configuration loaded from the compressed data.
+ * @tparam T The data type of the decompressed data.
+ * @param config Configuration placeholder that will be overwritten with the compression configuration from the compressed data.
+ * @param cmpData Pointer to the compressed data.
+ * @param cmpSize The size of the compressed data in bytes.
+ * @param decData Reference to a pointer for the pre-allocated buffer for decompressed data. If null, a new buffer is allocated.
+ * @example
+ * auto decData = new float[100 * 200 * 300];
+ * SZ3::Config conf;
+ * SZ_decompress(conf, cmpData, cmpSize, decData);
  */
 template <class T>
-T *SZ_decompress(SZ3::Config &config, const char *cmpData, size_t cmpSize) {
+T* SZ_decompress(SZ3::Config& config, const char* cmpData, size_t cmpSize) {
     using namespace SZ3;
-    T *decData = nullptr;
+    T* decData = nullptr;
     SZ_decompress<T>(config, cmpData, cmpSize, decData);
     return decData;
 }

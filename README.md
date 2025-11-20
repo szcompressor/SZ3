@@ -78,6 +78,7 @@ Version New features
 * SZ 3.2.0 API reconstructed for FZ. H5Z-SZ3 rewrite. Compression version checking.
 * SZ 3.3.0 Add key QoZ v1 and v2 features to improve compression speed and data quality. The full QoZ is available from **a separate branch** (https://github.com/szcompressor/SZ3/tree/QoZ). 
 * SZ 3.3.1: SZ3 Windows support for both Visual Studio and MinGW toolchains. pySZ v1 released and available via `pip install pysz`. Bio algorithms added.
+* SZ 3.3.2: bugfix for compressed format.
 
 ## 3rd party libraries/tools
 * [Zstandard](https://facebook.github.io/zstd/) v1.4.5 will be fetched if libzstd can not be found by pkg-config.

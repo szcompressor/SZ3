@@ -1,4 +1,3 @@
-
 import subprocess
 import os
 import sys
@@ -7,6 +6,8 @@ import requests
 import tarfile
 import tempfile
 import shutil
+import time
+import random
 
 def get_tmpdir():
     candidates = ['/scratch', '/var/tmp', '/tmp']
@@ -53,11 +54,20 @@ def prepare_dataset(path, dataset_dir, dataset_info=None):
 
         if not os.path.exists(tar_filename):
             print(f"Downloading {path} to {tar_filename}")
-            with requests.get(path, stream=True) as r:
-                r.raise_for_status()
-                with open(tar_filename, 'wb') as f:
-                    for chunk in r.iter_content(chunk_size=8192):
-                        f.write(chunk)
+            for attempt in range(5):
+                try:
+                    with requests.get(path, stream=True) as r:
+                        r.raise_for_status()
+                        with open(tar_filename, 'wb') as f:
+                            for chunk in r.iter_content(chunk_size=8192):
+                                f.write(chunk)
+                    break  # Success
+                except requests.exceptions.ConnectionError as e:
+                    if attempt < 4:
+                        print(f"Download failed (attempt {attempt+1}/5), retrying in 5 seconds...")
+                        time.sleep(random.uniform(30, 60))
+                    else:
+                        raise
         else:
             print(f"{tar_filename} already exists. Skipping download.")
 

@@ -9,7 +9,7 @@ Usage:
 import sys
 import numpy as np
 
-from pysz import sz, pyConfig
+from pysz import sz, szConfig, szErrorBoundMode, szAlgorithm
 
 
 def test_compression():
@@ -26,8 +26,8 @@ def test_compression():
     
     # Create config
     print("[2] Creating config...")
-    config = pyConfig(100, 100)
-    config.errorBoundMode = pyConfig.EB.ABS
+    config = szConfig()
+    config.errorBoundMode = szErrorBoundMode.ABS
     config.absErrorBound = 0.01
     print(f"    ✓ Mode: {config.errorBoundMode}, Bound: {config.absErrorBound}")
     
@@ -38,7 +38,7 @@ def test_compression():
     
     # Decompress
     print("[4] Decompressing...")
-    decompressed = sz.decompress(compressed, data.dtype, data.shape, config)
+    decompressed, dec_config = sz.decompress(compressed, data.dtype, data.shape)
     print(f"    ✓ Shape: {decompressed.shape}")
     
     # Verify
@@ -51,11 +51,11 @@ def test_compression():
     # Test double precision
     print("[6] Testing double precision...")
     data_double = np.random.randn(50, 50).astype(np.float64)
-    config_double = pyConfig(50, 50)
-    config_double.errorBoundMode = pyConfig.EB.ABS
+    config_double = szConfig()
+    config_double.errorBoundMode = szErrorBoundMode.ABS
     config_double.absErrorBound = 1e-6
     compressed_d, ratio_d = sz.compress(data_double, config_double)
-    decompressed_d = sz.decompress(compressed_d, data_double.dtype, data_double.shape, config_double)
+    decompressed_d, _ = sz.decompress(compressed_d, data_double.dtype, data_double.shape)
     max_error_d, _, _ = sz.verify(data_double, decompressed_d)
     print(f"    ✓ Ratio: {ratio_d:.2f}x, Max error: {max_error_d:.2e}")
     assert max_error_d <= 1e-6, f"Double error {max_error_d} exceeds bound 1e-6"
@@ -63,11 +63,11 @@ def test_compression():
     # Test 3D data
     print("[7] Testing 3D data...")
     data_3d = np.random.randn(20, 30, 40).astype(np.float32)
-    config_3d = pyConfig(20, 30, 40)
-    config_3d.errorBoundMode = pyConfig.EB.REL
+    config_3d = szConfig()
+    config_3d.errorBoundMode = szErrorBoundMode.REL
     config_3d.relErrorBound = 0.001
     compressed_3d, ratio_3d = sz.compress(data_3d, config_3d)
-    decompressed_3d = sz.decompress(compressed_3d, data_3d.dtype, data_3d.shape, config_3d)
+    decompressed_3d, _ = sz.decompress(compressed_3d, data_3d.dtype, data_3d.shape)
     max_error_3d, _, _ = sz.verify(data_3d, decompressed_3d)
     print(f"    ✓ Ratio: {ratio_3d:.2f}x, Max error: {max_error_3d:.2e}")
     

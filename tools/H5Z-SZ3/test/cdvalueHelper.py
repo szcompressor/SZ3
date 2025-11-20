@@ -30,8 +30,8 @@ class SZ3:
         serialized = bytearray()
 
         serialized.extend(struct.pack('<B', 40)) # size of the config structure
-        serialized.extend(struct.pack('<I', 0))  # placeholder for SZ3_MAGIC_NUMBER
-        serialized.extend(struct.pack('<I', 0))  # placeholder for SZ3_DATA_VER
+        # serialized.extend(struct.pack('<I', 0))  # placeholder for SZ3_MAGIC_NUMBER
+        # serialized.extend(struct.pack('<I', 0))  # placeholder for SZ3_DATA_VER
         serialized.extend(struct.pack('<B', 0))  # placeholder for dimension count
         serialized.extend(struct.pack('<B', 0))  # placeholder for dimension value bit width
         serialized.extend(struct.pack('<Q', 0))  # placeholder for total data elements

@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.18)
-project(SZ3 VERSION 3.3.1)
+project(SZ3 VERSION 3.3.2)
 
 #data version defines the version of the compressed data format
 #it is not always equal to the program version (e.g., SZ3 v3.1.0 and SZ3 v.3.1.1 may use the same data version of v.3.1.0)
 #only update data version if the new version of the program changes compressed data format
-set(SZ3_DATA_VERSION 3.3.0)
+set(SZ3_DATA_VERSION 3.3.2)
 
 include(GNUInstallDirs)
 
@@ -47,12 +47,6 @@ if (OpenMP_FOUND)
     target_link_libraries(${PROJECT_NAME} INTERFACE OpenMP::OpenMP_CXX)
 endif ()
 
-if (MSVC)
-    option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" ON)
-else ()
-    option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" OFF)
-endif ()
-
 option(SZ3_DEBUG_TIMINGS "print debug timing information" OFF)
 if (SZ3_DEBUG_TIMINGS)
     target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_DEBUG_TIMINGS=1)
@@ -67,6 +61,11 @@ else ()
     target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_USE_SKA_HASH=0)
 endif ()
 
+if (MSVC)
+    option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" ON)
+else ()
+    option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" OFF)
+endif ()
 pkg_search_module(ZSTD IMPORTED_TARGET libzstd)
 if (ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
     target_link_libraries(${PROJECT_NAME} INTERFACE PkgConfig::ZSTD)
