@@ -49,7 +49,7 @@ Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [
 #### Third-Party APIs
 
 * [SZ3 Fortran API](https://github.com/ofmla/sz3_simple_example) (by [Oscar Mojica](https://github.com/ofmla))
-* [SZ3 Rust API](https://github.com/juntyr/sz3-rs) (by [Juniper Tyree](https://github.com/juntyr))
+* [SZ3 Rust API](https://github.com/apertus-open-source-cinema/sz3-rs) (by [Juniper Tyree](https://github.com/juntyr) and [Robin Heinemann](https://github.com/rroohhh))
 * [SZ3 Numcodecs API](https://github.com/juntyr/numcodecs-rs/blob/main/codecs/sz3/) (by [Juniper Tyree](https://github.com/juntyr))
 
 
