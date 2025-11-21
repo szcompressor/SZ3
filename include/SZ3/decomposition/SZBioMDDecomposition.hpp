@@ -9,6 +9,7 @@
 #include <list>
 
 #include "SZ3/utils/Config.hpp"
+#include "SZ3/utils/Collections.hpp"
 
 namespace SZ3 {
 
@@ -106,7 +107,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
                 }
             }
         }
-        ska::unordered_map<int, size_t> frequency;
+        unordered_map<int, size_t> frequency;
         for (size_t i = 0; i < sites.size(); i++) {
             frequency[sites[i]]++;
         }
