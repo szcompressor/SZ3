@@ -98,12 +98,12 @@ class LorenzoPredictor : public concepts::PredictorInterface<T, N> {
 
    private:
     // Helper functions for Lorenzo prediction
-    ALWAYS_INLINE T prev1(T *d, size_t i) { return d[-i]; }
-    ALWAYS_INLINE T prev2(T *d, const std::array<size_t, N> &ds, size_t j, size_t i) { return d[-j * ds[0] - i]; }
-    ALWAYS_INLINE T prev3(T *d, const std::array<size_t, N> &ds, size_t k, size_t j, size_t i) {
+    ALWAYS_INLINE T prev1(T *d, ptrdiff_t i) { return d[-i]; }
+    ALWAYS_INLINE T prev2(T *d, const std::array<size_t, N> &ds, ptrdiff_t j, ptrdiff_t i) { return d[-j * ds[0] - i]; }
+    ALWAYS_INLINE T prev3(T *d, const std::array<size_t, N> &ds, ptrdiff_t k, ptrdiff_t j, ptrdiff_t i) {
         return d[-k * ds[1] - j * ds[0] - i];
     }
-    ALWAYS_INLINE T prev4(T *d, const std::array<size_t, N> &ds, size_t t, size_t k, size_t j, size_t i) {
+    ALWAYS_INLINE T prev4(T *d, const std::array<size_t, N> &ds, ptrdiff_t t, ptrdiff_t k, ptrdiff_t j, ptrdiff_t i) {
         return d[-t * ds[2] - k * ds[1] - j * ds[0] - i];
     }
 };
