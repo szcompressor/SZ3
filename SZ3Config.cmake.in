@@ -6,5 +6,9 @@ find_package(OpenMP)
 if(@GSL_FOUND@)
   find_package(GSL REQUIRED)
 endif()
+if(@Eigen3_FOUND@)
+    find_package(Eigen3)
+endif()
+
 check_required_components(SZ3)
 
