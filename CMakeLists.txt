@@ -51,6 +51,8 @@ if (OpenMP_FOUND)
     target_link_libraries(${PROJECT_NAME} INTERFACE OpenMP::OpenMP_CXX)
 endif ()
 
+find_package(Eigen3)
+if(NOT TARGET Eigen3::Eigen)
 include(FetchContent)
 FetchContent_Declare(
   eigen
@@ -58,6 +60,9 @@ FetchContent_Declare(
   GIT_TAG 3.4.0
 )
 FetchContent_MakeAvailable(eigen)
+else()
+    set(Eigen3_FOUND TRUE)
+endif()
 target_link_libraries(${PROJECT_NAME} INTERFACE Eigen3::Eigen)
 
 option(SZ3_DEBUG_TIMINGS "print debug timing information" OFF)
