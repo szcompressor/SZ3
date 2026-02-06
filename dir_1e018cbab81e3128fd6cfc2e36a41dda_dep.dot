@@ -1,0 +1,16 @@
+digraph "tools/pysz/src"
+{
+ // LATEX_PDF_SIZE
+  bgcolor="transparent";
+  edge [fontname=Helvetica,fontsize=10,labelfontname=Helvetica,labelfontsize=10];
+  node [fontname=Helvetica,fontsize=10,shape=box,height=0.2,width=0.4];
+  compound=true
+  subgraph clusterdir_56649d5632b92f943d6b8ef1255c7a5b {
+    graph [ bgcolor="#edf0f7", pencolor="grey50", label="pysz", fontname=Helvetica,fontsize=10 style="filled,dashed", URL="dir_56649d5632b92f943d6b8ef1255c7a5b.html",tooltip=""]
+  subgraph clusterdir_1e018cbab81e3128fd6cfc2e36a41dda {
+    graph [ bgcolor="#edf0f7", pencolor="grey25", label="", fontname=Helvetica,fontsize=10 style="filled,bold", URL="dir_1e018cbab81e3128fd6cfc2e36a41dda.html",tooltip=""]
+    dir_1e018cbab81e3128fd6cfc2e36a41dda [shape=plaintext, label="src"];
+  dir_ef1758f7c3de6e635ad3055f80a1db6a [label="pysz", fillcolor="#a2b4d6", color="grey25", style="filled", URL="dir_ef1758f7c3de6e635ad3055f80a1db6a.html",tooltip=""];
+  }
+  }
+}

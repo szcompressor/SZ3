@@ -1,0 +1,14 @@
+digraph "tools/sz3c/src"
+{
+ // LATEX_PDF_SIZE
+  bgcolor="transparent";
+  edge [fontname=Helvetica,fontsize=10,labelfontname=Helvetica,labelfontsize=10];
+  node [fontname=Helvetica,fontsize=10,shape=box,height=0.2,width=0.4];
+  compound=true
+  subgraph clusterdir_0d68df800f43f7df464e184f46f713c8 {
+    graph [ bgcolor="#edf0f7", pencolor="grey50", label="sz3c", fontname=Helvetica,fontsize=10 style="filled,dashed", URL="dir_0d68df800f43f7df464e184f46f713c8.html",tooltip=""]
+  dir_83fc4debb38f9e8f927a09dbec5fa3e4 [label="src", fillcolor="#edf0f7", color="grey25", style="filled,bold", URL="dir_83fc4debb38f9e8f927a09dbec5fa3e4.html",tooltip=""];
+  }
+  dir_d44c64559bbebec7f509842c48db8b23 [label="include", fillcolor="#edf0f7", color="red", style="filled", URL="dir_d44c64559bbebec7f509842c48db8b23.html",tooltip=""];
+  dir_83fc4debb38f9e8f927a09dbec5fa3e4->dir_d44c64559bbebec7f509842c48db8b23 [headlabel="1", labeldistance=1.5 headhref="dir_000027_000009.html" href="dir_000027_000009.html" color="steelblue1" fontcolor="steelblue1"];
+}

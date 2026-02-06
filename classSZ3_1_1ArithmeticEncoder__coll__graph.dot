@@ -1,0 +1,15 @@
+digraph "SZ3::ArithmeticEncoder&lt; T &gt;"
+{
+ // LATEX_PDF_SIZE
+  bgcolor="transparent";
+  edge [fontname=Helvetica,fontsize=10,labelfontname=Helvetica,labelfontsize=10];
+  node [fontname=Helvetica,fontsize=10,shape=box,height=0.2,width=0.4];
+  rankdir="LR";
+  Node1 [id="Node000001",label="SZ3::ArithmeticEncoder\< T \>",height=0.2,width=0.4,color="gray40", fillcolor="grey60", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [id="edge1_Node000001_Node000002",dir="back",color="steelblue1",style="solid",tooltip=" "];
+  Node2 [id="Node000002",label="SZ3::concepts::EncoderInterface\l\< T, TAllocator \>",height=0.2,width=0.4,color="gray40", fillcolor="white", style="filled",URL="$classSZ3_1_1concepts_1_1EncoderInterface.html",tooltip=" "];
+  Node3 -> Node1 [id="edge2_Node000001_Node000003",dir="back",color="darkorchid3",style="dashed",tooltip=" ",label=" ariCoder",fontcolor="grey" ];
+  Node3 [id="Node000003",label="SZ3::ArithmeticEncoder\l\< T \>::AriCoder",height=0.2,width=0.4,color="grey75", fillcolor="white", style="filled",URL="$structSZ3_1_1ArithmeticEncoder_1_1AriCoder.html",tooltip=" "];
+  Node4 -> Node3 [id="edge3_Node000003_Node000004",dir="back",color="darkorchid3",style="dashed",tooltip=" ",label=" cumulative_frequency",fontcolor="grey" ];
+  Node4 [id="Node000004",label="SZ3::ArithmeticEncoder\l\< T \>::Prob",height=0.2,width=0.4,color="grey75", fillcolor="white", style="filled",URL="$structSZ3_1_1ArithmeticEncoder_1_1Prob.html",tooltip=" "];
+}

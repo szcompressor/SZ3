@@ -1,0 +1,13 @@
+digraph "Graphical Class Hierarchy"
+{
+ // LATEX_PDF_SIZE
+  bgcolor="transparent";
+  edge [fontname=Helvetica,fontsize=10,labelfontname=Helvetica,labelfontsize=10];
+  node [fontname=Helvetica,fontsize=10,shape=box,height=0.2,width=0.4];
+  rankdir="LR";
+  Node0 [id="Node000000",label="std::enable_shared\l_from_this",height=0.2,width=0.4,color="grey60", fillcolor="#E0E0E0", style="filled",tooltip=" "];
+  Node0 -> Node1 [id="edge3_Node000000_Node000001",dir="back",color="steelblue1",style="solid",tooltip=" "];
+  Node1 [id="Node000001",label="SZ3::block_data\< T, N \>",height=0.2,width=0.4,color="grey40", fillcolor="white", style="filled",URL="$classSZ3_1_1block__data.html",tooltip="A class representing block data with N dimensions."];
+  Node0 -> Node2 [id="edge4_Node000000_Node000002",dir="back",color="steelblue1",style="solid",tooltip=" "];
+  Node2 [id="Node000002",label="SZ3::multi_dimensional\l_range\< T, N \>",height=0.2,width=0.4,color="grey40", fillcolor="white", style="filled",URL="$classSZ3_1_1multi__dimensional__range.html",tooltip=" "];
+}

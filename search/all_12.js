@@ -1,0 +1,28 @@
+var searchData=
+[
+  ['paraview_0',['Loading the Plugin in ParaView',['../md_tools_2paraview_2README.html#autotoc_md22',1,'']]],
+  ['plugin_1',['plugin',['../md_tools_2paraview_2README.html#autotoc_md21',1,'Building the Plugin'],['../md_tools_2paraview_2README.html',1,'SZ3Reader Plugin']]],
+  ['plugin_20in_20paraview_2',['Loading the Plugin in ParaView',['../md_tools_2paraview_2README.html#autotoc_md22',1,'']]],
+  ['postcompress_5fdata_3',['postcompress_data',['../classSZ3_1_1concepts_1_1QuantizerInterface.html#a31f197a672721667409cd4c6f7ff2a2d',1,'SZ3::concepts::QuantizerInterface']]],
+  ['postdecompress_5fdata_4',['postdecompress_data',['../classSZ3_1_1concepts_1_1QuantizerInterface.html#a1d94a9e7b24223d1322ace03b99d72e1',1,'SZ3::concepts::QuantizerInterface']]],
+  ['precision_5',['Double Precision',['../md_tools_2pysz_2README.html#autotoc_md40',1,'']]],
+  ['precompress_6',['precompress',['../classSZ3_1_1LorenzoPredictor.html#a69308015b1f745deb76a19b9e856b5c4',1,'SZ3::LorenzoPredictor::precompress()'],['../classSZ3_1_1RegressionPredictor.html#a513b5813e488d75f42cc847b2e74eab2',1,'SZ3::RegressionPredictor::precompress()'],['../classSZ3_1_1concepts_1_1PredictorInterface.html#aa183d61319325d559746af13c9edca5e',1,'SZ3::concepts::PredictorInterface::precompress()'],['../classSZ3_1_1ComposedPredictor.html#aca9a61a794abbb6167036d63dc968e08',1,'SZ3::ComposedPredictor::precompress(const block_iter &amp;block) override']]],
+  ['precompress_5fblock_5fcommit_7',['precompress_block_commit',['../classSZ3_1_1ComposedPredictor.html#aa028bd71f20c840120b2a9bb3bdf02d1',1,'SZ3::ComposedPredictor::precompress_block_commit()'],['../classSZ3_1_1LorenzoPredictor.html#a596b448e6fd90a8a937e51dc265d2ace',1,'SZ3::LorenzoPredictor::precompress_block_commit()'],['../classSZ3_1_1concepts_1_1PredictorInterface.html#afc8e4a965d78db5a1ef403ce6564eae5',1,'SZ3::concepts::PredictorInterface::precompress_block_commit()'],['../classSZ3_1_1RegressionPredictor.html#a129a6d20a7a5f9f4036faaba436196da',1,'SZ3::RegressionPredictor::precompress_block_commit()']]],
+  ['preddim_8',['predDim',['../classSZ3_1_1Config.html#aa1161ad3f63fb499c63bad32c8c0e68c',1,'SZ3::Config']]],
+  ['predict_9',['predict',['../classSZ3_1_1LorenzoPredictor.html#a4365d49ee0c906d03b88113f54dd710a',1,'SZ3::LorenzoPredictor::predict()'],['../classSZ3_1_1RegressionPredictor.html#a83f506a07b9f0e2cc3f92201bc80b250',1,'SZ3::RegressionPredictor::predict()'],['../classSZ3_1_1concepts_1_1PredictorInterface.html#af84563dfd624c85cc882b875b66bbe03',1,'SZ3::concepts::PredictorInterface::predict()'],['../classSZ3_1_1ComposedPredictor.html#ab7f3cb705f674b5f757ca305a44f4796',1,'SZ3::ComposedPredictor::predict()']]],
+  ['predictorinterface_10',['PredictorInterface',['../classSZ3_1_1concepts_1_1PredictorInterface.html',1,'SZ3::concepts']]],
+  ['predictors_11',['Predictors',['../group__Predictor.html',1,'']]],
+  ['prefilter_12',['PreFilter',['../classSZ3_1_1PreFilter.html',1,'SZ3']]],
+  ['prefilter_2ehpp_13',['PreFilter.hpp',['../PreFilter_8hpp.html',1,'']]],
+  ['preprocess_5fencode_14',['preprocess_encode',['../classSZ3_1_1HuffmanEncoder.html#ae86fe2e3f814b6a0ca3ab31b876cf84b',1,'SZ3::HuffmanEncoder::preprocess_encode(const T *bins, size_t num_bin, int stateNum)'],['../classSZ3_1_1HuffmanEncoder.html#adbe3a327f13a979ca24b75d2981e6ed2',1,'SZ3::HuffmanEncoder::preprocess_encode(const std::vector&lt; T &gt; &amp;bins, int stateNum) override'],['../classSZ3_1_1concepts_1_1EncoderInterface.html#a109f0ff68784cc6e3ad2465669f49b86',1,'SZ3::concepts::EncoderInterface::preprocess_encode()']]],
+  ['preprocessor_2ehpp_15',['PreProcessor.hpp',['../PreProcessor_8hpp.html',1,'']]],
+  ['preprocessorinterface_16',['PreprocessorInterface',['../classSZ3_1_1concepts_1_1PreprocessorInterface.html',1,'SZ3::concepts']]],
+  ['preprocessors_17',['Preprocessors',['../group__Preprocessor.html',1,'']]],
+  ['prerequisites_18',['Prerequisites',['../md_tools_2paraview_2README.html#autotoc_md20',1,'']]],
+  ['print_19',['print',['../classSZ3_1_1Config.html#aaf92c15477c7dec380caf3ac1ad7d8cb',1,'SZ3::Config']]],
+  ['prob_20',['Prob',['../structSZ3_1_1ArithmeticEncoder_1_1Prob.html',1,'SZ3::ArithmeticEncoder']]],
+  ['psnrerrorbound_21',['psnrErrorBound',['../classSZ3_1_1Config.html#a6cb0c7f68d606aa2d92d43b4c4ff994b',1,'SZ3::Config']]],
+  ['pypi_20recommended_22',['From PyPI (recommended)',['../md_tools_2pysz_2README.html#autotoc_md27',1,'']]],
+  ['pysz_23',['pysz',['../md_tools_2pysz_2README.html',1,'']]],
+  ['python_20h5py_24',['Python (h5py)',['../md_tools_2H5Z-SZ3_2README.html#autotoc_md10',1,'']]]
+];

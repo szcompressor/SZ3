@@ -1,0 +1,23 @@
+digraph "Modules"
+{
+ // LATEX_PDF_SIZE
+  bgcolor="transparent";
+  edge [fontname=Helvetica,fontsize=10,labelfontname=Helvetica,labelfontsize=10];
+  node [fontname=Helvetica,fontsize=10,shape=box,height=0.2,width=0.4];
+  rankdir=LR;
+  Node4 [id="Node000004",label="Compressors",height=0.2,width=0.4,color="grey40", fillcolor="white", style="filled",URL="$group__Compressor.html",tooltip="compressor workflow modules"];
+  Node2 [id="Node000002",label="Decompositions",height=0.2,width=0.4,color="grey40", fillcolor="white", style="filled",URL="$group__Decomposition.html",tooltip="Decomposition modules."];
+  Node7 [id="Node000007",label="Encoders",height=0.2,width=0.4,color="grey40", fillcolor="white", style="filled",URL="$group__Encoder.html",tooltip="Encoding modules."];
+  Node8 [id="Node000008",label="Lossless Compressors",height=0.2,width=0.4,color="grey40", fillcolor="white", style="filled",URL="$group__Lossless.html",tooltip="Lossless compression modules."];
+  Node1 [id="Node000001",label="Modules",height=0.2,width=0.4,color="gray40", fillcolor="grey60", style="filled", fontcolor="black",tooltip="Core FZ functionality modules."];
+  Node6 [id="Node000006",label="Predictors",height=0.2,width=0.4,color="grey40", fillcolor="white", style="filled",URL="$group__Predictor.html",tooltip="Prediction modules."];
+  Node3 [id="Node000003",label="Preprocessors",height=0.2,width=0.4,color="grey40", fillcolor="white", style="filled",URL="$group__Preprocessor.html",tooltip="Preprocessing modules."];
+  Node5 [id="Node000005",label="Quantizers",height=0.2,width=0.4,color="grey40", fillcolor="white", style="filled",URL="$group__Quantizer.html",tooltip="Quantization modules."];
+  Node1->Node2 [shape=plaintext, dir="back", style="solid"];
+  Node1->Node3 [shape=plaintext, dir="back", style="solid"];
+  Node1->Node4 [shape=plaintext, dir="back", style="solid"];
+  Node1->Node5 [shape=plaintext, dir="back", style="solid"];
+  Node1->Node6 [shape=plaintext, dir="back", style="solid"];
+  Node1->Node7 [shape=plaintext, dir="back", style="solid"];
+  Node1->Node8 [shape=plaintext, dir="back", style="solid"];
+}
