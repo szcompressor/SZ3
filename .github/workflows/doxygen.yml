@@ -30,10 +30,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install Doxygen
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y doxygen graphviz
+      - name: Install Graphviz
+        run: sudo apt-get update && sudo apt-get install -y graphviz
+
+      - name: Install Latest Doxygen
+        uses: ssciwr/doxygen-install@v1
 
       - name: Generate Documentation
         run: doxygen docs/Doxyfile
