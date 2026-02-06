@@ -1,11 +1,11 @@
 PROJECT_NAME         = "FZ Module Library"
 
-INPUT                = ../include/SZ3 ../tools
+INPUT                = include/SZ3
 RECURSIVE            = YES
-EXCLUDE              = ../include/SZ3/utils/thirdparty
+EXCLUDE              = include/SZ3/utils/thirdparty
 GENERATE_LATEX       = NO
 GENERATE_HTML        = YES
-HTML_OUTPUT          = html
+HTML_OUTPUT          = docs/html
 SEARCHENGINE         = YES
 DISTRIBUTE_GROUP_DOC = YES
-STRIP_FROM_PATH      = ../
+STRIP_FROM_PATH      = include/SZ3
