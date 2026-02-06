@@ -1,3 +1,8 @@
+/**
+ * @file SVDDecomposition.hpp
+ * @ingroup Decomposition
+ */
+
 #ifndef SZ3_SVD_DECOMPOSITION_HPP
 #define SZ3_SVD_DECOMPOSITION_HPP
 
@@ -11,6 +16,7 @@
 #include <utility>
 
 namespace SZ3 {
+
 
 template<class T, uint N, class Quantizer>
 class SVDDecomposition : public concepts::DecompositionInterface<T, int, N> {

@@ -1,14 +1,20 @@
+/**
+ * @file ZFPCompressor.hpp
+ * @ingroup Compressor
+ */
+
 #ifndef SZ3_COMPRESSOR_ZFP_HPP
 #define SZ3_COMPRESSOR_ZFP_HPP
 
 #include "SZ3/compressor/Compressor.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/utils/Config.hpp"
-#include "SZ3/utils/zfp/zfpcodec1.h"
-#include "SZ3/utils/zfp/zfpcodec2.h"
-#include "SZ3/utils/zfp/zfpcodec3.h"
+#include "SZ3/utils/thirdparty/zfp/zfpcodec1.h"
+#include "SZ3/utils/thirdparty/zfp/zfpcodec2.h"
+#include "SZ3/utils/thirdparty/zfp/zfpcodec3.h"
 
 namespace SZ3 {
+
 
 template <class T, uint N>
 class ZFPCompressor : public concepts::CompressorInterface<T> {

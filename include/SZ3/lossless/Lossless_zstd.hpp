@@ -1,6 +1,7 @@
-//
-// Created by Kai Zhao on 4/21/20.
-//
+/**
+ * @file Lossless_zstd.hpp
+ * @ingroup Lossless
+ */
 
 #ifndef SZ3_LOSSLESS_ZSTD_HPP
 #define SZ3_LOSSLESS_ZSTD_HPP
@@ -13,6 +14,7 @@
 #include "zstd.h"
 
 namespace SZ3 {
+
 class Lossless_zstd : public concepts::LosslessInterface {
    public:
     Lossless_zstd() = default;

@@ -1,3 +1,8 @@
+/**
+ * @file TimeSeriesDecomposition.hpp
+ * @ingroup Decomposition
+ */
+
 #ifndef SZ3_TIME_SERIES_DECOMPOSITION_HPP
 #define SZ3_TIME_SERIES_DECOMPOSITION_HPP
 
@@ -11,6 +16,7 @@
 #include "SZ3/utils/MemoryUtil.hpp"
 
 namespace SZ3 {
+
 template <class T, uint N, class Predictor, class Quantizer>
 class TimeSeriesDecomposition : public concepts::DecompositionInterface<T, int, N> {
 public:

@@ -1,5 +1,6 @@
 /**
  * @file sz.hpp
+ * @ingroup API
  * @brief SZ3 compression and decompression API.
  *
  * This header provides the main API functions for compressing and decompressing data using SZ3.

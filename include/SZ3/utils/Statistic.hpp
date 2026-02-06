@@ -1,6 +1,7 @@
-//
-// Created by Kai Zhao on 4/20/20.
-//
+/**
+ * @file Statistic.hpp
+ * @ingroup UtilsMath
+ */
 
 #ifndef SZ3_STATISTIC_HPP
 #define SZ3_STATISTIC_HPP
@@ -8,6 +9,7 @@
 #include "Config.hpp"
 
 namespace SZ3 {
+
 template <class T>
 T data_range(const T *data, size_t num) {
     T max = data[0];

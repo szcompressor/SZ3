@@ -1,6 +1,7 @@
-//
-// Created by Kai Zhao on 9/1/20.
-//
+/**
+ * @file Interpolators.hpp
+ * @ingroup UtilsMath
+ */
 
 #ifndef SZ3_INTERPOLATORS_HPP
 #define SZ3_INTERPOLATORS_HPP
@@ -8,6 +9,7 @@
 #include "SZ3/def.hpp"
 
 namespace SZ3 {
+
 template <class T>
 ALWAYS_INLINE T interp_linear(T a, T b) {
     return (a + b) / 2;

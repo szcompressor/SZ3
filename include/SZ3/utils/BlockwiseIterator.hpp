@@ -1,3 +1,8 @@
+/**
+ * @file BlockwiseIterator.hpp
+ * @ingroup UtilsStructure
+ */
+
 #ifndef SZ3_BLOCKWISE_ITERATOR_HPP
 #define SZ3_BLOCKWISE_ITERATOR_HPP
 
@@ -9,8 +14,10 @@
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
+#include "SZ3/def.hpp"
 
 namespace SZ3 {
+
 
 /**
  * @brief A class representing block data with N dimensions.

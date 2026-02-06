@@ -1,3 +1,8 @@
+/**
+ * @file Encoder.hpp
+ * @ingroup Encoder
+ */
+
 #ifndef SZ3_ENCODER_HPP
 #define SZ3_ENCODER_HPP
 
@@ -5,6 +10,7 @@
 
 #include "SZ3/def.hpp"
 namespace SZ3 {
+
 namespace concepts {
 
 /**

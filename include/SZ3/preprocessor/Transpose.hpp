@@ -1,6 +1,7 @@
-//
-// Created by Kai Zhao on 1/29/21.
-//
+/**
+ * @file Transpose.hpp
+ * @ingroup Preprocessor
+ */
 
 #ifndef SZ3_TRANSPOSE_H
 #define SZ3_TRANSPOSE_H
@@ -8,6 +9,7 @@
 #include "SZ3/preprocessor/PreProcessor.hpp"
 
 namespace SZ3 {
+
     template<class T, uint N>
 
     class Transpose : public concepts::PreprocessorInterface<T, N> {

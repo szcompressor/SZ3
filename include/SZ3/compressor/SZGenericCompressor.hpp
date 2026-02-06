@@ -1,3 +1,8 @@
+/**
+ * @file SZGenericCompressor.hpp
+ * @ingroup Compressor
+ */
+
 #ifndef SZ3_COMPRESSOR_TYPE_ONE_HPP
 #define SZ3_COMPRESSOR_TYPE_ONE_HPP
 
@@ -13,6 +18,7 @@
 #include "SZ3/utils/Timer.hpp"
 
 namespace SZ3 {
+
 /**
  * SZGenericCompressor glues together decomposition, encoder, and lossless modules to form the compressor.
  * It only takes Decomposition, not Predictor.

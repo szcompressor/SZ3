@@ -1,6 +1,7 @@
-//
-// Created by Kai Zhao on 10/30/20.
-//
+/**
+ * @file Timer.hpp
+ * @ingroup UtilsTime
+ */
 
 #ifndef SZ3_TIMER_HPP
 #define SZ3_TIMER_HPP
@@ -10,6 +11,7 @@
 #include <string>
 
 namespace SZ3 {
+
 class Timer {
    public:
     Timer() = default;

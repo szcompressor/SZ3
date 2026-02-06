@@ -1,3 +1,8 @@
+/**
+ * @file HuffmanEncoderV2.hpp
+ * @ingroup Encoder
+ */
+
 #ifndef _SZ_HUFFMAN_ENCODER_V2_HPP
 #define _SZ_HUFFMAN_ENCODER_V2_HPP
 
@@ -15,6 +20,7 @@
 #include "SZ3/utils/Collections.hpp"
 
 namespace SZ3 {
+
 template <class T>
 class HuffmanEncoderV2 : public concepts::EncoderInterface<T> {
 private:

@@ -1,3 +1,8 @@
+/**
+ * @file RegressionPredictor.hpp
+ * @ingroup Predictor
+ */
+
 #ifndef SZ3_REGRESSION_PREDICTOR_HPP
 #define SZ3_REGRESSION_PREDICTOR_HPP
 
@@ -8,6 +13,7 @@
 #include "SZ3/quantizer/LinearQuantizer.hpp"
 
 namespace SZ3 {
+
 
 // N-d regression predictor
 template <class T, uint N>

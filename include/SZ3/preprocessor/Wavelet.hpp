@@ -1,3 +1,8 @@
+/**
+ * @file Wavelet.hpp
+ * @ingroup Preprocessor
+ */
+
 #ifndef SZ3_WAVELET_HPP
 #define SZ3_WAVELET_HPP
 
@@ -7,6 +12,7 @@
 #include <gsl/gsl_wavelet.h>
 
 namespace SZ3 {
+
     template<class T, uint N>
 
     class Wavelet : public concepts::PreprocessorInterface<T, N> {

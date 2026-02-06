@@ -1,6 +1,7 @@
-//
-// Created by Kai Zhao on 4/21/20.
-//
+/**
+ * @file Lossless_bypass.hpp
+ * @ingroup Lossless
+ */
 
 #ifndef SZ3_LOSSLESS_BYPASS_HPP
 #define SZ3_LOSSLESS_BYPASS_HPP
@@ -10,6 +11,7 @@
 #include "SZ3/lossless/Lossless.hpp"
 
 namespace SZ3 {
+
 class Lossless_bypass : public concepts::LosslessInterface {
 public:
     size_t compress(const uchar *src, size_t srcLen, uchar *dst, size_t dstCap) override {

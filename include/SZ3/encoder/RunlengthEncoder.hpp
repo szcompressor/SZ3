@@ -1,3 +1,8 @@
+/**
+ * @file RunlengthEncoder.hpp
+ * @ingroup Encoder
+ */
+
 #ifndef SZ3_RUNLENGTH_ENCODER_HPP
 #define SZ3_RUNLENGTH_ENCODER_HPP
 
@@ -8,6 +13,7 @@
 #include "SZ3/utils/MemoryUtil.hpp"
 
 namespace SZ3 {
+
 
 template <class T>
 class RunlengthEncoder : public concepts::EncoderInterface<T> {

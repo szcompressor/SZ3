@@ -1,9 +1,15 @@
+/**
+ * @file LorenzoPredictor.hpp
+ * @ingroup Predictor
+ */
+
 #ifndef SZ3_LORENZO_PREDICTOR_HPP
 #define SZ3_LORENZO_PREDICTOR_HPP
 
 #include "SZ3/predictor/Predictor.hpp"
 
 namespace SZ3 {
+
 
 // N-dimension L-layer lorenzo predictor
 template <class T, uint N, uint L>

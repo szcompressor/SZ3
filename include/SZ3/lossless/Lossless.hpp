@@ -1,9 +1,11 @@
-//
-// Created by Kai Zhao on 6/12/20.
-//
+/**
+ * @file Lossless.hpp
+ */
 
 #ifndef SZ3_LOSSLESS_HPP
 #define SZ3_LOSSLESS_HPP
+
+#include "SZ3/def.hpp"
 
 namespace SZ3::concepts {
 

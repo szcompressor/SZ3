@@ -1,3 +1,8 @@
+/**
+ * @file ZFPEncoder.hpp
+ * @ingroup Encoder
+ */
+
 #ifndef SZ3_ZFP_ENCODER_HPP
 #define SZ3_ZFP_ENCODER_HPP
 
@@ -6,12 +11,13 @@
 #include "Encoder.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/utils/Config.hpp"
-#include "SZ3/utils/zfp/bitstream.h"
-#include "SZ3/utils/zfp/intcodec04.h"
-#include "SZ3/utils/zfp/intcodec16.h"
-#include "SZ3/utils/zfp/intcodec64.h"
+#include "SZ3/utils/thirdparty/zfp/bitstream.h"
+#include "SZ3/utils/thirdparty/zfp/zfpcodec3.h"
+#include "SZ3/utils/thirdparty/zfp/intcodec16.h"
+#include "SZ3/utils/thirdparty/zfp/intcodec64.h"
 
 namespace SZ3 {
+
 
 template <class Int, uint N>
 class ZFPEncoder : public concepts::EncoderInterface<Int> {

@@ -1,3 +1,8 @@
+/**
+ * @file BypassEncoder.hpp
+ * @ingroup Encoder
+ */
+
 #ifndef SZ3_BYPASS_ENCODER_HPP
 #define SZ3_BYPASS_ENCODER_HPP
 
@@ -8,6 +13,7 @@
 #include "SZ3/def.hpp"
 
 namespace SZ3 {
+
 
 template <class T>
 class BypassEncoder : public concepts::EncoderInterface<T> {

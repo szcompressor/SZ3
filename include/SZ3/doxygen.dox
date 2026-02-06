@@ -1,0 +1,66 @@
+/**
+ * @defgroup API API
+ * @brief Application Programming Interface
+ *
+ * @defgroup Modules Modules
+ * @brief Core FZ functionality modules
+ *
+ * @defgroup Utils Utils
+ * @brief Helper classes and functions
+ *
+ * @defgroup Decomposition Decompositions
+ * @ingroup Modules
+ * @brief Decomposition modules
+ *
+ * @defgroup Preprocessor Preprocessors
+ * @ingroup Modules
+ * @brief Preprocessing modules
+ *
+ * @defgroup Compressor Compressors
+ * @ingroup Modules
+ * @brief compressor workflow modules
+ *
+ * @defgroup Quantizer Quantizers
+ * @ingroup Modules
+ * @brief Quantization modules
+ *
+ * @defgroup Predictor Predictors
+ * @ingroup Modules
+ * @brief Prediction modules
+ *
+ * @defgroup Encoder Encoders
+ * @ingroup Modules
+ * @brief Encoding modules
+ *
+ * @defgroup Lossless Lossless Compressors
+ * @ingroup Modules
+ * @brief Lossless compression modules
+ *
+ * @defgroup UtilsConfig Configuration
+ * @ingroup Utils
+ * @brief Configuration classes
+ *
+ * @defgroup UtilsIO IO
+ * @ingroup Utils
+ * @brief Input/Output utilities
+ *
+ * @defgroup UtilsMath Math
+ * @ingroup Utils
+ * @brief Mathematical and statistical utilities
+ *
+ * @defgroup UtilsAlgo Algorithms
+ * @ingroup Utils
+ * @brief General algorithms (clustering, sampling)
+ *
+ * @defgroup UtilsMemory Memory
+ * @ingroup Utils
+ * @brief Memory management utilities
+ *
+ * @defgroup UtilsStructure Data Structures
+ * @ingroup Utils
+ * @brief Core data structures, iterators, and collections
+ *
+ * @defgroup UtilsTime Timing
+ * @ingroup Utils
+ * @brief Timing and performance utilities
+ */

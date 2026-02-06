@@ -1,6 +1,7 @@
-//
-// Created by Kai Zhao on 12/9/19.
-//
+/**
+ * @file KmeansUtil.hpp
+ * @ingroup UtilsMath
+ */
 
 #ifndef SZ3_KMEANS_UTIL
 #define SZ3_KMEANS_UTIL
@@ -17,6 +18,7 @@
 #include "Timer.hpp"
 
 namespace SZ3 {
+
 
 /*
  *  Internal implementation of the SMAWK algorithm.

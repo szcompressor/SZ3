@@ -1,3 +1,8 @@
+/**
+ * @file Iterator.hpp
+ * @ingroup UtilsStructure
+ */
+
 #ifndef SZ3_ITERATOR_HPP
 #define SZ3_ITERATOR_HPP
 
@@ -15,6 +20,7 @@
 #include <vector>
 
 namespace SZ3 {
+
 // N-dimensional multi_dimensional_range
 template <class T, uint N>
 class multi_dimensional_range : public std::enable_shared_from_this<multi_dimensional_range<T, N>> {

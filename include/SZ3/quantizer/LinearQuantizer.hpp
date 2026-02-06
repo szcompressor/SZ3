@@ -1,3 +1,8 @@
+/**
+ * @file LinearQuantizer.hpp
+ * @ingroup Quantizer
+ */
+
 #ifndef SZ3_LINEAR_QUANTIZER_HPP
 #define SZ3_LINEAR_QUANTIZER_HPP
 
@@ -11,6 +16,7 @@
 #include "SZ3/utils/MemoryUtil.hpp"
 
 namespace SZ3 {
+
 template <class T>
 class LinearQuantizer : public concepts::QuantizerInterface<T, int> {
 public:

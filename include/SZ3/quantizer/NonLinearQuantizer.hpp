@@ -1,3 +1,8 @@
+/**
+ * @file NonLinearQuantizer.hpp
+ * @ingroup Quantizer
+ */
+
 #ifndef SZ3_NONLINEAR_QUANTIZER_HPP
 #define SZ3_NONLINEAR_QUANTIZER_HPP
 
@@ -11,6 +16,7 @@
 #include <vector>
 
 namespace SZ3 {
+
 template<class T>
 class NonLinearQuantizer : public concepts::QuantizerInterface<T, int> {
 public:

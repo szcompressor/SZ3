@@ -1,6 +1,7 @@
-//
-// Created by Kai Zhao on 12/9/19.
-//
+/**
+ * @file FileUtil.hpp
+ * @ingroup UtilsIO
+ */
 
 #ifndef SZ3_FILE_UTIL
 #define SZ3_FILE_UTIL
@@ -14,6 +15,7 @@
 #include <sstream>
 
 namespace SZ3 {
+
 
 /**
  * read binary file and put it to a existing memory space

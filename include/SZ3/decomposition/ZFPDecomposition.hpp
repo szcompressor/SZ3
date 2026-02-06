@@ -1,3 +1,8 @@
+/**
+ * @file ZFPDecomposition.hpp
+ * @ingroup Decomposition
+ */
+
 #ifndef SZ3_ZFP_DECOMPOSITION_HPP
 #define SZ3_ZFP_DECOMPOSITION_HPP
 
@@ -5,12 +10,13 @@
 #include "SZ3/def.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/Statistic.hpp"
-#include "SZ3/utils/zfp/zfpcodec.h"
-#include "SZ3/utils/zfp/zfpcodec1.h"
-#include "SZ3/utils/zfp/zfpcodec2.h"
-#include "SZ3/utils/zfp/zfpcodec3.h"
+#include "SZ3/utils/thirdparty/zfp/zfpcodec.h"
+#include "SZ3/utils/thirdparty/zfp/zfpcodec1.h"
+#include "SZ3/utils/thirdparty/zfp/zfpcodec2.h"
+#include "SZ3/utils/thirdparty/zfp/zfpcodec3.h"
 
 namespace SZ3 {
+
 template <class T, class To, uint N>
 class ZFPDecomposition : public concepts::DecompositionInterface<T, To, N> {
    public:

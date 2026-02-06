@@ -1,3 +1,8 @@
+/**
+ * @file Sample.hpp
+ * @ingroup UtilsAlgo
+ */
+
 #ifndef SZ3_SAMPLE_HPP
 #define SZ3_SAMPLE_HPP
 
@@ -5,6 +10,7 @@
 #include <vector>
 
 namespace SZ3 {
+
 template <class T, uint N>
 inline void profiling_block(T* data, std::vector<size_t>& dims, std::vector<std::vector<size_t>>& starts,
                             size_t block_size, double abseb, size_t stride = 4) {

@@ -1,6 +1,7 @@
-//
-// Created by Kai Zhao on 4/21/20.
-//
+/**
+ * @file MemoryUtil.hpp
+ * @ingroup UtilsMemory
+ */
 
 #ifndef SZ3_MEMORYOPS_HPP
 #define SZ3_MEMORYOPS_HPP
@@ -12,6 +13,7 @@
 #include "SZ3/def.hpp"
 
 namespace SZ3 {
+
 
 // Endianness detection: SZ3 always stores data in little-endian format
 // On big-endian systems, byte-swapping is performed during read/write

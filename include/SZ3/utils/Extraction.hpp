@@ -1,11 +1,15 @@
-//
-// Created by Kai Zhao on 4/20/20.
-//
+/**
+ * @file Extraction.hpp
+ * @ingroup UtilsAlgo
+ */
 
 #ifndef SZ3_EXTRACTION_HPP
 #define SZ3_EXTRACTION_HPP
 
+#include "SZ3/utils/Timer.hpp"
+
 namespace SZ3 {
+
 
 template <uint N>
 float cal_sampling_ratio(size_t block, size_t n, size_t dmin, std::vector<size_t> dims) {

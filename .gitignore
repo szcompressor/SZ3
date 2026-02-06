@@ -10,3 +10,5 @@ install
 .DS_Store
 .vscode
 tmp
+.cache
+docs/html

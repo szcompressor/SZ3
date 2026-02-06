@@ -1,5 +1,6 @@
 /**
  * @file Config.hpp
+ * @ingroup UtilsConfig
  * @brief This file defines the configuration class and related utilities for SZ3.
  *
  * @note Do not delete any existing fields for backward compatibility.
@@ -36,6 +37,7 @@
 #define SZ_INT64 9
 
 namespace SZ3 {
+/** @ingroup UtilsConfig */
 
 /**
  * @enum EB

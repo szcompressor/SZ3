@@ -1,4 +1,9 @@
 
+/**
+ * @file BitshuffleEncoderV2.hpp
+ * @ingroup Encoder
+ */
+
 #ifndef SZ3_BITSHUFFLEENCODER_V2_HPP
 #define SZ3_BITSHUFFLEENCODER_V2_HPP
 
@@ -7,6 +12,7 @@
 #include "SZ3/utils/ByteUtil.hpp"
 
 namespace SZ3 {
+
     template<class T>
     class BitshuffleEncoderV2 : public concepts::EncoderInterface<T> {
     public:

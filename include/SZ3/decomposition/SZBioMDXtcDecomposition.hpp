@@ -1,3 +1,8 @@
+/**
+ * @file SZBioMDXtcDecomposition.hpp
+ * @ingroup Decomposition
+ */
+
 /*
  * Based on SZBioMDDecomposition.hpp
  * \author: Magnus Lundborg
@@ -12,6 +17,7 @@
 #include "SZ3/utils/Config.hpp"
 
 namespace SZ3 {
+
 static constexpr int XTC_radius = std::numeric_limits<int>::max() / 16;
 
 template <class T, uint N, class Quantizer>

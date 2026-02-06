@@ -1,6 +1,7 @@
-//
-// Created by Kai Zhao on 1/28/21.
-//
+/**
+ * @file ByteUtil.hpp
+ * @ingroup UtilsIO
+ */
 
 #ifndef SZ3_BYTEUTIL_HPP
 #define SZ3_BYTEUTIL_HPP
@@ -14,6 +15,7 @@
 #include "SZ3/def.hpp"
 
 namespace SZ3 {
+
 
 typedef union lint16 {
     unsigned short usvalue;

@@ -5,6 +5,11 @@
  * \author Magnus Lundborg: Modifications to fit as SZ3 encoder
  */
 
+/**
+ * @file XtcBasedEncoder.hpp
+ * @ingroup Encoder
+ */
+
 #ifndef _SZ_XTC3_ENCODER_HPP
 #define _SZ_XTC3_ENCODER_HPP
 
@@ -46,6 +51,7 @@ static const int magicInts[] = {
 #define LASTIDX static_cast<int>((sizeof(magicInts) / sizeof(*magicInts)))
 
 namespace SZ3 {
+
 
 struct DataBuffer {
     std::size_t index;

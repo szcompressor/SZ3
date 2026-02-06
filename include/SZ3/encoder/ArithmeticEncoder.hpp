@@ -1,3 +1,8 @@
+/**
+ * @file ArithmeticEncoder.hpp
+ * @ingroup Encoder
+ */
+
 #ifndef SZ3_ArithmeticEncoder_HPP
 #define SZ3_ArithmeticEncoder_HPP
 
@@ -8,6 +13,7 @@
 #include "SZ3/utils/ByteUtil.hpp"
 
 namespace SZ3 {
+
 #define ONE_FOURTH \
     (0x40000000000)  // 44 bits are absolutely enough to deal with a large dataset (support at most 16TB per process)
 #define ONE_HALF (0x80000000000)

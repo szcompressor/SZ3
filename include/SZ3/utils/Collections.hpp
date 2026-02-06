@@ -1,5 +1,11 @@
+/**
+ * @file Collections.hpp
+ * @ingroup UtilsStructure
+ * @brief Wrapper for hash map implementation.
+ */
+
 #if INTPTR_MAX == INT64_MAX  // use ska for 64bit system
-#include "SZ3/utils/ska_hash/unordered_map.hpp"
+#include "SZ3/utils/thirdparty/ska_hash/unordered_map.hpp"
 #else   // most likely 32bit system
 #include <unordered_map>
 #endif  // INTPTR_MAX == INT64_MAX

@@ -1,6 +1,7 @@
-//
-// Created by Kai Zhao on 1/29/21.
-//
+/**
+ * @file PreFilter.hpp
+ * @ingroup Preprocessor
+ */
 
 #ifndef SZ3_PREFILTER_HPP
 #define SZ3_PREFILTER_HPP
@@ -8,6 +9,7 @@
 #include "SZ3/preprocessor/PreProcessor.hpp"
 
 namespace SZ3 {
+
     template<class T, uint N>
 
     class PreFilter : public concepts::PreprocessorInterface<T, N> {

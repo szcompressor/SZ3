@@ -1,3 +1,8 @@
+/**
+ * @file HuffmanEncoder.hpp
+ * @ingroup Encoder
+ */
+
 #ifndef SZ3_HUFFMAN_ENCODER_HPP
 #define SZ3_HUFFMAN_ENCODER_HPP
 
@@ -19,6 +24,7 @@
 #include <unordered_set>
 
 namespace SZ3 {
+
 
 template <class T>
 class HuffmanEncoder : public concepts::EncoderInterface<T> {

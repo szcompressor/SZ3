@@ -1,3 +1,8 @@
+/**
+ * @file SZBioMDDecomposition.hpp
+ * @ingroup Decomposition
+ */
+
 #ifndef SZ3_SZBIOMD_FRONTEND
 #define SZ3_SZBIOMD_FRONTEND
 
@@ -12,6 +17,7 @@
 #include "SZ3/utils/Collections.hpp"
 
 namespace SZ3 {
+
 
 template <class T, uint N, class Quantizer>
 class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> {

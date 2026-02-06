@@ -1,3 +1,8 @@
+/**
+ * @file TimeIntQuantizer.hpp
+ * @ingroup Quantizer
+ */
+
 #ifndef SZ3_TIME_INT_QUANTIZER_HPP
 #define SZ3_TIME_INT_QUANTIZER_HPP
 
@@ -11,6 +16,7 @@
 #include <vector>
 
 namespace SZ3 {
+
 
 template<class T>
 class TimeIntQuantizer : public concepts::QuantizerInterface<T, int> {

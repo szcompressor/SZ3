@@ -1,9 +1,16 @@
+/**
+ * @file QuantOptimization.hpp
+ * @ingroup UtilsAlgo
+ */
+
 #ifndef SZ3_optimize_quant_intervals_hpp
 #define SZ3_optimize_quant_intervals_hpp
 
+#include "SZ3/def.hpp"
 #include <vector>
 
 namespace SZ3 {
+
 
 #define QuantIntvMeanCapacity 8192
 #define QuantIntvSampleDistance 100
