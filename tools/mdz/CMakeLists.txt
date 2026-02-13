@@ -7,7 +7,7 @@ foreach (EXE IN LISTS exes)
     add_executable(${EXE} ${EXE}.cpp)
     target_include_directories(${EXE} PUBLIC
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-            $<INSTALL_INTERFACE:include/MDZ>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MDZ>
             )
     target_link_libraries(${EXE} SZ3)
     install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${EXE} TYPE BIN)
