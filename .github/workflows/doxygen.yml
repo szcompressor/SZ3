@@ -39,6 +39,14 @@ jobs:
       - name: Generate Documentation
         run: doxygen docs/Doxyfile
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run Pagefind
+        run: npx -y pagefind --site docs/html
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 

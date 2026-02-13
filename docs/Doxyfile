@@ -9,3 +9,6 @@ HTML_OUTPUT          = docs/html
 SEARCHENGINE         = YES
 DISTRIBUTE_GROUP_DOC = YES
 STRIP_FROM_PATH      = include/SZ3
+HTML_HEADER          = docs/header.html
+HTML_FOOTER          = docs/footer.html
+HTML_EXTRA_STYLESHEET = docs/pagefind.css
