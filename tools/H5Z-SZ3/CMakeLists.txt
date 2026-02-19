@@ -21,6 +21,7 @@ if (${HDF5_IS_PARALLEL})
     target_link_libraries(hdf5sz3
             PUBLIC MPI::MPI_CXX)
 endif ()
+set(HDF5_IS_PARALLEL ${HDF5_IS_PARALLEL} PARENT_SCOPE)
 
 target_include_directories(hdf5sz3
         PUBLIC
