@@ -9,3 +9,6 @@ cmake-build-release
 install
 .DS_Store
 .vscode
+sz3_install
+sz3_build
+test
