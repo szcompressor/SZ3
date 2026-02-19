@@ -3,6 +3,9 @@
 include("${CMAKE_CURRENT_LIST_DIR}/SZ3Targets.cmake")
 if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/HDF5SZ3.cmake")
   find_package(HDF5 COMPONENTS C REQUIRED)
+  if(@HDF5_IS_PARALLEL@)
+    find_package(MPI COMPONENTS CXX REQUIRED)
+  endif()
   include("${CMAKE_CURRENT_LIST_DIR}/HDF5SZ3.cmake")
 endif()
 
