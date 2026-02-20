@@ -13,6 +13,7 @@
  * - `ALGO_BIOMD` / `ALGO_BIOMDXTC`: `SZAlgoBioMD.hpp` — molecular dynamics specific compression.
  * - `ALGO_SVD`: `SZAlgoSVD.hpp` — SVD-based decomposition.
  * - `ALGO_ZFP`: `SZAlgoZFP.hpp` — ZFP block-based transform compression.
+ * - `ALGO_SPERR`: `SZAlgoSPERR.hpp` — SPERR 3D wavelet + SPECK core path.
  * - `ALGO_LOSSLESS`: Falls back to Zstd lossless-only compression.
  */
 
@@ -22,6 +23,7 @@
 #include "SZ3/api/impl/SZAlgoBioMD.hpp"
 #include "SZ3/api/impl/SZAlgoSVD.hpp"
 #include "SZ3/api/impl/SZAlgoZFP.hpp"
+#include "SZ3/api/impl/SZAlgoSPERR.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/Statistic.hpp"
 
@@ -46,11 +48,15 @@ template <class T, uint N>
 size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
 
     assert(N == conf.N);
-    calAbsErrorBound(conf, data);
+    const bool sperr_psnr_mode = (conf.cmprAlgo == ALGO_SPERR && conf.errorBoundMode == EB_PSNR);
+    if (!sperr_psnr_mode) {
+        calAbsErrorBound(conf, data);
+    }
     size_t cmpSize = 0;
 
     // if absErrorBound is 0, use lossless only mode
-    if (conf.absErrorBound == 0) {
+    // (except SPERR PSNR mode, where absErrorBound is not the controlling bound)
+    if (!sperr_psnr_mode && conf.absErrorBound == 0) {
         conf.cmprAlgo = ALGO_LOSSLESS;
     }
 
@@ -83,6 +89,8 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
                 } else {
                     cmpSize = SZ_compress_ZFP<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
                 }
+            } else if (conf.cmprAlgo == ALGO_SPERR) {
+                cmpSize = SZ_compress_SPERR<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
             } else {
                 throw std::invalid_argument("Unknown compression algorithm");
             }
@@ -155,6 +163,8 @@ void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize
         SZ_decompress_bioMDXtcBased<T, N>(conf, cmpData, cmpSize, decData);
     } else if (conf.cmprAlgo == ALGO_SVD) {
         SZ_decompress_SVD<T, N>(conf, cmpData, cmpSize, decData);
+    } else if (conf.cmprAlgo == ALGO_SPERR) {
+        SZ_decompress_SPERR<T, N>(conf, cmpData, cmpSize, decData);
     } else if (conf.cmprAlgo == ALGO_ZFP) {
         SZ_decompress_ZFP<T, N>(conf, cmpData, cmpSize, decData);
     } else {
