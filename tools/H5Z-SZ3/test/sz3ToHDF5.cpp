@@ -8,7 +8,6 @@
  */
 
 
-#include "SZ3/utils/ByteUtil.hpp"
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
@@ -16,8 +15,6 @@
 #include "hdf5.h"
 // #include "H5Cpp.h"
 #include "H5Z_SZ3.hpp"
-#include "SZ3/utils/Config.hpp"
-#include "SZ3/utils/FileUtil.hpp"
 
 #define LITTLE_ENDIAN_SYSTEM 0
 #define BIG_ENDIAN_SYSTEM 1

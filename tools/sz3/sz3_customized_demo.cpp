@@ -15,7 +15,6 @@
  */
 
 #include "SZ3/api/sz.hpp"
-#include "SZ3/utils/FileUtil.hpp"
 using namespace SZ3;
 
 template <class T, uint N>

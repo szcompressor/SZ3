@@ -1,11 +1,4 @@
-#include "SZ3/compressor/specialized/SZTruncateCompressor.hpp"
-#include "SZ3/lossless/Lossless_zstd.hpp"
-#include "SZ3/lossless/Lossless_bypass.hpp"
-#include "SZ3/utils/FileUtil.hpp"
-#include "SZ3/utils/Config.hpp"
-#include "SZ3/utils/Statistic.hpp"
-#include "SZ3/utils/Timer.hpp"
-#include "SZ3/def.hpp"
+#include "SZ3/api/sz_dev.hpp"
 #include <cstdio>
 #include <iostream>
 #include <memory>

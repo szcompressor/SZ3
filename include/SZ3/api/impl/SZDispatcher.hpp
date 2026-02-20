@@ -12,6 +12,7 @@
  * - `ALGO_NOPRED`: `SZAlgoNopred.hpp` — quantization only (no predictor).
  * - `ALGO_BIOMD` / `ALGO_BIOMDXTC`: `SZAlgoBioMD.hpp` — molecular dynamics specific compression.
  * - `ALGO_SVD`: `SZAlgoSVD.hpp` — SVD-based decomposition.
+ * - `ALGO_ZFP`: `SZAlgoZFP.hpp` — ZFP block-based transform compression.
  * - `ALGO_LOSSLESS`: Falls back to Zstd lossless-only compression.
  */
 
@@ -20,6 +21,7 @@
 #include "SZ3/api/impl/SZAlgoNopred.hpp"
 #include "SZ3/api/impl/SZAlgoBioMD.hpp"
 #include "SZ3/api/impl/SZAlgoSVD.hpp"
+#include "SZ3/api/impl/SZAlgoZFP.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/Statistic.hpp"
 
@@ -42,9 +44,7 @@ namespace SZ3 {
  */
 template <class T, uint N>
 size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
-    if (conf.cmprAlgo == ALGO_SVD && std::is_integral<T>::value) {
-        throw std::invalid_argument("SVD algorithm only supports floating-point data types.");
-    }
+
     assert(N == conf.N);
     calAbsErrorBound(conf, data);
     size_t cmpSize = 0;
@@ -72,7 +72,17 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
             } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
                 return SZ_compress_bioMDXtcBased<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
             } else if (conf.cmprAlgo == ALGO_SVD) {
-                cmpSize = SZ_compress_SVD<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                if constexpr (std::is_integral<T>::value) {
+                    throw std::invalid_argument("SVD algorithm only supports floating-point data types.");
+                } else {
+                    cmpSize = SZ_compress_SVD<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                }
+            } else if (conf.cmprAlgo == ALGO_ZFP) {
+                if constexpr (std::is_integral<T>::value) {
+                    throw std::invalid_argument("ZFP algorithm only supports floating-point data types.");
+                } else {
+                    cmpSize = SZ_compress_ZFP<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                }
             } else {
                 throw std::invalid_argument("Unknown compression algorithm");
             }
@@ -145,6 +155,8 @@ void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize
         SZ_decompress_bioMDXtcBased<T, N>(conf, cmpData, cmpSize, decData);
     } else if (conf.cmprAlgo == ALGO_SVD) {
         SZ_decompress_SVD<T, N>(conf, cmpData, cmpSize, decData);
+    } else if (conf.cmprAlgo == ALGO_ZFP) {
+        SZ_decompress_ZFP<T, N>(conf, cmpData, cmpSize, decData);
     } else {
         throw std::invalid_argument("Unknown compression algorithm");
     }

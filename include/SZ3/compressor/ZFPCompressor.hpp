@@ -96,7 +96,7 @@ class ZFPCompressor : public concepts::CompressorInterface<T> {
         }
         ZFP::MemoryBitStream stream;
         stream.open(const_cast<uchar *>(cmpData), cmpSize);
-        float *p = decData;
+        T *p = decData;
 
         if constexpr (N == 1) {
             ZFP::Codec1<ZFP::MemoryBitStream, T> codec(stream, 0, UINT_MAX, 0, expmin);

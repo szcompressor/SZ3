@@ -24,6 +24,9 @@
 
 #include "SZ3/api/impl/SZImpl.hpp"
 #include "SZ3/version.hpp"
+#include "SZ3/utils/FileUtil.hpp"
+#include "SZ3/utils/Statistic.hpp"
+#include "SZ3/utils/Timer.hpp"
 
 
 /**

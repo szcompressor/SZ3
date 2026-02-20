@@ -2,8 +2,6 @@
 #include <cstdlib>
 
 #include "SZ3/api/sz.hpp"
-#include "SZ3/utils/FileUtil.hpp"
-#include "SZ3/utils/Timer.hpp"
 
 #define SZ_FLOAT 0
 #define SZ_DOUBLE 1

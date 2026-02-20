@@ -5,12 +5,6 @@
 
 #include "SZ3/api/sz.hpp"
 
-#include "SZ3/compressor/specialized/SZTruncateCompressor.hpp"
-#include "SZ3/encoder/ArithmeticEncoder.hpp"
-#include "SZ3/encoder/BypassEncoder.hpp"
-#include "SZ3/encoder/RunlengthEncoder.hpp"
-#include "SZ3/lossless/Lossless_bypass.hpp"
-
 int main(int argc, char **argv) {
     std::vector<size_t> dims({100, 200, 300});
     SZ3::Config conf({dims[0], dims[1], dims[2]});

@@ -6,11 +6,7 @@
 #include <sstream>
 #include <fstream>
 
-#include "SZ3/compressor/Compressor.hpp"
-#include "SZ3/utils/ByteUtil.hpp"
-#include "SZ3/utils/MemoryUtil.hpp"
-#include "SZ3/utils/Config.hpp"
-#include "SZ3/utils/FileUtil.hpp"
+#include "SZ3/api/sz.hpp"
 
 inline void usage() {
     printf("Usage: print_h5repack_args <options>\n");

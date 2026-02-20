@@ -1,12 +1,8 @@
 /**
  */
 
-#include "SZ3/api/sz.hpp"
-#include "SZ3/utils/FileUtil.hpp"
-#include "SZ3/compressor/ZFPCompressor.hpp"
-#include "SZ3/decomposition/ZFPDecomposition.hpp"
-#include "SZ3/encoder/ZFPEncoder.hpp"
-#include "SZ3/utils/Statistic.hpp"
+#include "SZ3/api/sz_dev.hpp"
+
 
 using namespace SZ3;
 
@@ -19,6 +15,9 @@ void test_zfp(const Config &conf, std::vector<T> &input_data) {
     Timer timer;
 
     {
+        // Mode 1: Using ZFP as a unified compressor wrapper
+        // This invokes the native ZFP API which operates on a strict per-block pipeline:
+        // it applies decomposition and encoding to each individual block sequentially.
         printf("\n====== Testing ZFP standalone in FZ =========\n");
         auto input_data_copy = input_data;
         auto conf_copy = conf;
@@ -36,6 +35,12 @@ void test_zfp(const Config &conf, std::vector<T> &input_data) {
     }
 
     {
+        // Mode 2: Using ZFP components as decoupled SZ3 modules
+        // Note: This significantly alters the original ZFP workflow. 
+        // Here, ZFPDecomposition processes ALL blocks in the dataset first.
+        // Once the entire dataset is transformed, ZFPEncoder encodes all the transformed blocks.
+        // This decoupled approach (Transform All -> Encode All) is the standard SZ3 pipeline style,
+        // but differs from ZFP's native (Transform Block -> Encode Block) interlaced workflow.
         printf("\n====== Testing ZFP modules in FZ =========\n");
 
         auto input_data_copy(input_data);
@@ -46,7 +51,9 @@ void test_zfp(const Config &conf, std::vector<T> &input_data) {
         ZFPEncoder<Int, N> zfp_encoder(conf);
 
         timer.start();
+        // 1. Transform the entire dataset
         auto transformed = zfp_transform.compress(conf_copy, input_data_copy.data());
+        // 2. Encode the entire transformed dataset
         zfp_encoder.encode(transformed, cmp_data_pos);
         auto cmpSize = cmp_data_pos - cmp_data.data();
         timer.stop("compression");
