@@ -7,7 +7,6 @@
 #define SZ3_COMPOSED_PREDICTOR_HPP
 
 #include <cassert>
-#include <iostream>
 #include <memory>
 
 #include "SZ3/encoder/HuffmanEncoder.hpp"
@@ -16,11 +15,23 @@
 namespace SZ3 {
 
 
+/**
+ * @brief Composite Predictor that selects the best predictor from a list for each block
+ * 
+ * @tparam T Data type
+ * @tparam N Dimension
+ */
 template <class T, uint N>
 class ComposedPredictor : public concepts::PredictorInterface<T, N> {
    public:
     using block_iter = typename block_data<T, N>::block_iterator;
 
+    /**
+     * @brief Construct a new Composed Predictor
+     * 
+     * @param predictors List of predictors to choose from
+     * @throw std::invalid_argument If predictor list is empty
+     */
     ComposedPredictor(std::vector<std::shared_ptr<concepts::PredictorInterface<T, N>>> predictors)
         : predictors(predictors) {
         if (predictors.empty()) {

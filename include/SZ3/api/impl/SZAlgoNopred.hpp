@@ -1,6 +1,14 @@
 #ifndef SZ3_SZALGO_NOPRED_HPP
 #define SZ3_SZALGO_NOPRED_HPP
 
+/**
+ * @file SZAlgoNopred.hpp
+ * @ingroup API
+ * @brief Compression algorithm using `NoPredictionDecomposition` (quantization only, no predictor).
+ *
+ * Useful as a baseline or when data has no spatial correlation suitable for prediction.
+ */
+
 #include "SZ3/compressor/SZGenericCompressor.hpp"
 #include "SZ3/decomposition/NoPredictionDecomposition.hpp"
 #include "SZ3/encoder/HuffmanEncoder.hpp"

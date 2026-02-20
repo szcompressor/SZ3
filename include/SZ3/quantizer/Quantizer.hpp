@@ -1,51 +1,56 @@
 #ifndef SZ3_QUANTIZER_HPP
 #define SZ3_QUANTIZER_HPP
 
-#include <SZ3/def.hpp>
+#include "SZ3/def.hpp"
 
 namespace SZ3::concepts {
 
 /**
- * quantize a single data point with precision loss
- * E.g: float->int
- * @tparam Ti original data type
- * @tparam To quantized data type
+ * @brief Interface for quantization
+ * 
+ * Quantizers reduce the precision of data points, mapping them to a smaller set of values (integers).
+ * E.g., float -> int.
+ * 
+ * @tparam Ti Original data type (Input)
+ * @tparam To Quantized data type (Output)
  */
 template <class Ti, class To>
-class   QuantizerInterface {
+class QuantizerInterface {
    public:
     virtual ~QuantizerInterface() = default;
 
     /**
-     * quantize the error (error=data-pred) based on error bound, and overwrite the data with reconstructed value
-     * @param data single data point
-     * @param pred predicted value for this data point
-     * @return quantized error
+     * @brief Quantize the prediction error and overwrite data with reconstructed value
+     * 
+     * @param data Single data point (input/output). Will be overwritten by reconstructed value.
+     * @param pred Predicted value for this data point
+     * @return To Quantized index/bin
      */
     ALWAYS_INLINE virtual To quantize_and_overwrite(Ti &data, Ti pred) = 0;
 
     /**
-     * reconstructed the data point
-     * @param pred predicted value for the data point
-     * @param quant_index quantized error
-     * @return reconstructed value of the data point
+     * @brief Reconstruct the data point from quantized index
+     * 
+     * @param pred Predicted value
+     * @param quant_index Quantized index
+     * @return Ti Reconstructed value
      */
     ALWAYS_INLINE virtual Ti recover(Ti pred, To quant_index) = 0;
 
     virtual To force_save_unpred(Ti ori) = 0;
 
     /**
-     ** serialize the quantizer and store it to a buffer
-     * @param c One large buffer is pre-allocated, and the start location of the serialized quantizer in the buffer is
-     *indicated by c. After saving the quantizer to the buffer, this function should change c to indicate the next empty
-     *location in the buffer
+     * @brief Serialize the quantizer and store it to a buffer
+     * 
+     * @param c Reference to the buffer pointer. It will be advanced to the next empty location.
      */
     virtual void save(uchar *&c) const = 0;
 
     /**
-     * deserialize the quantizer from a buffer
-     * @param c start location of the quantizer in the buffer
-     * @param remaining_length the remaining length of the buffer
+     * @brief Deserialize the quantizer from a buffer
+     * 
+     * @param c Reference to the buffer pointer. It will be advanced after reading.
+     * @param remaining_length Remaining length of the buffer
      */
     virtual void load(const uchar *&c, size_t &remaining_length) = 0;
 

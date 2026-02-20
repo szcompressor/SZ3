@@ -7,19 +7,34 @@
 #define SZ3_LORENZO_PREDICTOR_HPP
 
 #include "SZ3/predictor/Predictor.hpp"
+#include <iostream>
 
 namespace SZ3 {
 
 
-// N-dimension L-layer lorenzo predictor
+/**
+ * @brief N-dimensional L-layer Lorenzo Predictor
+ * 
+ * @tparam T Data type
+ * @tparam N Dimension
+ * @tparam L Number of layers (1 or 2)
+ */
 template <class T, uint N, uint L>
 class LorenzoPredictor : public concepts::PredictorInterface<T, N> {
    public:
     static const uint8_t predictor_id = 0b00000001;
     using block_iter = typename block_data<T, N>::block_iterator;
 
+    /**
+     * @brief Construct a new Lorenzo Predictor object with default settings
+     */
     LorenzoPredictor() { this->noise = 0; }
 
+    /**
+     * @brief Construct a new Lorenzo Predictor object with error bound
+     * 
+     * @param eb Error bound used to calculate noise
+     */
     LorenzoPredictor(double eb) {
         this->noise = 0;
         if (L == 1) {

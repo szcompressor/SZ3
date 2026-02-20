@@ -2,6 +2,7 @@
  */
 
 #include "SZ3/api/sz.hpp"
+#include "SZ3/utils/FileUtil.hpp"
 #include "SZ3/compressor/ZFPCompressor.hpp"
 #include "SZ3/decomposition/ZFPDecomposition.hpp"
 #include "SZ3/encoder/ZFPEncoder.hpp"

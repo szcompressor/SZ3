@@ -3,8 +3,19 @@
 
 namespace SZ3 {
 
+/**
+ * @brief Unsigned integer type definition
+ */
 typedef unsigned int uint;
+
+/**
+ * @brief Unsigned char type definition
+ */
 typedef unsigned char uchar;
+
+/**
+ * @brief Error message for insufficient buffer size
+ */
 #define SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH \
     "The buffer for compressed data is not large enough."
 }  // namespace SZ3

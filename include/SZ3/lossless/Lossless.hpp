@@ -10,30 +10,34 @@
 namespace SZ3::concepts {
 
 /**
- * Lossless compressors is used in addition to lossy compression to further reduce the data size
- * Usually this module calls into existing lossless compress APIs, instead of re-implementing the lossless algorithms.
+ * @brief Interface for Lossless compressors
+ * 
+ * Lossless compression is applied after the lossy stage to further reduce data size
+ * without losing any additional information. Typically wraps existing libraries (e.g., Zstd, Gzip).
  */
 class LosslessInterface {
    public:
     virtual ~LosslessInterface() = default;
 
     /**
-     * compress data with lossless compressors
-     * @param src  data to be compressed
-     * @param srcLen length (in bytes) of the data to be compressed
-     * @param dst compressed data
-     * @param dstCap capacity (in bytes) for storing the compressed data
-     * @return length (in bytes) of the data compressed
+     * @brief Compress data using a lossless algorithm
+     * 
+     * @param src Input data to be compressed
+     * @param srcLen Length of input data in bytes
+     * @param dst Buffer to store compressed data
+     * @param dstCap Capacity of the destination buffer
+     * @return size_t Size of compressed data in bytes
      */
     virtual size_t compress(const uchar *src, size_t srcLen, uchar *dst, size_t dstCap) = 0;
 
     /**
-     * reverse of compress(), decompress the data with lossless compressors
-     * @param src data to be decompressed
-     * @param srcLen length (in bytes) of the data to be decompressed (as input) or the data decompressed (as output).
-     * @param dst decompressed data
-     * @param dstLen length (in bytes) of the decompressed data
-     * @return length (in bytes) of the data decompressed
+     * @brief Decompress data using a lossless algorithm
+     * 
+     * @param src Compressed data buffer
+     * @param srcLen Length of compressed data
+     * @param dst Buffer to store decompressed data (reference to pointer)
+     * @param dstLen Length of decompressed data (reference, updated by function)
+     * @return size_t Size of decompressed data in bytes
      */
     virtual size_t decompress(const uchar *src, const size_t srcLen, uchar *&dst, size_t &dstLen) = 0;
 };

@@ -8,7 +8,6 @@
 
 #include <cassert>
 #include <cstring>
-#include <iostream>
 #include <vector>
 
 #include "SZ3/def.hpp"
@@ -17,15 +16,33 @@
 
 namespace SZ3 {
 
+/**
+ * @brief Linear Quantizer
+ * 
+ * Quantizes data by mapping it to the nearest integer bin based on an error bound.
+ * Supports handling of unpredictable data.
+ * 
+ * @tparam T Data type
+ */
 template <class T>
 class LinearQuantizer : public concepts::QuantizerInterface<T, int> {
 public:
+    /**
+     * @brief Construct a new Linear Quantizer with default settings
+     */
     LinearQuantizer()
         : error_bound(1),
           error_bound_reciprocal(1),
           radius(32768) {
     }
 
+    /**
+     * @brief Construct a new Linear Quantizer
+     * 
+     * @param eb Error bound
+     * @param r Quantization radius (number of bins is 2*r)
+     * @param _strict_eb If true, potential quantization errors exceeding EB trigger unpred storage immediately.
+     */
     LinearQuantizer(double eb, int r = 32768, bool _strict_eb = true)
         : error_bound(eb),
           error_bound_reciprocal(1.0 / eb),

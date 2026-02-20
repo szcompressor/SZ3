@@ -1,8 +1,9 @@
 //
 // Created by Kai Zhao on 11/10/22.
 //
+#include <cmath>
 
-#include <SZ3/api/sz.hpp>
+#include "SZ3/api/sz.hpp"
 
 #include "SZ3/compressor/specialized/SZTruncateCompressor.hpp"
 #include "SZ3/encoder/ArithmeticEncoder.hpp"

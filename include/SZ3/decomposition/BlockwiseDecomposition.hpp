@@ -12,19 +12,42 @@
 #include "SZ3/def.hpp"
 #include "SZ3/predictor/LorenzoPredictor.hpp"
 #include "SZ3/predictor/Predictor.hpp"
-#include "SZ3/quantizer/LinearQuantizer.hpp"
-#include "SZ3/utils/Config.hpp"
-#include "SZ3/utils/FileUtil.hpp"
 #include "SZ3/utils/BlockwiseIterator.hpp"
-#include "SZ3/utils/Timer.hpp"
+#include "SZ3/utils/Config.hpp"
 
 namespace SZ3 {
 
+/**
+ * @brief Predictor-based block-wise decomposition (one of two primary decomposition strategies).
+ * 
+ * This is the **predictor-based** option for the `Decomposition` stage in `SZGenericCompressor`.
+ * It splits data into fixed-size blocks and applies a `PredictorInterface` implementation
+ * (e.g., Lorenzo, Regression) to each data point within the block, then quantizes the prediction error.
+ * 
+ * This is the appropriate choice when:
+ * - You have or want to implement a scalar point predictor (`PredictorInterface`).
+ * - You need block-local prediction strategies (e.g., switching between Lorenzo and Regression per block).
+ * 
+ * The alternative decomposition approach (e.g., `InterpolationDecomposition`) operates directly on
+ * the global data array without using `PredictorInterface`.
+ * 
+ * @tparam T Data type
+ * @tparam N Dimension
+ * @tparam Predictor A class implementing `PredictorInterface<T, N>`
+ * @tparam Quantizer A class implementing `QuantizerInterface<T, int>`
+ */
 template <class T, uint N, class Predictor, class Quantizer>
 class BlockwiseDecomposition : public concepts::DecompositionInterface<T, int, N> {
    public:
     using Block_iter = typename block_data<T, N>::block_iterator;
 
+    /**
+     * @brief Construct a new Blockwise Decomposition object
+     * 
+     * @param conf Configuration
+     * @param predictor Predictor instance
+     * @param quantizer Quantizer instance
+     */
     BlockwiseDecomposition(const Config &conf, Predictor predictor, Quantizer quantizer)
         : predictor(predictor), quantizer(quantizer), fallback_predictor(conf.absErrorBound) {
         static_assert(std::is_base_of<concepts::PredictorInterface<T, N>, Predictor>::value,

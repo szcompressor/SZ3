@@ -8,7 +8,7 @@
  */
 
 
-#include <SZ3/utils/ByteUtil.hpp>
+#include "SZ3/utils/ByteUtil.hpp"
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>

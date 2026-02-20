@@ -7,12 +7,18 @@
 namespace SZ3::concepts {
 
 /**
- * Data prediction interface
- * BlockwiseDecomposition will automatically iterate through multidimensional data to apply the
- * Predictor on each data point.
- * @tparam T original data type
- * @tparam N original data dimension
- *
+ * @brief Interface for scalar data prediction, used exclusively by `BlockwiseDecomposition`.
+ * 
+ * A `Predictor` estimates a data value based on its neighboring points. `BlockwiseDecomposition`
+ * uses this interface to iterate over data blocks and apply prediction + quantization on each point.
+ * 
+ * **Note:** This interface applies only when using `BlockwiseDecomposition`. Other decomposition
+ * strategies (e.g., `InterpolationDecomposition`, `ZFPDecomposition`) do not use this interface.
+ * If your prediction method operates on full data arrays rather than scalar values, implement
+ * `DecompositionInterface` directly instead.
+ * 
+ * @tparam T Original data type
+ * @tparam N Original data dimension
  */
 template <class T, uint N>
 class PredictorInterface {
@@ -22,48 +28,55 @@ class PredictorInterface {
     virtual ~PredictorInterface() = default;
 
     /**
-     * predict the value for a single data point
-     * @param block_iter the iterator of the block
-     * @param T* the pointer to the single data point
-     * @param std::array<size_t, N> the relative index of the data point in the block
-     * @return the predicted value
+     * @brief Predict the value for a single data point
+     * 
+     * @param block Iterator to the current data block
+     * @param data Pointer to the single data point
+     * @param index Relative index of the data point in the block
+     * @return T The predicted value
      */
-    ALWAYS_INLINE virtual T predict(const block_iter &, T *, const std::array<size_t, N> &) = 0;
+    ALWAYS_INLINE virtual T predict(const block_iter &block, T *data, const std::array<size_t, N> &index) = 0;
 
     /**
-     * estimate the prediction error ( |prediction value - read value|)  for a single data point
-     * @param iter the iterator of the single data point
-     * @return the estimated prediction error
+     * @brief Estimate the prediction error for a single data point
+     * 
+     * Error = |prediction value - read value|
+     * 
+     * @param block Iterator to the current data block
+     * @param data Pointer to the single data point
+     * @param index Relative index of the data point in the block
+     * @return T The estimated prediction error
      */
-    ALWAYS_INLINE virtual T estimate_error(const block_iter &, T *, const std::array<size_t, N> &) = 0;
+    ALWAYS_INLINE virtual T estimate_error(const block_iter &block, T *data, const std::array<size_t, N> &index) = 0;
 
     /**
-     * compute auxiliary info (e.g., coefficients) for the given data block
-     * @param block_iter of the block
-     * @return whether the predictor is suitable for the block (e.g., data with 100x1 shape is not suitable for 2D
-     * regression)
+     * @brief Compute auxiliary info (e.g., coefficients) for the given data block
+     * 
+     * @param block Iterator to the current data block
+     * @return true If the predictor is suitable for the block
+     * @return false If the predictor is not suitable (e.g., shape mismatch)
      */
-    virtual bool precompress(const block_iter &) = 0;
+    virtual bool precompress(const block_iter &block) = 0;
 
     /**
-     * store the auxiliary info (e.g., coefficients) to this class's internal storage
+     * @brief Store the auxiliary info (e.g., coefficients) to internal storage
      */
     virtual void precompress_block_commit() = 0;
 
     virtual bool predecompress(const block_iter &) = 0;
 
     /**
-     * serialize the predictor and store it to a buffer
-     * @param c One large buffer is pre-allocated, and the start location of the serialized predictor in the buffer is
-     * indicated by c. After saving the predictor to the buffer, this function should change c to indicate the next
-     * empty location in the buffer
+     * @brief Serialize the predictor and store it to a buffer
+     * 
+     * @param c Reference to the buffer pointer. It will be advanced to the next empty location after writing.
      */
     virtual void save(uchar *&c) = 0;
 
     /**
-     * deserialize the predictor from a buffer
-     * @param c start location of the predictor in the buffer
-     * @param remaining_length the remaining length of the buffer
+     * @brief Deserialize the predictor from a buffer
+     * 
+     * @param c Reference to the buffer pointer. It will be advanced after reading.
+     * @param remaining_length Remaining length of the buffer
      */
     virtual void load(const uchar *&c, size_t &remaining_length) = 0;
 

@@ -13,17 +13,30 @@
 #include "SZ3/def.hpp"
 #include "SZ3/quantizer/Quantizer.hpp"
 #include "SZ3/utils/Config.hpp"
-#include "SZ3/utils/FileUtil.hpp"
 #include "SZ3/utils/Interpolators.hpp"
 #include "SZ3/utils/Iterator.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
-#include "SZ3/utils/Timer.hpp"
 
 namespace SZ3 {
 
+/**
+ * @brief Interpolation-based Decomposition
+ * 
+ * Uses multi-grid interpolation to predict data values. Supports both 1D and multi-dimensional interpolation.
+ * 
+ * @tparam T Data type
+ * @tparam N Dimension
+ * @tparam Quantizer Quantizer type
+ */
 template <class T, uint N, class Quantizer>
 class InterpolationDecomposition : public concepts::DecompositionInterface<T, int, N> {
    public:
+    /**
+     * @brief Construct a new Interpolation Decomposition object
+     * 
+     * @param conf Configuration
+     * @param quantizer Quantizer instance
+     */
     InterpolationDecomposition(const Config &conf, Quantizer quantizer) : quantizer(quantizer) {
         static_assert(std::is_base_of<concepts::QuantizerInterface<T, int>, Quantizer>::value,
                       "must implement the quantizer interface");

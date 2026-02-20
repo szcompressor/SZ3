@@ -10,14 +10,21 @@
 #include "SZ3/def.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
 #include <cassert>
-#include <cmath>
+#include <cassert>
 #include <cstring>
-#include <iostream>
 #include <vector>
 
 namespace SZ3 {
 
 
+/**
+ * @brief Time-based Integer Quantizer
+ * 
+ * Simple quantizer related to time steps or integer-spaced data in temporal dimensions.
+ * Quantization bins are integer increments.
+ * 
+ * @tparam T Data type
+ */
 template<class T>
 class TimeIntQuantizer : public concepts::QuantizerInterface<T, int> {
 public:

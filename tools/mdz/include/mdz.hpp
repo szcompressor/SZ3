@@ -5,19 +5,19 @@
 #ifndef SZ3_MDZ_H
 #define SZ3_MDZ_H
 
-#include <SZ3/compressor/SZGenericCompressor.hpp>
-#include <SZ3/def.hpp>
-#include <SZ3/encoder/HuffmanEncoder.hpp>
-#include <SZ3/lossless/Lossless_zstd.hpp>
-#include <SZ3/predictor/ComposedPredictor.hpp>
-#include <SZ3/predictor/LorenzoPredictor.hpp>
-#include <SZ3/predictor/Predictor.hpp>
-#include <SZ3/predictor/RegressionPredictor.hpp>
-#include <SZ3/quantizer/LinearQuantizer.hpp>
-#include <SZ3/utils/FileUtil.hpp>
-#include <SZ3/utils/QuantOptimization.hpp>
-#include <SZ3/utils/Statistic.hpp>
-#include <SZ3/utils/Timer.hpp>
+#include "SZ3/compressor/SZGenericCompressor.hpp"
+#include "SZ3/def.hpp"
+#include "SZ3/encoder/HuffmanEncoder.hpp"
+#include "SZ3/lossless/Lossless_zstd.hpp"
+#include "SZ3/predictor/ComposedPredictor.hpp"
+#include "SZ3/predictor/LorenzoPredictor.hpp"
+#include "SZ3/predictor/Predictor.hpp"
+#include "SZ3/predictor/RegressionPredictor.hpp"
+#include "SZ3/quantizer/LinearQuantizer.hpp"
+#include "SZ3/utils/FileUtil.hpp"
+#include "SZ3/utils/QuantOptimization.hpp"
+#include "SZ3/utils/Statistic.hpp"
+#include "SZ3/utils/Timer.hpp"
 
 #include "SZ3/compressor/specialized/SZExaaltCompressor.hpp"
 #include "SZ3/decomposition/BlockwiseDecomposition.hpp"

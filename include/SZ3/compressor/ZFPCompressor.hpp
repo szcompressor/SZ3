@@ -16,9 +16,27 @@
 namespace SZ3 {
 
 
+/**
+ * @brief ZFP-based Compressor implementation
+ * 
+ * This class implements the CompressorInterface using the ZFP compression library (via included headers).
+ * It supports 1D, 2D, and 3D data compression.
+ * 
+ * @tparam T Data type
+ * @tparam N Dimension
+ */
 template <class T, uint N>
 class ZFPCompressor : public concepts::CompressorInterface<T> {
    public:
+    /**
+     * @brief Compress data using ZFP
+     * 
+     * @param conf Compression configuration (uses absErrorBound)
+     * @param data Input data pointer
+     * @param cmpData Output compressed data buffer
+     * @param cmpCap Output buffer capacity
+     * @return size_t Size of compressed data
+     */
     size_t compress(const Config &conf, T *data, uchar *cmpData, size_t cmpCap) override {
         ZFP::MemoryBitStream stream;
         stream.open(cmpData, cmpCap);
@@ -61,6 +79,15 @@ class ZFPCompressor : public concepts::CompressorInterface<T> {
         return stream.size();
     }
 
+    /**
+     * @brief Decompress data using ZFP
+     * 
+     * @param conf Compression configuration
+     * @param cmpData Compressed data pointer
+     * @param cmpSize Size of compressed data
+     * @param decData Buffer for decompressed data
+     * @return T* Pointer to decompressed data
+     */
     T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *decData) override {
         int expmin = INT_MIN;
         if (conf.absErrorBound > 0) {

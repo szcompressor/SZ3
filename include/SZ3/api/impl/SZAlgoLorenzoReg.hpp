@@ -1,7 +1,20 @@
 #ifndef SZ3_SZALGO_LORENZO_REG_HPP
 #define SZ3_SZALGO_LORENZO_REG_HPP
 
-#include <cmath>
+/**
+ * @file SZAlgoLorenzoReg.hpp
+ * @ingroup API
+ * @brief Compression algorithm using `BlockwiseDecomposition` with Lorenzo and/or Regression predictors.
+ *
+ * This is the **predictor-based** algorithm in SZ3. It uses `BlockwiseDecomposition`
+ * with one or more `PredictorInterface` implementations:
+ * - `LorenzoPredictor` (1st or 2nd order)
+ * - `RegressionPredictor`
+ * - `ComposedPredictor` (selects best predictor per block)
+ *
+ * The combination is controlled by `Config::lorenzo`, `Config::lorenzo2`, and `Config::regression`.
+ */
+
 #include <memory>
 
 #include "SZ3/compressor/SZGenericCompressor.hpp"
@@ -13,11 +26,17 @@
 #include "SZ3/predictor/RegressionPredictor.hpp"
 #include "SZ3/quantizer/LinearQuantizer.hpp"
 #include "SZ3/utils/Config.hpp"
-#include "SZ3/utils/Iterator.hpp"
-#include "SZ3/utils/QuantOptimization.hpp"
 #include "SZ3/utils/Statistic.hpp"
 
 namespace SZ3 {
+
+/**
+ * @brief Factory: build an `SZGenericCompressor` with Lorenzo/Regression blockwise decomposition.
+ *
+ * Creates the correct predictor combination based on flags in `conf`
+ * (`conf.lorenzo`, `conf.lorenzo2`, `conf.regression`). If multiple predictors are
+ * enabled, wraps them in a `ComposedPredictor` that selects the best one per block.
+ */
 template <class T, uint N, class Quantizer, class Encoder, class Lossless>
 std::shared_ptr<concepts::CompressorInterface<T>> make_compressor_lorenzo_regression(const Config &conf,
                                                                                      Quantizer quantizer,

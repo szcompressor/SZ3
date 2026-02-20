@@ -15,18 +15,34 @@
 
 namespace SZ3 {
 
+/**
+ * @brief Zstd Lossless Compressor wrapper
+ * 
+ * Uses the Zstd library for lossless compression.
+ */
 class Lossless_zstd : public concepts::LosslessInterface {
    public:
     Lossless_zstd() = default;
 
+    /**
+     * @brief Construct a new Zstd Lossless object
+     * 
+     * @param comp_level Zstd compression level (default is 3)
+     */
     Lossless_zstd(int comp_level) : compression_level(comp_level) {}
 
     /**
-     * Attention
-     * When dstCap is smaller than the space needed, ZSTD will not throw any errors.
-     * Instead, it will write a portion of the compressed data to dst and stops.
-     * This behavior is not desirable in SZ, as we need the whole compressed data for decompression.
-     * Therefore, we need to check if the dst buffer (dstCap) is large enough for zstd
+     * @brief Compress data using Zstd
+     * 
+     * Note: Checks if the destination buffer is large enough using ZSTD_compressBound.
+     * Throws an error if insufficient.
+     * Zstd itself will not throw error and instead will write a portion of data when the destination buffer is not large enough.
+     * 
+     * @param src Input data
+     * @param srcLen Input length
+     * @param dst Output buffer
+     * @param dstCap Output capacity
+     * @return size_t Compressed size
      */
     size_t compress(const uchar *src, size_t srcLen, uchar *dst, size_t dstCap) override {
         write(srcLen, dst);

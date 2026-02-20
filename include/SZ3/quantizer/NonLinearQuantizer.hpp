@@ -17,15 +17,32 @@
 
 namespace SZ3 {
 
+/**
+ * @brief Non-Linear Quantizer
+ * 
+ * Quantizes data using a non-linear scale (quadratic distribution of levels).
+ * Suitable for data where precision requirements vary with magnitude.
+ * 
+ * @tparam T Data type
+ */
 template<class T>
 class NonLinearQuantizer : public concepts::QuantizerInterface<T, int> {
 public:
 
+    /**
+     * @brief Construct a new NonLinear Quantizer
+     * 
+     * @param eb Error bound
+     * @param r Quantization radius (number of bins is 2*r)
+     */
     NonLinearQuantizer(double eb, int r = 32768) : error_bound(eb), radius(r) {
         assert(eb != 0);
         build_quant_table();
     }
 
+    /**
+     * @brief Construct a new NonLinear Quantizer with default settings
+     */
     NonLinearQuantizer() : error_bound(1e-4), radius(32768) {
         build_quant_table();
     }
@@ -47,7 +64,7 @@ public:
         pos_levels[0] = error_bound; // Smallest positive level
 
         for (int i = 1; i < radius; i++) {
-            double r = (double) i / (radius - 1);
+            double r = static_cast<double>(i) / (radius - 1);
             pos_levels[i] = error_bound + (2 * error_bound * (radius - 1)) * pow(r, 2);
         }
 

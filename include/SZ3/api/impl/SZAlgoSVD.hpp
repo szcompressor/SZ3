@@ -1,6 +1,15 @@
 #ifndef SZ3_IMPL_SZALGOSVD_HPP
 #define SZ3_IMPL_SZALGOSVD_HPP
 
+/**
+ * @file SZAlgoSVD.hpp
+ * @ingroup API
+ * @brief Compression algorithm using `SVDDecomposition`.
+ *
+ * Applies SVD to decompose the data before quantization.
+ * Only supports floating-point data types (`float`, `double`).
+ */
+
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/decomposition/SVDDecomposition.hpp"
 #include "SZ3/encoder/HuffmanEncoder.hpp"

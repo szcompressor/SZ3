@@ -15,6 +15,13 @@
 namespace SZ3 {
 
 
+/**
+ * @brief Run-length Encoder
+ * 
+ * Compresses sequences of identical values.
+ * 
+ * @tparam T Input data type
+ */
 template <class T>
 class RunlengthEncoder : public concepts::EncoderInterface<T> {
    public:

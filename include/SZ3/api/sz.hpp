@@ -27,18 +27,23 @@
 
 
 /**
+ * @brief Compress data into a pre-allocated buffer.
+ *
  * Compresses the input data using the provided configuration and stores the result in a pre-allocated buffer.
+ * Use `SZ_compress_size_bound` to determine the minimum required buffer size.
+ *
  * @tparam T The data type of the source data.
- * @param config The compression configuration.
+ * @param config The compression configuration (e.g., dims, error bound mode, algorithm).
  * @param data Pointer to the source data array.
  * @param cmpData Pointer to the pre-allocated buffer for compressed data.
- * @param cmpCap The size of the pre-allocated buffer in bytes.
+ * @param cmpCap The capacity of the pre-allocated buffer in bytes.
  * @return The size of the compressed data in bytes.
- * @example
+ * @code
  * SZ3::Config conf(100, 200, 300); // 300 is the fastest dimension
- * conf.errorBoundMode = SZ3::EB_ABS; // Refer to def.hpp for supported error bound modes
- * conf.absErrorBound = 1E-3; // Absolute error bound of 1e-3
+ * conf.errorBoundMode = SZ3::EB_ABS;
+ * conf.absErrorBound = 1E-3;
  * size_t outSize = SZ_compress(conf, data, outBuff, outBuffCap);
+ * @endcode
  */
 template <class T>
 size_t SZ_compress(const SZ3::Config& config, const T* data, char* cmpData, size_t cmpCap) {
@@ -83,13 +88,16 @@ size_t SZ_compress(const SZ3::Config& config, const T* data, char* cmpData, size
 }
 
 /**
- * Compresses the input data using the provided configuration and returns a newly allocated buffer containing the compressed data.
+ * @brief Compress data into a newly allocated buffer.
+ *
+ * Compresses the input data and returns a newly heap-allocated buffer.
+ * The caller is responsible for freeing this buffer using `delete[]`.
+ *
  * @tparam T The data type of the source data.
  * @param config The compression configuration.
  * @param data Pointer to the source data array.
  * @param cmpSize Output parameter set to the size of the compressed data in bytes.
- * @return Pointer to the newly allocated buffer containing the compressed data. The caller is responsible for deleting this buffer using 'delete[]'.
- * @note This function allocates memory for the compressed data. Ensure to free it when no longer needed.
+ * @return Pointer to the newly allocated buffer. Must be freed by the caller using `delete[]`.
  */
 template <class T>
 char* SZ_compress(const SZ3::Config& config, const T* data, size_t& cmpSize) {
@@ -103,16 +111,21 @@ char* SZ_compress(const SZ3::Config& config, const T* data, size_t& cmpSize) {
 }
 
 /**
- * Decompresses the compressed data into a pre-allocated buffer using the configuration loaded from the compressed data.
+ * @brief Decompress data into a pre-allocated (or auto-allocated) buffer.
+ *
+ * Reads the configuration from the compressed data stream, then decompresses into `decData`.
+ * If `decData` is null, a new buffer will be allocated automatically.
+ *
  * @tparam T The data type of the decompressed data.
- * @param config Configuration placeholder that will be overwritten with the compression configuration from the compressed data.
+ * @param config Output: overwritten with the configuration embedded in the compressed data.
  * @param cmpData Pointer to the compressed data.
- * @param cmpSize The size of the compressed data in bytes.
- * @param decData Reference to a pointer for the pre-allocated buffer for decompressed data. If null, a new buffer is allocated.
- * @example
+ * @param cmpSize Size of the compressed data in bytes.
+ * @param decData Pre-allocated output buffer, or null to auto-allocate.
+ * @code
  * auto decData = new float[100 * 200 * 300];
  * SZ3::Config conf;
  * SZ_decompress(conf, cmpData, cmpSize, decData);
+ * @endcode
  */
 template <class T>
 void SZ_decompress(SZ3::Config& config, const char* cmpData, size_t cmpSize, T*& decData) {
@@ -158,16 +171,16 @@ void SZ_decompress(SZ3::Config& config, const char* cmpData, size_t cmpSize, T*&
 }
 
 /**
- * Decompresses the compressed data into a pre-allocated buffer using the configuration loaded from the compressed data.
+ * @brief Decompress data into a newly allocated buffer.
+ *
+ * Convenience overload that auto-allocates the output buffer and returns it.
+ * The caller is responsible for freeing the returned buffer with `delete[]`.
+ *
  * @tparam T The data type of the decompressed data.
- * @param config Configuration placeholder that will be overwritten with the compression configuration from the compressed data.
+ * @param config Output: overwritten with the configuration embedded in the compressed data.
  * @param cmpData Pointer to the compressed data.
- * @param cmpSize The size of the compressed data in bytes.
- * @param decData Reference to a pointer for the pre-allocated buffer for decompressed data. If null, a new buffer is allocated.
- * @example
- * auto decData = new float[100 * 200 * 300];
- * SZ3::Config conf;
- * SZ_decompress(conf, cmpData, cmpSize, decData);
+ * @param cmpSize Size of the compressed data in bytes.
+ * @return Pointer to the newly allocated decompressed data. Must be freed with `delete[]`.
  */
 template <class T>
 T* SZ_decompress(SZ3::Config& config, const char* cmpData, size_t cmpSize) {

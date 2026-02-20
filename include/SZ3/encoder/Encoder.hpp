@@ -14,10 +14,13 @@ namespace SZ3 {
 namespace concepts {
 
 /**
- * Encoder changes the input to a more compact representative
- * Usually this step is lossless instead of lossy
- * Examples: huffman, runlenth, etc.
- * @tparam T
+ * @brief Interface for encoders
+ * 
+ * Encoders transform the input data into a more compact representation (usually lossless).
+ * Examples: Huffman encoding, Run-length encoding.
+ * 
+ * @tparam T Input data type (usually int)
+ * @tparam TAllocator Allocator type
  */
 template <class T, class TAllocator = std::allocator<T>>
 class EncoderInterface {
@@ -25,42 +28,45 @@ class EncoderInterface {
     virtual ~EncoderInterface() = default;
 
     /**
-     * init the encoder
-     * E.g., Huffman will build tree in this step
-     * @param bins to-be-encoded integers
-     * @param stateNum stateNum > 0 indicates the bins has a range of [0, stateNum). stateNum == 0 means no such
-     * guarantee
+     * @brief Initialize the encoder
+     * 
+     * Perform pre-computation tasks, such as building a Huffman tree.
+     * 
+     * @param bins Vector of to-be-encoded integers
+     * @param stateNum Expected range of values [0, stateNum). If 0, no range guarantee.
      */
     virtual void preprocess_encode(const std::vector<T, TAllocator> &bins, int stateNum) = 0;
 
     /**
-     * encode the input (in vector<T> format) to a more compact representative(in byte stream format)
-     * @param bins input in vector
-     * @param bytes output in byte stream
-     * @return size of output (# of bytes)
+     * @brief Encode the input vector into a byte stream
+     * 
+     * @param bins Input vector
+     * @param bytes Output byte stream (pointer reference will be updated)
+     * @return size_t Size of the output in bytes
      */
     virtual size_t encode(const std::vector<T, TAllocator> &bins, uchar *&bytes) = 0;
 
     /**
-     * reverse of encode()
-     * @param bytes input in byte stream
-     * @param targetLength size of the output vector
-     * @return output in vector
+     * @brief Decode a byte stream into a vector
+     * 
+     * @param bytes Input byte stream (pointer reference will be updated)
+     * @param targetLength Number of elements to decode
+     * @return std::vector<T, TAllocator> Decoded vector
      */
     virtual std::vector<T, TAllocator> decode(const uchar *&bytes, size_t targetLength) = 0;
 
     /**
-     * serialize the encoder and store it to a buffer
-     * @param c One large buffer is pre-allocated, and the start location of the serialized encoder in the buffer is
-     * indicated by c. After saving the encoder to the buffer, this function should change c to indicate the next empty
-     * location in the buffer
+     * @brief Serialize the encoder and store it to a buffer
+     * 
+     * @param c Reference to the buffer pointer. It will be advanced to the next empty location.
      */
     virtual void save(uchar *&c) = 0;
 
     /**
-     * deserialize the encoder from a buffer
-     * @param c start location of the encoder in the buffer
-     * @param remaining_length the remaining length of the buffer
+     * @brief Deserialize the encoder from a buffer
+     * 
+     * @param c Reference to the buffer pointer. It will be advanced after reading.
+     * @param remaining_length Remaining length of the buffer
      */
     virtual void load(const uchar *&c, size_t &remaining_length) = 0;
 

@@ -14,23 +14,36 @@
 #include "SZ3/encoder/Encoder.hpp"
 #include "SZ3/lossless/Lossless.hpp"
 #include "SZ3/utils/Config.hpp"
-#include "SZ3/utils/FileUtil.hpp"
-#include "SZ3/utils/Timer.hpp"
 
 namespace SZ3 {
 
 /**
- * SZGenericCompressor glues together decomposition, encoder, and lossless modules to form the compressor.
- * It only takes Decomposition, not Predictor.
- * @tparam T original data type
- * @tparam N original data dimension
- * @tparam Decomposition decomposition module
- * @tparam Encoder encoder module
- * @tparam Lossless lossless module
+ * @brief The default SZ3 compression pipeline.
+ * 
+ * This class coordinates the standard three-stage compression pipeline:
+ * 1. **Decomposition** — Transforms original floating-point data into quantized integers.
+ *    This is the primary extension point. Two options are available:
+ *    - `BlockwiseDecomposition`: Uses a `Predictor` (e.g., Lorenzo, Regression) per block.
+ *    -  `DecompositionInterface` implementations (e.g., `InterpolationDecomposition`, `ZFPDecomposition`) which operate on the whole data array.
+ * 2. **Encoder** — Encodes the quantized integers (e.g., Huffman, Arithmetic).
+ * 3. **Lossless** — Applies lossless compression to the encoded byte stream (e.g., Zstd).
+ * 
+ * @tparam T Original data type (e.g., float, double)
+ * @tparam N Data dimension (e.g., 1, 2, 3)
+ * @tparam Decomposition Class implementing `DecompositionInterface`
+ * @tparam Encoder Class implementing `EncoderInterface`
+ * @tparam Lossless Class implementing `LosslessInterface`
  */
 template <class T, uint N, class Decomposition, class Encoder, class Lossless>
 class SZGenericCompressor : public concepts::CompressorInterface<T> {
    public:
+    /**
+     * @brief Construct a new SZGenericCompressor object
+     * 
+     * @param decomposition Decomposition module instance
+     * @param encoder Encoder module instance
+     * @param lossless Lossless module instance
+     */
     SZGenericCompressor(Decomposition decomposition, Encoder encoder, Lossless lossless)
         : decomposition(decomposition), encoder(encoder), lossless(lossless) {
         static_assert(std::is_base_of<concepts::DecompositionInterface<T, int, N>, Decomposition>::value,
@@ -41,6 +54,16 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
                       "must implement the lossless interface");
     }
 
+    /**
+     * @brief Compress data using the configured pipeline
+     * 
+     * @param conf Compression configuration
+     * @param data Pointer to input data
+     * @param cmpData Output buffer for compressed data
+     * @param cmpCap Capacity of the output buffer
+     * @return size_t Size of the compressed data in bytes
+     * @throw std::runtime_error
+     */
     size_t compress(const Config &conf, T *data, uchar *cmpData, size_t cmpCap) override {
         std::vector<int> quant_inds = decomposition.compress(conf, data);
 
@@ -68,6 +91,15 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         return cmpSize;
     }
 
+    /**
+     * @brief Decompress data using the configured pipeline
+     * 
+     * @param conf Compression configuration
+     * @param cmpData Pointer to compressed data
+     * @param cmpSize Size of compressed data
+     * @param decData Buffer for decompressed data (must be pre-allocated)
+     * @return T* Pointer to the decompressed data (same as decData)
+     */
     T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *decData) override {
         uchar *buffer = nullptr;
         size_t bufferSize = 0;
@@ -95,6 +127,19 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
     Lossless lossless;
 };
 
+/**
+ * @brief Factory function to create a shared_ptr to SZGenericCompressor
+ * 
+ * @tparam T Data type
+ * @tparam N Dimension
+ * @tparam Decomposition Type of decomposition module
+ * @tparam Encoder Type of encoder module
+ * @tparam Lossless Type of lossless module
+ * @param decomposition Decomposition module instance
+ * @param encoder Encoder module instance
+ * @param lossless Lossless module instance
+ * @return std::shared_ptr<SZGenericCompressor<T, N, Decomposition, Encoder, Lossless>> 
+ */
 template <class T, uint N, class Decomposition, class Encoder, class Lossless>
 std::shared_ptr<SZGenericCompressor<T, N, Decomposition, Encoder, Lossless>> make_compressor_sz_generic(
     Decomposition decomposition, Encoder encoder, Lossless lossless) {

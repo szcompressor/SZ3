@@ -15,7 +15,14 @@
 namespace SZ3 {
 
 
-// N-d regression predictor
+/**
+ * @brief N-dimensional Regression Predictor
+ * 
+ * Uses linear regression to predict data values.
+ * 
+ * @tparam T Data type
+ * @tparam N Dimension
+ */
 template <class T, uint N>
 class RegressionPredictor : public concepts::PredictorInterface<T, N> {
    public:
@@ -23,8 +30,17 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
 
     static const uint8_t predictor_id = 0b00000010;
 
+    /**
+     * @brief Construct a new Regression Predictor object with default settings
+     */
     RegressionPredictor() : quantizer_independent(0), quantizer_liner(0), prev_coeffs{0}, current_coeffs{0} {}
 
+    /**
+     * @brief Construct a new Regression Predictor with block size and error bound
+     * 
+     * @param block_size Size of the data block
+     * @param eb Error bound
+     */
     RegressionPredictor(uint block_size, double eb)
         : quantizer_independent(eb / (N + 1)),
           quantizer_liner(eb / (N + 1) / block_size),

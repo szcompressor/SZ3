@@ -11,21 +11,23 @@
 #include "SZ3/def.hpp"
 #include "SZ3/encoder/Encoder.hpp"
 #include "SZ3/utils/ByteUtil.hpp"
-#include "SZ3/utils/MemoryUtil.hpp"
-#include "SZ3/utils/Timer.hpp"
 #include "SZ3/utils/Collections.hpp"
+#include "SZ3/utils/MemoryUtil.hpp"
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
-#include <map>
-#include <set>
-#include <unordered_set>
 
 namespace SZ3 {
 
 
+/**
+ * @brief Huffman Encoder
+ * 
+ * Implements Huffman coding for lossless compression of integer streams.
+ * 
+ * @tparam T Input data type
+ */
 template <class T>
 class HuffmanEncoder : public concepts::EncoderInterface<T> {
    public:

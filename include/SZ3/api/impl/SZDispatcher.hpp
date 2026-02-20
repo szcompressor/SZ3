@@ -1,6 +1,20 @@
 #ifndef SZ3_IMPL_SZDISPATCHER_HPP
 #define SZ3_IMPL_SZDISPATCHER_HPP
 
+/**
+ * @file SZDispatcher.hpp
+ * @ingroup API
+ * @brief Routes compression/decompression calls to the appropriate algorithm implementation.
+ *
+ * This is the central dispatch layer. Based on `Config::cmprAlgo`, it calls one of:
+ * - `ALGO_LORENZO_REG`: `SZAlgoLorenzoReg.hpp` — blockwise prediction (Lorenzo/Regression) with `BlockwiseDecomposition`.
+ * - `ALGO_INTERP` / `ALGO_INTERP_LORENZO`: `SZAlgoInterp.hpp` — interpolation-based decomposition.
+ * - `ALGO_NOPRED`: `SZAlgoNopred.hpp` — quantization only (no predictor).
+ * - `ALGO_BIOMD` / `ALGO_BIOMDXTC`: `SZAlgoBioMD.hpp` — molecular dynamics specific compression.
+ * - `ALGO_SVD`: `SZAlgoSVD.hpp` — SVD-based decomposition.
+ * - `ALGO_LOSSLESS`: Falls back to Zstd lossless-only compression.
+ */
+
 #include "SZ3/api/impl/SZAlgoInterp.hpp"
 #include "SZ3/api/impl/SZAlgoLorenzoReg.hpp"
 #include "SZ3/api/impl/SZAlgoNopred.hpp"
@@ -10,6 +24,22 @@
 #include "SZ3/utils/Statistic.hpp"
 
 namespace SZ3 {
+
+/**
+ * @brief Dispatch a compress call to the appropriate algorithm.
+ *
+ * Computes the absolute error bound from the config, then routes to the
+ * correct algorithm. If the lossy compressed size provides a poor ratio (<3x),
+ * automatically compares with Zstd lossless and picks the smaller result.
+ *
+ * @tparam T Data type
+ * @tparam N Dimension
+ * @param conf Configuration (may be mutated, e.g., `cmprAlgo` may be overridden to `ALGO_LOSSLESS`)
+ * @param data Input data
+ * @param cmpData Output compressed buffer
+ * @param cmpCap Buffer capacity
+ * @return Compressed size in bytes
+ */
 template <class T, uint N>
 size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
     if (conf.cmprAlgo == ALGO_SVD && std::is_integral<T>::value) {
@@ -81,6 +111,18 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
     return cmpSize;
 }
 
+/**
+ * @brief Dispatch a decompress call to the appropriate algorithm.
+ *
+ * Routes based on `conf.cmprAlgo`, which was saved in the compressed data header.
+ *
+ * @tparam T Data type
+ * @tparam N Dimension
+ * @param conf Configuration (read from compressed data)
+ * @param cmpData Compressed data buffer
+ * @param cmpSize Compressed data size
+ * @param decData Output decompressed data buffer
+ */
 template <class T, uint N>
 void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
     if (conf.cmprAlgo == ALGO_LOSSLESS) {

@@ -1,14 +1,26 @@
 #ifndef SZ3_SZALGO_INTERP_HPP
 #define SZ3_SZALGO_INTERP_HPP
 
+/**
+ * @file SZAlgoInterp.hpp
+ * @ingroup API
+ * @brief Compression algorithm using `InterpolationDecomposition`.
+ *
+ * This is the **interpolation-based** algorithm in SZ3. Instead of scalar prediction per point,
+ * it applies multi-level grid interpolation over the full data array.
+ *
+ * Two modes are available:
+ * - `ALGO_INTERP` (`SZ_compress_Interp`): Pure interpolation.
+ * - `ALGO_INTERP_LORENZO` (`SZ_compress_Interp_lorenzo`): Samples the data to automatically
+ *   determine and select the better of interpolation or Lorenzo compression.
+ */
+
 #include "SZ3/api/impl/SZAlgoLorenzoReg.hpp"
 #include "SZ3/decomposition/BlockwiseDecomposition.hpp"
 #include "SZ3/decomposition/InterpolationDecomposition.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
 #include "SZ3/quantizer/LinearQuantizer.hpp"
 #include "SZ3/utils/Config.hpp"
-#include "SZ3/utils/Extraction.hpp"
-#include "SZ3/utils/QuantOptimization.hpp"
 #include "SZ3/utils/Sample.hpp"
 #include "SZ3/utils/Statistic.hpp"
 
