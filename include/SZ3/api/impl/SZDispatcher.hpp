@@ -25,7 +25,9 @@
 #include "SZ3/api/impl/SZAlgoBioMD.hpp"
 #include "SZ3/api/impl/SZAlgoSVD.hpp"
 #include "SZ3/api/impl/SZAlgoZFP.hpp"
+#if !defined(__MINGW32__)
 #include "SZ3/api/impl/SZAlgoSPERR.hpp"
+#endif
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/Statistic.hpp"
 
@@ -92,11 +94,15 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
                     throw std::invalid_argument("ZFP algorithm only supports floating-point data types.");
                 }
             } else if (conf.cmprAlgo == ALGO_SPERR) {
+#if defined(__MINGW32__)
+                throw std::invalid_argument("SPERR algorithm is disabled for this build target.");
+#else
                 if constexpr (std::is_floating_point<T>::value && N == 3) {
                     cmpSize = SZ_compress_SPERR<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
                 } else {
                     throw std::invalid_argument("SPERR algorithm supports 3D floating-point data only.");
                 }
+#endif
             } else {
                 throw std::invalid_argument("Unknown compression algorithm");
             }
@@ -174,11 +180,15 @@ void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize
             throw std::invalid_argument("SVD algorithm only supports floating-point data types.");
         }
     } else if (conf.cmprAlgo == ALGO_SPERR) {
+#if defined(__MINGW32__)
+        throw std::invalid_argument("SPERR algorithm is disabled for this build target.");
+#else
         if constexpr (std::is_floating_point<T>::value && N == 3) {
             SZ_decompress_SPERR<T, N>(conf, cmpData, cmpSize, decData);
         } else {
             throw std::invalid_argument("SPERR algorithm supports 3D floating-point data only.");
         }
+#endif
     } else if (conf.cmprAlgo == ALGO_ZFP) {
         if constexpr (std::is_floating_point<T>::value) {
             SZ_decompress_ZFP<T, N>(conf, cmpData, cmpSize, decData);
