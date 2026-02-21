@@ -181,7 +181,7 @@ inline auto SZ3::SPERR::pack_booleans(vec8_type& dest, const std::vector<bool>& 
     std::copy(itr, itr + bit_stride, a.begin());
     std::memcpy(t.data(), a.data(), a.size());
     std::transform(t.cbegin(), t.cend(), dest.begin() + dest_idx,
-                   [](auto e) { return (magic * e) >> 56; });
+                   [magic](auto e) { return (magic * e) >> 56; });
     dest_idx += byte_stride;
   }
 

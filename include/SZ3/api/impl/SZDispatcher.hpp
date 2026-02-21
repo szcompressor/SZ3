@@ -17,6 +17,8 @@
  * - `ALGO_LOSSLESS`: Falls back to Zstd lossless-only compression.
  */
 
+#include <type_traits>
+
 #include "SZ3/api/impl/SZAlgoInterp.hpp"
 #include "SZ3/api/impl/SZAlgoLorenzoReg.hpp"
 #include "SZ3/api/impl/SZAlgoNopred.hpp"
@@ -78,19 +80,23 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
             } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
                 return SZ_compress_bioMDXtcBased<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
             } else if (conf.cmprAlgo == ALGO_SVD) {
-                if constexpr (std::is_integral<T>::value) {
-                    throw std::invalid_argument("SVD algorithm only supports floating-point data types.");
-                } else {
+                if constexpr (std::is_floating_point<T>::value) {
                     cmpSize = SZ_compress_SVD<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                } else {
+                    throw std::invalid_argument("SVD algorithm only supports floating-point data types.");
                 }
             } else if (conf.cmprAlgo == ALGO_ZFP) {
-                if constexpr (std::is_integral<T>::value) {
-                    throw std::invalid_argument("ZFP algorithm only supports floating-point data types.");
-                } else {
+                if constexpr (std::is_floating_point<T>::value) {
                     cmpSize = SZ_compress_ZFP<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                } else {
+                    throw std::invalid_argument("ZFP algorithm only supports floating-point data types.");
                 }
             } else if (conf.cmprAlgo == ALGO_SPERR) {
-                cmpSize = SZ_compress_SPERR<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                if constexpr (std::is_floating_point<T>::value && N == 3) {
+                    cmpSize = SZ_compress_SPERR<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                } else {
+                    throw std::invalid_argument("SPERR algorithm supports 3D floating-point data only.");
+                }
             } else {
                 throw std::invalid_argument("Unknown compression algorithm");
             }
@@ -162,11 +168,23 @@ void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize
     } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
         SZ_decompress_bioMDXtcBased<T, N>(conf, cmpData, cmpSize, decData);
     } else if (conf.cmprAlgo == ALGO_SVD) {
-        SZ_decompress_SVD<T, N>(conf, cmpData, cmpSize, decData);
+        if constexpr (std::is_floating_point<T>::value) {
+            SZ_decompress_SVD<T, N>(conf, cmpData, cmpSize, decData);
+        } else {
+            throw std::invalid_argument("SVD algorithm only supports floating-point data types.");
+        }
     } else if (conf.cmprAlgo == ALGO_SPERR) {
-        SZ_decompress_SPERR<T, N>(conf, cmpData, cmpSize, decData);
+        if constexpr (std::is_floating_point<T>::value && N == 3) {
+            SZ_decompress_SPERR<T, N>(conf, cmpData, cmpSize, decData);
+        } else {
+            throw std::invalid_argument("SPERR algorithm supports 3D floating-point data only.");
+        }
     } else if (conf.cmprAlgo == ALGO_ZFP) {
-        SZ_decompress_ZFP<T, N>(conf, cmpData, cmpSize, decData);
+        if constexpr (std::is_floating_point<T>::value) {
+            SZ_decompress_ZFP<T, N>(conf, cmpData, cmpSize, decData);
+        } else {
+            throw std::invalid_argument("ZFP algorithm only supports floating-point data types.");
+        }
     } else {
         throw std::invalid_argument("Unknown compression algorithm");
     }
