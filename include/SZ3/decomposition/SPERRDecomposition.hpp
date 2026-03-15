@@ -10,12 +10,12 @@
 #include <numeric>
 #include <stdexcept>
 #include <type_traits>
-#include <variant>
 #include <vector>
 
 #include "SZ3/decomposition/Decomposition.hpp"
+#include "SZ3/encoder/SPERREncoder.hpp"
+#include "SZ3/utils/sperr/SPERRTypes.hpp"
 #include "SZ3/utils/Config.hpp"
-#include "SZ3/utils/thirdparty/sperr/SPERRHeaderOnly.hpp"
 
 namespace SZ3 {
 
@@ -28,52 +28,18 @@ namespace SZ3 {
  * 2. `forward`: conditioning + 3D CDF97 forward wavelet transform.
  * 3. `quantize_and_collect_outliers`: compute `q`, midtread quantize, and in PWE mode
  *    detect outliers from inverse-wavelet residuals.
- * 4. `encode_frame`: pack conditioner header + SPECK integers + optional outliers.
+ * 4. `SPERREncoder::encode`: pack conditioner header + SPECK integers + optional outliers.
  *
  * Decompression pipeline implemented in this module:
- * 1. `decode_frame`: parse conditioner header + SPECK stream + optional outliers.
+ * 1. `SPERREncoder::decode`: parse conditioner header + SPECK stream + optional outliers.
  * 2. `inverse`: inverse quantization + inverse CDF97 + outlier restore + inverse conditioning.
  */
-
-/// Quality control mode interpreted from SZ3 `errorBoundMode`.
-enum class SPERRMode { PSNR_MODE, PWE_MODE };
-
-/// 3D shape in SPERR ordering `[x, y, z]`.
-struct SPERR3DLayout {
-    size_t dimx = 0;
-    size_t dimy = 0;
-    size_t dimz = 0;
-};
-
-using SPERRUIntVec = std::variant<std::vector<uint8_t>, std::vector<uint16_t>, std::vector<uint32_t>,
-                                  std::vector<uint64_t>>;
-
-/// Intermediate state exchanged between decomposition and encoding logic.
-struct SPERRFrame {
-    SZ3::SPERR::dims_type dims = {0, 0, 0};
-    SZ3::SPERR::condi_type conditioner_header{};
-    bool constant_field = false;
-
-    SPERRMode mode = SPERRMode::PWE_MODE;
-    double quality = 0.0;
-    double conditioned_range = 0.0;
-    double q = 0.0;
-
-    SZ3::SPERR::UINTType uint_flag = SZ3::SPERR::UINTType::UINT8;
-    SPERRUIntVec coeffs_ui;
-    SZ3::SPERR::Bitmask sign_array;
-    std::vector<double> wavelet_coeffs;
-    std::vector<double> conditioned_values;
-    std::vector<SZ3::SPERR::Outlier> outliers;
-
-    SPERRFrame() : coeffs_ui(std::vector<uint8_t>{}) {}
-};
 
 /**
  * @brief SPERR decomposition implementation through `DecompositionInterface<T, uchar, N>`.
  *
- * Note: for SPERR integration, this decomposition module also owns frame packaging logic so
- * `compress/decompress` can be used directly through the generic SZ3 module interface.
+ * Note: bitstream packaging is delegated to `SPERREncoder`; this class owns SPERR's
+ * transform/quantization/inverse workflow.
  */
 template <class T, uint N>
 class SPERRDecomposition : public concepts::DecompositionInterface<T, uchar, N> {
@@ -93,7 +59,7 @@ class SPERRDecomposition : public concepts::DecompositionInterface<T, uchar, N> 
         if (!frame.constant_field) {
             quantize_and_collect_outliers(frame);
         }
-        return encode_frame(frame);
+        return SPERREncoder<T>().encode(frame);
     }
 
     /**
@@ -105,7 +71,7 @@ class SPERRDecomposition : public concepts::DecompositionInterface<T, uchar, N> 
      */
     T *decompress(const Config &conf, std::vector<uchar> &quant_inds, T *dec_data) override {
         auto layout = prepare(conf);
-        auto frame = decode_frame(layout, quant_inds.data(), quant_inds.size());
+        auto frame = SPERREncoder<T>().decode(layout, quant_inds.data(), quant_inds.size());
         return inverse(conf, frame, dec_data);
     }
 
@@ -316,142 +282,6 @@ class SPERRDecomposition : public concepts::DecompositionInterface<T, uchar, N> 
             q /= std::exp2(0.25);
         }
         return q;
-    }
-
-    template <class UI>
-    static void encode_speck(SPERRFrame &frame, std::vector<uchar> &stream) {
-        auto encoder = SZ3::SPERR::SPECK3D_INT_ENC<UI>();
-        encoder.set_dims(frame.dims);
-        const auto rtn =
-            encoder.use_coeffs(std::move(std::get<std::vector<UI>>(frame.coeffs_ui)), std::move(frame.sign_array));
-        if (rtn != SZ3::SPERR::RTNType::Good) {
-            throw std::runtime_error("SPERR integer coefficient setup failed.");
-        }
-        encoder.encode();
-        encoder.append_encoded_bitstream(stream);
-    }
-
-    template <class UI>
-    static size_t decode_speck(SPERRFrame &frame, const uchar *ptr, size_t remaining) {
-        auto decoder = SZ3::SPERR::SPECK3D_INT_DEC<UI>();
-        decoder.set_dims(frame.dims);
-        const auto speck_len = decoder.get_stream_full_len(ptr);
-        if (speck_len > remaining) {
-            throw std::runtime_error("SPERR SPECK stream length mismatch.");
-        }
-        decoder.use_bitstream(ptr, static_cast<size_t>(speck_len));
-        decoder.decode();
-        frame.coeffs_ui = decoder.release_coeffs();
-        frame.sign_array = decoder.release_signs();
-        return static_cast<size_t>(speck_len);
-    }
-
-    static std::vector<uchar> encode_frame(SPERRFrame &frame) {
-        auto stream = std::vector<uchar>();
-        stream.insert(stream.end(), frame.conditioner_header.begin(), frame.conditioner_header.end());
-
-        if (frame.constant_field) {
-            return stream;
-        }
-
-        switch (frame.uint_flag) {
-            case SZ3::SPERR::UINTType::UINT8:
-                encode_speck<uint8_t>(frame, stream);
-                break;
-            case SZ3::SPERR::UINTType::UINT16:
-                encode_speck<uint16_t>(frame, stream);
-                break;
-            case SZ3::SPERR::UINTType::UINT32:
-                encode_speck<uint32_t>(frame, stream);
-                break;
-            case SZ3::SPERR::UINTType::UINT64:
-                encode_speck<uint64_t>(frame, stream);
-                break;
-            default:
-                throw std::runtime_error("SPERR invalid integer type for encoding.");
-        }
-
-        if (!frame.outliers.empty()) {
-            auto outlier_coder = SZ3::SPERR::Outlier_Coder();
-            outlier_coder.set_length(frame.dims[0] * frame.dims[1] * frame.dims[2]);
-            outlier_coder.set_tolerance(frame.quality);
-            outlier_coder.use_outlier_list(std::move(frame.outliers));
-            const auto rtn = outlier_coder.encode();
-            if (rtn != SZ3::SPERR::RTNType::Good) {
-                throw std::runtime_error("SPERR outlier encoding failed.");
-            }
-            outlier_coder.append_encoded_bitstream(stream);
-        }
-
-        return stream;
-    }
-
-    static SPERRFrame decode_frame(const SPERR3DLayout &layout, const uchar *cmpData, size_t cmpSize) {
-        auto frame = SPERRFrame();
-        frame.dims = {layout.dimx, layout.dimy, layout.dimz};
-
-        if (cmpSize < frame.conditioner_header.size()) {
-            throw std::runtime_error("SPERR stream too short.");
-        }
-
-        std::copy_n(cmpData, frame.conditioner_header.size(), frame.conditioner_header.begin());
-        const auto conditioner = SZ3::SPERR::Conditioner();
-        frame.constant_field = conditioner.is_constant(frame.conditioner_header[0]);
-
-        if (frame.constant_field) {
-            return frame;
-        }
-
-        frame.q = conditioner.retrieve_q(frame.conditioner_header);
-        if (!(frame.q > 0.0)) {
-            throw std::runtime_error("SPERR invalid quantization step in stream.");
-        }
-
-        auto pos = cmpData + frame.conditioner_header.size();
-        size_t remaining = cmpSize - frame.conditioner_header.size();
-        if (remaining < SZ3::SPERR::SPECK_INT<uint8_t>::header_size) {
-            throw std::runtime_error("SPERR stream missing SPECK payload.");
-        }
-
-        const auto num_bitplanes = SZ3::SPERR::speck_int_get_num_bitplanes(pos);
-        if (num_bitplanes <= 8) {
-            frame.uint_flag = SZ3::SPERR::UINTType::UINT8;
-            remaining -= decode_speck<uint8_t>(frame, pos, remaining);
-        } else if (num_bitplanes <= 16) {
-            frame.uint_flag = SZ3::SPERR::UINTType::UINT16;
-            remaining -= decode_speck<uint16_t>(frame, pos, remaining);
-        } else if (num_bitplanes <= 32) {
-            frame.uint_flag = SZ3::SPERR::UINTType::UINT32;
-            remaining -= decode_speck<uint32_t>(frame, pos, remaining);
-        } else {
-            frame.uint_flag = SZ3::SPERR::UINTType::UINT64;
-            remaining -= decode_speck<uint64_t>(frame, pos, remaining);
-        }
-        pos = cmpData + cmpSize - remaining;
-
-        if (remaining > 0) {
-            if (remaining < SZ3::SPERR::SPECK_INT<uint8_t>::header_size) {
-                throw std::runtime_error("SPERR outlier stream is truncated.");
-            }
-            auto outlier_coder = SZ3::SPERR::Outlier_Coder();
-            outlier_coder.set_length(frame.dims[0] * frame.dims[1] * frame.dims[2]);
-            outlier_coder.set_tolerance(frame.q / 1.5);
-            const auto outlier_len = outlier_coder.get_stream_full_len(pos);
-            if (outlier_len != remaining) {
-                throw std::runtime_error("SPERR outlier stream length mismatch.");
-            }
-            auto rtn = outlier_coder.use_bitstream(pos, remaining);
-            if (rtn != SZ3::SPERR::RTNType::Good) {
-                throw std::runtime_error("SPERR outlier stream parse failed.");
-            }
-            rtn = outlier_coder.decode();
-            if (rtn != SZ3::SPERR::RTNType::Good) {
-                throw std::runtime_error("SPERR outlier decoding failed.");
-            }
-            frame.outliers = outlier_coder.view_outlier_list();
-        }
-
-        return frame;
     }
 
     static void midtread_quantize(const std::vector<double> &vals_d, double q, SPERRUIntVec &vals_ui,

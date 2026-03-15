@@ -6,9 +6,9 @@
 #include <stdexcept>
 #include <vector>
 
-#include "SZ3/decomposition/SPERRDecomposition.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/encoder/Encoder.hpp"
+#include "SZ3/utils/sperr/SPERRTypes.hpp"
 
 namespace SZ3 {
 
@@ -26,7 +26,7 @@ namespace SZ3 {
  * @brief SPERR frame encoder/decoder implementing `EncoderInterface<uchar>`.
  *
  * `EncoderInterface<uchar>` methods are pass-through byte copy methods used by
- * `SPERRCompressor`'s generic module pipeline.
+ * SPERR's module pipeline.
  * `encode(SPERRFrame&)` / `decode(layout,...)` perform actual SPERR stream coding.
  */
 template <class T>

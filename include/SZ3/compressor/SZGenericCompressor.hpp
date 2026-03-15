@@ -6,7 +6,10 @@
 #ifndef SZ3_COMPRESSOR_TYPE_ONE_HPP
 #define SZ3_COMPRESSOR_TYPE_ONE_HPP
 
+#include <algorithm>
 #include <cstring>
+#include <type_traits>
+#include <utility>
 
 #include "SZ3/compressor/Compressor.hpp"
 #include "SZ3/decomposition/Decomposition.hpp"
@@ -37,6 +40,11 @@ namespace SZ3 {
 template <class T, uint N, class Decomposition, class Encoder, class Lossless>
 class SZGenericCompressor : public concepts::CompressorInterface<T> {
    public:
+    using DecompositionOutput =
+        typename std::remove_reference<decltype(std::declval<Decomposition &>().compress(
+            std::declval<const Config &>(), std::declval<T *>()))>::type;
+    using Q = typename DecompositionOutput::value_type;
+
     /**
      * @brief Construct a new SZGenericCompressor object
      * 
@@ -46,9 +54,9 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
      */
     SZGenericCompressor(Decomposition decomposition, Encoder encoder, Lossless lossless)
         : decomposition(decomposition), encoder(encoder), lossless(lossless) {
-        static_assert(std::is_base_of<concepts::DecompositionInterface<T, int, N>, Decomposition>::value,
+        static_assert(std::is_base_of<concepts::DecompositionInterface<T, Q, N>, Decomposition>::value,
                       "must implement the frontend interface");
-        static_assert(std::is_base_of<concepts::EncoderInterface<int>, Encoder>::value,
+        static_assert(std::is_base_of<concepts::EncoderInterface<Q>, Encoder>::value,
                       "must implement the encoder interface");
         static_assert(std::is_base_of<concepts::LosslessInterface, Lossless>::value,
                       "must implement the lossless interface");
@@ -65,14 +73,14 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
      * @throw std::runtime_error
      */
     size_t compress(const Config &conf, T *data, uchar *cmpData, size_t cmpCap) override {
-        std::vector<int> quant_inds = decomposition.compress(conf, data);
+        std::vector<Q> quant_inds = decomposition.compress(conf, data);
 
         if (decomposition.get_out_range().first != 0) {
             throw std::runtime_error("The output range of the decomposition must start from 0 for this compressor");
         }
         encoder.preprocess_encode(quant_inds, decomposition.get_out_range().second);
         size_t bufferSize = std::max<size_t>(
-            1000, 2 * (decomposition.size_est() + encoder.size_est() + sizeof(T) * quant_inds.size()));
+            1000, 2 * (decomposition.size_est() + encoder.size_est() + sizeof(Q) * quant_inds.size()));
 
         auto buffer = static_cast<uchar *>(malloc(bufferSize));
         uchar *buffer_pos = buffer;
@@ -112,7 +120,7 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
 
         size_t quant_inds_size = 0;
         read(quant_inds_size, bufferPos);
-        auto quant_inds = encoder.decode(bufferPos, quant_inds_size);
+        std::vector<Q> quant_inds = encoder.decode(bufferPos, quant_inds_size);
         encoder.postprocess_decode();
 
         free(buffer);
@@ -138,13 +146,12 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
  * @param decomposition Decomposition module instance
  * @param encoder Encoder module instance
  * @param lossless Lossless module instance
- * @return std::shared_ptr<SZGenericCompressor<T, N, Decomposition, Encoder, Lossless>> 
+ * @return std::shared_ptr<SZGenericCompressor<T, N, Decomposition, Encoder, Lossless>>
  */
 template <class T, uint N, class Decomposition, class Encoder, class Lossless>
-std::shared_ptr<SZGenericCompressor<T, N, Decomposition, Encoder, Lossless>> make_compressor_sz_generic(
-    Decomposition decomposition, Encoder encoder, Lossless lossless) {
+auto make_compressor_sz_generic(Decomposition decomposition, Encoder encoder, Lossless lossless) {
     return std::make_shared<SZGenericCompressor<T, N, Decomposition, Encoder, Lossless>>(decomposition, encoder,
-                                                                                         lossless);
+                                                                                          lossless);
 }
 
 }  // namespace SZ3

@@ -1,7 +1,10 @@
 #ifndef SZ3_SZALGO_SPERR_HPP
 #define SZ3_SZALGO_SPERR_HPP
 
-#include "SZ3/compressor/SPERRCompressor.hpp"
+#include "SZ3/compressor/SZGenericCompressor.hpp"
+#include "SZ3/decomposition/SPERRDecomposition.hpp"
+#include "SZ3/encoder/BypassEncoder.hpp"
+#include "SZ3/lossless/Lossless_bypass.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/Statistic.hpp"
 
@@ -17,14 +20,16 @@ size_t SZ_compress_SPERR(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
         calAbsErrorBound(conf, data);
     }
 
-    auto sperr = make_compressor_sperr<T, N>();
+    auto sperr =
+        make_compressor_sz_generic<T, N>(SPERRDecomposition<T, N>(), BypassEncoder<uchar>(), Lossless_bypass());
     return sperr->compress(conf, data, cmpData, cmpCap);
 }
 
 template <class T, uint N>
 void SZ_decompress_SPERR(const Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
     assert(conf.cmprAlgo == ALGO_SPERR);
-    auto sperr = make_compressor_sperr<T, N>();
+    auto sperr =
+        make_compressor_sz_generic<T, N>(SPERRDecomposition<T, N>(), BypassEncoder<uchar>(), Lossless_bypass());
     sperr->decompress(conf, cmpData, cmpSize, decData);
 }
 
