@@ -2,54 +2,132 @@
 #define SZ3_SPERR_ENCODER_HPP
 
 #include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <stdexcept>
+#include <type_traits>
 #include <vector>
 
 #include "SZ3/def.hpp"
 #include "SZ3/encoder/Encoder.hpp"
-#include "SZ3/utils/sperr/SPERRTypes.hpp"
+#include "SZ3/utils/MemoryUtil.hpp"
+#include "SZ3/utils/thirdparty/sperr/SPERRHeaderOnly.hpp"
 
 namespace SZ3 {
 
 /**
  * @file SPERREncoder.hpp
- * @brief SPERR bitstream assembly/parsing mapped to SZ3's encoder interface.
- *
- * Encoded frame layout produced by this module:
- * 1. Conditioner header (`SZ3::SPERR::condi_type`).
- * 2. SPECK3D integer payload (quantized wavelet coefficients + signs).
- * 3. Optional Outlier_Coder payload (PWE mode only when outliers exist).
+ * @brief SPECK-based encoder for integer bins.
  */
-
-/**
- * @brief SPERR frame encoder/decoder implementing `EncoderInterface<uchar>`.
- *
- * `EncoderInterface<uchar>` methods are pass-through byte copy methods used by
- * SPERR's module pipeline.
- * `encode(SPERRFrame&)` / `decode(layout,...)` perform actual SPERR stream coding.
- */
-template <class T>
-class SPERREncoder : public concepts::EncoderInterface<uchar> {
+template <class T, uint N>
+class SPERREncoder : public concepts::EncoderInterface<T> {
    public:
-    void preprocess_encode(const std::vector<uchar> & /*bins*/, int /*stateNum*/) override {}
+    /**
+     * @brief Encoder module for integer bins using SPERR SPECK coding.
+     *
+     * Designed for compressor pipelines that already produce integer bins and
+     * need a compact bitstream stage through `EncoderInterface`.
+     * `N` selects the coding context (1D/2D/3D).
+     */
+    static_assert(std::is_integral<T>::value, "SPERREncoder scalar type must be integral.");
+    static_assert(N >= 1 && N <= 3, "SPERREncoder only supports N in [1, 3].");
 
-    size_t encode(const std::vector<uchar> &bins, uchar *&bytes) override {
-        std::memcpy(bytes, bins.data(), bins.size());
-        bytes += bins.size();
-        return bins.size();
+    SPERREncoder() : dims_({0, 0, 0}) {}
+
+    explicit SPERREncoder(const SZ3::SPERR::dims_type &dims) : dims_(dims) {}
+
+    void set_dims(const SZ3::SPERR::dims_type &dims) { dims_ = dims; }
+
+    const SZ3::SPERR::dims_type &get_dims() const { return dims_; }
+
+    void preprocess_encode(const std::vector<T> &bins, int /*stateNum*/) override {
+        total_len_ = bins.size();
+        (void)resolved_dims(total_len_);
     }
 
-    std::vector<uchar> decode(const uchar *&bytes, size_t targetLength) override {
-        std::vector<uchar> out(targetLength);
-        std::memcpy(out.data(), bytes, targetLength);
-        bytes += targetLength;
-        return out;
+    size_t encode(const std::vector<T> &bins, uchar *&bytes) override {
+        if (bins.empty()) {
+            throw std::runtime_error("SPERR input bins cannot be empty.");
+        }
+
+        const size_t total_len = bins.size();
+        if (total_len_ == 0) {
+            total_len_ = total_len;
+        } else if (total_len_ != total_len) {
+            throw std::runtime_error("SPERR bin length mismatch between preprocess and encode.");
+        }
+
+        std::vector<uchar> stream = encode_stream(bins);
+        std::memcpy(bytes, stream.data(), stream.size());
+        bytes += stream.size();
+        return stream.size();
     }
 
-    void save(uchar *& /*c*/) override {}
+    std::vector<T> decode(const uchar *&bytes, size_t targetLength) override {
+        const size_t total_len = (total_len_ == 0) ? targetLength : total_len_;
+        if (total_len == 0) {
+            throw std::runtime_error("SPERR encoder missing target length before decode.");
+        }
 
-    void load(const uchar *& /*c*/, size_t & /*remaining_length*/) override {}
+        size_t consumed = 0;
+        std::vector<T> bins = decode_stream(bytes, std::numeric_limits<size_t>::max(), total_len, consumed);
+        bytes += consumed;
+
+        if (targetLength != 0 && bins.size() != targetLength) {
+            throw std::runtime_error("SPERR decode length mismatch.");
+        }
+        return bins;
+    }
+
+    std::vector<uchar> encode_stream(const std::vector<T> &bins) const {
+        if (bins.empty()) {
+            throw std::runtime_error("SPERR input bins cannot be empty.");
+        }
+
+        const std::vector<int64_t> signed_vals = to_signed_vector(bins);
+        const SZ3::SPERR::dims_type dims = resolved_dims(signed_vals.size());
+
+        if (N == 1) {
+            return encode_speck_1d(signed_vals);
+        }
+        if (N == 2) {
+            return encode_speck_2d(signed_vals, dims);
+        }
+        return encode_speck_3d(signed_vals, dims);
+    }
+
+    std::vector<T> decode_stream(const uchar *cmpData, size_t cmpSize, size_t total_len, size_t &consumed) const {
+        if (total_len == 0) {
+            throw std::runtime_error("SPERR decode requires a positive target length.");
+        }
+
+        const SZ3::SPERR::dims_type dims = resolved_dims(total_len);
+        std::vector<int64_t> signed_vals;
+
+        if (N == 1) {
+            signed_vals = decode_speck_1d(total_len, cmpData, cmpSize, consumed);
+        } else if (N == 2) {
+            signed_vals = decode_speck_2d(dims, cmpData, cmpSize, consumed);
+        } else {
+            signed_vals = decode_speck_3d(dims, cmpData, cmpSize, consumed);
+        }
+
+        return from_signed_vector(signed_vals);
+    }
+
+    void save(uchar *&c) override {
+        write(total_len_, c);
+        write(dims_.data(), dims_.size(), c);
+    }
+
+    void load(const uchar *&c, size_t &remaining_length) override {
+        read(total_len_, c, remaining_length);
+        read(dims_.data(), dims_.size(), c, remaining_length);
+    }
 
     void postprocess_decode() override {}
 
@@ -57,146 +135,387 @@ class SPERREncoder : public concepts::EncoderInterface<uchar> {
 
     void preprocess_decode() override {}
 
-    /// Encode SPERR frame into `[conditioner][SPECK][optional outliers]`.
-    std::vector<uchar> encode(SPERRFrame &frame) const {
-        auto stream = std::vector<uchar>();
-        stream.insert(stream.end(), frame.conditioner_header.begin(), frame.conditioner_header.end());
+   private:
+    static size_t dims_product(const SZ3::SPERR::dims_type &dims) {
+        return dims[0] * dims[1] * dims[2];
+    }
 
-        if (frame.constant_field) {
-            return stream;
+    SZ3::SPERR::dims_type resolved_dims(size_t total_len) const {
+        if (N == 1) {
+            return SZ3::SPERR::dims_type{total_len, 1, 1};
         }
 
-        switch (frame.uint_flag) {
-            case SZ3::SPERR::UINTType::UINT8:
-                encode_speck<uint8_t>(frame, stream);
-                break;
-            case SZ3::SPERR::UINTType::UINT16:
-                encode_speck<uint16_t>(frame, stream);
-                break;
-            case SZ3::SPERR::UINTType::UINT32:
-                encode_speck<uint32_t>(frame, stream);
-                break;
-            case SZ3::SPERR::UINTType::UINT64:
-                encode_speck<uint64_t>(frame, stream);
-                break;
-            default:
-                throw std::runtime_error("SPERR invalid integer type for encoding.");
+        SZ3::SPERR::dims_type dims = dims_;
+        if (dims[0] == 0 || dims[1] == 0) {
+            throw std::runtime_error("SPERR encoder requires non-zero dims for 2D/3D coding.");
         }
 
-        if (!frame.outliers.empty()) {
-            auto outlier_coder = SZ3::SPERR::Outlier_Coder();
-            outlier_coder.set_length(frame.dims[0] * frame.dims[1] * frame.dims[2]);
-            outlier_coder.set_tolerance(frame.quality);
-            outlier_coder.use_outlier_list(std::move(frame.outliers));
-            const auto rtn = outlier_coder.encode();
-            if (rtn != SZ3::SPERR::RTNType::Good) {
-                throw std::runtime_error("SPERR outlier encoding failed.");
+        if (N == 2) {
+            dims[2] = 1;
+        } else {
+            if (dims[2] == 0) {
+                throw std::runtime_error("SPERR encoder requires non-zero z dimension for 3D coding.");
             }
-            outlier_coder.append_encoded_bitstream(stream);
         }
 
+        if (dims_product(dims) != total_len) {
+            throw std::runtime_error("SPERR encoder dim/product mismatch with bin length.");
+        }
+        return dims;
+    }
+
+    static int64_t to_int64(T value) {
+        if (std::numeric_limits<T>::is_signed) {
+            return static_cast<int64_t>(value);
+        }
+        const uint64_t u = static_cast<uint64_t>(value);
+        if (u > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
+            throw std::runtime_error("SPERR value overflows int64.");
+        }
+        return static_cast<int64_t>(u);
+    }
+
+    static T from_int64(int64_t value) {
+        if (std::numeric_limits<T>::is_signed) {
+            if (value < static_cast<int64_t>(std::numeric_limits<T>::lowest()) ||
+                value > static_cast<int64_t>(std::numeric_limits<T>::max())) {
+                throw std::runtime_error("SPERR decoded value cannot fit output scalar type.");
+            }
+            return static_cast<T>(value);
+        }
+
+        if (value < 0) {
+            throw std::runtime_error("SPERR decoded negative value cannot fit unsigned output scalar type.");
+        }
+
+        const uint64_t u = static_cast<uint64_t>(value);
+        if (u > static_cast<uint64_t>(std::numeric_limits<T>::max())) {
+            throw std::runtime_error("SPERR decoded value cannot fit unsigned output scalar type.");
+        }
+        return static_cast<T>(u);
+    }
+
+    static uint64_t signed_magnitude(int64_t value) {
+        if (value == std::numeric_limits<int64_t>::min()) {
+            throw std::runtime_error("SPERR signed value overflow when taking magnitude.");
+        }
+        return static_cast<uint64_t>(std::llabs(value));
+    }
+
+    static uint64_t max_magnitude(const std::vector<int64_t> &signed_vals) {
+        uint64_t max_mag = 0;
+        for (size_t i = 0; i < signed_vals.size(); i++) {
+            max_mag = std::max(max_mag, signed_magnitude(signed_vals[i]));
+        }
+        return max_mag;
+    }
+
+    static std::vector<int64_t> to_signed_vector(const std::vector<T> &bins) {
+        std::vector<int64_t> signed_vals(bins.size(), int64_t{0});
+        for (size_t i = 0; i < bins.size(); i++) {
+            signed_vals[i] = to_int64(bins[i]);
+        }
+        return signed_vals;
+    }
+
+    static std::vector<T> from_signed_vector(const std::vector<int64_t> &signed_vals) {
+        std::vector<T> bins(signed_vals.size(), T{0});
+        for (size_t i = 0; i < signed_vals.size(); i++) {
+            bins[i] = from_int64(signed_vals[i]);
+        }
+        return bins;
+    }
+
+    static std::vector<uchar> encode_speck_1d(const std::vector<int64_t> &signed_vals) {
+        const uint64_t max_mag = max_magnitude(signed_vals);
+        if (max_mag <= static_cast<uint64_t>(std::numeric_limits<uint8_t>::max())) {
+            return encode_speck_1d_impl<uint8_t>(signed_vals);
+        }
+        if (max_mag <= static_cast<uint64_t>(std::numeric_limits<uint16_t>::max())) {
+            return encode_speck_1d_impl<uint16_t>(signed_vals);
+        }
+        if (max_mag <= static_cast<uint64_t>(std::numeric_limits<uint32_t>::max())) {
+            return encode_speck_1d_impl<uint32_t>(signed_vals);
+        }
+        return encode_speck_1d_impl<uint64_t>(signed_vals);
+    }
+
+    static std::vector<int64_t> decode_speck_1d(size_t total_len, const uchar *cmpData, size_t cmpSize, size_t &consumed) {
+        const uint8_t num_bitplanes = SZ3::SPERR::speck_int_get_num_bitplanes(cmpData);
+        if (num_bitplanes <= 8) {
+            return decode_speck_1d_impl<uint8_t>(total_len, cmpData, cmpSize, consumed);
+        }
+        if (num_bitplanes <= 16) {
+            return decode_speck_1d_impl<uint16_t>(total_len, cmpData, cmpSize, consumed);
+        }
+        if (num_bitplanes <= 32) {
+            return decode_speck_1d_impl<uint32_t>(total_len, cmpData, cmpSize, consumed);
+        }
+        return decode_speck_1d_impl<uint64_t>(total_len, cmpData, cmpSize, consumed);
+    }
+
+    static std::vector<uchar> encode_speck_2d(const std::vector<int64_t> &signed_vals, const SZ3::SPERR::dims_type &dims) {
+        const uint64_t max_mag = max_magnitude(signed_vals);
+        if (max_mag <= static_cast<uint64_t>(std::numeric_limits<uint8_t>::max())) {
+            return encode_speck_2d_impl<uint8_t>(signed_vals, dims);
+        }
+        if (max_mag <= static_cast<uint64_t>(std::numeric_limits<uint16_t>::max())) {
+            return encode_speck_2d_impl<uint16_t>(signed_vals, dims);
+        }
+        if (max_mag <= static_cast<uint64_t>(std::numeric_limits<uint32_t>::max())) {
+            return encode_speck_2d_impl<uint32_t>(signed_vals, dims);
+        }
+        return encode_speck_2d_impl<uint64_t>(signed_vals, dims);
+    }
+
+    static std::vector<int64_t> decode_speck_2d(const SZ3::SPERR::dims_type &dims, const uchar *cmpData, size_t cmpSize,
+                                                size_t &consumed) {
+        const uint8_t num_bitplanes = SZ3::SPERR::speck_int_get_num_bitplanes(cmpData);
+        if (num_bitplanes <= 8) {
+            return decode_speck_2d_impl<uint8_t>(dims, cmpData, cmpSize, consumed);
+        }
+        if (num_bitplanes <= 16) {
+            return decode_speck_2d_impl<uint16_t>(dims, cmpData, cmpSize, consumed);
+        }
+        if (num_bitplanes <= 32) {
+            return decode_speck_2d_impl<uint32_t>(dims, cmpData, cmpSize, consumed);
+        }
+        return decode_speck_2d_impl<uint64_t>(dims, cmpData, cmpSize, consumed);
+    }
+
+    static std::vector<uchar> encode_speck_3d(const std::vector<int64_t> &signed_vals, const SZ3::SPERR::dims_type &dims) {
+        const uint64_t max_mag = max_magnitude(signed_vals);
+        if (max_mag <= static_cast<uint64_t>(std::numeric_limits<uint8_t>::max())) {
+            return encode_speck_3d_impl<uint8_t>(signed_vals, dims);
+        }
+        if (max_mag <= static_cast<uint64_t>(std::numeric_limits<uint16_t>::max())) {
+            return encode_speck_3d_impl<uint16_t>(signed_vals, dims);
+        }
+        if (max_mag <= static_cast<uint64_t>(std::numeric_limits<uint32_t>::max())) {
+            return encode_speck_3d_impl<uint32_t>(signed_vals, dims);
+        }
+        return encode_speck_3d_impl<uint64_t>(signed_vals, dims);
+    }
+
+    static std::vector<int64_t> decode_speck_3d(const SZ3::SPERR::dims_type &dims, const uchar *cmpData, size_t cmpSize,
+                                                size_t &consumed) {
+        const uint8_t num_bitplanes = SZ3::SPERR::speck_int_get_num_bitplanes(cmpData);
+        if (num_bitplanes <= 8) {
+            return decode_speck_3d_impl<uint8_t>(dims, cmpData, cmpSize, consumed);
+        }
+        if (num_bitplanes <= 16) {
+            return decode_speck_3d_impl<uint16_t>(dims, cmpData, cmpSize, consumed);
+        }
+        if (num_bitplanes <= 32) {
+            return decode_speck_3d_impl<uint32_t>(dims, cmpData, cmpSize, consumed);
+        }
+        return decode_speck_3d_impl<uint64_t>(dims, cmpData, cmpSize, consumed);
+    }
+
+    template <class UI>
+    static std::vector<uchar> encode_speck_1d_impl(const std::vector<int64_t> &signed_vals) {
+        std::vector<UI> mags(signed_vals.size(), UI{0});
+        SZ3::SPERR::Bitmask signs;
+        signs.resize(signed_vals.size());
+        signs.reset_true();
+
+        for (size_t i = 0; i < signed_vals.size(); i++) {
+            const uint64_t mag = signed_magnitude(signed_vals[i]);
+            if (mag > static_cast<uint64_t>(std::numeric_limits<UI>::max())) {
+                throw std::runtime_error("SPERR SPECK1D magnitude exceeds selected integer type.");
+            }
+            mags[i] = static_cast<UI>(mag);
+            signs.wbit(i, signed_vals[i] >= 0);
+        }
+
+        SZ3::SPERR::SPECK1D_INT_ENC<UI> encoder;
+        encoder.set_dims({signed_vals.size(), 1, 1});
+        const SZ3::SPERR::RTNType rtn = encoder.use_coeffs(std::move(mags), std::move(signs));
+        if (rtn != SZ3::SPERR::RTNType::Good) {
+            throw std::runtime_error("SPERR SPECK1D setup failed.");
+        }
+        encoder.encode();
+
+        std::vector<uchar> stream;
+        encoder.append_encoded_bitstream(stream);
         return stream;
     }
 
-    /// Decode SPERR frame from `[conditioner][SPECK][optional outliers]`.
-    SPERRFrame decode(const SPERR3DLayout &layout, const uchar *cmpData, size_t cmpSize) const {
-        auto frame = SPERRFrame();
-        frame.dims = {layout.dimx, layout.dimy, layout.dimz};
+    template <class UI>
+    static std::vector<int64_t> decode_speck_1d_impl(size_t total_len, const uchar *cmpData, size_t cmpSize,
+                                                     size_t &consumed) {
+        SZ3::SPERR::SPECK1D_INT_DEC<UI> decoder;
+        decoder.set_dims({total_len, 1, 1});
 
-        if (cmpSize < frame.conditioner_header.size()) {
-            throw std::runtime_error("SPERR stream too short.");
+        const size_t full_len = static_cast<size_t>(decoder.get_stream_full_len(cmpData));
+        if (full_len > cmpSize) {
+            throw std::runtime_error("SPERR SPECK1D stream length mismatch.");
         }
 
-        std::copy_n(cmpData, frame.conditioner_header.size(), frame.conditioner_header.begin());
-        const auto conditioner = SZ3::SPERR::Conditioner();
-        frame.constant_field = conditioner.is_constant(frame.conditioner_header[0]);
+        decoder.use_bitstream(cmpData, full_len);
+        decoder.decode();
 
-        if (frame.constant_field) {
-            return frame;
+        std::vector<UI> mags = decoder.release_coeffs();
+        SZ3::SPERR::Bitmask signs = decoder.release_signs();
+        if (mags.size() != total_len || signs.size() != total_len) {
+            throw std::runtime_error("SPERR SPECK1D decoded length mismatch.");
         }
 
-        frame.q = conditioner.retrieve_q(frame.conditioner_header);
-        if (!(frame.q > 0.0)) {
-            throw std::runtime_error("SPERR invalid quantization step in stream.");
-        }
-
-        auto pos = cmpData + frame.conditioner_header.size();
-        size_t remaining = cmpSize - frame.conditioner_header.size();
-        if (remaining < SZ3::SPERR::SPECK_INT<uint8_t>::header_size) {
-            throw std::runtime_error("SPERR stream missing SPECK payload.");
-        }
-
-        const auto num_bitplanes = SZ3::SPERR::speck_int_get_num_bitplanes(pos);
-        if (num_bitplanes <= 8) {
-            frame.uint_flag = SZ3::SPERR::UINTType::UINT8;
-            remaining -= decode_speck<uint8_t>(frame, pos, remaining);
-        } else if (num_bitplanes <= 16) {
-            frame.uint_flag = SZ3::SPERR::UINTType::UINT16;
-            remaining -= decode_speck<uint16_t>(frame, pos, remaining);
-        } else if (num_bitplanes <= 32) {
-            frame.uint_flag = SZ3::SPERR::UINTType::UINT32;
-            remaining -= decode_speck<uint32_t>(frame, pos, remaining);
-        } else {
-            frame.uint_flag = SZ3::SPERR::UINTType::UINT64;
-            remaining -= decode_speck<uint64_t>(frame, pos, remaining);
-        }
-        pos = cmpData + cmpSize - remaining;
-
-        if (remaining > 0) {
-            if (remaining < SZ3::SPERR::SPECK_INT<uint8_t>::header_size) {
-                throw std::runtime_error("SPERR outlier stream is truncated.");
+        std::vector<int64_t> signed_vals(total_len, int64_t{0});
+        for (size_t i = 0; i < total_len; i++) {
+            if (static_cast<uint64_t>(mags[i]) > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
+                throw std::runtime_error("SPERR SPECK1D decoded magnitude overflows int64.");
             }
-            auto outlier_coder = SZ3::SPERR::Outlier_Coder();
-            outlier_coder.set_length(frame.dims[0] * frame.dims[1] * frame.dims[2]);
-            outlier_coder.set_tolerance(frame.q / 1.5);
-            const auto outlier_len = outlier_coder.get_stream_full_len(pos);
-            if (outlier_len != remaining) {
-                throw std::runtime_error("SPERR outlier stream length mismatch.");
-            }
-            auto rtn = outlier_coder.use_bitstream(pos, remaining);
-            if (rtn != SZ3::SPERR::RTNType::Good) {
-                throw std::runtime_error("SPERR outlier stream parse failed.");
-            }
-            rtn = outlier_coder.decode();
-            if (rtn != SZ3::SPERR::RTNType::Good) {
-                throw std::runtime_error("SPERR outlier decoding failed.");
-            }
-            frame.outliers = outlier_coder.view_outlier_list();
+            const int64_t mag = static_cast<int64_t>(mags[i]);
+            signed_vals[i] = signs.rbit(i) ? mag : -mag;
         }
 
-        return frame;
+        consumed = full_len;
+        return signed_vals;
     }
 
-   private:
-    /// SPECK integer encode helper for a specific integer coefficient width.
     template <class UI>
-    static void encode_speck(SPERRFrame &frame, std::vector<uchar> &stream) {
-        auto encoder = SZ3::SPERR::SPECK3D_INT_ENC<UI>();
-        encoder.set_dims(frame.dims);
-        auto rtn =
-            encoder.use_coeffs(std::move(std::get<std::vector<UI>>(frame.coeffs_ui)), std::move(frame.sign_array));
+    static std::vector<uchar> encode_speck_2d_impl(const std::vector<int64_t> &signed_vals,
+                                                   const SZ3::SPERR::dims_type &dims) {
+        const size_t total_len = dims[0] * dims[1];
+        if (signed_vals.size() != total_len) {
+            throw std::runtime_error("SPERR SPECK2D encode length mismatch.");
+        }
+
+        std::vector<UI> mags(signed_vals.size(), UI{0});
+        SZ3::SPERR::Bitmask signs;
+        signs.resize(signed_vals.size());
+        signs.reset_true();
+
+        for (size_t i = 0; i < signed_vals.size(); i++) {
+            const uint64_t mag = signed_magnitude(signed_vals[i]);
+            if (mag > static_cast<uint64_t>(std::numeric_limits<UI>::max())) {
+                throw std::runtime_error("SPERR SPECK2D magnitude exceeds selected integer type.");
+            }
+            mags[i] = static_cast<UI>(mag);
+            signs.wbit(i, signed_vals[i] >= 0);
+        }
+
+        SZ3::SPERR::SPECK2D_INT_ENC<UI> encoder;
+        encoder.set_dims(dims);
+        const SZ3::SPERR::RTNType rtn = encoder.use_coeffs(std::move(mags), std::move(signs));
         if (rtn != SZ3::SPERR::RTNType::Good) {
-            throw std::runtime_error("SPERR integer coefficient setup failed.");
+            throw std::runtime_error("SPERR SPECK2D setup failed.");
         }
         encoder.encode();
+
+        std::vector<uchar> stream;
         encoder.append_encoded_bitstream(stream);
+        return stream;
     }
 
-    /// SPECK integer decode helper for a specific integer coefficient width.
     template <class UI>
-    static size_t decode_speck(SPERRFrame &frame, const uchar *ptr, size_t remaining) {
-        auto decoder = SZ3::SPERR::SPECK3D_INT_DEC<UI>();
-        decoder.set_dims(frame.dims);
-        const auto speck_len = decoder.get_stream_full_len(ptr);
-        if (speck_len > remaining) {
-            throw std::runtime_error("SPERR SPECK stream length mismatch.");
+    static std::vector<int64_t> decode_speck_2d_impl(const SZ3::SPERR::dims_type &dims, const uchar *cmpData,
+                                                     size_t cmpSize, size_t &consumed) {
+        const size_t total_len = dims[0] * dims[1];
+
+        SZ3::SPERR::SPECK2D_INT_DEC<UI> decoder;
+        decoder.set_dims(dims);
+
+        const size_t full_len = static_cast<size_t>(decoder.get_stream_full_len(cmpData));
+        if (full_len > cmpSize) {
+            throw std::runtime_error("SPERR SPECK2D stream length mismatch.");
         }
-        decoder.use_bitstream(ptr, static_cast<size_t>(speck_len));
+
+        decoder.use_bitstream(cmpData, full_len);
         decoder.decode();
-        frame.coeffs_ui = decoder.release_coeffs();
-        frame.sign_array = decoder.release_signs();
-        return static_cast<size_t>(speck_len);
+
+        std::vector<UI> mags = decoder.release_coeffs();
+        SZ3::SPERR::Bitmask signs = decoder.release_signs();
+        if (mags.size() != total_len || signs.size() != total_len) {
+            throw std::runtime_error("SPERR SPECK2D decoded length mismatch.");
+        }
+
+        std::vector<int64_t> signed_vals(total_len, int64_t{0});
+        for (size_t i = 0; i < total_len; i++) {
+            if (static_cast<uint64_t>(mags[i]) > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
+                throw std::runtime_error("SPERR SPECK2D decoded magnitude overflows int64.");
+            }
+            const int64_t mag = static_cast<int64_t>(mags[i]);
+            signed_vals[i] = signs.rbit(i) ? mag : -mag;
+        }
+
+        consumed = full_len;
+        return signed_vals;
     }
+
+    template <class UI>
+    static std::vector<uchar> encode_speck_3d_impl(const std::vector<int64_t> &signed_vals,
+                                                   const SZ3::SPERR::dims_type &dims) {
+        const size_t total_len = dims[0] * dims[1] * dims[2];
+        if (signed_vals.size() != total_len) {
+            throw std::runtime_error("SPERR SPECK3D encode length mismatch.");
+        }
+
+        std::vector<UI> mags(signed_vals.size(), UI{0});
+        SZ3::SPERR::Bitmask signs;
+        signs.resize(signed_vals.size());
+        signs.reset_true();
+
+        for (size_t i = 0; i < signed_vals.size(); i++) {
+            const uint64_t mag = signed_magnitude(signed_vals[i]);
+            if (mag > static_cast<uint64_t>(std::numeric_limits<UI>::max())) {
+                throw std::runtime_error("SPERR SPECK3D magnitude exceeds selected integer type.");
+            }
+            mags[i] = static_cast<UI>(mag);
+            signs.wbit(i, signed_vals[i] >= 0);
+        }
+
+        SZ3::SPERR::SPECK3D_INT_ENC<UI> encoder;
+        encoder.set_dims(dims);
+        const SZ3::SPERR::RTNType rtn = encoder.use_coeffs(std::move(mags), std::move(signs));
+        if (rtn != SZ3::SPERR::RTNType::Good) {
+            throw std::runtime_error("SPERR SPECK3D setup failed.");
+        }
+        encoder.encode();
+
+        std::vector<uchar> stream;
+        encoder.append_encoded_bitstream(stream);
+        return stream;
+    }
+
+    template <class UI>
+    static std::vector<int64_t> decode_speck_3d_impl(const SZ3::SPERR::dims_type &dims, const uchar *cmpData,
+                                                     size_t cmpSize, size_t &consumed) {
+        const size_t total_len = dims[0] * dims[1] * dims[2];
+
+        SZ3::SPERR::SPECK3D_INT_DEC<UI> decoder;
+        decoder.set_dims(dims);
+
+        const size_t full_len = static_cast<size_t>(decoder.get_stream_full_len(cmpData));
+        if (full_len > cmpSize) {
+            throw std::runtime_error("SPERR SPECK3D stream length mismatch.");
+        }
+
+        decoder.use_bitstream(cmpData, full_len);
+        decoder.decode();
+
+        std::vector<UI> mags = decoder.release_coeffs();
+        SZ3::SPERR::Bitmask signs = decoder.release_signs();
+        if (mags.size() != total_len || signs.size() != total_len) {
+            throw std::runtime_error("SPERR SPECK3D decoded length mismatch.");
+        }
+
+        std::vector<int64_t> signed_vals(total_len, int64_t{0});
+        for (size_t i = 0; i < total_len; i++) {
+            if (static_cast<uint64_t>(mags[i]) > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
+                throw std::runtime_error("SPERR SPECK3D decoded magnitude overflows int64.");
+            }
+            const int64_t mag = static_cast<int64_t>(mags[i]);
+            signed_vals[i] = signs.rbit(i) ? mag : -mag;
+        }
+
+        consumed = full_len;
+        return signed_vals;
+    }
+
+    SZ3::SPERR::dims_type dims_;
+    size_t total_len_ = 0;
 };
 
 }  // namespace SZ3
