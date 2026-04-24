@@ -2,6 +2,7 @@
 #include <cstdint>
 
 #include "gtest/gtest.h"
+#include "SZ3/quantizer/BitTruncationQuantizer.hpp"
 #include "SZ3/quantizer/FixedPointQuantizer.hpp"
 #include "SZ3/quantizer/LinearQuantizer.hpp"
 #include "SZ3/quantizer/QuadraticLevelQuantizer.hpp"
@@ -161,5 +162,58 @@ static void runScalarQuantizerTest() {
 TEST(SZ3_QuantizerTest, ScalarQuantizer) {
     runScalarQuantizerTest<float>();
     runScalarQuantizerTest<double>();
+}
+
+// BitTruncationQuantizer: AND'ing the float bit pattern with a top-bytes mask
+// must (1) be idempotent on already-truncated values, (2) round-trip exactly
+// through save/load, and (3) zero exactly the dropped low bytes.
+template <typename T>
+static void runBitTruncationTest(int keep_bytes) {
+    constexpr int N = 64;
+    SZ3::BitTruncationQuantizer<T> q(keep_bytes);
+
+    std::vector<T> originals(N);
+    std::vector<int64_t> bins(N);
+    for (int i = 0; i < N; i++) {
+        originals[i] = static_cast<T>((i - 32) * 1.234567 + 0.0078125);  // mix of magnitudes & signs
+    }
+
+    for (int i = 0; i < N; i++) {
+        T data = originals[i];
+        bins[i] = q.quantize_and_overwrite(data, T(0));
+        // Idempotence: re-truncating the reconstructed value yields the same bin.
+        T data_again = data;
+        int64_t bin_again = q.quantize_and_overwrite(data_again, T(0));
+        EXPECT_EQ(bin_again, bins[i]) << "i=" << i << " not idempotent";
+        EXPECT_EQ(data_again, data) << "i=" << i << " reconstruction drift";
+    }
+
+    std::vector<unsigned char> buf(64);
+    unsigned char* sp = buf.data();
+    q.save(sp);
+    size_t saved = sp - buf.data();
+    EXPECT_GT(saved, 0u);
+
+    SZ3::BitTruncationQuantizer<T> q2(1);  // wrong initial keep_bytes; load() must overwrite
+    const unsigned char* lp = buf.data();
+    size_t remaining = saved;
+    q2.load(lp, remaining);
+    EXPECT_EQ(q2.keep_bytes(), keep_bytes);
+
+    for (int i = 0; i < N; i++) {
+        T recovered = q2.recover(T(0), bins[i]);
+        // Must match what quantize_and_overwrite wrote back.
+        T data = originals[i];
+        T expected = data;
+        q.quantize_and_overwrite(expected, T(0));
+        EXPECT_EQ(recovered, expected) << "i=" << i;
+    }
+}
+
+TEST(SZ3_QuantizerTest, BitTruncationQuantizer) {
+    runBitTruncationTest<float>(2);   // keep top 2 of 4 bytes
+    runBitTruncationTest<float>(3);   // keep top 3 of 4 bytes (low byte zeroed)
+    runBitTruncationTest<double>(4);  // keep top 4 of 8 bytes
+    runBitTruncationTest<double>(6);  // keep top 6 of 8 bytes
 }
 
