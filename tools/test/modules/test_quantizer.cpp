@@ -2,9 +2,10 @@
 #include <cstdint>
 
 #include "gtest/gtest.h"
+#include "SZ3/quantizer/FixedPointQuantizer.hpp"
 #include "SZ3/quantizer/LinearQuantizer.hpp"
-#include "SZ3/quantizer/NonLinearQuantizer.hpp"
-#include "SZ3/quantizer/TimeIntQuantizer.hpp"
+#include "SZ3/quantizer/QuadraticLevelQuantizer.hpp"
+#include "SZ3/quantizer/ScalarQuantizer.hpp"
 
 template <typename Quantizer, typename T>
 void runQuantizeRecoverTest() {
@@ -68,19 +69,97 @@ TEST(SZ3_QuantizerTest, LinearQuantizer) {
     runAllTest<SZ3::LinearQuantizer<float>, float>();
 }
 
-TEST(SZ3_QuantizerTest, NonLinearQuantizer) {
-    runAllTest<SZ3::NonLinearQuantizer<float>, float>();
+TEST(SZ3_QuantizerTest, QuadraticLevelQuantizer) {
+    runAllTest<SZ3::QuadraticLevelQuantizer<float>, float>();
 }
 
-TEST(SZ3_QuantizerTest, TimeIntQuantizer) {
-    const int pred_dim = 4;
-    SZ3::TimeIntQuantizer<int> quantizer(pred_dim);
-    int data = 5;
-    int data_ori = data;
+// FixedPointQuantizer does not match the generic eb-only ctor harness:
+// it is constructed with `num_bits`, then must be `calibrate(max_abs)`-d
+// before use. Custom test below.
+template <typename T>
+static void runFixedPointTest() {
+    constexpr int num_bits = 24;
+    constexpr int N = 100;
+    std::vector<T> originals(N);
+    std::vector<int64_t> bins(N);
 
-    int quant_index = quantizer.quantize_and_overwrite(data, 2);
+    SZ3::FixedPointQuantizer<T> q(num_bits);
+    T max_abs = 0;
+    for (int i = 0; i < N; i++) {
+        T v = static_cast<T>(10.0 + 0.0005 * i);  // ascending positives
+        originals[i] = v;
+        if (std::fabs(v) > max_abs) max_abs = std::fabs(v);
+    }
+    q.calibrate(static_cast<double>(max_abs));
+    const double tol = q.max_abs_error();
 
-    int recovered = quantizer.recover(2, quant_index);
+    for (int i = 0; i < N; i++) {
+        T data = originals[i];
+        bins[i] = q.quantize_and_overwrite(data, T(0));
+    }
 
-    EXPECT_EQ(data_ori, recovered);
+    std::vector<unsigned char> buf(64);
+    unsigned char* sp = buf.data();
+    q.save(sp);
+    size_t saved = sp - buf.data();
+    EXPECT_GT(saved, 0u);
+
+    SZ3::FixedPointQuantizer<T> q2;
+    const unsigned char* lp = buf.data();
+    size_t remaining = saved;
+    q2.load(lp, remaining);
+
+    for (int i = 0; i < N; i++) {
+        T recovered = q2.recover(T(0), bins[i]);
+        EXPECT_NEAR(recovered, originals[i], tol) << "i=" << i;
+    }
 }
+
+TEST(SZ3_QuantizerTest, FixedPointQuantizer) {
+    runFixedPointTest<float>();
+    runFixedPointTest<double>();
+}
+
+// ScalarQuantizer is constructed with (step, one_bin_reconstruct, tail_offset)
+// rather than the eb-only ctor expected by `runAllTest`. Custom test below.
+template <typename Ti>
+static void runScalarQuantizerTest() {
+    constexpr int N = 100;
+    const double step = 0.5;
+    SZ3::ScalarQuantizer<Ti, int64_t> q(step, /*one_bin_reconstruct=*/1.0, /*tail_offset=*/0.0);
+
+    std::vector<Ti> originals(N);
+    std::vector<int64_t> bins(N);
+    for (int i = 0; i < N; i++) {
+        // Use predictions of 0 and slowly varying data values; ScalarQuantizer's
+        // rule means recovery error is bounded by step.
+        originals[i] = static_cast<Ti>(0.123 * i - 5.0);
+        Ti scratch = originals[i];
+        bins[i] = q.quantize_and_overwrite(scratch, Ti(0));
+        // After overwrite, scratch == reconstructed value.
+        EXPECT_NEAR(scratch, originals[i], static_cast<Ti>(step) * 1.001) << "i=" << i;
+    }
+
+    std::vector<unsigned char> buf(64);
+    unsigned char* sp = buf.data();
+    q.save(sp);
+    size_t saved = sp - buf.data();
+    EXPECT_GT(saved, 0u);
+
+    // Reload + recover -- reconstruct should match in-place quantize result.
+    SZ3::ScalarQuantizer<Ti, int64_t> q2;
+    const unsigned char* lp = buf.data();
+    size_t remaining = saved;
+    q2.load(lp, remaining);
+
+    for (int i = 0; i < N; i++) {
+        Ti recovered = q2.recover(Ti(0), bins[i]);
+        EXPECT_NEAR(recovered, originals[i], static_cast<Ti>(step) * 1.001) << "i=" << i;
+    }
+}
+
+TEST(SZ3_QuantizerTest, ScalarQuantizer) {
+    runScalarQuantizerTest<float>();
+    runScalarQuantizerTest<double>();
+}
+
