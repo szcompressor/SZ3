@@ -6,6 +6,12 @@ SZ3: A Modular Error-bounded Lossy Compression Framework for Scientific Datasets
 * Supervisor: Franck Cappello
 * Other Contributors: Robert Underwood, Sihuan Li, Ali M. Gok
 
+## Documentation for LLM users
+
+- **[CLAUDE.md](CLAUDE.md)** — repo guide for Claude Code (architecture, modules, available algorithms, build & test recipes, conventions)
+- **[docs/claude-skills/](docs/claude-skills/)** — installable Claude Code skills covering pipeline composition, adding new modules / algorithms, and benchmarking. See `docs/claude-skills/README.md` for install instructions.
+
+
 ## Installation
 
 * mkdir build && cd build
