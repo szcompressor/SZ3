@@ -91,13 +91,16 @@ class SPERREncoder : public concepts::EncoderInterface<T> {
         const std::vector<int64_t> signed_vals = to_signed_vector(bins);
         const SZ3::SPERR::dims_type dims = resolved_dims(signed_vals.size());
 
-        if (N == 1) {
+        // `if constexpr` avoids instantiating the other N paths. Required for
+        // MSVC, which would otherwise emit references to SPECK2D_INT::m_*
+        // members that the vendored SPERR sources don't define.
+        if constexpr (N == 1) {
             return encode_speck_1d(signed_vals);
-        }
-        if (N == 2) {
+        } else if constexpr (N == 2) {
             return encode_speck_2d(signed_vals, dims);
+        } else {
+            return encode_speck_3d(signed_vals, dims);
         }
-        return encode_speck_3d(signed_vals, dims);
     }
 
     std::vector<T> decode_stream(const uchar *cmpData, size_t cmpSize, size_t total_len, size_t &consumed) const {
@@ -108,9 +111,9 @@ class SPERREncoder : public concepts::EncoderInterface<T> {
         const SZ3::SPERR::dims_type dims = resolved_dims(total_len);
         std::vector<int64_t> signed_vals;
 
-        if (N == 1) {
+        if constexpr (N == 1) {
             signed_vals = decode_speck_1d(total_len, cmpData, cmpSize, consumed);
-        } else if (N == 2) {
+        } else if constexpr (N == 2) {
             signed_vals = decode_speck_2d(dims, cmpData, cmpSize, consumed);
         } else {
             signed_vals = decode_speck_3d(dims, cmpData, cmpSize, consumed);
