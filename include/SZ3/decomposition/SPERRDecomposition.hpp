@@ -15,7 +15,7 @@
 #include "SZ3/quantizer/ScalarQuantizer.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
-#include "SZ3/utils/sperr/SPERRTypes.hpp"
+#include "SZ3/utils/thirdparty/sperr/SPERRTypes.hpp"
 
 namespace SZ3 {
 

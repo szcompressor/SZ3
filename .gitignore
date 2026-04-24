@@ -11,3 +11,4 @@ install
 tmp
 .cache
 docs/html
+.claude

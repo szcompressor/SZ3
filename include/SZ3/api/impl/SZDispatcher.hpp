@@ -14,6 +14,7 @@
  * - `ALGO_SVD`: `SZAlgoSVD.hpp` — SVD-based decomposition.
  * - `ALGO_ZFP`: `SZAlgoZFP.hpp` — ZFP block-based transform compression.
  * - `ALGO_SPERR`: `SZAlgoSPERR.hpp` — SPERR 3D wavelet + SPECK core path.
+ * - `ALGO_MGARD`: `SZAlgoMGARD.hpp` — bundled MGARD multigrid decomposition (1D/2D/3D float).
  * - `ALGO_LOSSLESS`: Falls back to Zstd lossless-only compression.
  */
 
@@ -21,6 +22,7 @@
 
 #include "SZ3/api/impl/SZAlgoInterp.hpp"
 #include "SZ3/api/impl/SZAlgoLorenzoReg.hpp"
+#include "SZ3/api/impl/SZAlgoMGARD.hpp"
 #include "SZ3/api/impl/SZAlgoNopred.hpp"
 #include "SZ3/api/impl/SZAlgoBioMD.hpp"
 #include "SZ3/api/impl/SZAlgoSVD.hpp"
@@ -103,6 +105,12 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
                     throw std::invalid_argument("SPERR algorithm supports 3D floating-point data only.");
                 }
 #endif
+            } else if (conf.cmprAlgo == ALGO_MGARD) {
+                if constexpr (std::is_floating_point<T>::value && N >= 1 && N <= 3) {
+                    cmpSize = SZ_compress_MGARD<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                } else {
+                    throw std::invalid_argument("MGARD algorithm supports 1D/2D/3D floating-point data only.");
+                }
             } else {
                 throw std::invalid_argument("Unknown compression algorithm");
             }
@@ -194,6 +202,12 @@ void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize
             SZ_decompress_ZFP<T, N>(conf, cmpData, cmpSize, decData);
         } else {
             throw std::invalid_argument("ZFP algorithm only supports floating-point data types.");
+        }
+    } else if (conf.cmprAlgo == ALGO_MGARD) {
+        if constexpr (std::is_floating_point<T>::value && N >= 1 && N <= 3) {
+            SZ_decompress_MGARD<T, N>(conf, cmpData, cmpSize, decData);
+        } else {
+            throw std::invalid_argument("MGARD algorithm supports 1D/2D/3D floating-point data only.");
         }
     } else {
         throw std::invalid_argument("Unknown compression algorithm");

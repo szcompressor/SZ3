@@ -68,6 +68,8 @@ enum EB { EB_ABS, EB_REL, EB_PSNR, EB_L2NORM, EB_ABS_AND_REL, EB_ABS_OR_REL };
  * - ALGO_BIOMDXTC: The XTC data compression algorithm in GROMACS for biology molecular data.
  * - ALGO_ZFP: ZFP block-based transform compression for floating-point data.
  * - ALGO_SPERR: SPERR wavelet + SPECK compressor (core 3D path).
+ * - ALGO_MGARD: MGARD multigrid decomposition (1D/2D/3D, floating-point) with per-level LinearQuantizer
+ *                 (geometric eb schedule) + global HuffmanEncoder<int> + Zstd.
  */
 enum ALGO {
     ALGO_LORENZO_REG,
@@ -79,7 +81,8 @@ enum ALGO {
     ALGO_BIOMDXTC,
     ALGO_SVD,
     ALGO_ZFP,
-    ALGO_SPERR
+    ALGO_SPERR,
+    ALGO_MGARD
 };
 
 /**
@@ -99,6 +102,7 @@ const std::map<std::string, ALGO> ALGO_MAP = {
     {"ALGO_SVD", ALGO_SVD},
     {"ALGO_ZFP", ALGO_ZFP},
     {"ALGO_SPERR", ALGO_SPERR},
+    {"ALGO_MGARD", ALGO_MGARD},
 };
 
 const std::map<std::string, EB> EB_MAP = {

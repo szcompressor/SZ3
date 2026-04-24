@@ -1,10 +1,10 @@
 /**
- * @file NonLinearQuantizer.hpp
+ * @file QuadraticLevelQuantizer.hpp
  * @ingroup Quantizer
  */
 
-#ifndef SZ3_NONLINEAR_QUANTIZER_HPP
-#define SZ3_NONLINEAR_QUANTIZER_HPP
+#ifndef SZ3_QUADRATIC_LEVEL_QUANTIZER_HPP
+#define SZ3_QUADRATIC_LEVEL_QUANTIZER_HPP
 
 #include "SZ3/quantizer/Quantizer.hpp"
 #include "SZ3/def.hpp"
@@ -18,32 +18,39 @@
 namespace SZ3 {
 
 /**
- * @brief Non-Linear Quantizer
- * 
- * Quantizes data using a non-linear scale (quadratic distribution of levels).
- * Suitable for data where precision requirements vary with magnitude.
- * 
+ * @brief Lookup-table quantizer with quadratically distributed reconstruction levels.
+ *
+ * Builds a precomputed table of `2 * radius` reconstruction levels symmetric around
+ * zero. The positive levels follow `pos_levels[i] = eb + 2 * eb * (radius - 1) * (i / (radius - 1))^2`,
+ * so spacing grows quadratically with magnitude (denser near zero, sparser farther away).
+ * To preserve the absolute error bound the table is post-clamped so that consecutive
+ * positive levels are no farther apart than `2 * eb`.
+ *
+ * In contrast to `ScalarQuantizer` (which scales by a single linear `step`), this
+ * quantizer is appropriate for distributions where small residuals are far more
+ * common than large ones and where coarse precision for outliers is acceptable.
+ *
  * @tparam T Data type
  */
 template<class T>
-class NonLinearQuantizer : public concepts::QuantizerInterface<T, int> {
+class QuadraticLevelQuantizer : public concepts::QuantizerInterface<T, int> {
 public:
 
     /**
-     * @brief Construct a new NonLinear Quantizer
-     * 
-     * @param eb Error bound
-     * @param r Quantization radius (number of bins is 2*r)
+     * @brief Construct a new quantizer.
+     *
+     * @param eb Error bound (absolute). The smallest positive level equals `eb`.
+     * @param r Quantization radius (number of bins is `2 * r`).
      */
-    NonLinearQuantizer(double eb, int r = 32768) : error_bound(eb), radius(r) {
+    QuadraticLevelQuantizer(double eb, int r = 32768) : error_bound(eb), radius(r) {
         assert(eb != 0);
         build_quant_table();
     }
 
     /**
-     * @brief Construct a new NonLinear Quantizer with default settings
+     * @brief Default-construct with `eb = 1e-4`, `radius = 32768`.
      */
-    NonLinearQuantizer() : error_bound(1e-4), radius(32768) {
+    QuadraticLevelQuantizer() : error_bound(1e-4), radius(32768) {
         build_quant_table();
     }
 
@@ -134,7 +141,7 @@ public:
         uchar uid_read;
         read(uid_read, c, remaining_length);
         if (uid_read != uid) {
-            throw std::invalid_argument("NonLinearQuantizer uid mismatch");
+            throw std::invalid_argument("QuadraticLevelQuantizer uid mismatch");
         }
         read(this->error_bound, c, remaining_length);
         read(this->radius, c, remaining_length);
@@ -146,7 +153,7 @@ public:
     }
 
     void print() override {
-        printf("NonLinearQuantizer, error_bound = %f, radius = %d\n", error_bound, radius);
+        printf("QuadraticLevelQuantizer, error_bound = %f, radius = %d\n", error_bound, radius);
     }
 
 private:

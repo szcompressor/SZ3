@@ -32,13 +32,11 @@
 // --- Predictors ---
 
 // --- Quantizers ---
-#include "SZ3/quantizer/NonLinearQuantizer.hpp"
-#include "SZ3/quantizer/TimeIntQuantizer.hpp"
+#include "SZ3/quantizer/QuadraticLevelQuantizer.hpp"
 
 // --- Encoders ---
 #include "SZ3/encoder/ArithmeticEncoder.hpp"
 #include "SZ3/encoder/BitshuffleEncoder.hpp"
-#include "SZ3/encoder/BitshuffleEncoderV2.hpp"
 #include "SZ3/encoder/BypassEncoder.hpp"
 #include "SZ3/encoder/HuffmanEncoderV2.hpp"
 #include "SZ3/encoder/RunlengthEncoder.hpp"
