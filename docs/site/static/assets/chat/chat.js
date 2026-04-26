@@ -193,22 +193,23 @@ function buildDialog() {
   const extClaude   = el("button", { class: "fz-ext-btn", type: "button", "data-target": "claude"  }, "Claude");
   const extGemini   = el("button", { class: "fz-ext-btn", type: "button", "data-target": "gemini",
                                      title: "Opens Google AI Studio (gemini.google.com doesn't accept URL params)" }, "Gemini");
-  const extCopyBtn  = el("button", { class: "fz-ext-copybtn", type: "button" }, "Copy catalog to clipboard");
+  const extCopyBtn  = el("button", { class: "fz-ext-copybtn", type: "button" }, "copy prompt to clipboard");
   const extStatus   = el("span", { class: "fz-ext-status" }, "");
   const externalBlock = el("div", { class: "fz-external-block fz-external-primary" },
-    el("label", {}, "Open in your AI account"),
+    el("label", {}, "Option 1: Open in your AI account"),
     el("div", { class: "fz-external-row" }, extClaude, extChatGPT, extGemini),
     el("p", { class: "fz-hint" },
       "Opens a new tab in your logged-in account with a prompt that loads the FZ catalog as context. ",
-      "Gemini routes to Google AI Studio. If the assistant can't fetch URLs (or you're on localhost), use the clipboard fallback below."),
-    el("div", { class: "fz-external-fallback" }, extCopyBtn, extStatus),
+      "Gemini routes to Google AI Studio. If the assistant can't fetch URLs (or you're on localhost), ",
+      extCopyBtn, "."),
+    el("div", { class: "fz-external-fallback" }, extStatus),
   );
 
-  // The local-WebLLM section is the backup path — collapsed by default
+  // The local-WebLLM section is Option 2 — collapsed by default
   // inside a <details> element. User clicks the disclosure to expand.
   const localDetails = el("details", { class: "fz-local-details" });
   const localSummary = el("summary", { class: "fz-local-summary" },
-    "Or chat in this browser (local model, needs WebGPU)");
+    "Option 2: Chat in this browser (local model, needs WebGPU)");
   localDetails.appendChild(localSummary);
   localDetails.appendChild(localBlock);
 

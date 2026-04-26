@@ -136,21 +136,24 @@
   gap: 6px;
 }
 .fz-ext-btn {
+  /* Match the prominent blue of .fz-chat-loadbtn -- these are the
+     primary call-to-action of the dialog. */
   flex: 1 1 auto;
   min-width: 80px;
-  padding: 7px 12px;
-  border: 1px solid #c4cfe5;
-  border-radius: 4px;
-  background: #f6f8fa;
-  color: #283a5d;
-  font: 600 12px/1 Roboto, sans-serif;
+  padding: 9px 14px;
+  background: #0366d6;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
   cursor: pointer;
-  transition: background 100ms ease, border-color 100ms ease;
+  font: 600 13px/1.2 Roboto, sans-serif;
+  transition: background 100ms ease, transform 100ms ease;
 }
 .fz-ext-btn:hover {
-  background: #e8edf2;
-  border-color: #4665a2;
+  background: #0353a4;
+  transform: translateY(-1px);
 }
+.fz-ext-btn:active { transform: translateY(0); }
 .fz-external-fallback {
   display: flex;
   align-items: center;
@@ -158,22 +161,45 @@
   margin-top: 6px;
   flex-wrap: wrap;
 }
+/* Inline link inside the hint paragraph (not a stand-alone button). */
 .fz-ext-copybtn {
-  padding: 5px 10px;
-  border: 1px solid transparent;
-  border-radius: 4px;
+  padding: 0;
+  margin: 0;
+  border: none;
   background: transparent;
   color: #0366d6;
-  font: 500 11.5px/1 Roboto, sans-serif;
+  font: inherit;
   cursor: pointer;
   text-decoration: underline;
+  display: inline;
 }
 .fz-ext-copybtn:hover { color: #0353a4; }
 .fz-ext-status {
-  flex: 1 1 auto;
+  display: block;
+  margin-top: 4px;
   font-size: 11px;
   color: #155724;
 }
+
+/* Match Option 2 (the <summary> element) to Option 1's <label> font/color
+   so the two section headings look the same. Browsers default <summary>
+   to a heavier/different style. */
+.fz-local-details {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed #d0d7de;
+}
+.fz-local-summary {
+  display: list-item;        /* keep the disclosure triangle */
+  font-weight: 600;
+  font-size: 12px;
+  color: #283a5d;
+  margin-bottom: 6px;
+  cursor: pointer;
+  list-style-position: outside;
+}
+.fz-local-summary::-webkit-details-marker { color: #6a7da3; }
+.fz-local-summary::marker { color: #6a7da3; }
 
 .fz-chat-notice {
   margin: 8px 0 4px;

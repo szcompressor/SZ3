@@ -11,6 +11,12 @@ GENERATE_LATEX       = NO
 GENERATE_HTML        = YES
 HTML_OUTPUT          = docs/site/html
 SEARCHENGINE         = NO
+
+# HTML_CODE_FOLDING defaults to YES in Doxygen 1.16+ but the call
+# `codefold.init()` ends up on the home page without `codefold.js` being
+# injected via our custom header.html, throwing a ReferenceError. Disable
+# until we wire the script properly.
+HTML_CODE_FOLDING    = NO
 DISTRIBUTE_GROUP_DOC = YES
 STRIP_FROM_PATH      = include/SZ3
 HTML_HEADER          = docs/site/header.html
