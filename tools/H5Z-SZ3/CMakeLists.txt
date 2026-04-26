@@ -12,6 +12,7 @@ find_package(HDF5 COMPONENTS C REQUIRED)
 add_library(hdf5sz3
         src/H5Z_SZ3.cpp
 )
+add_library(SZ3::hdf5sz3 ALIAS hdf5sz3)
 
 target_link_libraries(hdf5sz3
         PUBLIC SZ3 HDF5::HDF5
@@ -26,7 +27,7 @@ target_include_directories(hdf5sz3
         PUBLIC
         ${HDF5_INCLUDE_DIRS}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:hdf5_sz3>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/hdf5_sz3>
 )
 
 add_subdirectory(test)
@@ -36,5 +37,6 @@ install(TARGETS hdf5sz3 EXPORT HDF5SZ3
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
-install(DIRECTORY include DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/hdf5_sz3)
-export(TARGETS hdf5sz3 FILE HDF5SZ3.cmake)
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/hdf5_sz3)
+install(EXPORT HDF5SZ3 NAMESPACE SZ3:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3)
+export(TARGETS hdf5sz3 FILE HDF5SZ3.cmake NAMESPACE SZ3::)
