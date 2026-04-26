@@ -1,0 +1,718 @@
+/* ===========================================================
+   Dual-bar search UI for fz docs
+   -----------------------------------------------------------
+   Two side-by-side inputs in the title area:
+     * "Symbols"   - Doxygen MSearchBox (relocated by JS in
+                     header.html into #symbol-search-mount)
+     * "Full text" - Pagefind UI in #pagefindsearch
+
+   Visual goal: identical chrome (height, radius, focus ring),
+   chip labels glued to the left of each input, drawer that
+   opens nicely under the field instead of being teleported
+   with position:fixed.
+
+   This file is referenced by docs/Doxyfile (HTML_EXTRA_STYLESHEET)
+   and by docs/module_page_template.html. See docs/SEARCH_UI_DUAL.md
+   for design rationale and revert instructions.
+   =========================================================== */
+
+:root {
+    /* Pick one Doxygen accent and stick to it (matches
+       --page-link-color / --memdef-template-color). */
+    --search-ui-accent:        #4665a2;
+    --search-ui-accent-soft:   #c4cfe5;
+    --search-ui-bg:            #ffffff;
+    --search-ui-border:        #c4cfe5;
+    --search-ui-text:          #283a5d;
+    --search-ui-muted:         #6a7da3;
+    --search-ui-shadow:        0 8px 24px rgba(40, 58, 93, 0.12);
+    --search-ui-radius:        6px;
+    --search-ui-height:        30px;
+    --search-ui-field-width:   300px;
+
+    /* Pagefind variables (still respected by pagefind-ui.css). */
+    --pagefind-ui-scale:       0.8;
+    --pagefind-ui-primary:     var(--search-ui-accent);
+    --pagefind-ui-text:        var(--search-ui-text);
+    --pagefind-ui-background:  var(--search-ui-bg);
+    --pagefind-ui-border:      var(--search-ui-border);
+    --pagefind-ui-tag:         #eef1f7;
+    --pagefind-ui-border-radius: var(--search-ui-radius);
+    --pagefind-ui-font:        Roboto, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* ---------- Title area row layout ----------------------- */
+
+#projectname {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* Pin the search bar to the top-right of the titlearea independent of
+   the table column algorithm. Chrome's auto-table happens to shrink the
+   cell to its content; Firefox doesn't, which used to push the search
+   bar past the right edge. Absolute positioning sidesteps the table
+   entirely. */
+#titlearea { position: relative; }
+
+.search-bars-cell {
+    position: absolute;
+    top: 13px;
+    right: 20px;
+    padding: 0;
+    /* The cell is a <td> element. Firefox's shrink-to-fit algorithm for an
+       absolutely-positioned <td> with width:auto sizes it to only the label's
+       intrinsic width (~268px), so the 300px mount visibly overflows past the
+       field border on Firefox. Chromium happens to use max-content. We give
+       both browsers the same explicit width so the border encloses the full
+       field on every browser. The width is sum of:
+         border (1+1) + label (chip) + gap (10) + mount (300px var)
+       The label width depends on text "Search", but ~80px is a generous fit
+       (52px text + 20px padding + small slack). Set a min-width too so a
+       different label (e.g. an i18n longer string) wouldn't underflow. */
+    width: calc(82px + var(--search-ui-field-width));
+    min-width: calc(82px + var(--search-ui-field-width));
+    max-width: calc(100vw - 40px);
+    text-align: right;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.search-bars {
+    display: inline-flex;
+    align-items: stretch;
+    gap: 10px;
+    /* Match parent so the inner inline-flex doesn't again shrink-to-fit. */
+    width: 100%;
+}
+
+/* ---------- One labeled search field -------------------- */
+
+.search-field {
+    display: inline-flex;
+    align-items: stretch;
+    flex: 0 0 auto;          /* P0 #3: don't let MSearchBox children stretch us */
+    height: var(--search-ui-height);
+    background: var(--search-ui-bg);
+    border: 1px solid var(--search-ui-border);
+    border-radius: var(--search-ui-radius);
+    /* No overflow:hidden here -- it would clip the Pagefind drawer that
+       extends below the field via position:absolute. The label has its
+       own background to mask the rounded corner on its side. */
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+/* Firefox-specific: shrink-to-fit on a flex container whose child has a
+   non-shrinking flex-basis (300px on .search-field__mount) does NOT grow
+   the parent to enclose the child. Chromium auto-grows. Force the field
+   to span label width + mount width so the visible border encloses the
+   input on every browser. 80px is the chip's natural width with padding. */
+.search-field--fulltext {
+    width: calc(var(--search-ui-field-width) + 80px);
+}
+
+.search-field:focus-within {
+    border-color: var(--search-ui-accent);
+    box-shadow: 0 0 0 3px rgba(70, 101, 162, 0.20);
+}
+
+.search-field__label {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 10px;
+    background: var(--search-ui-accent);
+    color: #ffffff;
+    font: 600 11px/1 Roboto, system-ui, sans-serif;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    user-select: none;
+}
+
+.search-field__mount {
+    display: inline-flex;
+    align-items: center;
+    width: var(--search-ui-field-width);
+    max-width: var(--search-ui-field-width);
+    min-width: 0;
+    flex: 0 0 var(--search-ui-field-width);
+    box-sizing: border-box;
+}
+
+/* P0 #3: only the SYMBOLS mount needs overflow:hidden to clamp Doxygen's
+   .left/.right children. The FULLTEXT mount must keep overflow:visible so
+   the Pagefind drawer (positioned absolutely) can extend below the field. */
+.search-field--symbols .search-field__mount {
+    overflow: hidden;
+}
+
+/* ---------- Symbols (Doxygen) MSearchBox normalisation -- */
+
+/* The MSearchBox is moved into our mount by header.html JS.
+   Strip its standalone chrome so it inherits .search-field. */
+.search-field--symbols {
+    /* P1 #4: anchor the MSearchResultsWindow under this field instead
+       of letting it default to the document's top-left corner. */
+    position: relative;
+}
+
+.search-field--symbols #MSearchBox {
+    border: none;
+    background: transparent;
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    display: inline-flex;
+    align-items: center;
+    /* P1 #5: drop the 6px outer padding so the inner #MSearchField uses the
+       full mount width like Pagefind's #pagefindsearch does. The inner field
+       carries its own 0 10px padding and now matches #pagefindsearch's 0 10px. */
+    padding: 0;
+    box-sizing: border-box;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.search-field--symbols #MSearchBox .left {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    height: auto;
+}
+
+.search-field--symbols #MSearchBox .right {
+    flex: 0 0 auto;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    height: auto;
+}
+
+.search-field--symbols #MSearchField {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+    height: var(--search-ui-height);
+    margin: 0;
+    /* P1 #5: matches #pagefindsearch .pagefind-ui__search-input padding so
+       the two inputs render the same usable width inside the same 220px mount. */
+    padding: 0 10px;
+    background: transparent;
+    border: none;
+    color: var(--search-ui-text);
+    font: 13px/1 Roboto, Arial, Verdana, sans-serif;
+    outline: none;
+}
+
+/* P1 #8: hide MSearchClose so Tab order goes Symbols input -> Pagefind input
+   directly. The chip layout doesn't need an explicit close button. */
+.search-field--symbols #MSearchClose,
+#MSearchClose {
+    display: none;
+}
+
+/* Hide the leftover Doxygen mount points so they don't reserve
+   space once we've adopted the box. Attribute selector lifts
+   specificity above tabs.css without resorting to !important. */
+#searchBoxPos1[id],
+#main-menu > li:last-child #searchBoxPos2[id] {
+    display: none;
+}
+
+/* While JS is still booting and #MSearchBox hasn't been moved
+   in yet, paint a subtle hatched placeholder so the layout
+   doesn't visibly jump when the input appears. */
+.search-field--symbols .search-field__mount:empty {
+    background: repeating-linear-gradient(
+        45deg,
+        rgba(196, 207, 229, 0.18),
+        rgba(196, 207, 229, 0.18) 6px,
+        transparent 6px,
+        transparent 12px);
+}
+
+/* ---------- Full-text (Pagefind) input ------------------ */
+
+#pagefindsearch {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+#pagefindsearch .pagefind-ui__form {
+    margin: 0;
+    height: 100%;
+}
+
+/* Pagefind ships a magnifier glyph as ::before on .pagefind-ui__form,
+   absolute-positioned for its big stock layout. Hide it -- the chip
+   label is the affordance and our compact field has no room. */
+#pagefindsearch .pagefind-ui__form::before {
+    display: none;
+}
+
+#pagefindsearch .pagefind-ui__search-input {
+    height: var(--search-ui-height);
+    width: 100%;
+    /* Slightly larger right padding so the scrolled-text edge doesn't
+       butt against the .search-field border. */
+    padding: 0 12px 0 10px;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    /* Defensive: keep typed text inside the box even when Pagefind's
+       own CSS overrides land later in the cascade. */
+    overflow: hidden;
+    text-overflow: clip;
+    box-sizing: border-box;
+    font: 13px/1 var(--pagefind-ui-font);
+    font-weight: 400;
+    color: var(--search-ui-text);
+}
+
+#pagefindsearch .pagefind-ui__search-input::placeholder {
+    color: var(--search-ui-muted);
+    opacity: 1;
+}
+
+#pagefindsearch .pagefind-ui__search-input:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+/* Hide the in-input "Clear" button entirely. Outside-click on the page
+   already clears the input + drawer (see header.html), so the button is
+   redundant and just adds visual noise. */
+#pagefindsearch .pagefind-ui__search-clear {
+    display: none;
+}
+
+/* ---------- Pagefind drawer ----------------------------- */
+
+/* Anchor the drawer to the field instead of using fixed
+   positioning. position:absolute on the parent keeps the
+   drawer pinned under its input. */
+.search-field--fulltext {
+    position: relative;
+    /* Firefox bug: with display:flex + flex-basis:auto, the parent's
+       computed inline size doesn't include the mount's `flex: 0 0 300px`
+       fixed flex-basis (the parent reports w=266px while the mount paints
+       at x+300=1251). The visible bordered box ends up only around the
+       SEARCH chip, leaving the input visually overflowing past the border.
+       Set an explicit width that matches label-chip + mount + 2px border
+       so both browsers render the same bordered box. The label is ~72px
+       (52 text + 20 padding) -> 80px gives a generous fit including the
+       border on the left. */
+    width: calc(80px + var(--search-ui-field-width));
+    flex: 0 0 calc(80px + var(--search-ui-field-width));
+}
+
+/* Use #pagefindsearch ancestor to beat Pagefind's stock
+   `.pagefind-ui__drawer.svelte-XXXX` (specificity 0,2,0).
+   #id + class wins (1,1,0). */
+#pagefindsearch .pagefind-ui__drawer {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    width: 520px;
+    max-width: calc(100vw - 40px);
+    max-height: calc(100vh - 110px);
+    overflow-y: auto;
+    background: var(--search-ui-bg);
+    color: var(--search-ui-text);
+    border: 1px solid var(--search-ui-border);
+    border-radius: var(--search-ui-radius);
+    box-shadow: var(--search-ui-shadow);
+    padding: 14px 16px;
+    text-align: left;
+    z-index: 10000;
+    display: none;
+    flex-direction: column;
+    gap: 0;
+}
+
+#pagefindsearch .pagefind-ui__drawer:not(:empty) {
+    display: flex;
+}
+
+.pagefind-ui__drawer ol,
+.pagefind-ui__drawer ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.pagefind-ui__message {
+    padding: 4px 0 10px;
+    color: var(--search-ui-muted);
+    font: 12px/1.4 var(--pagefind-ui-font);
+    height: auto;
+}
+
+/* P0 #1: drawer is 520px but stock Pagefind result rows measure ~723px
+   because their internal Svelte-scoped flex children (.pagefind-ui__result-thumb,
+   .pagefind-ui__result-inner) reserve fixed widths. Constrain everything
+   inside the drawer to the drawer width using the #pagefindsearch ancestor
+   to beat Pagefind's Svelte-scoped specificity (0,2,0). */
+#pagefindsearch .pagefind-ui__results-area {
+    margin: 0;
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+#pagefindsearch .pagefind-ui__results {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+#pagefindsearch .pagefind-ui__result {
+    background: transparent;
+    border-top: 1px solid var(--search-ui-accent-soft);
+    padding: 12px 4px;
+    transition: background-color 100ms ease;
+    /* Override pagefind's stock big-padding row */
+    gap: 12px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+}
+
+/* P1 #7: hide the phantom thumbnail slot. Pagefind picks up an <img> from
+   one indexed page which leaves an inconsistent 55x37 gap on row 0. */
+#pagefindsearch .pagefind-ui__result-thumb {
+    display: none;
+}
+
+#pagefindsearch .pagefind-ui__result-inner {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+}
+
+.pagefind-ui__result:first-of-type {
+    border-top: none;
+}
+
+.pagefind-ui__result:last-of-type {
+    border-bottom: none;
+}
+
+.pagefind-ui__result:hover {
+    background-color: rgba(70, 101, 162, 0.06);
+}
+
+#pagefindsearch .pagefind-ui__result-link {
+    color: var(--search-ui-accent);
+    font-weight: 600;
+    text-decoration: none;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+    display: inline-block;
+}
+
+.pagefind-ui__result-link:hover {
+    text-decoration: underline;
+}
+
+.pagefind-ui__result-title {
+    font-size: 14px;
+}
+
+#pagefindsearch .pagefind-ui__result-excerpt {
+    color: var(--search-ui-text);
+    font: 13px/1.5 var(--pagefind-ui-font);
+    margin-top: 4px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    /* Pagefind ships white-space: nowrap on excerpts; override so the
+       text wraps inside the drawer instead of overflowing horizontally. */
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.pagefind-ui__result-excerpt mark {
+    background: rgba(70, 101, 162, 0.18);
+    color: inherit;
+    padding: 0 2px;
+    border-radius: 2px;
+}
+
+.pagefind-ui__button {
+    background: var(--search-ui-accent);
+    color: #ffffff;
+    border: none;
+    border-radius: var(--search-ui-radius);
+    padding: 8px 14px;
+    font: 600 12px/1 var(--pagefind-ui-font);
+    cursor: pointer;
+    margin-top: 10px;
+    width: auto;
+    height: auto;
+}
+
+.pagefind-ui__button:hover {
+    background: #283a5d;
+    color: #ffffff;
+    border-color: transparent;
+}
+
+/* ---------- Doxygen MSearchResultsWindow (Symbols dropdown) -------- */
+/* P1 #4: anchor under the .search-field--symbols mount instead of the
+   document, and float to the RIGHT side of the input (matching the
+   field's right edge). Doxygen positions this absolutely off the
+   document body by default via inline style.left/top set in search.js
+   (lines 381-382), which lands at x=731 covering the navbar at y=37.
+   We need !important to win against the inline style. The MSearchResultsWindow
+   element is a direct child of <body>, so anchor it to the viewport top-right
+   instead of trying to use absolute-positioning relative to a parent (which
+   would require relocating the element in the DOM). */
+#MSearchResultsWindow {
+    position: fixed !important;
+    /* Anchor right-aligned to the symbols field's right edge.
+       Layout from the right edge of the page (1280px viewport):
+         20px page padding
+         + ~311px fulltext field (label "Full text" + 220px mount)
+         + 10px gap
+         = ~341px from viewport right -> the symbols field's right edge.
+       This isn't pixel-perfect across viewports because the chip labels
+       have different widths, but it's within ~10px of the symbols field
+       right edge -- well within the dropdown's 302px width. */
+    top: 62px !important;        /* below 56px title area + 6px gap */
+    right: 341px !important;
+    left: auto !important;
+    z-index: 10001;              /* above pagefind drawer (10000) and navbar */
+    background: var(--search-ui-bg);
+    color: var(--search-ui-text);
+    border: 1px solid var(--search-ui-border);
+    border-radius: var(--search-ui-radius);
+    box-shadow: var(--search-ui-shadow);
+    margin: 0;
+}
+
+/* On narrow viewports the search bars stack vertically (max-width: 800px),
+   so the symbols field is no longer to the LEFT of the fulltext field.
+   Anchor to the page's right edge instead. */
+@media (max-width: 800px) {
+    #MSearchResultsWindow {
+        right: 10px !important;
+    }
+}
+
+/* P1 #5: Doxygen's MSearchSelectWindow (the kind/type-filter popup that
+   opens when you click the magnifier glyph) defaults to bare chrome.
+   Match the rest of the search UI -- shadow + border + radius + z-index.
+   Position is set via inline style by search.js (lines 145-146); we don't
+   override the position, just style the chrome and bump z-index. */
+#MSearchSelectWindow {
+    z-index: 10002 !important;   /* above MSearchResultsWindow */
+    background: var(--search-ui-bg) !important;
+    color: var(--search-ui-text);
+    border: 1px solid var(--search-ui-border);
+    border-radius: var(--search-ui-radius);
+    box-shadow: var(--search-ui-shadow);
+}
+
+/* Hidden at desktop widths; surfaced under @media (max-width: 720px). */
+.search-field__mobile-link {
+    display: none;
+}
+
+/* ---------- Stub Symbols link (catalog pages) ---------- */
+/* P0 #3: /modules/* pages don't have a real MSearchBox (they aren't
+   generated by Doxygen, so the runtime symbol index isn't available).
+   Render a chrome-symmetric stub that links to the static class index
+   (../classes.html) so the dual-bar layout doesn't visibly differ
+   between Doxygen-rendered and catalog pages. */
+
+.search-field--symbols-stub .search-field__stub-link {
+    display: inline-flex;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 0 10px;
+    color: var(--search-ui-muted);
+    font: 13px/1 Roboto, system-ui, sans-serif;
+    text-decoration: none;
+    background: transparent;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.search-field--symbols-stub .search-field__stub-link:hover {
+    color: var(--search-ui-accent);
+}
+
+/* ---------- Responsive: collapse on narrow screens ----- */
+/* P1 #4: at <= 720px the dual-bar table layout clips the search-bars-cell
+   because <table> prefers to give projectalign the width, leaving the
+   Pagefind input at ~47px ("Sea..."). Convert the title-area table into a
+   flex column so cells stack -- the search bars then get full width below
+   the project name. We also collapse the Symbols field to a minimal chip
+   that links to the static symbol index (the Doxygen MSearchBox JS
+   workflow doesn't fit on a phone, and a static landing page is more
+   useful than a clipped input). */
+
+@media (max-width: 720px) {
+    /* Stack the title-area cells vertically. */
+    #titlearea > table,
+    #titlearea > table > tbody,
+    #titlearea > table > tbody > tr {
+        display: block;
+        width: 100%;
+    }
+    #titlearea > table > tbody > tr {
+        height: auto !important;
+    }
+    #titlearea > table > tbody > tr > td {
+        display: block;
+        width: 100% !important;
+        padding: 0;
+    }
+    #projectalign {
+        padding: 8px 10px 4px !important;
+    }
+
+    .search-bars-cell {
+        padding: 0 10px 10px;
+        text-align: left;
+        /* Reset the desktop explicit width/min-width so the cell can shrink
+           to the (now-100%) parent width at narrow viewport. */
+        width: auto;
+        min-width: 0;
+    }
+
+    .search-bars {
+        display: flex;
+        flex-direction: row;
+        gap: 8px;
+        width: 100%;
+    }
+
+    /* Pagefind takes all remaining width and shows a usable input. */
+    .search-field--fulltext {
+        flex: 1 1 auto;
+        width: auto;
+        min-width: 0;
+    }
+    .search-field--fulltext .search-field__mount {
+        width: auto;
+        max-width: none;
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+
+    /* Symbols collapses to an icon-only "A-Z" chip linking to the static
+       class index (works on both Doxygen and catalog pages). The
+       runtime MSearchBox is hidden -- it isn't useful on a touch device
+       at this width anyway. */
+    .search-field--symbols {
+        flex: 0 0 auto;
+        width: auto;
+    }
+    .search-field--symbols .search-field__label {
+        padding: 0 10px;
+        font-size: 0;
+    }
+    .search-field--symbols .search-field__label::before {
+        content: "A-Z";
+        font: 600 11px/1 Roboto, system-ui, sans-serif;
+        letter-spacing: 0.04em;
+    }
+    .search-field--symbols .search-field__mount {
+        display: none;
+    }
+
+    /* Catalog pages ship a real <a> stub; make the chip clickable by
+       letting the link cover the chip via inset:0. */
+    .search-field--symbols-stub {
+        position: relative;
+    }
+    .search-field--symbols-stub .search-field__stub-link {
+        display: block;
+        position: absolute;
+        inset: 0;
+        font-size: 0;
+        padding: 0;
+    }
+
+    /* Doxygen pages: header.html ships an .search-field__mobile-link <a>
+       that covers the chip and points at ../classes.html. */
+    .search-field__mobile-link {
+        display: block;
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        font-size: 0;
+        text-decoration: none;
+    }
+    /* Hide the runtime dropdown anchor on mobile -- it would mis-position. */
+    #MSearchResultsWindow {
+        display: none !important;
+    }
+
+    .pagefind-ui__drawer {
+        width: 90vw;
+    }
+}
+
+@media (max-width: 420px) {
+    #projectname {
+        font-size: 16px;
+    }
+    #projectbrief {
+        font-size: 11px;
+    }
+}
+
+/* ---------- Dark mode ----------------------------------- */
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --search-ui-accent:      #58a6ff;
+        --search-ui-accent-soft: #30363d;
+        --search-ui-bg:          #0d1117;
+        --search-ui-border:      #30363d;
+        --search-ui-text:        #c9d1d9;
+        --search-ui-muted:       #8b949e;
+        --search-ui-shadow:      0 8px 24px rgba(0, 0, 0, 0.45);
+
+        --pagefind-ui-primary:    var(--search-ui-accent);
+        --pagefind-ui-text:       var(--search-ui-text);
+        --pagefind-ui-background: var(--search-ui-bg);
+        --pagefind-ui-border:     var(--search-ui-border);
+        --pagefind-ui-tag:        #161b22;
+    }
+
+    .search-field__label {
+        background: var(--search-ui-accent);
+        color: #0d1117;
+    }
+
+    .pagefind-ui__result:hover {
+        background-color: rgba(88, 166, 255, 0.08);
+    }
+
+    .pagefind-ui__button:hover {
+        background: #c9d1d9;
+        color: #0d1117;
+    }
+}

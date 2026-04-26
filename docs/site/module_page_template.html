@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=9"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon.png"/>
+<link rel="shortcut icon" href="../favicon.png"/>
+<title>FZ Catalog: $title</title>
+<link href="../tabs.css" rel="stylesheet" type="text/css"/>
+<link href="../doxygen.css" rel="stylesheet" type="text/css"/>
+<link href="../pagefind.css" rel="stylesheet" type="text/css"/>
+<link href="../pagefind/pagefind-ui.css" rel="stylesheet"/>
+<script src="../pagefind/pagefind-ui.js"></script>
+$doxygen_navbar_head
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+    new PagefindUI({
+        element: "#pagefindsearch",
+        showSubResults: true,
+        translations: { placeholder: "" }
+    });
+    document.addEventListener('click', (e) => {
+        const search = document.getElementById('pagefindsearch');
+        if (!search) return;
+        const input = search.querySelector('.pagefind-ui__search-input');
+        if (!input || search.contains(e.target)) return;
+        if (input.value) {
+            input.value = '';
+            input.dispatchEvent(new Event('input',  { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    });
+});
+</script>
+<!-- fz docs AI chat assistant: floating "Ask AI" button. -->
+<script type="module" src="../assets/chat/chat.js"></script>
+<style>
+.fz-module-page { max-width: 980px; margin: 1.5em auto; padding: 0 1em; font-family: Roboto, sans-serif; }
+.fz-badge { display: inline-block; background: #e8edf2; color: #1f2933; padding: 0.15em 0.6em; border-radius: 3px; font-size: 0.85em; margin-right: 0.4em; }
+.fz-badge.algo { background: #d4edda; color: #155724; }
+.fz-badge.module { background: #fff3cd; color: #856404; }
+.fz-section { margin-top: 1.6em; }
+.fz-section h2 { border-bottom: 1px solid #ddd; padding-bottom: 0.2em; font-size: 1.15em; }
+.fz-keywords span { background: #f1f3f5; padding: 0.15em 0.55em; border-radius: 3px; margin: 0.15em 0.25em 0.15em 0; display: inline-block; font-size: 0.9em; }
+.fz-pipeline { font-family: monospace; background: #f6f8fa; padding: 0.6em 0.9em; border-left: 3px solid #0366d6; }
+.fz-refs { padding-left: 1.4em; }
+.fz-refs li { margin: 0.4em 0; }
+.fz-refs .year { color: #666; font-size: 0.9em; }
+.fz-refs .evidence { color: #333; font-style: italic; display: block; margin-top: 0.15em; font-size: 0.93em; }
+.fz-meta { color: #555; font-size: 0.92em; }
+</style>
+</head>
+<body>
+<div id="top">
+
+<div id="titlearea">
+<table cellspacing="0" cellpadding="0" style="width: 100%;">
+ <tbody>
+ <tr style="height: 56px;">
+  <td id="projectalign" style="padding-left: 0.5em; width: 100%;">
+   <div id="projectname">FZ Module Library&#160;<span id="projectnumber">$projectnumber</span></div>
+   <div id="projectbrief">Modular toolkit for error-bounded scientific data compression</div>
+  </td>
+  <td class="search-bars-cell">
+    <div class="search-bars">
+      <div class="search-field search-field--fulltext">
+        <span class="search-field__label">Search</span>
+        <div id="pagefindsearch" class="search-field__mount"></div>
+      </div>
+    </div>
+  </td>
+ </tr>
+ </tbody>
+</table>
+</div>
+$doxygen_navbar_body
+</div><!-- /top -->
+
+<div class="fz-module-page" data-pagefind-body>
+
+<p><a href="index.html">&larr; Catalog</a> &middot; <a href="../index.html">Home</a></p>
+
+<h1 data-pagefind-weight="$h1_weight">$title</h1>
+<p><span class="fz-badge $category_class">$category</span> <span class="fz-meta">$id</span></p>
+$canonical_intro
+
+<div class="fz-section">
+<h2>Best for</h2>
+<p>$best_for</p>
+</div>
+
+<div class="fz-section">
+<h2>Pipeline</h2>
+<div class="fz-pipeline">$pipeline</div>
+$pipeline_notes
+$wiring_block
+</div>
+
+<div class="fz-section">
+<h2>Supported configurations</h2>
+<p class="fz-meta"><strong>Dimensions:</strong> $supported_dims &middot; <strong>Data types:</strong> $supported_dtypes &middot; <strong>Error modes:</strong> $error_modes</p>
+</div>
+
+<div class="fz-section">
+<h2>Typical data</h2>
+<ul>$data_examples</ul>
+</div>
+
+<div class="fz-section">
+<h2>Keywords</h2>
+<p class="fz-keywords">$keywords</p>
+</div>
+
+<div class="fz-section">
+<h2>References</h2>
+<ul class="fz-refs">$references</ul>
+</div>
+
+</div>
+
+</body>
+</html>

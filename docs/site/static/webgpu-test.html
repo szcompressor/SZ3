@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WebGPU diagnostics — fz docs</title>
+<style>
+body { font-family: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif; max-width: 760px; margin: 2em auto; padding: 0 1em; color: #283a5d; }
+h1 { font-size: 1.4em; }
+.row { padding: 0.7em 0; border-bottom: 1px solid #eaeef3; }
+.k { display: inline-block; width: 200px; color: #6a7da3; font-weight: 600; }
+.v { font-family: ui-monospace, Menlo, monospace; }
+.ok { color: #1a7f37; font-weight: 600; }
+.bad { color: #cf222e; font-weight: 600; }
+.warn { color: #9a6700; font-weight: 600; }
+.fix { background: #f6f8fa; border-left: 4px solid #4665a2; padding: 1em; margin: 1.5em 0; border-radius: 4px; }
+.fix h3 { margin-top: 0; font-size: 1.05em; }
+.fix code { background: #fff; padding: 1px 5px; border: 1px solid #d0d7de; border-radius: 3px; }
+small { color: #6a7da3; }
+</style>
+</head>
+<body>
+<p><a href="./">&larr; Back to FZ docs</a></p>
+<h1>WebGPU diagnostics</h1>
+<p>This page checks whether your browser can run the local LLM in the chat assistant. WebLLM needs WebGPU.</p>
+
+<div id="results">Testing&hellip;</div>
+
+<script type="module">
+const r = document.getElementById("results");
+const rows = [];
+const out = (k, v, status = "") => {
+  const cls = status === "ok" ? "ok" : status === "bad" ? "bad" : status === "warn" ? "warn" : "";
+  rows.push(`<div class="row"><span class="k">${k}</span> <span class="v ${cls}">${v}</span></div>`);
+};
+
+// 1. Browser info
+out("User-Agent", navigator.userAgent);
+out("Platform", navigator.platform || navigator.userAgentData?.platform || "(unknown)");
+const isSecure = window.isSecureContext;
+out("Secure context (HTTPS or localhost)", isSecure ? "Yes" : "No (WebGPU requires this)", isSecure ? "ok" : "bad");
+
+// 2. navigator.gpu existence
+const hasGpu = !!navigator.gpu;
+out("navigator.gpu present", hasGpu ? "Yes" : "No (browser has no WebGPU API)", hasGpu ? "ok" : "bad");
+
+let adapter = null;
+let adapterInfo = null;
+let adapterFeatures = [];
+let f16Support = false;
+let triedReason = "";
+
+if (hasGpu) {
+  try {
+    adapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
+    if (!adapter) {
+      adapter = await navigator.gpu.requestAdapter({ powerPreference: "low-power" });
+    }
+    if (!adapter) {
+      adapter = await navigator.gpu.requestAdapter();
+    }
+  } catch (e) {
+    triedReason = e.message || String(e);
+  }
+
+  if (adapter) {
+    out("Adapter request", "Success", "ok");
+    if (adapter.requestAdapterInfo) {
+      try { adapterInfo = await adapter.requestAdapterInfo(); } catch (_) {}
+    }
+    if (!adapterInfo && adapter.info) adapterInfo = adapter.info;
+    if (adapterInfo) {
+      out("Adapter vendor", adapterInfo.vendor || "(unknown)");
+      out("Adapter architecture", adapterInfo.architecture || "(unknown)");
+      out("Adapter device", adapterInfo.device || "(unknown)");
+      out("Adapter description", adapterInfo.description || "(unknown)");
+    } else {
+      out("Adapter info", "(API not exposed by this browser)", "warn");
+    }
+    adapterFeatures = Array.from(adapter.features || []);
+    f16Support = adapterFeatures.includes("shader-f16");
+    out("Adapter features", adapterFeatures.join(", ") || "(none)");
+    out("shader-f16 support (needed for q4f16 models)", f16Support ? "Yes" : "No (use q4f32 model variant or upgrade Chrome)", f16Support ? "ok" : "warn");
+
+    // Try a tiny device request as final smoke test
+    try {
+      const dev = await adapter.requestDevice();
+      out("Device request", "Success — WebGPU is fully usable", "ok");
+      dev.destroy?.();
+    } catch (e) {
+      out("Device request", `Failed: ${e.message || e}`, "bad");
+    }
+  } else {
+    out("Adapter request", `Returned null (no compatible GPU). ${triedReason ? "Reason: " + triedReason : ""}`, "bad");
+  }
+}
+
+// 3. WebGL fallback info (just FYI)
+const canvas = document.createElement("canvas");
+const gl = canvas.getContext("webgl2") || canvas.getContext("webgl");
+if (gl) {
+  const dbg = gl.getExtension("WEBGL_debug_renderer_info");
+  const renderer = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : "(masked)";
+  const vendor   = dbg ? gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) : "(masked)";
+  out("WebGL renderer (FYI)", renderer);
+  out("WebGL vendor (FYI)", vendor);
+}
+
+r.innerHTML = rows.join("");
+
+// 4. Suggestions block
+const suggestions = [];
+if (!hasGpu) {
+  suggestions.push(`<p><strong>Your browser doesn't expose <code>navigator.gpu</code> at all.</strong> Most likely causes:</p>
+    <ul>
+      <li><strong>Chrome on macOS:</strong> need version 113+ on macOS 12.3+ (Monterey or newer). Check <code>chrome://settings/help</code> and <code>chrome://gpu</code>.</li>
+      <li><strong>Safari:</strong> need 17.4+ (macOS 14.4+). Even then, may need to enable Develop &rarr; Feature Flags &rarr; "WebGPU".</li>
+      <li><strong>Firefox:</strong> still experimental. Use Firefox Nightly and set <code>dom.webgpu.enabled = true</code> in <code>about:config</code>.</li>
+      <li><strong>Brave:</strong> disable Brave Shields for this site, or set <code>brave://flags/#enable-unsafe-webgpu</code> to Enabled.</li>
+      <li><strong>Linux:</strong> Chrome needs <code>chrome://flags/#enable-unsafe-webgpu</code> set to Enabled.</li>
+      <li><strong>Mobile:</strong> WebGPU is not available on iOS Safari yet (only iOS 17.4+ in some configurations); Android Chrome 121+ supports it on some devices.</li>
+    </ul>
+    <p>If none of the above, your hardware may be unsupported (older Intel Macs without Metal 3, very old GPUs).</p>`);
+} else if (!adapter) {
+  suggestions.push(`<p><strong>The browser has the WebGPU API but cannot find a compatible GPU adapter.</strong> Try:</p>
+    <ul>
+      <li>Open <code>chrome://gpu</code> (or equivalent) and confirm "WebGPU" is listed under "Graphics Feature Status".</li>
+      <li>Toggle <code>chrome://flags/#enable-unsafe-webgpu</code> to Enabled and restart.</li>
+      <li>On Linux: ensure your GPU drivers are up to date; Mesa &ge; 22 is recommended.</li>
+      <li>Check that GPU rasterization isn't disabled by an extension (uBlock Origin can do this with some lists) or corporate policy.</li>
+    </ul>`);
+} else if (!f16Support) {
+  suggestions.push(`<p><strong>WebGPU works but lacks the <code>shader-f16</code> extension.</strong> WebLLM's default models are q4f16. You can:</p>
+    <ul>
+      <li>Use a q4f32 variant of the model (slightly larger, slower, but works without f16). Open <code>chat.js</code> and add a model whose ID ends in <code>q4f32_1-MLC</code>.</li>
+      <li>Update Chrome — f16 support landed in Chrome 121+. Open <code>chrome://settings/help</code> to update.</li>
+      <li>On macOS Safari, enable Develop &rarr; Feature Flags &rarr; "WebGPU shader-f16".</li>
+    </ul>`);
+} else {
+  suggestions.push(`<p class="ok"><strong>WebGPU is fully working.</strong> The local chat mode should run on this browser. If it still fails, the issue is in the WebLLM bundle / network — try the chat panel again, or open the browser console for errors.</p>`);
+}
+suggestions.push(`<p class="warn"><strong>If WebGPU isn't working and you don't want to fight it:</strong> open the chat panel, click the gear icon, and pick a hosted provider. <a href="https://console.groq.com/keys">Groq</a> is the easiest free option (email signup, no phone, no card).</p>`);
+r.insertAdjacentHTML("beforeend", `<div class="fix"><h3>Recommendations</h3>${suggestions.join("")}</div>`);
+</script>
+</body>
+</html>

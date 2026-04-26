@@ -1,8 +1,10 @@
 test.dat
 compressed.out
 perf.data*
-build*
-debug*
+# Anchor build/debug to repo root so they don't match docs/site/build.sh
+# or docs/site/scripts/build_*.py
+/build*
+/debug*
 cmake-build-*
 .idea
 install
@@ -10,5 +12,5 @@ install
 .vscode
 tmp
 .cache
-docs/html
+docs/site/html
 .claude

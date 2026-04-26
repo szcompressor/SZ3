@@ -2,38 +2,38 @@
  * @defgroup API API
  * @brief Application Programming Interface
  *
- * @defgroup Modules Modules
- * @brief Core FZ functionality modules
+ * @defgroup Components Components
+ * @brief Core FZ functionality components (decompositions, quantizers, encoders, lossless backends, ...)
  *
  * @defgroup Utils Utils
  * @brief Helper classes and functions
  *
  * @defgroup Decomposition Decompositions
- * @ingroup Modules
+ * @ingroup Components
  * @brief Decomposition modules
  *
  * @defgroup Preprocessor Preprocessors
- * @ingroup Modules
+ * @ingroup Components
  * @brief Preprocessing modules
  *
  * @defgroup Compressor Compressors
- * @ingroup Modules
+ * @ingroup Components
  * @brief compressor workflow modules
  *
  * @defgroup Quantizer Quantizers
- * @ingroup Modules
+ * @ingroup Components
  * @brief Quantization modules
  *
  * @defgroup Predictor Predictors
- * @ingroup Modules
+ * @ingroup Components
  * @brief Prediction modules
  *
  * @defgroup Encoder Encoders
- * @ingroup Modules
+ * @ingroup Components
  * @brief Encoding modules
  *
  * @defgroup Lossless Lossless Compressors
- * @ingroup Modules
+ * @ingroup Components
  * @brief Lossless compression modules
  *
  * @defgroup UtilsConfig Configuration

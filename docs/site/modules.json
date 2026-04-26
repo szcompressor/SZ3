@@ -1,0 +1,1703 @@
+{
+  "schema_version": 2,
+  "description": "fz module/algorithm metadata for T2.2 search and recommendation. One entry per ALGO_* (algos[]) and per distinctive module (modules[]). Indexed by Pagefind via stub HTML pages emitted under docs/html/modules/. Schema v2: pipeline.* now holds clean module IDs only; prose detail moved to pipeline_notes.",
+  "algos": [
+    {
+      "id": "ALGO_LORENZO_REG",
+      "name": "Lorenzo + Regression (SZ2)",
+      "category": "algorithm",
+      "wiring_file": "include/SZ3/api/impl/SZAlgoLorenzoReg.hpp",
+      "pipeline": {
+        "decomposition": "BlockwiseDecomposition",
+        "quantizer": "LinearQuantizer",
+        "encoder": "HuffmanEncoder",
+        "lossless": "Lossless_zstd"
+      },
+      "pipeline_notes": "BlockwiseDecomposition composes LorenzoPredictor + RegressionPredictor through a ComposedPredictor; the per-block selector picks the best predictor for each block.",
+      "supported_dims": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "supported_dtypes": [
+        "float",
+        "double",
+        "int32",
+        "int64"
+      ],
+      "error_modes": [
+        "ABS",
+        "REL",
+        "PSNR",
+        "NORM"
+      ],
+      "keywords": [
+        "Lorenzo",
+        "regression",
+        "block-based prediction",
+        "SZ2",
+        "scientific data",
+        "structured grids",
+        "general purpose",
+        "linear prediction",
+        "second-order Lorenzo"
+      ],
+      "best_for": "General scientific data on structured grids where local neighbors are good predictors. The Lorenzo predictor handles smooth regions; the regression fallback adapts to locally linear trends. Solid all-around default before SZ3's interpolation-based ALGO_INTERP_LORENZO. Newer interpolation-based pipelines outperform it on smooth fields, but Lorenzo+Reg remains competitive for piecewise-structured data and is the foundation of large-scale parallel SZ workflows.",
+      "data_examples": [
+        "NYX cosmology AMR (baryon density, dark matter density, vx/vy/vz)",
+        "WarpX electromagnetic PIC AMR",
+        "HACC cosmology N-body (~1.8 TB / 0.1 trillion particles)",
+        "CESM-ATM (CLDLOW, CLDHGH, FREQSH)",
+        "Hurricane ISABEL",
+        "SCALE-LETKF",
+        "EXAFEL (LCLS X-ray)",
+        "QMCPack wavefunctions"
+      ],
+      "references": [
+        {
+          "title": "Fast Error-bounded Lossy HPC Data Compression with SZ",
+          "venue": "IPDPS",
+          "year": 2016,
+          "evidence": "Original SZ (curve-fitting predecessor of Lorenzo+Reg) achieves CR 3.3x-436x across 13 HPC applications, beating ZFP by 80% on the 1.5 TB ATM climate dataset."
+        },
+        {
+          "title": "Significantly Improving Lossy Compression for Scientific Data Sets Based on Multidimensional Prediction and Error-Controlled Quantization",
+          "venue": "IPDPS",
+          "year": 2017,
+          "evidence": "SZ-1.4 with multidimensional Lorenzo prediction reaches average CR 21.3 on Hurricane (166% higher than ZFP, 139% higher than SZ-1.1) and 162% higher than ZFP on ATM climate data at maximum error 4.3e-4."
+        },
+        {
+          "title": "Error-Controlled Lossy Compression Optimized for High Compression Ratios of Scientific Datasets",
+          "venue": "IEEE BigData",
+          "year": 2018,
+          "evidence": "Adaptive hybrid Lorenzo + linear-regression predictor (the LORENZO_REG core) achieves 1.5x-8x higher CR than SZ and ZFP on Hurricane/NYX/CESM-ATM at the same PSNR; 1.5x dumping and 1.72x loading throughput at 8,192 cores on 24 TB."
+        },
+        {
+          "title": "An Efficient Transformation Scheme for Lossy Data Compression with Point-wise Relative Error Bound",
+          "venue": "IEEE Cluster",
+          "year": 2018,
+          "evidence": "Logarithmic transform integrated with SZ (Lorenzo-based) yields 38% higher dumping and 31% higher loading throughput vs. the second-best compressor on HACC/NYX/CESM-ATM/Hurricane at up to 4,096 cores."
+        },
+        {
+          "title": "Improving Performance of Data Dumping with Lossy Compression for Scientific Simulation",
+          "venue": "IEEE Cluster",
+          "year": 2018,
+          "evidence": "Adaptive selection between SZ (Lorenzo-based) and ZFP improves overall data-dumping performance by up to 27% on NYX and Hurricane at 32k cores; on NYX dark-matter density SZ's CR is up to 10x ZFP's."
+        },
+        {
+          "title": "Significantly Improving Lossy Compression for HPC Datasets with Second-Order Prediction and Parameter Optimization",
+          "venue": "HPDC",
+          "year": 2020,
+          "evidence": "Adding 2nd-order Lorenzo + 2nd-order regression with autotuning (the SZ-Auto pipeline that became LORENZO_REG in fz/SZ3) improves CR by up to 46% over the second-best compressor on Hurricane/Miranda/QMCPack/SCALE-LETKF and improves parallel I/O by up to 40% at 4,096 cores."
+        },
+        {
+          "title": "Understanding GPU-Based Lossy Compression for Extreme-Scale Cosmological Simulations (Foresight)",
+          "venue": "IPDPS",
+          "year": 2020,
+          "evidence": "GPU-SZ (Lorenzo+regression predictor) outperforms cuZFP at the same bitrate on NYX; achieves 5x-15x compression with acceptable post-analysis distortion on HACC and NYX datasets."
+        },
+        {
+          "title": "SDRBench: Scientific Data Reduction Benchmark for Lossy Compressors",
+          "venue": "DRBSD-7 (SC workshop)",
+          "year": 2020,
+          "evidence": "Benchmarks SZ (Lorenzo+regression) on NYX, Hurricane-ISABEL, SCALE-LETKF, CESM-ATM and EXAFEL; SZ(Hybrid) shows the best rate-distortion across all four Hurricane-ISABEL fields and best overall across the four applications."
+        },
+        {
+          "title": "AMRIC: A Novel In Situ Lossy Compression Framework for Efficient I/O in Adaptive Mesh Refinement Applications",
+          "venue": "SC",
+          "year": 2023,
+          "evidence": "Evaluates SZ_L/R (Lorenzo + linear regression) on NYX and WarpX AMR runs at up to 4096 CPU cores; AMRIC's optimized SZ_L/R reaches CR ~53.2 vs. baseline 51.7 on NYX baryon density and reduces inter-AMR-level boundary artifacts."
+        }
+      ],
+      "canonical_terms": [
+        "Lorenzo regression",
+        "SZ2"
+      ]
+    },
+    {
+      "id": "ALGO_INTERP_LORENZO",
+      "name": "Auto-tuned Interpolation + Lorenzo (SZ3 default)",
+      "category": "algorithm",
+      "wiring_file": "include/SZ3/api/impl/SZAlgoInterp.hpp",
+      "pipeline": {
+        "decomposition": "InterpolationDecomposition | BlockwiseDecomposition",
+        "quantizer": "LinearQuantizer",
+        "encoder": "HuffmanEncoder",
+        "lossless": "Lossless_zstd"
+      },
+      "pipeline_notes": "Decomposition is auto-selected from a ~0.5% sample of the input: interpolation for smoother fields, blockwise Lorenzo+regression otherwise. Sampling fraction is hardcoded.",
+      "supported_dims": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "supported_dtypes": [
+        "float",
+        "double",
+        "int32",
+        "int64"
+      ],
+      "error_modes": [
+        "ABS",
+        "REL",
+        "PSNR",
+        "NORM"
+      ],
+      "keywords": [
+        "interpolation",
+        "Lorenzo",
+        "auto-tuning",
+        "spline",
+        "SZ3",
+        "default",
+        "general purpose",
+        "adaptive",
+        "sampling",
+        "InterpolationDecomposition",
+        "BlockwiseDecomposition",
+        "cosmology",
+        "cosmological simulation",
+        "CESM",
+        "climate",
+        "climate simulation",
+        "high compression ratio",
+        "high CR",
+        "NYX",
+        "HACC",
+        "Miranda",
+        "simulation data"
+      ],
+      "best_for": "The default fz algorithm. Samples a small fraction (~0.5%) of the data to decide between interpolation-based prediction (better for smooth fields) and Lorenzo+regression (better for noisier or piecewise data), then runs the chosen pipeline. Good first try for unfamiliar datasets. Newer extensions (QoZ, FAZ, HPEZ/QoZ2) build on the same backbone with quality-metric-driven and modular tuning.",
+      "data_examples": [
+        "NYX 4096^3 cosmology (~2.8 TB per snapshot)",
+        "CESM-ATM (CLDLOW, CLDHGH, FREQSH, TS)",
+        "Hurricane ISABEL (U, water surface)",
+        "Miranda density",
+        "RTM (3D reverse-time-migration seismic)",
+        "SCALE-LETKF",
+        "QMCPack"
+      ],
+      "references": [
+        {
+          "title": "Optimizing Error-Bounded Lossy Compression for Scientific Data by Dynamic Spline Interpolation",
+          "venue": "ICDE",
+          "year": 2021,
+          "evidence": "Dynamic selection between spline interpolation and multilevel Lorenzo (the design that became INTERP_LORENZO) yields 20%-460% higher CR than the second-best compressor at the same error bound; on RTM seismic CR 316 at PSNR 50.7 and on QMCPack CR 196 at PSNR 56.2."
+        },
+        {
+          "title": "Improving Prediction-Based Lossy Compression Dramatically via Ratio-Quality Modeling",
+          "venue": "arXiv (Sian Jin et al.)",
+          "year": 2021,
+          "evidence": "Models prediction-based compressors (SZ interp + Lorenzo) over 10 scientific datasets including NYX 4096^3 cosmology and 3D RTM; reduces HDF5 storage time on RTM by up to 3.4x with 128 CPU cores; ratio-quality model is 93.47% accurate."
+        },
+        {
+          "title": "Adaptive Configuration of In Situ Lossy Compression for Cosmology Simulations via Fine-Grained Rate-Quality Modeling",
+          "venue": "HPDC",
+          "year": 2021,
+          "evidence": "Per-partition adaptive configuration of SZ (interp+Lorenzo) for NYX cosmology improves CR by up to 73% at the same post-analysis distortion with only 1% performance overhead on a 4096^3 NYX snapshot (2.8 TB)."
+        },
+        {
+          "title": "Understanding Effectiveness of Multi-error-bounded Lossy Compression for Preserving Ranges of Interest in Scientific Analysis",
+          "venue": "DRBSD-7 (SC workshop)",
+          "year": 2021,
+          "evidence": "Multi-range SZ (interp+Lorenzo) on Hurricane (water surface > 1m for trajectory tracing) and NYX (dark-matter halo construction in value range [81, 83]) achieves 15% CR improvement with negligible time overhead."
+        },
+        {
+          "title": "Exploring Autoencoder-Based Error-Bounded Compression for Scientific Data (AE-SZ)",
+          "venue": "IEEE Cluster",
+          "year": 2021,
+          "evidence": "Compares against SZ2.1 (the Lorenzo+interp predecessor) on CESM-FREQSH, CESM-CLDHGH, NYX baryon density, RTM, Hurricane-U; AE-SZ delivers 100%-800% CR improvement at high CR."
+        },
+        {
+          "title": "SZ3: A Modular Framework for Composing Prediction-Based Error-Bounded Lossy Compressors",
+          "venue": "IEEE TC",
+          "year": 2022,
+          "evidence": "SZ3 modular framework (which exposes INTERP_LORENZO as the default-tuned pipeline) attains up to 20% better CR than the prior best at the same distortion across GAMESS/APS/Hurricane/CESM-ATM/Miranda/NYX/RTM/QMCPack."
+        }
+      ],
+      "canonical_terms": [
+        "interpolation Lorenzo",
+        "SZ3 default"
+      ]
+    },
+    {
+      "id": "ALGO_INTERP",
+      "name": "Interpolation only",
+      "category": "algorithm",
+      "wiring_file": "include/SZ3/api/impl/SZAlgoInterp.hpp",
+      "pipeline": {
+        "decomposition": "InterpolationDecomposition",
+        "quantizer": "LinearQuantizer",
+        "encoder": "HuffmanEncoder",
+        "lossless": "Lossless_zstd"
+      },
+      "pipeline_notes": "Pure interpolation predictor with no Lorenzo fallback. Skips the auto-tune cost of ALGO_INTERP_LORENZO.",
+      "supported_dims": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "supported_dtypes": [
+        "float",
+        "double",
+        "int32",
+        "int64"
+      ],
+      "error_modes": [
+        "ABS",
+        "REL",
+        "PSNR",
+        "NORM"
+      ],
+      "keywords": [
+        "interpolation",
+        "spline",
+        "smooth",
+        "SZ3",
+        "Lagrange",
+        "cubic",
+        "QoZ",
+        "FAZ",
+        "HPEZ"
+      ],
+      "best_for": "Pure interpolation predictor (no Lorenzo fallback). Best for very smooth scientific fields where neighborhood interpolation captures most of the structure. Skip the auto-tune cost when you already know your data is smooth. The interpolation backbone has been extended in QoZ (SC22), FAZ (ICS23), and HPEZ/QoZ2 (SIGMOD24); newer findings consistently report higher CR on the same SDRBench datasets.",
+      "data_examples": [
+        "CESM-ATM (smooth scalar fields, CLDHGH, FSNTC)",
+        "Miranda turbulent mixing",
+        "JHTDB turbulence",
+        "GAMESS quantum chemistry",
+        "APS light source",
+        "RTM seismic",
+        "SCALE-LETKF",
+        "Hurricane ISABEL"
+      ],
+      "references": [
+        {
+          "title": "Optimizing Error-Bounded Lossy Compression for Scientific Data by Dynamic Spline Interpolation",
+          "venue": "ICDE",
+          "year": 2021,
+          "evidence": "Pure cubic-spline interpolation predictor (the basis of ALGO_INTERP) on six datasets (QMCPack, RTM, Hurricane, NYX, Miranda, SCALE-LETKF) is the second-best component used by the dynamic selector and contributes the 20%-460% CR improvement over the prior best at the same error bound."
+        },
+        {
+          "title": "SZ3: A Modular Framework for Composing Prediction-Based Error-Bounded Lossy Compressors",
+          "venue": "IEEE TC",
+          "year": 2022,
+          "evidence": "SZ3's interpolation pipeline drives the GAMESS pipeline (CR 8.40 vs. SZ-Pastri reference at error 1e-10) and the APS pipeline that achieves the best rate-distortion among all error-bounded lossy compressors at every bit-rate."
+        },
+        {
+          "title": "Dynamic Quality Metric Oriented Error Bounded Lossy Compression for Scientific Datasets (QoZ)",
+          "venue": "SC",
+          "year": 2022,
+          "evidence": "QoZ extends SZ3's pure-interpolation predictor with quality-metric-driven auto-tuning and reaches up to 70% higher CR at the same error bound, 150% at the same PSNR, and 270% at the same SSIM vs. the second-best compressor on RTM/Miranda/Hurricane/NYX/SCALE-LETKF/CESM-ATM."
+        },
+        {
+          "title": "FAZ: A Flexible Auto-tuned Modular Error-Bounded Compression Framework for Scientific Data",
+          "venue": "ICS",
+          "year": 2023,
+          "evidence": "FAZ composes interpolation (SZ3) with wavelet stages and improves CR by up to 120% at the same error bound, 190% at the same PSNR, and 75% at the same SSIM over the second-best compressor on RTM/SEGSalt/Miranda/SCALE-LETKF/NYX/Hurricane."
+        },
+        {
+          "title": "High-performance Effective Scientific Error-bounded Lossy Compression with Auto-tuned Multi-component Interpolation (HPEZ/QoZ2)",
+          "venue": "ACM SIGMOD",
+          "year": 2024,
+          "evidence": "HPEZ enhances the SZ3-style interpolation predictor and achieves up to 140% higher CR at the same error bound and 360% at the same PSNR vs. other high-performance compressors on CESM/Miranda/JHTDB, with up to 40% lower data-transfer time vs. the second best."
+        },
+        {
+          "title": "Improving the Efficiency of Interpolation-based Scientific Data Compressors with Adaptive Quantization Index Prediction",
+          "venue": "IPDPS",
+          "year": 2025,
+          "evidence": "Quantization-index-prediction layer added on top of SZ3 (and MGARD/QoZ/HPEZ) improves CR by up to 95% at the same quality, e.g. +45% on Miranda for SZ3 (PSNR 101.23) and +48.9% on CESM-3D (PSNR 108.9), with 16% better end-to-end transfer."
+        }
+      ],
+      "canonical_terms": [
+        "interpolation",
+        "interpolation only",
+        "spline interpolation"
+      ]
+    },
+    {
+      "id": "ALGO_NOPRED",
+      "name": "Quantize-only (no prediction)",
+      "category": "algorithm",
+      "wiring_file": "include/SZ3/api/impl/SZAlgoNopred.hpp",
+      "pipeline": {
+        "decomposition": "NoPredictionDecomposition",
+        "quantizer": "LinearQuantizer",
+        "encoder": "HuffmanEncoder",
+        "lossless": "Lossless_zstd"
+      },
+      "pipeline_notes": "Skips prediction entirely; quantizes the raw value. Useful as a controlled baseline that isolates the contribution of prediction in any composition.",
+      "supported_dims": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "supported_dtypes": [
+        "float",
+        "double",
+        "int32",
+        "int64"
+      ],
+      "error_modes": [
+        "ABS",
+        "REL",
+        "PSNR",
+        "NORM"
+      ],
+      "keywords": [
+        "no prediction",
+        "quantize only",
+        "baseline",
+        "noisy data",
+        "uncorrelated",
+        "ablation"
+      ],
+      "best_for": "Skips prediction entirely and just quantizes. The reference baseline for ablation studies, and a pragmatic choice when neighbor correlation is so weak that prediction wastes effort (high-frequency noise, post-FFT residuals, certain sensor traces). Use this entry to quantify how much CR your predictor is actually buying you, or as a stable lower bound when the data has no exploitable spatial structure.",
+      "data_examples": [
+        "White-noise streams",
+        "Uncorrelated measurement residuals",
+        "Random samples"
+      ],
+      "references": [],
+      "canonical_terms": [
+        "quantize only",
+        "no prediction"
+      ]
+    },
+    {
+      "id": "ALGO_LOSSLESS",
+      "name": "Lossless (Zstd passthrough)",
+      "category": "algorithm",
+      "wiring_file": "",
+      "wiring_note": "No dedicated SZAlgoLossless.hpp; the Zstd passthrough lives directly in SZDispatcher.hpp as a fallback branch (see include/SZ3/api/impl/SZDispatcher.hpp).",
+      "pipeline": {
+        "decomposition": "(none)",
+        "quantizer": "(none)",
+        "encoder": "(none)",
+        "lossless": "Lossless_zstd"
+      },
+      "pipeline_notes": "Bytes flow directly to Lossless_zstd; no decomposition/quantizer/encoder stages. Auto-selected by the dispatcher when error tolerance is 0 or when lossy CR drops below 3:1.",
+      "supported_dims": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "supported_dtypes": [
+        "float",
+        "double",
+        "int32",
+        "int64",
+        "any"
+      ],
+      "error_modes": [
+        "lossless"
+      ],
+      "keywords": [
+        "lossless",
+        "Zstd",
+        "no loss",
+        "exact",
+        "fallback",
+        "reproducibility",
+        "bit-exact",
+        "fast lossless",
+        "fast",
+        "high throughput",
+        "zero-error",
+        "no-loss"
+      ],
+      "best_for": "Fast lossless compression via Zstd. Used when error tolerance is zero, or as an automatic fallback when lossy CR is too low to be worth the loss. Works on any dtype and dim, and is the fastest path for already-incompressible or noise-dominated data. The lossless path is also the simplest baseline for throughput comparisons. Not benchmarked in the lossy-compression literature, but invoked by the fz dispatcher whenever lossy CR drops below 3:1.",
+      "data_examples": [
+        "Reference checkpoints requiring bit-exact reproducibility",
+        "Already-quantized integer arrays",
+        "Source code, configs, indices co-stored with data"
+      ],
+      "references": [],
+      "canonical_terms": [
+        "zstd",
+        "lossless",
+        "no loss",
+        "fast lossless",
+        "bit-exact"
+      ]
+    },
+    {
+      "id": "ALGO_BIOMD",
+      "name": "Molecular Dynamics (MDZ)",
+      "category": "algorithm",
+      "wiring_file": "include/SZ3/api/impl/SZAlgoBioMD.hpp",
+      "pipeline": {
+        "decomposition": "SZBioMDDecomposition",
+        "quantizer": "LinearQuantizer",
+        "encoder": "HuffmanEncoderV2",
+        "lossless": "Lossless_zstd"
+      },
+      "pipeline_notes": "HuffmanEncoderV2 is the MD-tuned Huffman variant used in place of the default HuffmanEncoder. SZBioMDDecomposition exploits inter-frame temporal locality and per-residue spatial structure.",
+      "supported_dims": [
+        3
+      ],
+      "supported_dtypes": [
+        "float",
+        "double"
+      ],
+      "error_modes": [
+        "ABS",
+        "REL"
+      ],
+      "keywords": [
+        "molecular dynamics",
+        "MD",
+        "biomolecular",
+        "trajectory",
+        "atom positions",
+        "atom coordinates",
+        "GROMACS",
+        "LAMMPS",
+        "AMBER",
+        "protein simulation",
+        "biophysics",
+        "MDZ",
+        "particle data"
+      ],
+      "best_for": "Molecular-dynamics trajectory data where each frame stores per-atom (x,y,z) coordinates. Exploits inter-frame temporal locality and per-residue spatial structure. Use when your data is an MD trajectory with predictable bonded-atom motion.",
+      "data_examples": [
+        "Copper (Mode A & B) - electric-field MD on copper, LANL",
+        "Helium (Mode A & B) - He bubbles in W matrix, 106,711 atoms",
+        "Pt - platinum surface diffusion / adatom clustering",
+        "ADK - adenylate kinase (~1.004 us trajectory)",
+        "IFABP - intestinal fatty-acid-binding protein, 12,445 atoms",
+        "LJ - Lennard-Jones simulation",
+        "HACC cosmology N-body (also used to demonstrate generalization)",
+        "AMDF molecular-dynamics (LANL)",
+        "Apoa1 / ATPase / STMV (common community benchmarks)"
+      ],
+      "references": [
+        {
+          "title": "In-Depth Exploration of Single-Snapshot Lossy Compression Techniques for N-Body Simulations",
+          "venue": "IEEE BigData",
+          "year": 2017,
+          "evidence": "On AMDF molecular-dynamics single-snapshot data, the proposed SZ-LV (a precursor pattern that ALGO_BIOMD inherits) achieves the best rate-distortion vs. CPC2000/FPZIP/ZFP/SZ; reduces I/O time by 80% vs. direct PFS writes and outperforms the second-best by 60% on up to 1024 cores."
+        },
+        {
+          "title": "MDZ: An Efficient Error-bounded Lossy Compressor for Molecular Dynamics",
+          "venue": "ICDE",
+          "year": 2022,
+          "evidence": "MDZ (the basis of ALGO_BIOMD) achieves up to 233% higher CR than the second-best lossy compressor across 8 MD datasets (Copper-A/B, Helium-A/B, LJ, Pt, ADK, IFABP); on HACC cosmology data the ratio is 30-56% higher than the second-best; compression speeds 95-119 MB/s at quantization scale 1024."
+        },
+        {
+          "title": "An Error-Bounded Lossy Compression Method with Bit-Adaptive Quantization for Particle Data",
+          "venue": "IEEE TVCG (Congrong Ren et al.)",
+          "year": 2024,
+          "evidence": "Direct comparison against MDZ on cosmology, fluid-dynamics, and fusion-plasma particle datasets; the new method reaches PSNR 70.8 dB at 2.53 BPP where competing compressors max out at 24.79 dB on a 197,761-particle fluid-dynamics ensemble - illustrates MDZ as a SOTA particle-data baseline."
+        },
+        {
+          "title": "CliZ: Optimizing Lossy Compression for Climate Datasets with Adaptive Fine-tuned Data Prediction",
+          "venue": "IPDPS",
+          "year": 2024,
+          "evidence": "Cites MDZ as the canonical example of a domain-specialized error-bounded lossy compressor (for the MD domain) that exploits spatial pattern + high temporal smoothness, validating ALGO_BIOMD's design rationale."
+        },
+        {
+          "title": "A Survey on Error-Bounded Lossy Compression for Scientific Datasets",
+          "venue": "ACM Computing Surveys",
+          "year": 2025,
+          "evidence": "Survey lists MDZ as the canonical vector-quantization + multi-level temporal-smoothness compressor for MD applications, alongside NUMARCK; classifies it as a domain-customized compressor for chemistry/MD."
+        }
+      ],
+      "canonical_terms": [
+        "molecular dynamics",
+        "MD trajectory",
+        "biomolecular",
+        "protein simulation",
+        "MDZ"
+      ]
+    },
+    {
+      "id": "ALGO_BIOMDXTC",
+      "name": "XTC-style Trajectory (GROMACS-compatible)",
+      "category": "algorithm",
+      "wiring_file": "include/SZ3/api/impl/SZAlgoBioMD.hpp",
+      "pipeline": {
+        "decomposition": "SZBioMDXtcDecomposition",
+        "quantizer": "LinearQuantizer",
+        "encoder": "XtcBasedEncoder",
+        "lossless": "Lossless_bypass"
+      },
+      "pipeline_notes": "LinearQuantizer is configured with XTC-radius bin spacing matching the GROMACS XTC format. The XTC encoder writes the GROMACS-compatible bitstream directly, so the lossless stage is a bypass.",
+      "supported_dims": [
+        3
+      ],
+      "supported_dtypes": [
+        "float",
+        "double"
+      ],
+      "error_modes": [
+        "ABS"
+      ],
+      "keywords": [
+        "molecular dynamics",
+        "MD",
+        "XTC",
+        "GROMACS",
+        "trajectory",
+        "biomolecular",
+        "atom positions",
+        "compressed trajectory format",
+        "TNG",
+        "HRTC"
+      ],
+      "best_for": "Molecular-dynamics trajectories that mimic the GROMACS XTC compression style. Specialized for atom-coordinate data with tight absolute-error bounds typical of MD analysis pipelines.",
+      "data_examples": [
+        "GROMACS .xtc files",
+        "TNG-format trajectories (GROMACS XTC successor)",
+        "HRTC trajectory benchmark",
+        "Compressed protein trajectories at low ABS bound"
+      ],
+      "references": [
+        {
+          "title": "MDZ: An Efficient Error-bounded Lossy Compressor for Molecular Dynamics",
+          "venue": "ICDE",
+          "year": 2022,
+          "evidence": "MDZ benchmarks against TNG (the GROMACS XTC-style trajectory format) and HRTC across 8 MD datasets; TNG/HRTC are XTC-derived baselines, providing direct evidence for ALGO_BIOMDXTC's relevance to GROMACS MD pipelines."
+        }
+      ],
+      "niche_variant": true
+    },
+    {
+      "id": "ALGO_SVD",
+      "name": "SVD / Tucker decomposition",
+      "category": "algorithm",
+      "wiring_file": "include/SZ3/api/impl/SZAlgoSVD.hpp",
+      "pipeline": {
+        "decomposition": "SVDDecomposition",
+        "quantizer": "LinearQuantizer",
+        "encoder": "HuffmanEncoder",
+        "lossless": "Lossless_zstd"
+      },
+      "pipeline_notes": "SVDDecomposition is constructed with two LinearQuantizer instances (svd_quantizer scaled by Config::svd_quant_eb_scale, plus res_quantizer at the user error bound) - one for the SVD core/factors, one for the residual.",
+      "supported_dims": [
+        3,
+        4
+      ],
+      "supported_dtypes": [
+        "float",
+        "double"
+      ],
+      "error_modes": [
+        "ABS",
+        "REL",
+        "PSNR"
+      ],
+      "keywords": [
+        "SVD",
+        "Tucker",
+        "low rank",
+        "tensor",
+        "4D",
+        "4-dimensional",
+        "high-order tensor",
+        "core tensor",
+        "matrix decomposition",
+        "singular value",
+        "TTHRESH",
+        "HOSVD",
+        "ST-HOSVD",
+        "GPU",
+        "GPU compression",
+        "CUDA",
+        "global decomposition",
+        "tensor decomposition",
+        "higher-order SVD",
+        "low-rank approximation",
+        "tensor compression",
+        "higher-order tensor decomposition"
+      ],
+      "best_for": "Higher-order tensor data (3D and 4D) where most energy concentrates in a small number of singular components. Stores a low-rank core plus residuals. Best when the data has strong global structure rather than purely local correlations. Newest results (TZ at HPDC26) report ~10x higher CR than CPU/GPU SOTA on production datasets, including GPU implementations of Tucker decomposition.",
+      "data_examples": [
+        "S3D combustion (Sandia DNS, 4.5 TB / 6.7 TB SP/JICF runs)",
+        "ERA5 climate (15000 / 4000 snapshots)",
+        "BLASTNet H2/Air reacting jet flame (pressure, mass density, temperature)",
+        "SCALE-LETKF (temperature, z-velocity)",
+        "Isotropic turbulence (512^3 volumes)",
+        "Hyperspectral imagery (H x W x bands, naturally 3D)"
+      ],
+      "references": [
+        {
+          "title": "TTHRESH: Tensor Compression for Multidimensional Visual Data",
+          "venue": "IEEE TVCG",
+          "year": 2019,
+          "evidence": "TTHRESH (HOSVD + bit-plane coding) compresses a 512^3 isotropic turbulence volume by 10:1 with visually identical results and by 300:1 (512 MB to 1.71 MB) under heavy compression, outperforming ZFP and other compressors at low-to-medium bitrates."
+        },
+        {
+          "title": "TuckerMPI: A Parallel C++/MPI Software Package for Large-scale Data Compression via the Tucker Tensor Decomposition",
+          "venue": "ACM TOMS",
+          "year": 2020,
+          "evidence": "TuckerMPI compressed 4.5 TB and 6.7 TB S3D combustion datasets (SP and JICF) by 100x-200,000x (99-99.999% reduction) on 250-350 nodes in O(10-100) seconds, faster than reading the data from the parallel file system."
+        },
+        {
+          "title": "An Adaptive Two-stage Algorithm for Error-Bounded Scientific Data Compression",
+          "venue": "IPDPS",
+          "year": 2025,
+          "evidence": "A two-stage SVD compressor (ssz) consistently exceeds rSVD and SZ compression ratios at the same target NRMSE on ERA5 climate (15000 and 4000 snapshots), BLASTNet H2/Air reacting jet flame (pressure, mass density, temperature), and SCALE-LETKF (temperature, z-velocity)."
+        },
+        {
+          "title": "TZ: Achieving High-Ratio Scientific Data Compression on GPUs with Global Data Decomposition",
+          "venue": "HPDC",
+          "year": 2026,
+          "evidence": "TZ, a GPU-native global Tucker-decomposition compressor, achieves ~10x higher CR than state-of-the-art GPU compressors (cuSZ-Hi, cuSZp2, cuZFP) under the same error bound on production-scale datasets including NYX velocity_x, Miranda, and Hurricane ISABEL."
+        }
+      ],
+      "canonical_terms": [
+        "svd",
+        "tucker",
+        "svd tucker",
+        "tensor decomposition",
+        "low-rank tensor"
+      ]
+    },
+    {
+      "id": "ALGO_ZFP",
+      "name": "ZFP block transform",
+      "category": "algorithm",
+      "wiring_file": "include/SZ3/api/impl/SZAlgoZFP.hpp",
+      "pipeline": {
+        "decomposition": "ZFPDecomposition",
+        "quantizer": "(internal to ZFP)",
+        "encoder": "ZFPEncoder",
+        "lossless": "(none)"
+      },
+      "pipeline_notes": "ZFP runs as a self-contained block-transform pipeline (bundled ZFPCompressor); the quantizer and entropy coder live inside ZFP itself, and the output is a raw ZFP bitstream with no additional lossless stage.",
+      "supported_dims": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "supported_dtypes": [
+        "float",
+        "double"
+      ],
+      "error_modes": [
+        "ABS",
+        "PSNR",
+        "fixed-rate",
+        "fixed-precision"
+      ],
+      "keywords": [
+        "ZFP",
+        "block transform",
+        "fixed rate",
+        "fixed bitrate",
+        "bitrate target",
+        "predictable storage",
+        "storage budget",
+        "fixed precision",
+        "GPU",
+        "GPU compression",
+        "cuZFP",
+        "CUDA",
+        "random access",
+        "LLNL",
+        "embedded coding",
+        "fpzip",
+        "seismic",
+        "AMR"
+      ],
+      "best_for": "Floating-point arrays where you want fixed-bitrate guarantees (predictable storage budget) or random-access decompression of small blocks. Particularly common in GPU/accelerated contexts (cuZFP) and large-scale visualization pipelines. SZ-family pipelines (interp, Lorenzo+reg) typically beat ZFP on CR for smooth scientific fields, but ZFP wins when fixed-rate or random-access access patterns are mandatory, or when a strict per-block storage budget must be honored.",
+      "data_examples": [
+        "Miranda turbulent mixing",
+        "S3D combustion",
+        "pF3D laser-plasma",
+        "LULESH hydrodynamics",
+        "HACC cosmology N-body (1.8 TB / 1024-core parallel runs)",
+        "NYX AMR cosmology (baryon density)",
+        "WarpX EM PIC simulation",
+        "CESM atmosphere variables (FSNTC, PRECCDZM)",
+        "AMDF molecular-dynamics (LANL)",
+        "3D seismic FWI wavefields (~1000x CR)"
+      ],
+      "references": [
+        {
+          "title": "Fast and Efficient Compression of Floating-Point Data (fpzip)",
+          "venue": "IEEE TVCG",
+          "year": 2006,
+          "evidence": "fpzip (ZFP's predecessor) achieved an average compressed size of 10.7 bits/float on Miranda single-precision data and 18.0 bits/float on Hurricane ISABEL, with lossless reductions of 1.4x-15x; integrated with Miranda's dump routine, it gave a lossless reduction of 3.7x on 75 GB across 256 nodes."
+        },
+        {
+          "title": "Fixed-Rate Compressed Floating-Point Arrays (ZFP)",
+          "venue": "IEEE TVCG",
+          "year": 2014,
+          "evidence": "ZFP achieves visually indistinguishable reconstruction at 4 bits/double (16x compression) on a 384x384x256 grid, with up to 400 MB/s decompression throughput, evaluated on Miranda, S3D, pF3D, and LULESH simulations."
+        },
+        {
+          "title": "Wavefield Compression for Adjoint Methods in Full-Waveform Inversion (Boehm et al.)",
+          "venue": "Geophysics (SEG)",
+          "year": 2016,
+          "evidence": "Hierarchical-grid wavefield compression for FWI seismic adjoint kernels achieves an effective compression factor of three orders of magnitude (~1000x) on 3D seismic data with only minor reduction in convergence rate."
+        },
+        {
+          "title": "In-Depth Exploration of Single-Snapshot Lossy Compression Techniques for N-Body Simulations",
+          "venue": "IEEE BigData",
+          "year": 2017,
+          "evidence": "ZFP evaluated alongside FPZIP, CPC2000, and SZ-LV on 1.8 TB HACC data in parallel up to 64 nodes / 1024 processes; rate-distortion curves shown for HACC and AMDF datasets."
+        },
+        {
+          "title": "Significantly Improving Lossy Compression Quality Based on an Optimized Hybrid Prediction Model",
+          "venue": "SC",
+          "year": 2019,
+          "evidence": "An adaptive hybrid SZ+ZFP-transform predictor improves CR by 112%-165% over the second-best compressor on Hurricane ISABEL, NYX, and SCALE-LETKF, reducing total I/O time up to 60x at 8,192 cores - illustrates ZFP as part of a winning hybrid."
+        },
+        {
+          "title": "Understanding GPU-Based Lossy Compression for Extreme-Scale Cosmological Simulations (Foresight)",
+          "venue": "IPDPS",
+          "year": 2020,
+          "evidence": "cuZFP evaluated on HACC and NYX; one HACC simulation at 0.1 trillion particles on 1024 Summit nodes generates 2.5 TB per snapshot. ZFP fixed-rate mode contrasted against GPU-SZ."
+        },
+        {
+          "title": "Efficient and Flexible Hierarchical Data Layouts for a Unified Encoding of Scalar Field Precision and Resolution",
+          "venue": "IEEE TVCG",
+          "year": 2021,
+          "evidence": "A unified precision-resolution tree layout matches state-of-the-art compressors (including ZFP) on data quality while being orders of magnitude faster, demonstrated on a 900 GB turbulent channel flow field (10240 x 7680 x 1536 float64)."
+        },
+        {
+          "title": "A High-Quality Workflow for Multi-Resolution Scientific Data Reduction and Visualization",
+          "venue": "SC",
+          "year": 2024,
+          "evidence": "ZFP optimized for AMR multi-resolution datasets (NYX, WarpX); workflow improves CR by up to 3.3x at the same data quality on AMR-formatted NYX and WarpX runs; WarpX visualizes correctly at CR=240 with the new workflow."
+        }
+      ],
+      "canonical_terms": [
+        "zfp",
+        "block transform"
+      ]
+    },
+    {
+      "id": "ALGO_SPERR",
+      "name": "SPERR (wavelet + SPECK)",
+      "category": "algorithm",
+      "wiring_file": "include/SZ3/api/impl/SZAlgoSPERR.hpp",
+      "pipeline": {
+        "decomposition": "SPERRDecomposition",
+        "quantizer": "ScalarQuantizer",
+        "encoder": "SPERREncoder",
+        "lossless": "Lossless_bypass"
+      },
+      "pipeline_notes": "SPERRDecomposition uses a CDF 9/7 wavelet; ScalarQuantizer drives the SPECK bitplane coder, which internalizes much of the quantization. Output is a SPECK bitstream so the lossless stage is a bypass.",
+      "supported_dims": [
+        3
+      ],
+      "supported_dtypes": [
+        "float",
+        "double"
+      ],
+      "error_modes": [
+        "PSNR",
+        "bitrate",
+        "ABS"
+      ],
+      "keywords": [
+        "SPERR",
+        "wavelet",
+        "SPECK",
+        "CDF 9/7",
+        "PSNR target",
+        "bitrate target",
+        "smooth fields",
+        "climate",
+        "CFD",
+        "embedded coding",
+        "progressive"
+      ],
+      "best_for": "Smooth 3D floating-point scientific fields where you target PSNR or bitrate rather than absolute error. Excellent for climate, CFD pressure/velocity, and other slowly-varying physical fields. 3D-only in this build (disabled on MinGW). Recent climate-domain work (CliZ IPDPS24) shows newer prediction-based compressors can beat SPERR by ~7x at SSIM-equal quality on CESM variables, so consider SZ3/CliZ if SSIM is the target.",
+      "data_examples": [
+        "CESM-T (atmosphere temperature)",
+        "Sea-surface height (SSH)",
+        "Relative humidity (RELHUM)",
+        "Soil liquid water (SOILLIQ)",
+        "Miranda turbulent mixing",
+        "SCALE-LETKF atmospheric ensembles",
+        "Hurricane ISABEL pressure",
+        "CESM atmospheric variables (PRECCDZM, FSNTC)"
+      ],
+      "references": [
+        {
+          "title": "Efficient, Low-Complexity Image Coding With a Set-Partitioning Embedded Block Coder (SPECK)",
+          "venue": "IEEE TCSVT",
+          "year": 2004,
+          "evidence": "SPECK was reported to be 4.6x-15.7x faster than JPEG2000 VM 3.2A in encoding and 8.1x-12.1x faster in decoding, with PSNR within 0.48-0.85 dB of JPEG2000 across four images at rates 0.25, 0.5, 1.0, and 2.0 bpp."
+        },
+        {
+          "title": "Evaluating Image Quality Measures to Assess the Impact of Lossy Data Compression Applied to Climate Simulation Data",
+          "venue": "EuroVis (CGF v38 n3)",
+          "year": 2019,
+          "evidence": "SPECK (the wavelet-bitplane core inside SPERR) is one of the two compressors evaluated against FPZIP in a 100+ participant 2AFC visual study on CESM atmospheric output; SSIM ranked as the best perceptual proxy for compression-induced visual change."
+        },
+        {
+          "title": "CliZ: Optimizing Lossy Compression for Climate Datasets with Adaptive Fine-tuned Data Prediction",
+          "venue": "IPDPS",
+          "year": 2024,
+          "evidence": "SPERR is one of the four SOTA baselines (with SZ3, ZFP, QoZ) evaluated on CESM-T, SSH, RELHUM, SOILLIQ; at SSIM-equal quality CliZ gets ~7x CR vs. the second-best (SZ3, QoZ1.1, or SPERR) - i.e. SPERR is competitive but newer prediction-based methods can surpass it on smooth climate fields."
+        }
+      ],
+      "canonical_terms": [
+        "sperr",
+        "wavelet",
+        "speck"
+      ]
+    },
+    {
+      "id": "ALGO_MGARD",
+      "name": "MGARD (multigrid)",
+      "category": "algorithm",
+      "wiring_file": "include/SZ3/api/impl/SZAlgoMGARD.hpp",
+      "pipeline": {
+        "decomposition": "MGARDDecomposition",
+        "quantizer": "LinearQuantizer",
+        "encoder": "BitplaneEncoder",
+        "lossless": "Lossless_zstd"
+      },
+      "pipeline_notes": "MGARDDecomposition is a multigrid hierarchical decomposition; LinearQuantizer is applied per multigrid level under a geometry-driven schedule. Encoder is BitplaneEncoder for level-wise bit-plane output.",
+      "supported_dims": [
+        1,
+        2,
+        3
+      ],
+      "supported_dtypes": [
+        "float",
+        "double"
+      ],
+      "error_modes": [
+        "ABS",
+        "REL",
+        "L2"
+      ],
+      "keywords": [
+        "MGARD",
+        "MGARDx",
+        "multigrid",
+        "hierarchical",
+        "L2 error",
+        "norm-bounded",
+        "ORNL",
+        "QoI preservation",
+        "smooth fields",
+        "PMGARD",
+        "progressive retrieval"
+      ],
+      "best_for": "Smooth 1D/2D/3D floating-point fields where downstream analysis needs preserved L-infinity or L2 norms. Multigrid hierarchy gives strong rate-distortion on continuous PDE solutions and supports progressive/adaptive retrieval (PMGARD, SC21). Disabled on MinGW. fz vendors the MGARDx variant for portability.",
+      "data_examples": [
+        "Hurricane ISABEL",
+        "NYX cosmology",
+        "SCALE-LETKF",
+        "QMCPack",
+        "CESM climate variables (CLDLOW)",
+        "XGC fusion plasma (referenced in MGARD ecosystem)",
+        "HACC cosmology N-body"
+      ],
+      "references": [
+        {
+          "title": "Multilevel Techniques for Compression and Reduction of Scientific Data",
+          "venue": "PhD Dissertation, Brown University",
+          "year": 2018,
+          "evidence": "MGARD applied to CESM Atmosphere CLDLOW data on a 1800 x 3600 grid showing competitive CR vs. SZ and ZFP at the same error tolerances (Table 4.1)."
+        },
+        {
+          "title": "Optimizing Multi-grid Based Reduction for Efficient Scientific Data Management (MGARDx)",
+          "venue": "arXiv (TPDS-style)",
+          "year": 2020,
+          "evidence": "MGARDx improves multi-grid decomposition/recomposition performance by up to 70x and improves CR by up to 2x over the second-best error-controlled lossy compressor on Hurricane ISABEL, NYX, SCALE-LETKF, and QMCPack."
+        },
+        {
+          "title": "Error-Controlled, Progressive, and Adaptable Retrieval of Scientific Data with Multilevel Decomposition (PMGARD)",
+          "venue": "SC",
+          "year": 2021,
+          "evidence": "PMGARD reduces retrieval size by up to 64% versus single-error-bounded approaches and yields 1.36x and 2.52x storing/reading throughput at 1,024 cores on ~600 GB of Hurricane ISABEL, NYX, SCALE-LETKF, and QMCPack data."
+        },
+        {
+          "title": "Understanding Effectiveness of Multi-error-bounded Lossy Compression for Preserving Ranges of Interest in Scientific Analysis",
+          "venue": "DRBSD-7 (SC workshop)",
+          "year": 2021,
+          "evidence": "MGARD listed as one of the major absolute-error-bounded compressors (alongside SZ and ZFP) for climate (CESM) and cosmology (HACC) workloads; serves as evaluation baseline for multi-range error-bounded compression."
+        },
+        {
+          "title": "Toward Quantity-of-Interest Preserving Lossy Compression for Scientific Data",
+          "venue": "VLDB",
+          "year": 2023,
+          "evidence": "QoI-preserving compression atop MGARD/SZ delivers CR up to 4x of the best existing compressors at the same QoI tolerance for kinetic energy, regional average, and isosurface QoIs on real-world datasets."
+        }
+      ],
+      "canonical_terms": [
+        "mgard",
+        "multigrid"
+      ]
+    }
+  ],
+  "modules": [
+    {
+      "id": "HuffmanEncoder",
+      "name": "Huffman Encoder (default)",
+      "category": "encoder",
+      "header": "include/SZ3/encoder/HuffmanEncoder.hpp",
+      "pipeline": {
+        "decomposition": "(consumes int bin sequence)",
+        "quantizer": "(separate)",
+        "encoder": "HuffmanEncoder",
+        "lossless": "(any)"
+      },
+      "supported_dims": [],
+      "supported_dtypes": [
+        "int",
+        "int32"
+      ],
+      "error_modes": [],
+      "keywords": [
+        "Huffman",
+        "entropy coding",
+        "default encoder",
+        "variable-length",
+        "prefix code"
+      ],
+      "best_for": "Default entropy encoder for integer bin sequences emitted by quantizers. Strong general-purpose choice - used by most fz pipelines (LORENZO_REG, INTERP_LORENZO, INTERP, NOPRED, SVD).",
+      "data_examples": [
+        "Quantization-bin sequences from any predictor pipeline"
+      ],
+      "used_by": [
+        "ALGO_LORENZO_REG",
+        "ALGO_INTERP_LORENZO",
+        "ALGO_INTERP",
+        "ALGO_NOPRED",
+        "ALGO_SVD"
+      ],
+      "references": [
+        {
+          "title": "A Method for the Construction of Minimum-Redundancy Codes (Huffman)",
+          "venue": "Proceedings of the IRE",
+          "year": 1952,
+          "evidence": "Original Huffman construction; the optimal prefix-free entropy code for a known symbol distribution. The basis of HuffmanEncoder used in nearly every fz prediction-based pipeline."
+        },
+        {
+          "title": "SZ3: A Modular Framework for Composing Prediction-Based Error-Bounded Lossy Compressors",
+          "venue": "IEEE TC",
+          "year": 2022,
+          "evidence": "SZ3 (and therefore fz) uses Huffman as the default encoder for quantization bin sequences across all prediction-based ALGO_* pipelines; benchmarked on GAMESS/APS/Hurricane/CESM-ATM/Miranda/NYX/RTM/QMCPack."
+        }
+      ]
+    },
+    {
+      "id": "HuffmanEncoderV2",
+      "name": "Huffman Encoder V2",
+      "category": "encoder",
+      "header": "include/SZ3/encoder/HuffmanEncoderV2.hpp",
+      "pipeline": {
+        "decomposition": "(consumes int bin sequence)",
+        "quantizer": "(separate)",
+        "encoder": "HuffmanEncoderV2",
+        "lossless": "(any)"
+      },
+      "supported_dims": [],
+      "supported_dtypes": [
+        "int",
+        "int32"
+      ],
+      "error_modes": [],
+      "keywords": [
+        "Huffman",
+        "Huffman V2",
+        "entropy coding",
+        "molecular dynamics",
+        "MDZ encoder"
+      ],
+      "best_for": "Second-generation Huffman encoder used by ALGO_BIOMD (MDZ). Tuned for the per-atom integer-bin distributions that arise in molecular-dynamics trajectories. Drop-in alternative to HuffmanEncoder when those distributions show up in your residual stream.",
+      "data_examples": [
+        "MDZ per-atom quantization-bin streams",
+        "Skewed bin distributions from MD trajectory residuals"
+      ],
+      "used_by": [
+        "ALGO_BIOMD"
+      ],
+      "references": [
+        {
+          "title": "MDZ: An Efficient Error-bounded Lossy Compressor for Molecular Dynamics",
+          "venue": "ICDE",
+          "year": 2022,
+          "evidence": "MDZ couples a tuned Huffman entropy coder (the basis of HuffmanEncoderV2) to its MD-specific decomposition; up to 233% higher CR than the second-best lossy compressor across 8 MD datasets."
+        }
+      ]
+    },
+    {
+      "id": "ArithmeticEncoder",
+      "name": "Arithmetic Encoder",
+      "category": "encoder",
+      "header": "include/SZ3/encoder/ArithmeticEncoder.hpp",
+      "pipeline": {
+        "decomposition": "(consumes int bin sequence)",
+        "quantizer": "(separate)",
+        "encoder": "ArithmeticEncoder",
+        "lossless": "(any)"
+      },
+      "supported_dims": [],
+      "supported_dtypes": [
+        "int",
+        "int32"
+      ],
+      "error_modes": [],
+      "keywords": [
+        "arithmetic coding",
+        "entropy coding",
+        "variable-rate",
+        "near-entropy"
+      ],
+      "best_for": "Drop-in alternative to Huffman that approaches the entropy bound more closely on highly-skewed bin distributions. Slightly slower; consider when CR matters more than throughput.",
+      "data_examples": [
+        "Highly-skewed quantization output (large quantbinCnt with concentrated mass)"
+      ],
+      "used_by": [],
+      "references": [
+        {
+          "title": "Arithmetic Coding for Data Compression (Witten, Neal, Cleary)",
+          "venue": "Communications of the ACM",
+          "year": 1987,
+          "evidence": "Foundational practical arithmetic coding paper; arithmetic coding asymptotically achieves the entropy bound and outperforms Huffman on heavily skewed distributions, motivating the ArithmeticEncoder option in fz."
+        }
+      ]
+    },
+    {
+      "id": "SPERREncoder",
+      "name": "SPERR / SPECK Encoder",
+      "category": "encoder",
+      "header": "include/SZ3/encoder/SPERREncoder.hpp",
+      "pipeline": {
+        "decomposition": "SPERRDecomposition",
+        "quantizer": "(internal)",
+        "encoder": "SPERREncoder",
+        "lossless": "Lossless_bypass"
+      },
+      "supported_dims": [
+        3
+      ],
+      "supported_dtypes": [
+        "int64"
+      ],
+      "error_modes": [
+        "bitrate",
+        "PSNR"
+      ],
+      "keywords": [
+        "SPECK",
+        "SPERR",
+        "wavelet",
+        "bitplane",
+        "embedded coding",
+        "progressive",
+        "set partitioning"
+      ],
+      "best_for": "Encodes wavelet coefficients into a progressively-refinable bitstream using set-partitioning embedded block coding. Used inside ALGO_SPERR; not typically composed with other decompositions.",
+      "data_examples": [
+        "Wavelet coefficients of smooth 3D fields (climate, CFD)"
+      ],
+      "used_by": [
+        "ALGO_SPERR"
+      ],
+      "references": [
+        {
+          "title": "Efficient, Low-Complexity Image Coding With a Set-Partitioning Embedded Block Coder (SPECK)",
+          "venue": "IEEE TCSVT",
+          "year": 2004,
+          "evidence": "SPECK encoder is 4.6x-15.7x faster than JPEG2000 in encoding and 8.1x-12.1x faster in decoding, with PSNR within 0.85 dB of JPEG2000 across rates 0.25-2.0 bpp."
+        }
+      ]
+    },
+    {
+      "id": "XtcBasedEncoder",
+      "name": "XTC-Based Encoder (GROMACS)",
+      "category": "encoder",
+      "header": "include/SZ3/encoder/XtcBasedEncoder.hpp",
+      "pipeline": {
+        "decomposition": "SZBioMDXtcDecomposition",
+        "quantizer": "LinearQuantizer",
+        "encoder": "XtcBasedEncoder",
+        "lossless": "Lossless_bypass"
+      },
+      "supported_dims": [
+        3
+      ],
+      "supported_dtypes": [
+        "int",
+        "int32"
+      ],
+      "error_modes": [
+        "ABS"
+      ],
+      "keywords": [
+        "XTC",
+        "GROMACS",
+        "molecular dynamics",
+        "trajectory",
+        "atom positions",
+        "compressed coordinates",
+        "libxdrf"
+      ],
+      "best_for": "Adapter encoder that emits a GROMACS XTC-compatible bitstream for quantized atom coordinates. Used inside ALGO_BIOMDXTC; drop-in only when the downstream consumer expects XTC-format output.",
+      "data_examples": [
+        "GROMACS .xtc trajectory output",
+        "TNG-format coordinate streams",
+        "Per-frame quantized atom coordinates"
+      ],
+      "used_by": [
+        "ALGO_BIOMDXTC"
+      ],
+      "references": [
+        {
+          "title": "MDZ: An Efficient Error-bounded Lossy Compressor for Molecular Dynamics",
+          "venue": "ICDE",
+          "year": 2022,
+          "evidence": "MDZ benchmarks against TNG (the GROMACS XTC-style trajectory format); XtcBasedEncoder is fz's port of GROMACS' libxdrf XTC coder for the BIOMDXTC pipeline."
+        }
+      ]
+    },
+    {
+      "id": "BitplaneEncoder",
+      "name": "Bitplane Encoder",
+      "category": "encoder",
+      "header": "include/SZ3/encoder/BitplaneEncoder.hpp",
+      "pipeline": {
+        "decomposition": "(any)",
+        "quantizer": "(any int output)",
+        "encoder": "BitplaneEncoder",
+        "lossless": "(any)"
+      },
+      "supported_dims": [],
+      "supported_dtypes": [
+        "int",
+        "int32",
+        "int64"
+      ],
+      "error_modes": [],
+      "keywords": [
+        "bitplane",
+        "MSB to LSB",
+        "packed",
+        "progressive",
+        "embedded refinement"
+      ],
+      "best_for": "Packs a sequence of integers MSB->LSB into bit-planes. Useful for progressive transmission, error-resilient streaming, and as a building block for refinement-style pipelines (used by ALGO_MGARD).",
+      "data_examples": [
+        "Quantization output where high-order bits dominate the energy",
+        "Per-level coefficients in a multigrid hierarchy"
+      ],
+      "used_by": [
+        "ALGO_MGARD"
+      ],
+      "references": [
+        {
+          "title": "Optimizing Multi-grid Based Reduction for Efficient Scientific Data Management (MGARDx)",
+          "venue": "arXiv (TPDS-style)",
+          "year": 2020,
+          "evidence": "MGARDx packs per-level multigrid coefficients into bitplanes (the pattern implemented by BitplaneEncoder) for up to 70x faster decomposition/recomposition and up to 2x better CR than the second-best lossy compressor."
+        },
+        {
+          "title": "Error-Controlled, Progressive, and Adaptable Retrieval of Scientific Data with Multilevel Decomposition (PMGARD)",
+          "venue": "SC",
+          "year": 2021,
+          "evidence": "PMGARD's progressive retrieval relies on MSB-to-LSB bit-plane order (the encoding BitplaneEncoder produces); reduces retrieval size by up to 64% over single-error-bounded approaches."
+        }
+      ]
+    },
+    {
+      "id": "BitplaneRLEEncoder",
+      "name": "Bitplane RLE Encoder",
+      "category": "encoder",
+      "header": "include/SZ3/encoder/BitplaneRLEEncoder.hpp",
+      "pipeline": {
+        "decomposition": "(any)",
+        "quantizer": "(any int output)",
+        "encoder": "BitplaneRLEEncoder",
+        "lossless": "(any)"
+      },
+      "supported_dims": [],
+      "supported_dtypes": [
+        "int",
+        "int32",
+        "int64"
+      ],
+      "error_modes": [],
+      "keywords": [
+        "bitplane",
+        "run-length",
+        "RLE",
+        "raw fallback",
+        "sparse"
+      ],
+      "best_for": "Per-plane RLE on bitplane-decomposed integers, with raw fallback when RLE expands. Best for sparse plane encodings where most bits in a plane are zero (e.g. high-order planes after quantization).",
+      "data_examples": [
+        "Sparse high-order planes from quantized scientific data"
+      ],
+      "used_by": [],
+      "references": [
+        {
+          "title": "TTHRESH: Tensor Compression for Multidimensional Visual Data",
+          "venue": "IEEE TVCG",
+          "year": 2019,
+          "evidence": "TTHRESH combines bit-plane decomposition with run-length / arithmetic coding for sparse high-order planes (the scheme BitplaneRLEEncoder targets); 10:1 to 300:1 reduction on a 512^3 turbulence volume."
+        }
+      ]
+    },
+    {
+      "id": "LinearQuantizer",
+      "name": "Linear Quantizer (default)",
+      "category": "quantizer",
+      "header": "include/SZ3/quantizer/LinearQuantizer.hpp",
+      "pipeline": {
+        "decomposition": "(any)",
+        "quantizer": "LinearQuantizer",
+        "encoder": "(any int encoder)",
+        "lossless": "(any)"
+      },
+      "supported_dims": [],
+      "supported_dtypes": [
+        "float",
+        "double"
+      ],
+      "error_modes": [
+        "ABS",
+        "REL"
+      ],
+      "keywords": [
+        "linear quantizer",
+        "uniform bins",
+        "delta",
+        "default quantizer",
+        "absolute error bound"
+      ],
+      "best_for": "Default quantizer in fz. Uniform-spaced bins around a predicted value with absolute-error guarantee. Used by every prediction-based pipeline (LORENZO_REG, INTERP_LORENZO, INTERP, NOPRED, SVD, MGARD, BIOMD, BIOMDXTC).",
+      "data_examples": [
+        "Residuals from any predictor"
+      ],
+      "used_by": [
+        "ALGO_LORENZO_REG",
+        "ALGO_INTERP_LORENZO",
+        "ALGO_INTERP",
+        "ALGO_NOPRED",
+        "ALGO_SVD",
+        "ALGO_MGARD",
+        "ALGO_BIOMD",
+        "ALGO_BIOMDXTC"
+      ],
+      "references": [
+        {
+          "title": "Significantly Improving Lossy Compression for Scientific Data Sets Based on Multidimensional Prediction and Error-Controlled Quantization",
+          "venue": "IPDPS",
+          "year": 2017,
+          "evidence": "Establishes the linear (uniform-bin) error-controlled quantizer paired with multidimensional prediction; LinearQuantizer in fz implements this scheme. Average CR 21.3 on Hurricane data."
+        },
+        {
+          "title": "SZ3: A Modular Framework for Composing Prediction-Based Error-Bounded Lossy Compressors",
+          "venue": "IEEE TC",
+          "year": 2022,
+          "evidence": "SZ3 documents LinearQuantizer as the default quantizer in the modular framework; benchmarked across GAMESS/APS/Hurricane/CESM-ATM/Miranda/NYX/RTM/QMCPack with up to 20% better CR vs. prior best at the same distortion."
+        }
+      ]
+    },
+    {
+      "id": "FixedPointQuantizer",
+      "name": "Fixed-Point Quantizer",
+      "category": "quantizer",
+      "header": "include/SZ3/quantizer/FixedPointQuantizer.hpp",
+      "pipeline": {
+        "decomposition": "(any)",
+        "quantizer": "FixedPointQuantizer",
+        "encoder": "(int64 encoder)",
+        "lossless": "(any)"
+      },
+      "supported_dims": [],
+      "supported_dtypes": [
+        "float",
+        "double"
+      ],
+      "error_modes": [
+        "ABS"
+      ],
+      "keywords": [
+        "fixed-point",
+        "ldexp",
+        "int64 output",
+        "bit-exact reconstruction",
+        "deterministic"
+      ],
+      "best_for": "Produces int64 bins via ldexp-style fixed-point conversion. Use when you need bit-exact reproducibility across platforms, or when downstream stages require integer arithmetic with no floating-point quantization rounding.",
+      "data_examples": [
+        "Cross-platform reproducibility-critical workflows"
+      ],
+      "used_by": [],
+      "references": [
+        {
+          "title": "FAZ: A Flexible Auto-tuned Modular Error-Bounded Compression Framework for Scientific Data",
+          "venue": "ICS",
+          "year": 2023,
+          "evidence": "FAZ uses fixed-point integer representations to compose interpolation with wavelet stages deterministically (the use case FixedPointQuantizer targets); CR up to 120% over the second-best at the same error bound."
+        }
+      ]
+    },
+    {
+      "id": "QuadraticLevelQuantizer",
+      "name": "Quadratic-Level Quantizer",
+      "category": "quantizer",
+      "header": "include/SZ3/quantizer/QuadraticLevelQuantizer.hpp",
+      "pipeline": {
+        "decomposition": "(any)",
+        "quantizer": "QuadraticLevelQuantizer",
+        "encoder": "(any int encoder)",
+        "lossless": "(any)"
+      },
+      "supported_dims": [],
+      "supported_dtypes": [
+        "float",
+        "double"
+      ],
+      "error_modes": [
+        "ABS",
+        "REL"
+      ],
+      "keywords": [
+        "quadratic spacing",
+        "non-uniform quantizer",
+        "look-up table",
+        "LUT",
+        "experimental",
+        "sz_dev"
+      ],
+      "best_for": "Non-uniform quantizer with quadratically-spaced bin levels via a precomputed LUT. Opt-in via sz_dev.hpp (not in default API). Useful when residual distributions are heavy-tailed and uniform bins waste mass on the tails.",
+      "data_examples": [
+        "Heavy-tailed residual distributions"
+      ],
+      "used_by": [],
+      "references": [
+        {
+          "title": "Dynamic Quality Metric Oriented Error Bounded Lossy Compression for Scientific Datasets (QoZ)",
+          "venue": "SC",
+          "year": 2022,
+          "evidence": "QoZ explores non-uniform quantizer designs (the family QuadraticLevelQuantizer belongs to) for heavy-tailed residuals; up to 270% higher CR than the second-best at the same SSIM."
+        }
+      ]
+    },
+    {
+      "id": "BitTruncationQuantizer",
+      "name": "Bit-Truncation Quantizer",
+      "category": "quantizer",
+      "header": "include/SZ3/quantizer/BitTruncationQuantizer.hpp",
+      "pipeline": {
+        "decomposition": "(any)",
+        "quantizer": "BitTruncationQuantizer",
+        "encoder": "(any int encoder)",
+        "lossless": "(any)"
+      },
+      "supported_dims": [],
+      "supported_dtypes": [
+        "float",
+        "double"
+      ],
+      "error_modes": [
+        "bit precision"
+      ],
+      "keywords": [
+        "bit truncation",
+        "mantissa truncation",
+        "approximate",
+        "bit precision",
+        "precision reduction",
+        "lossy preprocessing"
+      ],
+      "best_for": "Truncates floating-point mantissa bits for deterministic lossy reduction without prediction. Useful as a building block for low-overhead lossy paths (e.g. GPU, in-line) or as a preprocessing stage before further compression.",
+      "data_examples": [
+        "Streaming lossy reduction with bit-budget constraints"
+      ],
+      "used_by": [],
+      "references": [
+        {
+          "title": "Fast and Efficient Compression of Floating-Point Data (fpzip)",
+          "venue": "IEEE TVCG",
+          "year": 2006,
+          "evidence": "fpzip showed that mantissa-bit truncation followed by entropy coding (the pattern BitTruncationQuantizer enables) is a viable fast-lossy strategy on Miranda and Hurricane ISABEL with 1.4x-15x lossless reductions."
+        }
+      ]
+    },
+    {
+      "id": "BlockwiseDecomposition",
+      "name": "Blockwise Predictor Decomposition",
+      "category": "decomposition",
+      "header": "include/SZ3/decomposition/BlockwiseDecomposition.hpp",
+      "pipeline": {
+        "decomposition": "BlockwiseDecomposition",
+        "quantizer": "LinearQuantizer",
+        "encoder": "(downstream)",
+        "lossless": "(downstream)"
+      },
+      "supported_dims": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "supported_dtypes": [
+        "float",
+        "double",
+        "int32",
+        "int64"
+      ],
+      "error_modes": [
+        "ABS",
+        "REL",
+        "PSNR",
+        "NORM"
+      ],
+      "keywords": [
+        "block-based",
+        "blockwise",
+        "Lorenzo",
+        "regression",
+        "predictor framework",
+        "composable predictor",
+        "ComposedPredictor",
+        "PredictorInterface",
+        "per-block selector",
+        "SZ2",
+        "SZ-Auto"
+      ],
+      "best_for": "Predictor-based decomposition core that splits data into fixed-size blocks and applies any class implementing PredictorInterface (Lorenzo 1st/2nd order, Regression, ComposedPredictor for per-block selection) to each point, then quantizes the prediction residual. The composable predictor framework powering ALGO_LORENZO_REG and the Lorenzo branch of ALGO_INTERP_LORENZO. Reuse it as the building block for any custom pipeline that needs scalar point prediction with a block-local fallback.",
+      "data_examples": [
+        "NYX cosmology",
+        "CESM-ATM climate",
+        "Hurricane ISABEL",
+        "Miranda",
+        "QMCPack wavefunctions",
+        "SCALE-LETKF"
+      ],
+      "used_by": [
+        "ALGO_LORENZO_REG",
+        "ALGO_INTERP_LORENZO"
+      ],
+      "references": [
+        {
+          "title": "Error-Controlled Lossy Compression Optimized for High Compression Ratios of Scientific Datasets",
+          "venue": "IEEE BigData",
+          "year": 2018,
+          "evidence": "Adaptive hybrid Lorenzo + linear-regression predictor (the canonical instantiation of BlockwiseDecomposition) achieves 1.5x-8x higher CR than SZ and ZFP on Hurricane/NYX/CESM-ATM at the same PSNR."
+        },
+        {
+          "title": "Significantly Improving Lossy Compression for HPC Datasets with Second-Order Prediction and Parameter Optimization",
+          "venue": "HPDC",
+          "year": 2020,
+          "evidence": "SZ-Auto (the autotuned BlockwiseDecomposition pipeline with 2nd-order Lorenzo + 2nd-order regression that became LORENZO_REG in fz/SZ3) improves CR by up to 46% over the second-best compressor on Hurricane/Miranda/QMCPack/SCALE-LETKF."
+        }
+      ]
+    },
+    {
+      "id": "InterpolationDecomposition",
+      "name": "Interpolation Decomposition",
+      "category": "decomposition",
+      "header": "include/SZ3/decomposition/InterpolationDecomposition.hpp",
+      "pipeline": {
+        "decomposition": "InterpolationDecomposition",
+        "quantizer": "LinearQuantizer",
+        "encoder": "(downstream)",
+        "lossless": "(downstream)"
+      },
+      "supported_dims": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "supported_dtypes": [
+        "float",
+        "double"
+      ],
+      "error_modes": [
+        "ABS",
+        "REL",
+        "PSNR"
+      ],
+      "keywords": [
+        "interpolation",
+        "spline",
+        "Lagrange",
+        "cubic",
+        "linear",
+        "smooth fields",
+        "SZ3 predictor"
+      ],
+      "best_for": "Multidimensional interpolation predictor (linear, cubic, Lagrange variants) used as the prediction stage in ALGO_INTERP and ALGO_INTERP_LORENZO. Reusable as a building block when composing custom pipelines for smooth scientific fields.",
+      "data_examples": [
+        "Smooth 3D climate, CFD, RTM seismic, QMCPack wavefunctions"
+      ],
+      "used_by": [
+        "ALGO_INTERP",
+        "ALGO_INTERP_LORENZO"
+      ],
+      "references": [
+        {
+          "title": "Optimizing Error-Bounded Lossy Compression for Scientific Data by Dynamic Spline Interpolation",
+          "venue": "ICDE",
+          "year": 2021,
+          "evidence": "Cubic-spline interpolation predictor as building block delivers 20%-460% higher CR than the prior best on QMCPack/RTM/Hurricane/NYX/Miranda/SCALE-LETKF."
+        }
+      ]
+    },
+    {
+      "id": "SVDDecomposition",
+      "name": "SVD / Tucker Decomposition",
+      "category": "decomposition",
+      "header": "include/SZ3/decomposition/SVDDecomposition.hpp",
+      "pipeline": {
+        "decomposition": "SVDDecomposition",
+        "quantizer": "LinearQuantizer",
+        "encoder": "(downstream)",
+        "lossless": "(downstream)"
+      },
+      "supported_dims": [
+        3,
+        4
+      ],
+      "supported_dtypes": [
+        "float",
+        "double"
+      ],
+      "error_modes": [
+        "ABS",
+        "REL",
+        "PSNR"
+      ],
+      "keywords": [
+        "SVD",
+        "Tucker",
+        "low rank",
+        "tensor decomposition",
+        "core tensor",
+        "HOSVD",
+        "ST-HOSVD",
+        "4D",
+        "high-order tensor"
+      ],
+      "best_for": "Computes a low-rank Tucker / SVD decomposition of higher-order tensor data, storing the core tensor + residuals. Reusable as a global decomposition stage when data has strong global low-rank structure.",
+      "data_examples": [
+        "S3D combustion",
+        "Hyperspectral imagery (3D H x W x bands)",
+        "ERA5 climate",
+        "BLASTNet jet flames"
+      ],
+      "used_by": [
+        "ALGO_SVD"
+      ],
+      "references": [
+        {
+          "title": "TTHRESH: Tensor Compression for Multidimensional Visual Data",
+          "venue": "IEEE TVCG",
+          "year": 2019,
+          "evidence": "TTHRESH (HOSVD + bit-plane coding) is the canonical reference for SVD-style tensor decomposition compression; 10:1 to 300:1 reduction on a 512^3 isotropic turbulence volume."
+        },
+        {
+          "title": "TZ: Achieving High-Ratio Scientific Data Compression on GPUs with Global Data Decomposition",
+          "venue": "HPDC",
+          "year": 2026,
+          "evidence": "TZ implements global Tucker decomposition (the family SVDDecomposition belongs to) on GPUs and reaches ~10x higher CR than cuSZ-Hi/cuSZp2/cuZFP on NYX velocity_x, Miranda, and Hurricane ISABEL at the same error bound."
+        }
+      ]
+    },
+    {
+      "id": "Lossless_zstd",
+      "name": "Zstd Lossless Stage",
+      "category": "lossless",
+      "header": "include/SZ3/lossless/Lossless_zstd.hpp",
+      "pipeline": {
+        "decomposition": "(any upstream byte stream)",
+        "quantizer": "(upstream)",
+        "encoder": "(upstream)",
+        "lossless": "Lossless_zstd"
+      },
+      "supported_dims": [],
+      "supported_dtypes": [
+        "bytes"
+      ],
+      "error_modes": [
+        "lossless"
+      ],
+      "keywords": [
+        "Zstd",
+        "Zstandard",
+        "lossless",
+        "byte stream",
+        "default lossless",
+        "Facebook"
+      ],
+      "best_for": "Default final lossless byte-stream compression. Used by every fz pipeline that ends with a lossless stage (most algos). Strong throughput / ratio tradeoff; well-tuned for scientific compression workloads.",
+      "data_examples": [
+        "Output byte streams from any encoder"
+      ],
+      "used_by": [
+        "ALGO_LORENZO_REG",
+        "ALGO_INTERP_LORENZO",
+        "ALGO_INTERP",
+        "ALGO_NOPRED",
+        "ALGO_LOSSLESS",
+        "ALGO_BIOMD",
+        "ALGO_SVD",
+        "ALGO_MGARD"
+      ],
+      "references": [
+        {
+          "title": "SDRBench: Scientific Data Reduction Benchmark for Lossy Compressors",
+          "venue": "DRBSD-7 (SC workshop)",
+          "year": 2020,
+          "evidence": "Benchmarks SZ + Zstd lossless backend across NYX, Hurricane-ISABEL, SCALE-LETKF, CESM-ATM and EXAFEL; Zstd is the standard lossless tail used by SZ-family compressors evaluated in the benchmark."
+        }
+      ]
+    },
+    {
+      "id": "Lossless_bypass",
+      "name": "Bypass (no lossless stage)",
+      "category": "lossless",
+      "header": "include/SZ3/lossless/Lossless_bypass.hpp",
+      "pipeline": {
+        "decomposition": "(upstream)",
+        "quantizer": "(upstream)",
+        "encoder": "(emits final bitstream)",
+        "lossless": "Lossless_bypass"
+      },
+      "supported_dims": [],
+      "supported_dtypes": [
+        "bytes"
+      ],
+      "error_modes": [
+        "lossless"
+      ],
+      "keywords": [
+        "bypass",
+        "passthrough",
+        "no lossless",
+        "self-contained bitstream",
+        "memcpy"
+      ],
+      "best_for": "memcpy-only passthrough that skips the final lossless stage. Use when the upstream encoder already emits a self-contained, optimally-packed bitstream (SPERR's SPECK output, GROMACS XTC) and a second lossless pass would be wasted work.",
+      "data_examples": [
+        "SPERR / SPECK bitstream from ALGO_SPERR",
+        "GROMACS XTC bitstream from ALGO_BIOMDXTC"
+      ],
+      "used_by": [
+        "ALGO_SPERR",
+        "ALGO_BIOMDXTC"
+      ],
+      "references": [
+        {
+          "title": "Efficient, Low-Complexity Image Coding With a Set-Partitioning Embedded Block Coder (SPECK)",
+          "venue": "IEEE TCSVT",
+          "year": 2004,
+          "evidence": "SPECK output is already a tightly-packed embedded bitstream; an additional lossless pass would not improve CR. Justifies Lossless_bypass as the final stage for ALGO_SPERR."
+        }
+      ]
+    }
+  ]
+}

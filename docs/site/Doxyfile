@@ -1,0 +1,32 @@
+PROJECT_NAME         = "FZ Module Library"
+PROJECT_BRIEF        = "Modular toolkit for error-bounded scientific data compression"
+PROJECT_NUMBER       = "$(FZ_VERSION)"
+
+INPUT                = include/SZ3 docs/site/mainpage.md
+USE_MDFILE_AS_MAINPAGE = docs/site/mainpage.md
+LAYOUT_FILE          = docs/site/DoxygenLayout.xml
+RECURSIVE            = YES
+EXCLUDE              = include/SZ3/utils/thirdparty
+GENERATE_LATEX       = NO
+GENERATE_HTML        = YES
+HTML_OUTPUT          = docs/site/html
+SEARCHENGINE         = NO
+DISTRIBUTE_GROUP_DOC = YES
+STRIP_FROM_PATH      = include/SZ3
+HTML_HEADER          = docs/site/header.html
+HTML_FOOTER          = docs/site/footer.html
+HTML_EXTRA_STYLESHEET = docs/site/pagefind.css
+
+# Graphviz / inheritance + collaboration diagrams.
+HAVE_DOT             = YES
+DOT_IMAGE_FORMAT     = svg
+INTERACTIVE_SVG      = YES
+CLASS_GRAPH          = YES
+COLLABORATION_GRAPH  = YES
+INCLUDE_GRAPH        = YES
+INCLUDED_BY_GRAPH    = YES
+DIRECTORY_GRAPH      = YES
+GRAPHICAL_HIERARCHY  = YES
+GENERATE_LEGEND      = YES
+DOT_GRAPH_MAX_NODES  = 60
+MAX_DOT_GRAPH_DEPTH  = 4
