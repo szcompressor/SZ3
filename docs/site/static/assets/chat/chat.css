@@ -2,30 +2,31 @@
 
 #fz-chat-fab {
   position: fixed;
-  right: 24px;
-  bottom: 24px;
+  right: 28px;
+  bottom: 28px;
   z-index: 9998;
   background: #0366d6;
   color: #fff;
   border: none;
   border-radius: 999px;
-  padding: 14px 22px;
-  font: 600 16px/1.2 Roboto, sans-serif;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  padding: 18px 28px;
+  font: 700 19px/1.2 Roboto, sans-serif;
+  letter-spacing: 0.01em;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
 }
 #fz-chat-fab:hover {
   background: #0353a4;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+  transform: translateY(-2px);
+  box-shadow: 0 9px 26px rgba(0, 0, 0, 0.32);
 }
 #fz-chat-fab:focus { outline: 2px solid #ffd166; outline-offset: 2px; }
 @media (max-width: 480px) {
-  #fz-chat-fab { padding: 12px 18px; font-size: 15px; right: 16px; bottom: 16px; }
+  #fz-chat-fab { padding: 14px 20px; font-size: 16px; right: 18px; bottom: 18px; }
 }
 
 #fz-chat-dialog {
@@ -113,6 +114,66 @@
   margin: 4px 0 0;
 }
 .fz-chat-settings .fz-hint a { color: #0366d6; }
+
+/* External-AI buttons (additive: ChatGPT / Claude / Gemini / NotebookLM
+   in the user's own logged-in account). Keeps the in-browser chat as
+   the primary path; this is just an "or use your own" escape hatch. */
+.fz-external-block {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed #d0d7de;
+}
+.fz-external-block > label {
+  display: block;
+  font-weight: 600;
+  font-size: 12px;
+  margin-bottom: 6px;
+  color: #283a5d;
+}
+.fz-external-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.fz-ext-btn {
+  flex: 1 1 auto;
+  min-width: 80px;
+  padding: 7px 12px;
+  border: 1px solid #c4cfe5;
+  border-radius: 4px;
+  background: #f6f8fa;
+  color: #283a5d;
+  font: 600 12px/1 Roboto, sans-serif;
+  cursor: pointer;
+  transition: background 100ms ease, border-color 100ms ease;
+}
+.fz-ext-btn:hover {
+  background: #e8edf2;
+  border-color: #4665a2;
+}
+.fz-external-fallback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.fz-ext-copybtn {
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #0366d6;
+  font: 500 11.5px/1 Roboto, sans-serif;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.fz-ext-copybtn:hover { color: #0353a4; }
+.fz-ext-status {
+  flex: 1 1 auto;
+  font-size: 11px;
+  color: #155724;
+}
 
 .fz-chat-notice {
   margin: 8px 0 4px;

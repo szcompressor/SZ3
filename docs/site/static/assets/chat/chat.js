@@ -1,12 +1,15 @@
 /* fz docs chat assistant - vanilla JS, no framework. ES module.
  *
- * Modes:
- *   local  - WebLLM (https://esm.run/@mlc-ai/web-llm), runs in browser via WebGPU.
- *   groq   - BYOK call to api.groq.com (OpenAI-compatible /chat/completions).
- *   gemini - BYOK call to generativelanguage.googleapis.com.
+ * Two paths, no API keys ever:
  *
- * BYOK keys are stored in localStorage only and only sent to the chosen
- * provider's API endpoint - never to the docs origin.
+ *   1. Local in-browser chat via WebLLM + WebGPU. Default Qwen 2.5 0.5B
+ *      (~400 MB), upgradeable to Phi-3.5 mini. All inference on the
+ *      user's machine; nothing leaves their browser.
+ *
+ *   2. "Open in your own AI account" — opens ChatGPT / Claude / Gemini /
+ *      NotebookLM in a new tab, prefilled with a bootstrap prompt that
+ *      points the assistant at our system-prompt.txt URL. The user is
+ *      already logged in there, so no key is ever pasted into our chat.
  */
 
 // Resolve asset paths relative to this script so the widget works whether
@@ -16,11 +19,6 @@ const CHAT_ROOT = new URL("./", SCRIPT_URL);
 const SYSTEM_PROMPT_URL = new URL("system-prompt.txt", CHAT_ROOT).href;
 
 const LS_KEYS = {
-  provider: "fz-chat-provider",
-  groqKey: "fz-chat-groq-key",
-  geminiKey: "fz-chat-gemini-key",
-  openrouterKey: "fz-chat-openrouter-key",
-  cerebrasKey: "fz-chat-cerebras-key",
   localModel: "fz-chat-local-model",
   consented: "fz-chat-local-consent",
 };
@@ -96,136 +94,7 @@ function el(tag, attrs = {}, ...children) {
   return node;
 }
 
-// ----- Providers -----
-
-async function callGroq(messages, key, onChunk, signal) {
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${key}`,
-    },
-    body: JSON.stringify({
-      model: "llama-3.1-8b-instant",
-      messages,
-      stream: false,
-      temperature: 0.2,
-      max_tokens: 700,
-    }),
-    signal,
-  });
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error(`Groq API error ${res.status}: ${t.slice(0, 240)}`);
-  }
-  const j = await res.json();
-  const text = j.choices?.[0]?.message?.content || "";
-  if (!text) throw new Error("Provider returned empty response");
-  onChunk(text);
-  return text;
-}
-
-async function callOpenRouter(messages, key, onChunk, signal) {
-  // OpenRouter exposes many free-tier models (DeepSeek V3, Llama 3.3, etc.).
-  // Uses OpenAI-compatible /chat/completions; model id includes ":free" suffix.
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${key}`,
-      "HTTP-Referer": location.origin,
-      "X-Title": "fz docs assistant",
-    },
-    body: JSON.stringify({
-      model: "deepseek/deepseek-chat-v3.1:free",
-      messages,
-      stream: false,
-      temperature: 0.2,
-      max_tokens: 700,
-    }),
-    signal,
-  });
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error(`OpenRouter API error ${res.status}: ${t.slice(0, 240)}`);
-  }
-  const j = await res.json();
-  const text = j.choices?.[0]?.message?.content || "";
-  if (!text) throw new Error("Provider returned empty response");
-  onChunk(text);
-  return text;
-}
-
-async function callCerebras(messages, key, onChunk, signal) {
-  // Cerebras inference - extremely fast, generous free tier.
-  // OpenAI-compatible /chat/completions.
-  const res = await fetch("https://api.cerebras.ai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${key}`,
-    },
-    body: JSON.stringify({
-      model: "llama3.1-8b",
-      messages,
-      stream: false,
-      temperature: 0.2,
-      max_tokens: 700,
-    }),
-    signal,
-  });
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error(`Cerebras API error ${res.status}: ${t.slice(0, 240)}`);
-  }
-  const j = await res.json();
-  const text = j.choices?.[0]?.message?.content || "";
-  if (!text) throw new Error("Provider returned empty response");
-  onChunk(text);
-  return text;
-}
-
-async function callGemini(messages, key, onChunk, signal) {
-  // Convert OpenAI-style messages to Gemini contents.
-  // System message becomes systemInstruction; the rest become contents.
-  let systemInstruction = null;
-  const contents = [];
-  for (const m of messages) {
-    if (m.role === "system") {
-      systemInstruction = { parts: [{ text: m.content }] };
-    } else {
-      contents.push({
-        role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }],
-      });
-    }
-  }
-  // Pass key via x-goog-api-key header so it never appears in URL/Referer logs.
-  const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
-  const body = {
-    contents,
-    generationConfig: { temperature: 0.2, maxOutputTokens: 700 },
-  };
-  if (systemInstruction) body.systemInstruction = systemInstruction;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": key,
-    },
-    body: JSON.stringify(body),
-    signal,
-  });
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error(`Gemini API error ${res.status}: ${t.slice(0, 240)}`);
-  }
-  const j = await res.json();
-  const text = j.candidates?.[0]?.content?.parts?.map(p => p.text).join("") || "";
-  if (!text) throw new Error("Provider returned empty response");
-  onChunk(text);
-  return text;
-}
+// ----- Local provider (WebLLM) -----
 
 async function loadWebLLM(modelId, statusFn) {
   if (_webllmEngine && _webllmEngine._fzModelId === modelId) return _webllmEngine;
@@ -234,7 +103,7 @@ async function loadWebLLM(modelId, statusFn) {
     statusFn("Loading WebLLM runtime...");
     const webllm = await import("https://esm.run/@mlc-ai/web-llm");
     if (!navigator.gpu) {
-      throw new Error("This browser has no WebGPU. Try Chrome or Edge, or switch to BYOK mode.");
+      throw new Error("This browser has no WebGPU. Try Chrome or Edge desktop, or use 'Open in your own AI account' instead.");
     }
     // Bump the context window so the ~9k-token modules.json system prompt
     // fits. Default Qwen 2.5 / Phi 3.5 MLC bundles ship a conservative 4096
@@ -288,12 +157,6 @@ async function callLocal(messages, modelId, onChunk, statusFn, signal) {
 
 function buildDialog() {
   // Header
-  const settingsBtn = el("button", {
-    class: "fz-chat-iconbtn",
-    title: "Settings",
-    "aria-label": "Settings",
-    type: "button",
-  }, "⚙");
   const closeBtn = el("button", {
     class: "fz-chat-iconbtn",
     title: "Close",
@@ -301,84 +164,53 @@ function buildDialog() {
     type: "button",
   }, "✕");
   const header = el("div", { class: "fz-chat-header" },
-    el("h2", {}, "Ask the docs"),
-    settingsBtn,
+    el("h2", {}, "Ask about FZ"),
     closeBtn,
   );
 
-  // Settings panel (initially hidden). Local first because it's private and
-  // free with no signup once WebGPU is available.
-  const providerSel = el("select", { id: "fz-provider-select" },
-    el("option", { value: "local" }, "Local (WebLLM, needs WebGPU)"),
-    el("option", { value: "openrouter" }, "OpenRouter (free models)"),
-    el("option", { value: "cerebras" }, "Cerebras (free, very fast)"),
-    el("option", { value: "gemini" }, "Google Gemini (free tier)"),
-    el("option", { value: "groq" }, "Groq (free)"),
-  );
+  // Settings panel (initially hidden). Two paths only:
+  //   1. Local in-browser (WebLLM) — model selector below.
+  //   2. Open in your own AI account — buttons below.
+  // No API key inputs. The user is either using local or jumping out to a
+  // service where they're already logged in.
   const localModelSel = el("select", { id: "fz-local-model-select" });
   for (const [id, m] of Object.entries(LOCAL_MODELS)) {
     localModelSel.appendChild(el("option", { value: id }, m.label));
   }
-  const groqKeyInput = el("input", {
-    type: "password",
-    id: "fz-groq-key",
-    placeholder: "gsk_...",
-    autocomplete: "off",
-  });
-  const openrouterKeyInput = el("input", {
-    type: "password",
-    id: "fz-openrouter-key",
-    placeholder: "sk-or-...",
-    autocomplete: "off",
-  });
-  const cerebrasKeyInput = el("input", {
-    type: "password",
-    id: "fz-cerebras-key",
-    placeholder: "csk-...",
-    autocomplete: "off",
-  });
-  const geminiKeyInput = el("input", {
-    type: "password",
-    id: "fz-gemini-key",
-    placeholder: "AIza...",
-    autocomplete: "off",
-  });
   const localBlock = el("div", { class: "fz-provider-block fz-block-local" },
-    el("label", {}, "Model"),
+    el("label", {}, "In-browser model (WebLLM)"),
     localModelSel,
     el("p", { class: "fz-hint", html: 'First use downloads the model to your browser cache. Runs locally - no data leaves your device. Requires WebGPU (Chrome 113+ / Safari 17.4+ / Edge desktop). <a href="/webgpu-test.html" target="_blank" rel="noopener">Test your browser &rarr;</a>' }),
   );
-  const groqBlock = el("div", { class: "fz-provider-block fz-block-groq" },
-    el("label", {}, "Groq API key"),
-    groqKeyInput,
-    el("p", { class: "fz-hint", html: 'Stored in your browser only. <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Get a Groq key &rarr;</a>'}),
+
+  // External AI links: open ChatGPT / Claude / Gemini in the user's logged-in
+  // account, pre-filled with a bootstrap that asks the assistant to fetch our
+  // system-prompt.txt for context. Clipboard fallback covers cases where the
+  // LLM can't fetch URLs (or the docs are on localhost). Gemini routes to
+  // Google AI Studio because gemini.google.com itself doesn't honour ?prompt=
+  // natively (only via browser extension); aistudio.google.com does.
+  const extChatGPT  = el("button", { class: "fz-ext-btn", type: "button", "data-target": "chatgpt" }, "ChatGPT");
+  const extClaude   = el("button", { class: "fz-ext-btn", type: "button", "data-target": "claude"  }, "Claude");
+  const extGemini   = el("button", { class: "fz-ext-btn", type: "button", "data-target": "gemini",
+                                     title: "Opens Google AI Studio (gemini.google.com doesn't accept URL params)" }, "Gemini");
+  const extCopyBtn  = el("button", { class: "fz-ext-copybtn", type: "button" }, "Copy catalog to clipboard");
+  const extStatus   = el("span", { class: "fz-ext-status" }, "");
+  const externalBlock = el("div", { class: "fz-external-block fz-external-primary" },
+    el("label", {}, "Open in your AI account"),
+    el("div", { class: "fz-external-row" }, extChatGPT, extClaude, extGemini),
+    el("p", { class: "fz-hint" },
+      "Opens a new tab in your logged-in account with a prompt that loads the FZ catalog as context. ",
+      "Gemini routes to Google AI Studio. If the assistant can't fetch URLs (or you're on localhost), use the clipboard fallback below."),
+    el("div", { class: "fz-external-fallback" }, extCopyBtn, extStatus),
   );
-  const openrouterBlock = el("div", { class: "fz-provider-block fz-block-openrouter" },
-    el("label", {}, "OpenRouter API key"),
-    openrouterKeyInput,
-    el("p", { class: "fz-hint", html: 'Stored in your browser only. Routes to free models like DeepSeek V3.1. <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">Get an OpenRouter key &rarr;</a>'}),
-  );
-  const cerebrasBlock = el("div", { class: "fz-provider-block fz-block-cerebras" },
-    el("label", {}, "Cerebras API key"),
-    cerebrasKeyInput,
-    el("p", { class: "fz-hint", html: 'Stored in your browser only. Fastest hosted inference (~2000 tok/s). <a href="https://cloud.cerebras.ai/" target="_blank" rel="noopener">Get a Cerebras key &rarr;</a>' }),
-  );
-  const geminiBlock = el("div", { class: "fz-provider-block fz-block-gemini" },
-    el("label", {}, "Gemini API key"),
-    geminiKeyInput,
-    el("p", { class: "fz-hint", html: 'Stored in your browser only. <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Get a Gemini key &rarr;</a>' }),
-  );
-  const privacyNotice = el("p", { class: "fz-chat-notice fz-hidden" }, "");
-  const settingsPanel = el("div", { class: "fz-chat-settings fz-hidden" },
-    el("label", {}, "Provider"),
-    providerSel,
-    privacyNotice,
-    groqBlock,
-    openrouterBlock,
-    cerebrasBlock,
-    geminiBlock,
-    localBlock,
-  );
+
+  // The local-WebLLM section is the backup path — collapsed by default
+  // inside a <details> element. User clicks the disclosure to expand.
+  const localDetails = el("details", { class: "fz-local-details" });
+  const localSummary = el("summary", { class: "fz-local-summary" },
+    "Or chat in this browser (local model, needs WebGPU)");
+  localDetails.appendChild(localSummary);
+  localDetails.appendChild(localBlock);
 
   // Consent / model-load button (shown for local mode before first load).
   const consentBlurb = el("div", { class: "fz-consent-blurb" },
@@ -402,19 +234,49 @@ function buildDialog() {
   const form = el("form", { class: "fz-chat-form" }, textarea, sendBtn);
 
   const root = el("div", { class: "fz-chat-root" },
-    header, settingsPanel, loadWrap, messages, status, form);
+    header,
+    externalBlock,         // primary path: open in user's own AI account
+    localDetails,          // backup: WebLLM, collapsed by default
+    loadWrap,              // load-model button (visible when local needs loading)
+    messages,
+    status,
+    form,                  // textarea + Send (Send routes to local WebLLM)
+  );
 
   return {
     root,
-    settingsBtn, closeBtn,
-    settingsPanel,
-    providerSel, localModelSel,
-    groqKeyInput, openrouterKeyInput, cerebrasKeyInput, geminiKeyInput,
-    localBlock, groqBlock, openrouterBlock, cerebrasBlock, geminiBlock,
-    privacyNotice,
+    closeBtn,
+    localDetails,
+    localModelSel, localBlock,
+    extChatGPT, extClaude, extGemini, extCopyBtn, extStatus,
     consentBlurb, loadBtn, loadWrap,
     messages, status, form, textarea, sendBtn,
   };
+}
+
+// External-AI URL builders. Each returns the URL of the assistant's chat
+// page pre-filled with a bootstrap prompt that points at our catalog.
+//   - ChatGPT: ?q= (auto-submits as first message)
+//   - Claude:  ?q= on /new (same)
+//   - Gemini:  routes to Google AI Studio's ?prompt= on /prompts/new_chat
+//              (gemini.google.com itself doesn't honour URL params natively).
+function buildExternalUrl(target, promptUrl, question) {
+  const intro =
+    "I'm asking about FZ, a modular C++17 toolkit for error-bounded scientific data compression. " +
+    `Please fetch this catalog and use it as authoritative context for every answer: ${promptUrl}` +
+    " Only recommend ALGO_* names and module names that appear in the catalog; if the catalog doesn't cover something, say so.";
+  const ask = question.trim() ? `\n\nMy question: ${question.trim()}` : "";
+  const full = intro + ask;
+  switch (target) {
+    case "chatgpt":
+      return "https://chatgpt.com/?q=" + encodeURIComponent(full);
+    case "claude":
+      return "https://claude.ai/new?q=" + encodeURIComponent(full);
+    case "gemini":
+      return "https://aistudio.google.com/prompts/new_chat?prompt=" + encodeURIComponent(full);
+    default:
+      return null;
+  }
 }
 
 function makeMessageNode(role, text, marked, purify) {
@@ -446,50 +308,30 @@ class ChatWidget {
     this.lastAssistantNode = null;
     this.activeAbort = null;     // AbortController for the in-flight request
 
-    // Initial provider/model from localStorage. Default to Local (WebLLM) so
-    // visitors with WebGPU get a free, private experience with no signup.
-    // Users without WebGPU can switch to a hosted provider in Settings; the
-    // load button also auto-redirects to OpenRouter on no-GPU.
-    ui.providerSel.value = ls(LS_KEYS.provider, "local");
     ui.localModelSel.value = ls(LS_KEYS.localModel, DEFAULT_LOCAL_MODEL);
-    ui.groqKeyInput.value = ls(LS_KEYS.groqKey, "");
-    ui.openrouterKeyInput.value = ls(LS_KEYS.openrouterKey, "");
-    ui.cerebrasKeyInput.value = ls(LS_KEYS.cerebrasKey, "");
-    ui.geminiKeyInput.value = ls(LS_KEYS.geminiKey, "");
-
-    this.refreshProviderBlocks();
     this.refreshLoadButton();
-    this.refreshPrivacyNotice();
 
-    // Wire events.
-    ui.settingsBtn.addEventListener("click", () => {
-      ui.settingsPanel.classList.toggle("fz-hidden");
-    });
     ui.closeBtn.addEventListener("click", () => dlg.close());
     dlg.addEventListener("close", () => {
-      // Cancel any in-flight provider call so the Send button isn't left
-      // disabled forever if the user closes mid-stream.
+      // Cancel any in-flight WebLLM call so the Send button isn't stuck
+      // if the user closes mid-stream.
       if (this.activeAbort) {
         try { this.activeAbort.abort(); } catch (_) {}
       }
     });
 
-    ui.providerSel.addEventListener("change", () => {
-      lsSet(LS_KEYS.provider, ui.providerSel.value);
-      this.refreshProviderBlocks();
-      this.refreshLoadButton();
-      this.refreshPrivacyNotice();
-    });
     ui.localModelSel.addEventListener("change", () => {
       lsSet(LS_KEYS.localModel, ui.localModelSel.value);
       this.refreshLoadButton();
     });
-    ui.groqKeyInput.addEventListener("change", () => lsSet(LS_KEYS.groqKey, ui.groqKeyInput.value));
-    ui.openrouterKeyInput.addEventListener("change", () => lsSet(LS_KEYS.openrouterKey, ui.openrouterKeyInput.value));
-    ui.cerebrasKeyInput.addEventListener("change", () => lsSet(LS_KEYS.cerebrasKey, ui.cerebrasKeyInput.value));
-    ui.geminiKeyInput.addEventListener("change", () => lsSet(LS_KEYS.geminiKey, ui.geminiKeyInput.value));
 
     ui.loadBtn.addEventListener("click", () => this.handleLoadClick());
+
+    // External-AI buttons: open the user's chosen account in a new tab.
+    for (const btn of [ui.extChatGPT, ui.extClaude, ui.extGemini]) {
+      btn.addEventListener("click", () => this.handleExternalClick(btn.dataset.target));
+    }
+    ui.extCopyBtn.addEventListener("click", () => this.handleCopyCatalog());
 
     ui.form.addEventListener("submit", (ev) => {
       ev.preventDefault();
@@ -505,21 +347,7 @@ class ChatWidget {
 
   open() { if (!this.dlg.open) this.dlg.showModal(); }
 
-  refreshProviderBlocks() {
-    const p = this.ui.providerSel.value;
-    this.ui.localBlock.style.display = p === "local" ? "" : "none";
-    this.ui.groqBlock.style.display = p === "groq" ? "" : "none";
-    this.ui.openrouterBlock.style.display = p === "openrouter" ? "" : "none";
-    this.ui.cerebrasBlock.style.display = p === "cerebras" ? "" : "none";
-    this.ui.geminiBlock.style.display = p === "gemini" ? "" : "none";
-  }
-
   refreshLoadButton() {
-    const p = this.ui.providerSel.value;
-    if (p !== "local") {
-      this.ui.loadWrap.style.display = "none";
-      return;
-    }
     const modelId = this.ui.localModelSel.value || DEFAULT_LOCAL_MODEL;
     const m = LOCAL_MODELS[modelId] || LOCAL_MODELS[DEFAULT_LOCAL_MODEL];
     if (_webllmEngine && _webllmEngine._fzModelId === modelId) {
@@ -529,24 +357,6 @@ class ChatWidget {
     this.ui.loadWrap.style.display = "";
     this.ui.loadBtn.textContent = `Load model (${m.size}, runs locally)`;
     this.ui.loadBtn.disabled = false;
-  }
-
-  refreshPrivacyNotice() {
-    const p = this.ui.providerSel.value;
-    const notice = this.ui.privacyNotice;
-    const PROVIDER_NAMES = {
-      groq: "Groq",
-      openrouter: "OpenRouter",
-      cerebras: "Cerebras",
-      gemini: "Google Gemini",
-    };
-    if (PROVIDER_NAMES[p]) {
-      notice.textContent = `Note: your question is sent to ${PROVIDER_NAMES[p]}. Your API key is stored in this browser only.`;
-      notice.classList.remove("fz-hidden");
-    } else {
-      notice.classList.add("fz-hidden");
-      notice.textContent = "";
-    }
   }
 
   setStatus(text, isError = false) {
@@ -584,27 +394,46 @@ class ChatWidget {
     }
   }
 
+  // Open ChatGPT / Claude in the user's logged-in account, pre-filled with
+  // a bootstrap that fetches our system prompt URL. SYSTEM_PROMPT_URL is
+  // resolved at runtime from import.meta.url, so it auto-uses the deployed
+  // host (localhost:9001 in dev, szcompressor.org/SZ3/... in prod).
+  handleExternalClick(target) {
+    const promptUrl = new URL(SYSTEM_PROMPT_URL).href;
+    const question = (this.ui.textarea.value || "").trim();
+    const url = buildExternalUrl(target, promptUrl, question);
+    if (!url) return;
+    window.open(url, "_blank", "noopener");
+  }
+
+  async handleCopyCatalog() {
+    try {
+      await this.ensurePrereqs();
+      await navigator.clipboard.writeText(this.systemPrompt || "");
+      const n = (this.systemPrompt || "").length;
+      this.ui.extStatus.textContent = `Copied ${n.toLocaleString()} chars. Paste into your assistant chat.`;
+    } catch (e) {
+      this.ui.extStatus.textContent = "Copy failed: " + (e.message || e);
+    }
+    setTimeout(() => { this.ui.extStatus.textContent = ""; }, 6000);
+  }
+
   async handleLoadClick() {
     const modelId = this.ui.localModelSel.value || DEFAULT_LOCAL_MODEL;
-    // Pre-flight WebGPU check so failures surface immediately and direct
-    // the user to BYOK instead of failing deep in WebLLM's loader.
+    // Pre-flight WebGPU check so failures surface immediately. The
+    // external-AI buttons above the WebLLM section are the recommended
+    // alternative when WebGPU isn't available.
     if (!navigator.gpu) {
-      this.setStatus("No WebGPU. Switching to OpenRouter. Run /webgpu-test.html for diagnostics.", true);
-      this.ui.providerSel.value = "openrouter";
-      this.ui.providerSel.dispatchEvent(new Event("change", { bubbles: true }));
-      this.ui.settingsPanel.classList.remove("fz-hidden");
+      this.setStatus("This browser has no WebGPU. Use one of the 'Open in your AI account' buttons above instead, or run /webgpu-test.html for diagnostics.", true);
       return;
     }
     try {
       const adapter = await navigator.gpu.requestAdapter();
       if (!adapter) {
-        this.setStatus("WebGPU API present but no adapter. See /webgpu-test.html for fixes.", true);
-        this.ui.providerSel.value = "openrouter";
-        this.ui.providerSel.dispatchEvent(new Event("change", { bubbles: true }));
-        this.ui.settingsPanel.classList.remove("fz-hidden");
+        this.setStatus("WebGPU API present but no compatible GPU adapter. Use 'Open in your AI account' above, or see /webgpu-test.html.", true);
         return;
       }
-    } catch (_) { /* fall through and let the loader surface the real error */ }
+    } catch (_) { /* let WebLLM's loader surface the real error */ }
 
     this.ui.loadBtn.disabled = true;
     lsSet(LS_KEYS.consented, "1");
@@ -622,27 +451,15 @@ class ChatWidget {
   async handleSubmit() {
     const text = this.ui.textarea.value.trim();
     if (!text) return;
-    const provider = this.ui.providerSel.value;
 
-    // Validate provider readiness.
-    const KEY_INPUTS = {
-      groq:       this.ui.groqKeyInput,
-      openrouter: this.ui.openrouterKeyInput,
-      cerebras:   this.ui.cerebrasKeyInput,
-      gemini:     this.ui.geminiKeyInput,
-    };
-    const KEY_NAMES = { groq: "Groq", openrouter: "OpenRouter", cerebras: "Cerebras", gemini: "Gemini" };
-    if (KEY_INPUTS[provider] && !KEY_INPUTS[provider].value.trim()) {
-      this.setStatus(`Add a ${KEY_NAMES[provider]} API key in Settings (gear icon).`, true);
-      this.ui.settingsPanel.classList.remove("fz-hidden");
+    // Send routes only to local WebLLM. External providers are reached via
+    // the 'Open in your AI account' buttons above (they open a new tab).
+    const modelId = this.ui.localModelSel.value || DEFAULT_LOCAL_MODEL;
+    if (!_webllmEngine || _webllmEngine._fzModelId !== modelId) {
+      this.setStatus("Click 'Load model' first (in the Local section above), or open the question in your AI account using the buttons above.", true);
+      // Auto-expand the local <details> so the user sees the load button.
+      if (this.ui.localDetails) this.ui.localDetails.open = true;
       return;
-    }
-    if (provider === "local") {
-      const modelId = this.ui.localModelSel.value || DEFAULT_LOCAL_MODEL;
-      if (!_webllmEngine || _webllmEngine._fzModelId !== modelId) {
-        this.setStatus("Click 'Load model' first to download the local model.", true);
-        return;
-      }
     }
 
     this.ui.textarea.value = "";
@@ -651,8 +468,6 @@ class ChatWidget {
     this.history.push({ role: "user", content: text });
     this.lastAssistantNode = null;
 
-    // Per-submit AbortController. The dialog 'close' listener aborts this so
-    // the Send button is never left disabled if the user closes mid-stream.
     const abortCtrl = new AbortController();
     this.activeAbort = abortCtrl;
 
@@ -664,22 +479,8 @@ class ChatWidget {
       ];
       this.setStatus("Thinking...");
       const onChunk = (txt) => this.updateAssistantStreaming(txt);
-      let reply = "";
-      if (provider === "local") {
-        reply = await callLocal(messages, this.ui.localModelSel.value || DEFAULT_LOCAL_MODEL,
-                                onChunk, (s) => this.setStatus(s), abortCtrl.signal);
-      } else if (provider === "groq") {
-        reply = await callGroq(messages, this.ui.groqKeyInput.value.trim(), onChunk, abortCtrl.signal);
-      } else if (provider === "openrouter") {
-        reply = await callOpenRouter(messages, this.ui.openrouterKeyInput.value.trim(), onChunk, abortCtrl.signal);
-      } else if (provider === "cerebras") {
-        reply = await callCerebras(messages, this.ui.cerebrasKeyInput.value.trim(), onChunk, abortCtrl.signal);
-      } else if (provider === "gemini") {
-        reply = await callGemini(messages, this.ui.geminiKeyInput.value.trim(), onChunk, abortCtrl.signal);
-      } else {
-        throw new Error(`unknown provider: ${provider}`);
-      }
-      // Append disclaimer if the model didn't echo it back already.
+      let reply = await callLocal(messages, modelId,
+                                  onChunk, (s) => this.setStatus(s), abortCtrl.signal);
       if (reply && !/AI[- ]generated/i.test(reply)) {
         reply = reply + "\n\n" + DISCLAIMER;
         this.updateAssistantStreaming(reply);
@@ -689,7 +490,6 @@ class ChatWidget {
     } catch (err) {
       const isAbort = err && (err.name === "AbortError" || /aborted/i.test(err.message || ""));
       if (isAbort) {
-        // Silent on user-initiated abort; just clear the status.
         this.setStatus("Cancelled.");
       } else {
         const msg = err.message || String(err);
@@ -697,7 +497,6 @@ class ChatWidget {
         this.setStatus(`Error: ${msg}`, true);
       }
     } finally {
-      // Always re-enable the Send button, no matter how we exited.
       this.ui.sendBtn.disabled = false;
       if (this.activeAbort === abortCtrl) this.activeAbort = null;
     }
