@@ -197,7 +197,7 @@ function buildDialog() {
   const extStatus   = el("span", { class: "fz-ext-status" }, "");
   const externalBlock = el("div", { class: "fz-external-block fz-external-primary" },
     el("label", {}, "Open in your AI account"),
-    el("div", { class: "fz-external-row" }, extChatGPT, extClaude, extGemini),
+    el("div", { class: "fz-external-row" }, extClaude, extChatGPT, extGemini),
     el("p", { class: "fz-hint" },
       "Opens a new tab in your logged-in account with a prompt that loads the FZ catalog as context. ",
       "Gemini routes to Google AI Studio. If the assistant can't fetch URLs (or you're on localhost), use the clipboard fallback below."),
