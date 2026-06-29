@@ -37,11 +37,24 @@ class Lossless_zstd : public concepts::LosslessInterface {
     }
 
     size_t decompress(const uchar *src, const size_t srcLen, uchar *&dst, size_t &dstLen) override {
+        /// The compressed buffer starts with the decompressed size, followed by the zstd stream.
+        /// Validate the inputs so corrupted data can not read out of bounds, allocate an untrusted
+        /// amount, or pass a zstd error code back as a size.
+        if (srcLen < sizeof(dstLen)) {
+            throw std::out_of_range("SZ3 lossless: compressed data is smaller than the size header");
+        }
         read(dstLen, src);
         if (dst == nullptr) {
             dst = static_cast<uchar *>(malloc(dstLen));
+            if (dst == nullptr) {
+                throw std::runtime_error("SZ3 lossless: can not allocate the decompression buffer");
+            }
         }
-        return ZSTD_decompress(dst, dstLen, src, srcLen - sizeof(dstLen));
+        size_t res = ZSTD_decompress(dst, dstLen, src, srcLen - sizeof(dstLen));
+        if (ZSTD_isError(res)) {
+            throw std::runtime_error("SZ3 lossless: zstd decompression failed");
+        }
+        return res;
     }
 
    private:
