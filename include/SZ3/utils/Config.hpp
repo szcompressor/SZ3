@@ -359,9 +359,13 @@ class Config {
      * @param c Pointer to the byte array.
      */
     void load(const unsigned char*& c) {
+        const unsigned char* c0 = c;
         uchar confSize = 0;
         read(confSize, c);
-        auto c1 = c + confSize;
+        // `confSize` is the total size of the serialized config, including this length-prefix byte
+        // (see save()). The end of the config is therefore c0 + confSize, not c + confSize: the latter
+        // is one byte too far because `c` has already advanced past the prefix byte.
+        auto c1 = c0 + confSize;
 
         read(N, c);
         uint8_t bitWidth;
