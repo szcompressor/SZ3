@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <stdexcept>
 #include <map>
 #include <set>
 #include <unordered_set>
@@ -228,21 +229,34 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         size_t i = 0, byteIndex = 0, count = 0;
         int r;
         node n = treeRoot;
+        /// Bytes available for the encoded payload, recorded by load(). Used to bound all reads below.
+        size_t remaining = decode_remaining_length;
+        if (remaining < sizeof(size_t))
+            throw std::out_of_range("SZ3 Huffman: truncated encoded length");
         size_t encodedLength = 0;
         read(encodedLength, bytes);
+        remaining -= sizeof(size_t);
         if (n->t)  // root->t==1 means that all state values are the same (constant)
         {
             for (count = 0; count < targetLength; count++) out[count] = n->c + offset;
             return out;
         }
 
+        if (encodedLength > remaining)
+            throw std::out_of_range("SZ3 Huffman: encoded length exceeds compressed buffer");
+
         for (i = 0; count < targetLength; i++) {
             byteIndex = i >> 3;  // i/8
+            if (byteIndex >= encodedLength)
+                throw std::out_of_range("SZ3 Huffman: corrupted encoded stream");
             r = i % 8;
             if (((bytes[byteIndex] >> (7 - r)) & 0x01) == 0)
                 n = n->left;
             else
                 n = n->right;
+
+            if (n == nullptr)
+                throw std::out_of_range("SZ3 Huffman: corrupted tree");
 
             if (n->t) {
                 out[count] = n->c + offset;
@@ -260,8 +274,14 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     // load Huffman tree
     void load(const uchar *&c, size_t &remaining_length) override {
         read(offset, c, remaining_length);
+        if (remaining_length < 2 * sizeof(int))
+            throw std::out_of_range("SZ3 Huffman: truncated tree header");
         nodeCount = bytesToInt32_bigEndian(c);
         int stateNum = bytesToInt32_bigEndian(c + sizeof(int)) * 2;
+        /// `nodeCount` comes from untrusted data. Bound it before it is used in size computations so
+        /// the encodeStartIndex arithmetic below cannot overflow and the tree cannot be read past the buffer.
+        if (nodeCount <= 0 || static_cast<size_t>(nodeCount) > remaining_length)
+            throw std::out_of_range("SZ3 Huffman: invalid node count");
         size_t encodeStartIndex;
         if (nodeCount <= 256)
             encodeStartIndex = 1 + 3 * nodeCount * sizeof(unsigned char) + nodeCount * sizeof(T);
@@ -272,9 +292,15 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             encodeStartIndex =
                 1 + 2 * nodeCount * sizeof(unsigned int) + nodeCount * sizeof(unsigned char) + nodeCount * sizeof(T);
 
+        size_t tree_bytes = sizeof(int) + sizeof(int) + encodeStartIndex;
+        if (tree_bytes > remaining_length)
+            throw std::out_of_range("SZ3 Huffman: tree exceeds compressed buffer");
+
         huffmanTree = createHuffmanTree(stateNum);
         treeRoot = reconstruct_HuffTree_from_bytes_anyStates(c + sizeof(int) + sizeof(int), nodeCount);
-        c += sizeof(int) + sizeof(int) + encodeStartIndex;
+        c += tree_bytes;
+        remaining_length -= tree_bytes;
+        decode_remaining_length = remaining_length;
         loaded = true;
     }
 
@@ -286,6 +312,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     unsigned int nodeCount = 0;
     uchar sysEndianType;  // 0: little endian, 1: big endian
     bool loaded = false;
+    size_t decode_remaining_length = 0;
     T offset;
 
     node reconstruct_HuffTree_from_bytes_anyStates(const unsigned char *bytes, uint nodeCount) {
