@@ -43,12 +43,18 @@ class Lossless_zstd : public concepts::LosslessInterface {
         if (srcLen < sizeof(dstLen)) {
             throw std::out_of_range("SZ3 lossless: compressed data is smaller than the size header");
         }
+        /// When the caller provides the destination buffer, the incoming dstLen is its capacity. The
+        /// decompressed size is read from the (untrusted) compressed data, so it must not exceed that
+        /// capacity, otherwise zstd would write past the end of the buffer.
+        const size_t dst_capacity = dstLen;
         read(dstLen, src);
         if (dst == nullptr) {
             dst = static_cast<uchar *>(malloc(dstLen));
             if (dst == nullptr) {
                 throw std::runtime_error("SZ3 lossless: can not allocate the decompression buffer");
             }
+        } else if (dstLen > dst_capacity) {
+            throw std::out_of_range("SZ3 lossless: decompressed size exceeds the destination buffer");
         }
         size_t res = ZSTD_decompress(dst, dstLen, src, srcLen - sizeof(dstLen));
         if (ZSTD_isError(res)) {
