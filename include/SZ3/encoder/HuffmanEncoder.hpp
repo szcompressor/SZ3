@@ -296,6 +296,13 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         if (tree_bytes > remaining_length)
             throw std::out_of_range("SZ3 Huffman: tree exceeds compressed buffer");
 
+        /// The node pool is sized from stateNum, but the tree is reconstructed from nodeCount nodes; both come
+        /// from untrusted data. createHuffmanTree allocates a pool of 2*allNodes = 4*stateNum nodes, and the
+        /// reconstruction creates at most nodeCount of them, so reject a stateNum that is non-positive or too
+        /// small to hold nodeCount nodes - otherwise new_node2 would write past the end of the pool.
+        if (stateNum <= 0 || static_cast<size_t>(nodeCount) > 4 * static_cast<size_t>(stateNum))
+            throw std::out_of_range("SZ3 Huffman: node count exceeds the tree pool capacity");
+
         huffmanTree = createHuffmanTree(stateNum);
         treeRoot = reconstruct_HuffTree_from_bytes_anyStates(c + sizeof(int) + sizeof(int), nodeCount);
         c += tree_bytes;
@@ -347,7 +354,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             memcpy(t, bytes + 1 + 2 * nodeCount * sizeof(unsigned char) + nodeCount * sizeof(T),
                    nodeCount * sizeof(unsigned char));
             node root = this->new_node2(C[0], t[0]);
-            this->unpad_tree<uchar>(L, R, C, t, 0, root);
+            this->unpad_tree<uchar>(L, R, C, t, 0, root, nodeCount);
             free(L);
             free(R);
             free(C);
@@ -388,7 +395,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                    nodeCount * sizeof(unsigned char));
 
             node root = this->new_node2(0, 0);
-            this->unpad_tree<unsigned short>(L, R, C, t, 0, root);
+            this->unpad_tree<unsigned short>(L, R, C, t, 0, root, nodeCount);
             free(L);
             free(R);
             free(C);
@@ -429,7 +436,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                    nodeCount * sizeof(unsigned char));
 
             node root = this->new_node2(0, 0);
-            this->unpad_tree<unsigned int>(L, R, C, t, 0, root);
+            this->unpad_tree<unsigned int>(L, R, C, t, 0, root, nodeCount);
             free(L);
             free(R);
             free(C);
@@ -606,21 +613,28 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     }
 
     template <class T1>
-    void unpad_tree(T1 *L, T1 *R, T *C, unsigned char *t, unsigned int i, node root) {
+    void unpad_tree(T1 *L, T1 *R, T *C, unsigned char *t, unsigned int i, node root, unsigned int nodeCount) {
         // root->c = C[i];
         if (root->t == 0) {
             T1 l, r;
             l = L[i];
             if (l != 0) {
+                // Child indices come from untrusted data. pad_tree always assigns a child a higher index than
+                // its parent, so a valid index satisfies i < l < nodeCount. Enforcing this prevents reading
+                // L/R/C/t out of bounds and prevents a cycle that would overflow the node pool.
+                if (l <= i || l >= nodeCount)
+                    throw std::out_of_range("SZ3 Huffman: invalid left child index in tree");
                 node lroot = new_node2(C[l], t[l]);
                 root->left = lroot;
-                unpad_tree(L, R, C, t, l, lroot);
+                unpad_tree(L, R, C, t, l, lroot, nodeCount);
             }
             r = R[i];
             if (r != 0) {
+                if (r <= i || r >= nodeCount)
+                    throw std::out_of_range("SZ3 Huffman: invalid right child index in tree");
                 node rroot = new_node2(C[r], t[r]);
                 root->right = rroot;
-                unpad_tree(L, R, C, t, r, rroot);
+                unpad_tree(L, R, C, t, r, rroot, nodeCount);
             }
         }
     }
