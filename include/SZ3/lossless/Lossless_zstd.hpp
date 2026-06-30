@@ -68,6 +68,12 @@ class Lossless_zstd : public concepts::LosslessInterface {
         if (ZSTD_isError(res)) {
             throw std::runtime_error("SZ3 lossless: zstd decompression failed");
         }
+        /// The declared size is read from the (untrusted) payload; require zstd to actually produce that many
+        /// bytes, so a frame that expands to fewer bytes can not leave the tail of the output buffer
+        /// uninitialized (which a caller would otherwise copy out as if it were decompressed data).
+        if (res != dstLen) {
+            throw std::out_of_range("SZ3 lossless: decompressed size does not match the declared size");
+        }
         return res;
     }
 
