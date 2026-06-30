@@ -73,7 +73,8 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         encoder.load(bufferPos, bufferSize);
 
         size_t quant_inds_size = 0;
-        read(quant_inds_size, bufferPos);
+        // Read the count with the bounded overload so a truncated buffer can not be read past its end.
+        read(quant_inds_size, bufferPos, bufferSize);
         auto quant_inds = encoder.decode(bufferPos, quant_inds_size);
         encoder.postprocess_decode();
 
