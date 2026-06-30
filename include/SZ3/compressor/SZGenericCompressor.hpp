@@ -11,6 +11,7 @@
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/FileUtil.hpp"
 #include "SZ3/utils/Timer.hpp"
+#include "zstd.h"
 
 namespace SZ3 {
 /**
@@ -64,7 +65,15 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
 
     T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *decData) override {
         uchar *buffer = nullptr;
-        size_t bufferSize = 0;
+        // The lossless layer reads the size of this internal buffer from the untrusted payload and would
+        // otherwise allocate it unbounded. Bound it by the largest internal buffer this configuration could
+        // have produced: during compression the buffer is losslessly (zstd) compressed, and
+        // ZSTD_compressBound(B) >= B, so a block that was actually stored with this compressor satisfies
+        // B < SZ_compress_size_bound = 4096 + conf.size_est() + ZSTD_compressBound(conf.num * sizeof(T)).
+        // Passing this as the capacity lets the lossless decoder reject a corrupted payload that declares a
+        // larger internal size before allocating it. conf.num is validated against the trusted output size by
+        // the caller, so this bound can not be inflated by corrupted input.
+        size_t bufferSize = 4096 + conf.size_est() + ZSTD_compressBound(conf.num * sizeof(T));
         lossless.decompress(cmpData, cmpSize, buffer, bufferSize);
 
         uchar const *bufferPos = buffer;
