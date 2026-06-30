@@ -121,14 +121,22 @@ void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* de
 #ifdef _OPENMP
 
     auto cmpr_data_pos = cmpData;
+    const uchar* const cmp_end = cmpData + cmpSize;
     int nThreads = 1;
+    // Everything below is read from untrusted data; bound every read against the end of the buffer.
+    if (static_cast<size_t>(cmp_end - cmpr_data_pos) < sizeof(nThreads))
+        throw std::out_of_range("SZ3 OMP: truncated thread count");
     read(nThreads, cmpr_data_pos);
+    // Each per-thread config and size entry occupies at least one byte, so the thread count can not exceed
+    // the size of the compressed buffer.
+    if (nThreads <= 0 || static_cast<size_t>(nThreads) > cmpSize)
+        throw std::out_of_range("SZ3 OMP: invalid thread count");
     omp_set_num_threads(nThreads);
     printf("OpenMP enabled for decompression, threads = %d\n", nThreads);
 
     std::vector<Config> conf_t(nThreads);
     for (int i = 0; i < nThreads; i++) {
-        conf_t[i].load(cmpr_data_pos);
+        conf_t[i].load(cmpr_data_pos, static_cast<size_t>(cmp_end - cmpr_data_pos));
     }
 
     if (conf_t[0].sz3MagicNumber != SZ3_MAGIC_NUMBER) {
@@ -145,12 +153,19 @@ void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* de
 
     std::vector<size_t> cmp_start_t, cmp_size_t;
     cmp_size_t.resize(nThreads);
+    if (static_cast<size_t>(cmp_end - cmpr_data_pos) < static_cast<size_t>(nThreads) * sizeof(size_t))
+        throw std::out_of_range("SZ3 OMP: truncated per-thread sizes");
     read(cmp_size_t.data(), nThreads, cmpr_data_pos);
     auto cmpr_data_p = cmpr_data_pos;
 
     cmp_start_t.resize(nThreads + 1);
     cmp_start_t[0] = 0;
+    // The per-thread payloads follow back-to-back and must all fit in the remaining buffer. Build the running
+    // offsets with an overflow-safe bound so a crafted size can not point a thread's slice out of bounds.
+    const size_t payload_avail = static_cast<size_t>(cmp_end - cmpr_data_p);
     for (int i = 1; i <= nThreads; i++) {
+        if (cmp_size_t[i - 1] > payload_avail - cmp_start_t[i - 1])
+            throw std::out_of_range("SZ3 OMP: per-thread compressed sizes exceed the buffer");
         cmp_start_t[i] = cmp_start_t[i - 1] + cmp_size_t[i - 1];
     }
 
