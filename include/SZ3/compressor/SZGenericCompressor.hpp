@@ -1,7 +1,9 @@
 #ifndef SZ3_COMPRESSOR_TYPE_ONE_HPP
 #define SZ3_COMPRESSOR_TYPE_ONE_HPP
 
+#include <cstdlib>
 #include <cstring>
+#include <memory>
 
 #include "SZ3/compressor/Compressor.hpp"
 #include "SZ3/decomposition/Decomposition.hpp"
@@ -76,6 +78,11 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         size_t bufferSize = 4096 + conf.size_est() + ZSTD_compressBound(conf.num * sizeof(T));
         lossless.decompress(cmpData, cmpSize, buffer, bufferSize);
 
+        // The lossless layer allocated `buffer` with malloc. Own it with RAII so it is released on every path
+        // below - including the parsing steps that operate on untrusted data and can throw before we are done
+        // with it - instead of being leaked. decompress() is reached repeatedly for corrupted blocks (fuzzing).
+        std::unique_ptr<uchar, void (*)(void *)> buffer_owner(buffer, &free);
+
         uchar const *bufferPos = buffer;
 
         decomposition.load(bufferPos, bufferSize);
@@ -87,7 +94,8 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         auto quant_inds = encoder.decode(bufferPos, quant_inds_size);
         encoder.postprocess_decode();
 
-        free(buffer);
+        // The remaining work uses `quant_inds` and `decData` only, so release the internal buffer now.
+        buffer_owner.reset();
 
         decomposition.decompress(conf, quant_inds, decData);
         return decData;
