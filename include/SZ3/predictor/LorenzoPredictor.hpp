@@ -97,7 +97,11 @@ class LorenzoPredictor : public concepts::PredictorInterface<T, N> {
     T noise = 0;
 
    private:
-    // Helper functions for Lorenzo prediction
+    // Helper functions for Lorenzo prediction.
+    // The neighbour offsets are unsigned, so `d[-offset]` is `*(d + (size_t)(-offset))`, which forms an
+    // out-of-bounds pointer by wrapping the unsigned addition (flagged by -fsanitize=pointer-overflow even
+    // though the accessed element is in bounds thanks to the predictor's padding). Compute the address with
+    // pointer subtraction instead, so the offset stays a small negative step and no wrap-around occurs.
     ALWAYS_INLINE T prev1(T *d, size_t i) { return *(d - i); }
     ALWAYS_INLINE T prev2(T *d, const std::array<size_t, N> &ds, size_t j, size_t i) { return *(d - (j * ds[0] + i)); }
     ALWAYS_INLINE T prev3(T *d, const std::array<size_t, N> &ds, size_t k, size_t j, size_t i) {

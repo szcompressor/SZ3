@@ -79,7 +79,9 @@ template <class T, uint N>
 void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
     if (conf.cmprAlgo == ALGO_LOSSLESS) {
         auto zstd = Lossless_zstd();
-        size_t decDataSize = 0;
+        /// decData is a pre-allocated buffer of conf.num elements; pass its capacity so the lossless decoder
+        /// can reject a payload that claims a larger decompressed size before writing past the buffer.
+        size_t decDataSize = conf.num * sizeof(T);
         auto decDataPos = reinterpret_cast<uchar *>(decData);
         zstd.decompress(cmpData, cmpSize, decDataPos, decDataSize);
         if (decDataSize != conf.num * sizeof(T)) {

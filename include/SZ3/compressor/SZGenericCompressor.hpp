@@ -1,7 +1,9 @@
 #ifndef SZ3_COMPRESSOR_TYPE_ONE_HPP
 #define SZ3_COMPRESSOR_TYPE_ONE_HPP
 
+#include <cstdlib>
 #include <cstring>
+#include <memory>
 
 #include "SZ3/compressor/Compressor.hpp"
 #include "SZ3/decomposition/Decomposition.hpp"
@@ -11,6 +13,7 @@
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/FileUtil.hpp"
 #include "SZ3/utils/Timer.hpp"
+#include "zstd.h"
 
 namespace SZ3 {
 /**
@@ -49,10 +52,16 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         uchar *buffer_pos = buffer;
 
         decomposition.save(buffer_pos);
-        encoder.save(buffer_pos);
 
-        //store the size of quant_inds is necessary as it is not always equal to conf.num
+        // Store the size of quant_inds; it is necessary as it is not always equal to conf.num.
+        // It is written BEFORE the encoder so that the encoder's serialized tree is immediately followed by
+        // its encoded stream, with no field in between. On decompression the encoder records how many bytes
+        // remain right after its tree and uses that as the bound for the encoded stream; a field written
+        // between the tree and the stream would make that bound too large and let a corrupted/truncated
+        // block read past the end of the buffer (see the matching order in decompress()).
         write<size_t>(quant_inds.size(), buffer_pos);
+
+        encoder.save(buffer_pos);
         encoder.encode(quant_inds, buffer_pos);
         encoder.postprocess_encode();
         
@@ -64,20 +73,39 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
 
     T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *decData) override {
         uchar *buffer = nullptr;
-        size_t bufferSize = 0;
+        // The lossless layer reads the size of this internal buffer from the untrusted payload and would
+        // otherwise allocate it unbounded. Bound it by the largest internal buffer this configuration could
+        // have produced: during compression the buffer is losslessly (zstd) compressed, and
+        // ZSTD_compressBound(B) >= B, so a block that was actually stored with this compressor satisfies
+        // B < SZ_compress_size_bound = 4096 + conf.size_est() + ZSTD_compressBound(conf.num * sizeof(T)).
+        // Passing this as the capacity lets the lossless decoder reject a corrupted payload that declares a
+        // larger internal size before allocating it. conf.num is validated against the trusted output size by
+        // the caller, so this bound can not be inflated by corrupted input.
+        size_t bufferSize = 4096 + conf.size_est() + ZSTD_compressBound(conf.num * sizeof(T));
         lossless.decompress(cmpData, cmpSize, buffer, bufferSize);
+
+        // The lossless layer allocated `buffer` with malloc. Own it with RAII so it is released on every path
+        // below - including the parsing steps that operate on untrusted data and can throw before we are done
+        // with it - instead of being leaked. decompress() is reached repeatedly for corrupted blocks (fuzzing).
+        std::unique_ptr<uchar, void (*)(void *)> buffer_owner(buffer, &free);
 
         uchar const *bufferPos = buffer;
 
         decomposition.load(bufferPos, bufferSize);
-        encoder.load(bufferPos, bufferSize);
 
         size_t quant_inds_size = 0;
-        read(quant_inds_size, bufferPos);
+        // Read the count with the bounded overload so a truncated buffer can not be read past its end.
+        read(quant_inds_size, bufferPos, bufferSize);
+        // load() records the number of bytes remaining right after the encoder's serialized tree and uses it
+        // to bound the encoded stream during decode(). The quant_inds count above is read BEFORE this so that
+        // the tree is immediately followed by the encoded stream (matching the order in compress()); otherwise
+        // the recorded bound would include this field and a truncated block could read past the buffer.
+        encoder.load(bufferPos, bufferSize);
         auto quant_inds = encoder.decode(bufferPos, quant_inds_size);
         encoder.postprocess_decode();
 
-        free(buffer);
+        // The remaining work uses `quant_inds` and `decData` only, so release the internal buffer now.
+        buffer_owner.reset();
 
         decomposition.decompress(conf, quant_inds, decData);
         return decData;

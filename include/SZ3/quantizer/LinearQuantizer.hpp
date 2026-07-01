@@ -83,7 +83,13 @@ public:
         return pred + 2 * (quant_index - this->radius) * this->error_bound;
     }
 
-    ALWAYS_INLINE T recover_unpred() { return unpred[index++]; }
+    ALWAYS_INLINE T recover_unpred() {
+        // index and the quantization stream come from untrusted data; a crafted stream can request more
+        // unpredictable values than were stored, which would read past the end of unpred.
+        if (index >= unpred.size())
+            throw std::out_of_range("SZ3: ran out of unpredictable values while decompressing");
+        return unpred[index++];
+    }
 
     ALWAYS_INLINE int force_save_unpred(T ori) override {
         unpred.push_back(ori);
@@ -115,6 +121,10 @@ public:
         size_t unpred_size = 0;
         read(unpred_size, c, remaining_length);
         if (unpred_size > 0) {
+            // Validate the count against the remaining bytes before resizing, otherwise a corrupted count
+            // would drive a huge allocation before the bounded read below has a chance to reject it.
+            if (unpred_size > remaining_length / sizeof(T))
+                throw std::out_of_range("SZ3: unpredictable value count exceeds the compressed buffer");
             unpred.resize(unpred_size);
             read(unpred.data(), unpred_size, c, remaining_length);
         }

@@ -45,7 +45,13 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
     }
 
     bool predecompress(const block_iter &block) override {
+        // selection and its entries come from untrusted data; bound the running index into selection and the
+        // selected predictor index before using them. predict()/estimate_error() reuse the sid set here.
+        if (current_index >= selection.size())
+            throw std::out_of_range("SZ3: ran out of predictor selections while decompressing");
         sid = selection[current_index++];
+        if (sid < 0 || static_cast<size_t>(sid) >= predictors.size())
+            throw std::out_of_range("SZ3: predictor selection index is out of range");
         return predictors[sid]->predecompress(block);
     }
 
