@@ -8,6 +8,8 @@
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/Statistic.hpp"
 
+#include <memory>
+
 namespace SZ3 {
 template <class T, uint N>
 size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
@@ -63,6 +65,8 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
         auto zstd = Lossless_zstd();
         auto zstdCmpCap = ZSTD_compressBound(conf.num * sizeof(T)) + sizeof(size_t);
         auto zstdCmpData = static_cast<uchar *>(malloc(zstdCmpCap));
+        // RAII: zstd.compress can throw, which would leak this buffer with a bare free() at the end.
+        std::unique_ptr<uchar, void (*)(void *)> zstd_cmp_data_owner(zstdCmpData, &free);
         size_t zstdCmpSize =
             zstd.compress(reinterpret_cast<const uchar *>(data), conf.num * sizeof(T), zstdCmpData, zstdCmpCap);
         if (zstdCmpSize < cmpSize && zstdCmpSize <= cmpCap) {
@@ -70,7 +74,6 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
             memcpy(cmpData, zstdCmpData, zstdCmpSize);
             cmpSize = zstdCmpSize;
         }
-        free(zstdCmpData);
     }
     return cmpSize;
 }

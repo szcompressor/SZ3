@@ -46,6 +46,11 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
             1000, 2 * (decomposition.size_est() + encoder.size_est() + sizeof(T) * quant_inds.size()));
 
         auto buffer = static_cast<uchar *>(malloc(bufferSize));
+        // Own the scratch buffer with RAII so it is released on every path: the encoder and the lossless
+        // layer below can throw (e.g. Lossless_zstd::compress throws std::length_error when the destination
+        // capacity is too small for poorly-compressible data), and the caller catches and continues, so a
+        // bare free() at the end leaks the buffer on each failed compression.
+        std::unique_ptr<uchar, void (*)(void *)> buffer_owner(buffer, &free);
         uchar *buffer_pos = buffer;
 
         decomposition.save(buffer_pos);
@@ -57,7 +62,6 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         encoder.postprocess_encode();
         
         auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
-        free(buffer);
 
         return cmpSize;
     }

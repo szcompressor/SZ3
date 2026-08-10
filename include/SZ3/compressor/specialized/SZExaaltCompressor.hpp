@@ -1,6 +1,8 @@
 #ifndef SZ3_EXAALT_COMPRESSSOR_HPP
 #define SZ3_EXAALT_COMPRESSSOR_HPP
 
+#include <memory>
+
 #include "SZ3/def.hpp"
 #include "SZ3/encoder/Encoder.hpp"
 #include "SZ3/lossless/Lossless.hpp"
@@ -90,6 +92,9 @@ class SZExaaltCompressor : public SZ3::concepts::CompressorInterface<T> {
         quantizer.postcompress_data();
 
         auto buffer = static_cast<uchar *>(malloc(4 * conf.num * sizeof(T)));
+        // RAII: the encoder and the lossless layer below can throw (std::length_error when the destination
+        // capacity is too small), which would leak this scratch buffer with a bare free() at the end.
+        std::unique_ptr<uchar, void (*)(void *)> buffer_owner(buffer, &free);
         uchar *buffer_pos = buffer;
         quantizer.save(buffer_pos);
         //            quantizer.print();
@@ -112,7 +117,6 @@ class SZExaaltCompressor : public SZ3::concepts::CompressorInterface<T> {
         encoder.postprocess_encode();
 
         auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
-        free(buffer);
         return cmpSize;
     }
 
@@ -121,6 +125,8 @@ class SZExaaltCompressor : public SZ3::concepts::CompressorInterface<T> {
         uchar *buffer = nullptr;
         size_t bufferSize = 0;
         lossless.decompress(cmpData, cmpSize, buffer, bufferSize);
+        // RAII: the parsing steps below operate on untrusted data and can throw before the buffer is freed.
+        std::unique_ptr<uchar, void (*)(void *)> buffer_owner(buffer, &free);
         size_t remaining_length = cmpSize;
         uchar const *buffer_pos = buffer;
 
@@ -133,8 +139,6 @@ class SZExaaltCompressor : public SZ3::concepts::CompressorInterface<T> {
         auto pred_inds_num = (timestep_op == 1) ? conf.dims[1] : conf.num;
         auto pred_inds = encoder.decode(buffer_pos, pred_inds_num);
         encoder.postprocess_decode();
-
-        free(buffer);
 
         quantizer.predecompress_data();
 
