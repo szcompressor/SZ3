@@ -91,7 +91,7 @@ Version New features
 Bundled in `include/SZ3/utils/thirdparty/`. Each directory carries its own
 license text, and a `NOTICE` file where the SZ3 project has modified the code.
 
-* [zfp](https://github.com/LLNL/zfp) 0.3.1 — BSD-3-Clause, see [zfp/LICENSE](include/SZ3/utils/thirdparty/zfp/LICENSE).
+* [zfp](https://github.com/LLNL/zfp) 0.3.1 — BSD-3-Clause, see [zfp/LICENSE](include/SZ3/utils/thirdparty/zfp/LICENSE) and [zfp/NOTICE](include/SZ3/utils/thirdparty/zfp/NOTICE).
 * [SPERR](https://github.com/NCAR/SPERR) v0.8.4 — Apache-2.0, see [sperr/LICENSE](include/SZ3/utils/thirdparty/sperr/LICENSE) and [sperr/NOTICE](include/SZ3/utils/thirdparty/sperr/NOTICE).
 * [MGARDx](https://github.com/lxAltria/MGARDx) — see [mgard/NOTICE](include/SZ3/utils/thirdparty/mgard/NOTICE).
 * [ska_hash](https://github.com/skarupke/flat_hash_map) — Boost 1.0, see [ska_hash/LICENSE.txt](include/SZ3/utils/thirdparty/ska_hash/LICENSE.txt).

@@ -1,0 +1,56 @@
+zfp -- vendored into SZ3
+========================
+
+Upstream:  https://github.com/LLNL/zfp, release 0.3.1 (the C++ template headers
+           from inc/)
+License:   BSD-3-Clause (see the LICENSE file in this directory)
+
+The files in this directory have been MODIFIED from the upstream sources listed
+above, to modularize the codec for use as an SZ3 pipeline stage
+(`ZFPDecomposition`, `ZFPEncoder`). BSD-3-Clause imposes no modification-notice
+requirement; this file is provided so that maintainers upgrading the bundled
+copy know what was changed and why.
+
+Vendored files (14), all from upstream `inc/`:
+
+    bitstream.h     fixedpoint32.h  fixedpoint64.h  intcodec.h
+    intcodec04.h    intcodec16.h    intcodec64.h    intrinsics.h
+    types.h         zfpcodec.h      zfpcodec1.h     zfpcodec2.h
+    zfpcodec3.h     zfptransform.h
+
+Modifications made by the SZ3 project:
+
+1. Namespace change (all 14 files). `namespace ZFP` re-wrapped as
+   `namespace SZ3::ZFP`, so that SZ3 can be linked alongside an independent
+   build of upstream zfp without symbol collisions.
+
+2. Access control (`zfpcodec1.h`, `zfpcodec2.h`, `zfpcodec3.h`). The `protected:`
+   section of each codec class was changed to `public:`, so that SZ3's
+   decomposition and encoder modules can drive the codec internals directly
+   rather than through upstream's single-shot compression entry points. This is
+   the change that makes the codec usable as a composable pipeline stage.
+
+3. Portability (`intrinsics.h`). The fallback `lrint` guard was narrowed from
+   `#ifndef HAVE_C99_MATH` to
+   `#if defined(_MSC_VER) && _MSC_VER < 1800 && !defined(HAVE_C99_MATH)`, so the
+   fallback applies only to pre-VS2013 MSVC and does not shadow the standard
+   library on other toolchains.
+
+4. Modernization (`bitstream.h`). `MemoryBitStream`'s member initializers use
+   `nullptr` instead of `0`, and one C-style cast was replaced with
+   `static_cast<uchar*>`.
+
+5. Commented-out debug lines added (`intcodec04.h`, `intcodec64.h`,
+   `zfpcodec3.h`). Three inactive `// printf(...)` diagnostics. These have no
+   effect; they do not appear upstream.
+
+6. Formatting (`zfpcodec1.h`). `precision()` reflowed across three lines.
+
+`intcodec.h`, `intcodec16.h`, and `types.h` differ from upstream only by the
+namespace wrap of item 1.
+
+Upstream files carry no per-file copyright notices of their own, so none were
+removed.
+
+Citation: P. Lindstrom, "Fixed-Rate Compressed Floating-Point Arrays," IEEE
+TVCG 20(12), 2014.
