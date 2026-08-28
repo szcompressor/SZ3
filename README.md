@@ -87,5 +87,14 @@ Version New features
 * SZ 3.3.2: bugfix for compressed format.
 
 ## 3rd party libraries/tools
+
+Bundled in `include/SZ3/utils/thirdparty/`. Each directory carries its own
+license text, and a `NOTICE` file where the SZ3 project has modified the code.
+
+* [zfp](https://github.com/LLNL/zfp) 0.3.1 — BSD-3-Clause, see [zfp/LICENSE](include/SZ3/utils/thirdparty/zfp/LICENSE).
+* [SPERR](https://github.com/NCAR/SPERR) v0.8.4 — Apache-2.0, see [sperr/LICENSE](include/SZ3/utils/thirdparty/sperr/LICENSE) and [sperr/NOTICE](include/SZ3/utils/thirdparty/sperr/NOTICE).
+* [MGARDx](https://github.com/lxAltria/MGARDx) — see [mgard/NOTICE](include/SZ3/utils/thirdparty/mgard/NOTICE).
+* [ska_hash](https://github.com/skarupke/flat_hash_map) — Boost 1.0, see [ska_hash/LICENSE.txt](include/SZ3/utils/thirdparty/ska_hash/LICENSE.txt).
+
+Not bundled:
 * [Zstandard](https://facebook.github.io/zstd/) v1.4.5 will be fetched if libzstd can not be found by pkg-config.
-* The source code of ska_hash is included in SZ3.

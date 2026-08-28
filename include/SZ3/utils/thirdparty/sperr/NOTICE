@@ -1,0 +1,45 @@
+SPERR -- vendored into SZ3
+==========================
+
+Upstream:  https://github.com/NCAR/SPERR, release v0.8.4
+License:   Apache License 2.0 (see the LICENSE file in this directory)
+
+The files in this directory are derived from, and modified from, the upstream
+SPERR sources listed above. This notice is provided under section 4(b) of the
+Apache License 2.0. The modifications made by the SZ3 project are:
+
+1. Namespace change. Every occurrence of `namespace sperr` was re-wrapped as
+   `namespace SZ3::SPERR`, so that SZ3 can be linked alongside an independent
+   build of upstream SPERR without symbol collisions.
+
+2. Header-only amalgamation. Upstream ships an implementation in separate
+   translation units; SZ3 is a header-only library. The following 13 upstream
+   .cpp files were inlined into the single header `sperr_core_impl.hpp`, with
+   their contents marked by `// ---- BEGIN <file> ----` /
+   `// ---- END <file> ----` provenance comments:
+
+       sperr_helper.cpp    Bitstream.cpp        Bitmask.cpp
+       Conditioner.cpp     CDF97.cpp            SPECK_INT.cpp
+       SPECK3D_INT.cpp     SPECK3D_INT_ENC.cpp  SPECK3D_INT_DEC.cpp
+       SPECK1D_INT.cpp     SPECK1D_INT_ENC.cpp  SPECK1D_INT_DEC.cpp
+       Outlier_Coder.cpp
+
+3. Subsetting. Only the compression core is vendored (CDF97 wavelet transform,
+   SPECK 1D/2D/3D integer and float coders, Conditioner, Outlier_Coder,
+   Bitmask/Bitstream, SPERR3D OMP drivers, stream tools). Upstream's CLI tools,
+   build system, and test suite are not included.
+
+4. Macro guard. `SPERRHeaderOnly.hpp` saves, undefines, and restores the `PSNR`
+   macro around its includes, to avoid a collision with the global `PSNR` macro
+   defined by SZ3's C API wrapper (tools/sz3c).
+
+The following files in this directory were written by the SZ3 project and are
+not upstream SPERR code: `SperrConfig.h`, `SPERRHeaderOnly.hpp`,
+`SPERRTypes.hpp`.
+
+Upstream files are otherwise unmodified and carry no per-file copyright notices
+of their own; upstream's own attribution comments have been retained verbatim,
+including the QccPack acknowledgement at the top of `CDF97.h`.
+
+Citation: S. Li, P. Lindstrom, J. Clyne, "Lossy Scientific Data Compression
+With SPERR," IPDPS 2023, pp. 1007-1017. doi:10.1109/IPDPS54959.2023.00104

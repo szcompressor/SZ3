@@ -1,0 +1,24 @@
+MGARDx -- vendored into SZ3
+===========================
+
+Upstream:  https://github.com/lxAltria/MGARDx (Xin Liang's standalone
+           reimplementation of the MGARD multigrid transform)
+
+Vendored files:
+
+    correction.hpp  decompose.hpp  recompose.hpp  reorder.hpp  utils.hpp
+
+Modifications made by the SZ3 project:
+
+1. Subsetting. Only the forward/inverse multigrid transform is vendored.
+   Quantization, entropy coding, and lossless backends are SZ3's own modules
+   (LinearQuantizer, BitplaneEncoder, Lossless_zstd).
+2. Namespace change. Wrapped in `namespace SZ3::MGARD`.
+3. Include-path and include-guard rewrites to match SZ3 conventions.
+
+`MGARDHeaderOnly.hpp` was written by the SZ3 project and is not upstream code.
+
+Citation: X. Liang et al., "MGARD+: Optimizing Multilevel Methods for
+Error-bounded Scientific Data Reduction," IEEE TC, 2022. Algorithmic credit for
+the MGARD method belongs to the MGARD line of work (Ainsworth, Tugluk, Whitney,
+Archibald), though no code from those projects is vendored here.
