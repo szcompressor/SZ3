@@ -8,6 +8,13 @@
 #define SZ3_SPERR_RESTORE_PSNR_MACRO
 #endif
 
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wextra-semi"
+#pragma GCC diagnostic ignored "-Wsign-compare"
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#endif
+
 #include "Bitmask.h"
 #include "Bitstream.h"
 
@@ -27,6 +34,10 @@
 #include "sperr_helper.h"
 
 #include "sperr_core_impl.hpp"
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 #ifdef SZ3_SPERR_RESTORE_PSNR_MACRO
 #pragma pop_macro("PSNR")
