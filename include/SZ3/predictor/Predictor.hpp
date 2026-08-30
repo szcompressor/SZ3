@@ -28,14 +28,14 @@ class PredictorInterface {
      * @param std::array<size_t, N> the relative index of the data point in the block
      * @return the predicted value
      */
-    ALWAYS_INLINE virtual T predict(const block_iter &, T *, const std::array<size_t, N> &) = 0;
+    virtual T predict(const block_iter &, T *, const std::array<size_t, N> &) = 0;
 
     /**
      * estimate the prediction error ( |prediction value - read value|)  for a single data point
      * @param iter the iterator of the single data point
      * @return the estimated prediction error
      */
-    ALWAYS_INLINE virtual T estimate_error(const block_iter &, T *, const std::array<size_t, N> &) = 0;
+    virtual T estimate_error(const block_iter &, T *, const std::array<size_t, N> &) = 0;
 
     /**
      * compute auxiliary info (e.g., coefficients) for the given data block

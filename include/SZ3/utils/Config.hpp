@@ -104,7 +104,7 @@ ALWAYS_INLINE std::string to_lower(const std::string& s) {
 }
 
 template <typename EnumType>
-ALWAYS_INLINE void match_enum(const std::string& input, const std::map<std::string, EnumType>& table, uint8_t& out) {
+void match_enum(const std::string& input, const std::map<std::string, EnumType>& table, uint8_t& out) {
     std::string input_lc = to_lower(input);
     for (const auto& [key, val] : table) {
         if (to_lower(key) == input_lc) {
@@ -114,7 +114,7 @@ ALWAYS_INLINE void match_enum(const std::string& input, const std::map<std::stri
 }
 
 template <typename EnumType>
-ALWAYS_INLINE std::string enum_to_string(EnumType value, const std::map<std::string, EnumType>& forward_map) {
+std::string enum_to_string(EnumType value, const std::map<std::string, EnumType>& forward_map) {
     for (const auto& [str, val] : forward_map) {
         if (val == value) {
             return str;

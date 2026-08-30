@@ -53,11 +53,11 @@ class LorenzoPredictor : public concepts::PredictorInterface<T, N> {
 
     size_t get_padding() override { return 2; }
 
-    ALWAYS_INLINE T estimate_error(const block_iter &block, T *d, const std::array<size_t, N> &index) override {
+    T estimate_error(const block_iter &block, T *d, const std::array<size_t, N> &index) override {
         return fabs(*d - predict(block, d, index)) + this->noise;
     }
 
-    ALWAYS_INLINE T predict(const block_iter &block, T *d, const std::array<size_t, N> &index) override {
+    T predict(const block_iter &block, T *d, const std::array<size_t, N> &index) override {
         auto ds = block.get_dim_strides();
         if constexpr (N == 1 && L == 1) {
             return prev1(d, 1);
@@ -98,12 +98,12 @@ class LorenzoPredictor : public concepts::PredictorInterface<T, N> {
 
    private:
     // Helper functions for Lorenzo prediction
-    ALWAYS_INLINE T prev1(T *d, size_t i) { return *(d - i); }
-    ALWAYS_INLINE T prev2(T *d, const std::array<size_t, N> &ds, size_t j, size_t i) { return *(d - (j * ds[0] + i)); }
-    ALWAYS_INLINE T prev3(T *d, const std::array<size_t, N> &ds, size_t k, size_t j, size_t i) {
+    T prev1(T *d, size_t i) { return *(d - i); }
+    T prev2(T *d, const std::array<size_t, N> &ds, size_t j, size_t i) { return *(d - (j * ds[0] + i)); }
+    T prev3(T *d, const std::array<size_t, N> &ds, size_t k, size_t j, size_t i) {
         return *(d - (k * ds[1] + j * ds[0] + i));
     }
-    ALWAYS_INLINE T prev4(T *d, const std::array<size_t, N> &ds, size_t t, size_t k, size_t j, size_t i) {
+    T prev4(T *d, const std::array<size_t, N> &ds, size_t t, size_t k, size_t j, size_t i) {
         return *(d - (t * ds[2] + k * ds[1] + j * ds[0] + i));
     }
 };
