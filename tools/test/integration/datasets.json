@@ -1,6 +1,6 @@
 {
   "exaalt-small": {
-    "path": "https://g-8d6b0.fd635.8443.data.globus.org/ds131.2/Data-Reduction-Repo/raw-data/EXAALT/SDRBENCH-EXAALT-2869440.tar.gz",
+    "path": "https://g-d0cd3f.fd635.8443.data.globus.org/raw-data/EXAALT/SDRBENCH-EXAALT-2869440.tar.gz",
     "fields": {
       "xx.dat2": {"dims": [2869440], "dtype": "float32"},
       "yy.dat2": {"dims": [2869440], "dtype": "float32"},
@@ -11,7 +11,7 @@
     }
   }, 
   "hurricane": {
-    "path": "https://g-8d6b0.fd635.8443.data.globus.org/ds131.2/Data-Reduction-Repo/raw-data/Hurricane-ISABEL/SDRBENCH-Hurricane-ISABEL-100x500x500.tar.gz",
+    "path": "https://g-d0cd3f.fd635.8443.data.globus.org/raw-data/Hurricane-ISABEL/SDRBENCH-Hurricane-ISABEL-100x500x500.tar.gz",
     "fields": {
       "QCLOUDf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
       "Wf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
@@ -30,7 +30,7 @@
     }
   },
   "miranda": {
-    "path": "https://g-8d6b0.fd635.8443.data.globus.org/ds131.2/Data-Reduction-Repo/raw-data/Miranda/SDRBENCH-Miranda-256x384x384.tar.gz",
+    "path": "https://g-d0cd3f.fd635.8443.data.globus.org/raw-data/Miranda/SDRBENCH-Miranda-256x384x384.tar.gz",
     "fields": {
       "velocityx.d64": {"dims": [256,384,384], "dtype": "float64"},
       "velocityy.d64": {"dims": [256,384,384], "dtype": "float64"},
@@ -42,7 +42,7 @@
     }
   },
   "cesm-atm": {
-    "path": "https://g-8d6b0.fd635.8443.data.globus.org/ds131.2/Data-Reduction-Repo/raw-data/CESM-ATM/SDRBENCH-CESM-ATM-1800x3600.tar.gz",
+    "path": "https://g-d0cd3f.fd635.8443.data.globus.org/raw-data/CESM-ATM/SDRBENCH-CESM-ATM-1800x3600.tar.gz",
     "fields": {
       "CLDMED_1_1800_3600.f32": {"dims": [1800,3600], "dtype": "float32"},
       "ODV_bcar1_1_1800_3600.f32": {"dims": [1800,3600], "dtype": "float32"},
@@ -52,7 +52,7 @@
     }
   },
   "scale-letkf": {
-    "path": "https://g-8d6b0.fd635.8443.data.globus.org/ds131.2/Data-Reduction-Repo/raw-data/SCALE_LETKF/SDRBENCH-SCALE-98x1200x1200.tar.gz",
+    "path": "https://g-d0cd3f.fd635.8443.data.globus.org/raw-data/SCALE_LETKF/SDRBENCH-SCALE-98x1200x1200.tar.gz",
     "fields": {
       "T-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
       "PRES-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
@@ -69,7 +69,7 @@
     }
   },
   "hacc": {
-    "path": "https://g-8d6b0.fd635.8443.data.globus.org/ds131.2/Data-Reduction-Repo/raw-data/EXASKY/HACC/EXASKY-HACC-data-medium-size.tar.gz",
+    "path": "https://g-d0cd3f.fd635.8443.data.globus.org/raw-data/EXASKY/HACC/EXASKY-HACC-data-medium-size.tar.gz",
     "fields": {
       "vz.f32": {"dims": [280953867], "dtype": "float32"},
       "vx.f32": {"dims": [280953867], "dtype": "float32"},
@@ -80,7 +80,7 @@
     }
   }, 
   "exaalt-copper": {
-    "path": "https://g-8d6b0.fd635.8443.data.globus.org/ds131.2/Data-Reduction-Repo/raw-data/EXAALT/SDRBENCH-exaalt-copper.tar.gz",
+    "path": "https://g-d0cd3f.fd635.8443.data.globus.org/raw-data/EXAALT/SDRBENCH-EXAALT-copper.tar.gz",
     "fields": {
       "dataset1-5423x3137.x.f32.dat": {"dims": [5423, 3137], "dtype": "float32"},
       "dataset1-5423x3137.y.f32.dat": {"dims": [5423, 3137], "dtype": "float32"},
@@ -91,7 +91,7 @@
     }
   }, 
   "exaalt-helium": {
-    "path": "https://g-8d6b0.fd635.8443.data.globus.org/ds131.2/Data-Reduction-Repo/raw-data/EXAALT/SDRBENCH-exaalt-helium.tar.gz",
+    "path": "https://g-d0cd3f.fd635.8443.data.globus.org/raw-data/EXAALT/SDRBENCH-EXAALT-helium.tar.gz",
     "fields": {
       "dataset1-7852x1037.x.f32.dat": {"dims": [7852, 1037], "dtype": "float32"},
       "dataset1-7852x1037.y.f32.dat": {"dims": [7852, 1037], "dtype": "float32"},
