@@ -11,52 +11,52 @@
 namespace SZ3 {
 
 template <class T>
-ALWAYS_INLINE T interp_linear(T a, T b) {
+T interp_linear(T a, T b) {
     return (a + b) / 2;
 }
 
 template <class T>
-ALWAYS_INLINE T interp_linear1(T a, T b) {
+T interp_linear1(T a, T b) {
     return -0.5 * a + 1.5 * b;
 }
 
 template <class T>
-ALWAYS_INLINE T interp_quad_1(T a, T b, T c) {
+T interp_quad_1(T a, T b, T c) {
     return (3 * a + 6 * b - c) / 8;
 }
 
 template <class T>
-ALWAYS_INLINE T interp_quad_2(T a, T b, T c) {
+T interp_quad_2(T a, T b, T c) {
     return (-a + 6 * b + 3 * c) / 8;
 }
 
 template <class T>
-ALWAYS_INLINE T interp_quad_3(T a, T b, T c) {
+T interp_quad_3(T a, T b, T c) {
     return (3 * a - 10 * b + 15 * c) / 8;
 }
 
 template <class T>
-ALWAYS_INLINE T interp_cubic(T a, T b, T c, T d) {
+T interp_cubic(T a, T b, T c, T d) {
     return (-a + 9 * b + 9 * c - d) / 16;
 }
 
 template <class T>
-ALWAYS_INLINE T interp_cubic_natural(T a, T b, T c, T d) {
+T interp_cubic_natural(T a, T b, T c, T d) {
    return 0.575 * (b + c) - 0.075 * (a + d);
 }
 
 template<class T>
-ALWAYS_INLINE T lorenzo_1d(T a, T b) {
+T lorenzo_1d(T a, T b) {
     return 2 * b - a;
 }
 
 template<class T>
-ALWAYS_INLINE T lorenzo_2d(T a, T b, T c) {
+T lorenzo_2d(T a, T b, T c) {
     return (b + c - a);
 }
 
 template<class T>
-ALWAYS_INLINE T lorenzo_3d(T a, T b, T c, T d, T e,T f,T g) {
+T lorenzo_3d(T a, T b, T c, T d, T e,T f,T g) {
     return (a - b - c + d - e + f + g);
 }
 
@@ -64,27 +64,27 @@ ALWAYS_INLINE T lorenzo_3d(T a, T b, T c, T d, T e,T f,T g) {
 
 
 template <class T>
-ALWAYS_INLINE T interp_cubic_front(T a, T b, T c, T d) {
+T interp_cubic_front(T a, T b, T c, T d) {
     return (5 * a + 15 * b - 5 * c + d) / 16;
 }
 
 template <class T>
-ALWAYS_INLINE T interp_cubic_front_2(T a, T b, T c, T d) {
+T interp_cubic_front_2(T a, T b, T c, T d) {
     return (a + 6 * b - 4 * c + d) / 4;
 }
 
 template <class T>
-ALWAYS_INLINE T interp_cubic_back_1(T a, T b, T c, T d) {
+T interp_cubic_back_1(T a, T b, T c, T d) {
     return (a - 5 * b + 15 * c + 5 * d) / 16;
 }
 
 template <class T>
-ALWAYS_INLINE T interp_cubic_back_2(T a, T b, T c, T d) {
+T interp_cubic_back_2(T a, T b, T c, T d) {
     return (-5 * a + 21 * b - 35 * c + 35 * d) / 16;
 }
 
 template <class T>
-ALWAYS_INLINE T interp_cubic2(T a, T b, T c, T d) {
+T interp_cubic2(T a, T b, T c, T d) {
     return (-3 * a + 23 * b + 23 * c - 3 * d) / 40;
 }
 

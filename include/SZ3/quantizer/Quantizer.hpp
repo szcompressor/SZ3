@@ -26,7 +26,7 @@ class QuantizerInterface {
      * @param pred Predicted value for this data point
      * @return To Quantized index/bin
      */
-    ALWAYS_INLINE virtual To quantize_and_overwrite(Ti &data, Ti pred) = 0;
+    virtual To quantize_and_overwrite(Ti &data, Ti pred) = 0;
 
     /**
      * @brief Reconstruct the data point from quantized index
@@ -35,7 +35,7 @@ class QuantizerInterface {
      * @param quant_index Quantized index
      * @return Ti Reconstructed value
      */
-    ALWAYS_INLINE virtual Ti recover(Ti pred, To quant_index) = 0;
+    virtual Ti recover(Ti pred, To quant_index) = 0;
 
     virtual To force_save_unpred(Ti ori) = 0;
 
