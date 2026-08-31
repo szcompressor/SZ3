@@ -171,18 +171,21 @@ def main():
     compression, compression_opts = get_compression_args(cmpr_algo, bound)
 
     all_pass = True
-    for chunk in [False, True]:
+    # 'small' keeps a chunk well under the compressed-buffer bound, which the filter has to
+    # size from SZ_compress_size_bound rather than from the raw chunk size.
+    small_chunk = tuple(min(d, 8) for d in shape)
+    for chunk in ['full', 'auto', 'small']:
         print(f"Testing {raw_file} with algo = {cmpr_algo} AbsErrorBound = {bound} Chunk = {chunk}")
 
         compressed_h5 = os.path.join(output_dir, f"{base_name}_compressed_{chunk}.h5")
         decompressed_h5 = os.path.join(output_dir, f"{base_name}_decompressed_{chunk}.h5")
 
-        if chunk:
+        if chunk == 'auto':
             # hd5py will automatically determine chunk sizes if chunks is not set
             write_hdf5(data, compressed_h5, h5_dataset_name, compression=compression, compression_opts=compression_opts)
         else:
             write_hdf5(data, compressed_h5, h5_dataset_name, compression=compression, compression_opts=compression_opts,
-                       chunks=shape)
+                       chunks=shape if chunk == 'full' else small_chunk)
 
         with h5py.File(compressed_h5, 'r') as f_in, h5py.File(decompressed_h5, 'w') as f_out:
             f_out.create_dataset(h5_dataset_name, data=f_in[h5_dataset_name][:])
@@ -194,7 +197,7 @@ def main():
         else:
             result = "FAIL"
 
-        print(f"Test Result for AbsErrorBound = {bound} ChunkSize = {chunk}: {result}")
+        print(f"Test Result for AbsErrorBound = {bound} Chunk = {chunk}: {result}")
 
         if result == "FAIL":
             all_pass = False

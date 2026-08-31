@@ -159,7 +159,8 @@ void process_data(SZ3::Config& conf, void** buf, size_t* buf_size, size_t nbytes
         *buf = processedData;
         *buf_size = conf.num * sizeof(T);
     } else {
-        size_t cmpCap = sizeof(T) * conf.num * 2;
+        // SZ_compress rejects anything below its own bound, which small chunks fall under.
+        size_t cmpCap = SZ3::SZ_compress_size_bound<T>(conf);
         char* cmpData = static_cast<char*>(malloc(cmpCap));
         *buf_size = SZ_compress(conf, static_cast<T*>(*buf), cmpData, cmpCap);
         free(*buf);
