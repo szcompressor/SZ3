@@ -7,6 +7,7 @@
 #define SZ3_BLOCKWISE_DECOMPOSITION_HPP
 
 #include <cstring>
+#include <memory>
 
 #include "Decomposition.hpp"
 #include "SZ3/def.hpp"

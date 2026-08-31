@@ -6,6 +6,8 @@
 #ifndef SZ3_COMPRESSOR_ZFP_HPP
 #define SZ3_COMPRESSOR_ZFP_HPP
 
+#include <memory>
+
 #include "SZ3/compressor/Compressor.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/utils/Config.hpp"

@@ -8,6 +8,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <memory>
 
 #include "Decomposition.hpp"
 #include "SZ3/def.hpp"
