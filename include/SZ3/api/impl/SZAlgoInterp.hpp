@@ -12,6 +12,8 @@
 #include "SZ3/utils/Sample.hpp"
 #include "SZ3/utils/Statistic.hpp"
 
+#include <memory>
+
 namespace SZ3 {
 template <class T, uint N>
 size_t SZ_compress_Interp(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
@@ -61,6 +63,9 @@ double interp_compress_test(
         std::max<size_t>(1000, 1.2 * (sz.size_est() + encoder.size_est() + sizeof(T) * total_quant_bins.size()));
 
     auto buffer = static_cast<uchar *>(malloc(bufferSize));
+    // RAII: the encoder and the lossless layer below can throw (std::length_error when the destination
+    // capacity is too small), which would leak this scratch buffer with a bare free() at the end.
+    std::unique_ptr<uchar, void (*)(void *)> buffer_owner(buffer, &free);
     uchar *buffer_pos = buffer;
     sz.save(buffer_pos);
     encoder.save(buffer_pos);
@@ -70,7 +75,6 @@ double interp_compress_test(
     encoder.encode(total_quant_bins, buffer_pos);
     encoder.postprocess_encode();
     auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
-    free(buffer);
     auto compression_ratio = conf.num * sampled_blocks.size() * sizeof(T) * 1.0 / cmpSize;
     return compression_ratio;
 }
@@ -100,6 +104,9 @@ double lorenzo_compress_test(
     size_t bufferSize = std::max<size_t>(1000, 1.2 * (encoder.size_est() + sizeof(T) * total_quant_bins.size()));
 
     auto buffer = static_cast<uchar *>(malloc(bufferSize));
+    // RAII: the encoder and the lossless layer below can throw (std::length_error when the destination
+    // capacity is too small), which would leak this scratch buffer with a bare free() at the end.
+    std::unique_ptr<uchar, void (*)(void *)> buffer_owner(buffer, &free);
     uchar *buffer_pos = buffer;
     sz.save(buffer_pos);
     encoder.save(buffer_pos);
@@ -109,7 +116,6 @@ double lorenzo_compress_test(
     encoder.encode(total_quant_bins, buffer_pos);
     encoder.postprocess_encode();
     auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
-    free(buffer);
     auto compression_ratio = conf.num * sampled_blocks.size() * sizeof(T) * 1.0 / cmpSize;
     return compression_ratio;
     // }
@@ -179,6 +185,9 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
     double best_lorenzo_ratio = 0, best_interp_ratio = 0, ratio;
     size_t bufferCap = conf.num * sizeof(T);
     auto buffer = static_cast<uchar *>(malloc(bufferCap));
+    // RAII: the tuning calls below run full compression rounds that can throw, which would leak this
+    // scratch buffer with a bare free() at the end.
+    std::unique_ptr<uchar, void (*)(void *)> buffer_owner(buffer, &free);
     Config lorenzo_config = conf;
 
     {
@@ -281,7 +290,6 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         cmpSize = SZ_compress_LorenzoReg<T, N>(conf, data, cmpData, cmpCap);
     }
 
-    free(buffer);
     return cmpSize;
 }
 }  // namespace SZ3

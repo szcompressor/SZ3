@@ -24,6 +24,8 @@
 #include "SZ3/api/impl/SZImpl.hpp"
 #include "SZ3/version.hpp"
 
+#include <memory>
+
 
 /**
  * Compresses the input data using the provided configuration and stores the result in a pre-allocated buffer.
@@ -95,10 +97,10 @@ char* SZ_compress(const SZ3::Config& config, const T* data, size_t& cmpSize) {
     using namespace SZ3;
 
     size_t bufferLen = SZ_compress_size_bound<T>(config);
-    auto buffer = new char[bufferLen];
-    cmpSize = SZ_compress(config, data, buffer, bufferLen);
+    std::unique_ptr<char[]> buffer(new char[bufferLen]);
+    cmpSize = SZ_compress(config, data, buffer.get(), bufferLen);
 
-    return buffer;
+    return buffer.release();
 }
 
 /**
