@@ -42,32 +42,35 @@ public:
     // int quantize(T data, T pred, T& dec_data);
     ALWAYS_INLINE int quantize_and_overwrite(T& data, T pred) override {
         T diff = data - pred;
-        auto quant_index = static_cast<int64_t>(fabs(diff) * this->error_bound_reciprocal) + 1;
-        if (quant_index < this->radius * 2) {
-            quant_index >>= 1;
-            int half_index = quant_index;
-            quant_index <<= 1;
-            int quant_index_shifted;
-            if (diff < 0) {
-                quant_index = -quant_index;
-                quant_index_shifted = this->radius - half_index;
-            } else {
-                quant_index_shifted = this->radius + half_index;
+        // fabs(diff) * error_bound_reciprocal is NaN when data is NaN and exceeds the int64_t
+        // range for infinities or huge magnitudes; casting those to int64_t is undefined behaviour.
+        // Only finite magnitudes within the quantization range are representable as an index; every
+        // other value is stored losslessly in unpred, exactly like the out-of-range branch below.
+        double scaled = fabs(diff) * this->error_bound_reciprocal;
+        if (scaled < this->radius * 2) {
+            auto quant_index = static_cast<int64_t>(scaled) + 1;
+            if (quant_index < this->radius * 2) {
+                quant_index >>= 1;
+                int half_index = quant_index;
+                quant_index <<= 1;
+                int quant_index_shifted;
+                if (diff < 0) {
+                    quant_index = -quant_index;
+                    quant_index_shifted = this->radius - half_index;
+                } else {
+                    quant_index_shifted = this->radius + half_index;
+                }
+                T decompressed_data = pred + quant_index * this->error_bound;
+                // if data is NaN, the diff is NaN, and NaN <= 0 is false
+                diff = fabs(decompressed_data - data);
+                if (diff <= this->error_bound || (!strict_eb && diff <= this->error_bound * 1.1)) {
+                    data = decompressed_data;
+                    return quant_index_shifted;
+                }
             }
-            T decompressed_data = pred + quant_index * this->error_bound;
-            // if data is NaN, the diff is NaN, and NaN <= 0 is false
-            diff = fabs(decompressed_data - data);
-            if (diff <= this->error_bound || (!strict_eb && diff <= this->error_bound * 1.1)) {
-                data = decompressed_data;
-                return quant_index_shifted;
-            } else {
-                unpred.push_back(data);
-                return 0;
-            }
-        } else {
-            unpred.push_back(data);
-            return 0;
         }
+        unpred.push_back(data);
+        return 0;
     }
 
     // recover the data using the quantization index
