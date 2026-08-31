@@ -15,9 +15,13 @@ namespace SZ3 {
     class PreFilter : public concepts::PreprocessorInterface<T, N> {
 
         void preprocess(T *data, std::array<size_t, N> dims, std::pair<T, T> range, T defaultValue) {
-            for (T &d : data) {
-                if (d > range.second || d < range.first) {
-                    d = defaultValue;
+            size_t num = 1;
+            for (size_t i = 0; i < N; i++) {
+                num *= dims[i];
+            }
+            for (size_t i = 0; i < num; i++) {
+                if (data[i] > range.second || data[i] < range.first) {
+                    data[i] = defaultValue;
                 }
             }
         }

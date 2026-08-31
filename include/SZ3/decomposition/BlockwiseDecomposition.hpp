@@ -12,6 +12,7 @@
 #include "SZ3/def.hpp"
 #include "SZ3/predictor/LorenzoPredictor.hpp"
 #include "SZ3/predictor/Predictor.hpp"
+#include "SZ3/quantizer/Quantizer.hpp"
 #include "SZ3/utils/BlockwiseIterator.hpp"
 #include "SZ3/utils/Config.hpp"
 
@@ -36,8 +37,8 @@ namespace SZ3 {
  * @tparam Predictor A class implementing `PredictorInterface<T, N>`
  * @tparam Quantizer A class implementing `QuantizerInterface<T, int>`
  */
-template <class T, uint N, class Predictor, class Quantizer>
-class BlockwiseDecomposition : public concepts::DecompositionInterface<T, int, N> {
+template <class T, uint N, class Predictor, class Quantizer, class To = quantizer_bin_t<T, Quantizer>>
+class BlockwiseDecomposition : public concepts::DecompositionInterface<T, To, N> {
    public:
     using Block_iter = typename block_data<T, N>::block_iterator;
 
@@ -54,10 +55,10 @@ class BlockwiseDecomposition : public concepts::DecompositionInterface<T, int, N
                       "must implement the Predictor interface");
     }
 
-    std::vector<int> compress(const Config &conf, T *data) override {
+    std::vector<To> compress(const Config &conf, T *data) override {
         auto data_with_padding = std::make_shared<block_data<T, N>>(data, conf.dims, predictor.get_padding(), true);
         auto block = data_with_padding->block_iter(conf.blockSize);
-        std::vector<int> quant_inds;
+        std::vector<To> quant_inds;
         quant_inds.reserve(conf.num);
         do {
             concepts::PredictorInterface<T, N> *predictor_withfallback = &predictor;
@@ -74,8 +75,8 @@ class BlockwiseDecomposition : public concepts::DecompositionInterface<T, int, N
         return quant_inds;
     }
 
-    T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) override {
-        int *quant_inds_pos = &quant_inds[0];
+    T *decompress(const Config &conf, std::vector<To> &quant_inds, T *dec_data) override {
+        To *quant_inds_pos = &quant_inds[0];
 
         auto data_with_padding =
             std::make_shared<block_data<T, N>>(dec_data, conf.dims, predictor.get_padding(), false);
@@ -107,7 +108,7 @@ class BlockwiseDecomposition : public concepts::DecompositionInterface<T, int, N
         quantizer.load(c, remaining_length);
     }
 
-    std::pair<int, int> get_out_range() override { return quantizer.get_out_range(); }
+    std::pair<To, To> get_out_range() override { return quantizer.get_out_range(); }
 
    private:
     Predictor predictor;

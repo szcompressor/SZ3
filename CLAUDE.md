@@ -40,13 +40,13 @@ Defined in `include/SZ3/utils/Config.hpp`. Each has a `SZAlgo*.hpp` wiring file 
 | `ALGO_SVD` | `SZAlgoSVD.hpp` | Tucker / SVD core decomposition (3D+) |
 | `ALGO_ZFP` | `SZAlgoZFP.hpp` | Bundled ZFP block transform (FP-only) |
 | `ALGO_SPERR` | `SZAlgoSPERR.hpp` | Bundled SPERR wavelet + SPECK (3D FP) |
-| `ALGO_MGARD` | `SZAlgoMGARD.hpp` | Bundled MGARD multigrid + LinearQuantizer + BitplaneEncoder + Zstd (1D/2D/3D FP) |
+| `ALGO_MGARD` | `SZAlgoMGARD.hpp` | Bundled MGARD multigrid + LinearQuantizer + HuffmanEncoder + Zstd (1D/2D/3D FP) |
 
 ## Modules (compose your own pipeline)
 
-**Decomposition** (`include/SZ3/decomposition/`): `BlockwiseDecomposition`, `InterpolationDecomposition`, `NoPredictionDecomposition`, `SVDDecomposition`, `ZFPDecomposition`, `SPERRDecomposition`, `MGARDDecomposition`, `SZBioMDDecomposition`, `SZBioMDXtcDecomposition`, `TimeSeriesDecomposition`.
+**Decomposition** (`include/SZ3/decomposition/`): `BlockwiseDecomposition`, `InterpolationDecomposition`, `NoPredictionDecomposition`, `SVDDecomposition`, `ZFPDecomposition`, `SPERRDecomposition` / `SPERRFusedDecomposition`, `MGARDDecomposition` (alias of `MultiLevelDecomposition`) / `MGARDFusedDecomposition`, `MultiLevelDecomposition`, `PaSTRIDecomposition`, `SZBioMDDecomposition`, `SZBioMDXtcDecomposition`, `TimeSeriesDecomposition`.
 
-**Quantizer** (`include/SZ3/quantizer/`): `LinearQuantizer<T>` (linear delta, default), `ScalarQuantizer<T,To>` (delta with reconstruction tweaks, used by SPERR), `FixedPointQuantizer<T>` (`ldexp` fixed-point, int64_t out), `QuadraticLevelQuantizer<T>` (quadratically-spaced LUT, opt-in via `sz_dev.hpp`), `TimeIntQuantizer<T>` (time-series specialization).
+**Quantizer** (`include/SZ3/quantizer/`): `LinearQuantizer<T>` (linear delta, default), `ScalarQuantizer<T,To>` (delta with reconstruction tweaks, used by SPERR), `FixedPointQuantizer<T>` (`ldexp` fixed-point, int64_t out), `LevelQuantizer<T>` (non-uniform LUT, quadratic or log level curve chosen at construction, opt-in via `sz_dev.hpp`), `TimeIntQuantizer<T>` (time-series specialization).
 
 **Encoder** (`include/SZ3/encoder/`): `HuffmanEncoder<T>` (default), `ArithmeticEncoder<T>`, `BypassEncoder<T>`, `RunlengthEncoder<T>` (value-RLE), `BitplaneEncoder<T>` (MSB→LSB packed bit-planes), `BitplaneRLEEncoder<T>` (per-plane RLE w/ raw fallback), `BitshuffleEncoder<T>`, `SPERREncoder<T,N>` (SPECK bitstream), `XtcBasedEncoder` (BioMD), `ZFPEncoder<T>`.
 
@@ -140,8 +140,8 @@ Concise checklist for adding a new ALGO:
 
 | Source | Vendored from | Wraps to |
 |---|---|---|
-| `sperr/` | SPERR project | `SPERRDecomposition`, `SPERREncoder` |
-| `mgard/` | MGARDx (lightweight portable) | `MGARDDecomposition` |
+| `sperr/` | SPERR project | `SPERRFusedDecomposition`, `SPERREncoder` |
+| `mgard/` | MGARDx (lightweight portable) | `MGARDFusedDecomposition` |
 | `zfp/` | LLNL ZFP | `ZFPDecomposition`, `ZFPEncoder` |
 | `ska_hash/` | skarupke flat_hash_map | shared utility |
 

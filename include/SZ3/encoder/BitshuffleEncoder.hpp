@@ -7,6 +7,8 @@
 #ifndef SZ3_BITSHUFFLEENCODER_HPP
 #define SZ3_BITSHUFFLEENCODER_HPP
 
+#include <cstring>
+
 #include "Encoder.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/utils/ByteUtil.hpp"
@@ -26,6 +28,8 @@ namespace SZ3 {
             size_t byte_size = (total_bits + 7) / 8;
             unsigned char* compressed_data = bytes;
             bytes += byte_size;
+            // The bit loops below only OR bits in.
+            memset(compressed_data, 0, byte_size);
             size_t out_offset = 0;
 
             for (uint i = 0; i < sizeof(T) * 8; i += bits) {
@@ -34,11 +38,11 @@ namespace SZ3 {
                         if (i + k < sizeof(T) * 8) {
                             if constexpr (std::is_same_v<T, float>) {
                                 if (((*(reinterpret_cast<const uint32_t*>(&bins[j]))) >> (i + k)) & 1) {
-                                    compressed_data[out_offset / 8] |= (1 << (out_offset % 8));
+                                    compressed_data[out_offset / 8] |= static_cast<uchar>(1u << (out_offset % 8));
                                 }
                             } else {
                                 if ((bins[j] >> (i + k)) & 1) {
-                                    compressed_data[out_offset / 8] |= (1 << (out_offset % 8));
+                                    compressed_data[out_offset / 8] |= static_cast<uchar>(1u << (out_offset % 8));
                                 }
                             }
                             out_offset++;
@@ -60,11 +64,11 @@ namespace SZ3 {
                         if (i + k < sizeof(T) * 8) {
                             if constexpr (std::is_same_v<T, float>) {
                                 if ((compressed_data[in_offset / 8] >> (in_offset % 8)) & 1) {
-                                    *(reinterpret_cast<uint32_t*>(&data[j])) |= (1 << (i + k));
+                                    *(reinterpret_cast<uint32_t *>(&data[j])) |= (uint32_t{1} << (i + k));
                                 }
                             } else {
                                 if ((compressed_data[in_offset / 8] >> (in_offset % 8)) & 1) {
-                                    data[j] |= (1 << (i + k));
+                                    data[j] |= static_cast<T>(uint64_t{1} << (i + k));
                                 }
                             }
                             in_offset++;

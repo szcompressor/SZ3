@@ -25,7 +25,7 @@ namespace SZ3 {
 template <class T>
 class RunlengthEncoder : public concepts::EncoderInterface<T> {
    public:
-    void preprocess_encode(const std::vector<T> &bins, int stateNum) override {}
+    void preprocess_encode(const std::vector<T> &bins, int stateNum) override { num_bins = bins.size(); }
 
     size_t encode(const std::vector<T> &bins, uchar *&bytes) override {
         auto bytespos = bytes;
@@ -47,6 +47,15 @@ class RunlengthEncoder : public concepts::EncoderInterface<T> {
     }
 
     void postprocess_encode() override {}
+
+    /**
+     * @brief Worst-case encoded size: every element its own run.
+     *
+     * encode() emits `sizeof(T) + sizeof(int)` bytes per run, and a stream with no
+     * repeats has one run per element. Without this the caller under-allocates and
+     * encode() overruns its buffer on high-run data.
+     */
+    size_t size_est() override { return num_bins * (sizeof(T) + sizeof(int)); }
 
     void preprocess_decode() override {}
 
@@ -73,6 +82,9 @@ class RunlengthEncoder : public concepts::EncoderInterface<T> {
     void save(uchar *&c) override {}
 
     void load(const uchar *&c, size_t &remaining_length) override {}
+
+   private:
+    size_t num_bins = 0;  ///< Set by preprocess_encode(), consumed by size_est()
 };
 }  // namespace SZ3
 #endif

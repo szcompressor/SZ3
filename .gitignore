@@ -16,4 +16,4 @@ docs/site/html
 .claude
 sz3_install
 sz3_build
-test
+/test

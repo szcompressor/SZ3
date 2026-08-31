@@ -5,9 +5,9 @@
 
 #include "SZ3/decomposition/BlockwiseDecomposition.hpp"
 #include "SZ3/decomposition/InterpolationDecomposition.hpp"
-#include "SZ3/decomposition/MGARDDecomposition.hpp"
+#include "SZ3/decomposition/MGARDFusedDecomposition.hpp"
 #include "SZ3/decomposition/NoPredictionDecomposition.hpp"
-#include "SZ3/decomposition/SPERRDecomposition.hpp"
+#include "SZ3/decomposition/SPERRFusedDecomposition.hpp"
 #include "SZ3/decomposition/SVDDecomposition.hpp"
 #include "SZ3/decomposition/SZBioMDDecomposition.hpp"
 #include "SZ3/decomposition/SZBioMDXtcDecomposition.hpp"
@@ -81,9 +81,9 @@ static void setAbsBound(SZ3::Config& conf, double eb) {
     conf.absErrorBound = eb;
 }
 
-// ----- MGARDDecomposition (1D / 2D / 3D) -----------------------------------
+// ----- MGARDFusedDecomposition (1D / 2D / 3D) -----------------------------------
 
-TEST(SZ3_DecompositionTest, MGARDDecomposition1D) {
+TEST(SZ3_DecompositionTest, MGARDFusedDecomposition1D) {
     constexpr SZ3::uint N = 1;
     constexpr size_t dim = 257;
     const double eb = 1e-3;
@@ -91,11 +91,11 @@ TEST(SZ3_DecompositionTest, MGARDDecomposition1D) {
     setAbsBound(conf, eb);
     auto original = make1D<float>(dim, [](size_t i) { return std::sin(0.05f * i) + 0.3f * std::cos(0.13f * i); });
 
-    using Decomp = SZ3::MGARDDecomposition<float, N>;
+    using Decomp = SZ3::MGARDFusedDecomposition<float, N>;
     runRoundtrip<Decomp, float>(conf, original, eb, [&] { return Decomp(eb, 32768); });
 }
 
-TEST(SZ3_DecompositionTest, MGARDDecomposition2D) {
+TEST(SZ3_DecompositionTest, MGARDFusedDecomposition2D) {
     constexpr SZ3::uint N = 2;
     constexpr size_t dim = 33;
     const double eb = 1e-3;
@@ -105,11 +105,11 @@ TEST(SZ3_DecompositionTest, MGARDDecomposition2D) {
         return std::sin(0.05f * x) * std::cos(0.03f * y);
     });
 
-    using Decomp = SZ3::MGARDDecomposition<float, N>;
+    using Decomp = SZ3::MGARDFusedDecomposition<float, N>;
     runRoundtrip<Decomp, float>(conf, original, eb, [&] { return Decomp(eb, 32768); });
 }
 
-TEST(SZ3_DecompositionTest, MGARDDecomposition3D) {
+TEST(SZ3_DecompositionTest, MGARDFusedDecomposition3D) {
     constexpr SZ3::uint N = 3;
     constexpr size_t dim = 17;  // floor(log2(17)) = 4 multigrid levels
     const double eb = 1e-2;
@@ -119,7 +119,7 @@ TEST(SZ3_DecompositionTest, MGARDDecomposition3D) {
         return std::sin(0.1f * z) + 0.5f * std::cos(0.07f * y) + 0.25f * std::sin(0.03f * x);
     });
 
-    using Decomp = SZ3::MGARDDecomposition<float, N>;
+    using Decomp = SZ3::MGARDFusedDecomposition<float, N>;
     runRoundtrip<Decomp, float>(conf, original, eb, [&] { return Decomp(eb, 32768); });
 }
 
@@ -248,9 +248,9 @@ TEST(SZ3_DecompositionTest, SVDDecomposition2D) {
     });
 }
 
-// ----- SPERRDecomposition (3D-only wavelet+SPECK, PWE mode) ----------------
+// ----- SPERRFusedDecomposition (3D-only wavelet+SPECK, PWE mode) ----------------
 
-TEST(SZ3_DecompositionTest, SPERRDecomposition3D) {
+TEST(SZ3_DecompositionTest, SPERRFusedDecomposition3D) {
     constexpr SZ3::uint N = 3;
     constexpr size_t dim = 8;
     const double eb = 1e-2;
@@ -260,7 +260,7 @@ TEST(SZ3_DecompositionTest, SPERRDecomposition3D) {
         return std::sin(0.1f * z) + 0.5f * std::cos(0.07f * y) + 0.25f * std::sin(0.03f * x);
     });
 
-    using Decomp = SZ3::SPERRDecomposition<float, N>;
+    using Decomp = SZ3::SPERRFusedDecomposition<float, N>;
     runRoundtrip<Decomp, float>(conf, original, eb, [&] { return Decomp(); });
 }
 

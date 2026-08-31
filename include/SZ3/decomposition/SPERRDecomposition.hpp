@@ -1,17 +1,24 @@
-#ifndef SZ3_SPERR_DECOMPOSITION_HPP
-#define SZ3_SPERR_DECOMPOSITION_HPP
+/**
+ * @file SPERRDecomposition.hpp
+ * @ingroup Decomposition
+ */
+
+#ifndef SZ3_SZ3_SPERR_DECOMPOSITION_HPP
+#define SZ3_SZ3_SPERR_DECOMPOSITION_HPP
 
 #include <algorithm>
 #include <cfenv>
 #include <cmath>
+#include <cstdint>
+#include <cstdio>
 #include <limits>
 #include <numeric>
 #include <stdexcept>
-#include <type_traits>
 #include <vector>
 
 #include "SZ3/decomposition/Decomposition.hpp"
-#include "SZ3/encoder/SPERREncoder.hpp"
+#include "SZ3/preprocessor/SPERRTransform.hpp"
+#include "SZ3/quantizer/OutlierQuantizer.hpp"
 #include "SZ3/quantizer/ScalarQuantizer.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
@@ -20,202 +27,126 @@
 namespace SZ3 {
 
 /**
- * @file SPERRDecomposition.hpp
- * @brief SPERR decomposition module.
+ * @brief SPERR decomposition assembled from separately reusable modules.
+ *
+ * This is an alternative factoring of `SPERRFusedDecomposition`, not a replacement for it.
+ * `SPERRFusedDecomposition` fuses transform, quantization, SPECK entropy coding and outlier
+ * handling into one stage and emits only the outlier map, which leaves the pipeline's
+ * encoder slot with almost nothing to do. This module keeps the four concerns apart:
+ *
+ *   - transform  : `SPERRTransform<T, N>`               (conditioner + CDF9/7 wavelet)
+ *   - quantizer  : `ScalarQuantizer<double, int64_t>`   (mid-tread, step `q`)
+ *   - outliers   : `OutlierQuantizer<double, int64_t>`  (sparse corrections, carried in `save()`)
+ *   - encoder    : *not owned here* -- the quantized wavelet coefficients are returned
+ *                  from `compress()` and travel to whatever `EncoderInterface` the
+ *                  pipeline was wired with (`SPERREncoder` for SPECK, `HuffmanEncoder`,
+ *                  `BypassEncoder`, ...).
+ *
+ * The arithmetic is identical to `SPERRFusedDecomposition`, so reconstructions agree
+ * bit-for-bit for the same input and configuration. What changes is *where* the bytes
+ * go: the coefficient stream leaves through the encoder rather than through the
+ * decomposition's own `save()`, and the (sparse) outlier corrections are held in
+ * module state exactly the way `LinearQuantizer` holds its `unpred` list.
+ *
+ * SPERR is 3D floating-point only.
+ *
+ * @tparam T Original data type (`float` / `double`)
+ * @tparam N Data dimension; only 3 is supported
  */
 template <class T, uint N>
 class SPERRDecomposition : public concepts::DecompositionInterface<T, int64_t, N> {
    public:
+    SPERRDecomposition() = default;
+
     /**
-     * @brief Lossy SPERR decomposition stage for 3D floating-point fields.
-     *
-     * Designed for compressor pipelines that want SPERR transform+quantization
-     * as decomposition while keeping encoder/lossless stages composable.
+     * @brief Transform, quantize, and collect outliers.
+     * @param conf Compression configuration (3D, ABS or PSNR error bound)
+     * @param data Input field
+     * @return Quantized wavelet coefficients, one bin per element, for the encoder stage
      */
     std::vector<int64_t> compress(const Config &conf, T *data) override {
-        const auto layout = prepare(conf);
-        SPERRFrame frame = forward(conf, layout, data);
-        if (!frame.constant_field) {
-            quantize_and_collect_outliers(frame);
-        }
+        transform_.set_dims(SPERRTransform<T, N>::dims_from_config(conf));
 
-        coeff_stream_ = encode_coefficient_stream(frame);
-        return build_outlier_map(conf, frame);
-    }
+        const QualityControl qc = resolve_quality_control(conf);
+        outlier_quantizer_ = OutlierQuantizer<double, int64_t>(qc.quality);
 
-    T *decompress(const Config &conf, std::vector<int64_t> &outlier_bins, T *dec_data) override {
-        if (coeff_stream_.empty()) {
-            throw std::runtime_error("SPERR missing coefficient stream in decomposition state.");
-        }
-
-        const auto layout = prepare(conf);
-        SPERRFrame frame = decode_coefficient_stream(layout, coeff_stream_.data(), coeff_stream_.size());
-        return inverse(conf, frame, outlier_bins, dec_data);
-    }
-
-    void save(uchar *&c) override {
-        write(coeff_stream_.size(), c);
-        if (!coeff_stream_.empty()) {
-            write(coeff_stream_.data(), coeff_stream_.size(), c);
-        }
-    }
-
-    void load(const uchar *&c, size_t &remaining_length) override {
-        size_t coeff_len = 0;
-        read(coeff_len, c, remaining_length);
-        coeff_stream_.resize(coeff_len);
-        if (coeff_len > 0) {
-            read(coeff_stream_.data(), coeff_len, c, remaining_length);
-        }
-    }
-
-    size_t size_est() override { return sizeof(size_t) + coeff_stream_.size(); }
-
-    std::pair<int64_t, int64_t> get_out_range() override {
-        return std::make_pair<int64_t, int64_t>(0, std::numeric_limits<int64_t>::max());
-    }
-
-    SPERR3DLayout prepare(const Config &conf) const {
-        if (!std::is_floating_point<T>::value) {
-            throw std::invalid_argument("SPERR supports floating-point data only.");
-        }
-        if (N != 3 || conf.N != 3 || conf.dims.size() != 3) {
-            throw std::invalid_argument("SPERR decomposition supports 3D data only.");
-        }
-
-        SPERR3DLayout layout;
-        // SZ3 dims: [z, y, x], SPERR dims: [x, y, z].
-        layout.dimx = conf.dims[2];
-        layout.dimy = conf.dims[1];
-        layout.dimz = conf.dims[0];
-        return layout;
-    }
-
-    SPERRFrame forward(const Config &conf, const SPERR3DLayout &layout, const T *data) const {
-        SPERRFrame frame;
-        const SPERRQualityControl qc = resolve_quality_control(conf);
-        frame.dims = {layout.dimx, layout.dimy, layout.dimz};
-        frame.mode = qc.mode;
-        frame.quality = qc.quality;
-
-        std::vector<double> values(conf.num);
-        std::copy(data, data + conf.num, values.begin());
-
-        SZ3::SPERR::Conditioner conditioner;
-        frame.conditioner_header = conditioner.condition(values, frame.dims);
-        frame.constant_field = conditioner.is_constant(frame.conditioner_header[0]);
-        if (frame.constant_field) {
-            return frame;
-        }
-
-        if (frame.mode == SPERRMode::PWE_MODE) {
-            frame.conditioned_values = values;
+        std::vector<double> conditioned = transform_.condition(data, conf.num);
+        if (transform_.constant_field()) {
+            // Nothing to transform or quantize: the header alone rebuilds the field.
+            // A full-length zero stream keeps the encoder stage's contract intact.
+            q_ = 0.0;
+            coeff_quantizer_ = ScalarQuantizer<double, int64_t>(1.0);
+            return std::vector<int64_t>(conf.num, int64_t{0});
         }
 
         const std::pair<std::vector<double>::const_iterator, std::vector<double>::const_iterator> minmax =
-            std::minmax_element(values.begin(), values.end());
-        frame.conditioned_range = *minmax.second - *minmax.first;
+            std::minmax_element(conditioned.cbegin(), conditioned.cend());
+        const double conditioned_range = *minmax.second - *minmax.first;
 
-        SZ3::SPERR::CDF97 cdf;
-        const SZ3::SPERR::RTNType rtn = cdf.take_data(std::move(values), frame.dims);
-        if (rtn != SZ3::SPERR::RTNType::Good) {
-            throw std::runtime_error("SPERR forward wavelet setup failed.");
-        }
-        cdf.dwt3d();
-        frame.wavelet_coeffs = cdf.release_data();
+        const bool pwe = (qc.mode == SPERRMode::PWE_MODE);
+        std::vector<double> coefficients =
+            pwe ? transform_.forward_wavelet(conditioned) : transform_.forward_wavelet(std::move(conditioned));
 
-        return frame;
-    }
-
-    void quantize_and_collect_outliers(SPERRFrame &frame) const {
-        if (frame.constant_field) {
-            return;
-        }
-
-        const double q = estimate_q(frame);
-        if (!(q > 0.0)) {
+        q_ = estimate_q(qc, conditioned_range, coefficients);
+        if (!(q_ > 0.0)) {
             throw std::invalid_argument("SPERR quantization step must be positive.");
         }
-        frame.q = q;
-
-        SZ3::SPERR::Conditioner conditioner;
-        conditioner.save_q(frame.conditioner_header, frame.q);
+        coeff_quantizer_ = ScalarQuantizer<double, int64_t>(q_);
 
         std::fesetround(FE_TONEAREST);
 
-        ScalarQuantizer<double, int64_t> coeff_quantizer = make_coeff_quantizer(frame.q);
-        frame.coeff_bins.resize(frame.wavelet_coeffs.size(), int64_t{0});
-
+        std::vector<int64_t> coeff_bins(coefficients.size(), int64_t{0});
         std::vector<double> reconstructed_coeffs;
-        if (frame.mode == SPERRMode::PWE_MODE) {
-            reconstructed_coeffs.resize(frame.wavelet_coeffs.size(), 0.0);
+        if (pwe) {
+            reconstructed_coeffs.resize(coefficients.size(), 0.0);
         }
-
-        for (size_t i = 0; i < frame.wavelet_coeffs.size(); i++) {
-            double coeff = frame.wavelet_coeffs[i];
-            frame.coeff_bins[i] = coeff_quantizer.quantize_and_overwrite(coeff, 0.0);
-            if (frame.mode == SPERRMode::PWE_MODE) {
+        for (size_t i = 0; i < coefficients.size(); i++) {
+            double coeff = coefficients[i];
+            coeff_bins[i] = coeff_quantizer_.quantize_and_overwrite(coeff, 0.0);
+            if (pwe) {
                 reconstructed_coeffs[i] = coeff;
             }
         }
 
-        if (frame.mode == SPERRMode::PWE_MODE) {
-            SZ3::SPERR::CDF97 cdf;
-            const SZ3::SPERR::RTNType rtn = cdf.take_data(std::move(reconstructed_coeffs), frame.dims);
-            if (rtn != SZ3::SPERR::RTNType::Good) {
-                throw std::runtime_error("SPERR inverse wavelet setup failed during outlier detection.");
-            }
-            cdf.idwt3d();
-            std::vector<double> reconstructed = cdf.release_data();
-
-            frame.outliers.clear();
-            frame.outliers.reserve(frame.conditioned_values.size() / 20);
-            for (size_t i = 0; i < frame.conditioned_values.size(); i++) {
-                const double diff = frame.conditioned_values[i] - reconstructed[i];
-                if (std::abs(diff) > frame.quality) {
-                    frame.outliers.emplace_back(i, diff);
-                }
-            }
+        outlier_quantizer_.clear();
+        if (pwe) {
+            // Replay the decoder's inverse wavelet so outliers are measured against the
+            // values the decoder will actually see, in the conditioned domain.
+            const std::vector<double> reconstructed = transform_.inverse_wavelet(std::move(reconstructed_coeffs));
+            outlier_quantizer_.collect(conditioned, reconstructed);
         }
 
-        frame.wavelet_coeffs.clear();
-        frame.wavelet_coeffs.shrink_to_fit();
-        frame.conditioned_values.clear();
-        frame.conditioned_values.shrink_to_fit();
+        return coeff_bins;
     }
 
-    T *inverse(const Config &conf, SPERRFrame &frame, const std::vector<int64_t> &outlier_bins, T *dec_data) const {
+    /**
+     * @brief Dequantize, inverse-transform, and re-apply outlier corrections.
+     * @param conf Compression configuration
+     * @param coeff_bins Quantized wavelet coefficients from the encoder stage
+     * @param dec_data Output buffer
+     */
+    T *decompress(const Config &conf, std::vector<int64_t> &coeff_bins, T *dec_data) override {
+        transform_.set_dims(SPERRTransform<T, N>::dims_from_config(conf));
+
         std::vector<double> values;
-        SZ3::SPERR::Conditioner conditioner;
-
-        if (frame.constant_field) {
-            validate_outlier_map(conf, outlier_bins, conf.num);
-            if (std::any_of(outlier_bins.begin(), outlier_bins.end(), [](int64_t code) { return code != 0; })) {
-                throw std::runtime_error("SPERR constant field should not contain outlier payload.");
-            }
-
-            const SZ3::SPERR::RTNType rtn = conditioner.inverse_condition(values, frame.dims, frame.conditioner_header);
-            if (rtn != SZ3::SPERR::RTNType::Good) {
-                throw std::runtime_error("SPERR inverse conditioning failed for constant field.");
+        if (transform_.constant_field()) {
+            if (std::any_of(coeff_bins.begin(), coeff_bins.end(), [](int64_t bin) { return bin != 0; })) {
+                throw std::runtime_error("SPERR constant field should not carry coefficient payload.");
             }
         } else {
-            values = recover_coefficients(frame.coeff_bins, frame.q);
-
-            SZ3::SPERR::CDF97 cdf;
-            SZ3::SPERR::RTNType rtn = cdf.take_data(std::move(values), frame.dims);
-            if (rtn != SZ3::SPERR::RTNType::Good) {
-                throw std::runtime_error("SPERR inverse wavelet setup failed.");
+            if (coeff_bins.size() != conf.num) {
+                throw std::runtime_error("SPERR coefficient bin count mismatch.");
             }
-            cdf.idwt3d();
-            values = cdf.release_data();
-
-            apply_outlier_map(conf, outlier_bins, values);
-
-            rtn = conditioner.inverse_condition(values, frame.dims, frame.conditioner_header);
-            if (rtn != SZ3::SPERR::RTNType::Good) {
-                throw std::runtime_error("SPERR inverse conditioning failed.");
+            values.resize(coeff_bins.size(), 0.0);
+            for (size_t i = 0; i < coeff_bins.size(); i++) {
+                values[i] = coeff_quantizer_.recover(0.0, coeff_bins[i]);
             }
+            values = transform_.inverse_wavelet(std::move(values));
+            outlier_quantizer_.apply(values);
         }
+
+        // Constant fields are expanded here; otherwise this just adds the mean back.
+        transform_.inverse_condition(values);
 
         if (values.size() != conf.num) {
             throw std::runtime_error("SPERR reconstruction length mismatch.");
@@ -226,14 +157,68 @@ class SPERRDecomposition : public concepts::DecompositionInterface<T, int64_t, N
         return dec_data;
     }
 
+    /**
+     * @brief Serialize the three owned modules, in pipeline order.
+     * @param c Buffer pointer; advanced past the written bytes.
+     */
+    void save(uchar *&c) override {
+        transform_.save(c);
+        coeff_quantizer_.save(c);
+        outlier_quantizer_.save(c);
+    }
+
+    /**
+     * @brief Deserialize the three owned modules.
+     * @param c Buffer pointer; advanced past the consumed bytes.
+     * @param remaining_length Remaining buffer length; decremented.
+     */
+    void load(const uchar *&c, size_t &remaining_length) override {
+        transform_.load(c, remaining_length);
+        coeff_quantizer_.load(c, remaining_length);
+        outlier_quantizer_.load(c, remaining_length);
+    }
+
+    size_t size_est() override { return transform_.size_est() + kScalarQuantizerBytes + outlier_quantizer_.size_est(); }
+
+    /**
+     * @brief Output range advertised to `SZGenericCompressor`.
+     *
+     * The coefficient bins are genuinely signed (SPECK codes sign and magnitude
+     * separately), so the lower end is nominal. `SPERRFusedDecomposition` reports the same
+     * pair for the same reason; shifting the bins to be non-negative would defeat the
+     * encoder's sign/magnitude split.
+     */
+    std::pair<int64_t, int64_t> get_out_range() override {
+        // SPERR bins are a SPECK bitstream, not a quantizer domain; 0 means "no bin range".
+        return std::make_pair<int64_t, int64_t>(0, 0);
+    }
+
+    void print() override {
+        printf("[SPERRDecomposition] q=%.8G, constant_field=%d, outliers=%zu\n", q_,
+               static_cast<int>(transform_.constant_field()), outlier_quantizer_.size());
+    }
+
+    /// The conditioner + wavelet stage.
+    SPERRTransform<T, N> &get_transform() { return transform_; }
+
+    /// The mid-tread quantizer applied to wavelet coefficients.
+    ScalarQuantizer<double, int64_t> &get_coefficient_quantizer() { return coeff_quantizer_; }
+
+    /// The sparse outlier-correction stage.
+    OutlierQuantizer<double, int64_t> &get_outlier_quantizer() { return outlier_quantizer_; }
+
+    /// Quantization step chosen for the wavelet coefficients (0 for a constant field).
+    double get_q() const { return q_; }
+
    private:
-    struct SPERRQualityControl {
+    /// Error-bound mode plus target, resolved from `Config`.
+    struct QualityControl {
         SPERRMode mode = SPERRMode::PWE_MODE;
         double quality = 0.0;
     };
 
-    static SPERRQualityControl resolve_quality_control(const Config &conf) {
-        SPERRQualityControl qc;
+    static QualityControl resolve_quality_control(const Config &conf) {
+        QualityControl qc;
         if (conf.errorBoundMode == EB_PSNR) {
             qc.mode = SPERRMode::PSNR_MODE;
             qc.quality = conf.psnrErrorBound;
@@ -245,133 +230,6 @@ class SPERRDecomposition : public concepts::DecompositionInterface<T, int64_t, N
             throw std::invalid_argument("SPERR requires a positive quality target.");
         }
         return qc;
-    }
-
-    static ScalarQuantizer<double, int64_t> make_coeff_quantizer(double step) {
-        return ScalarQuantizer<double, int64_t>(step);
-    }
-
-    static ScalarQuantizer<double, int64_t> make_outlier_quantizer(double tolerance) {
-        return ScalarQuantizer<double, int64_t>(tolerance, 1.1, -0.25);
-    }
-
-    static std::vector<double> recover_coefficients(const std::vector<int64_t> &coeff_bins, double q) {
-        if (!(q > 0.0)) {
-            throw std::runtime_error("SPERR invalid quantization step for coefficient recovery.");
-        }
-
-        ScalarQuantizer<double, int64_t> quantizer = make_coeff_quantizer(q);
-        std::vector<double> coeffs(coeff_bins.size(), 0.0);
-        for (size_t i = 0; i < coeff_bins.size(); i++) {
-            coeffs[i] = quantizer.recover(0.0, coeff_bins[i]);
-        }
-        return coeffs;
-    }
-
-    static void validate_outlier_map(const Config &conf, const std::vector<int64_t> &bins, size_t expected_len) {
-        if (bins.size() != expected_len) {
-            throw std::runtime_error("SPERR outlier map length mismatch.");
-        }
-        const SPERRQualityControl qc = resolve_quality_control(conf);
-        if (qc.mode != SPERRMode::PWE_MODE) {
-            for (size_t i = 0; i < bins.size(); i++) {
-                if (bins[i] != 0) {
-                    throw std::runtime_error("SPERR PSNR mode should not carry non-zero outlier corrections.");
-                }
-            }
-        }
-    }
-
-    static std::vector<int64_t> build_outlier_map(const Config &conf, const SPERRFrame &frame) {
-        std::vector<int64_t> outlier_map(conf.num, int64_t{0});
-        if (frame.constant_field || frame.mode != SPERRMode::PWE_MODE) {
-            return outlier_map;
-        }
-
-        ScalarQuantizer<double, int64_t> quantizer = make_outlier_quantizer(frame.quality);
-        for (size_t i = 0; i < frame.outliers.size(); i++) {
-            const SZ3::SPERR::Outlier &outlier = frame.outliers[i];
-            if (outlier.pos >= outlier_map.size()) {
-                throw std::runtime_error("SPERR outlier index out of bounds while building outlier map.");
-            }
-            double err = outlier.err;
-            const int64_t q = quantizer.quantize_and_overwrite(err, 0.0);
-            outlier_map[outlier.pos] = q;
-        }
-
-        return outlier_map;
-    }
-
-    static void apply_outlier_map(const Config &conf, const std::vector<int64_t> &bins, std::vector<double> &values) {
-        validate_outlier_map(conf, bins, values.size());
-
-        const SPERRQualityControl qc = resolve_quality_control(conf);
-        if (qc.mode != SPERRMode::PWE_MODE) {
-            return;
-        }
-
-        ScalarQuantizer<double, int64_t> quantizer = make_outlier_quantizer(qc.quality);
-        for (size_t i = 0; i < bins.size(); i++) {
-            if (bins[i] == 0) {
-                continue;
-            }
-            values[i] += quantizer.recover(0.0, bins[i]);
-        }
-    }
-
-    static std::vector<uchar> encode_coefficient_stream(const SPERRFrame &frame) {
-        std::vector<uchar> stream;
-        stream.insert(stream.end(), frame.conditioner_header.begin(), frame.conditioner_header.end());
-
-        if (frame.constant_field) {
-            return stream;
-        }
-
-        SPERREncoder<int64_t, 3> coeff_encoder(frame.dims);
-        std::vector<uchar> speck_stream = coeff_encoder.encode_stream(frame.coeff_bins);
-        stream.insert(stream.end(), speck_stream.begin(), speck_stream.end());
-        return stream;
-    }
-
-    static SPERRFrame decode_coefficient_stream(const SPERR3DLayout &layout, const uchar *cmpData, size_t cmpSize) {
-        SPERRFrame frame;
-        frame.dims = {layout.dimx, layout.dimy, layout.dimz};
-
-        if (cmpSize < frame.conditioner_header.size()) {
-            throw std::runtime_error("SPERR coefficient stream too short for conditioner header.");
-        }
-
-        std::copy_n(cmpData, frame.conditioner_header.size(), frame.conditioner_header.begin());
-        const SZ3::SPERR::Conditioner conditioner;
-        frame.constant_field = conditioner.is_constant(frame.conditioner_header[0]);
-
-        if (frame.constant_field) {
-            if (cmpSize != frame.conditioner_header.size()) {
-                throw std::runtime_error("SPERR constant-field coefficient stream has trailing payload.");
-            }
-            return frame;
-        }
-
-        frame.q = conditioner.retrieve_q(frame.conditioner_header);
-        if (!(frame.q > 0.0)) {
-            throw std::runtime_error("SPERR invalid quantization step in coefficient stream.");
-        }
-
-        const uchar *pos = cmpData + frame.conditioner_header.size();
-        const size_t remaining = cmpSize - frame.conditioner_header.size();
-        if (remaining < SZ3::SPERR::SPECK_INT<uint8_t>::header_size) {
-            throw std::runtime_error("SPERR coefficient stream missing SPECK payload.");
-        }
-
-        SPERREncoder<int64_t, 3> coeff_encoder(frame.dims);
-        size_t consumed = 0;
-        frame.coeff_bins = coeff_encoder.decode_stream(pos, remaining, frame.dims[0] * frame.dims[1] * frame.dims[2],
-                                                       consumed);
-        if (consumed != remaining) {
-            throw std::runtime_error("SPERR coefficient stream has trailing payload.");
-        }
-
-        return frame;
     }
 
     static double estimate_mse_midtread(const std::vector<double> &vals, double q) {
@@ -398,29 +256,42 @@ class SPERRDecomposition : public concepts::DecompositionInterface<T, int64_t, N
         return total / static_cast<double>(len);
     }
 
-    static double estimate_q(const SPERRFrame &frame) {
-        if (frame.mode == SPERRMode::PWE_MODE) {
-            return frame.quality * 1.5;
+    /**
+     * @brief Rate-control policy: pick the coefficient quantization step.
+     *
+     * Kept here rather than in any of the four modules because it is a fifth concern --
+     * it needs the error-bound mode, the conditioned data range and the coefficients at
+     * once. Mirrors `SPERRFusedDecomposition`'s private policy exactly.
+     */
+    static double estimate_q(const QualityControl &qc, double conditioned_range,
+                             const std::vector<double> &coefficients) {
+        if (qc.mode == SPERRMode::PWE_MODE) {
+            return qc.quality * 1.5;
         }
-        if (frame.conditioned_range <= 0.0) {
+        if (conditioned_range <= 0.0) {
             throw std::invalid_argument("SPERR PSNR mode requires positive conditioned data range.");
         }
-        if (frame.wavelet_coeffs.empty()) {
+        if (coefficients.empty()) {
             throw std::invalid_argument("SPERR q-estimation requires wavelet coefficients.");
         }
 
-        const double target_mse =
-            (frame.conditioned_range * frame.conditioned_range) * std::pow(10.0, -frame.quality / 10.0);
+        const double target_mse = (conditioned_range * conditioned_range) * std::pow(10.0, -qc.quality / 10.0);
         double q = 2.0 * std::sqrt(target_mse * 3.0);
-        while (estimate_mse_midtread(frame.wavelet_coeffs, q) > target_mse) {
+        while (estimate_mse_midtread(coefficients, q) > target_mse) {
             q /= std::exp2(0.25);
         }
         return q;
     }
 
-    std::vector<uchar> coeff_stream_;
+    /// `ScalarQuantizer::save()` writes a uid byte plus three doubles.
+    static constexpr size_t kScalarQuantizerBytes = sizeof(uchar) + 3 * sizeof(double);
+
+    SPERRTransform<T, N> transform_;
+    ScalarQuantizer<double, int64_t> coeff_quantizer_;
+    OutlierQuantizer<double, int64_t> outlier_quantizer_;
+    double q_ = 0.0;
 };
 
 }  // namespace SZ3
 
-#endif
+#endif  // SZ3_SZ3_SPERR_DECOMPOSITION_HPP

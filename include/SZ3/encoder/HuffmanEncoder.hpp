@@ -6,17 +6,18 @@
 #ifndef SZ3_HUFFMAN_ENCODER_HPP
 #define SZ3_HUFFMAN_ENCODER_HPP
 
+#include <cassert>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <limits>
 
 #include "SZ3/def.hpp"
 #include "SZ3/encoder/Encoder.hpp"
 #include "SZ3/utils/ByteUtil.hpp"
 #include "SZ3/utils/Collections.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
-#include <cassert>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
 
 namespace SZ3 {
 
@@ -541,6 +542,10 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             }
         }
 
+        // The state table is sized by the bin range, not the distinct count.
+        if (static_cast<double>(max) - static_cast<double>(offset) > 2e9) {
+            throw std::invalid_argument("HuffmanEncoder: bin range too wide; use HuffmanEncoderV2");
+        }
         int stateNum = max - offset + 2;
         huffmanTree = createHuffmanTree(stateNum);
 

@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <limits>
 #include <type_traits>
 #include <utility>
 
@@ -78,7 +79,12 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         if (decomposition.get_out_range().first != 0) {
             throw std::runtime_error("The output range of the decomposition must start from 0 for this compressor");
         }
-        encoder.preprocess_encode(quant_inds, decomposition.get_out_range().second);
+        auto out_max = decomposition.get_out_range().second;
+        if (out_max > std::numeric_limits<int>::max()) {
+            throw std::runtime_error(
+                "The output range of the decomposition must fit in int; return 0 if there is no range");
+        }
+        encoder.preprocess_encode(quant_inds, static_cast<int>(out_max));
         size_t bufferSize = std::max<size_t>(
             1000, 2 * (decomposition.size_est() + encoder.size_est() + sizeof(Q) * quant_inds.size()));
 

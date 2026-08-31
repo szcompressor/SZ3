@@ -41,10 +41,10 @@ class ZFPDecomposition : public concepts::DecompositionInterface<T, To, N> {
         }
 
         if constexpr (N == 1) {
-            for (auto x = 0; x < dims[0]; x += 4, p += 4) {
+            for (size_t x = 0; x < dims[0]; x += 4, p += 4) {
                 Fixed q[block_size];
                 int emax = 0;
-                uint nx = std::min(dims[0] - x, 4u);
+                uint nx = std::min<size_t>(dims[0] - x, 4);
                 if (nx == 4) {
                     // convert to fixed-point
                     emax = ZFP::Codec1<ZFP::MemoryBitStream, T>::fwd_cast(q, p, s[0]);
@@ -65,8 +65,8 @@ class ZFPDecomposition : public concepts::DecompositionInterface<T, To, N> {
                 for (uint x = 0; x < dims[0]; x += 4, p += 4) {
                     Fixed q[block_size];
                     int emax = 0;
-                    uint nx = std::min(dims[0] - x, 4u);
-                    uint ny = std::min(dims[1] - y, 4u);
+                    uint nx = std::min<size_t>(dims[0] - x, 4);
+                    uint ny = std::min<size_t>(dims[1] - y, 4);
                     if (nx == 4 && ny == 4) {
                         // convert to fixed-point
                         emax = ZFP::Codec2<ZFP::MemoryBitStream, T>::fwd_cast(q, p, s[0], s[1]);
@@ -89,9 +89,9 @@ class ZFPDecomposition : public concepts::DecompositionInterface<T, To, N> {
                     for (uint x = 0; x < dims[0]; x += 4, p += 4) {
                         Fixed q[block_size];
                         int emax = 0;
-                        uint nx = std::min(dims[0] - x, 4u);
-                        uint ny = std::min(dims[1] - y, 4u);
-                        uint nz = std::min(dims[2] - z, 4u);
+                        uint nx = std::min<size_t>(dims[0] - x, 4);
+                        uint ny = std::min<size_t>(dims[1] - y, 4);
+                        uint nz = std::min<size_t>(dims[2] - z, 4);
                         if (nx == 4 && ny == 4 && nz == 4) {
                             // convert to fixed-point
                             emax = ZFP::Codec3<ZFP::MemoryBitStream, T>::fwd_cast(q, p, s[0], s[1], s[2]);
@@ -125,14 +125,14 @@ class ZFPDecomposition : public concepts::DecompositionInterface<T, To, N> {
             s[i] = s[i - 1] * dims[i - 1];
         }
         if constexpr (N == 1) {
-            for (auto x = 0; x < dims[0]; x += 4, p += 4) {
+            for (size_t x = 0; x < dims[0]; x += 4, p += 4) {
                 int emax = *emax_pos++;
                 Fixed q[block_size];
                 for (uint i = 0; i < block_size; i++) {
                     q[i] = Fixed::reinterpret(*transformed_pos++);
                 }
                 ZFP::Codec1<ZFP::MemoryBitStream, T>::inv_xform(q);
-                uint nx = std::min(dims[0] - x, 4u);
+                uint nx = std::min<size_t>(dims[0] - x, 4);
                 if (nx == 4) {
                     ZFP::Codec1<ZFP::MemoryBitStream, T>::inv_cast(q, p, s[0], emax);
                 } else {
@@ -148,8 +148,8 @@ class ZFPDecomposition : public concepts::DecompositionInterface<T, To, N> {
                         q[ZFP::Codec2<ZFP::MemoryBitStream, T>::perm[i]] = Fixed::reinterpret(*transformed_pos++);
                     }
                     ZFP::Codec2<ZFP::MemoryBitStream, T>::inv_xform(q);
-                    uint nx = std::min(dims[0] - x, 4u);
-                    uint ny = std::min(dims[1] - y, 4u);
+                    uint nx = std::min<size_t>(dims[0] - x, 4);
+                    uint ny = std::min<size_t>(dims[1] - y, 4);
                     if (nx == 4 && ny == 4) {
                         ZFP::Codec2<ZFP::MemoryBitStream, T>::inv_cast(q, p, s[0], s[1], emax);
                     } else {
@@ -167,9 +167,9 @@ class ZFPDecomposition : public concepts::DecompositionInterface<T, To, N> {
                             q[ZFP::Codec3<ZFP::MemoryBitStream, T>::perm[i]] = Fixed::reinterpret(*transformed_pos++);
                         }
                         ZFP::Codec3<ZFP::MemoryBitStream, T>::inv_xform(q);
-                        uint nx = std::min(dims[0] - x, 4u);
-                        uint ny = std::min(dims[1] - y, 4u);
-                        uint nz = std::min(dims[2] - z, 4u);
+                        uint nx = std::min<size_t>(dims[0] - x, 4);
+                        uint ny = std::min<size_t>(dims[1] - y, 4);
+                        uint nz = std::min<size_t>(dims[2] - z, 4);
                         if (nx == 4 && ny == 4 && nz == 4) {
                             ZFP::Codec3<ZFP::MemoryBitStream, T>::inv_cast(q, p, s[0], s[1], s[2], emax);
                         } else {

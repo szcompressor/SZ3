@@ -11,7 +11,7 @@ fz modules are header-only `.hpp` files. Add one file, implement the interface, 
 
 | Module kind | Folder | Naming |
 |---|---|---|
-| Decomposition | `include/SZ3/decomposition/` | `<Name>Decomposition.hpp` (e.g., `MGARDDecomposition.hpp`) |
+| Decomposition | `include/SZ3/decomposition/` | `<Name>Decomposition.hpp` (e.g., `MGARDFusedDecomposition.hpp`) |
 | Quantizer | `include/SZ3/quantizer/` | `<Name>Quantizer.hpp` (e.g., `LinearQuantizer.hpp`) |
 | Encoder | `include/SZ3/encoder/` | `<Name>Encoder.hpp` (e.g., `HuffmanEncoder.hpp`) |
 | Lossless | `include/SZ3/lossless/` | `Lossless_<name>.hpp` (e.g., `Lossless_zstd.hpp`) |
@@ -61,7 +61,7 @@ class FooDecomposition : public concepts::DecompositionInterface<T, int, N> {
 }  // namespace SZ3
 ```
 
-For pre-existing patterns: `NoPredictionDecomposition.hpp` (simplest), `MGARDDecomposition.hpp` (transform + quantize), `SPERRDecomposition.hpp` (transform + custom-state serialization).
+For pre-existing patterns: `NoPredictionDecomposition.hpp` (simplest), `MGARDFusedDecomposition.hpp` (transform + quantize), `SPERRFusedDecomposition.hpp` (transform + custom-state serialization).
 
 ## Quantizer skeleton
 
@@ -82,7 +82,7 @@ class FooQuantizer : public concepts::QuantizerInterface<T, int> {
 };
 ```
 
-Unique `uid` byte per quantizer (current values: `LinearQuantizer=0b10`, `QuadraticLevelQuantizer=0b11`, `FixedPointQuantizer=0b11` — pick a free one). Saving/loading uid lets the bitstream catch mismatched-quantizer errors.
+Unique `uid` byte per quantizer (current values: `LinearQuantizer=0b10`, `FixedPointQuantizer=0b11`, `ScalarQuantizer=0b100`, `BitTruncationQuantizer=0b101`, `LogDomainQuantizer=0b111`, `GranularBitRoundQuantizer=0b1000`, `ClusterQuantizer=0b1001`, `LevelQuantizer=0b1010` — pick a free one). Saving/loading uid lets the bitstream catch mismatched-quantizer errors.
 
 Reference implementations: `LinearQuantizer.hpp` (default), `FixedPointQuantizer.hpp` (calibrated), `ScalarQuantizer.hpp` (asymmetric reconstruction tweaks).
 

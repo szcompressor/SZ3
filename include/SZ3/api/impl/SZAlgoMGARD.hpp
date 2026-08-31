@@ -7,7 +7,7 @@
  * @brief MGARD pipeline composed from fz's modular building blocks.
  *
  * Pipeline:
- *   MGARDDecomposition (multigrid + per-level LinearQuantizer
+ *   MGARDFusedDecomposition (multigrid + per-level LinearQuantizer
  *                               with a geometric eb schedule)
  *   -> HuffmanEncoder<int>     (one Huffman tree across all per-level indices)
  *   -> Lossless_zstd
@@ -18,7 +18,7 @@
  */
 
 #include "SZ3/compressor/SZGenericCompressor.hpp"
-#include "SZ3/decomposition/MGARDDecomposition.hpp"
+#include "SZ3/decomposition/MGARDFusedDecomposition.hpp"
 #include "SZ3/encoder/HuffmanEncoder.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
 #include "SZ3/utils/Config.hpp"
@@ -34,7 +34,7 @@ size_t SZ_compress_MGARD(Config& conf, T* data, uchar* cmpData, size_t cmpCap) {
 
     const int radius = conf.quantbinCnt / 2;
     auto sz = make_compressor_sz_generic<T, N>(
-        MGARDDecomposition<T, N>(conf.absErrorBound, radius),
+        MGARDFusedDecomposition<T, N>(conf.absErrorBound, radius),
         HuffmanEncoder<int>(), Lossless_zstd());
     return sz->compress(conf, data, cmpData, cmpCap);
 }
@@ -45,7 +45,7 @@ void SZ_decompress_MGARD(const Config& conf, const uchar* cmpData, size_t cmpSiz
     auto cmpDataPos = cmpData;
     const int radius = conf.quantbinCnt / 2;
     auto sz = make_compressor_sz_generic<T, N>(
-        MGARDDecomposition<T, N>(conf.absErrorBound, radius),
+        MGARDFusedDecomposition<T, N>(conf.absErrorBound, radius),
         HuffmanEncoder<int>(), Lossless_zstd());
     sz->decompress(conf, cmpDataPos, cmpSize, decData);
 }

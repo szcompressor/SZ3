@@ -6,6 +6,8 @@
 #ifndef SZ3_TIME_SERIES_DECOMPOSITION_HPP
 #define SZ3_TIME_SERIES_DECOMPOSITION_HPP
 
+#include <memory>
+
 #include "Decomposition.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/predictor/LorenzoPredictor.hpp"
@@ -40,6 +42,9 @@ public:
     std::vector<int> compress(const Config& conf, T* data) override {
         std::vector<int> quant_inds(num_elements);
         size_t quant_count = 0;
+        // The timestep loop below predicts from the reconstruction of timestep 0.
+        const T* ts0_recon = data;
+        std::shared_ptr<block_data<T, N - 1>> data_with_padding;
         if (data_ts0 != nullptr) {
             for (size_t j = 0; j < conf.dims[1]; j++) {
                 quant_inds[quant_count++] = quantizer.quantize_and_overwrite(data[j], data_ts0[j]);
@@ -50,7 +55,7 @@ public:
                 spatial_dims[i] = conf.dims[i + 1];
             };
 
-            auto data_with_padding =
+            data_with_padding =
                 std::make_shared<block_data<T, N - 1>>(data, spatial_dims, predictor.get_padding(), true);
             auto block = data_with_padding->block_iter(conf.blockSize);
             do {
@@ -64,13 +69,16 @@ public:
                     quant_inds[quant_count++] = quantizer.quantize_and_overwrite(*c, pred);
                 });
             } while (block.next());
+
+            ts0_recon = data_with_padding->values();
         }
 
         for (size_t j = 0; j < conf.dims[1]; j++) {
+            T prev = ts0_recon[j];
             for (size_t i = 1; i < conf.dims[0]; i++) {
                 size_t idx = i * conf.dims[1] + j;
-                size_t idx_prev = (i - 1) * conf.dims[1] + j;
-                quant_inds[quant_count++] = quantizer.quantize_and_overwrite(data[idx], data[idx_prev]);
+                quant_inds[quant_count++] = quantizer.quantize_and_overwrite(data[idx], prev);
+                prev = data[idx];  // quantize_and_overwrite left the reconstruction here
             }
         }
         assert(quant_count == num_elements);

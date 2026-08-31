@@ -2,7 +2,7 @@
 #define SZ3_MGARD_PERLEVEL_DECOMPOSITION_HPP
 
 /**
- * @file MGARDDecomposition.hpp
+ * @file MGARDFusedDecomposition.hpp
  * @ingroup Decomposition
  * @brief MGARD multigrid + **per-level** LinearQuantizer (one quantizer per
  *        multigrid level, with geometrically-scaled error bound).
@@ -50,16 +50,14 @@
 namespace SZ3 {
 
 template <class T, uint N>
-class MGARDDecomposition : public concepts::DecompositionInterface<T, int, N> {
+class MGARDFusedDecomposition : public concepts::DecompositionInterface<T, int, N> {
    public:
-    explicit MGARDDecomposition(double abs_error_bound, int radius = 32768)
+    explicit MGARDFusedDecomposition(double abs_error_bound, int radius = 32768)
         : eb_(abs_error_bound), radius_(radius) {
-        static_assert(std::is_floating_point<T>::value,
-                      "MGARDDecomposition requires a floating-point data type.");
-        static_assert(N >= 1 && N <= 3,
-                      "MGARDDecomposition supports 1D, 2D, or 3D data only.");
+        static_assert(std::is_floating_point<T>::value, "MGARDFusedDecomposition requires a floating-point data type.");
+        static_assert(N >= 1 && N <= 3, "MGARDFusedDecomposition supports 1D, 2D, or 3D data only.");
         if (!(eb_ > 0.0)) {
-            throw std::invalid_argument("MGARDDecomposition: error bound must be positive.");
+            throw std::invalid_argument("MGARDFusedDecomposition: error bound must be positive.");
         }
     }
 
@@ -112,7 +110,7 @@ class MGARDDecomposition : public concepts::DecompositionInterface<T, int, N> {
             bin_off = recover_level_walk(dec_data, dims, level_dims[l - 1], level_dims[l], l, bins, bin_off);
         }
         if (bin_off != bins.size()) {
-            throw std::runtime_error("MGARDDecomposition: bin count mismatch in decompress.");
+            throw std::runtime_error("MGARDFusedDecomposition: bin count mismatch in decompress.");
         }
         for (auto& q : quantizers_) q.postdecompress_data();
 
@@ -152,10 +150,10 @@ class MGARDDecomposition : public concepts::DecompositionInterface<T, int, N> {
    private:
     static std::vector<size_t> resolve_dims(const Config& conf) {
         if (conf.N != N) {
-            throw std::invalid_argument("MGARDDecomposition: dimensionality mismatch.");
+            throw std::invalid_argument("MGARDFusedDecomposition: dimensionality mismatch.");
         }
         if (conf.dims.size() != N) {
-            throw std::invalid_argument("MGARDDecomposition: dims vector size != N.");
+            throw std::invalid_argument("MGARDFusedDecomposition: dims vector size != N.");
         }
         return std::vector<size_t>(conf.dims.begin(), conf.dims.end());
     }
@@ -242,7 +240,7 @@ class MGARDDecomposition : public concepts::DecompositionInterface<T, int, N> {
                               const std::vector<size_t>& fine_dims, size_t level_idx,
                               std::vector<int>& bins, size_t bin_off) {
         if (level_idx >= quantizers_.size()) {
-            throw std::runtime_error("MGARDDecomposition: missing quantizer for level.");
+            throw std::runtime_error("MGARDFusedDecomposition: missing quantizer for level.");
         }
         auto& quantizer = quantizers_[level_idx];
         if (N == 1) {
