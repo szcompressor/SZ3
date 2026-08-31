@@ -75,7 +75,7 @@ inline T byteswap(T value) {
 // read array
 template <class T1>
 void read(T1 *array, size_t num_elements, uchar const *&compressed_data_pos, size_t &remaining_length) {
-    if (num_elements * sizeof(T1) > remaining_length) {
+    if (sizeof(T1) != 0 && num_elements > remaining_length / sizeof(T1)) {
         throw std::invalid_argument("SZ3: compressed stream is truncated");
     }
     memcpy(array, compressed_data_pos, num_elements * sizeof(T1));

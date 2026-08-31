@@ -89,8 +89,11 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
         if (selection_size > 0) {
             HuffmanEncoder<int> selection_encoder;
             selection_encoder.load(c, remaining_length);
+            const uchar *selection_start = c;
             this->selection = selection_encoder.decode(c, selection_size);
             selection_encoder.postprocess_decode();
+            // decode() advances `c` but does not touch remaining_length.
+            remaining_length -= static_cast<size_t>(c - selection_start);
         }
     }
 
