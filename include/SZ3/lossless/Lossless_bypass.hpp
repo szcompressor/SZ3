@@ -6,6 +6,7 @@
 #define SZ3_LOSSLESS_BYPASS_HPP
 
 #include <cstring>
+#include <stdexcept>
 #include "SZ3/def.hpp"
 #include "SZ3/lossless/Lossless.hpp"
 
@@ -22,6 +23,9 @@ public:
         dstLen = srcLen;
         if (dst == nullptr) {
             dst = static_cast<uchar *>(malloc(dstLen));
+            if (dst == nullptr) {
+                throw std::runtime_error("SZ3 bypass lossless: can not allocate the decompression buffer");
+            }
         }
         std::memcpy(dst, src, dstLen);
         return dstLen;
