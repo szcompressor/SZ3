@@ -5,9 +5,9 @@
 #ifndef SZ3_MEMORYOPS_HPP
 #define SZ3_MEMORYOPS_HPP
 
-#include <cassert>
-#include <cstring>
 #include <cstdint>
+#include <cstring>
+#include <stdexcept>
 
 #include "SZ3/def.hpp"
 
@@ -73,7 +73,9 @@ inline T byteswap(T value) {
 // read array
 template <class T1>
 void read(T1 *array, size_t num_elements, uchar const *&compressed_data_pos, size_t &remaining_length) {
-    assert(num_elements * sizeof(T1) <= remaining_length);
+    if (num_elements * sizeof(T1) > remaining_length) {
+        throw std::invalid_argument("SZ3: compressed stream is truncated");
+    }
     memcpy(array, compressed_data_pos, num_elements * sizeof(T1));
     if constexpr (SZ3_BIG_ENDIAN) {
         for (size_t i = 0; i < num_elements; i++) {
@@ -109,7 +111,9 @@ void read(T1 &var, uchar const *&compressed_data_pos) {
 // read variable
 template <class T1>
 void read(T1 &var, uchar const *&compressed_data_pos, size_t &remaining_length) {
-    assert(sizeof(T1) <= remaining_length);
+    if (sizeof(T1) > remaining_length) {
+        throw std::invalid_argument("SZ3: compressed stream is truncated");
+    }
     memcpy(&var, compressed_data_pos, sizeof(T1));
     if constexpr (SZ3_BIG_ENDIAN) {
         var = byteswap(var);

@@ -3,10 +3,12 @@
 
 #include <cmath>
 #include <cstring>
+#include <memory>
 
 #include "Decomposition.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/quantizer/Quantizer.hpp"
+#include "SZ3/utils/BlockwiseIterator.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/FileUtil.hpp"
 #include "SZ3/utils/Interpolators.hpp"
@@ -144,6 +146,11 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         quantizer.set_eb(eb);
         quantizer.postcompress_data();
         return quant_inds_vec;
+    }
+
+    size_t size_est() override {
+        return sizeof(original_dimensions) + sizeof(blocksize) + sizeof(interp_id) + sizeof(direction_sequence_id) +
+               sizeof(anchor_stride) + sizeof(eb_alpha) + sizeof(eb_beta) + quantizer_size_est(quantizer) + 128;
     }
 
     void save(uchar *&c) override {

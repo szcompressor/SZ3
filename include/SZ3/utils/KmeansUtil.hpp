@@ -292,7 +292,7 @@ void get_cluster(T *data, size_t num, float &level_start, float &level_offset, i
     if (num == sample_num) {
         sample = std::vector<T>(data, data + num);
     } else {
-        sample.reserve(sample_num);
+        sample.resize(sample_num);  // the loop below writes through operator[]
         std::random_device rd;   // Will be used to obtain a seed for the random number engine
         std::mt19937 gen(rd());  // Standard mersenne_twister_engine seeded with rd()
         //        std::uniform_int_distribution<> dis(0, 2 * sample_rate);
@@ -303,7 +303,7 @@ void get_cluster(T *data, size_t num, float &level_start, float &level_offset, i
         //            sample[i] = input[input_idx];
         //        }
         //        std::cout << std::endl;
-        std::uniform_int_distribution<> dis2(0, num);
+        std::uniform_int_distribution<> dis2(0, static_cast<int>(num) - 1);
         std::unordered_set<size_t> sampledkeys;
         //            printf("total_num=%lu, sample_num=%lu\n", num, sample_num);
         for (size_t i = 0; i < sample_num; i++) {

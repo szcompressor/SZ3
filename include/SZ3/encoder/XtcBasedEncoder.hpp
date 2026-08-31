@@ -9,10 +9,12 @@
 #define _SZ_XTC3_ENCODER_HPP
 
 #include <climits>
+#include <cmath>
 #include <vector>
 
 #include "SZ3/def.hpp"
 #include "SZ3/encoder/Encoder.hpp"
+#include "SZ3/utils/Config.hpp"
 
 // #define DEBUG_OUTPUT
 

@@ -2,6 +2,7 @@
 #define SZ3_COMPRESSOR_TYPE_ONE_HPP
 
 #include <cstring>
+#include <memory>
 
 #include "SZ3/compressor/Compressor.hpp"
 #include "SZ3/decomposition/Decomposition.hpp"

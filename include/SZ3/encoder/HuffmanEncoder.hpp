@@ -533,6 +533,10 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             }
         }
 
+        // The state table is sized by the bin range, not the distinct count.
+        if (static_cast<double>(max) - static_cast<double>(offset) > 2e9) {
+            throw std::invalid_argument("HuffmanEncoder: bin range too wide; use HuffmanEncoderV2");
+        }
         int stateNum = max - offset + 2;
         huffmanTree = createHuffmanTree(stateNum);
 

@@ -83,7 +83,12 @@ public:
         return pred + 2 * (quant_index - this->radius) * this->error_bound;
     }
 
-    ALWAYS_INLINE T recover_unpred() { return unpred[index++]; }
+    ALWAYS_INLINE T recover_unpred() {
+        if (index >= unpred.size()) {
+            throw std::runtime_error("LinearQuantizer: more unpredictable bins than stored values");
+        }
+        return unpred[index++];
+    }
 
     ALWAYS_INLINE int force_save_unpred(T ori) override {
         unpred.push_back(ori);

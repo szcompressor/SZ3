@@ -1,6 +1,9 @@
 #ifndef SZ3_LORENZO_PREDICTOR_HPP
 #define SZ3_LORENZO_PREDICTOR_HPP
 
+#include <iostream>
+#include <limits>
+
 #include "SZ3/predictor/Predictor.hpp"
 
 namespace SZ3 {

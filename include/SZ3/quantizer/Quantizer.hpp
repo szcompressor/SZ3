@@ -2,6 +2,9 @@
 #define SZ3_QUANTIZER_HPP
 
 #include <SZ3/def.hpp>
+#include <cstddef>
+#include <type_traits>
+#include <utility>
 
 namespace SZ3::concepts {
 
@@ -69,5 +72,23 @@ class   QuantizerInterface {
     virtual void print() {}
 };
 }  // namespace SZ3::concepts
+
+namespace SZ3 {
+/// Detects the optional (non-virtual) `size_est()` some quantizers expose.
+template <class Q, class = void>
+struct quantizer_has_size_est : std::false_type {};
+template <class Q>
+struct quantizer_has_size_est<Q, std::void_t<decltype(std::declval<Q &>().size_est())>> : std::true_type {};
+
+/// The quantizer's serialized-size estimate, or 0 when it does not expose one.
+template <class Q>
+size_t quantizer_size_est(Q &q) {
+    if constexpr (quantizer_has_size_est<Q>::value) {
+        return q.size_est();
+    } else {
+        return 0;
+    }
+}
+}  // namespace SZ3
 
 #endif

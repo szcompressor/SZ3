@@ -1,8 +1,10 @@
 #ifndef SZ3_SAMPLE_HPP
 #define SZ3_SAMPLE_HPP
 
-#include "SZ3/def.hpp"
+#include <cassert>
 #include <vector>
+
+#include "SZ3/def.hpp"
 
 namespace SZ3 {
 template <class T, uint N>

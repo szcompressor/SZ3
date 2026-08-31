@@ -5,6 +5,10 @@
 #ifndef SZ3_TRANSPOSE_H
 #define SZ3_TRANSPOSE_H
 
+#include <array>
+#include <cstddef>
+#include <vector>
+
 #include "SZ3/preprocessor/PreProcessor.hpp"
 
 namespace SZ3 {
