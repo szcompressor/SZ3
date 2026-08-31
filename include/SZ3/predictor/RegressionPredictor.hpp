@@ -136,9 +136,11 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
             quantizer_liner.load(c, remaining_length);
             HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
             encoder.load(c, remaining_length);
+            const uchar *coeff_start = c;
             regression_coeff_quant_inds = encoder.decode(c, coeff_size);
             encoder.postprocess_decode();
-            remaining_length -= coeff_size * sizeof(int);
+            // decode() advances `c` by the encoded byte count, not by the decoded bin count.
+            remaining_length -= static_cast<size_t>(c - coeff_start);
             std::fill(current_coeffs.begin(), current_coeffs.end(), 0);
             regression_coeff_index = 0;
         }
