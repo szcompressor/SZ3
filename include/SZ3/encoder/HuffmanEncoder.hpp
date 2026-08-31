@@ -479,11 +479,14 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         if (n->t) {
             huffmanTree->code[n->c] = static_cast<uint64_t *>(malloc(2 * sizeof(uint64_t)));
             if (len <= 64) {
-                (huffmanTree->code[n->c])[0] = out1 << (64 - len);
+                // A Huffman tree with a single symbol gives a zero-length code (build_code is called with
+                // len == 0 for the root). Shifting a 64-bit value by 64 is undefined behavior, so guard it.
+                (huffmanTree->code[n->c])[0] = (len == 0) ? 0 : (out1 << (64 - len));
                 (huffmanTree->code[n->c])[1] = out2;
             } else {
                 (huffmanTree->code[n->c])[0] = out1;
-                (huffmanTree->code[n->c])[1] = out2 << (128 - len);
+                // Likewise, len >= 128 would shift by >= 64; such codes do not fit in 128 bits anyway.
+                (huffmanTree->code[n->c])[1] = (len >= 128) ? out2 : (out2 << (128 - len));
             }
             huffmanTree->cout[n->c] = static_cast<unsigned char>(len);
             // std::cout << "build_code: c = " << n->c << ", len = " << len << ", out1 = " << out1 << ", out2 = " << out2
