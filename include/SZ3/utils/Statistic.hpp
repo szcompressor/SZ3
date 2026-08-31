@@ -6,6 +6,8 @@
 #ifndef SZ3_STATISTIC_HPP
 #define SZ3_STATISTIC_HPP
 
+#include <cmath>
+
 #include "Config.hpp"
 
 namespace SZ3 {

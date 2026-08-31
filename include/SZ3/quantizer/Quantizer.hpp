@@ -1,6 +1,7 @@
 #ifndef SZ3_QUANTIZER_HPP
 #define SZ3_QUANTIZER_HPP
 
+#include <cstddef>
 #include <utility>
 
 #include "SZ3/def.hpp"

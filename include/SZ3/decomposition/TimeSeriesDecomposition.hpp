@@ -7,6 +7,7 @@
 #define SZ3_TIME_SERIES_DECOMPOSITION_HPP
 
 #include <cassert>
+#include <limits>
 #include <memory>
 
 #include "Decomposition.hpp"

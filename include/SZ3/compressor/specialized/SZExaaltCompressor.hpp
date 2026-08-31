@@ -1,6 +1,7 @@
 #ifndef SZ3_EXAALT_COMPRESSSOR_HPP
 #define SZ3_EXAALT_COMPRESSSOR_HPP
 
+#include <limits>
 #include <memory>
 
 #include "SZ3/compressor/Compressor.hpp"

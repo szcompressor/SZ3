@@ -6,6 +6,8 @@
 #ifndef SZ3_ZFP_DECOMPOSITION_HPP
 #define SZ3_ZFP_DECOMPOSITION_HPP
 
+#include <cmath>
+
 #include "Decomposition.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/utils/Config.hpp"

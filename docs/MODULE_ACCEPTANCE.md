@@ -27,8 +27,13 @@ python3 tools/test/check_headers.py --build-dir build
 ```
 
 A header that only works because another header came first breaks the moment a translation unit
-changes its include order, or a standard library stops providing something transitively. Runs in
-CI on the Linux job.
+changes its include order, or a standard library stops providing something transitively. Run it
+against both toolchains -- libstdc++ and libc++ provide different things transitively, so a clean
+run under one proves nothing about the other. CI runs it on the Linux and macOS jobs.
+
+```bash
+python3 tools/test/check_headers.py --build-dir build --compiler g++
+```
 
 ## 3. It passes its group contract
 

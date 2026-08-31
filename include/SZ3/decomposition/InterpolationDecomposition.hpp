@@ -13,6 +13,7 @@
 #include "Decomposition.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/quantizer/Quantizer.hpp"
+#include "SZ3/utils/BlockwiseIterator.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/Interpolators.hpp"
 #include "SZ3/utils/Iterator.hpp"

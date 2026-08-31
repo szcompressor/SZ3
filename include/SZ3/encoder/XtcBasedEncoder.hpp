@@ -14,6 +14,7 @@
 #define _SZ_XTC3_ENCODER_HPP
 
 #include <climits>
+#include <cmath>
 #include <vector>
 
 #include "SZ3/def.hpp"

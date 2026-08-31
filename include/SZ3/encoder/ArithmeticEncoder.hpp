@@ -7,6 +7,7 @@
 #define SZ3_ArithmeticEncoder_HPP
 
 #include <cassert>
+#include <cmath>
 #include <iostream>
 
 #include "SZ3/encoder/Encoder.hpp"

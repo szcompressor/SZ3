@@ -9,11 +9,13 @@
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <numeric>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
+
 #include "SZ3/def.hpp"
 
 namespace SZ3 {
