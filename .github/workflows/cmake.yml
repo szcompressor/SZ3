@@ -40,6 +40,10 @@ jobs:
         working-directory: build
         run: cmake --build . --config ${{ env.BUILD_TYPE }} --parallel 4
 
+      - name: Check headers are self-contained
+        shell: bash
+        run: python3 tools/test/check_headers.py --build-dir build
+
       - name: Run CTest
         shell: bash
         working-directory: build

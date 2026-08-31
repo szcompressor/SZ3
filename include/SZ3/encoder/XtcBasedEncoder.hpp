@@ -18,6 +18,7 @@
 
 #include "SZ3/def.hpp"
 #include "SZ3/encoder/Encoder.hpp"
+#include "SZ3/utils/Config.hpp"
 
 // #define DEBUG_OUTPUT
 

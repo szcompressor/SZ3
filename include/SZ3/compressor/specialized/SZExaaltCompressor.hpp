@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "SZ3/compressor/Compressor.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/encoder/Encoder.hpp"
 #include "SZ3/lossless/Lossless.hpp"

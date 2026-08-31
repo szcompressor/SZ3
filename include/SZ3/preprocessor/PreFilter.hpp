@@ -6,6 +6,9 @@
 #ifndef SZ3_PREFILTER_HPP
 #define SZ3_PREFILTER_HPP
 
+#include <cstddef>
+#include <vector>
+
 #include "SZ3/preprocessor/PreProcessor.hpp"
 
 namespace SZ3 {

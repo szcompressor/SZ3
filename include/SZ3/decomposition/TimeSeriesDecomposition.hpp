@@ -6,6 +6,7 @@
 #ifndef SZ3_TIME_SERIES_DECOMPOSITION_HPP
 #define SZ3_TIME_SERIES_DECOMPOSITION_HPP
 
+#include <cassert>
 #include <memory>
 
 #include "Decomposition.hpp"

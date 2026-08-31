@@ -6,6 +6,10 @@
 #ifndef SZ3_EXTRACTION_HPP
 #define SZ3_EXTRACTION_HPP
 
+#include <cassert>
+#include <numeric>
+#include <vector>
+
 #include "SZ3/utils/Timer.hpp"
 
 namespace SZ3 {
