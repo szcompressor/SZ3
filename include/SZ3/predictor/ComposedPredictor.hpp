@@ -77,11 +77,11 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
         }
     }
 
-    ALWAYS_INLINE T predict(const block_iter &block, T *d, const std::array<size_t, N> &index) override {
+    T predict(const block_iter &block, T *d, const std::array<size_t, N> &index) override {
         return predictors[sid]->predict(block, d, index);
     }
 
-    ALWAYS_INLINE T estimate_error(const block_iter &block, T *d, const std::array<size_t, N> &index) override {
+    T estimate_error(const block_iter &block, T *d, const std::array<size_t, N> &index) override {
         return predictors[sid]->estimate_error(block, d, index);
     }
 

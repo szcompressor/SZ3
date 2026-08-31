@@ -70,11 +70,11 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
         return true;
     }
 
-    ALWAYS_INLINE T estimate_error(const block_iter &block, T *d, const std::array<size_t, N> &index) override {
+    T estimate_error(const block_iter &block, T *d, const std::array<size_t, N> &index) override {
         return fabs(*d - predict(block, d, index));
     }
 
-    ALWAYS_INLINE T predict(const block_iter &block, T *d, const std::array<size_t, N> &index) override {
+    T predict(const block_iter &block, T *d, const std::array<size_t, N> &index) override {
         if constexpr (N == 1) {
             return current_coeffs[0] * index[0] + current_coeffs[1];
         } else if constexpr (N == 2) {
