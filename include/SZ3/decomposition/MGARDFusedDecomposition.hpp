@@ -31,6 +31,14 @@
  * naturally with `HuffmanEncoder<int>`.
  *
  * Constraints: floating-point T (float/double); 1D / 2D / 3D.
+ *
+ * @par Bound limitation
+ * Coefficients are quantized per level and the reconstruction is never checked against the bound,
+ * so the multigrid transform's own round-off passes through unbounded. That round-off scales with
+ * the field's magnitude, so the absolute bound holds only while `max|x| * epsilon<T> << eb`. For
+ * `float` at `eb = 1e-2`, a magnitude of 1e6 reaches 1.17x eb and 1e7 reaches 6.25x; `double`
+ * needs a magnitude near 1e15 before it matters. Every other decomposition in the tree checks the
+ * value it writes back and diverts to an unpredictable list, so none of them has this behaviour.
  */
 
 #include <algorithm>

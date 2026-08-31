@@ -6,14 +6,16 @@
 #ifndef SZ3_SVD_DECOMPOSITION_HPP
 #define SZ3_SVD_DECOMPOSITION_HPP
 
+#include <algorithm>
+#include <iostream>
+#include <utility>
+#include <vector>
+
 #include "SZ3/decomposition/Decomposition.hpp"
 #include "SZ3/quantizer/LinearQuantizer.hpp"
-#include "SZ3/utils/Config.hpp"
+#include "SZ3/quantizer/Quantizer.hpp"
 #include "SZ3/stdafx.hpp"
-#include <iostream>
-#include <vector>
-#include <algorithm>
-#include <utility>
+#include "SZ3/utils/Config.hpp"
 
 namespace SZ3 {
 
@@ -98,6 +100,14 @@ public:
             dec_data[i] = reconstructed_tensor.data()[i] + residual[i];
         }
         return dec_data;
+    }
+
+    size_t size_est() override {
+        size_t bytes = core_dims.size() * sizeof(size_t) + quantized_core.size() * sizeof(int) +
+                       factor_dims.size() * 2 * sizeof(size_t) + quantizer_size_est(svd_quantizer) +
+                       quantizer_size_est(res_quantizer);
+        for (const auto& v : quantized_factors) bytes += sizeof(size_t) + v.size() * sizeof(int);
+        return bytes + 128;
     }
 
     void save(uchar*& c) override {

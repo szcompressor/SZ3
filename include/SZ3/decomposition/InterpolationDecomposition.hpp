@@ -167,6 +167,11 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         return quant_inds_vec;
     }
 
+    size_t size_est() override {
+        return sizeof(original_dimensions) + sizeof(blocksize) + sizeof(interp_id) + sizeof(direction_sequence_id) +
+               sizeof(anchor_stride) + sizeof(eb_alpha) + sizeof(eb_beta) + quantizer_size_est(quantizer) + 64;
+    }
+
     void save(uchar *&c) override {
         write(original_dimensions.data(), N, c);
         write(blocksize, c);

@@ -57,6 +57,22 @@ a new module is added to `test_module_contract.cpp` in a few lines. What the con
 Add `expectAbsErrorBound<T>(name, factory, eb)` when the module claims an absolute bound. The
 bound is checked against the value actually written back, not against the idealized level.
 
+**Decomposition** — `expectDecompositionContract<T>(name, conf, factory, eb, fields)`
+
+- `get_out_range().first == 0`, and `.second` fits in the `int` that `preprocess_encode` takes
+  (or is 0 for "no bin range"). Every bin sits inside the advertised range.
+- `size_est()` covers what `save()` writes, verified with guard bytes.
+- A **fresh instance loaded from that state** reconstructs within `eb`. Going through
+  `save()`/`load()` between compress and decompress is what the compressor does, and it is where a
+  decomposition that silently depends on its own compress-side state fails.
+- `load()` on a truncated stream throws.
+- Determinism.
+- Adversarial fields: constant, ramp, single spike, alternating extremes, smooth.
+
+Pass `eb = 0` only if the module claims no absolute bound. Pass explicit `fields` when the module
+honours its bound on a restricted input regime, and say in a comment what that regime is —
+`MGARDFusedDecomposition` is the one case in the tree.
+
 **Encoder** — `expectEncoderContract<Bin>(name, factory, streams, stateNum)`
 
 - `size_est()` covers what `encode()` writes, verified with guard bytes past the buffer.
@@ -113,3 +129,5 @@ digests; PRs to `master` or `fz` additionally run the SDRBench datasets.
 | adversarial streams | `ArithmeticEncoder` sign-extended a shift, corrupting about half of all streams |
 | `uid` distinctness | two quantizers shared `0b101`, so each accepted the other's stream |
 | composition test | `TimeSeriesDecomposition` violated its bound 1.97x on the null-reference path |
+| `size_est()` covers `save()` | six decompositions did not override `size_est()`, so the compressor sized its buffer from 0 |
+| bound after `save()`/`load()` | `RegressionPredictor::load` debited `remaining_length` by the decoded rather than the encoded size |

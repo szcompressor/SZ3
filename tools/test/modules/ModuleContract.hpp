@@ -22,12 +22,14 @@
 #define SZ3_TEST_MODULE_CONTRACT_HPP
 
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <limits>
 #include <string>
 #include <vector>
 
 #include "SZ3/def.hpp"
+#include "SZ3/utils/Config.hpp"
 #include "gtest/gtest.h"
 
 namespace SZ3_test {
@@ -242,6 +244,128 @@ void expectEncoderContract(const std::string &name, Factory make, std::vector<st
         ASSERT_EQ(out.size(), bins.size()) << name << ": decode() returned the wrong length";
         for (size_t i = 0; i < bins.size(); i++) {
             ASSERT_EQ(out[i], bins[i]) << name << ": bin " << i << " differs after round-trip";
+        }
+    }
+}
+
+/// Fields that have historically broken decompositions: flat, ramp, single spike, extremes.
+template <class T>
+std::vector<std::vector<T>> adversarialFields(size_t num) {
+    std::vector<std::vector<T>> out;
+    out.push_back(std::vector<T>(num, T(3.5)));  // constant
+    std::vector<T> ramp(num);
+    for (size_t i = 0; i < num; i++) ramp[i] = static_cast<T>(i) * T(1e-3);
+    out.push_back(ramp);
+    std::vector<T> spike(num, T(0));
+    spike[num / 2] = T(1e6);
+    out.push_back(spike);
+    std::vector<T> alternating(num);
+    for (size_t i = 0; i < num; i++) alternating[i] = (i % 2) ? T(-1e4) : T(1e4);
+    out.push_back(alternating);
+    std::vector<T> smooth(num);
+    for (size_t i = 0; i < num; i++)
+        smooth[i] = std::sin(static_cast<double>(i) * 0.013) * 3.0 + std::cos(static_cast<double>(i) * 0.007);
+    out.push_back(smooth);
+    return out;
+}
+
+/**
+ * @brief Acceptance checks for the Decomposition group.
+ *
+ * @tparam T       Data type
+ * @tparam Factory Callable returning a fresh decomposition by value
+ * @param name     Module name, printed on failure
+ * @param conf     Configuration the factory's decomposition was built for
+ * @param make     Factory
+ * @param eb       Absolute error bound the module claims, or 0 to skip the bound check
+ * @param fields   Input fields to exercise; adversarial defaults are used when empty
+ */
+template <class T, class Factory>
+void expectDecompositionContract(const std::string &name, const SZ3::Config &conf, Factory make, double eb,
+                                 std::vector<std::vector<T>> fields = {}) {
+    if (fields.empty()) fields = adversarialFields<T>(conf.num);
+
+    // 1. SZGenericCompressor requires the range to start at 0 and to fit in the int that
+    //    `preprocess_encode` takes; 0 means "no bin range" and is allowed.
+    {
+        auto d = make();
+        const auto range = d.get_out_range();
+        EXPECT_EQ(range.first, 0) << name << ": get_out_range().first must be 0";
+        EXPECT_TRUE(range.second == 0 || static_cast<int64_t>(range.second) <= std::numeric_limits<int>::max())
+            << name << ": get_out_range().second must fit in int, or be 0 when there is no range";
+    }
+
+    for (size_t f = 0; f < fields.size(); f++) {
+        SCOPED_TRACE(name + ": field " + std::to_string(f));
+        const std::vector<T> &original = fields[f];
+        ASSERT_EQ(original.size(), conf.num) << name << ": field size does not match conf.num";
+
+        auto enc = make();
+        std::vector<T> scratch = original;
+        auto bins = enc.compress(conf, scratch.data());
+
+        // 2. Every bin must sit inside the advertised range.
+        const auto range = enc.get_out_range();
+        if (range.second != 0) {
+            for (size_t i = 0; i < bins.size(); i++) {
+                ASSERT_GE(bins[i], range.first) << name << ": bin " << i << " below range";
+                ASSERT_LE(bins[i], range.second) << name << ": bin " << i << " above range";
+            }
+        }
+
+        // 3. size_est() must cover what save() writes, checked with guard bytes.
+        const size_t est = enc.size_est();
+        const size_t guard = 64;
+        std::vector<SZ3::uchar> state(est + 4096 + guard);
+        dirty(state);
+        std::vector<SZ3::uchar> canary(state.end() - guard, state.end());
+        SZ3::uchar *wp = state.data();
+        enc.save(wp);
+        const size_t saved = static_cast<size_t>(wp - state.data());
+        ASSERT_LE(saved, state.size() - guard) << name << ": save() wrote past the buffer";
+        EXPECT_EQ(std::memcmp(state.data() + state.size() - guard, canary.data(), guard), 0)
+            << name << ": save() clobbered the guard bytes";
+        EXPECT_LE(saved, est + 4096) << name << ": size_est() = " << est << " underestimates " << saved;
+
+        // 4. A fresh instance loaded from that state must reconstruct within the bound. Going
+        //    through save/load is what the compressor does, and it is where a decomposition that
+        //    silently depends on its own compress-side state fails.
+        auto dec = make();
+        const SZ3::uchar *rp = state.data();
+        size_t remaining = saved;
+        dec.load(rp, remaining);
+        std::vector<T> recovered(conf.num, T(0));
+        dec.decompress(conf, bins, recovered.data());
+
+        if (eb > 0) {
+            double worst = 0;
+            size_t worst_at = 0;
+            for (size_t i = 0; i < conf.num; i++) {
+                const double err = std::fabs(static_cast<double>(recovered[i]) - static_cast<double>(original[i]));
+                if (err > worst) {
+                    worst = err;
+                    worst_at = i;
+                }
+            }
+            EXPECT_LE(worst, eb * (1 + 1e-6))
+                << name << ": |err| = " << worst << " exceeds eb = " << eb << " at index " << worst_at;
+        }
+
+        // 5. load() must reject a truncated stream rather than read past remaining_length.
+        if (saved > 1) {
+            auto trunc = make();
+            const SZ3::uchar *tp = state.data();
+            size_t short_len = saved - 1;
+            EXPECT_ANY_THROW(trunc.load(tp, short_len)) << name << ": load() accepted a truncated stream";
+        }
+
+        // 6. Determinism.
+        auto again = make();
+        std::vector<T> scratch2 = original;
+        auto bins2 = again.compress(conf, scratch2.data());
+        ASSERT_EQ(bins2.size(), bins.size()) << name << ": compress() is not deterministic in length";
+        for (size_t i = 0; i < bins.size(); i++) {
+            ASSERT_EQ(bins2[i], bins[i]) << name << ": compress() is not deterministic at bin " << i;
         }
     }
 }

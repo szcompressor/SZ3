@@ -56,18 +56,13 @@
 #include "SZ3/def.hpp"
 #include "SZ3/preprocessor/MGARDTransform.hpp"
 #include "SZ3/quantizer/LinearQuantizer.hpp"
+#include "SZ3/quantizer/Quantizer.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
 #include "SZ3/utils/MultiLevelErrorBound.hpp"
 #include "SZ3/utils/MultiLevelQuantization.hpp"
 
 namespace SZ3 {
-
-/// Detects the optional (non-virtual) `size_est()` some quantizers expose.
-template <class Q, class = void>
-struct quantizer_has_size_est : std::false_type {};
-template <class Q>
-struct quantizer_has_size_est<Q, std::void_t<decltype(std::declval<Q &>().size_est())>> : std::true_type {};
 
 /**
  * @brief Decomposition over a coarse-to-fine transform with one quantizer per level.

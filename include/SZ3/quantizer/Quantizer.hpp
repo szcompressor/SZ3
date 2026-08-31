@@ -2,6 +2,7 @@
 #define SZ3_QUANTIZER_HPP
 
 #include <cstddef>
+#include <type_traits>
 #include <utility>
 
 #include "SZ3/def.hpp"
@@ -100,6 +101,22 @@ namespace SZ3 {
  * @tparam T         Data type the quantizer consumes
  * @tparam Quantizer A type implementing `concepts::QuantizerInterface<T, To>`
  */
+/// Detects the optional (non-virtual) `size_est()` some quantizers expose.
+template <class Q, class = void>
+struct quantizer_has_size_est : std::false_type {};
+template <class Q>
+struct quantizer_has_size_est<Q, std::void_t<decltype(std::declval<Q &>().size_est())>> : std::true_type {};
+
+/// The quantizer's serialized-size estimate, or 0 when it does not expose one.
+template <class Q>
+size_t quantizer_size_est(Q &q) {
+    if constexpr (quantizer_has_size_est<Q>::value) {
+        return q.size_est();
+    } else {
+        return 0;
+    }
+}
+
 template <class T, class Quantizer>
 using quantizer_bin_t =
     decltype(std::declval<Quantizer &>().quantize_and_overwrite(std::declval<T &>(), std::declval<T>()));
