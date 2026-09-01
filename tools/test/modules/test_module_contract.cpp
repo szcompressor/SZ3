@@ -2,6 +2,7 @@
 // group; see docs/MODULE_ACCEPTANCE.md.
 
 #include "ModuleContract.hpp"
+#include "SZ3/compressor/SZGenericCompressor.hpp"
 #include "SZ3/decomposition/BlockwiseDecomposition.hpp"
 #include "SZ3/decomposition/InterpolationDecomposition.hpp"
 #include "SZ3/decomposition/MGARDFusedDecomposition.hpp"
@@ -13,6 +14,8 @@
 #include "SZ3/encoder/HuffmanEncoder.hpp"
 #include "SZ3/encoder/HuffmanEncoderV2.hpp"
 #include "SZ3/encoder/RunlengthEncoder.hpp"
+#include "SZ3/lossless/Lossless_bypass.hpp"
+#include "SZ3/lossless/Lossless_zstd.hpp"
 #include "SZ3/predictor/LorenzoPredictor.hpp"
 #include "SZ3/quantizer/BitTruncationQuantizer.hpp"
 #include "SZ3/quantizer/ClusterQuantizer.hpp"
@@ -203,4 +206,71 @@ TEST(SZ3_ModuleContract, MGARDDecompositionComposable) {
                 eb, [radius](double level_eb) { return SZ3::LinearQuantizer<float>(level_eb, radius); });
         },
         eb, mgardFields(conf.num));
+}
+
+// ----- Lossless group -----------------------------------------------------
+
+TEST(SZ3_ModuleContract, LosslessZstd) {
+    SZ3_test::expectLosslessContract("Lossless_zstd", [] { return SZ3::Lossless_zstd(); });
+}
+
+TEST(SZ3_ModuleContract, LosslessBypass) {
+    SZ3_test::expectLosslessContract("Lossless_bypass", [] { return SZ3::Lossless_bypass(); });
+}
+
+// ----- SZGenericCompressor's contract on the decomposition ----------------
+
+namespace {
+
+/// Reports whatever range it is constructed with, so the compressor's guards can be exercised.
+template <SZ3::uint N>
+class RangeStub : public SZ3::concepts::DecompositionInterface<float, int64_t, N> {
+   public:
+    RangeStub(int64_t lo, int64_t hi) : lo_(lo), hi_(hi) {}
+
+    std::vector<int64_t> compress(const SZ3::Config &conf, float *data) override {
+        (void)data;
+        return std::vector<int64_t>(conf.num, 0);
+    }
+    float *decompress(const SZ3::Config &conf, std::vector<int64_t> &bins, float *dec) override {
+        (void)bins;
+        std::fill_n(dec, conf.num, 0.f);
+        return dec;
+    }
+    void save(SZ3::uchar *&c) override { (void)c; }
+    void load(const SZ3::uchar *&c, size_t &remaining) override {
+        (void)c;
+        (void)remaining;
+    }
+    std::pair<int64_t, int64_t> get_out_range() override { return {lo_, hi_}; }
+
+   private:
+    int64_t lo_, hi_;
+};
+
+template <SZ3::uint N>
+size_t compressWithRange(const SZ3::Config &conf, int64_t lo, int64_t hi) {
+    std::vector<float> data(conf.num, 1.f);
+    std::vector<SZ3::uchar> cmp(conf.num * sizeof(float) * 4 + (1u << 16));
+    auto c = SZ3::make_compressor_sz_generic<float, N>(RangeStub<N>(lo, hi), SZ3::HuffmanEncoder<int64_t>(),
+                                                       SZ3::Lossless_zstd());
+    return c->compress(conf, data.data(), cmp.data(), cmp.size());
+}
+
+}  // namespace
+
+TEST(SZ3_ModuleContract, CompressorRejectsRangeNotStartingAtZero) {
+    SZ3::Config conf(64);
+    conf.errorBoundMode = SZ3::EB_ABS;
+    conf.absErrorBound = 1e-2;
+    EXPECT_ANY_THROW(compressWithRange<1>(conf, 1, 100));
+}
+
+TEST(SZ3_ModuleContract, CompressorRejectsRangeWiderThanInt) {
+    SZ3::Config conf(64);
+    conf.errorBoundMode = SZ3::EB_ABS;
+    conf.absErrorBound = 1e-2;
+    // preprocess_encode takes an int; a decomposition with no usable range must report 0 instead.
+    EXPECT_ANY_THROW(compressWithRange<1>(conf, 0, std::numeric_limits<int64_t>::max()));
+    EXPECT_NO_THROW(compressWithRange<1>(conf, 0, 0));
 }

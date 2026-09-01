@@ -110,6 +110,11 @@ if (BUILD_SZ3_BINARY)
     add_subdirectory(tools/sz3c)
 endif ()
 
+option(BUILD_SZ3_BENCH "build the module benchmark tool" OFF)
+if (BUILD_SZ3_BENCH)
+    add_subdirectory(tools/bench)
+endif ()
+
 option(BUILD_H5Z_FILTER "build the H5Z-SZ3 filter" OFF)
 if (BUILD_H5Z_FILTER)
     add_subdirectory(tools/H5Z-SZ3)

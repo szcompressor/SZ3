@@ -370,6 +370,64 @@ void expectDecompositionContract(const std::string &name, const SZ3::Config &con
     }
 }
 
+/**
+ * @brief Acceptance checks for the Lossless group.
+ *
+ * @tparam Factory Callable returning a fresh lossless stage by value
+ * @param name     Module name, printed on failure
+ * @param make     Factory
+ */
+template <class Factory>
+void expectLosslessContract(const std::string &name, Factory make) {
+    std::vector<std::vector<SZ3::uchar>> payloads;
+    payloads.push_back({SZ3::uchar{0}});
+    payloads.push_back(std::vector<SZ3::uchar>(4096, SZ3::uchar{0}));
+    payloads.push_back(std::vector<SZ3::uchar>(4096, SZ3::uchar{0xFF}));
+    {
+        std::vector<SZ3::uchar> mixed(65536);
+        for (size_t i = 0; i < mixed.size(); i++) mixed[i] = static_cast<SZ3::uchar>((i * 2654435761u) >> 24);
+        payloads.push_back(mixed);
+    }
+
+    for (size_t p = 0; p < payloads.size(); p++) {
+        const std::vector<SZ3::uchar> &src = payloads[p];
+        SCOPED_TRACE(name + ": payload " + std::to_string(p) + " of " + std::to_string(src.size()) + " bytes");
+
+        // 1. Round-trip through a generously sized destination must reproduce the payload exactly.
+        std::vector<SZ3::uchar> dst(src.size() * 2 + (1u << 16));
+        dirty(dst);
+        auto enc = make();
+        const size_t n = enc.compress(src.data(), src.size(), dst.data(), dst.size());
+        ASSERT_GT(n, 0u) << name << ": compress() returned 0";
+        ASSERT_LE(n, dst.size()) << name << ": compress() reported more than the destination holds";
+
+        auto dec = make();
+        SZ3::uchar *out = nullptr;
+        size_t outLen = 0;
+        dec.decompress(dst.data(), n, out, outLen);
+        ASSERT_NE(out, nullptr) << name << ": decompress() produced no buffer";
+        EXPECT_EQ(outLen, src.size()) << name << ": decompressed length differs";
+        if (outLen == src.size()) {
+            EXPECT_EQ(std::memcmp(out, src.data(), outLen), 0) << name << ": payload differs after round-trip";
+        }
+        free(out);
+
+        // 2. A destination too small must be refused, not written past. Lossless_bypass silently
+        //    memcpy'd srcLen bytes regardless of dstCap, which is an unconditional heap overflow.
+        if (src.size() > 1) {
+            const size_t guard = 64;
+            std::vector<SZ3::uchar> tiny(src.size() / 2 + guard);
+            std::vector<SZ3::uchar> canary(guard, 0x5C);
+            std::memcpy(tiny.data() + tiny.size() - guard, canary.data(), guard);
+            auto small = make();
+            EXPECT_ANY_THROW(small.compress(src.data(), src.size(), tiny.data(), tiny.size() - guard))
+                << name << ": compress() accepted a destination smaller than the payload";
+            EXPECT_EQ(std::memcmp(tiny.data() + tiny.size() - guard, canary.data(), guard), 0)
+                << name << ": compress() wrote past the destination it was given";
+        }
+    }
+}
+
 }  // namespace SZ3_test
 
 #endif  // SZ3_TEST_MODULE_CONTRACT_HPP
