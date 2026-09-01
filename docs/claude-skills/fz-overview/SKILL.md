@@ -49,8 +49,8 @@ Dispatch happens in `include/SZ3/api/impl/SZDispatcher.hpp` (`SZ_compress_dispat
 
 ## Modules
 
-- **Decomposition** (`include/SZ3/decomposition/`): `BlockwiseDecomposition`, `InterpolationDecomposition`, `NoPredictionDecomposition`, `SVDDecomposition`, `ZFPDecomposition`, `SPERRDecomposition`, `MGARDDecomposition`, `SZBioMDDecomposition`, `SZBioMDXtcDecomposition`, `TimeSeriesDecomposition`.
-- **Quantizer** (`include/SZ3/quantizer/`): `LinearQuantizer<T>` (default), `ScalarQuantizer<T,To>` (SPERR — asymmetric reconstruction), `FixedPointQuantizer<T>` (`ldexp` fixed-point, int64_t out, requires `calibrate(max_abs)`), `QuadraticLevelQuantizer<T>` (quadratic-LUT, opt-in via `sz_dev.hpp`).
+- **Decomposition** (`include/SZ3/decomposition/`): `BlockwiseDecomposition`, `InterpolationDecomposition`, `NoPredictionDecomposition`, `SVDDecomposition`, `ZFPDecomposition`, `SPERRFusedDecomposition`, `MGARDFusedDecomposition`, `SZBioMDDecomposition`, `SZBioMDXtcDecomposition`, `TimeSeriesDecomposition`.
+- **Quantizer** (`include/SZ3/quantizer/`): `LinearQuantizer<T>` (default), `ScalarQuantizer<T,To>` (SPERR — asymmetric reconstruction), `FixedPointQuantizer<T>` (`ldexp` fixed-point, int64_t out, requires `calibrate(max_abs)`), `LevelQuantizer<T>` (non-uniform LUT, quadratic or log level curve selected at construction, opt-in via `sz_dev.hpp`).
 - **Encoder** (`include/SZ3/encoder/`): `HuffmanEncoder<T>` (default), `ArithmeticEncoder<T>`, `BypassEncoder<T>`, `RunlengthEncoder<T>` (value-RLE), `BitplaneEncoder<T>` (MSB→LSB packed bit-planes), `BitplaneRLEEncoder<T>` (per-plane RLE w/ raw fallback), `BitshuffleEncoder<T>`, `SPERREncoder<T,N>`, `XtcBasedEncoder`, `ZFPEncoder<T>`.
 - **Lossless** (`include/SZ3/lossless/`): `Lossless_zstd` (default), `Lossless_bypass`.
 

@@ -6,6 +6,10 @@
 #ifndef SZ3_STATISTIC_HPP
 #define SZ3_STATISTIC_HPP
 
+#include <cmath>
+#include <algorithm>
+#include <stdexcept>
+
 #include "Config.hpp"
 
 namespace SZ3 {

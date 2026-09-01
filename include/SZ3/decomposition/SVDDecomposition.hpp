@@ -6,14 +6,16 @@
 #ifndef SZ3_SVD_DECOMPOSITION_HPP
 #define SZ3_SVD_DECOMPOSITION_HPP
 
+#include <algorithm>
+#include <iostream>
+#include <utility>
+#include <vector>
+
 #include "SZ3/decomposition/Decomposition.hpp"
 #include "SZ3/quantizer/LinearQuantizer.hpp"
-#include "SZ3/utils/Config.hpp"
+#include "SZ3/quantizer/Quantizer.hpp"
 #include "SZ3/stdafx.hpp"
-#include <iostream>
-#include <vector>
-#include <algorithm>
-#include <utility>
+#include "SZ3/utils/Config.hpp"
 
 namespace SZ3 {
 
@@ -52,7 +54,7 @@ public:
         // 2. Quantize SVD components and store them
         quantized_core.resize(temp_core_tensor.size());
         core_dims.resize(N);
-        for(int i=0; i<N; ++i) core_dims[i] = temp_core_tensor.dimension(i);
+        for (uint i = 0; i < N; ++i) core_dims[i] = temp_core_tensor.dimension(i);
 
         for (int i = 0; i < temp_core_tensor.size(); ++i) {
             T val = temp_core_tensor.data()[i];
@@ -98,6 +100,14 @@ public:
             dec_data[i] = reconstructed_tensor.data()[i] + residual[i];
         }
         return dec_data;
+    }
+
+    size_t size_est() override {
+        size_t bytes = core_dims.size() * sizeof(size_t) + quantized_core.size() * sizeof(int) +
+                       factor_dims.size() * 2 * sizeof(size_t) + quantizer_size_est(svd_quantizer) +
+                       quantizer_size_est(res_quantizer);
+        for (const auto& v : quantized_factors) bytes += sizeof(size_t) + v.size() * sizeof(int);
+        return bytes + 128;
     }
 
     void save(uchar*& c) override {
@@ -194,7 +204,7 @@ private:
     std::pair<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>, Eigen::VectorX<T>>
     perform_rsvd(const Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>& A, int rank) {
         // unfolded matrix is short and wide, so A.rows() < A.cols()
-        rank = std::min({rank, (int)A.rows(), (int)A.cols()});
+        rank = std::min({rank, static_cast<int>(A.rows()), static_cast<int>(A.cols())});
 
         if (rank >= A.rows()) {
             Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
@@ -202,7 +212,7 @@ private:
         }
 
         int l = rank + config.svd_oversampling_param;
-        l = std::min({l, (int)A.rows(), (int)A.cols()});
+        l = std::min({l, static_cast<int>(A.rows()), static_cast<int>(A.cols())});
 
         Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> Omega = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>::Random(A.cols(), l);
         Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> Y = A * Omega;
@@ -252,14 +262,10 @@ private:
         
         auto contracted_tensor = tensor.contract(matrix_tensor, product_dims);
 
-        std::vector<int> p(N);
-        std::iota(p.begin(), p.end(), 0);
-        int last = p.back();
-        p.pop_back();
-        p.insert(p.begin() + mode, last);
-
+        // contract() leaves the contracted mode last; rotate it back to position `mode`.
         Eigen::array<int, N> shuffle_perm;
-        for(int i=0; i<N; ++i) shuffle_perm[i] = p[i];
+        for (uint i = 0; i < N; ++i) shuffle_perm[i] = static_cast<int>(i);
+        std::rotate(shuffle_perm.begin() + mode, shuffle_perm.end() - 1, shuffle_perm.end());
 
         return contracted_tensor.shuffle(shuffle_perm);
     }
@@ -267,7 +273,7 @@ private:
 
     Eigen::Tensor<T, N> dequantize_and_reconstruct() {
         Eigen::array<Eigen::Index, N> eigen_core_dims;
-        for(int i=0; i<N; ++i) eigen_core_dims[i] = core_dims[i];
+        for (uint i = 0; i < N; ++i) eigen_core_dims[i] = core_dims[i];
         Eigen::Tensor<T, N> core_tensor(eigen_core_dims);
         for(size_t i=0; i<quantized_core.size(); ++i) {
             core_tensor.data()[i] = svd_quantizer.recover(0, quantized_core[i]);

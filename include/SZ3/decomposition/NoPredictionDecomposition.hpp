@@ -13,15 +13,15 @@
 
 namespace SZ3 {
 
-template <class T, uint N, class Quantizer>
-class NoPredictionDecomposition : public concepts::DecompositionInterface<T, int, N> {
+template <class T, uint N, class Quantizer, class To = quantizer_bin_t<T, Quantizer>>
+class NoPredictionDecomposition : public concepts::DecompositionInterface<T, To, N> {
    public:
     NoPredictionDecomposition(const Config &conf, Quantizer quantizer) : quantizer(quantizer) {
-        static_assert(std::is_base_of<concepts::QuantizerInterface<T, int>, Quantizer>::value,
+        static_assert(std::is_base_of<concepts::QuantizerInterface<T, To>, Quantizer>::value,
                       "must implement the quantizer interface");
     }
 
-    T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) override {
+    T *decompress(const Config &conf, std::vector<To> &quant_inds, T *dec_data) override {
         for (size_t i = 0; i < conf.num; i++) {
             dec_data[i] = quantizer.recover(0, quant_inds[i]);
         }
@@ -29,8 +29,8 @@ class NoPredictionDecomposition : public concepts::DecompositionInterface<T, int
         return dec_data;
     }
 
-    std::vector<int> compress(const Config &conf, T *data) override {
-        std::vector<int> quant_inds(conf.num);
+    std::vector<To> compress(const Config &conf, T *data) override {
+        std::vector<To> quant_inds(conf.num);
         for (size_t i = 0; i < conf.num; i++) {
             quant_inds[i] = quantizer.quantize_and_overwrite(data[i], 0);
         }
@@ -38,11 +38,13 @@ class NoPredictionDecomposition : public concepts::DecompositionInterface<T, int
         return quant_inds;
     }
 
+    size_t size_est() override { return quantizer_size_est(quantizer) + 64; }
+
     void save(uchar *&c) override { quantizer.save(c); }
 
     void load(const uchar *&c, size_t &remaining_length) override { quantizer.load(c, remaining_length); }
 
-    std::pair<int, int> get_out_range() override { return quantizer.get_out_range(); }
+    std::pair<To, To> get_out_range() override { return quantizer.get_out_range(); }
 
    private:
     Quantizer quantizer;

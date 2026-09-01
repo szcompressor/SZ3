@@ -11,6 +11,7 @@
 #ifndef SZ3_SZBIOMDXTCBASED_FRONTEND
 #define SZ3_SZBIOMDXTCBASED_FRONTEND
 
+#include <limits>
 #include <list>
 
 #include "Decomposition.hpp"

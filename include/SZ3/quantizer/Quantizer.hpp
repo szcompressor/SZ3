@@ -1,6 +1,10 @@
 #ifndef SZ3_QUANTIZER_HPP
 #define SZ3_QUANTIZER_HPP
 
+#include <cstddef>
+#include <type_traits>
+#include <utility>
+
 #include "SZ3/def.hpp"
 
 namespace SZ3::concepts {
@@ -74,5 +78,49 @@ class QuantizerInterface {
     virtual void print() {}
 };
 }  // namespace SZ3::concepts
+
+namespace SZ3 {
+
+/**
+ * @brief The bin type a Quantizer emits, deduced from `quantize_and_overwrite`.
+ *
+ * `concepts::QuantizerInterface<Ti, To>` does not publish `To` as a member typedef, so a
+ * Decomposition that wants to forward its Quantizer's bin type cannot name it directly. This
+ * deduces it from the only place it is observable - the return type of `quantize_and_overwrite`.
+ *
+ * Use it as a defaulted trailing template parameter so a Decomposition inherits the right
+ * `DecompositionInterface<T, To, N>` instead of hard-coding `int`:
+ *
+ * @code
+ * template <class T, uint N, class Quantizer, class To = quantizer_bin_t<T, Quantizer>>
+ * class MyDecomposition : public concepts::DecompositionInterface<T, To, N> { ... };
+ * @endcode
+ *
+ * For the `int`-bin quantizers this resolves to `int`, so existing wirings are unaffected.
+ *
+ * @tparam T         Data type the quantizer consumes
+ * @tparam Quantizer A type implementing `concepts::QuantizerInterface<T, To>`
+ */
+/// Detects the optional (non-virtual) `size_est()` some quantizers expose.
+template <class Q, class = void>
+struct quantizer_has_size_est : std::false_type {};
+template <class Q>
+struct quantizer_has_size_est<Q, std::void_t<decltype(std::declval<Q &>().size_est())>> : std::true_type {};
+
+/// The quantizer's serialized-size estimate, or 0 when it does not expose one.
+template <class Q>
+size_t quantizer_size_est(Q &q) {
+    if constexpr (quantizer_has_size_est<Q>::value) {
+        return q.size_est();
+    } else {
+        return 0;
+    }
+}
+
+template <class T, class Quantizer>
+using quantizer_bin_t =
+    decltype(std::declval<Quantizer &>().quantize_and_overwrite(std::declval<T &>(), std::declval<T>()));
+
+}  // namespace SZ3
 
 #endif

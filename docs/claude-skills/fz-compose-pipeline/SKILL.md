@@ -60,14 +60,14 @@ auto sz = make_compressor_sz_generic<T, N>(
     Lossless_zstd());
 ```
 
-Here `MGARDDecomposition` runs the multigrid forward transform first, then drives `LinearQuantizer` over the resulting coefficients. The bit-plane encoder is a swap-in alternative to Huffman that often wins on transformed coefficient distributions.
+Here `MGARDFusedDecomposition` runs the multigrid forward transform first, then drives `LinearQuantizer` over the resulting coefficients. The bit-plane encoder is a swap-in alternative to Huffman that often wins on transformed coefficient distributions.
 
 ## Example 3 — SPERR (bypass lossless)
 
 ```cpp
 // include/SZ3/api/impl/SZAlgoSPERR.hpp
 auto sz = make_compressor_sz_generic<T, N>(
-    SPERRDecomposition<T, N>(),
+    SPERRFusedDecomposition<T, N>(),
     SPERREncoder<int64_t, N>(make_sperr_dims_from_conf(conf)),
     Lossless_bypass());  // SPERR's SPECK encoder already produces a compressed bitstream
 ```

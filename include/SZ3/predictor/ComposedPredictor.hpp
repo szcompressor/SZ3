@@ -62,7 +62,13 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
     }
 
     bool predecompress(const block_iter &block) override {
+        // selection and its entries come from untrusted data; bound the running index into selection and the
+        // selected predictor index before using them. predict()/estimate_error() reuse the sid set here.
+        if (current_index >= selection.size())
+            throw std::out_of_range("SZ3: ran out of predictor selections while decompressing");
         sid = selection[current_index++];
+        if (sid < 0 || static_cast<size_t>(sid) >= predictors.size())
+            throw std::out_of_range("SZ3: predictor selection index is out of range");
         return predictors[sid]->predecompress(block);
     }
 
@@ -89,8 +95,15 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
         if (selection_size > 0) {
             HuffmanEncoder<int> selection_encoder;
             selection_encoder.load(c, remaining_length);
+            // The tree is immediately followed by its encoded stream here, so the remaining
+            // length bounds the stream exactly.
+            selection_encoder.set_decode_bound(remaining_length);
+            /// decode() advances `c` past the encoded stream but does not update `remaining_length`;
+            /// account for exactly the bytes it consumed so the bound stays tight for later reads.
+            const uchar *decode_start = c;
             this->selection = selection_encoder.decode(c, selection_size);
             selection_encoder.postprocess_decode();
+            remaining_length -= static_cast<size_t>(c - decode_start);
         }
     }
 

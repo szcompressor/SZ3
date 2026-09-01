@@ -12,9 +12,10 @@
 #include "SZ3/def.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/thirdparty/zfp/bitstream.h"
-#include "SZ3/utils/thirdparty/zfp/zfpcodec3.h"
+#include "SZ3/utils/thirdparty/zfp/intcodec04.h"
 #include "SZ3/utils/thirdparty/zfp/intcodec16.h"
 #include "SZ3/utils/thirdparty/zfp/intcodec64.h"
+#include "SZ3/utils/thirdparty/zfp/zfpcodec3.h"
 
 namespace SZ3 {
 
@@ -46,7 +47,7 @@ class ZFPEncoder : public concepts::EncoderInterface<Int> {
         int block_size = (N == 3 ? 64 : (N == 2 ? 16 : 4));
 
         stream.write(n_blocks, sizeof(size_t) * 8);
-        for (auto i = 0; i < n_blocks; i++) {
+        for (size_t i = 0; i < n_blocks; i++) {
             stream.write(*emax_pos + ebias, ebits);
             if constexpr (N == 1) {
                 uint precision = std::min(maxprec, static_cast<uint>(std::max(0, *emax_pos - minexp + 4)));
@@ -84,7 +85,7 @@ class ZFPEncoder : public concepts::EncoderInterface<Int> {
         auto emax_pos = &output[1];
         auto int_pos = &output[1 + n_blocks];
 
-        for (auto i = 0; i < n_blocks; i++) {
+        for (size_t i = 0; i < n_blocks; i++) {
             *emax_pos = stream.read(ebits) - ebias;
             if constexpr (N == 1) {
                 uint precision = std::min(maxprec, static_cast<uint>(std::max(0, *emax_pos - minexp + 4)));

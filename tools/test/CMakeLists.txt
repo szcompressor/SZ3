@@ -32,3 +32,10 @@ foreach (TEST_SRC IN LISTS TEST_SOURCES)
     # Use PRE_TEST mode to avoid running executable at build time (important for Windows DLL path issues)
     gtest_discover_tests(${TEST_NAME} DISCOVERY_MODE PRE_TEST)
 endforeach()
+
+# modules.json carries the composition constraints the C++ tests enforce; keep the two from drifting.
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if (Python3_FOUND)
+    add_test(NAME SZ3_ModulesJson
+             COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/test/modules/test_modules_json.py)
+endif ()

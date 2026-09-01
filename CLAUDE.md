@@ -40,17 +40,19 @@ Defined in `include/SZ3/utils/Config.hpp`. Each has a `SZAlgo*.hpp` wiring file 
 | `ALGO_SVD` | `SZAlgoSVD.hpp` | Tucker / SVD core decomposition (3D+) |
 | `ALGO_ZFP` | `SZAlgoZFP.hpp` | Bundled ZFP block transform (FP-only) |
 | `ALGO_SPERR` | `SZAlgoSPERR.hpp` | Bundled SPERR wavelet + SPECK (3D FP) |
-| `ALGO_MGARD` | `SZAlgoMGARD.hpp` | Bundled MGARD multigrid + LinearQuantizer + BitplaneEncoder + Zstd (1D/2D/3D FP) |
+| `ALGO_MGARD` | `SZAlgoMGARD.hpp` | Bundled MGARD multigrid + LinearQuantizer + HuffmanEncoder + Zstd (1D/2D/3D FP) |
 
 ## Modules (compose your own pipeline)
 
-**Decomposition** (`include/SZ3/decomposition/`): `BlockwiseDecomposition`, `InterpolationDecomposition`, `NoPredictionDecomposition`, `SVDDecomposition`, `ZFPDecomposition`, `SPERRDecomposition`, `MGARDDecomposition`, `SZBioMDDecomposition`, `SZBioMDXtcDecomposition`, `TimeSeriesDecomposition`.
+**Decomposition** (`include/SZ3/decomposition/`): `BlockwiseDecomposition`, `InterpolationDecomposition`, `NoPredictionDecomposition`, `SVDDecomposition`, `ZFPDecomposition`, `SPERRDecomposition` / `SPERRFusedDecomposition`, `MGARDDecomposition` (alias of `MultiLevelDecomposition`) / `MGARDFusedDecomposition`, `MultiLevelDecomposition`, `PaSTRIDecomposition`, `SZBioMDDecomposition`, `SZBioMDXtcDecomposition`, `TimeSeriesDecomposition`.
 
-**Quantizer** (`include/SZ3/quantizer/`): `LinearQuantizer<T>` (linear delta, default), `ScalarQuantizer<T,To>` (delta with reconstruction tweaks, used by SPERR), `FixedPointQuantizer<T>` (`ldexp` fixed-point, int64_t out), `QuadraticLevelQuantizer<T>` (quadratically-spaced LUT, opt-in via `sz_dev.hpp`), `TimeIntQuantizer<T>` (time-series specialization).
+**Quantizer** (`include/SZ3/quantizer/`): `LinearQuantizer<T>` (linear delta, default), `ScalarQuantizer<T,To>` (delta with reconstruction tweaks, used by SPERR), `FixedPointQuantizer<T>` (`ldexp` fixed-point, int64_t out), `LevelQuantizer<T>` (non-uniform LUT, quadratic or log level curve chosen at construction), `LogDomainQuantizer<T>` (quantizes `ln|x|`, pointwise relative bound), `ClusterQuantizer<T>` (codebook over a uniform lattice of levels), `GranularBitRoundQuantizer<T>` (keep N significant decimal digits), `BitTruncationQuantizer<T>` (drop low mantissa bytes), `OutlierQuantizer<Ti,To>` (sparse second pass for what a lossy stage missed), `TimeIntQuantizer<T>` (time-series specialization).
 
 **Encoder** (`include/SZ3/encoder/`): `HuffmanEncoder<T>` (default), `ArithmeticEncoder<T>`, `BypassEncoder<T>`, `RunlengthEncoder<T>` (value-RLE), `BitplaneEncoder<T>` (MSB→LSB packed bit-planes), `BitplaneRLEEncoder<T>` (per-plane RLE w/ raw fallback), `BitshuffleEncoder<T>`, `SPERREncoder<T,N>` (SPECK bitstream), `XtcBasedEncoder` (BioMD), `ZFPEncoder<T>`.
 
 **Lossless** (`include/SZ3/lossless/`): `Lossless_zstd` (default), `Lossless_bypass`.
+
+**Preprocessor** (`include/SZ3/preprocessor/`): `Transpose`, `Wavelet`, `PreFilter`, `MGARDTransform<T,N>` (multigrid basis change, drives `MultiLevelDecomposition`), `SPERRTransform<T,N>` (conditioner + CDF9/7, drives `SPERRDecomposition`).
 
 ## Build
 
@@ -66,6 +68,7 @@ cmake --build . --target sz3 -j$(nproc)
 | `BUILD_TESTING` | OFF | GTest unit tests under `tools/test/modules/` |
 | `BUILD_H5Z_FILTER` | OFF | HDF5 filter plugin |
 | `BUILD_MDZ` | OFF | Molecular-dynamics CLI |
+| `BUILD_SZ3_BENCH` | OFF | `tools/bench/module_bench` — measures a composition's CR, error and throughput on a dataset (CSV) |
 | `SZ3_DEBUG_TIMINGS` | OFF | Print per-stage timings |
 | `SZ3_USE_BUNDLED_ZSTD` | OFF (ON for MSVC) | Bundled Zstd vs system |
 
@@ -76,6 +79,11 @@ System deps on Linux: `cmake`, `g++`, `libzstd-dev`, `libeigen3-dev`, `pkg-confi
 ## Testing
 
 - **Unit tests**: `cmake -DBUILD_TESTING=ON ..; make; ctest` — one executable per `.cpp` under `tools/test/modules/`.
+- **Module acceptance**: the Testing section of `docs/claude-skills/fz-add-module/SKILL.md` — what a new
+  module must satisfy. Enforced by `ctest -R SZ3_ModuleContract` (group contracts, from the installed
+  `include/SZ3/testing/ModuleContract.hpp`), `ctest -R SZ3_ModulesJson`, and
+  `python3 tools/test/check_headers.py --build-dir build` (every header compiles standalone; run it under
+  both libstdc++ and libc++).
 - **Integration tests**: `tools/test/integration/` — Python scripts that exercise the `sz3` CLI on reference data.
 - **Smoke dataset** committed in-tree: `tools/sz3/testfloat_8_8_128.dat` (8×8×128 float32).
 - **CLI**: `tools/sz3/sz3` — sample invocation:
@@ -140,8 +148,8 @@ Concise checklist for adding a new ALGO:
 
 | Source | Vendored from | Wraps to |
 |---|---|---|
-| `sperr/` | SPERR project | `SPERRDecomposition`, `SPERREncoder` |
-| `mgard/` | MGARDx (lightweight portable) | `MGARDDecomposition` |
+| `sperr/` | SPERR project | `SPERRFusedDecomposition`, `SPERREncoder` |
+| `mgard/` | MGARDx (lightweight portable) | `MGARDFusedDecomposition` |
 | `zfp/` | LLNL ZFP | `ZFPDecomposition`, `ZFPEncoder` |
 | `ska_hash/` | skarupke flat_hash_map | shared utility |
 

@@ -6,6 +6,8 @@
 #ifndef SZ3_COMPRESSOR_ZFP_HPP
 #define SZ3_COMPRESSOR_ZFP_HPP
 
+#include <memory>
+
 #include "SZ3/compressor/Compressor.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/utils/Config.hpp"
@@ -49,7 +51,7 @@ class ZFPCompressor : public concepts::CompressorInterface<T> {
 
         if constexpr (N == 1) {
             ZFP::Codec1<ZFP::MemoryBitStream, T> codec(stream, 0, UINT_MAX, 0, expmin);
-            for (auto x = 0; x < conf.dims[0]; x += 4, p += 4) {
+            for (size_t x = 0; x < conf.dims[0]; x += 4, p += 4) {
                 codec.encode(p, 1, codec.dims(std::min(static_cast<uint>(conf.dims[0] - x), 4u)));
             }
         } else if constexpr (N == 2) {
@@ -100,7 +102,7 @@ class ZFPCompressor : public concepts::CompressorInterface<T> {
 
         if constexpr (N == 1) {
             ZFP::Codec1<ZFP::MemoryBitStream, T> codec(stream, 0, UINT_MAX, 0, expmin);
-            for (auto x = 0; x < conf.dims[0]; x += 4, p += 4) {
+            for (size_t x = 0; x < conf.dims[0]; x += 4, p += 4) {
                 codec.decode(p, 1, codec.dims(std::min(static_cast<uint>(conf.dims[0] - x), 4u)));
             }
         } else if constexpr (N == 2) {

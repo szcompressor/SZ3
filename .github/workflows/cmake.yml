@@ -2,6 +2,13 @@ name: SZ3 Cross-Platform Build and Test
 
 on: [ push ]
 
+# One run per branch. A newer push supersedes the one in flight on a feature branch; master and fz
+# keep every commit's result. Without this, each push adds a full matrix and the long jobs of the
+# older runs get evicted rather than finishing.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' && github.ref != 'refs/heads/fz' }}
+
 env:
   BUILD_TYPE: Release
   TEST_URL: https://raw.githubusercontent.com/szcompressor/SZ3/master/tools/sz3/testfloat_8_8_128.dat
@@ -39,6 +46,10 @@ jobs:
         shell: bash
         working-directory: build
         run: cmake --build . --config ${{ env.BUILD_TYPE }} --parallel 4
+
+      - name: Check headers are self-contained
+        shell: bash
+        run: python3 tools/test/check_headers.py --build-dir build
 
       - name: Run CTest
         shell: bash
@@ -107,6 +118,10 @@ jobs:
         shell: bash
         working-directory: build
         run: cmake --build . --config ${{ env.BUILD_TYPE }} --parallel 4
+
+      - name: Check headers are self-contained
+        shell: bash
+        run: python3 tools/test/check_headers.py --build-dir build
 
       - name: Run CTest
         shell: bash

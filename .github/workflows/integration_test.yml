@@ -4,6 +4,13 @@ on:
   pull_request:
     branches:
       - master
+      - fz
+
+# One run per pull request. These jobs take hours; a new push must supersede the run in flight
+# rather than compete with it for runners.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -64,4 +71,7 @@ jobs:
 
     - name: Run integration test
       run: |
-        python tools/test/integration/integration_test_driver.py tools/test/integration/datasets.json ${{ matrix.dataset }}
+        # -u: without it Python's stdout is block-buffered into the log pipe, so everything the driver
+        # prints -- including the captured output of every test it runs -- is lost if the job is killed,
+        # leaving a log that stops at the last subprocess write and says nothing about where it died.
+        python -u tools/test/integration/integration_test_driver.py tools/test/integration/datasets.json ${{ matrix.dataset }}

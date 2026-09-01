@@ -23,21 +23,20 @@ def get_tmpdir():
     return tempfile.gettempdir()
 
 def run_test(cmd, description):
-    print('\n\n', "="*80)
-    print(description)
-    print("command:", " ".join(cmd))
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    print(result.stdout)
-    
-    if result.stderr:
-        print("STDERR:", result.stderr)
+    print('\n\n', "="*80, flush=True)
+    print(description, flush=True)
+    print("command:", " ".join(cmd), flush=True)
+    # Stream the child's output instead of capturing it: a case that never returns -- because it was
+    # killed, or because the runner went down under it -- otherwise leaves no trace of how far it got,
+    # since captured output is only printed once the child exits.
+    result = subprocess.run(cmd, stdout=None, stderr=None, text=True)
     if result.returncode == 0:
-        print("PASS")
-        print("="*80)
+        print("PASS", flush=True)
+        print("="*80, flush=True)
         return True
     else:
-        print("FAIL")
-        print("="*80)
+        print("FAIL", flush=True)
+        print("="*80, flush=True)
         return False
 
 def prepare_dataset(path, dataset_dir, dataset_info=None):
@@ -145,7 +144,9 @@ def main():
     # Build the project
     os.makedirs(build_dir, exist_ok=True)
     subprocess.run(["cmake", project_source_dir, "-DBUILD_H5Z_FILTER=ON"], cwd=build_dir, check=True)
-    subprocess.run(["cmake", "--build", ".", "--", "-j"], cwd=build_dir, check=True)
+    # A bare "-j" means unlimited parallel compilation, which on a 15 GB runner building this tree's
+    # 56 template-heavy translation units is worth bounding on its own merits.
+    subprocess.run(["cmake", "--build", ".", "--parallel", str(os.cpu_count() or 2)], cwd=build_dir, check=True)
     sz3_executable_path = os.path.join(build_dir, "tools", "sz3")
     h5_plugin_path = os.path.join(build_dir, "tools", "H5Z-SZ3")
 
@@ -156,7 +157,9 @@ def main():
 
     for dataset_name, dataset_info in datasets.items():
         dataset_dir = os.path.join(data_dir, dataset_name)
+        print(f"Preparing dataset {dataset_name} from {dataset_info['path']}", flush=True)
         actual_data_dir = prepare_dataset(dataset_info["path"], dataset_dir, dataset_info)
+        print(f"Dataset {dataset_name} ready at {actual_data_dir}", flush=True)
 
         for field, field_info in dataset_info["fields"].items():
             dims = field_info["dims"]

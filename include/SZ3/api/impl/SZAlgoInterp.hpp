@@ -15,6 +15,8 @@
  *   determine and select the better of interpolation or Lorenzo compression.
  */
 
+#include <memory>
+
 #include "SZ3/api/impl/SZAlgoLorenzoReg.hpp"
 #include "SZ3/decomposition/BlockwiseDecomposition.hpp"
 #include "SZ3/decomposition/InterpolationDecomposition.hpp"

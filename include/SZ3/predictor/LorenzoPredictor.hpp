@@ -6,8 +6,10 @@
 #ifndef SZ3_LORENZO_PREDICTOR_HPP
 #define SZ3_LORENZO_PREDICTOR_HPP
 
-#include "SZ3/predictor/Predictor.hpp"
 #include <iostream>
+#include <limits>
+
+#include "SZ3/predictor/Predictor.hpp"
 
 namespace SZ3 {
 
@@ -119,6 +121,11 @@ class LorenzoPredictor : public concepts::PredictorInterface<T, N> {
 
    private:
     // Helper functions for Lorenzo prediction
+    // Helper functions for Lorenzo prediction.
+    // The neighbour offsets are unsigned, so `d[-offset]` would be `*(d + (size_t)(-offset))`, forming an
+    // out-of-bounds pointer by wrapping the unsigned addition (flagged by -fsanitize=pointer-overflow even
+    // though the accessed element is in bounds thanks to the predictor's padding). The addresses below are
+    // computed with pointer subtraction so the offset stays a small negative step and no wrap-around occurs.
     T prev1(T *d, size_t i) { return *(d - i); }
     T prev2(T *d, const std::array<size_t, N> &ds, size_t j, size_t i) { return *(d - (j * ds[0] + i)); }
     T prev3(T *d, const std::array<size_t, N> &ds, size_t k, size_t j, size_t i) {
