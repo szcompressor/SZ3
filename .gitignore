@@ -17,3 +17,7 @@ docs/site/html
 sz3_install
 sz3_build
 /test
+
+# Python bytecode
+__pycache__/
+*.pyc
