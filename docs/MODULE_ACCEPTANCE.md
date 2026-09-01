@@ -83,6 +83,15 @@ honours its bound on a restricted input regime, and say in a comment what that r
 Pass a real `stateNum` for an encoder that cannot derive its own bin range — `ArithmeticEncoder`
 sizes its frequency model from it and produces garbage when given 0.
 
+**Lossless** — `expectLosslessContract(name, factory)`
+
+- Round-trip through a generously sized destination reproduces the payload exactly.
+- A destination smaller than the payload is refused, and nothing is written past it, verified with
+  guard bytes.
+
+**Preprocessor** — no contract yet: `concepts::PreprocessorInterface` declares no members (its only
+method is commented out), so there is nothing to check against. Defining it is a prerequisite.
+
 ## 4. It has its own tests
 
 One `tools/test/modules/test_*.cpp` per module, covering whatever the group contract cannot know:
@@ -128,6 +137,7 @@ digests; PRs to `master` or `fz` additionally run the SDRBench datasets.
 | dirty destination buffer | `BitshuffleEncoder` only ORed bits into a `malloc`'d buffer |
 | adversarial streams | `ArithmeticEncoder` sign-extended a shift, corrupting about half of all streams |
 | `uid` distinctness | two quantizers shared `0b101`, so each accepted the other's stream |
+| destination capacity | `Lossless_bypass::compress` memcpy'd the payload regardless of the capacity it was given |
 | composition test | `TimeSeriesDecomposition` violated its bound 1.97x on the null-reference path |
 | `size_est()` covers `save()` | six decompositions did not override `size_est()`, so the compressor sized its buffer from 0 |
 | bound after `save()`/`load()` | `RegressionPredictor::load` debited `remaining_length` by the decoded rather than the encoded size |
