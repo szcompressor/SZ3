@@ -73,9 +73,8 @@ inline T byteswap(T value) {
 // read array
 template <class T1>
 void read(T1 *array, size_t num_elements, uchar const *&compressed_data_pos, size_t &remaining_length) {
-    if (num_elements * sizeof(T1) > remaining_length) {
-        throw std::invalid_argument("SZ3: compressed stream is truncated");
-    }
+    if (sizeof(T1) != 0 && num_elements > remaining_length / sizeof(T1))
+        throw std::out_of_range("SZ3: attempt to read past the end of the compressed buffer");
     memcpy(array, compressed_data_pos, num_elements * sizeof(T1));
     if constexpr (SZ3_BIG_ENDIAN) {
         for (size_t i = 0; i < num_elements; i++) {
