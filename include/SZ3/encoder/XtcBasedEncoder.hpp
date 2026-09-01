@@ -10,6 +10,7 @@
 
 #include <climits>
 #include <cmath>
+#include <stdexcept>
 #include <vector>
 
 #include "SZ3/def.hpp"
@@ -599,10 +600,9 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
 
         size_t bufferSize = targetLength * 1.2;
         struct DataBuffer buffer;
-        buffer.data = reinterpret_cast<unsigned char *>(malloc(bufferSize * sizeof(int)));
-        if (buffer.data == nullptr) {
-            fprintf(stderr, "malloc failed\n");
-        }
+        // buffer.data is allocated below (after size3 is known); the previous allocation here was overwritten
+        // and leaked.
+        buffer.data = nullptr;
         buffer.index = 0;
         buffer.lastbits = 0;
         buffer.lastbyte = 0;
@@ -639,6 +639,9 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         }
 
         int smallIdx = *inputIntPtr++;
+        // smallIdx is read from the compressed data and indexes the fixed-size magicInts table below.
+        if (smallIdx < 0 || smallIdx >= LASTIDX)
+            throw std::out_of_range("SZ3 Xtc: small index out of range");
 
         int smaller = magicInts[std::max(FIRSTIDX, smallIdx - 1)] / 2;
         int smallNum = magicInts[smallIdx] / 2;
@@ -650,8 +653,16 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         size_t size3 = targetLength;
         bufferSize = size3 * 1.2;
         buffer.data = reinterpret_cast<unsigned char *>(malloc(bufferSize * sizeof(int)));
+        if (buffer.data == nullptr) {
+            throw std::runtime_error("SZ3 Xtc: can not allocate the decompression buffer");
+        }
         buffer.index = *(reinterpret_cast<const uint64_t *>(inputIntPtr));
         inputIntPtr += sizeof(uint64_t) / sizeof(int);
+
+        // buffer.index is an attacker-controlled byte count that is copied into buffer.data below; it must not
+        // exceed the buffer capacity, otherwise the memcpy loop overflows the heap buffer.
+        if (buffer.index > bufferSize * sizeof(int))
+            throw std::out_of_range("SZ3 Xtc: packed data size exceeds the decompression buffer");
 
         size_t offset = 0;
         size_t remain = buffer.index;
@@ -672,6 +683,9 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         int run = 0;
         size_t i = 0;
         int *intBufferPoiner = reinterpret_cast<int *>(malloc(size3 * sizeof(*intBufferPoiner)));
+        if (intBufferPoiner == nullptr) {
+            throw std::runtime_error("SZ3 Xtc: can not allocate the index buffer");
+        }
         int *localIntBufferPointer = intBufferPoiner;
         unsigned char *charOutputPtr = reinterpret_cast<unsigned char *>(quantData.data());
         int *intOutputPtr = reinterpret_cast<int *>(charOutputPtr);
