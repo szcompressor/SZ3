@@ -23,21 +23,20 @@ def get_tmpdir():
     return tempfile.gettempdir()
 
 def run_test(cmd, description):
-    print('\n\n', "="*80)
-    print(description)
-    print("command:", " ".join(cmd))
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    print(result.stdout)
-    
-    if result.stderr:
-        print("STDERR:", result.stderr)
+    print('\n\n', "="*80, flush=True)
+    print(description, flush=True)
+    print("command:", " ".join(cmd), flush=True)
+    # Stream the child's output instead of capturing it: a case that never returns -- because it was
+    # killed, or because the runner went down under it -- otherwise leaves no trace of how far it got,
+    # since captured output is only printed once the child exits.
+    result = subprocess.run(cmd, stdout=None, stderr=None, text=True)
     if result.returncode == 0:
-        print("PASS")
-        print("="*80)
+        print("PASS", flush=True)
+        print("="*80, flush=True)
         return True
     else:
-        print("FAIL")
-        print("="*80)
+        print("FAIL", flush=True)
+        print("="*80, flush=True)
         return False
 
 def prepare_dataset(path, dataset_dir, dataset_info=None):
