@@ -1,6 +1,11 @@
 #ifndef SZ3_EXAALT_COMPRESSSOR_HPP
 #define SZ3_EXAALT_COMPRESSSOR_HPP
 
+#include <iostream>
+#include <limits>
+#include <memory>
+
+#include "SZ3/compressor/Compressor.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/encoder/Encoder.hpp"
 #include "SZ3/lossless/Lossless.hpp"

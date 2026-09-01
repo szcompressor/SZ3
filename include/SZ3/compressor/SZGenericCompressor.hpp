@@ -1,7 +1,10 @@
 #ifndef SZ3_COMPRESSOR_TYPE_ONE_HPP
 #define SZ3_COMPRESSOR_TYPE_ONE_HPP
 
+#include <cstdlib>
 #include <cstring>
+#include <memory>
+#include <type_traits>
 
 #include "SZ3/compressor/Compressor.hpp"
 #include "SZ3/decomposition/Decomposition.hpp"
@@ -11,8 +14,19 @@
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/FileUtil.hpp"
 #include "SZ3/utils/Timer.hpp"
+#include "zstd.h"
 
 namespace SZ3 {
+
+/// Detects the optional (non-virtual) `set_decode_bound()` an encoder may expose so the compressor can
+/// hand it the exact number of bytes its encoded stream may read. Encoders without it keep whatever
+/// bound their own `load()` recorded.
+template <class E, class = void>
+struct encoder_has_decode_bound : std::false_type {};
+template <class E>
+struct encoder_has_decode_bound<E, std::void_t<decltype(std::declval<E &>().set_decode_bound(size_t{}))>>
+    : std::true_type {};
+
 /**
  * SZGenericCompressor glues together decomposition, encoder, and lossless modules to form the compressor.
  * It only takes Decomposition, not Predictor.
@@ -46,26 +60,43 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
             1000, 2 * (decomposition.size_est() + encoder.size_est() + sizeof(T) * quant_inds.size()));
 
         auto buffer = static_cast<uchar *>(malloc(bufferSize));
+        // Own the scratch buffer with RAII so it is released on every path: the encoder and the lossless
+        // layer below can throw (e.g. Lossless_zstd::compress throws std::length_error when the destination
+        // capacity is too small for poorly-compressible data), and the caller catches and continues, so a
+        // bare free() at the end leaks the buffer on each failed compression.
+        std::unique_ptr<uchar, void (*)(void *)> buffer_owner(buffer, &free);
         uchar *buffer_pos = buffer;
 
         decomposition.save(buffer_pos);
         encoder.save(buffer_pos);
 
-        //store the size of quant_inds is necessary as it is not always equal to conf.num
+        // store the size of quant_inds is necessary as it is not always equal to conf.num
         write<size_t>(quant_inds.size(), buffer_pos);
         encoder.encode(quant_inds, buffer_pos);
         encoder.postprocess_encode();
         
         auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
-        free(buffer);
 
         return cmpSize;
     }
 
     T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *decData) override {
         uchar *buffer = nullptr;
-        size_t bufferSize = 0;
+        // The lossless layer reads the size of this internal buffer from the untrusted payload and would
+        // otherwise allocate it unbounded. Bound it by the largest internal buffer this configuration could
+        // have produced: during compression the buffer is losslessly (zstd) compressed, and
+        // ZSTD_compressBound(B) >= B, so a block that was actually stored with this compressor satisfies
+        // B < SZ_compress_size_bound = 4096 + conf.size_est() + ZSTD_compressBound(conf.num * sizeof(T)).
+        // Passing this as the capacity lets the lossless decoder reject a corrupted payload that declares a
+        // larger internal size before allocating it. conf.num is validated against the trusted output size by
+        // the caller, so this bound can not be inflated by corrupted input.
+        size_t bufferSize = 4096 + conf.size_est() + ZSTD_compressBound(conf.num * sizeof(T));
         lossless.decompress(cmpData, cmpSize, buffer, bufferSize);
+
+        // The lossless layer allocated `buffer` with malloc. Own it with RAII so it is released on every path
+        // below - including the parsing steps that operate on untrusted data and can throw before we are done
+        // with it - instead of being leaked. decompress() is reached repeatedly for corrupted blocks (fuzzing).
+        std::unique_ptr<uchar, void (*)(void *)> buffer_owner(buffer, &free);
 
         uchar const *bufferPos = buffer;
 
@@ -73,11 +104,19 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         encoder.load(bufferPos, bufferSize);
 
         size_t quant_inds_size = 0;
-        read(quant_inds_size, bufferPos);
+        // Read the count with the bounded overload so a truncated buffer can not be read past its end.
+        read(quant_inds_size, bufferPos, bufferSize);
+        // The count field sits between the encoder's tree and its encoded stream, so the bound load()
+        // recorded for decode() is that many bytes too large. Hand the encoder the exact remaining length
+        // now that the field has been consumed. Optional: encoders without the hook keep load()'s bound.
+        if constexpr (encoder_has_decode_bound<Encoder>::value) {
+            encoder.set_decode_bound(bufferSize);
+        }
         auto quant_inds = encoder.decode(bufferPos, quant_inds_size);
         encoder.postprocess_decode();
 
-        free(buffer);
+        // The remaining work uses `quant_inds` and `decData` only, so release the internal buffer now.
+        buffer_owner.reset();
 
         decomposition.decompress(conf, quant_inds, decData);
         return decData;

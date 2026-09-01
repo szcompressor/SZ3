@@ -15,8 +15,10 @@
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <numeric>
+#include <stdexcept>
 #include <vector>
 
 #include "SZ3/def.hpp"
@@ -358,38 +360,81 @@ class Config {
      *
      * @param c Pointer to the byte array.
      */
-    void load(const unsigned char*& c) {
+    // Legacy overload for trusted internal callers (e.g. the OpenMP path).
+    void load(const unsigned char*& c) { load(c, std::numeric_limits<size_t>::max()); }
+
+    // `cmpSize` bounds how many bytes may be read from `c` (the config blob). Used when loading
+    // from untrusted compressed data so a corrupted config cannot read out of bounds.
+    void load(const unsigned char*& c, size_t cmpSize) {
+        const unsigned char* const c0 = c;
+        auto require = [&](size_t n) {
+            if (cmpSize - static_cast<size_t>(c - c0) < n)
+                throw std::out_of_range("SZ3 Config::load: read past the end of the config");
+        };
+
+        require(sizeof(uchar));
         uchar confSize = 0;
         read(confSize, c);
-        auto c1 = c + confSize;
+        /// `confSize` is the total size of the config blob, including this prefix byte.
+        if (confSize > cmpSize) throw std::out_of_range("SZ3 Config::load: config size exceeds the buffer");
+        auto c1 = c0 + confSize;
 
+        require(sizeof(N));
         read(N, c);
+        if (N < 1 || N > 4) throw std::out_of_range("SZ3 Config::load: invalid number of dimensions");
         uint8_t bitWidth;
+        require(sizeof(bitWidth));
         read(bitWidth, c);
+        if (bitWidth > 64) throw std::out_of_range("SZ3 Config::load: invalid dimension bit width");
+        require((static_cast<size_t>(N) * bitWidth + 7) / 8);
         dims = bytes2vector<size_t>(c, bitWidth, N);
-        // dims.resize(N);
-        // read(dims.data(), N, c);
+        require(sizeof(num));
         read(num, c);
+        /// The element count must equal the product of the dimensions, otherwise the predictor would
+        /// iterate over more grid positions than were allocated for the decompressed data. Validate
+        /// the product with an overflow check.
+        {
+            size_t dims_product = 1;
+            bool dims_ok = true;
+            for (size_t dim : dims) {
+                if (dim == 0 || dims_product > std::numeric_limits<size_t>::max() / dim) {
+                    dims_ok = false;
+                    break;
+                }
+                dims_product *= dim;
+            }
+            if (!dims_ok || dims_product != num)
+                throw std::out_of_range("SZ3 Config::load: dimensions inconsistent with the element count");
+        }
+        require(sizeof(cmprAlgo));
         read(cmprAlgo, c);
 
+        require(sizeof(errorBoundMode));
         read(errorBoundMode, c);
         if (errorBoundMode == EB_ABS) {
+            require(sizeof(absErrorBound));
             read(absErrorBound, c);
         } else if (errorBoundMode == EB_REL) {
+            require(sizeof(relErrorBound));
             read(relErrorBound, c);
         } else if (errorBoundMode == EB_PSNR) {
+            require(sizeof(psnrErrorBound));
             read(psnrErrorBound, c);
         } else if (errorBoundMode == EB_L2NORM) {
+            require(sizeof(l2normErrorBound));
             read(l2normErrorBound, c);
         } else if (errorBoundMode == EB_ABS_OR_REL) {
+            require(sizeof(absErrorBound) + sizeof(relErrorBound));
             read(absErrorBound, c);
             read(relErrorBound, c);
         } else if (errorBoundMode == EB_ABS_AND_REL) {
+            require(sizeof(absErrorBound) + sizeof(relErrorBound));
             read(absErrorBound, c);
             read(relErrorBound, c);
         }
 
         if (c < c1) {
+            require(sizeof(uint8_t));
             uint8_t boolvals;
             read(boolvals, c);
             lorenzo = (boolvals >> 7) & 1;
@@ -399,15 +444,19 @@ class Config {
             openmp = (boolvals >> 3) & 1;
         }
         if (c < c1) {
+            require(sizeof(dataType));
             read(dataType, c);
         }
         if (c < c1) {
+            require(sizeof(quantbinCnt));
             read(quantbinCnt, c);
         }
         if (c < c1) {
+            require(sizeof(blockSize));
             read(blockSize, c);
         }
         if (c < c1) {
+            require(sizeof(predDim));
             read(predDim, c);
         }
     }
