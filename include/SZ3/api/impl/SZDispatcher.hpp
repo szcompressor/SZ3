@@ -64,14 +64,13 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
     if (conf.num * sizeof(T) / 1.0 / cmpSize < 3) {
         auto zstd = Lossless_zstd();
         auto zstdCmpCap = ZSTD_compressBound(conf.num * sizeof(T)) + sizeof(size_t);
-        auto zstdCmpData = static_cast<uchar *>(malloc(zstdCmpCap));
         // RAII: zstd.compress can throw, which would leak this buffer with a bare free() at the end.
-        std::unique_ptr<uchar, void (*)(void *)> zstd_cmp_data_owner(zstdCmpData, &free);
-        size_t zstdCmpSize =
-            zstd.compress(reinterpret_cast<const uchar *>(data), conf.num * sizeof(T), zstdCmpData, zstdCmpCap);
+        std::unique_ptr<uchar[]> zstdCmpData(new uchar[zstdCmpCap]);
+        size_t zstdCmpSize = zstd.compress(reinterpret_cast<const uchar *>(data), conf.num * sizeof(T),
+                                           zstdCmpData.get(), zstdCmpCap);
         if (zstdCmpSize < cmpSize && zstdCmpSize <= cmpCap) {
             conf.cmprAlgo = ALGO_LOSSLESS;
-            memcpy(cmpData, zstdCmpData, zstdCmpSize);
+            memcpy(cmpData, zstdCmpData.get(), zstdCmpSize);
             cmpSize = zstdCmpSize;
         }
     }

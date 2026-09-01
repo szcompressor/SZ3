@@ -58,12 +58,13 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         size_t bufferSize = std::max<size_t>(
             1000, 2 * (decomposition.size_est() + encoder.size_est() + sizeof(T) * quant_inds.size()));
 
-        auto buffer = static_cast<uchar *>(malloc(bufferSize));
-        // Own the scratch buffer with RAII so it is released on every path: the encoder and the lossless
-        // layer below can throw (e.g. Lossless_zstd::compress throws std::length_error when the destination
-        // capacity is too small for poorly-compressible data), and the caller catches and continues, so a
-        // bare free() at the end leaks the buffer on each failed compression.
-        std::unique_ptr<uchar, void (*)(void *)> buffer_owner(buffer, &free);
+        // Own the scratch buffer so it is released on every path: the encoder and the lossless layer below
+        // can throw (e.g. Lossless_zstd::compress throws std::length_error when the destination capacity is
+        // too small for poorly-compressible data), and the caller catches and continues, so a bare free() at
+        // the end leaks the buffer on each failed compression. `new uchar[]` leaves the bytes uninitialized,
+        // which is what we want here -- they are all written below.
+        std::unique_ptr<uchar[]> buffer_owner(new uchar[bufferSize]);
+        uchar *const buffer = buffer_owner.get();
         uchar *buffer_pos = buffer;
 
         decomposition.save(buffer_pos);
@@ -91,9 +92,10 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         size_t bufferSize = 0;
         lossless.decompress(cmpData, cmpSize, buffer, bufferSize);
 
-        // The lossless layer allocated `buffer` with malloc. Own it with RAII so it is released on every path
-        // below - including the parsing steps that operate on untrusted data and can throw before we are done
-        // with it - instead of being leaked. decompress() is reached repeatedly for corrupted blocks (fuzzing).
+        // The lossless layer allocated `buffer` with malloc, so this one is owned with a free() deleter rather
+        // than as unique_ptr<uchar[]> like the scratch buffers we allocate ourselves. Own it either way so it
+        // is released on every path below - including the parsing steps that operate on untrusted data and can
+        // throw before we are done with it. decompress() is reached repeatedly for corrupted blocks (fuzzing).
         std::unique_ptr<uchar, void (*)(void *)> buffer_owner(buffer, &free);
 
         uchar const *bufferPos = buffer;

@@ -76,10 +76,7 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
         // otherwise the direct lossless path in SZ_compress_dispatcher throws for poorly compressible chunks.
         size_t cmp_size_cap = sizeof(size_t) + ZSTD_compressBound(conf_t[tid].num * sizeof(T));
         // The buffer is owned so that it is released even if the compression below throws.
-        std::unique_ptr<uchar, void (*)(void*)> compressed_owner(static_cast<uchar*>(malloc(cmp_size_cap)), &free);
-        if (!compressed_owner) {
-            throw std::bad_alloc();
-        }
+        std::unique_ptr<uchar[]> compressed_owner(new uchar[cmp_size_cap]);
         compressed_t[tid] = compressed_owner.get();
         // we have to use conf_t[tid].N instead of N since each chunk may be a slice of the original data
         if (conf_t[tid].N == 1) {

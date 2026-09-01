@@ -28,10 +28,10 @@ class SZTruncateCompressor : public concepts::CompressorInterface<T> {
     }
 
     size_t compress(const Config &conf, T *data, uchar *cmpData, size_t cmpCap) override {
-        auto buffer = static_cast<uchar *>(malloc(conf.num * sizeof(T)));
-        // RAII: the lossless layer below can throw (std::length_error when the destination capacity is too
-        // small), which would leak this scratch buffer with a bare free() at the end.
-        std::unique_ptr<uchar, void (*)(void *)> buffer_owner(buffer, &free);
+        // The lossless layer below can throw (std::length_error when the destination capacity is too small),
+        // which would leak this scratch buffer with a bare free() at the end.
+        std::unique_ptr<uchar[]> buffer_owner(new uchar[conf.num * sizeof(T)]);
+        uchar *const buffer = buffer_owner.get();
         auto buffer_pos = buffer;
 
         //            Timer timer(true);
