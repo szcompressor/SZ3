@@ -56,6 +56,7 @@
 #include "SZ3/def.hpp"
 #include "SZ3/preprocessor/MGARDTransform.hpp"
 #include "SZ3/quantizer/LinearQuantizer.hpp"
+#include "SZ3/quantizer/OutlierQuantizer.hpp"
 #include "SZ3/quantizer/Quantizer.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
@@ -100,7 +101,8 @@ class MultiLevelDecomposition : public concepts::DecompositionInterface<T, To, N
           make_quantizer_(std::move(make_quantizer)),
           requested_level_(target_level),
           growth_(level_eb_growth),
-          amplification_(level_eb_amplification) {
+          amplification_(level_eb_amplification),
+          outliers_(abs_error_bound) {
         if (!(eb_ > 0.0)) {
             throw std::invalid_argument("MultiLevelDecomposition: error bound must be positive.");
         }
@@ -117,6 +119,7 @@ class MultiLevelDecomposition : public concepts::DecompositionInterface<T, To, N
         dims_ = resolve_dims(conf);
         target_level_ = resolve_target_level(dims_);
 
+        std::vector<T> original(data, data + conf.num);
         transform_.preprocess(data, dims_, target_level_);
 
         const auto levels = Transform::level_dims(dims_, target_level_);
@@ -131,6 +134,14 @@ class MultiLevelDecomposition : public concepts::DecompositionInterface<T, To, N
         std::vector<To> bins;
         bins.reserve(conf.num);
         multilevel_quantize<N>(data, dims_, levels, quantizers_, bins);
+
+        // Per-level quantization bounds each coefficient, but the synthesis that turns coefficients
+        // back into values is itself done in T, and its round-off scales with the field's magnitude.
+        // Replay the decoder's inverse transform and record whatever still misses the bound.
+        outliers_.clear();
+        std::vector<T> reconstructed(data, data + conf.num);
+        transform_.postprocess(reconstructed.data(), dims_, target_level_);
+        outliers_.collect(original, reconstructed);
         return bins;
     }
 
@@ -148,6 +159,12 @@ class MultiLevelDecomposition : public concepts::DecompositionInterface<T, To, N
         }
 
         transform_.postprocess(dec_data, dims_, target_level_);
+
+        if (outliers_.size() > 0) {
+            std::vector<T> values(dec_data, dec_data + conf.num);
+            outliers_.apply(values);
+            std::copy(values.begin(), values.end(), dec_data);
+        }
         return dec_data;
     }
 
@@ -159,6 +176,7 @@ class MultiLevelDecomposition : public concepts::DecompositionInterface<T, To, N
         for (auto &q : quantizers_) {
             q.save(c);
         }
+        outliers_.save(c);
     }
 
     void load(const uchar *&c, size_t &remaining_length) override {
@@ -173,6 +191,7 @@ class MultiLevelDecomposition : public concepts::DecompositionInterface<T, To, N
         if (!quantizers_.empty()) {
             out_range_ = quantizers_.front().get_out_range();
         }
+        outliers_.load(c, remaining_length);
     }
 
     std::pair<To, To> get_out_range() override { return out_range_; }
@@ -231,6 +250,7 @@ class MultiLevelDecomposition : public concepts::DecompositionInterface<T, To, N
     double amplification_;
 
     Transform transform_;
+    OutlierQuantizer<T, int64_t> outliers_;
     size_t target_level_ = 0;
     std::vector<size_t> dims_;
     std::vector<Quantizer> quantizers_;

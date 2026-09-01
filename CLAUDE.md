@@ -79,9 +79,11 @@ System deps on Linux: `cmake`, `g++`, `libzstd-dev`, `libeigen3-dev`, `pkg-confi
 ## Testing
 
 - **Unit tests**: `cmake -DBUILD_TESTING=ON ..; make; ctest` — one executable per `.cpp` under `tools/test/modules/`.
-- **Module acceptance**: `docs/MODULE_ACCEPTANCE.md` — what a new module must satisfy. Enforced by
-  `ctest -R SZ3_ModuleContract` (group contracts) and `python3 tools/test/check_headers.py --build-dir build`
-  (every header compiles standalone; run it under both libstdc++ and libc++).
+- **Module acceptance**: the Testing section of `docs/claude-skills/fz-add-module/SKILL.md` — what a new
+  module must satisfy. Enforced by `ctest -R SZ3_ModuleContract` (group contracts, from the installed
+  `include/SZ3/testing/ModuleContract.hpp`), `ctest -R SZ3_ModulesJson`, and
+  `python3 tools/test/check_headers.py --build-dir build` (every header compiles standalone; run it under
+  both libstdc++ and libc++).
 - **Integration tests**: `tools/test/integration/` — Python scripts that exercise the `sz3` CLI on reference data.
 - **Smoke dataset** committed in-tree: `tools/sz3/testfloat_8_8_128.dat` (8×8×128 float32).
 - **CLI**: `tools/sz3/sz3` — sample invocation:

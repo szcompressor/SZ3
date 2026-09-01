@@ -32,13 +32,12 @@
  *
  * Constraints: floating-point T (float/double); 1D / 2D / 3D.
  *
- * @par Bound limitation
- * Coefficients are quantized per level and the reconstruction is never checked against the bound,
- * so the multigrid transform's own round-off passes through unbounded. That round-off scales with
- * the field's magnitude, so the absolute bound holds only while `max|x| * epsilon<T> << eb`. For
- * `float` at `eb = 1e-2`, a magnitude of 1e6 reaches 1.17x eb and 1e7 reaches 6.25x; `double`
- * needs a magnitude near 1e15 before it matters. Every other decomposition in the tree checks the
- * value it writes back and diverts to an unpredictable list, so none of them has this behaviour.
+ * @par Error bound
+ * Coefficients are quantized per level, and the synthesis that turns them back into values is
+ * itself done in `T`, so its round-off scales with the field's magnitude and can exceed the
+ * bound on its own. `compress()` therefore replays the decoder's inverse transform and records
+ * whatever still misses into an `OutlierQuantizer`, carried in `save()` the way
+ * `LinearQuantizer` carries its unpredictable list. The bound then holds unconditionally.
  */
 
 #include <algorithm>
@@ -51,6 +50,7 @@
 #include "SZ3/decomposition/Decomposition.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/quantizer/LinearQuantizer.hpp"
+#include "SZ3/quantizer/OutlierQuantizer.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
 #include "SZ3/utils/thirdparty/mgard/MGARDHeaderOnly.hpp"
@@ -61,7 +61,7 @@ template <class T, uint N>
 class MGARDFusedDecomposition : public concepts::DecompositionInterface<T, int, N> {
    public:
     explicit MGARDFusedDecomposition(double abs_error_bound, int radius = 32768)
-        : eb_(abs_error_bound), radius_(radius) {
+        : eb_(abs_error_bound), radius_(radius), outliers_(abs_error_bound) {
         static_assert(std::is_floating_point<T>::value, "MGARDFusedDecomposition requires a floating-point data type.");
         static_assert(N >= 1 && N <= 3, "MGARDFusedDecomposition supports 1D, 2D, or 3D data only.");
         if (!(eb_ > 0.0)) {
@@ -71,6 +71,8 @@ class MGARDFusedDecomposition : public concepts::DecompositionInterface<T, int, 
 
     std::vector<int> compress(const Config& conf, T* data) override {
         const std::vector<size_t> dims = resolve_dims(conf);
+        std::vector<T> original;
+        if (collect_outliers_) original.assign(data, data + conf.num);
         target_level_ = compute_target_level(dims);
         dims_ = dims;
 
@@ -95,6 +97,17 @@ class MGARDFusedDecomposition : public concepts::DecompositionInterface<T, int, 
         // Levels 1..L: difference region between level_dims[l-1] and level_dims[l].
         for (size_t l = 1; l <= target_level_; l++) {
             quantize_level_walk(data, dims, level_dims[l - 1], level_dims[l], level_ebs[l], bins);
+        }
+
+        // Per-level quantization bounds each coefficient, but the synthesis that turns coefficients
+        // back into values is itself done in T, and its round-off scales with the field's magnitude.
+        // Replay the decoder's inverse transform and record whatever still misses the bound.
+        outliers_.clear();
+        if (collect_outliers_) {
+            std::vector<T> reconstructed(data, data + conf.num);
+            MGARD::Recomposer<T> recomposer;
+            recomposer.recompose(reconstructed.data(), dims, target_level_, /*hierarchical=*/false);
+            outliers_.collect(original, reconstructed);
         }
         return bins;
     }
@@ -124,6 +137,12 @@ class MGARDFusedDecomposition : public concepts::DecompositionInterface<T, int, 
 
         MGARD::Recomposer<T> recomposer;
         recomposer.recompose(dec_data, dims, target_level_, /*hierarchical=*/false);
+
+        if (outliers_.size() > 0) {
+            std::vector<T> values(dec_data, dec_data + conf.num);
+            outliers_.apply(values);
+            std::copy(values.begin(), values.end(), dec_data);
+        }
         return dec_data;
     }
 
@@ -134,6 +153,7 @@ class MGARDFusedDecomposition : public concepts::DecompositionInterface<T, int, 
         size_t nq = quantizers_.size();
         write(nq, c);
         for (auto& q : quantizers_) q.save(c);
+        outliers_.save(c);
     }
 
     void load(const uchar*& c, size_t& remaining_length) override {
@@ -144,6 +164,7 @@ class MGARDFusedDecomposition : public concepts::DecompositionInterface<T, int, 
         read(nq, c, remaining_length);
         quantizers_.assign(nq, LinearQuantizer<T>(eb_, radius_));
         for (auto& q : quantizers_) q.load(c, remaining_length);
+        outliers_.load(c, remaining_length);
     }
 
     std::pair<int, int> get_out_range() override { return std::make_pair(0, radius_ * 2); }
@@ -152,7 +173,7 @@ class MGARDFusedDecomposition : public concepts::DecompositionInterface<T, int, 
         // Header + per-quantizer estimate (each quantizer carries unpredictable list).
         size_t s = sizeof(target_level_) + sizeof(eb_) + sizeof(radius_) + sizeof(size_t);
         for (auto& q : quantizers_) s += q.size_est() + 64;
-        return s + 64;
+        return s + outliers_.size_est() + 64;
     }
 
    private:
@@ -286,6 +307,8 @@ class MGARDFusedDecomposition : public concepts::DecompositionInterface<T, int, 
 
     double eb_;
     int radius_;
+    bool collect_outliers_ = true;
+    OutlierQuantizer<T, int64_t> outliers_;
     size_t target_level_ = 0;
     std::vector<size_t> dims_;
     std::vector<LinearQuantizer<T>> quantizers_;

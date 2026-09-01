@@ -16,7 +16,8 @@
  * @endcode
  *
  * Each check corresponds to a defect class that has actually shipped in this tree, so a module
- * that passes is known not to repeat one. See docs/MODULE_ACCEPTANCE.md.
+ * that passes is known not to repeat one. See the Testing section of
+ * docs/claude-skills/fz-add-module/SKILL.md.
  *
  * The factory argument returns a freshly constructed module; the checks need several independent
  * instances (one to encode with, one to load into) and must not share mutable state between them.

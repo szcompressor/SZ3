@@ -168,31 +168,11 @@ TEST(SZ3_ModuleContract, BlockwiseDecompositionLorenzo) {
         eb);
 }
 
-// MGARD quantizes multigrid coefficients per level and never checks the reconstruction against
-// the bound, so the transform's own round-off passes through. That round-off scales with the
-// field's magnitude, and the bound only holds while `max|x| * epsilon<T> << eb`: for float and
-// eb = 1e-2, a magnitude of 1e6 already reaches 1.17x eb and 1e7 reaches 6.25x. The fields below
-// stay inside the regime the module honours; see MGARDFusedDecomposition.hpp.
-static std::vector<std::vector<float>> mgardFields(size_t num) {
-    std::vector<std::vector<float>> fields;
-    fields.push_back(std::vector<float>(num, 3.5f));
-    std::vector<float> ramp(num), smooth(num);
-    for (size_t i = 0; i < num; i++) {
-        ramp[i] = static_cast<float>(i) * 1e-3f;
-        smooth[i] = static_cast<float>(std::sin(static_cast<double>(i) * 0.013) * 3.0 +
-                                       std::cos(static_cast<double>(i) * 0.007));
-    }
-    fields.push_back(ramp);
-    fields.push_back(smooth);
-    return fields;
-}
-
 TEST(SZ3_ModuleContract, MGARDFusedDecomposition) {
     const double eb = 1e-2;
     auto conf = conf3D(9, 9, 9, eb);
     SZ3_test::expectDecompositionContract<float>(
-        "MGARDFusedDecomposition", conf, [&] { return SZ3::MGARDFusedDecomposition<float, 3>(eb); }, eb,
-        mgardFields(conf.num));
+        "MGARDFusedDecomposition", conf, [&] { return SZ3::MGARDFusedDecomposition<float, 3>(eb); }, eb);
 }
 
 TEST(SZ3_ModuleContract, MGARDDecompositionComposable) {
@@ -205,7 +185,7 @@ TEST(SZ3_ModuleContract, MGARDDecompositionComposable) {
             return SZ3::MGARDDecomposition<float, 3>(
                 eb, [radius](double level_eb) { return SZ3::LinearQuantizer<float>(level_eb, radius); });
         },
-        eb, mgardFields(conf.num));
+        eb);
 }
 
 // ----- Lossless group -----------------------------------------------------
