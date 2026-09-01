@@ -1,7 +1,8 @@
 test.dat
 compressed.out
 perf.data*
-build
+# Anchored to the repo root, and glob so build-release and friends are covered too
+/build*
 debug
 cmake-build-debug
 cmake-build-release
@@ -9,6 +10,12 @@ cmake-build-release
 install
 .DS_Store
 .vscode
+.cache
+.claude
 sz3_install
 sz3_build
 /test
+
+# Python bytecode
+__pycache__/
+*.pyc
