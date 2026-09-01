@@ -2,6 +2,7 @@
 #define SZ3_ArithmeticEncoder_HPP
 
 #include <cassert>
+#include <cmath>
 #include <iostream>
 
 #include "SZ3/encoder/Encoder.hpp"
@@ -527,7 +528,7 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
         size_t total_frequency = ariCoder.total_frequency;
         const uchar *sp = bytes + 5;
         unsigned int offset = 4;
-        size_t value = (bytesToInt64_bigEndian(bytes) >> 20);  // alignment with the MAX_CODE
+        size_t value = (static_cast<uint64_t>(bytesToInt64_bigEndian(bytes)) >> 20);  // alignment with the MAX_CODE
         size_t s_counter = sizeof(int);
 
         for (i = 0; i < targetLength; i++) {

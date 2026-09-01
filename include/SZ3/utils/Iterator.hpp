@@ -14,6 +14,8 @@
 #include <typeinfo>
 #include <vector>
 
+#include "SZ3/def.hpp"
+
 namespace SZ3 {
 // N-dimensional multi_dimensional_range
 template <class T, uint N>

@@ -171,30 +171,49 @@ def main():
     compression, compression_opts = get_compression_args(cmpr_algo, bound)
 
     all_pass = True
-    for chunk in [False, True]:
+    # 'small' keeps a chunk well under the compressed-buffer bound, which the filter has to
+    # size from SZ_compress_size_bound rather than from the raw chunk size. A chunk that small
+    # over a whole field would mean tens of millions of chunks, whose HDF5 index alone exhausts
+    # memory, so the mode runs on a leading slice that still covers many chunks.
+    max_small_chunks = 4096
+    small_chunk = tuple(min(d, 8) for d in shape)
+    for chunk in ['full', 'auto', 'small']:
         print(f"Testing {raw_file} with algo = {cmpr_algo} AbsErrorBound = {bound} Chunk = {chunk}")
 
         compressed_h5 = os.path.join(output_dir, f"{base_name}_compressed_{chunk}.h5")
         decompressed_h5 = os.path.join(output_dir, f"{base_name}_decompressed_{chunk}.h5")
 
-        if chunk:
+        payload, reference_h5 = data, original_h5
+        if chunk == 'small':
+            chunks_per_row = 1
+            for axis in range(1, len(shape)):
+                chunks_per_row *= -(-shape[axis] // small_chunk[axis])
+            rows = max(1, max_small_chunks // chunks_per_row) * small_chunk[0]
+            if rows < shape[0]:
+                payload = data[:rows]
+                reference_h5 = os.path.join(output_dir, f"{base_name}_original_{chunk}.h5")
+                write_hdf5(payload, reference_h5, h5_dataset_name)
+                print(f"  restricted to the leading {rows} of {shape[0]} to bound the chunk count")
+
+        if chunk == 'auto':
             # hd5py will automatically determine chunk sizes if chunks is not set
-            write_hdf5(data, compressed_h5, h5_dataset_name, compression=compression, compression_opts=compression_opts)
+            write_hdf5(payload, compressed_h5, h5_dataset_name, compression=compression,
+                       compression_opts=compression_opts)
         else:
-            write_hdf5(data, compressed_h5, h5_dataset_name, compression=compression, compression_opts=compression_opts,
-                       chunks=shape)
+            write_hdf5(payload, compressed_h5, h5_dataset_name, compression=compression,
+                       compression_opts=compression_opts, chunks=payload.shape if chunk == 'full' else small_chunk)
 
         with h5py.File(compressed_h5, 'r') as f_in, h5py.File(decompressed_h5, 'w') as f_out:
             f_out.create_dataset(h5_dataset_name, data=f_in[h5_dataset_name][:])
 
-        max_error = compare_hdf5(original_h5, decompressed_h5, h5_dataset_name)
+        max_error = compare_hdf5(reference_h5, decompressed_h5, h5_dataset_name)
 
         if max_error <= (bound * 3 if cmpr_algo in ['ALGO_BIOMDXTC'] else bound * 1.2):
             result = "PASS"
         else:
             result = "FAIL"
 
-        print(f"Test Result for AbsErrorBound = {bound} ChunkSize = {chunk}: {result}")
+        print(f"Test Result for AbsErrorBound = {bound} Chunk = {chunk}: {result}")
 
         if result == "FAIL":
             all_pass = False

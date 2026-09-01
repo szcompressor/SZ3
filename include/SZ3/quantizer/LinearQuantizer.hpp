@@ -42,32 +42,35 @@ public:
     // int quantize(T data, T pred, T& dec_data);
     ALWAYS_INLINE int quantize_and_overwrite(T& data, T pred) override {
         T diff = data - pred;
-        auto quant_index = static_cast<int64_t>(fabs(diff) * this->error_bound_reciprocal) + 1;
-        if (quant_index < this->radius * 2) {
-            quant_index >>= 1;
-            int half_index = quant_index;
-            quant_index <<= 1;
-            int quant_index_shifted;
-            if (diff < 0) {
-                quant_index = -quant_index;
-                quant_index_shifted = this->radius - half_index;
-            } else {
-                quant_index_shifted = this->radius + half_index;
+        // fabs(diff) * error_bound_reciprocal is NaN when data is NaN and exceeds the int64_t
+        // range for infinities or huge magnitudes; casting those to int64_t is undefined behaviour.
+        // Only finite magnitudes within the quantization range are representable as an index; every
+        // other value is stored losslessly in unpred, exactly like the out-of-range branch below.
+        double scaled = fabs(diff) * this->error_bound_reciprocal;
+        if (scaled < this->radius * 2) {
+            auto quant_index = static_cast<int64_t>(scaled) + 1;
+            if (quant_index < this->radius * 2) {
+                quant_index >>= 1;
+                int half_index = quant_index;
+                quant_index <<= 1;
+                int quant_index_shifted;
+                if (diff < 0) {
+                    quant_index = -quant_index;
+                    quant_index_shifted = this->radius - half_index;
+                } else {
+                    quant_index_shifted = this->radius + half_index;
+                }
+                T decompressed_data = pred + quant_index * this->error_bound;
+                // if data is NaN, the diff is NaN, and NaN <= 0 is false
+                diff = fabs(decompressed_data - data);
+                if (diff <= this->error_bound || (!strict_eb && diff <= this->error_bound * 1.1)) {
+                    data = decompressed_data;
+                    return quant_index_shifted;
+                }
             }
-            T decompressed_data = pred + quant_index * this->error_bound;
-            // if data is NaN, the diff is NaN, and NaN <= 0 is false
-            diff = fabs(decompressed_data - data);
-            if (diff <= this->error_bound || (!strict_eb && diff <= this->error_bound * 1.1)) {
-                data = decompressed_data;
-                return quant_index_shifted;
-            } else {
-                unpred.push_back(data);
-                return 0;
-            }
-        } else {
-            unpred.push_back(data);
-            return 0;
         }
+        unpred.push_back(data);
+        return 0;
     }
 
     // recover the data using the quantization index
@@ -83,7 +86,12 @@ public:
         return pred + 2 * (quant_index - this->radius) * this->error_bound;
     }
 
-    ALWAYS_INLINE T recover_unpred() { return unpred[index++]; }
+    ALWAYS_INLINE T recover_unpred() {
+        // index and the quantization stream come from untrusted data; a crafted stream can request more
+        // unpredictable values than were stored, which would read past the end of unpred.
+        if (index >= unpred.size()) throw std::out_of_range("SZ3: ran out of unpredictable values while decompressing");
+        return unpred[index++];
+    }
 
     ALWAYS_INLINE int force_save_unpred(T ori) override {
         unpred.push_back(ori);
@@ -115,6 +123,10 @@ public:
         size_t unpred_size = 0;
         read(unpred_size, c, remaining_length);
         if (unpred_size > 0) {
+            // Validate the count against the remaining bytes before resizing, otherwise a corrupted count
+            // would drive a huge allocation before the bounded read below has a chance to reject it.
+            if (unpred_size > remaining_length / sizeof(T))
+                throw std::out_of_range("SZ3: unpredictable value count exceeds the compressed buffer");
             unpred.resize(unpred_size);
             read(unpred.data(), unpred_size, c, remaining_length);
         }

@@ -2,6 +2,7 @@
 #define SZ3_Truncate_COMPRESSOR_HPP
 
 #include <cstring>
+#include <memory>
 
 #include "SZ3/compressor/Compressor.hpp"
 #include "SZ3/decomposition/Decomposition.hpp"
@@ -27,7 +28,10 @@ class SZTruncateCompressor : public concepts::CompressorInterface<T> {
     }
 
     size_t compress(const Config &conf, T *data, uchar *cmpData, size_t cmpCap) override {
-        auto buffer = static_cast<uchar *>(malloc(conf.num * sizeof(T)));
+        // The lossless layer below can throw (std::length_error when the destination capacity is too small),
+        // which would leak this scratch buffer with a bare free() at the end.
+        std::unique_ptr<uchar[]> buffer_owner(new uchar[conf.num * sizeof(T)]);
+        uchar *const buffer = buffer_owner.get();
         auto buffer_pos = buffer;
 
         //            Timer timer(true);
@@ -35,7 +39,6 @@ class SZTruncateCompressor : public concepts::CompressorInterface<T> {
         //            timer.stop("Prediction & Quantization");
 
         auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
-        free(buffer);
         return cmpSize;
         //            lossless.postcompress_data(buffer);
         //            return lossless_data;
