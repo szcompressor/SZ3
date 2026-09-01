@@ -6,6 +6,12 @@ on:
       - master
       - fz
 
+# One run per pull request. These jobs take hours; a new push must supersede the run in flight
+# rather than compete with it for runners.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
