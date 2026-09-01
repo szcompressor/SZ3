@@ -1123,8 +1123,7 @@
         }
       ],
       "composition": {
-        "error_bound_regime": "max|x| * epsilon(T) << eb",
-        "notes": "Quantizes coefficients per level and never checks the reconstruction, so the transform's own round-off passes through. For float at eb = 1e-2 a magnitude of 1e6 reaches 1.17x eb and 1e7 reaches 6.25x; double needs ~1e15."
+        "notes": "Replays the inverse transform and records what still misses the bound into an OutlierQuantizer, so the bound holds unconditionally. Outliers cost nothing where the transform already met it; a field that leaves the per-level quantizer saturated degenerates to near-lossless."
       }
     },
     {
@@ -1158,14 +1157,13 @@
       ],
       "used_by": [],
       "composition": {
-        "error_bound_regime": "max|x| * epsilon(T) << eb",
         "avoid_pairing": [
           {
             "with": "LevelQuantizer",
             "why": "non-uniform levels spread the bin histogram; measured 12x worse compression than LinearQuantizer on miranda pressure at relative eb 1e-2"
           }
         ],
-        "notes": "Composable MGARD. Aliased as MGARDDecomposition with the MGARD transform."
+        "notes": "Replays the inverse transform and records what still misses the bound into an OutlierQuantizer, so the bound holds unconditionally. Outliers cost nothing where the transform already met it; a field that leaves the per-level quantizer saturated degenerates to near-lossless."
       },
       "best_for": "Decomposition over a coarse-to-fine transform with one quantizer per level. Aliased as MGARDDecomposition with the MGARD transform; MGARDFusedDecomposition is the fused equivalent.",
       "data_examples": [],

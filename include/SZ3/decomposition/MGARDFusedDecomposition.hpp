@@ -38,6 +38,13 @@
  * bound on its own. `compress()` therefore replays the decoder's inverse transform and records
  * whatever still misses into an `OutlierQuantizer`, carried in `save()` the way
  * `LinearQuantizer` carries its unpredictable list. The bound then holds unconditionally.
+ *
+ * Outliers cost nothing where the transform already met the bound: on miranda velocityx (double)
+ * and on cesm-atm (float) down to a relative bound of 1e-5, the compressed size is unchanged. They
+ * cost compression exactly where the bound was being missed -- cesm-atm at 1e-7 goes from 3.17x the
+ * bound at ratio 92 to 1.00x at ratio 71. On a field whose dynamic range leaves the per-level
+ * quantizer saturated (a large spike in `float` at a tight bound) nearly every point becomes an
+ * outlier and the result is close to lossless, which is the same fallback `LinearQuantizer` makes.
  */
 
 #include <algorithm>

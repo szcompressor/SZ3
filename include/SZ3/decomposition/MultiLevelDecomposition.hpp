@@ -68,6 +68,13 @@ namespace SZ3 {
 /**
  * @brief Decomposition over a coarse-to-fine transform with one quantizer per level.
  *
+ * @par Error bound
+ * Per-level quantization bounds each coefficient, but the synthesis is done in `T` and its round-off
+ * scales with the field's magnitude. `compress()` replays the inverse transform and records whatever
+ * still misses into an `OutlierQuantizer`, so the bound holds unconditionally. Outliers cost nothing
+ * where the transform already met the bound; where it did not, they trade compression for the bound,
+ * and a field that leaves the per-level quantizer saturated degenerates to near-lossless.
+ *
  * @tparam T Floating-point data type
  * @tparam N Data dimension (1, 2 or 3)
  * @tparam Quantizer Any `concepts::QuantizerInterface<T, To>` implementation
