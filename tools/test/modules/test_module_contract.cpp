@@ -1,7 +1,7 @@
 // Group-level acceptance checks. Every module in the library must pass the contract for its
 // group; see docs/MODULE_ACCEPTANCE.md.
 
-#include "ModuleContract.hpp"
+#include "SZ3/testing/ModuleContract.hpp"
 #include "SZ3/compressor/SZGenericCompressor.hpp"
 #include "SZ3/decomposition/BlockwiseDecomposition.hpp"
 #include "SZ3/decomposition/InterpolationDecomposition.hpp"

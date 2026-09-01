@@ -41,8 +41,18 @@ python3 tools/test/check_headers.py --build-dir build --compiler g++
 ctest -R SZ3_ModuleContract
 ```
 
-`tools/test/modules/ModuleContract.hpp` holds the checks that apply to every module in a group;
-a new module is added to `test_module_contract.cpp` in a few lines. What the contract covers:
+`include/SZ3/testing/ModuleContract.hpp` holds the checks that apply to every module in a group. It
+is installed with the library, so a module developed outside this tree runs the same gate:
+
+```cpp
+#include "SZ3/testing/ModuleContract.hpp"
+
+TEST(MyModule, Contract) {
+    SZ3_test::expectQuantizerContract<float>("MyQuantizer", [] { return MyQuantizer<float>(1e-3); });
+}
+```
+
+In-tree modules are added to `tools/test/modules/test_module_contract.cpp`. What the contract covers:
 
 **Quantizer** — `expectQuantizerContract<T>(name, factory)`
 
@@ -108,7 +118,13 @@ per-module tests.
 ## 6. It is registered
 
 - `include/SZ3/api/sz_dev.hpp` — the developer header carries every module.
-- `docs/site/modules.json` — the metadata the module site reads.
+- `docs/site/modules.json` — the metadata the module site reads. Add a `composition` block for any
+  constraint a composition engine would need: an encoder that cannot derive its own bin range
+  (`requires_state_num`), a decomposition that only works with one encoder (`requires_encoder`),
+  a quantizer whose bins are not a countable domain (`out_range`), the regime an error bound holds
+  in (`error_bound_regime`), or a pairing measured to be bad (`avoid_pairing`, with the number).
+  Only record what a test or the code already enforces. `ctest -R SZ3_ModulesJson` checks the file
+  against the tree and keeps the vocabulary closed.
 - A `uid` distinct from every other module in its group, if the group serializes one.
   `ctest -R UidsAreDistinct` checks this by reading the first byte each `save()` writes.
 

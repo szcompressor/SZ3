@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "description": "fz module/algorithm metadata for T2.2 search and recommendation. One entry per ALGO_* (algos[]) and per distinctive module (modules[]). Indexed by Pagefind via stub HTML pages emitted under docs/html/modules/. Schema v2: pipeline.* now holds clean module IDs only; prose detail moved to pipeline_notes.",
   "algos": [
     {
@@ -1121,7 +1121,11 @@
           "year": 2020,
           "evidence": "MGARDx is the upstream of the vendored transform (per the NOTICE file) and establishes the per-level quantization strategy this module mirrors: coefficient slabs quantized level by level rather than under one global bound. Reports up to 70x faster decomposition/recomposition and up to 2x better CR than the second-best lossy compressor."
         }
-      ]
+      ],
+      "composition": {
+        "error_bound_regime": "max|x| * epsilon(T) << eb",
+        "notes": "Quantizes coefficients per level and never checks the reconstruction, so the transform's own round-off passes through. For float at eb = 1e-2 a magnitude of 1e6 reaches 1.17x eb and 1e7 reaches 6.25x; double needs ~1e15."
+      }
     },
     {
       "id": "MultiLevelDecomposition",
@@ -1152,8 +1156,20 @@
         "per-level error budget",
         "composable MGARD"
       ],
-      "description": "Decomposition over a coarse-to-fine transform with one quantizer per level. Aliased as MGARDDecomposition with the MGARD transform; MGARDFusedDecomposition is the fused equivalent.",
-      "used_by": []
+      "used_by": [],
+      "composition": {
+        "error_bound_regime": "max|x| * epsilon(T) << eb",
+        "avoid_pairing": [
+          {
+            "with": "LevelQuantizer",
+            "why": "non-uniform levels spread the bin histogram; measured 12x worse compression than LinearQuantizer on miranda pressure at relative eb 1e-2"
+          }
+        ],
+        "notes": "Composable MGARD. Aliased as MGARDDecomposition with the MGARD transform."
+      },
+      "best_for": "Decomposition over a coarse-to-fine transform with one quantizer per level. Aliased as MGARDDecomposition with the MGARD transform; MGARDFusedDecomposition is the fused equivalent.",
+      "data_examples": [],
+      "references": []
     },
     {
       "id": "NoPredictionDecomposition",
@@ -1235,8 +1251,10 @@
         "quantum chemistry",
         "GAMESS"
       ],
-      "description": "Pattern-scaling decomposition for two-electron repulsion integrals: one sub-block per block becomes a pattern, one scale per sub-block, and a quantized error-correction term per point.",
-      "used_by": []
+      "used_by": [],
+      "best_for": "Pattern-scaling decomposition for two-electron repulsion integrals: one sub-block per block becomes a pattern, one scale per sub-block, and a quantized error-correction term per point.",
+      "data_examples": [],
+      "references": []
     },
     {
       "id": "SPERRDecomposition",
@@ -1265,8 +1283,17 @@
         "SPECK",
         "composable"
       ],
-      "description": "SPERR as separable stages: SPERRTransform for the conditioner and wavelet, OutlierQuantizer for the corrections. SPERRFusedDecomposition is the fused equivalent used by ALGO_SPERR.",
-      "used_by": []
+      "used_by": [],
+      "composition": {
+        "requires_encoder": [
+          "SPERREncoder"
+        ],
+        "out_range": "none (reports 0)",
+        "notes": "Bins are a SPECK bitstream, not a quantizer domain."
+      },
+      "best_for": "SPERR as separable stages: SPERRTransform for the conditioner and wavelet, OutlierQuantizer for the corrections. SPERRFusedDecomposition is the fused equivalent used by ALGO_SPERR.",
+      "data_examples": [],
+      "references": []
     },
     {
       "id": "SPERRFusedDecomposition",
@@ -1327,7 +1354,14 @@
           "year": 2004,
           "evidence": "SPECK is the set-partitioning embedded coder that consumes this module's quantized wavelet coefficients; it was reported 4.6x-15.7x faster than JPEG2000 in encoding and within 0.85 dB PSNR across rates 0.25-2.0 bpp."
         }
-      ]
+      ],
+      "composition": {
+        "requires_encoder": [
+          "SPERREncoder"
+        ],
+        "out_range": "none (reports 0)",
+        "notes": "Fused equivalent of SPERRDecomposition; drives ALGO_SPERR."
+      }
     },
     {
       "id": "SVDDecomposition",
@@ -1628,7 +1662,11 @@
           "year": 1987,
           "evidence": "Foundational practical arithmetic coding paper; arithmetic coding asymptotically achieves the entropy bound and outperforms Huffman on heavily skewed distributions, motivating the ArithmeticEncoder option in fz."
         }
-      ]
+      ],
+      "composition": {
+        "requires_state_num": true,
+        "notes": "Sizes its frequency model from the stateNum argument and cannot derive it; a decomposition reporting no bin range (0) produces garbage. Asserts stateNum <= 4096."
+      }
     },
     {
       "id": "BitplaneEncoder",
@@ -1843,7 +1881,11 @@
           "year": 2022,
           "evidence": "SZ3 (and therefore fz) uses Huffman as the default encoder for quantization bin sequences across all prediction-based ALGO_* pipelines; benchmarked on GAMESS/APS/Hurricane/CESM-ATM/Miranda/NYX/RTM/QMCPack."
         }
-      ]
+      ],
+      "composition": {
+        "requires_state_num": false,
+        "notes": "Ignores stateNum and scans the bins. Throws when the bin range exceeds a dense state table; use HuffmanEncoderV2 for sparse wide ranges."
+      }
     },
     {
       "id": "HuffmanEncoderV2",
@@ -1884,7 +1926,11 @@
           "year": 2022,
           "evidence": "MDZ couples a tuned Huffman entropy coder (the basis of HuffmanEncoderV2) to its MD-specific decomposition; up to 233% higher CR than the second-best lossy compressor across 8 MD datasets."
         }
-      ]
+      ],
+      "composition": {
+        "requires_state_num": false,
+        "notes": "stateNum == 0 makes it derive the range from the bins; switches to a sparse map when the range is wide relative to the number of distinct bins."
+      }
     },
     {
       "id": "RunlengthEncoder",
@@ -1966,7 +2012,18 @@
           "year": 2004,
           "evidence": "SPECK encoder is 4.6x-15.7x faster than JPEG2000 in encoding and 8.1x-12.1x faster in decoding, with PSNR within 0.85 dB of JPEG2000 across rates 0.25-2.0 bpp."
         }
-      ]
+      ],
+      "composition": {
+        "requires_state_num": false,
+        "requires_construction_args": [
+          "dims"
+        ],
+        "pairs_with": [
+          "SPERRDecomposition",
+          "SPERRFusedDecomposition"
+        ],
+        "notes": "Must be constructed with the block dims (x, y, z); throws otherwise. Consumes a SPECK bitstream, not quantizer bins."
+      }
     },
     {
       "id": "XtcBasedEncoder",
@@ -2104,7 +2161,11 @@
           "year": 2004,
           "evidence": "SPECK output is already a tightly-packed embedded bitstream; an additional lossless pass would not improve CR. Justifies Lossless_bypass as the final stage for ALGO_SPERR."
         }
-      ]
+      ],
+      "composition": {
+        "expands_payload": true,
+        "notes": "Copies the payload verbatim, so the compressed size equals the intermediate buffer; callers must not size the destination from a bound that assumes compression."
+      }
     },
     {
       "id": "Lossless_zstd",
@@ -2383,8 +2444,10 @@
         "MGARD",
         "nodal hierarchy"
       ],
-      "description": "In-place MGARD multigrid transform with no quantization policy attached; also supplies the level-count policy and the per-level error-bound constants.",
-      "used_by": []
+      "used_by": [],
+      "best_for": "In-place MGARD multigrid transform with no quantization policy attached; also supplies the level-count policy and the per-level error-bound constants.",
+      "data_examples": [],
+      "references": []
     },
     {
       "id": "PreFilter",
@@ -2453,8 +2516,10 @@
         "conditioner",
         "SPERR"
       ],
-      "description": "SPERR's conditioner and CDF9/7 wavelet transform as a standalone preprocessor; the forward and inverse stages stay separable because outlier corrections apply in the conditioned domain.",
-      "used_by": []
+      "used_by": [],
+      "best_for": "SPERR's conditioner and CDF9/7 wavelet transform as a standalone preprocessor; the forward and inverse stages stay separable because outlier corrections apply in the conditioned domain.",
+      "data_examples": [],
+      "references": []
     },
     {
       "id": "Transpose",
@@ -2574,7 +2639,11 @@
           "year": 2006,
           "evidence": "fpzip showed that mantissa-bit truncation followed by entropy coding (the pattern BitTruncationQuantizer enables) is a viable fast-lossy strategy on Miranda and Hurricane ISABEL with 1.4x-15x lossless reductions."
         }
-      ]
+      ],
+      "composition": {
+        "out_range": "none (reports 0)",
+        "notes": "Bins are raw IEEE-754 bit patterns as uint64_t; no encoder can size a dense state table from them."
+      }
     },
     {
       "id": "ClusterQuantizer",
@@ -2602,8 +2671,10 @@
         "NUMARCK",
         "discrete levels"
       ],
-      "description": "Codebook quantizer over a uniform lattice of levels, for data that clusters around a few discrete values. derive_cluster_levels() builds the codebook; bin 0 stores anything outside the bound verbatim.",
-      "used_by": []
+      "used_by": [],
+      "best_for": "Codebook quantizer over a uniform lattice of levels, for data that clusters around a few discrete values. derive_cluster_levels() builds the codebook; bin 0 stores anything outside the bound verbatim.",
+      "data_examples": [],
+      "references": []
     },
     {
       "id": "FixedPointQuantizer",
@@ -2644,6 +2715,41 @@
           "evidence": "FAZ uses fixed-point integer representations to compose interpolation with wavelet stages deterministically (the use case FixedPointQuantizer targets); CR up to 120% over the second-best at the same error bound."
         }
       ]
+    },
+    {
+      "id": "GranularBitRoundQuantizer",
+      "name": "Granular BitRound Quantizer (Bit Grooming)",
+      "category": "quantizer",
+      "header": "include/SZ3/quantizer/GranularBitRoundQuantizer.hpp",
+      "pipeline": {
+        "decomposition": "(any)",
+        "quantizer": "GranularBitRoundQuantizer",
+        "encoder": "(any)",
+        "lossless": "(any)"
+      },
+      "supported_dims": [],
+      "supported_dtypes": [
+        "float",
+        "double"
+      ],
+      "error_modes": [
+        "REL"
+      ],
+      "keywords": [
+        "bit grooming",
+        "significant digits",
+        "NetCDF",
+        "NCO",
+        "granular bitround"
+      ],
+      "best_for": "Keeps nsd significant decimal digits by rounding away the redundant low mantissa bits of each value; the retained bit count is recomputed per value from its magnitude. Suited to: keeping a fixed number of significant decimal digits.",
+      "data_examples": [],
+      "references": [],
+      "used_by": [],
+      "composition": {
+        "out_range": "none (reports 0)",
+        "notes": "Bins are rounded IEEE-754 bit patterns as uint64_t; no encoder can size a dense state table from them."
+      }
     },
     {
       "id": "LevelQuantizer",
@@ -2772,8 +2878,10 @@
         "NUMARCK",
         "pointwise relative"
       ],
-      "description": "Quantizes ln|x| on a uniform grid, giving a pointwise relative error bound. Ignores pred: it encodes the value, not a residual.",
-      "used_by": []
+      "used_by": [],
+      "best_for": "Quantizes ln|x| on a uniform grid, giving a pointwise relative error bound. Ignores pred: it encodes the value, not a residual.",
+      "data_examples": [],
+      "references": []
     },
     {
       "id": "OutlierQuantizer",
@@ -2800,10 +2908,16 @@
         "correction",
         "SPERR"
       ],
-      "description": "Sparse second-pass quantizer for values a lossy stage failed to represent; records a quantized correction in its own serialized state rather than in the bin stream.",
       "used_by": [
         "SPERRDecomposition"
-      ]
+      ],
+      "composition": {
+        "out_range": "signed (does not start at 0)",
+        "notes": "Inner quantizer only; SZGenericCompressor rejects it as a top-level quantizer because its bins go negative."
+      },
+      "best_for": "Sparse second-pass quantizer for values a lossy stage failed to represent; records a quantized correction in its own serialized state rather than in the bin stream.",
+      "data_examples": [],
+      "references": []
     },
     {
       "id": "ScalarQuantizer",
@@ -2849,7 +2963,11 @@
           "year": 2023,
           "evidence": "The paper for the SPERR code vendored under include/SZ3/utils/thirdparty/sperr (release v0.8.4, cited by its NOTICE file). It defines the CDF 9/7 transform, conditioner, SPECK coefficient coding and the outlier-correction pass that recovers a point-wise error bound."
         }
-      ]
+      ],
+      "composition": {
+        "out_range": "signed (does not start at 0)",
+        "notes": "Inner quantizer only, used by the SPERR compositions."
+      }
     }
   ]
 }

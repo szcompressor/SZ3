@@ -22,7 +22,7 @@ import tempfile
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 INCLUDE = REPO / "include"
-SKIP_DIRS = {"thirdparty"}
+SKIP_DIRS = {"thirdparty", "testing"}  # testing/ needs GoogleTest, which the library does not depend on
 
 
 def find_include_dirs(build_dir):

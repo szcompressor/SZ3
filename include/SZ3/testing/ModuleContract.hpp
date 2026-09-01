@@ -1,6 +1,10 @@
 /**
  * @file ModuleContract.hpp
+ * @ingroup Testing
  * @brief Group-level acceptance checks every module must pass to enter the FZ module library.
+ *
+ * Installed with the library so a module developed outside this tree can run the same gate. It
+ * needs GoogleTest; nothing else in SZ3 includes it.
  *
  * A module's own test file adds whatever behaviour is specific to it. This header holds the
  * checks that apply to *every* module in a group, so a new module gets them in one line:
