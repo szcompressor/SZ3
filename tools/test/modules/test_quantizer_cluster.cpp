@@ -21,7 +21,6 @@
 
 /// Slack for the comparison itself: the bound is computed with a different rounding
 /// path than the quantizer uses, and ties-to-even can land exactly on the bound.
-static constexpr double kBoundSlack = 1.0 + 1e-9;
 
 // ---------------------------------------------------------------------------
 // GranularBitRoundQuantizer

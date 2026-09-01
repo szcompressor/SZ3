@@ -228,8 +228,6 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
         }
     }
 
-    block_iterator block_iter(size_t block_size) { return block_iterator(this->shared_from_this(), block_size); }
-
     /**
      * @brief The block's values in unpadded layout.
      *
@@ -246,6 +244,9 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
         copy_data_with_padding(unpadded_buffer.data(), ds, data_padding, ds_padding, dims);
         return unpadded_buffer.data();
     }
+
+    block_iterator block_iter(size_t block_size) { return block_iterator(this->shared_from_this(), block_size); }
+
 
    protected:
     ALWAYS_INLINE T *dataptr() { return data_padding; }

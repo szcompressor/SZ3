@@ -27,6 +27,8 @@ class RunlengthEncoder : public concepts::EncoderInterface<T> {
    public:
     void preprocess_encode(const std::vector<T> &bins, int stateNum) override { num_bins = bins.size(); }
 
+    size_t size_est() override { return num_bins * (sizeof(T) + sizeof(int)); }
+
     size_t encode(const std::vector<T> &bins, uchar *&bytes) override {
         auto bytespos = bytes;
         int max = 0;
@@ -55,7 +57,6 @@ class RunlengthEncoder : public concepts::EncoderInterface<T> {
      * repeats has one run per element. Without this the caller under-allocates and
      * encode() overruns its buffer on high-run data.
      */
-    size_t size_est() override { return num_bins * (sizeof(T) + sizeof(int)); }
 
     void preprocess_decode() override {}
 

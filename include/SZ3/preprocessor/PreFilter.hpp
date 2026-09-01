@@ -6,6 +6,7 @@
 #ifndef SZ3_PREFILTER_HPP
 #define SZ3_PREFILTER_HPP
 
+#include <array>
 #include <cstddef>
 #include <vector>
 

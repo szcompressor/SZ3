@@ -164,6 +164,8 @@ void process_data(SZ3::Config& conf, void** buf, size_t* buf_size, size_t nbytes
         // bound assumes the payload fits in the raw size, so keep headroom on top of it for
         // algorithms whose output can approach or exceed it -- ALGO_BIOMDXTC pairs its codec with
         // Lossless_bypass, so nothing shrinks the payload.
+        // bound assumes the payload fits in the raw size, so keep the old headroom on top of it
+        // for algorithms whose output can approach or exceed it.
         size_t cmpCap = std::max(SZ3::SZ_compress_size_bound<T>(conf), sizeof(T) * conf.num * 2);
         char* cmpData = static_cast<char*>(malloc(cmpCap));
         *buf_size = SZ_compress(conf, static_cast<T*>(*buf), cmpData, cmpCap);
