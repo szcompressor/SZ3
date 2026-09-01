@@ -145,7 +145,10 @@ def main():
     # Build the project
     os.makedirs(build_dir, exist_ok=True)
     subprocess.run(["cmake", project_source_dir, "-DBUILD_H5Z_FILTER=ON"], cwd=build_dir, check=True)
-    subprocess.run(["cmake", "--build", ".", "--", "-j"], cwd=build_dir, check=True)
+    # Bound the parallelism: a bare "-j" means unlimited, which on a 15 GB runner compiling this
+    # tree's template-heavy headers (MGARD, SPERR, Eigen) peaks hard enough at link time to get the
+    # runner killed -- hacc died there three times with exit 143 and no error of its own.
+    subprocess.run(["cmake", "--build", ".", "--parallel", str(os.cpu_count() or 2)], cwd=build_dir, check=True)
     sz3_executable_path = os.path.join(build_dir, "tools", "sz3")
     h5_plugin_path = os.path.join(build_dir, "tools", "H5Z-SZ3")
 
