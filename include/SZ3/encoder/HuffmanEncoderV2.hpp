@@ -1037,6 +1037,13 @@ private:
     void loadAsDFSOrder(const uchar*& bytes, size_t& remaining_length) {
         tree.init();
 
+        // The serialized tree is a fixed-size header followed by a DFS bitstream, and must fit in
+        // remaining_length. Bound every read so corrupted input can not read past the end of the buffer or
+        // allocate an untrusted amount.
+        const uchar* const tree_start = bytes;
+        const size_t header_size = 1 + sizeof(T) + 2 * sizeof(size_t);
+        if (remaining_length < header_size) throw std::out_of_range("SZ3 HuffmanEncoderV2: truncated tree header");
+
         tree.usemp = (*bytes) >> 7;
         tree.mbft = (*bytes) & 0x3f;
         ++bytes;
@@ -1048,17 +1055,35 @@ private:
 
         tree.n = bytesToInt64_bigEndian(bytes);
         bytes += sizeof(size_t);
-        tree.ht.reserve(tree.n << 1);
 
-        
         tree.maxval = bytesToInt64_bigEndian(bytes);
         bytes += sizeof(size_t);
+
+        // The DFS bitstream follows the header; each of the tree.n nodes consumes at least one bit, so the
+        // node count can not exceed the available bits. This also avoids the tree.n << 1 overflow below.
+        // tree.n is an int holding a value read as 64-bit, so check the sign explicitly rather than letting
+        // the comparison convert it.
+        const size_t dfs_bytes = remaining_length - header_size;
+        if (tree.n < 0 || static_cast<size_t>(tree.n) > dfs_bytes * 8)
+            throw std::out_of_range("SZ3 HuffmanEncoderV2: node count exceeds the compressed buffer");
+        tree.ht.reserve(static_cast<size_t>(tree.n) << 1);
+
         if (tree.usemp == 0x00) {
+            // maxval comes from the stream and sizes the dense tables below. preprocess_encode only leaves
+            // usemp == 0 when maxval stays under 1 << 28, so a larger value in a dense tree is inconsistent
+            // and would otherwise drive an unbounded allocation.
+            const int64_t maxval_span = static_cast<int64_t>(tree.maxval);
+            if (maxval_span < 0 || maxval_span >= (1ll << 28)) {
+                throw std::out_of_range("SZ3 HuffmanEncoderV2: dense tree declares an out-of-range value span");
+            }
             if (tree.n > 0) {
                 tree.veccode.resize(tree.maxval);
                 tree.veclen.resize(tree.maxval);
             }
         }
+
+        // The fixed-size header has now been consumed on every path below.
+        remaining_length -= header_size;
 
         if (tree.n == 0) {
             tree.setConstructed();
@@ -1090,6 +1115,8 @@ private:
         while (!stk.empty()) {
             Node* u = stk.top();
 
+            if (static_cast<size_t>(i >> 3) >= dfs_bytes)
+                throw std::out_of_range("SZ3 HuffmanEncoderV2: tree bitstream exceeds the compressed buffer");
             if (readBit(bytes, i++) == 0x00) {
                 tree.ht.push_back(Node());
                 if (u->p[0] == nullptr) {
@@ -1100,7 +1127,11 @@ private:
                 stk.push(&tree.ht[tree.ht.size() - 1]);
             } else {
                 T c = 0;
-                for (int j = 0; j < tree.mbft; j++) c |= static_cast<T>(readBit(bytes, i++)) << j;
+                for (int j = 0; j < tree.mbft; j++) {
+                    if (static_cast<size_t>(i >> 3) >= dfs_bytes)
+                        throw std::out_of_range("SZ3 HuffmanEncoderV2: tree bitstream exceeds the compressed buffer");
+                    c |= static_cast<T>(readBit(bytes, i++)) << j;
+                }
                 tree.ht.push_back(Node(c));
                 if (u->p[0] == nullptr)
                     u->p[0] = &tree.ht[tree.ht.size() - 1];
@@ -1118,6 +1149,10 @@ private:
         }
 
         bytes += (i + 7) >> 3;
+
+        // Consume the DFS bitstream from the caller's remaining length (the header was already subtracted
+        // above; the original code advanced the pointer but never decremented remaining_length).
+        remaining_length -= static_cast<size_t>(bytes - tree_start) - header_size;
 
         if (tree.usemp) {
             tree.dfs_mp(&tree.ht[tree.root]);

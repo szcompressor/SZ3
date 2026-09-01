@@ -12,7 +12,9 @@ namespace SZ3 {
 template <class T>
 class RunlengthEncoder : public concepts::EncoderInterface<T> {
    public:
-    void preprocess_encode(const std::vector<T> &bins, int stateNum) override {}
+    void preprocess_encode(const std::vector<T> &bins, int stateNum) override { num_bins = bins.size(); }
+
+    size_t size_est() override { return num_bins * (sizeof(T) + sizeof(int)); }
 
     size_t encode(const std::vector<T> &bins, uchar *&bytes) override {
         auto bytespos = bytes;
@@ -60,6 +62,8 @@ class RunlengthEncoder : public concepts::EncoderInterface<T> {
     void save(uchar *&c) override {}
 
     void load(const uchar *&c, size_t &remaining_length) override {}
+
+    size_t num_bins = 0;  ///< Set by preprocess_encode(), consumed by size_est()
 };
 }  // namespace SZ3
 #endif

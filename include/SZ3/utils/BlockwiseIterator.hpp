@@ -4,11 +4,14 @@
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <numeric>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
+
+#include "SZ3/def.hpp"
 
 namespace SZ3 {
 
@@ -219,6 +222,23 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
         }
     }
 
+    /**
+     * @brief The block's values in unpadded layout.
+     *
+     * Without padding this is the array this object was constructed from. With padding it is an
+     * internal copy, materialized on the first call and valid until this object is destroyed.
+     *
+     * @return Pointer to `num` elements
+     */
+    const T *values() {
+        if (padding == 0 || internal_buffer.empty()) {
+            return data_padding;
+        }
+        unpadded_buffer.resize(num);
+        copy_data_with_padding(unpadded_buffer.data(), ds, data_padding, ds_padding, dims);
+        return unpadded_buffer.data();
+    }
+
     block_iterator block_iter(size_t block_size) { return block_iterator(this->shared_from_this(), block_size); }
 
    protected:
@@ -273,6 +293,7 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
     std::array<size_t, N> dims;            // dimension
     std::array<size_t, N> ds, ds_padding;  // stride
     std::vector<T> internal_buffer;
+    std::vector<T> unpadded_buffer;  // materialized on demand by values()
     T *data_cp_dst = nullptr;
     T *data_padding;  // point to either data_ or internal_buffer depending on padding
     size_t padding;
