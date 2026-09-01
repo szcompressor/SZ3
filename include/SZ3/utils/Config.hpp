@@ -400,7 +400,6 @@ class Config {
      *
      * @param c Pointer to the byte array.
      */
-    // Legacy overload for trusted internal callers (e.g. the OpenMP path).
     /// Overload for a config that is not a compressed-stream trailer: the OpenMP path, and the HDF5
     /// filter's `cd_values`, which carries placeholder dimensions that `set_local` fills in later
     /// (see tools/H5Z-SZ3/test/cdvalueHelper.py). Neither bounds the read nor validates the contents.
@@ -426,8 +425,7 @@ class Config {
 
         require(sizeof(N));
         read(N, c);
-        if (validate && (N < 1 || N > 4))
-            throw std::out_of_range("SZ3 Config::load: invalid number of dimensions");
+        if (validate && (N < 1 || N > 4)) throw std::out_of_range("SZ3 Config::load: invalid number of dimensions");
         uint8_t bitWidth;
         require(sizeof(bitWidth));
         read(bitWidth, c);
