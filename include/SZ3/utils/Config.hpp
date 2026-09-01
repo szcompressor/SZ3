@@ -360,12 +360,16 @@ class Config {
      *
      * @param c Pointer to the byte array.
      */
-    // Legacy overload for trusted internal callers (e.g. the OpenMP path).
-    void load(const unsigned char*& c) { load(c, std::numeric_limits<size_t>::max()); }
+    /// Overload for a config that is not a compressed-stream trailer: the OpenMP path, and the HDF5
+    /// filter's `cd_values`, which carries placeholder dimensions that `set_local` fills in later
+    /// (see tools/H5Z-SZ3/test/cdvalueHelper.py). Neither bounds the read nor validates the contents.
+    void load(const unsigned char*& c) { load(c, std::numeric_limits<size_t>::max(), false); }
 
     // `cmpSize` bounds how many bytes may be read from `c` (the config blob). Used when loading
     // from untrusted compressed data so a corrupted config cannot read out of bounds.
-    void load(const unsigned char*& c, size_t cmpSize) {
+    /// @param validate Reject dimensions that no compressed stream can legitimately carry. Only a
+    ///                  stream trailer is validated; see the single-argument overload.
+    void load(const unsigned char*& c, size_t cmpSize, bool validate = true) {
         const unsigned char* const c0 = c;
         auto require = [&](size_t n) {
             if (cmpSize - static_cast<size_t>(c - c0) < n)
@@ -381,7 +385,7 @@ class Config {
 
         require(sizeof(N));
         read(N, c);
-        if (N < 1 || N > 4) throw std::out_of_range("SZ3 Config::load: invalid number of dimensions");
+        if (validate && (N < 1 || N > 4)) throw std::out_of_range("SZ3 Config::load: invalid number of dimensions");
         uint8_t bitWidth;
         require(sizeof(bitWidth));
         read(bitWidth, c);
@@ -393,7 +397,7 @@ class Config {
         /// The element count must equal the product of the dimensions, otherwise the predictor would
         /// iterate over more grid positions than were allocated for the decompressed data. Validate
         /// the product with an overflow check.
-        {
+        if (validate) {
             size_t dims_product = 1;
             bool dims_ok = true;
             for (size_t dim : dims) {
