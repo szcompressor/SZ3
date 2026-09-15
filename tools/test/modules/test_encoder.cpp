@@ -13,10 +13,8 @@
 #include "SZ3/encoder/BitshuffleEncoder.hpp"
 #include "SZ3/encoder/SPERREncoder.hpp"
 #include "SZ3/encoder/XtcBasedEncoder.hpp"
-// NOTE: SZ3/encoder/ZFPEncoder.hpp is currently UNCOMPILABLE in isolation:
-// it references `ZFP::IntCodec04<...>` but does not include
-// `intcodec04.h`. Including it here breaks this whole TU. Skipped until
-// the upstream header is fixed; documented in coverage matrix.
+// ZFPEncoder is covered by test_zfp.cpp instead: it accepts only ZFPDecomposition's layout,
+// so the generic round trip below cannot drive it.
 #include "gtest/gtest.h"
 
 template <typename Encoder, typename T>
