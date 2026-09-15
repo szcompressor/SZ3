@@ -101,7 +101,7 @@ include/SZ3/
   utils/thirdparty/       # bundled SOTA: sperr/, mgard/, zfp/, ska_hash/
 tools/
   sz3/                    # main CLI (sz3.cpp, sz3.config, testfloat_8_8_128.dat)
-  sz3/demo/               # standalone demos (zfp_demo, sz3_customized_demo)
+  sz3/demo/               # standalone demo (sz3_customized_demo)
   sz3c/                   # C API wrapper (SZ2-compatible)
   pysz/                   # Python (Cython) bindings
   H5Z-SZ3/                # HDF5 filter
@@ -142,7 +142,7 @@ Concise checklist for adding a new ALGO:
 |---|---|---|
 | `sperr/` | SPERR project | `SPERRDecomposition`, `SPERREncoder` |
 | `mgard/` | MGARDx (lightweight portable) | `MGARDDecomposition` |
-| `zfp/` | LLNL ZFP | `ZFPDecomposition`, `ZFPEncoder` |
+| `zfp/` | LLNL zfp 1.0.1 (CODEC 5) | `ZFPDecomposition`, `ZFPEncoder` |
 | `ska_hash/` | skarupke flat_hash_map | shared utility |
 
 ## Compressed format

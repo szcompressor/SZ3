@@ -1,56 +1,57 @@
 zfp -- vendored into SZ3
 ========================
 
-Upstream:  https://github.com/LLNL/zfp, release 0.3.1 (the C++ template headers
-           from inc/)
-License:   BSD-3-Clause (see the LICENSE file in this directory)
+Upstream:  https://github.com/LLNL/zfp, release 1.0.1 (CODEC 5)
+License:   BSD-3-Clause (see LICENSE in this directory)
 
-The files in this directory have been MODIFIED from the upstream sources listed
-above, to modularize the codec for use as an SZ3 pipeline stage
-(`ZFPDecomposition`, `ZFPEncoder`). BSD-3-Clause imposes no modification-notice
-requirement; this file is provided so that maintainers upgrading the bundled
-copy know what was changed and why.
+Vendored: the macro-templated block codec (src/template/), the bitstream, and the headers
+those need, in upstream's own directory layout. Not taken: the array classes, the C API,
+the execution policies, the GPU backends -- SZ3 drives the block codec directly, via
+zfp_codec.hpp.
 
-Vendored files (14), all from upstream `inc/`:
+Changes to upstream files
+-------------------------
 
-    bitstream.h     fixedpoint32.h  fixedpoint64.h  intcodec.h
-    intcodec04.h    intcodec16.h    intcodec64.h    intrinsics.h
-    types.h         zfpcodec.h      zfpcodec1.h     zfpcodec2.h
-    zfpcodec3.h     zfptransform.h
+1. Three include directives were made relative: zfp/bitstream.h names internal/zfp/types.h
+   and internal/zfp/system.h, zfp/bitstream.inl names bitstream.h. Upstream writes them
+   against its own include root, which SZ3 does not put on the include path.
 
-Modifications made by the SZ3 project:
+2. Six include guards gained an SZ3_ prefix, so SZ3 and an installed zfp can be used
+   together: ZFP_TYPES_H, ZFP_BITSTREAM_H, ZFP_INLINE_H, ZFP_MACROS_H and ZFP_SYSTEM_H
+   became SZ3_ZFP_ZFP_*, and TEMPLATE_H became SZ3_ZFP_TEMPLATE_H.
 
-1. Namespace change (all 14 files). `namespace ZFP` re-wrapped as
-   `namespace SZ3::ZFP`, so that SZ3 can be linked alongside an independent
-   build of upstream zfp without symbol collisions.
+3. zfp/bitstream.h gained `struct bitstream;` before the typedef of the same name. This
+   header is included inside a namespace, where that typedef would otherwise alias an
+   enclosing-scope `bitstream` -- such as an installed zfp's -- and then collide with it.
 
-2. Access control (`zfpcodec1.h`, `zfpcodec2.h`, `zfpcodec3.h`). The `protected:`
-   section of each codec class was changed to `public:`, so that SZ3's
-   decomposition and encoder modules can drive the codec internals directly
-   rather than through upstream's single-shot compression entry points. This is
-   the change that makes the codec usable as a composable pipeline stage.
+4. zfp/bitstream.h has `extern_ const size_t stream_word_bits;` commented out. Upstream
+   defines it in bitstream.c, which is not vendored; `extern_` is `extern "C"`, so the
+   declaration escaped the namespace and would bind to an installed libzfp. Unused here.
 
-3. Portability (`intrinsics.h`). The fallback `lrint` guard was narrowed from
-   `#ifndef HAVE_C99_MATH` to
-   `#if defined(_MSC_VER) && _MSC_VER < 1800 && !defined(HAVE_C99_MATH)`, so the
-   fallback applies only to pre-VS2013 MSVC and does not shadow the standard
-   library on other toolchains.
+Nothing else was changed.
 
-4. Modernization (`bitstream.h`). `MemoryBitStream`'s member initializers use
-   `nullptr` instead of `0`, and one C-style cast was replaced with
-   `static_cast<uchar*>`.
+Things to know before upgrading
+-------------------------------
 
-5. Commented-out debug lines added (`intcodec04.h`, `intcodec64.h`,
-   `zfpcodec3.h`). Three inactive `// printf(...)` diagnostics. These have no
-   effect; they do not appear upstream.
+zfp_codec.hpp compensates for two upstream properties rather than editing the sources:
+it defines `inline_` before inline.h runs (upstream keys it off __STDC_VERSION__, which
+C++ never defines), and it puts each instantiation in an anonymous namespace (upstream's
+public block entry points are not static).
 
-6. Formatting (`zfpcodec1.h`). `precision()` reflowed across three lines.
+Three upstream behaviours differ from SZ3's contracts. All are zfp's own, and all reproduce
+in upstream's build; Config::absErrorBound is otherwise a hard guarantee in SZ3.
 
-`intcodec.h`, `intcodec16.h`, and `types.h` differ from upstream only by the
-namespace wrap of item 1.
+  - A block is coded against a single exponent, so the error bottoms out at about 2^-25 of
+    the block maximum for float and 2^-57 for double, whatever bound is asked. This is not
+    confined to blocks of wide dynamic range: a smooth order-1 float field stops improving
+    at 8.9e-8, so no bound below roughly 3e-8 is met. Nothing warns.
 
-Upstream files carry no per-file copyright notices of their own, so none were
-removed.
+  - Float data below about 2^-97 in magnitude misses a bound under about 4e-28: the scale
+    factor the block-floating-point cast forms overflows to infinity. Measured at 3x the
+    bound for 1e-30 data at a 1e-30 bound, upstream included.
 
-Citation: P. Lindstrom, "Fixed-Rate Compressed Floating-Point Arrays," IEEE
-TVCG 20(12), 2014.
+  - NaN and infinities are not preserved, and are not reported either: they come back as
+    finite numbers. Which numbers is target-dependent, since converting an out-of-range
+    float to an integer is undefined; on arm64, NaN as 0 and either infinity as -2.
+
+Citation: P. Lindstrom, "Fixed-Rate Compressed Floating-Point Arrays," IEEE TVCG 20(12), 2014.
