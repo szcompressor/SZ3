@@ -14,7 +14,6 @@
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
-#include <cstdlib>
 
 #include "SZ3/compressor/Compressor.hpp"
 #include "SZ3/decomposition/Decomposition.hpp"
@@ -22,8 +21,6 @@
 #include "SZ3/encoder/Encoder.hpp"
 #include "SZ3/lossless/Lossless.hpp"
 #include "SZ3/utils/Config.hpp"
-#include "SZ3/utils/FileUtil.hpp"
-#include "SZ3/utils/Timer.hpp"
 
 namespace SZ3 {
 

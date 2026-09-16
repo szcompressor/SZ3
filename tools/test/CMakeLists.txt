@@ -39,3 +39,7 @@ if (Python3_FOUND)
     add_test(NAME SZ3_ModulesJson
              COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/test/modules/test_modules_json.py)
 endif ()
+
+# Not a test: prints CR, error and throughput as CSV for a composition on a real dataset,
+# which has no pass/fail to assert. Built with the tests so it does not rot.
+add_subdirectory(bench)

@@ -8,7 +8,6 @@
 
 #include <cmath>
 #include <cstring>
-#include <memory>
 #include <stdexcept>
 
 #include "Decomposition.hpp"
@@ -46,11 +45,8 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
     }
 
     T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) override {
-        // `original_dimensions` was read from the (untrusted) compressed payload by `load`, separately from the
-        // trusted `conf.dims`. It drives the size of the grid walked over `dec_data` below (and the number of
-        // `quant_inds` consumed), so a tampered value larger than the trusted configuration would read and
-        // write past the end of both buffers, which are sized for `conf.num` elements (== product of conf.dims).
-        // Require it to match the trusted configuration dimensions before using it for anything.
+        // load() read original_dimensions from the payload, and the grid walk below is sized by it while
+        // dec_data and quant_inds are sized by conf. A tampered value runs off both.
         if (conf.dims.size() != N) {
             throw std::out_of_range("SZ3 interpolation: configuration dimension count does not match the data");
         }

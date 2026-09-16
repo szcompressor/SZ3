@@ -15,10 +15,8 @@
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
-
 #include "SZ3/def.hpp"
 
-#include "SZ3/def.hpp"
 
 namespace SZ3 {
 
@@ -244,7 +242,6 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
     }
 
     block_iterator block_iter(size_t block_size) { return block_iterator(this->shared_from_this(), block_size); }
-
 
    protected:
     ALWAYS_INLINE T *dataptr() { return data_padding; }

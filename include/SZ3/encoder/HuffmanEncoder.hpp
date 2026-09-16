@@ -11,18 +11,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <limits>
-
-#include "SZ3/def.hpp"
-#include "SZ3/encoder/Encoder.hpp"
-#include "SZ3/utils/ByteUtil.hpp"
-#include "SZ3/utils/Collections.hpp"
-#include "SZ3/utils/MemoryUtil.hpp"
-#include <cassert>
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <iostream>
 #include <limits>
 #include <map>
@@ -35,6 +23,7 @@
 #include "SZ3/utils/ByteUtil.hpp"
 #include "SZ3/utils/Collections.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
+
 #include "SZ3/utils/Timer.hpp"
 
 namespace SZ3 {
@@ -270,14 +259,12 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         const size_t maxBits = targetLength > 0 ? encodedLength * 8 : 0;
         for (i = 0; i < maxBits; i++) {
             byteIndex = i >> 3;  // i/8
-            if (byteIndex >= encodedLength) throw std::out_of_range("SZ3 Huffman: corrupted encoded stream");
             r = i % 8;
             if (((bytes[byteIndex] >> (7 - r)) & 0x01) == 0)
                 n = n->left;
             else
                 n = n->right;
 
-            if (n == nullptr) throw std::out_of_range("SZ3 Huffman: corrupted tree");
 
             if (n->t) {
                 out[count] = n->c + offset;
@@ -325,10 +312,6 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         loaded = true;
     }
 
-    /// Bound the encoded stream `decode()` is about to read. A caller that lays the tree and the stream
-    /// out contiguously calls this with the bytes left after the tree (and after any field it writes in
-    /// between), which makes decode() reject a corrupted length instead of reading past the buffer.
-
     bool isLoaded() const { return loaded; }
 
    private:
@@ -337,9 +320,6 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     unsigned int nodeCount = 0;
     uchar sysEndianType;  // 0: little endian, 1: big endian
     bool loaded = false;
-    /// Bytes the encoded stream may read, or SIZE_MAX when no caller supplied a bound. load() does not
-    /// set it: the tree and the encoded stream are not required to live in the same buffer (see
-    /// tools/test/modules/test_encoder.cpp), so only a caller that knows the layout can bound the stream.
     T offset;
 
     node reconstruct_HuffTree_from_bytes_anyStates(const unsigned char *bytes, uint nodeCount) {

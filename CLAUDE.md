@@ -68,7 +68,6 @@ cmake --build . --target sz3 -j$(nproc)
 | `BUILD_TESTING` | OFF | GTest unit tests under `tools/test/modules/` |
 | `BUILD_H5Z_FILTER` | OFF | HDF5 filter plugin |
 | `BUILD_MDZ` | OFF | Molecular-dynamics CLI |
-| `BUILD_SZ3_BENCH` | OFF | `tools/bench/module_bench` — measures a composition's CR, error and throughput on a dataset (CSV) |
 | `SZ3_DEBUG_TIMINGS` | OFF | Print per-stage timings |
 | `SZ3_USE_BUNDLED_ZSTD` | OFF (ON for MSVC) | Bundled Zstd vs system |
 
