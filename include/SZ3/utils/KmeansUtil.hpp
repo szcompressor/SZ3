@@ -305,7 +305,7 @@ void get_cluster(T *data, size_t num, float &level_start, float &level_offset, i
         //            sample[i] = input[input_idx];
         //        }
         //        std::cout << std::endl;
-        std::uniform_int_distribution<> dis2(0, static_cast<int>(num) - 1);  // inclusive upper bound
+        std::uniform_int_distribution<> dis2(0, static_cast<int>(num) - 1);
         std::unordered_set<size_t> sampledkeys;
         //            printf("total_num=%lu, sample_num=%lu\n", num, sample_num);
         for (size_t i = 0; i < sample_num; i++) {

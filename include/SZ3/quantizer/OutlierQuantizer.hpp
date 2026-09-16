@@ -218,7 +218,7 @@ class OutlierQuantizer : public concepts::QuantizerInterface<Ti, To> {
     }
 
     /// Serialized size of `save()`.
-    size_t size_est() const {
+    size_t size_est() const override {
         return sizeof(uchar) + sizeof(double) + sizeof(size_t) + corrections_.size() * (sizeof(size_t) + sizeof(To));
     }
 

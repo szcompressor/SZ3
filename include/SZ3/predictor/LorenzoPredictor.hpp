@@ -7,10 +7,9 @@
 #define SZ3_LORENZO_PREDICTOR_HPP
 
 #include <iostream>
-
-#include "SZ3/predictor/Predictor.hpp"
 #include <limits>
 
+#include "SZ3/predictor/Predictor.hpp"
 
 namespace SZ3 {
 

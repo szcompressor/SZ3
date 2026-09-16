@@ -115,7 +115,7 @@ public:
         return 0;
     }
 
-    size_t size_est() { return unpred.size() * sizeof(T); }
+    size_t size_est() const override { return unpred.size() * sizeof(T); }
 
     void save(unsigned char*& c) const override {
         write(uid, c);

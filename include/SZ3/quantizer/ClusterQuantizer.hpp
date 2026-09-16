@@ -289,7 +289,7 @@ class ClusterQuantizer : public concepts::QuantizerInterface<T, int> {
     std::pair<int, int> get_out_range() const override { return std::make_pair(0, level_num_ + 1); }
 
     /// @brief Estimated serialized size of the unpredictable payload, in bytes.
-    size_t size_est() const { return unpred_.size() * sizeof(T); }
+    size_t size_est() const override { return unpred_.size() * sizeof(T); }
 
     /**
      * @brief Serialize the codebook, the error bound and the unpredictable list.

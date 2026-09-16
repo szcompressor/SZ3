@@ -250,7 +250,7 @@ class LevelQuantizer : public concepts::QuantizerInterface<T, int> {
      * @brief Estimated serialized size of the unpredictable buffer, in bytes.
      * @return size_t Byte count.
      */
-    size_t size_est() const { return unpred.size() * sizeof(T); }
+    size_t size_est() const override { return unpred.size() * sizeof(T); }
 
     /**
      * @brief Number of values currently on the unpredictable path.

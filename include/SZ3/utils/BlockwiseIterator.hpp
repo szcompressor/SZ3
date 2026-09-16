@@ -17,7 +17,6 @@
 #include <vector>
 #include "SZ3/def.hpp"
 
-
 namespace SZ3 {
 
 

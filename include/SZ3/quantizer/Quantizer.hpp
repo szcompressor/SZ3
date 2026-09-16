@@ -22,7 +22,7 @@ namespace SZ3::concepts {
 template <class Ti, class To>
 class QuantizerInterface {
    public:
-    /// The integer bin type this quantizer emits.
+    /// The bin type this quantizer emits.
     using bin_type = To;
 
     virtual ~QuantizerInterface() = default;

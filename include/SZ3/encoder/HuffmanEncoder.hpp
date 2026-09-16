@@ -23,7 +23,6 @@
 #include "SZ3/utils/ByteUtil.hpp"
 #include "SZ3/utils/Collections.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
-
 #include "SZ3/utils/Timer.hpp"
 
 namespace SZ3 {
@@ -264,7 +263,6 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                 n = n->left;
             else
                 n = n->right;
-
 
             if (n->t) {
                 out[count] = n->c + offset;
