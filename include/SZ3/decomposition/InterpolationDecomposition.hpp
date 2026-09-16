@@ -26,8 +26,22 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
     }
 
     T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) override {
+        // load() read original_dimensions from the payload, and the grid walk below is sized by it while
+        // dec_data and quant_inds are sized by conf. A tampered value runs off both.
+        if (conf.dims.size() != N) {
+            throw std::out_of_range("SZ3 interpolation: configuration dimension count does not match the data");
+        }
+        for (uint i = 0; i < N; i++) {
+            if (original_dimensions[i] != conf.dims[i]) {
+                throw std::out_of_range("SZ3 interpolation: stored dimensions do not match the trusted configuration");
+            }
+        }
+
         init();
 
+        if (quant_inds.size() < num_elements) {
+            throw std::out_of_range("SZ3 interpolation: fewer bins than the grid consumes");
+        }
         this->quant_inds = quant_inds.data();
         double eb = quantizer.get_eb();
 
@@ -146,6 +160,11 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         quantizer.set_eb(eb);
         quantizer.postcompress_data();
         return quant_inds_vec;
+    }
+
+    size_t size_est() override {
+        return sizeof(original_dimensions) + sizeof(blocksize) + sizeof(interp_id) + sizeof(direction_sequence_id) +
+               quantizer.size_est() + 128;
     }
 
     void save(uchar *&c) override {

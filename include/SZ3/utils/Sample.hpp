@@ -5,7 +5,6 @@
 #include <vector>
 
 #include "SZ3/def.hpp"
-#include <vector>
 
 namespace SZ3 {
 template <class T, uint N>

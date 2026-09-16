@@ -38,11 +38,39 @@ class Lossless_zstd : public concepts::LosslessInterface {
     }
 
     size_t decompress(const uchar *src, const size_t srcLen, uchar *&dst, size_t &dstLen) override {
-        read(dstLen, src);
-        if (dst == nullptr) {
-            dst = static_cast<uchar *>(malloc(dstLen));
+        // The buffer is a decompressed-size field followed by the zstd stream, all untrusted.
+        if (srcLen < sizeof(dstLen)) {
+            throw std::out_of_range("SZ3 lossless: compressed data is smaller than the size header");
         }
-        return ZSTD_decompress(dst, dstLen, src, srcLen - sizeof(dstLen));
+        // ZSTD_decompress writes the declared size, so a caller that owns the buffer has to pass its
+        // capacity or that size can overrun it.
+        const size_t dst_capacity = dstLen;
+        read(dstLen, src);
+        if (dst_capacity != 0 && dstLen > dst_capacity) {
+            throw std::out_of_range("SZ3 lossless: declared decompressed size exceeds the allowed capacity");
+        }
+        // malloc because the caller frees it with free().
+        // owner holds it so a throw below frees it; dst is written only after every check passes.
+        std::unique_ptr<uchar, void (*)(void *)> owner(nullptr, &free);
+        uchar *out = dst;
+        if (out == nullptr) {
+            owner.reset(static_cast<uchar *>(malloc(dstLen)));
+            if (owner == nullptr) {
+                throw std::runtime_error("SZ3 lossless: can not allocate the decompression buffer");
+            }
+            out = owner.get();
+        }
+        size_t res = ZSTD_decompress(out, dstLen, src, srcLen - sizeof(dstLen));
+        if (ZSTD_isError(res)) {
+            throw std::runtime_error("SZ3 lossless: zstd decompression failed");
+        }
+        // A short frame would leave the tail of the output uninitialized for the caller to read.
+        if (res != dstLen) {
+            throw std::out_of_range("SZ3 lossless: decompressed size does not match the declared size");
+        }
+        dst = out;
+        owner.release();
+        return res;
     }
 
    private:

@@ -16,6 +16,7 @@
 #include "SZ3/utils/Timer.hpp"
 
 namespace SZ3 {
+
 /**
  * SZGenericCompressor glues together decomposition, encoder, and lossless modules to form the compressor.
  * It only takes Decomposition, not Predictor.
@@ -48,7 +49,10 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         size_t bufferSize = std::max<size_t>(
             1000, 2 * (decomposition.size_est() + encoder.size_est() + sizeof(T) * quant_inds.size()));
 
-        auto buffer = static_cast<uchar *>(malloc(bufferSize));
+        // Owned: the encoder and the lossless layer can throw and the caller continues, so a bare delete
+        // at the end leaks on every failed compression.
+        std::unique_ptr<uchar[]> buffer_owner(new uchar[bufferSize]);
+        uchar *const buffer = buffer_owner.get();
         uchar *buffer_pos = buffer;
 
         decomposition.save(buffer_pos);
@@ -60,7 +64,6 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         encoder.postprocess_encode();
         
         auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
-        free(buffer);
 
         return cmpSize;
     }
@@ -71,17 +74,26 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         size_t bufferSize = 0;
         lossless.decompress(cmpData, cmpSize, buffer, bufferSize);
 
+        // malloc'd by the lossless layer, hence the free() deleter. Owned because the parsing below is on
+        // untrusted data and can throw.
+        std::unique_ptr<uchar, void (*)(void *)> buffer_owner(buffer, &free);
+
         uchar const *bufferPos = buffer;
 
         decomposition.load(bufferPos, bufferSize);
         encoder.load(bufferPos, bufferSize);
 
         size_t quant_inds_size = 0;
-        read(quant_inds_size, bufferPos);
-        auto quant_inds = encoder.decode(bufferPos, quant_inds_size);
+        read(quant_inds_size, bufferPos, bufferSize);
+        // At most one bin per element, so conf.num is the ceiling for the count the stream declares.
+        if (quant_inds_size > conf.num) {
+            throw std::out_of_range("SZ3: declared bin count exceeds the configured element count");
+        }
+        auto quant_inds = encoder.decode(bufferPos, quant_inds_size, bufferSize);
         encoder.postprocess_decode();
 
-        free(buffer);
+        // The remaining work uses `quant_inds` and `decData` only, so release the internal buffer now.
+        buffer_owner.reset();
 
         decomposition.decompress(conf, quant_inds, decData);
         return decData;

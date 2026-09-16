@@ -10,8 +10,6 @@
 #include "SZ3/encoder/XtcBasedEncoder.hpp"
 #include "SZ3/lossless/Lossless_bypass.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
-#include "SZ3/encoder/HuffmanEncoderV2.hpp"
-#include "SZ3/encoder/HuffmanEncoder.hpp"
 #include "SZ3/quantizer/LinearQuantizer.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/Statistic.hpp"

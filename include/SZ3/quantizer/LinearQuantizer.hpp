@@ -28,7 +28,6 @@ public:
         assert(eb != 0);
     }
 
-
     double get_eb() const { return error_bound; }
 
     void set_eb(double eb) {
@@ -40,8 +39,11 @@ public:
 
     ALWAYS_INLINE int quantize_and_overwrite(T& data, T pred) override {
         T diff = data - pred;
-        auto quant_index = static_cast<int64_t>(fabs(diff) * this->error_bound_reciprocal) + 1;
-        if (quant_index < this->radius * 2) {
+        // NaN data makes this product NaN and infinities push it past the int64_t range; casting either is
+        // undefined, so the range test is in floating point. What is not representable falls through to unpred.
+        double scaled = fabs(diff) * this->error_bound_reciprocal;
+        if (scaled < this->radius * 2 - 1) {
+            int64_t quant_index = static_cast<int64_t>(scaled) + 1;
             quant_index >>= 1;
             int half_index = quant_index;
             quant_index <<= 1;
@@ -57,14 +59,10 @@ public:
             if (diff <= this->error_bound || (!strict_eb && diff <= this->error_bound * 1.1)) {
                 data = decompressed_data;
                 return quant_index_shifted;
-            } else {
-                unpred.push_back(data);
-                return 0;
             }
-        } else {
-            unpred.push_back(data);
-            return 0;
         }
+        unpred.push_back(data);
+        return 0;
     }
 
     // recover the data using the quantization index
@@ -77,10 +75,15 @@ public:
     }
 
     ALWAYS_INLINE T recover_pred(T pred, int quant_index) {
-        return pred + 2 * (quant_index - this->radius) * this->error_bound;
+        // quant_index comes from the stream; in int, 2 * (quant_index - radius) overflows past INT_MAX/2.
+        // Exact for every index a valid stream carries.
+        return pred + 2 * (static_cast<int64_t>(quant_index) - this->radius) * this->error_bound;
     }
 
-    ALWAYS_INLINE T recover_unpred() { return unpred[index++]; }
+    ALWAYS_INLINE T recover_unpred() {
+        if (index >= unpred.size()) throw std::out_of_range("SZ3: ran out of unpredictable values while decompressing");
+        return unpred[index++];
+    }
 
     ALWAYS_INLINE int force_save_unpred(T ori) override {
         unpred.push_back(ori);
@@ -112,6 +115,9 @@ public:
         size_t unpred_size = 0;
         read(unpred_size, c, remaining_length);
         if (unpred_size > 0) {
+            // resize() below is sized from the stream, so check the count against the bytes that exist first.
+            if (unpred_size > remaining_length / sizeof(T))
+                throw std::out_of_range("SZ3: unpredictable value count exceeds the compressed buffer");
             unpred.resize(unpred_size);
             read(unpred.data(), unpred_size, c, remaining_length);
         }

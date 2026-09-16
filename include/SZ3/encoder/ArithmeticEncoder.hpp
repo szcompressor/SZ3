@@ -518,7 +518,9 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
      * @param int *out (output) : the result (type array decompressed from the stream 's')
      *
      * */
-    std::vector<T> decode(const uchar *&bytes, size_t targetLength) override {
+    std::vector<T> decode(const uchar *&bytes, size_t targetLength, size_t &remaining_length) override {
+        // The reads below are not individually bounded; charge remaining_length for what they consume.
+        const uchar *decode_start = bytes;
         std::vector<T> out(targetLength);
 
         //        void ari_decode(AriCoder *ariCoder, unsigned char *s, size_t s_len, size_t targetLength, int *out) {
@@ -528,7 +530,7 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
         size_t total_frequency = ariCoder.total_frequency;
         const uchar *sp = bytes + 5;
         unsigned int offset = 4;
-        size_t value = (bytesToInt64_bigEndian(bytes) >> 20);  // alignment with the MAX_CODE
+        size_t value = (static_cast<uint64_t>(bytesToInt64_bigEndian(bytes)) >> 20);  // alignment with the MAX_CODE
         size_t s_counter = sizeof(int);
 
         for (i = 0; i < targetLength; i++) {
@@ -582,6 +584,7 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
             }
         }
         bytes += s_counter;
+        remaining_length -= static_cast<size_t>(bytes - decode_start);
         return out;
     }
 

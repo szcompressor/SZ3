@@ -12,7 +12,9 @@ namespace SZ3 {
 template <class T>
 class RunlengthEncoder : public concepts::EncoderInterface<T> {
    public:
-    void preprocess_encode(const std::vector<T> &bins, int stateNum) override {}
+    void preprocess_encode(const std::vector<T> &bins, int stateNum) override { num_bins = bins.size(); }
+
+    size_t size_est() override { return num_bins * (sizeof(T) + sizeof(int)); }
 
     size_t encode(const std::vector<T> &bins, uchar *&bytes) override {
         auto bytespos = bytes;
@@ -37,13 +39,20 @@ class RunlengthEncoder : public concepts::EncoderInterface<T> {
 
     void preprocess_decode() override {}
 
-    std::vector<T> decode(const uchar *&bytes, size_t targetLength) override {
+    std::vector<T> decode(const uchar *&bytes, size_t targetLength, size_t &remaining_length) override {
         std::vector<T> bins(targetLength, 0);
         T value;
         int cnt;
         for (size_t i = 0; i < bins.size();) {
+            if (remaining_length < sizeof(T) + sizeof(int)) {
+                throw std::out_of_range("SZ3 runlength encoder: ran out of input before the bins were filled");
+            }
+            remaining_length -= sizeof(T) + sizeof(int);
             read(value, bytes);
             read(cnt, bytes);
+            if (cnt < 0) {
+                throw std::out_of_range("SZ3 runlength encoder: negative run length");
+            }
             if (i + cnt > bins.size()) {
                 throw std::runtime_error("Decoded length exceeds targetLength");
             }
@@ -60,6 +69,8 @@ class RunlengthEncoder : public concepts::EncoderInterface<T> {
     void save(uchar *&c) override {}
 
     void load(const uchar *&c, size_t &remaining_length) override {}
+
+    size_t num_bins = 0;  ///< Set by preprocess_encode(), consumed by size_est()
 };
 }  // namespace SZ3
 #endif

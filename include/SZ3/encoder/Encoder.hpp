@@ -41,7 +41,7 @@ class EncoderInterface {
      * @param targetLength size of the output vector
      * @return output in vector
      */
-    virtual std::vector<T, TAllocator> decode(const uchar *&bytes, size_t targetLength) = 0;
+    virtual std::vector<T, TAllocator> decode(const uchar *&bytes, size_t targetLength, size_t &remaining_length) = 0;
 
     /**
      * serialize the encoder and store it to a buffer

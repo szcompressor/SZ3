@@ -28,7 +28,8 @@ class SZTruncateCompressor : public concepts::CompressorInterface<T> {
     }
 
     size_t compress(const Config &conf, T *data, uchar *cmpData, size_t cmpCap) override {
-        auto buffer = static_cast<uchar *>(malloc(conf.num * sizeof(T)));
+        std::unique_ptr<uchar[]> buffer_owner(new uchar[conf.num * sizeof(T)]);
+        uchar *const buffer = buffer_owner.get();
         auto buffer_pos = buffer;
 
         //            Timer timer(true);
@@ -36,7 +37,6 @@ class SZTruncateCompressor : public concepts::CompressorInterface<T> {
         //            timer.stop("Prediction & Quantization");
 
         auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
-        free(buffer);
         return cmpSize;
         //            lossless.postcompress_data(buffer);
         //            return lossless_data;

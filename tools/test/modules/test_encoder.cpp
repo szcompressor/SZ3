@@ -33,7 +33,7 @@ void runFunctionalTest() {
         const SZ3::uchar *buffer_conf_pos = buffer_conf.data();
         Encoder coder;
         coder.load(buffer_conf_pos, conf_len);
-        auto dataDecoded = coder.decode(buffer_data_pos, N);
+        auto dataDecoded = coder.decode(buffer_data_pos, N, data_len);
         for (int i = 0; i < N; i++) {
             EXPECT_EQ(data[i], dataDecoded[i]);
         }

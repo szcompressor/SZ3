@@ -25,10 +25,14 @@ class BypassEncoder : public concepts::EncoderInterface<T> {
 
     void preprocess_decode() override {}
 
-    std::vector<T> decode(const uchar *&bytes, size_t targetLength) override {
+    std::vector<T> decode(const uchar *&bytes, size_t targetLength, size_t &remaining_length) override {
+        if (targetLength > remaining_length / sizeof(T)) {
+            throw std::out_of_range("SZ3 bypass encoder: more bins requested than the buffer holds");
+        }
         std::vector<T> bins(targetLength);
         memcpy(bins.data(), bytes, sizeof(T) * targetLength);
         bytes += sizeof(T) * targetLength;
+        remaining_length -= sizeof(T) * targetLength;
         return bins;
     }
 

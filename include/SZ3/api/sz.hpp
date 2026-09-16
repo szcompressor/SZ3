@@ -26,7 +26,6 @@
 #include "SZ3/api/impl/SZImpl.hpp"
 #include "SZ3/version.hpp"
 
-
 /**
  * Compresses the input data using the provided configuration and stores the result in a pre-allocated buffer.
  * @tparam T The data type of the source data.
@@ -97,10 +96,10 @@ char* SZ_compress(const SZ3::Config& config, const T* data, size_t& cmpSize) {
     using namespace SZ3;
 
     size_t bufferLen = SZ_compress_size_bound<T>(config);
-    auto buffer = new char[bufferLen];
-    cmpSize = SZ_compress(config, data, buffer, bufferLen);
+    std::unique_ptr<char[]> buffer(new char[bufferLen]);
+    cmpSize = SZ_compress(config, data, buffer.get(), bufferLen);
 
-    return buffer;
+    return buffer.release();
 }
 
 /**
@@ -121,6 +120,11 @@ void SZ_decompress(SZ3::Config& config, const char* cmpData, size_t cmpSize, T*&
 
     auto cmpDataPos = reinterpret_cast<const uchar*>(cmpData);
 
+    // Header layout: magic number (4) + data version (4) + compressed payload size (8) = 16 bytes.
+    if (cmpSize < 16) {
+        throw std::out_of_range("SZ3: compressed data is smaller than the header");
+    }
+
     read(config.sz3MagicNumber, cmpDataPos);
     if (config.sz3MagicNumber != SZ3_MAGIC_NUMBER) {
         throw std::invalid_argument("magic number mismatch, the input data is not compressed by SZ3");
@@ -139,8 +143,13 @@ void SZ_decompress(SZ3::Config& config, const char* cmpData, size_t cmpSize, T*&
     uint64_t cmpDataSize = 0;
     read(cmpDataSize, cmpDataPos);
 
+    // The compressed payload is followed by the serialized config; both must fit in the remaining bytes.
+    if (cmpDataSize > cmpSize - 16) {
+        throw std::out_of_range("SZ3: compressed payload size exceeds the buffer");
+    }
     auto cmpConfPos = cmpDataPos + cmpDataSize;
-    config.load(cmpConfPos);
+    size_t confRemaining = cmpSize - 16 - cmpDataSize;
+    config.load(cmpConfPos, confRemaining);
 
     if (decData == nullptr) {
         decData = new T[config.num];
