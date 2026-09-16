@@ -6,6 +6,7 @@
 #define SZ3_LOSSLESS_HPP
 
 #include <cstddef>
+
 #include "SZ3/def.hpp"
 
 namespace SZ3::concepts {

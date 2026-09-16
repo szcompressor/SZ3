@@ -7,8 +7,6 @@
 #define SZ3_optimize_quant_intervals_hpp
 
 #include <cmath>
-
-#include "SZ3/def.hpp"
 #include <vector>
 
 #include "SZ3/def.hpp"

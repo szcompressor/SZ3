@@ -1,20 +1,19 @@
 test.dat
 compressed.out
 perf.data*
-# Anchor build/debug to repo root so they don't match docs/site/build.sh
-# or docs/site/scripts/build_*.py
+# Anchored to the repo root and globbed, so build-release and friends are covered too, and
+# docs/site/build.sh is not.
 /build*
 /debug*
 cmake-build-*
-# Anchored to the repo root, and glob so build-release and friends are covered too
 .idea
 install
 .DS_Store
 .vscode
-tmp
 .cache
-docs/site/html
 .claude
+tmp
+docs/site/html
 sz3_install
 sz3_build
 /test

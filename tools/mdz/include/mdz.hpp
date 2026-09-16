@@ -25,6 +25,7 @@
 #include <SZ3/utils/QuantOptimization.hpp>
 #include <SZ3/utils/Statistic.hpp>
 #include <SZ3/utils/Timer.hpp>
+#include <stdexcept>
 
 using namespace SZ3;
 inline double total_compress_time = 0;

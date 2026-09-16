@@ -18,21 +18,20 @@
  * - `ALGO_LOSSLESS`: Falls back to Zstd lossless-only compression.
  */
 
+#include <memory>
+#include <stdexcept>
 #include <type_traits>
 
+#include "SZ3/api/impl/SZAlgoBioMD.hpp"
 #include "SZ3/api/impl/SZAlgoInterp.hpp"
 #include "SZ3/api/impl/SZAlgoLorenzoReg.hpp"
 #include "SZ3/api/impl/SZAlgoNopred.hpp"
-#include "SZ3/api/impl/SZAlgoBioMD.hpp"
 #include "SZ3/api/impl/SZAlgoSVD.hpp"
 #include "SZ3/api/impl/SZAlgoZFP.hpp"
 #if !defined(__MINGW32__)
-#include "SZ3/api/impl/SZAlgoSPERR.hpp"
 #include "SZ3/api/impl/SZAlgoMGARD.hpp"
+#include "SZ3/api/impl/SZAlgoSPERR.hpp"
 #endif
-
-#include <memory>
-#include <stdexcept>
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/Statistic.hpp"
 

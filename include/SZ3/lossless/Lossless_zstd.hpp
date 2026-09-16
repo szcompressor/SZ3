@@ -45,14 +45,6 @@ class Lossless_zstd : public concepts::LosslessInterface {
      * @param dstCap Output capacity
      * @return size_t Compressed size
      */
-    /**
-     * compress data with lossless compressors
-     * @param src  data to be compressed
-     * @param srcLen length (in bytes) of the data to be compressed
-     * @param dst compressed data
-     * @param dstCap capacity (in bytes) for storing the compressed data
-     * @return length (in bytes) of the data compressed
-     */
     size_t compress(const uchar *src, size_t srcLen, uchar *dst, size_t dstCap) override {
         write(srcLen, dst);
         dstCap -= sizeof(size_t);  // reserve space for srcLen
