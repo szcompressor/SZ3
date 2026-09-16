@@ -1,12 +1,20 @@
+#include <bitset>
 #include <cmath>
 #include <cstdint>
+#include <map>
+#include <string>
+#include <vector>
 
-#include "gtest/gtest.h"
 #include "SZ3/quantizer/BitTruncationQuantizer.hpp"
+#include "SZ3/quantizer/ClusterQuantizer.hpp"
 #include "SZ3/quantizer/FixedPointQuantizer.hpp"
+#include "SZ3/quantizer/GranularBitRoundQuantizer.hpp"
+#include "SZ3/quantizer/LevelQuantizer.hpp"
 #include "SZ3/quantizer/LinearQuantizer.hpp"
-#include "SZ3/quantizer/QuadraticLevelQuantizer.hpp"
+#include "SZ3/quantizer/LogDomainQuantizer.hpp"
+#include "SZ3/quantizer/OutlierQuantizer.hpp"
 #include "SZ3/quantizer/ScalarQuantizer.hpp"
+#include "gtest/gtest.h"
 
 template <typename Quantizer, typename T>
 void runQuantizeRecoverTest() {
@@ -66,13 +74,11 @@ void runAllTest() {
     runFunctionalTest<Quantizer, T>();
 }
 
-TEST(SZ3_QuantizerTest, LinearQuantizer) {
-    runAllTest<SZ3::LinearQuantizer<float>, float>();
-}
+TEST(SZ3_QuantizerTest, LinearQuantizer) { runAllTest<SZ3::LinearQuantizer<float>, float>(); }
 
-TEST(SZ3_QuantizerTest, QuadraticLevelQuantizer) {
-    runAllTest<SZ3::QuadraticLevelQuantizer<float>, float>();
-}
+// Smoke-level pass through the shared harness (default curve). The thorough per-curve coverage,
+// including the error-bound sweep, lives in test_quantizer_level.cpp.
+TEST(SZ3_QuantizerTest, LevelQuantizer) { runAllTest<SZ3::LevelQuantizer<float>, float>(); }
 
 // FixedPointQuantizer does not match the generic eb-only ctor harness:
 // it is constructed with `num_bits`, then must be `calibrate(max_abs)`-d
@@ -173,7 +179,7 @@ static void runBitTruncationTest(int keep_bytes) {
     SZ3::BitTruncationQuantizer<T> q(keep_bytes);
 
     std::vector<T> originals(N);
-    std::vector<int64_t> bins(N);
+    std::vector<uint64_t> bins(N);
     for (int i = 0; i < N; i++) {
         originals[i] = static_cast<T>((i - 32) * 1.234567 + 0.0078125);  // mix of magnitudes & signs
     }
@@ -217,3 +223,30 @@ TEST(SZ3_QuantizerTest, BitTruncationQuantizer) {
     runBitTruncationTest<double>(6);  // keep top 6 of 8 bytes
 }
 
+// Every quantizer writes its uid as the first byte of save(); load() rejects a mismatch, so two
+// quantizers sharing a uid would silently accept each other's stream.
+TEST(SZ3_QuantizerTest, UidsAreDistinct) {
+    std::vector<SZ3::uchar> buffer(4096);
+    std::map<SZ3::uchar, std::string> seen;
+    auto record = [&](const std::string& name, auto&& quantizer) {
+        SZ3::uchar* c = buffer.data();
+        quantizer.save(c);
+        SZ3::uchar uid = buffer[0];
+        auto it = seen.find(uid);
+        EXPECT_EQ(it, seen.end()) << name << " and " << (it == seen.end() ? "" : it->second) << " share uid 0b"
+                                  << std::bitset<8>(uid);
+        seen[uid] = name;
+    };
+
+    const double eb = 1e-3;
+    record("LinearQuantizer", SZ3::LinearQuantizer<float>(eb));
+    record("FixedPointQuantizer", SZ3::FixedPointQuantizer<float>(16));
+    record("BitTruncationQuantizer", SZ3::BitTruncationQuantizer<float>(2));
+    record("LevelQuantizer", SZ3::LevelQuantizer<float>(eb));
+    record("ClusterQuantizer", SZ3::ClusterQuantizer<float>(0.0f, 1.0f, 8, eb));
+    record("LogDomainQuantizer", SZ3::LogDomainQuantizer<float>(eb));
+    record("GranularBitRoundQuantizer", SZ3::GranularBitRoundQuantizer<float>(3));
+    record("OutlierQuantizer", SZ3::OutlierQuantizer<float>(eb));
+
+    EXPECT_EQ(seen.size(), 8u);
+}

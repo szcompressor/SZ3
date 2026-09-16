@@ -4,10 +4,6 @@ on:
   push:
     branches:
       - fz
-  pull_request:
-    types: [closed]
-    branches:
-      - fz
 
 # Required permissions for GitHub Pages deployment
 permissions:

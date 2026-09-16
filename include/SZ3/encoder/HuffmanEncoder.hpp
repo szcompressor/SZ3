@@ -6,13 +6,6 @@
 #ifndef SZ3_HUFFMAN_ENCODER_HPP
 #define SZ3_HUFFMAN_ENCODER_HPP
 
-#include <cstdint>
-
-#include "SZ3/def.hpp"
-#include "SZ3/encoder/Encoder.hpp"
-#include "SZ3/utils/ByteUtil.hpp"
-#include "SZ3/utils/Collections.hpp"
-#include "SZ3/utils/MemoryUtil.hpp"
 #include <cassert>
 #include <cstdint>
 #include <cstdio>

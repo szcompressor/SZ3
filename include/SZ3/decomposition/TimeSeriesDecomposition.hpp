@@ -8,6 +8,7 @@
 
 #include <cassert>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 
 #include "Decomposition.hpp"

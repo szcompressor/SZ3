@@ -17,7 +17,9 @@
  *    floating-point exponent of each value. Unlike a fixed-eb quantizer,
  *    error scales with magnitude.
  *  - For T=float: `keep_bytes ∈ [1, 4]`. For T=double: `keep_bytes ∈ [1, 8]`.
- *    Output bin type is `int64_t` so both fit.
+ *    Output bin type is `uint64_t`: the bin IS the raw bit pattern, so a signed type
+ *    would put a double's sign bit into bit 63 and produce negative bins, violating
+ *    the `get_out_range().first == 0` contract.
  */
 
 #ifndef SZ3_BIT_TRUNCATION_QUANTIZER_HPP
@@ -36,7 +38,7 @@
 namespace SZ3 {
 
 template <class T>
-class BitTruncationQuantizer : public concepts::QuantizerInterface<T, int64_t> {
+class BitTruncationQuantizer : public concepts::QuantizerInterface<T, uint64_t> {
     static_assert(std::is_floating_point<T>::value,
                   "BitTruncationQuantizer requires a floating-point input type.");
     static_assert(sizeof(T) <= sizeof(uint64_t),
@@ -47,25 +49,24 @@ class BitTruncationQuantizer : public concepts::QuantizerInterface<T, int64_t> {
         validate_and_compute_mask();
     }
 
-    ALWAYS_INLINE int64_t quantize_and_overwrite(T& data, T /*pred*/) override {
+    ALWAYS_INLINE uint64_t quantize_and_overwrite(T& data, T /*pred*/) override {
         uint64_t bits = bits_from(data);
         bits &= mask_;
         data = value_from(bits);
-        return static_cast<int64_t>(bits);
+        return bits;
     }
 
-    ALWAYS_INLINE T recover(T /*pred*/, int64_t q) override {
-        return value_from(static_cast<uint64_t>(q));
-    }
+    ALWAYS_INLINE T recover(T /*pred*/, uint64_t q) override { return value_from(q); }
 
-    int64_t force_save_unpred(T ori) override {
+    uint64_t force_save_unpred(T ori) override {
         // Bit truncation has no out-of-range bucket; just truncate `ori`.
         T tmp = ori;
         return quantize_and_overwrite(tmp, T(0));
     }
 
-    std::pair<int64_t, int64_t> get_out_range() const override {
-        return std::make_pair(static_cast<int64_t>(0), std::numeric_limits<int64_t>::max());
+    std::pair<uint64_t, uint64_t> get_out_range() const override {
+        // 0 means "no bin range"; the encoder derives what it needs from the bins.
+        return std::make_pair(uint64_t{0}, uint64_t{0});
     }
 
     void save(uchar*& c) const override {
@@ -118,7 +119,7 @@ class BitTruncationQuantizer : public concepts::QuantizerInterface<T, int64_t> {
 
     int keep_bytes_;
     uint64_t mask_ = 0;
-    static constexpr uchar uid_ = 0b101;  // distinct from Linear (0b10), QuadraticLevel/FixedPoint (0b11)
+    static constexpr uchar uid_ = 0b101;
 };
 
 }  // namespace SZ3

@@ -33,10 +33,6 @@
 
 #include <memory>
 #include <stdexcept>
-#include "SZ3/api/impl/SZAlgoBioMD.hpp"
-#include "SZ3/api/impl/SZAlgoInterp.hpp"
-#include "SZ3/api/impl/SZAlgoLorenzoReg.hpp"
-#include "SZ3/api/impl/SZAlgoNopred.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/Statistic.hpp"
 

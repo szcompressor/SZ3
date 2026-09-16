@@ -12,6 +12,8 @@
  * zfp is a block transform: 1D, 2D and 3D, float and double.
  */
 
+#include <cassert>
+
 #include "SZ3/compressor/SZGenericCompressor.hpp"
 #include "SZ3/decomposition/ZFPDecomposition.hpp"
 #include "SZ3/encoder/ZFPEncoder.hpp"

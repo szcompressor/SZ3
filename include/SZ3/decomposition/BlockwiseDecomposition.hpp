@@ -16,6 +16,7 @@
 #include "SZ3/predictor/LorenzoPredictor.hpp"
 #include "SZ3/predictor/Predictor.hpp"
 #include "SZ3/quantizer/LinearQuantizer.hpp"
+#include "SZ3/quantizer/Quantizer.hpp"
 #include "SZ3/utils/BlockwiseIterator.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/FileUtil.hpp"
@@ -42,8 +43,8 @@ namespace SZ3 {
  * @tparam Predictor A class implementing `PredictorInterface<T, N>`
  * @tparam Quantizer A class implementing `QuantizerInterface<T, int>`
  */
-template <class T, uint N, class Predictor, class Quantizer>
-class BlockwiseDecomposition : public concepts::DecompositionInterface<T, int, N> {
+template <class T, uint N, class Predictor, class Quantizer, class To = typename Quantizer::bin_type>
+class BlockwiseDecomposition : public concepts::DecompositionInterface<T, To, N> {
    public:
     using Block_iter = typename block_data<T, N>::block_iterator;
 
@@ -56,14 +57,16 @@ class BlockwiseDecomposition : public concepts::DecompositionInterface<T, int, N
      */
     BlockwiseDecomposition(const Config &conf, Predictor predictor, Quantizer quantizer)
         : predictor(predictor), quantizer(quantizer), fallback_predictor(conf.absErrorBound) {
+        static_assert(std::is_same<To, typename Quantizer::bin_type>::value,
+                      "To must be the Quantizer's bin_type");
         static_assert(std::is_base_of<concepts::PredictorInterface<T, N>, Predictor>::value,
                       "must implement the Predictor interface");
     }
 
-    std::vector<int> compress(const Config &conf, T *data) override {
+    std::vector<To> compress(const Config &conf, T *data) override {
         auto data_with_padding = std::make_shared<block_data<T, N>>(data, conf.dims, predictor.get_padding(), true);
         auto block = data_with_padding->block_iter(conf.blockSize);
-        std::vector<int> quant_inds;
+        std::vector<To> quant_inds;
         quant_inds.reserve(conf.num);
         do {
             concepts::PredictorInterface<T, N> *predictor_withfallback = &predictor;
@@ -80,7 +83,7 @@ class BlockwiseDecomposition : public concepts::DecompositionInterface<T, int, N
         return quant_inds;
     }
 
-    T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) override {
+    T *decompress(const Config &conf, std::vector<To> &quant_inds, T *dec_data) override {
         if (quant_inds.size() < conf.num) {
             throw std::out_of_range("SZ3 blockwise: fewer bins than the grid consumes");
         }
@@ -116,7 +119,7 @@ class BlockwiseDecomposition : public concepts::DecompositionInterface<T, int, N
         quantizer.load(c, remaining_length);
     }
 
-    std::pair<int, int> get_out_range() override { return quantizer.get_out_range(); }
+    std::pair<To, To> get_out_range() override { return quantizer.get_out_range(); }
 
    private:
     Predictor predictor;

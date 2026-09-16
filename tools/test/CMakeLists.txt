@@ -32,3 +32,17 @@ foreach (TEST_SRC IN LISTS TEST_SOURCES)
     # Use PRE_TEST mode to avoid running executable at build time (important for Windows DLL path issues)
     gtest_discover_tests(${TEST_NAME} DISCOVERY_MODE PRE_TEST)
 endforeach()
+
+# modules.json carries the composition constraints the C++ tests enforce; keep the two from drifting.
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if (Python3_FOUND)
+    add_test(NAME SZ3_ModulesJson
+             COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/test/modules/test_modules_json.py)
+endif ()
+
+# Not a test: prints CR, error and throughput as CSV for a composition on a real dataset,
+# which has no pass/fail to assert. Built with the tests so it does not rot -- except on MinGW,
+# where the SPERR and MGARD pipelines it exists to compare are not available.
+if (NOT MINGW)
+    add_subdirectory(bench)
+endif ()

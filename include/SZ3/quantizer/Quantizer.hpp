@@ -22,6 +22,9 @@ namespace SZ3::concepts {
 template <class Ti, class To>
 class QuantizerInterface {
    public:
+    /// The bin type this quantizer emits.
+    using bin_type = To;
+
     virtual ~QuantizerInterface() = default;
 
     /**
@@ -60,6 +63,12 @@ class QuantizerInterface {
     virtual void load(const uchar *&c, size_t &remaining_length) = 0;
 
     virtual std::pair<To, To> get_out_range() const = 0;
+
+    /**
+     * @brief Bytes save() will write beyond its fixed fields, which is the unpredictable list.
+     * @return size_t Zero for a quantizer that encodes every value.
+     */
+    virtual size_t size_est() const { return 0; }
 
     virtual void precompress_data() {}
 

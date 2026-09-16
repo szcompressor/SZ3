@@ -22,6 +22,9 @@ namespace SZ3::concepts {
 template <class Ti, class To, uint N, class ToAllocator = std::allocator<To>>
 class DecompositionInterface {
    public:
+    /// The bin type this decomposition emits.
+    using bin_type = To;
+
     virtual ~DecompositionInterface() = default;
 
     /**

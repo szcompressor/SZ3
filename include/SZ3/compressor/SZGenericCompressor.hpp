@@ -9,10 +9,10 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <type_traits>
-#include <utility>
 
 #include "SZ3/compressor/Compressor.hpp"
 #include "SZ3/decomposition/Decomposition.hpp"
@@ -43,10 +43,7 @@ namespace SZ3 {
 template <class T, uint N, class Decomposition, class Encoder, class Lossless>
 class SZGenericCompressor : public concepts::CompressorInterface<T> {
    public:
-    using DecompositionOutput =
-        typename std::remove_reference<decltype(std::declval<Decomposition &>().compress(
-            std::declval<const Config &>(), std::declval<T *>()))>::type;
-    using Q = typename DecompositionOutput::value_type;
+    using To = typename Decomposition::bin_type;
 
     /**
      * @brief Construct a new SZGenericCompressor object
@@ -57,9 +54,9 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
      */
     SZGenericCompressor(Decomposition decomposition, Encoder encoder, Lossless lossless)
         : decomposition(decomposition), encoder(encoder), lossless(lossless) {
-        static_assert(std::is_base_of<concepts::DecompositionInterface<T, Q, N>, Decomposition>::value,
+        static_assert(std::is_base_of<concepts::DecompositionInterface<T, To, N>, Decomposition>::value,
                       "must implement the frontend interface");
-        static_assert(std::is_base_of<concepts::EncoderInterface<Q>, Encoder>::value,
+        static_assert(std::is_base_of<concepts::EncoderInterface<To>, Encoder>::value,
                       "must implement the encoder interface");
         static_assert(std::is_base_of<concepts::LosslessInterface, Lossless>::value,
                       "must implement the lossless interface");
@@ -76,14 +73,19 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
      * @throw std::runtime_error
      */
     size_t compress(const Config &conf, T *data, uchar *cmpData, size_t cmpCap) override {
-        std::vector<Q> quant_inds = decomposition.compress(conf, data);
+        std::vector<To> quant_inds = decomposition.compress(conf, data);
 
         if (decomposition.get_out_range().first != 0) {
             throw std::runtime_error("The output range of the decomposition must start from 0 for this compressor");
         }
-        encoder.preprocess_encode(quant_inds, decomposition.get_out_range().second);
+        auto out_max = decomposition.get_out_range().second;
+        if (out_max > std::numeric_limits<int>::max()) {
+            throw std::runtime_error(
+                "The output range of the decomposition must fit in int; return 0 if there is no range");
+        }
+        encoder.preprocess_encode(quant_inds, static_cast<int>(out_max));
         size_t bufferSize = std::max<size_t>(
-            1000, 2 * (decomposition.size_est() + encoder.size_est() + sizeof(Q) * quant_inds.size()));
+            1000, 2 * (decomposition.size_est() + encoder.size_est() + sizeof(To) * quant_inds.size()));
 
         // Owned, because the encoder and the lossless layer below can throw.
         std::unique_ptr<uchar[]> buffer_owner(new uchar[bufferSize]);
@@ -126,7 +128,7 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
 
         size_t quant_inds_size = 0;
         read(quant_inds_size, bufferPos, bufferSize);
-        std::vector<Q> quant_inds = encoder.decode(bufferPos, quant_inds_size, bufferSize);
+        std::vector<To> quant_inds = encoder.decode(bufferPos, quant_inds_size, bufferSize);
         encoder.postprocess_decode();
 
         // The remaining work uses `quant_inds` and `decData` only, so release the internal buffer now.

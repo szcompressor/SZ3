@@ -6,6 +6,7 @@
 #ifndef SZ3_LOSSLESS_BYPASS_HPP
 #define SZ3_LOSSLESS_BYPASS_HPP
 
+#include <cstdlib>
 #include <cstring>
 #include <stdexcept>
 

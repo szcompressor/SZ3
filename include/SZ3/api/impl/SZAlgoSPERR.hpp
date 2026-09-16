@@ -4,7 +4,7 @@
 #include <cstdint>
 
 #include "SZ3/compressor/SZGenericCompressor.hpp"
-#include "SZ3/decomposition/SPERRDecomposition.hpp"
+#include "SZ3/decomposition/SPERRFusedDecomposition.hpp"
 #include "SZ3/encoder/SPERREncoder.hpp"
 #include "SZ3/lossless/Lossless_bypass.hpp"
 #include "SZ3/utils/Config.hpp"
@@ -35,7 +35,7 @@ size_t SZ_compress_SPERR(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
         calAbsErrorBound(conf, data);
     }
 
-    auto sperr = make_compressor_sz_generic<T, N>(SPERRDecomposition<T, N>(),
+    auto sperr = make_compressor_sz_generic<T, N>(SPERRFusedDecomposition<T, N>(),
                                                   SPERREncoder<int64_t, N>(make_sperr_dims_from_conf(conf)),
                                                   Lossless_bypass());
     return sperr->compress(conf, data, cmpData, cmpCap);
@@ -44,7 +44,7 @@ size_t SZ_compress_SPERR(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
 template <class T, uint N>
 void SZ_decompress_SPERR(const Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
     assert(conf.cmprAlgo == ALGO_SPERR);
-    auto sperr = make_compressor_sz_generic<T, N>(SPERRDecomposition<T, N>(),
+    auto sperr = make_compressor_sz_generic<T, N>(SPERRFusedDecomposition<T, N>(),
                                                   SPERREncoder<int64_t, N>(make_sperr_dims_from_conf(conf)),
                                                   Lossless_bypass());
     sperr->decompress(conf, cmpData, cmpSize, decData);

@@ -10,7 +10,6 @@
 #include <limits>
 
 #include "SZ3/predictor/Predictor.hpp"
-#include <iostream>
 
 namespace SZ3 {
 

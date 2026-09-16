@@ -28,6 +28,7 @@ class RunlengthEncoder : public concepts::EncoderInterface<T> {
    public:
     void preprocess_encode(const std::vector<T> &bins, int stateNum) override { num_bins = bins.size(); }
 
+    // Worst case: no repeats, so one run per element, each costing a value and a length.
     size_t size_est() override { return num_bins * (sizeof(T) + sizeof(int)); }
 
     size_t encode(const std::vector<T> &bins, uchar *&bytes) override {
@@ -80,6 +81,7 @@ class RunlengthEncoder : public concepts::EncoderInterface<T> {
 
     void load(const uchar *&c, size_t &remaining_length) override {}
 
+   private:
     size_t num_bins = 0;  ///< Set by preprocess_encode(), consumed by size_est()
 };
 }  // namespace SZ3
