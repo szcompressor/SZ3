@@ -129,7 +129,8 @@ template <class T>
 void compress(char *inPath, char *cmpPath, SZ3::Config &conf) {
     T *data = new T[conf.num];
     SZ3::readfile<T>(inPath, conf.num, data);
-    size_t bytesCap = 2 * conf.num * sizeof(T);
+    // SZ_compress refuses a capacity below its own bound, which a small input falls under.
+    size_t bytesCap = SZ3::SZ_compress_size_bound<T>(conf);
     auto bytes = new char[bytesCap];
 
     SZ3::Timer timer(true);

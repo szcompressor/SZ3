@@ -66,7 +66,8 @@ double roundTrip(size_t nx, size_t ny, size_t nz, double eb, Content content, si
     SZ3::ZFPDecomposition<float, int, 3> dec2;
     SZ3::ZFPEncoder<int, 3> enc2(conf);
     const SZ3::uchar *rp = buf.data();
-    auto back = enc2.decode(rp, coeffs.size());
+    size_t rlen = buf.size();
+    auto back = enc2.decode(rp, coeffs.size(), rlen);
     dec2.decompress(conf, back, out.data());
 
     double worst = 0;
@@ -160,7 +161,8 @@ double roundTripND(std::vector<size_t> dims, double eb) {
     SZ3::ZFPDecomposition<T, Int, N> dec2;
     SZ3::ZFPEncoder<Int, N> enc2(conf);
     const SZ3::uchar *rp = buf.data();
-    auto back = enc2.decode(rp, coeffs.size());
+    size_t rlen = buf.size();
+    auto back = enc2.decode(rp, coeffs.size(), rlen);
     dec2.decompress(conf, back, out.data());
 
     double worst = 0;
@@ -234,13 +236,15 @@ TEST(SZ3_ZFP, RejectsTamperedStreams) {
     {
         SZ3::ZFPEncoder<int, 3> e(conf);
         const SZ3::uchar *rp = buf.data();
-        EXPECT_THROW(e.decode(rp, coeffs.size() + 1), std::out_of_range);
+        size_t rlen = buf.size();
+        EXPECT_THROW(e.decode(rp, coeffs.size() + 1, rlen), std::out_of_range);
     }
     // Nor is one claiming far more blocks than the coded bytes could hold.
     {
         SZ3::ZFPEncoder<int, 3> e(conf);
         const SZ3::uchar *rp = buf.data();
-        EXPECT_THROW(e.decode(rp, coeffs.size() * 10), std::out_of_range);
+        size_t rlen = buf.size();
+        EXPECT_THROW(e.decode(rp, coeffs.size() * 10, rlen), std::out_of_range);
     }
     // A coded length larger than the block count can produce must not be believed.
     {
@@ -249,7 +253,8 @@ TEST(SZ3_ZFP, RejectsTamperedStreams) {
         std::memcpy(tampered.data(), &huge, sizeof(huge));
         SZ3::ZFPEncoder<int, 3> e(conf);
         const SZ3::uchar *rp = tampered.data();
-        EXPECT_THROW(e.decode(rp, coeffs.size()), std::out_of_range);
+        size_t rlen = tampered.size();
+        EXPECT_THROW(e.decode(rp, coeffs.size(), rlen), std::out_of_range);
     }
     // A count that stays block-aligned but claims more blocks than the stream holds: the
     // capacity check alone scales with it, so the stream's own block count must be consulted.
@@ -257,7 +262,8 @@ TEST(SZ3_ZFP, RejectsTamperedStreams) {
         SZ3::ZFPEncoder<int, 3> e(conf);
         const SZ3::uchar *rp = buf.data();
         const size_t blocks = (coeffs.size() - 1) / 65;
-        EXPECT_THROW(e.decode(rp, 1 + (blocks * 4) * 65), std::out_of_range);
+        size_t rlen = buf.size();
+        EXPECT_THROW(e.decode(rp, 1 + (blocks * 4) * 65, rlen), std::out_of_range);
     }
     // A block count that disagrees with the configuration is caught by the decomposition.
     {

@@ -7,6 +7,7 @@
 #define SZ3_REGRESSION_PREDICTOR_HPP
 
 #include <iostream>
+#include <stdexcept>
 
 #include "SZ3/encoder/HuffmanEncoder.hpp"
 #include "SZ3/predictor/Predictor.hpp"
@@ -136,17 +137,8 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
             quantizer_liner.load(c, remaining_length);
             HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
             encoder.load(c, remaining_length);
-            // The tree is immediately followed by its encoded stream here, so the remaining
-            // length bounds the stream exactly.
-            encoder.set_decode_bound(remaining_length);
-            /// decode() advances `c` past the encoded stream but does not update `remaining_length`;
-            /// account for exactly the bytes it consumed. The previous `coeff_size * sizeof(int)` used the
-            /// uncompressed index count, which overshoots the (Huffman-compressed) stream and understates
-            /// remaining_length, making a later encoder.load() bound check spuriously reject valid data.
-            const uchar *decode_start = c;
-            regression_coeff_quant_inds = encoder.decode(c, coeff_size);
+            regression_coeff_quant_inds = encoder.decode(c, coeff_size, remaining_length);
             encoder.postprocess_decode();
-            remaining_length -= static_cast<size_t>(c - decode_start);
             std::fill(current_coeffs.begin(), current_coeffs.end(), 0);
             regression_coeff_index = 0;
         }
@@ -185,8 +177,6 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
     }
 
     void pred_and_recover_coefficients() {
-        // Each block consumes N + 1 regression coefficients; the coefficient stream comes from untrusted data,
-        // so a crafted block count larger than the stored coefficients would read past its end.
         if (regression_coeff_index + N + 1 > regression_coeff_quant_inds.size())
             throw std::out_of_range("SZ3: ran out of regression coefficients while decompressing");
         for (int i = 0; i < static_cast<int>(N); i++) {

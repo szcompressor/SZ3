@@ -7,9 +7,11 @@
 #define SZ3_COMPRESSOR_TYPE_ONE_HPP
 
 #include <algorithm>
+#include <cstdlib>
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <stdexcept>
 #include <type_traits>
 #include <utility>
 #include <cstdlib>
@@ -101,12 +103,9 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         size_t bufferSize = std::max<size_t>(
             1000, 2 * (decomposition.size_est() + encoder.size_est() + sizeof(Q) * quant_inds.size()));
 
-        auto buffer = static_cast<uchar *>(malloc(bufferSize));
-        // Own the scratch buffer with RAII so it is released on every path: the encoder and the lossless
-        // layer below can throw (e.g. Lossless_zstd::compress throws std::length_error when the destination
-        // capacity is too small for poorly-compressible data), and the caller catches and continues, so a
-        // bare free() at the end leaks the buffer on each failed compression.
-        std::unique_ptr<uchar, void (*)(void *)> buffer_owner(buffer, &free);
+        // Owned, because the encoder and the lossless layer below can throw.
+        std::unique_ptr<uchar[]> buffer_owner(new uchar[bufferSize]);
+        uchar *const buffer = buffer_owner.get();
         uchar *buffer_pos = buffer;
 
         decomposition.save(buffer_pos);
@@ -133,18 +132,9 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
      */
     T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *decData) override {
         uchar *buffer = nullptr;
-        // No bound is passed to the lossless layer here. The internal buffer compress() produced is
-        // sized max(1000, 2 * (decomposition.size_est() + encoder.size_est() + sizeof(Q) * bins)), which
-        // for a wide bin type exceeds any bound derivable from conf alone -- bounding it by
-        // SZ_compress_size_bound rejects valid streams (BitplaneEncoder, BitTruncationQuantizer and
-        // FixedPointQuantizer all emit 64-bit bins). A corrupted declared size is still caught by the
-        // zstd frame check and the size comparison in Lossless_zstd::decompress, after the allocation.
-        size_t bufferSize = 0;
-        lossless.decompress(cmpData, cmpSize, buffer, bufferSize);
+        size_t bufferSize = lossless.decompress(cmpData, cmpSize, buffer, 0);
 
-        // The lossless layer allocated `buffer` with malloc. Own it with RAII so it is released on every path
-        // below - including the parsing steps that operate on untrusted data and can throw before we are done
-        // with it - instead of being leaked. decompress() is reached repeatedly for corrupted blocks (fuzzing).
+        // malloc'd by the lossless layer, hence free(). Owned, because the parsing below can throw.
         std::unique_ptr<uchar, void (*)(void *)> buffer_owner(buffer, &free);
 
         uchar const *bufferPos = buffer;
@@ -153,15 +143,8 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         encoder.load(bufferPos, bufferSize);
 
         size_t quant_inds_size = 0;
-        // Read the count with the bounded overload so a truncated buffer can not be read past its end.
         read(quant_inds_size, bufferPos, bufferSize);
-        // The count field sits between the encoder's tree and its encoded stream, so the bound load()
-        // recorded for decode() is that many bytes too large. Hand the encoder the exact remaining length
-        // now that the field has been consumed. Optional: encoders without the hook keep load()'s bound.
-        if constexpr (encoder_has_decode_bound<Encoder>::value) {
-            encoder.set_decode_bound(bufferSize);
-        }
-        auto quant_inds = encoder.decode(bufferPos, quant_inds_size);
+        std::vector<Q> quant_inds = encoder.decode(bufferPos, quant_inds_size, bufferSize);
         encoder.postprocess_decode();
 
         // The remaining work uses `quant_inds` and `decData` only, so release the internal buffer now.

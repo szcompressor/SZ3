@@ -149,13 +149,16 @@ class BitplaneRLEEncoder : public concepts::EncoderInterface<T> {
         return static_cast<size_t>(bytes - start);
     }
 
-    std::vector<T> decode(const uchar*& bytes, size_t targetLength) override {
+    std::vector<T> decode(const uchar*& bytes, size_t targetLength, size_t& remaining_length) override {
         if (targetLength != n_) {
             throw std::runtime_error("BitplaneRLEEncoder: decode targetLength does not match saved bin count.");
         }
         std::vector<T> bins(n_, 0);
         if (n_ == 0) return bins;
         const size_t plane_bytes = (n_ + 7) / 8;
+        // Each plane is either a run list or a raw plane, so the length is known only once read. Charge
+        // what was consumed at the end; over-reading is caught there rather than wrapping the budget.
+        const uchar* const decode_start = bytes;
 
         std::vector<uint8_t> signs;
         if (has_signs_) {
@@ -210,6 +213,11 @@ class BitplaneRLEEncoder : public concepts::EncoderInterface<T> {
                 bins[i] = static_cast<T>(mags[i]);
             }
         }
+        const size_t consumed = static_cast<size_t>(bytes - decode_start);
+        if (consumed > remaining_length) {
+            throw std::out_of_range("SZ3 bitplane RLE: planes read past the compressed buffer");
+        }
+        remaining_length -= consumed;
         return bins;
     }
 

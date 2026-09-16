@@ -6,6 +6,7 @@
 #ifndef SZ3_LOSSLESS_ZSTD_HPP
 #define SZ3_LOSSLESS_ZSTD_HPP
 
+#include <memory>
 #include <stdexcept>
 
 #include "SZ3/def.hpp"
@@ -44,6 +45,14 @@ class Lossless_zstd : public concepts::LosslessInterface {
      * @param dstCap Output capacity
      * @return size_t Compressed size
      */
+    /**
+     * compress data with lossless compressors
+     * @param src  data to be compressed
+     * @param srcLen length (in bytes) of the data to be compressed
+     * @param dst compressed data
+     * @param dstCap capacity (in bytes) for storing the compressed data
+     * @return length (in bytes) of the data compressed
+     */
     size_t compress(const uchar *src, size_t srcLen, uchar *dst, size_t dstCap) override {
         write(srcLen, dst);
         dstCap -= sizeof(size_t);  // reserve space for srcLen
@@ -54,58 +63,44 @@ class Lossless_zstd : public concepts::LosslessInterface {
         return dstLen + sizeof(size_t);
     }
 
-    size_t decompress(const uchar *src, const size_t srcLen, uchar *&dst, size_t &dstLen) override {
-        /// The compressed buffer starts with the decompressed size, followed by the zstd stream.
-        /// Validate the inputs so corrupted data can not read out of bounds, allocate an untrusted
-        /// amount, or pass a zstd error code back as a size.
-        if (srcLen < sizeof(dstLen)) {
+    /**
+     * reverse of compress(), decompress the data with lossless compressors
+     * @param src data to be decompressed
+     * @param srcLen length (in bytes) of that data
+     * @param dst buffer to decompress into; when null on entry the callee allocates it with malloc()
+     *            and the caller frees it
+     * @param dstCap the capacity of dst, ignored when dst is null
+     * @return length (in bytes) of the data decompressed
+     */
+    size_t decompress(const uchar *src, size_t srcLen, uchar *&dst, size_t dstCap) override {
+        // The stream is a decompressed-size field followed by the zstd frame, all untrusted.
+        if (srcLen < sizeof(size_t)) {
             throw std::out_of_range("SZ3 lossless: compressed data is smaller than the size header");
         }
-        /// When the caller asks us to allocate (dst == nullptr), a non-zero incoming dstLen is an upper
-        /// bound on that allocation; zero means no bound. This is only consulted on that branch, so a
-        /// caller that treats dstLen as pure output is unaffected.
-        const size_t dst_capacity = dstLen;
+        size_t dstLen = 0;
         read(dstLen, src);
-        const bool self_allocated = (dst == nullptr);
-        if (self_allocated) {
-            /// dst == nullptr means the caller asks us to allocate the output buffer, and its size is read
-            /// from the (untrusted) compressed payload. When the caller supplies a non-zero capacity it is an
-            /// upper bound on how large that allocation may be; reject a payload that declares a larger size
-            /// before allocating it, so corrupted data can not force an arbitrary (and untracked) allocation.
-            /// A zero capacity means the caller did not supply a bound (legacy behavior).
-            if (dst_capacity != 0 && dstLen > dst_capacity) {
-                throw std::out_of_range("SZ3 lossless: declared decompressed size exceeds the allowed capacity");
-            }
-            dst = static_cast<uchar *>(malloc(dstLen));
-            if (dst == nullptr) {
+
+        // malloc, because the caller frees what it gets back with free().
+        std::unique_ptr<uchar, void (*)(void *)> owner(nullptr, &free);
+        if (dst == nullptr) {
+            owner.reset(static_cast<uchar *>(malloc(dstLen)));
+            if (owner == nullptr) {
                 throw std::runtime_error("SZ3 lossless: can not allocate the decompression buffer");
             }
+        } else if (dstLen > dstCap) {
+            throw std::out_of_range("SZ3 lossless: declared decompressed size exceeds the allowed capacity");
         }
-        // No capacity check for a caller-provided buffer: `dstLen` is an output parameter in the
-        // LosslessInterface contract, so callers are not required to pass a meaningful value in
-        // (tools/test/modules/test_lossless.cpp passes an uninitialized one). Reinterpreting it as an
-        // input capacity would break them. The self-allocating branch above bounds itself instead.
-        try {
-            size_t res = ZSTD_decompress(dst, dstLen, src, srcLen - sizeof(dstLen));
-            if (ZSTD_isError(res)) {
-                throw std::runtime_error("SZ3 lossless: zstd decompression failed");
-            }
-            /// The declared size is read from the (untrusted) payload; require zstd to actually produce that
-            /// many bytes, so a frame that expands to fewer bytes can not leave the tail of the output buffer
-            /// uninitialized (which a caller would otherwise copy out as if it were decompressed data).
-            if (res != dstLen) {
-                throw std::out_of_range("SZ3 lossless: decompressed size does not match the declared size");
-            }
-            return res;
-        } catch (...) {
-            /// Free a buffer we allocated ourselves so a corrupted payload that fails decompression here does
-            /// not leak it; a caller-provided buffer is owned by the caller and is left untouched.
-            if (self_allocated) {
-                free(dst);
-                dst = nullptr;
-            }
-            throw;
+        uchar *out = (dst != nullptr) ? dst : owner.get();
+
+        // A short frame would leave the tail of the output uninitialized for the caller to read.
+        size_t res = ZSTD_decompress(out, dstLen, src, srcLen - sizeof(size_t));
+        if (ZSTD_isError(res) || res != dstLen) {
+            throw std::runtime_error("SZ3 lossless: stream does not decompress to the size it declares");
         }
+
+        dst = out;
+        owner.release();
+        return res;
     }
 
    private:

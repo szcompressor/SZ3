@@ -339,8 +339,9 @@ TEST(SZ3_CompositionTest, BitshuffleEncoderToleratesDirtyDestination) {
         enc.encode(bins, wp);
 
         const SZ3::uchar *rp = buf.data();
+        size_t remaining = buf.size();
         SZ3::BitshuffleEncoder<int> dec(1);
-        return dec.decode(rp, bins.size());
+        return dec.decode(rp, bins.size(), remaining);
     };
 
     EXPECT_EQ(bins, roundTrip(0x00)) << "exact round trip on a zeroed destination";
@@ -409,7 +410,7 @@ TEST(SZ3_CompositionTest, ArithmeticEncoderRoundTripsLeadingOneBitStreams) {
         SZ3::ArithmeticEncoder<int> dec(false);
         size_t remaining = buf.size();
         dec.load(rp, remaining);
-        auto out = dec.decode(rp, bins.size());
+        auto out = dec.decode(rp, bins.size(), remaining);
         dec.postprocess_decode();
         return out;
     };

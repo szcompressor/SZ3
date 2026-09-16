@@ -73,11 +73,14 @@ class ZFPEncoder : public concepts::EncoderInterface<Int> {
         return total;
     }
 
-    std::vector<Int> decode(const uchar *&bytes, size_t targetLength) override {
+    std::vector<Int> decode(const uchar *&bytes, size_t targetLength, size_t &remaining_length) override {
         // targetLength counts ZFPDecomposition's layout: a block count, then an exponent and
         // `bs` coefficients per block. Anything else did not come from encode().
         if (targetLength < 1 || (targetLength - 1) % (1 + bs) != 0) {
             throw std::out_of_range("SZ3 zfp: coefficient count is not a whole number of blocks");
+        }
+        if (remaining_length < header_bytes) {
+            throw std::out_of_range("SZ3 zfp: truncated header");
         }
         const size_t n_blocks = (targetLength - 1) / (1 + bs);
         const uchar *hpos = bytes;
@@ -93,6 +96,10 @@ class ZFPEncoder : public concepts::EncoderInterface<Int> {
         if (coded > capacity_for(n_blocks)) {
             throw std::out_of_range("SZ3 zfp: coded length exceeds what this block count can produce");
         }
+        if (coded > remaining_length - header_bytes) {
+            throw std::out_of_range("SZ3 zfp: coded length exceeds the compressed buffer");
+        }
+        remaining_length -= header_bytes + coded;
         std::vector<Int> out(1 + n_blocks + n_blocks * bs);
         out[0] = static_cast<Int>(n_blocks);
         // zfp's bitstream does not stop at the end it is handed, and a corrupted block asks for

@@ -18,6 +18,8 @@
 
 #include "SZ3/def.hpp"
 
+#include "SZ3/def.hpp"
+
 namespace SZ3 {
 
 
@@ -229,12 +231,8 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
     }
 
     /**
-     * @brief The block's values in unpadded layout.
-     *
-     * Without padding this is the array this object was constructed from. With padding it is an
-     * internal copy, materialized on the first call and valid until this object is destroyed.
-     *
-     * @return Pointer to `num` elements
+     * @brief The block's `num` values in unpadded layout. With padding this is an internal copy,
+     *        materialized on the first call and valid until this object is destroyed.
      */
     const T *values() {
         if (padding == 0 || internal_buffer.empty()) {

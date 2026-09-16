@@ -13,6 +13,7 @@
 #ifndef SZ3_Config_HPP
 #define SZ3_Config_HPP
 
+#include <algorithm>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
@@ -373,6 +374,8 @@ class Config {
         } else if (errorBoundMode == EB_ABS_AND_REL) {
             write(absErrorBound, c);
             write(relErrorBound, c);
+        } else {
+            throw std::invalid_argument("SZ3 Config::save: unknown error bound mode");
         }
 
         uint8_t boolvals = (lorenzo & 1) << 7 | (lorenzo2 & 1) << 6 | (regression & 1) << 5 | (regression2 & 1) << 4 |
@@ -399,123 +402,79 @@ class Config {
      * @brief Deserialize the configuration from a byte array.
      *
      * @param c Pointer to the byte array.
+     * @param remaining_length bytes readable from `c`; decremented by what is consumed.
      */
-    /// Overload for a config that is not a compressed-stream trailer: the OpenMP path, and the HDF5
-    /// filter's `cd_values`, which carries placeholder dimensions that `set_local` fills in later
-    /// (see tools/H5Z-SZ3/test/cdvalueHelper.py). Neither bounds the read nor validates the contents.
-    void load(const unsigned char*& c) { load(c, std::numeric_limits<size_t>::max(), false); }
-
-    // `cmpSize` bounds how many bytes may be read from `c` (the config blob). Used when loading
-    // from untrusted compressed data so a corrupted config cannot read out of bounds.
-    /// @param validate Reject dimensions that no compressed stream can legitimately carry. Only a
-    ///                  stream trailer is validated; see the single-argument overload.
-    void load(const unsigned char*& c, size_t cmpSize, bool validate = true) {
+    void load(const unsigned char*& c, size_t& remaining_length) {
         const unsigned char* const c0 = c;
-        auto require = [&](size_t n) {
-            if (cmpSize - static_cast<size_t>(c - c0) < n)
-                throw std::out_of_range("SZ3 Config::load: read past the end of the config");
-        };
-
-        require(sizeof(uchar));
+        const unsigned char* const cend = c + remaining_length;
         uchar confSize = 0;
-        read(confSize, c);
-        /// `confSize` is the total size of the config blob, including this prefix byte.
-        if (confSize > cmpSize) throw std::out_of_range("SZ3 Config::load: config size exceeds the buffer");
-        auto c1 = c0 + confSize;
+        read(confSize, c, remaining_length);
+        // Where the optional fields at the end stop. A writer that declares more than it sends stops
+        // at the buffer instead.
+        const unsigned char* const c1 = std::min(c0 + confSize, cend);
 
-        require(sizeof(N));
-        read(N, c);
-        if (validate && (N < 1 || N > 4)) throw std::out_of_range("SZ3 Config::load: invalid number of dimensions");
+        read(N, c, remaining_length);
+        if (N > 4) throw std::out_of_range("SZ3 Config::load: invalid number of dimensions");
         uint8_t bitWidth;
-        require(sizeof(bitWidth));
-        read(bitWidth, c);
+        read(bitWidth, c, remaining_length);
         if (bitWidth > 64) throw std::out_of_range("SZ3 Config::load: invalid dimension bit width");
-        require((static_cast<size_t>(N) * bitWidth + 7) / 8);
+        const size_t dim_bytes = (static_cast<size_t>(N) * bitWidth + 7) / 8;
+        if (dim_bytes > remaining_length)
+            throw std::out_of_range("SZ3 Config::load: dimensions exceed the buffer");
         dims = bytes2vector<size_t>(c, bitWidth, N);
-        require(sizeof(num));
-        read(num, c);
-        /// The element count must equal the product of the dimensions, otherwise the predictor would
-        /// iterate over more grid positions than were allocated for the decompressed data. Validate
-        /// the product with an overflow check.
-        if (validate) {
-            size_t dims_product = 1;
-            bool dims_ok = true;
-            for (size_t dim : dims) {
-                if (dim == 0 || dims_product > std::numeric_limits<size_t>::max() / dim) {
-                    dims_ok = false;
-                    break;
-                }
-                dims_product *= dim;
+        remaining_length -= dim_bytes;
+        read(num, c, remaining_length);
+        // num must equal the product of the dimensions, or the predictor walks more grid positions than
+        // were allocated. No dimensions means no elements: the HDF5 filter loads a config from cd_values
+        // before it knows the dataset shape.
+        size_t dims_product = dims.empty() ? 0 : 1;
+        bool dims_ok = true;
+        for (size_t dim : dims) {
+            if (dim == 0 || dims_product > std::numeric_limits<size_t>::max() / dim) {
+                dims_ok = false;
+                break;
             }
-            if (!dims_ok || dims_product != num)
-                throw std::out_of_range("SZ3 Config::load: dimensions inconsistent with the element count");
+            dims_product *= dim;
         }
-        require(sizeof(cmprAlgo));
-        read(cmprAlgo, c);
+        if (!dims_ok || dims_product != num)
+            throw std::out_of_range("SZ3 Config::load: dimensions inconsistent with the element count");
+        read(cmprAlgo, c, remaining_length);
 
-        require(sizeof(errorBoundMode));
-        read(errorBoundMode, c);
+        read(errorBoundMode, c, remaining_length);
         if (errorBoundMode == EB_ABS) {
-            require(sizeof(absErrorBound));
-            read(absErrorBound, c);
+            read(absErrorBound, c, remaining_length);
         } else if (errorBoundMode == EB_REL) {
-            require(sizeof(relErrorBound));
-            read(relErrorBound, c);
+            read(relErrorBound, c, remaining_length);
         } else if (errorBoundMode == EB_PSNR) {
-            require(sizeof(psnrErrorBound));
-            read(psnrErrorBound, c);
+            read(psnrErrorBound, c, remaining_length);
         } else if (errorBoundMode == EB_L2NORM) {
-            require(sizeof(l2normErrorBound));
-            read(l2normErrorBound, c);
-        } else if (errorBoundMode == EB_ABS_OR_REL) {
-            require(sizeof(absErrorBound) + sizeof(relErrorBound));
-            read(absErrorBound, c);
-            read(relErrorBound, c);
-        } else if (errorBoundMode == EB_ABS_AND_REL) {
-            require(sizeof(absErrorBound) + sizeof(relErrorBound));
-            read(absErrorBound, c);
-            read(relErrorBound, c);
+            read(l2normErrorBound, c, remaining_length);
+        } else if (errorBoundMode == EB_ABS_OR_REL || errorBoundMode == EB_ABS_AND_REL) {
+            read(absErrorBound, c, remaining_length);
+            read(relErrorBound, c, remaining_length);
+        } else {
+            // save() always writes a bound here, so an unhandled mode would shift every field below it.
+            throw std::invalid_argument("SZ3 Config::load: unknown error bound mode");
         }
 
         if (c < c1) {
-            require(sizeof(uint8_t));
             uint8_t boolvals;
-            read(boolvals, c);
+            read(boolvals, c, remaining_length);
             lorenzo = (boolvals >> 7) & 1;
             lorenzo2 = (boolvals >> 6) & 1;
             regression = (boolvals >> 5) & 1;
             regression2 = (boolvals >> 4) & 1;
             openmp = (boolvals >> 3) & 1;
         }
-        if (c < c1) {
-            require(sizeof(dataType));
-            read(dataType, c);
-        }
-        if (c < c1) {
-            require(sizeof(quantbinCnt));
-            read(quantbinCnt, c);
-        }
-        if (c < c1) {
-            require(sizeof(blockSize));
-            read(blockSize, c);
-        }
-        if (c < c1) {
-            require(sizeof(predDim));
-            read(predDim, c);
-        }
+        if (c < c1) read(dataType, c, remaining_length);
+        if (c < c1) read(quantbinCnt, c, remaining_length);
+        if (c < c1) read(blockSize, c, remaining_length);
+        if (c < c1) read(predDim, c, remaining_length);
         // SVD specific parameters
-        if (c < c1) {
-            read(svd_target_rank, c);
-        }
-        if (c < c1) {
-            read(svd_oversampling_param, c);
-        }
-        if (c < c1) {
-            read(svd_energy_threshold, c);
-        }
-        if (c < c1) {
-            read(svd_quant_eb_scale, c);
-        }
+        if (c < c1) read(svd_target_rank, c, remaining_length);
+        if (c < c1) read(svd_oversampling_param, c, remaining_length);
+        if (c < c1) read(svd_energy_threshold, c, remaining_length);
+        if (c < c1) read(svd_quant_eb_scale, c, remaining_length);
     }
 
     /**

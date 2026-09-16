@@ -5,7 +5,26 @@
 #ifndef SZ3_MDZ_H
 #define SZ3_MDZ_H
 
+#include <stdexcept>
+
 #include "SZ3/api/sz_dev.hpp"
+#include "SZ3/compressor/specialized/SZExaaltCompressor.hpp"
+#include "SZ3/decomposition/BlockwiseDecomposition.hpp"
+#include "SZ3/decomposition/TimeSeriesDecomposition.hpp"
+#include "SZ3/utils/KmeansUtil.hpp"
+#include <SZ3/compressor/SZGenericCompressor.hpp>
+#include <SZ3/def.hpp>
+#include <SZ3/encoder/HuffmanEncoder.hpp>
+#include <SZ3/lossless/Lossless_zstd.hpp>
+#include <SZ3/predictor/ComposedPredictor.hpp>
+#include <SZ3/predictor/LorenzoPredictor.hpp>
+#include <SZ3/predictor/Predictor.hpp>
+#include <SZ3/predictor/RegressionPredictor.hpp>
+#include <SZ3/quantizer/LinearQuantizer.hpp>
+#include <SZ3/utils/FileUtil.hpp>
+#include <SZ3/utils/QuantOptimization.hpp>
+#include <SZ3/utils/Statistic.hpp>
+#include <SZ3/utils/Timer.hpp>
 
 using namespace SZ3;
 inline double total_compress_time = 0;
@@ -119,7 +138,9 @@ float *VQ(Config conf, size_t ts, T *data, size_t &compressed_size, bool decom, 
     Timer timer(true);
     compressed_size = 2 * conf.num * sizeof(T);
     auto compressed = static_cast<uchar *>(malloc(compressed_size));
-    sz->compress(conf, data, compressed, compressed_size);
+    // compress() returns what it actually wrote; compressed_size went in as the capacity, and the
+    // decompression below reads it as the stream length.
+    compressed_size = sz->compress(conf, data, compressed, compressed_size);
     total_compress_time += timer.stop("Compression");
     if (!decom) {
         free(compressed);
@@ -146,7 +167,9 @@ float *MT(Config conf, size_t ts, T *data, size_t &compressed_size, bool decom, 
     Timer timer(true);
     compressed_size = 2 * conf.num * sizeof(T);
     auto compressed = static_cast<uchar *>(malloc(compressed_size));
-    sz->compress(conf, data, compressed, compressed_size);
+    // compress() returns what it actually wrote; compressed_size went in as the capacity, and the
+    // decompression below reads it as the stream length.
+    compressed_size = sz->compress(conf, data, compressed, compressed_size);
     total_compress_time += timer.stop("Compression");
     if (!decom) {
         free(compressed);
@@ -174,7 +197,9 @@ float *SZ2(Config conf, size_t ts, T *data, size_t &compressed_size, bool decom)
     Timer timer(true);
     compressed_size = 2 * conf.num * sizeof(T);
     auto compressed = static_cast<uchar *>(malloc(compressed_size));
-    sz->compress(conf, data, compressed, compressed_size);
+    // compress() returns what it actually wrote; compressed_size went in as the capacity, and the
+    // decompression below reads it as the stream length.
+    compressed_size = sz->compress(conf, data, compressed, compressed_size);
 
     total_compress_time += timer.stop("Compression");
     if (!decom) {
@@ -283,7 +308,8 @@ uchar *LAMMPS_compress(Config conf, T *data, int method, size_t &compressed_size
         sz = make_sz<T, N>(conf);
         //        sz->compress(conf, data, compressed_size);
     }
-    sz->compress(conf, data, compressed_data, compressed_size);
+    // compressed_size is the caller's out-parameter for the stream length, not the capacity it went in as.
+    compressed_size = sz->compress(conf, data, compressed_data, compressed_size);
     //    auto ratio = conf.num * sizeof(T) * 1.0 / compressed_size;
     //    std::cout << "Compression Ratio = " << ratio << std::endl;
     //    std::cout << "Compressed size = " << compressed_size << std::endl;

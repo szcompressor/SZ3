@@ -11,6 +11,7 @@
 #ifdef _OPENMP
 
 #include <omp.h>
+#include <stdexcept>
 
 #endif
 namespace SZ3 {
@@ -72,14 +73,9 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
 
         conf_t[tid] = conf;
         conf_t[tid].setDims(dims_t.begin(), dims_t.end());
-        // Reserve room for the size header that Lossless_zstd::compress writes in front of the zstd stream,
-        // otherwise the direct lossless path in SZ_compress_dispatcher throws for poorly compressible chunks.
+        // Room for the size header Lossless_zstd::compress writes ahead of the zstd stream.
         size_t cmp_size_cap = sizeof(size_t) + ZSTD_compressBound(conf_t[tid].num * sizeof(T));
-        // The buffer is owned so that it is released even if the compression below throws.
-        std::unique_ptr<uchar, void (*)(void*)> compressed_owner(static_cast<uchar*>(malloc(cmp_size_cap)), &free);
-        if (!compressed_owner) {
-            throw std::bad_alloc();
-        }
+        std::unique_ptr<uchar[]> compressed_owner(new uchar[cmp_size_cap]);
         compressed_t[tid] = compressed_owner.get();
         // we have to use conf_t[tid].N instead of N since each chunk may be a slice of the original data
         if (conf_t[tid].N == 1) {
@@ -131,12 +127,10 @@ void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* de
     auto cmpr_data_pos = cmpData;
     const uchar* const cmp_end = cmpData + cmpSize;
     int nThreads = 1;
-    // Everything below is read from untrusted data; bound every read against the end of the buffer.
     if (static_cast<size_t>(cmp_end - cmpr_data_pos) < sizeof(nThreads))
         throw std::out_of_range("SZ3 OMP: truncated thread count");
     read(nThreads, cmpr_data_pos);
-    // Each per-thread config and size entry occupies at least one byte, so the thread count can not exceed
-    // the size of the compressed buffer.
+    // Each thread contributes at least a config and a size, so the count cannot exceed the buffer size.
     if (nThreads <= 0 || static_cast<size_t>(nThreads) > cmpSize)
         throw std::out_of_range("SZ3 OMP: invalid thread count");
     omp_set_num_threads(nThreads);
@@ -144,7 +138,8 @@ void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* de
 
     std::vector<Config> conf_t(nThreads);
     for (int i = 0; i < nThreads; i++) {
-        conf_t[i].load(cmpr_data_pos, static_cast<size_t>(cmp_end - cmpr_data_pos));
+        size_t confRemaining = static_cast<size_t>(cmp_end - cmpr_data_pos);
+        conf_t[i].load(cmpr_data_pos, confRemaining);
     }
 
     if (conf_t[0].sz3MagicNumber != SZ3_MAGIC_NUMBER) {
@@ -168,8 +163,7 @@ void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* de
 
     cmp_start_t.resize(nThreads + 1);
     cmp_start_t[0] = 0;
-    // The per-thread payloads follow back-to-back and must all fit in the remaining buffer. Build the running
-    // offsets with an overflow-safe bound so a crafted size can not point a thread's slice out of bounds.
+    // The payloads follow back-to-back; build the offsets without overflowing so no slice points out.
     const size_t payload_avail = static_cast<size_t>(cmp_end - cmpr_data_p);
     for (int i = 1; i <= nThreads; i++) {
         if (cmp_size_t[i - 1] > payload_avail - cmp_start_t[i - 1])

@@ -6,8 +6,8 @@
 #ifndef SZ3_STATISTIC_HPP
 #define SZ3_STATISTIC_HPP
 
-#include <cmath>
 #include <algorithm>
+#include <cmath>
 #include <stdexcept>
 
 #include "Config.hpp"

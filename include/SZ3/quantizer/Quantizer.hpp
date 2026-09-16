@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "SZ3/def.hpp"
+#include <SZ3/def.hpp>
 
 namespace SZ3::concepts {
 

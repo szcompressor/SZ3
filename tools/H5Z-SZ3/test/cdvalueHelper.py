@@ -33,7 +33,7 @@ class SZ3:
         # placeholder values will be overwritten when the HDF5 filter calls the set_local function,
         serialized = bytearray()
 
-        serialized.extend(struct.pack('<B', 40)) # size of the config structure
+        serialized.extend(struct.pack('<B', 0)) # size of the config structure, patched in below
         # serialized.extend(struct.pack('<I', 0))  # placeholder for SZ3_MAGIC_NUMBER
         # serialized.extend(struct.pack('<I', 0))  # placeholder for SZ3_DATA_VER
         serialized.extend(struct.pack('<B', 0))  # placeholder for dimension count
@@ -62,6 +62,7 @@ class SZ3:
         serialized.extend(struct.pack('<I', 0))  # placeholder for block size
         serialized.extend(struct.pack('<B', 0))  # prediction dimension
 
+        serialized[0] = len(serialized)
         serialized_data = bytes(serialized)
         self.cd_values = [int.from_bytes(serialized_data[i:i + 4], 'little')
                      for i in range(0, len(serialized_data), 4)]

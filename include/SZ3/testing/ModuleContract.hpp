@@ -230,9 +230,12 @@ void expectEncoderContract(const std::string &name, Factory make, std::vector<st
         enc.save(wp);
         const size_t header = static_cast<size_t>(wp - buf.data());
         std::memcpy(buf.data() + buf.size() - guard, canary.data(), guard);
-        const size_t written = enc.encode(bins, wp);
+        enc.encode(bins, wp);
         enc.postprocess_encode();
-        const size_t total = header + written;
+        // encode() advances the cursor past everything it wrote; its return value counts only the
+        // payload, not the length field ahead of it.
+        const size_t total = static_cast<size_t>(wp - buf.data());
+        const size_t written = total - header;
         ASSERT_LE(total, buf.size() - guard) << name << ": encode() wrote past the buffer";
         EXPECT_EQ(std::memcmp(buf.data() + buf.size() - guard, canary.data(), guard), 0)
             << name << ": encode() clobbered the guard bytes";
@@ -244,7 +247,7 @@ void expectEncoderContract(const std::string &name, Factory make, std::vector<st
         size_t remaining = total;
         dec.load(rp, remaining);
         dec.preprocess_decode();
-        const std::vector<Bin> out = dec.decode(rp, bins.size());
+        const std::vector<Bin> out = dec.decode(rp, bins.size(), remaining);
         dec.postprocess_decode();
         ASSERT_EQ(out.size(), bins.size()) << name << ": decode() returned the wrong length";
         for (size_t i = 0; i < bins.size(); i++) {
@@ -408,8 +411,7 @@ void expectLosslessContract(const std::string &name, Factory make) {
 
         auto dec = make();
         SZ3::uchar *out = nullptr;
-        size_t outLen = 0;
-        dec.decompress(dst.data(), n, out, outLen);
+        const size_t outLen = dec.decompress(dst.data(), n, out, 0);
         ASSERT_NE(out, nullptr) << name << ": decompress() produced no buffer";
         EXPECT_EQ(outLen, src.size()) << name << ": decompressed length differs";
         if (outLen == src.size()) {

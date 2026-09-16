@@ -67,15 +67,16 @@ class SPERREncoder : public concepts::EncoderInterface<T> {
         return stream.size();
     }
 
-    std::vector<T> decode(const uchar *&bytes, size_t targetLength) override {
+    std::vector<T> decode(const uchar *&bytes, size_t targetLength, size_t &remaining_length) override {
         const size_t total_len = (total_len_ == 0) ? targetLength : total_len_;
         if (total_len == 0) {
             throw std::runtime_error("SPERR encoder missing target length before decode.");
         }
 
         size_t consumed = 0;
-        std::vector<T> bins = decode_stream(bytes, std::numeric_limits<size_t>::max(), total_len, consumed);
+        std::vector<T> bins = decode_stream(bytes, remaining_length, total_len, consumed);
         bytes += consumed;
+        remaining_length -= consumed;
 
         if (targetLength != 0 && bins.size() != targetLength) {
             throw std::runtime_error("SPERR decode length mismatch.");

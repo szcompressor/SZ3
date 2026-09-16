@@ -23,6 +23,7 @@
 #define SZ3_SZ_HPP
 
 #include <memory>
+#include <stdexcept>
 
 #include "SZ3/api/impl/SZImpl.hpp"
 #include "SZ3/version.hpp"
@@ -165,7 +166,8 @@ void SZ_decompress(SZ3::Config& config, const char* cmpData, size_t cmpSize, T*&
         throw std::out_of_range("SZ3: compressed payload size exceeds the buffer");
     }
     auto cmpConfPos = cmpDataPos + cmpDataSize;
-    config.load(cmpConfPos, cmpSize - 16 - cmpDataSize);
+    size_t confRemaining = cmpSize - 16 - cmpDataSize;
+    config.load(cmpConfPos, confRemaining);
 
     if (decData == nullptr) {
         decData = new T[config.num];

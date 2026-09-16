@@ -10,6 +10,7 @@
 #include <map>
 #include <queue>
 #include <stack>
+#include <stdexcept>
 #include <vector>
 
 #include "SZ3/def.hpp"
@@ -440,12 +441,20 @@ public:
     void preprocess_decode() override {
     }
 
-    std::vector<T> decode(const uchar*& bytes, size_t targetLength) override {
+    std::vector<T> decode(const uchar*& bytes, size_t targetLength, size_t& remaining_length) override {
+        // The reads below are not individually bounded, so check what they consumed before charging it:
+        // subtracting more than is left would wrap remaining_length and unbound everything parsed after.
+        const uchar* decode_start = bytes;
         if (tree.maxval == 1) {
             size_t len = bytesToInt64_bigEndian(bytes) ^ 0x1234abcd;
             bytes += 8;
             //                assert(len==targetLength);
 
+            const size_t consumed = static_cast<size_t>(bytes - decode_start);
+            if (consumed > remaining_length) {
+                throw std::out_of_range("SZ3 HuffmanEncoderV2: decode read past the end of the compressed buffer");
+            }
+            remaining_length -= consumed;
             return std::vector<T>(len, tree.offset);
         }
 
@@ -522,6 +531,11 @@ public:
 
             bytes += (len + 7) >> 3;
 
+            const size_t consumed = static_cast<size_t>(bytes - decode_start);
+            if (consumed > remaining_length) {
+                throw std::out_of_range("SZ3 HuffmanEncoderV2: decode read past the end of the compressed buffer");
+            }
+            remaining_length -= consumed;
             return out;
         }
 
@@ -675,6 +689,11 @@ public:
 
         // timer.stop("decode");
 
+        const size_t consumed = static_cast<size_t>(bytes - decode_start);
+        if (consumed > remaining_length) {
+            throw std::out_of_range("SZ3 HuffmanEncoderV2: decode read past the end of the compressed buffer");
+        }
+        remaining_length -= consumed;
         return out;
     }
 
@@ -1043,9 +1062,8 @@ private:
     void loadAsDFSOrder(const uchar*& bytes, size_t& remaining_length) {
         tree.init();
 
-        // The serialized tree is a fixed-size header followed by a DFS bitstream, and must fit in
-        // remaining_length. Bound every read so corrupted input can not read past the end of the buffer or
-        // allocate an untrusted amount.
+        // The tree is a fixed-size header plus a DFS bitstream, all of it untrusted; every read below is
+        // bounded and every allocation is sized from a checked field.
         const uchar* const tree_start = bytes;
         const size_t header_size = 1 + sizeof(T) + 2 * sizeof(size_t);
         if (remaining_length < header_size) throw std::out_of_range("SZ3 HuffmanEncoderV2: truncated tree header");
@@ -1065,19 +1083,16 @@ private:
         tree.maxval = bytesToInt64_bigEndian(bytes);
         bytes += sizeof(size_t);
 
-        // The DFS bitstream follows the header; each of the tree.n nodes consumes at least one bit, so the
-        // node count can not exceed the available bits. This also avoids the tree.n << 1 overflow below.
-        // tree.n is an int holding a value read as 64-bit, so check the sign explicitly rather than letting
-        // the comparison convert it.
+        // Each node costs at least one bit of the DFS stream, so the count can not exceed the bits available.
+        // tree.n is an int holding a 64-bit read, so check the sign before comparing.
         const size_t dfs_bytes = remaining_length - header_size;
         if (tree.n < 0 || static_cast<size_t>(tree.n) > dfs_bytes * 8)
             throw std::out_of_range("SZ3 HuffmanEncoderV2: node count exceeds the compressed buffer");
         tree.ht.reserve(static_cast<size_t>(tree.n) << 1);
 
         if (tree.usemp == 0x00) {
-            // maxval comes from the stream and sizes the dense tables below. preprocess_encode only leaves
-            // usemp == 0 when maxval stays under 1 << 28, so a larger value in a dense tree is inconsistent
-            // and would otherwise drive an unbounded allocation.
+            // maxval sizes the dense tables below. preprocess_encode leaves usemp == 0 only under 1 << 28, so a
+            // larger value here is inconsistent and would drive an unbounded allocation.
             const int64_t maxval_span = static_cast<int64_t>(tree.maxval);
             if (maxval_span < 0 || maxval_span >= (1ll << 28)) {
                 throw std::out_of_range("SZ3 HuffmanEncoderV2: dense tree declares an out-of-range value span");
@@ -1088,7 +1103,6 @@ private:
             }
         }
 
-        // The fixed-size header has now been consumed on every path below.
         remaining_length -= header_size;
 
         if (tree.n == 0) {
@@ -1156,8 +1170,6 @@ private:
 
         bytes += (i + 7) >> 3;
 
-        // Consume the DFS bitstream from the caller's remaining length (the header was already subtracted
-        // above; the original code advanced the pointer but never decremented remaining_length).
         remaining_length -= static_cast<size_t>(bytes - tree_start) - header_size;
 
         if (tree.usemp) {

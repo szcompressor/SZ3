@@ -6,6 +6,7 @@ perf.data*
 /build*
 /debug*
 cmake-build-*
+# Anchored to the repo root, and glob so build-release and friends are covered too
 .idea
 install
 .DS_Store

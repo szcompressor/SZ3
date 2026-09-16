@@ -62,6 +62,9 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
 
         init();
 
+        if (quant_inds.size() < num_elements) {
+            throw std::out_of_range("SZ3 interpolation: fewer bins than the grid consumes");
+        }
         this->quant_inds = quant_inds.data();
         double eb = quantizer.get_eb();
 
@@ -184,7 +187,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
 
     size_t size_est() override {
         return sizeof(original_dimensions) + sizeof(blocksize) + sizeof(interp_id) + sizeof(direction_sequence_id) +
-               sizeof(anchor_stride) + sizeof(eb_alpha) + sizeof(eb_beta) + quantizer_size_est(quantizer) + 64;
+               quantizer.size_est() + 128;
     }
 
     void save(uchar *&c) override {
@@ -216,8 +219,14 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
    private:
     void init() {
         quant_index = 0;
-        assert(blocksize % 2 == 0 && "Interpolation block size should be even numbers");
-        assert((anchor_stride & anchor_stride - 1) == 0 && "Anchor stride should be 0 or 2's exponentials");
+        // All four come from the compressed payload; interp_id and direction_sequence_id index the fixed
+        // tables built below.
+        if (blocksize == 0 || blocksize % 2 != 0) {
+            throw std::out_of_range("SZ3 interpolation: block size must be a positive even number");
+        }
+        if (interp_id < 0 || static_cast<size_t>(interp_id) >= interpolators.size()) {
+            throw std::out_of_range("SZ3 interpolation: interpolator id is out of range");
+        }
         num_elements = 1;
         interp_level = -1;
 	bool use_anchor = false;
@@ -231,6 +240,11 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         }
         if (!use_anchor)
             anchor_stride = 0;
+        // log2() and the anchor grid below need a power of two; a stride wider than the data is
+        // already zero by here.
+        if (anchor_stride > 0 && (anchor_stride & (anchor_stride - 1)) != 0) {
+            throw std::out_of_range("SZ3 interpolation: anchor stride must be a power of two");
+        }
         if (anchor_stride > 0) {
             int max_interpolation_level = static_cast<int>(log2(anchor_stride)) + 1;
             if (max_interpolation_level <= interp_level) {
@@ -251,6 +265,9 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         do {
             dim_sequences.push_back(sequence);
         } while (std::next_permutation(sequence.begin(), sequence.end()));
+        if (direction_sequence_id < 0 || static_cast<size_t>(direction_sequence_id) >= dim_sequences.size()) {
+            throw std::out_of_range("SZ3 interpolation: direction sequence id is out of range");
+        }
     }
 
     void build_anchor_grid(T *data) {  // store anchor points. steplength: anchor_stride on each dimension

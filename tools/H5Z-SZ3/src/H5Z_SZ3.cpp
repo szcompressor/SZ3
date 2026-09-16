@@ -66,7 +66,8 @@ herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config& conf) {
         // if not empty, load cd_values into config
         if (cd_nelmts > 0) {
             auto buffer = reinterpret_cast<const unsigned char*>(cd_values.data());
-            conf.load(buffer);
+            size_t cd_bytes = cd_nelmts * sizeof(unsigned int);
+            conf.load(buffer, cd_bytes);
         }
     }
     return 1;
@@ -160,12 +161,8 @@ void process_data(SZ3::Config& conf, void** buf, size_t* buf_size, size_t nbytes
         *buf = processedData;
         *buf_size = conf.num * sizeof(T);
     } else {
-        // SZ_compress rejects anything below its own bound, which small chunks fall under; that
-        // bound assumes the payload fits in the raw size, so keep headroom on top of it for
-        // algorithms whose output can approach or exceed it -- ALGO_BIOMDXTC pairs its codec with
-        // Lossless_bypass, so nothing shrinks the payload.
-        // bound assumes the payload fits in the raw size, so keep the old headroom on top of it
-        // for algorithms whose output can approach or exceed it.
+        // The bound assumes the payload fits in the raw size, so leave headroom on top of it for
+        // algorithms whose output can reach or exceed that.
         size_t cmpCap = std::max(SZ3::SZ_compress_size_bound<T>(conf), sizeof(T) * conf.num * 2);
         char* cmpData = static_cast<char*>(malloc(cmpCap));
         *buf_size = SZ_compress(conf, static_cast<T*>(*buf), cmpData, cmpCap);
@@ -193,7 +190,8 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
     SZ3::Config conf;
 
     auto buffer = reinterpret_cast<const unsigned char*>(cd_values);
-    conf.load(buffer);
+    size_t cd_bytes = cd_nelmts * sizeof(unsigned int);
+    conf.load(buffer, cd_bytes);
     //    conf.print();
 
     if (conf.num < 20) return nbytes;

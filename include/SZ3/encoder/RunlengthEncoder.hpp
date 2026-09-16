@@ -6,6 +6,7 @@
 #ifndef SZ3_RUNLENGTH_ENCODER_HPP
 #define SZ3_RUNLENGTH_ENCODER_HPP
 
+#include <stdexcept>
 #include <vector>
 
 #include "Encoder.hpp"
@@ -60,13 +61,16 @@ class RunlengthEncoder : public concepts::EncoderInterface<T> {
 
     void preprocess_decode() override {}
 
-    std::vector<T> decode(const uchar *&bytes, size_t targetLength) override {
+    std::vector<T> decode(const uchar *&bytes, size_t targetLength, size_t &remaining_length) override {
         std::vector<T> bins(targetLength, 0);
         T value;
         int cnt;
         for (size_t i = 0; i < bins.size();) {
-            read(value, bytes);
-            read(cnt, bytes);
+            read(value, bytes, remaining_length);
+            read(cnt, bytes, remaining_length);
+            if (cnt < 0) {
+                throw std::out_of_range("SZ3 runlength encoder: negative run length");
+            }
             if (i + cnt > bins.size()) {
                 throw std::runtime_error("Decoded length exceeds targetLength");
             }

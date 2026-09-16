@@ -9,6 +9,7 @@
 #include <cassert>
 #include <limits>
 #include <memory>
+#include <stdexcept>
 
 #include "Decomposition.hpp"
 #include "SZ3/def.hpp"
@@ -89,6 +90,9 @@ public:
     }
 
     T* decompress(const Config& conf, std::vector<int>& quant_inds, T* dec_data) override {
+        if (quant_inds.size() < num_elements) {
+            throw std::out_of_range("SZ3 time series: fewer bins than the grid consumes");
+        }
         int const* quant_inds_pos = quant_inds.data();
         // std::array<size_t, N - 1> intra_block_dims;
         //            auto dec_data = new T[num_elements];

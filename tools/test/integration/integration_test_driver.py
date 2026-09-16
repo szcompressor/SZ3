@@ -122,11 +122,22 @@ def main():
         sys.exit(1)
 
     if len(sys.argv) > 2:
-        selected_dataset = sys.argv[2]
+        # "name" runs the whole dataset, "name:a.f32,b.f32" runs those fields of it, so a dataset
+        # too slow to be one job can be spread over several.
+        selected_dataset, _, selected_fields = sys.argv[2].partition(":")
         if selected_dataset not in datasets:
             print(f"Dataset {selected_dataset} not found in {datasets_json}")
             sys.exit(1)
-        datasets = {selected_dataset: datasets[selected_dataset]}
+        dataset_info = datasets[selected_dataset]
+        if selected_fields:
+            wanted = [f for f in selected_fields.split(",") if f]
+            missing = [f for f in wanted if f not in dataset_info["fields"]]
+            if missing:
+                print(f"Fields {missing} not found in dataset {selected_dataset}")
+                sys.exit(1)
+            dataset_info = dict(dataset_info)
+            dataset_info["fields"] = {f: dataset_info["fields"][f] for f in wanted}
+        datasets = {selected_dataset: dataset_info}
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_source_dir = os.path.abspath(os.path.join(script_dir, "..", "..", ".."))

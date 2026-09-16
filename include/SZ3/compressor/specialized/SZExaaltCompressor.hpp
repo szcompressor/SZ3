@@ -4,6 +4,7 @@
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <stdexcept>
 
 #include "SZ3/compressor/Compressor.hpp"
 #include "SZ3/def.hpp"
@@ -124,19 +125,19 @@ class SZExaaltCompressor : public SZ3::concepts::CompressorInterface<T> {
     //        T *decompress(uchar const *lossless_compressed_data, const size_t length) {
     T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *dec_data) override {
         uchar *buffer = nullptr;
-        size_t bufferSize = 0;
-        lossless.decompress(cmpData, cmpSize, buffer, bufferSize);
-        size_t remaining_length = cmpSize;
+        size_t bufferSize = lossless.decompress(cmpData, cmpSize, buffer, 0);
+        // The parsing below walks the decompressed buffer, so bufferSize is its bound, not cmpSize.
+        size_t remaining_length = bufferSize;
         uchar const *buffer_pos = buffer;
 
         quantizer.load(buffer_pos, remaining_length);
         encoder.load(buffer_pos, remaining_length);
-        auto quant_inds = encoder.decode(buffer_pos, conf.num);
+        auto quant_inds = encoder.decode(buffer_pos, conf.num, remaining_length);
         encoder.postprocess_decode();
 
         encoder.load(buffer_pos, remaining_length);
         auto pred_inds_num = (timestep_op == 1) ? conf.dims[1] : conf.num;
-        auto pred_inds = encoder.decode(buffer_pos, pred_inds_num);
+        auto pred_inds = encoder.decode(buffer_pos, pred_inds_num, remaining_length);
         encoder.postprocess_decode();
 
         free(buffer);
