@@ -104,8 +104,8 @@ public:
 
     size_t size_est() override {
         size_t bytes = core_dims.size() * sizeof(size_t) + quantized_core.size() * sizeof(int) +
-                       factor_dims.size() * 2 * sizeof(size_t) + quantizer_size_est(svd_quantizer) +
-                       quantizer_size_est(res_quantizer);
+                       factor_dims.size() * 2 * sizeof(size_t) + svd_quantizer.size_est() +
+                       res_quantizer.size_est();
         for (const auto& v : quantized_factors) bytes += sizeof(size_t) + v.size() * sizeof(int);
         return bytes + 128;
     }

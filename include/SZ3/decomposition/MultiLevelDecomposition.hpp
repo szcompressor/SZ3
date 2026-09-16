@@ -205,14 +205,8 @@ class MultiLevelDecomposition : public concepts::DecompositionInterface<T, To, N
 
     size_t size_est() override {
         size_t bytes = sizeof(target_level_) + sizeof(eb_) + sizeof(size_t) + 64 * (quantizers_.size() + 1);
-        if constexpr (quantizer_has_size_est<Quantizer>::value) {
-            for (auto &q : quantizers_) {
-                bytes += q.size_est();
-            }
-        } else {
-            // No introspection available: assume a quantizer stores at most one
-            // value per input element (LinearQuantizer's worst case).
-            bytes += num_elements() * sizeof(T);
+        for (auto &q : quantizers_) {
+            bytes += q.size_est();
         }
         return bytes;
     }

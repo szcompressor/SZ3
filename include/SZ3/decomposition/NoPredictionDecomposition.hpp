@@ -43,7 +43,7 @@ class NoPredictionDecomposition : public concepts::DecompositionInterface<T, To,
         return quant_inds;
     }
 
-    size_t size_est() override { return quantizer_size_est(quantizer) + 64; }
+    size_t size_est() override { return quantizer.size_est() + 64; }
 
     void save(uchar *&c) override { quantizer.save(c); }
 

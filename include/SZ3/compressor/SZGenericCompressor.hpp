@@ -27,15 +27,6 @@
 
 namespace SZ3 {
 
-/// Detects the optional (non-virtual) `set_decode_bound()` an encoder may expose so the compressor can
-/// hand it the exact number of bytes its encoded stream may read. Encoders without it keep whatever
-/// bound their own `load()` recorded.
-template <class E, class = void>
-struct encoder_has_decode_bound : std::false_type {};
-template <class E>
-struct encoder_has_decode_bound<E, std::void_t<decltype(std::declval<E &>().set_decode_bound(size_t{}))>>
-    : std::true_type {};
-
 /**
  * @brief The default SZ3 compression pipeline.
  * 

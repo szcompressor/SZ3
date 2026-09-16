@@ -255,9 +255,6 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         size_t i = 0, byteIndex = 0, count = 0;
         int r;
         node n = treeRoot;
-        /// Bytes available for the encoded payload, recorded by load(). Used to bound all reads below.
-        size_t remaining = decode_remaining_length;
-        if (remaining < sizeof(size_t)) throw std::out_of_range("SZ3 Huffman: truncated encoded length");
         size_t encodedLength = 0;
         read(encodedLength, bytes, remaining_length);
         if (n->t)  // root->t==1 means that all state values are the same (constant)
@@ -331,7 +328,6 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     /// Bound the encoded stream `decode()` is about to read. A caller that lays the tree and the stream
     /// out contiguously calls this with the bytes left after the tree (and after any field it writes in
     /// between), which makes decode() reject a corrupted length instead of reading past the buffer.
-    void set_decode_bound(size_t remaining) { decode_remaining_length = remaining; }
 
     bool isLoaded() const { return loaded; }
 
@@ -344,7 +340,6 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     /// Bytes the encoded stream may read, or SIZE_MAX when no caller supplied a bound. load() does not
     /// set it: the tree and the encoded stream are not required to live in the same buffer (see
     /// tools/test/modules/test_encoder.cpp), so only a caller that knows the layout can bound the stream.
-    size_t decode_remaining_length = std::numeric_limits<size_t>::max();
     T offset;
 
     node reconstruct_HuffTree_from_bytes_anyStates(const unsigned char *bytes, uint nodeCount) {

@@ -61,6 +61,12 @@ class QuantizerInterface {
 
     virtual std::pair<To, To> get_out_range() const = 0;
 
+    /**
+     * @brief Bytes save() will write beyond its fixed fields, which is the unpredictable list.
+     * @return size_t Zero for a quantizer that encodes every value.
+     */
+    virtual size_t size_est() const { return 0; }
+
     virtual void precompress_data() {}
 
     virtual void predecompress_data() {}
@@ -102,22 +108,6 @@ namespace SZ3 {
  * @tparam T         Data type the quantizer consumes
  * @tparam Quantizer A type implementing `concepts::QuantizerInterface<T, To>`
  */
-/// Detects the optional (non-virtual) `size_est()` some quantizers expose.
-template <class Q, class = void>
-struct quantizer_has_size_est : std::false_type {};
-template <class Q>
-struct quantizer_has_size_est<Q, std::void_t<decltype(std::declval<Q &>().size_est())>> : std::true_type {};
-
-/// The quantizer's serialized-size estimate, or 0 when it does not expose one.
-template <class Q>
-size_t quantizer_size_est(Q &q) {
-    if constexpr (quantizer_has_size_est<Q>::value) {
-        return q.size_est();
-    } else {
-        return 0;
-    }
-}
-
 template <class T, class Quantizer>
 using quantizer_bin_t =
     decltype(std::declval<Quantizer &>().quantize_and_overwrite(std::declval<T &>(), std::declval<T>()));
