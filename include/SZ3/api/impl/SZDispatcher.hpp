@@ -2,6 +2,7 @@
 #define SZ3_IMPL_SZDISPATCHER_HPP
 
 #include <memory>
+#include <stdexcept>
 
 #include "SZ3/api/impl/SZAlgoBioMD.hpp"
 #include "SZ3/api/impl/SZAlgoInterp.hpp"

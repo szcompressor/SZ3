@@ -2,6 +2,7 @@
 #define SZ3_BYPASS_ENCODER_HPP
 
 #include <cassert>
+#include <stdexcept>
 #include <vector>
 
 #include "Encoder.hpp"

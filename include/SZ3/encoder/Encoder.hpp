@@ -1,11 +1,13 @@
 #ifndef SZ3_ENCODER_HPP
 #define SZ3_ENCODER_HPP
 
+#include <stdexcept>
 #include <vector>
 
 #include "SZ3/def.hpp"
 namespace SZ3 {
 namespace concepts {
+
 
 /**
  * Encoder changes the input to a more compact representative
@@ -37,8 +39,13 @@ class EncoderInterface {
 
     /**
      * reverse of encode()
+     *
+     * `targetLength` says when to stop producing, `remaining_length` says how far the reads may go;
+     * an entropy-coded stream has no terminator, so neither number substitutes for the other.
+     *
      * @param bytes input in byte stream
      * @param targetLength size of the output vector
+     * @param remaining_length bytes readable from `bytes`; decremented by what is consumed
      * @return output in vector
      */
     virtual std::vector<T, TAllocator> decode(const uchar *&bytes, size_t targetLength, size_t &remaining_length) = 0;

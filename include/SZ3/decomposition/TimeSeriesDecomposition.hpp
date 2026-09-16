@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <limits>
+#include <stdexcept>
 
 #include "Decomposition.hpp"
 #include "SZ3/def.hpp"
@@ -82,6 +83,7 @@ public:
     }
 
     T* decompress(const Config& conf, std::vector<int>& quant_inds, T* dec_data) override {
+        // The walk below takes one bin per element and does not check as it goes.
         if (quant_inds.size() < num_elements) {
             throw std::out_of_range("SZ3 time series: fewer bins than the grid consumes");
         }

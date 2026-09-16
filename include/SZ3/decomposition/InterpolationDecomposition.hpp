@@ -39,6 +39,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
 
         init();
 
+        // The walk below takes one bin per element and does not check as it goes.
         if (quant_inds.size() < num_elements) {
             throw std::out_of_range("SZ3 interpolation: fewer bins than the grid consumes");
         }
@@ -196,8 +197,17 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
    private:
     void init() {
         quant_index = 0;
-        assert(blocksize % 2 == 0 && "Interpolation block size should be even numbers");
-        assert((anchor_stride & anchor_stride - 1) == 0 && "Anchor stride should be 0 or 2's exponentials");
+        // load() takes all four from the compressed payload, and the asserts that used to stand here are
+        // compiled out of a release build. interp_id and direction_sequence_id index fixed tables below.
+        if (blocksize == 0 || blocksize % 2 != 0) {
+            throw std::out_of_range("SZ3 interpolation: block size must be a positive even number");
+        }
+        if ((anchor_stride & (anchor_stride - 1)) != 0) {
+            throw std::out_of_range("SZ3 interpolation: anchor stride must be zero or a power of two");
+        }
+        if (interp_id < 0 || static_cast<size_t>(interp_id) >= interpolators.size()) {
+            throw std::out_of_range("SZ3 interpolation: interpolator id is out of range");
+        }
         num_elements = 1;
         interp_level = -1;
 	bool use_anchor = false;
@@ -231,6 +241,9 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         do {
             dim_sequences.push_back(sequence);
         } while (std::next_permutation(sequence.begin(), sequence.end()));
+        if (direction_sequence_id < 0 || static_cast<size_t>(direction_sequence_id) >= dim_sequences.size()) {
+            throw std::out_of_range("SZ3 interpolation: direction sequence id is out of range");
+        }
     }
 
     void build_anchor_grid(T *data) {  // store anchor points. steplength: anchor_stride on each dimension

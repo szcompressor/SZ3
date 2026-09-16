@@ -4,6 +4,7 @@
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <stdexcept>
 
 #include "SZ3/compressor/Compressor.hpp"
 #include "SZ3/def.hpp"

@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
+#include <stdexcept>
 #include <vector>
 
 #include "SZ3/def.hpp"

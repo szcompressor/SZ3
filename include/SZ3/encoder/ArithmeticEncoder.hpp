@@ -506,6 +506,12 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
             put_codes_to_output(buf, pending_bits + 1, &bytes, &lackBits, &outSize);
         }
         bytes += 1;
+        // decode() opens with an eight-byte read and then keeps its cursor a few bytes ahead of what it
+        // has consumed, so it always ran past the end of what this wrote. Pad by that much.
+        for (size_t i = 0; i < 8; i++) {
+            *bytes++ = 0;
+            outSize++;
+        }
         return outSize;
     }
 
@@ -519,7 +525,8 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
      *
      * */
     std::vector<T> decode(const uchar *&bytes, size_t targetLength, size_t &remaining_length) override {
-        // The reads below are not individually bounded; charge remaining_length for what they consume.
+        // The reads below are not individually bounded, so check what they consumed before charging it:
+        // subtracting more than is left would wrap remaining_length and unbound everything parsed after.
         const uchar *decode_start = bytes;
         std::vector<T> out(targetLength);
 
@@ -584,7 +591,11 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
             }
         }
         bytes += s_counter;
-        remaining_length -= static_cast<size_t>(bytes - decode_start);
+        const size_t consumed = static_cast<size_t>(bytes - decode_start);
+        if (consumed > remaining_length) {
+            throw std::out_of_range("SZ3 arithmetic encoder: decode read past the end of the compressed buffer");
+        }
+        remaining_length -= consumed;
         return out;
     }
 

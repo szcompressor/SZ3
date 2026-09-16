@@ -18,6 +18,7 @@
 #include <SZ3/utils/QuantOptimization.hpp>
 #include <SZ3/utils/Statistic.hpp>
 #include <SZ3/utils/Timer.hpp>
+#include <stdexcept>
 
 #include "SZ3/compressor/specialized/SZExaaltCompressor.hpp"
 #include "SZ3/decomposition/BlockwiseDecomposition.hpp"

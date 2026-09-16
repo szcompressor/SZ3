@@ -11,6 +11,7 @@
 #ifdef _OPENMP
 
 #include <omp.h>
+#include <stdexcept>
 
 #endif
 namespace SZ3 {

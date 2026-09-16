@@ -10,6 +10,7 @@
 
 #include <climits>
 #include <cmath>
+#include <memory>
 #include <stdexcept>
 #include <vector>
 
@@ -316,15 +317,18 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
 
         size_t bufferSize = size3 * 1.2;
         struct DataBuffer buffer;
-        int *intBufferPoiner = reinterpret_cast<int *>(malloc(size3 * sizeof(*intBufferPoiner)));
+        std::unique_ptr<int, void (*)(void *)> index_owner(
+            static_cast<int *>(malloc(size3 * sizeof(int))), &free);
         // Zeroed: the bit packing below leaves the bits it does not set untouched, and buffer.index bytes
         // of this go into the compressed output. Uninitialised, it puts heap contents in the file and makes
         // the same input compress to different bytes on every run.
-        buffer.data = static_cast<unsigned char *>(calloc(bufferSize, sizeof(int)));
-        if (buffer.data == nullptr) {
-            free(intBufferPoiner);
+        std::unique_ptr<unsigned char, void (*)(void *)> buffer_owner(
+            static_cast<unsigned char *>(calloc(bufferSize, sizeof(int))), &free);
+        if (index_owner == nullptr || buffer_owner == nullptr) {
             throw std::runtime_error("SZ3 Xtc: can not allocate the compression buffer");
         }
+        int *intBufferPoiner = index_owner.get();
+        buffer.data = buffer_owner.get();
         buffer.index = 0;
         buffer.lastbits = 0;
         buffer.lastbyte = 0;
@@ -573,8 +577,6 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             remain -= batchSize;
         } while (remain > 0);
 
-        free(buffer.data);
-        free(intBufferPoiner);
 
         size_t outputSize = charOutputPtr - bytes;
 
@@ -597,7 +599,8 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
      *
      */
     std::vector<T> decode(const unsigned char *&bytes, size_t targetLength, size_t &remaining_length) override {
-        // The reads below are not individually bounded; charge remaining_length for what they consume.
+        // The reads below are not individually bounded, so check what they consumed before charging it:
+        // subtracting more than is left would wrap remaining_length and unbound everything parsed after.
         const unsigned char *decode_start = bytes;
 #ifdef DEBUG_OUTPUT
         printf("\nDecoding, targetLength: %ld\n", targetLength);
@@ -660,7 +663,9 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
 
         size_t size3 = targetLength;
         bufferSize = size3 * 1.2;
-        buffer.data = reinterpret_cast<unsigned char *>(malloc(bufferSize * sizeof(int)));
+        std::unique_ptr<unsigned char, void (*)(void *)> buffer_owner(
+            static_cast<unsigned char *>(malloc(bufferSize * sizeof(int))), &free);
+        buffer.data = buffer_owner.get();
         if (buffer.data == nullptr) {
             throw std::runtime_error("SZ3 Xtc: can not allocate the decompression buffer");
         }
@@ -689,10 +694,12 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
 
         int run = 0;
         size_t i = 0;
-        int *intBufferPoiner = reinterpret_cast<int *>(malloc(size3 * sizeof(*intBufferPoiner)));
-        if (intBufferPoiner == nullptr) {
+        std::unique_ptr<int, void (*)(void *)> index_owner(
+            static_cast<int *>(malloc(size3 * sizeof(int))), &free);
+        if (index_owner == nullptr) {
             throw std::runtime_error("SZ3 Xtc: can not allocate the index buffer");
         }
+        int *intBufferPoiner = index_owner.get();
         int *localIntBufferPointer = intBufferPoiner;
         unsigned char *charOutputPtr = reinterpret_cast<unsigned char *>(quantData.data());
         int *intOutputPtr = reinterpret_cast<int *>(charOutputPtr);
@@ -779,8 +786,6 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             }
             sizeSmall[0] = sizeSmall[1] = sizeSmall[2] = magicInts[smallIdx];
         }
-        free(buffer.data);
-        free(intBufferPoiner);
 
 #ifdef DEBUG_OUTPUT
         printf("Decoded %llu triplets.\n", numTriplets);
@@ -796,7 +801,11 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             quantData[quantData.size() - 1] = reminder1;
             quantData[quantData.size() - 2] = reminder2;
         }
-        remaining_length -= static_cast<size_t>(bytes - decode_start);
+        const size_t consumed = static_cast<size_t>(bytes - decode_start);
+        if (consumed > remaining_length) {
+            throw std::out_of_range("SZ3 Xtc: decode read past the end of the compressed buffer");
+        }
+        remaining_length -= consumed;
         return quantData;
     }
 

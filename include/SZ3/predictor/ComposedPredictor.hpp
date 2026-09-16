@@ -4,6 +4,7 @@
 #include <cassert>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 
 #include "SZ3/encoder/HuffmanEncoder.hpp"
 #include "SZ3/predictor/Predictor.hpp"

@@ -1,6 +1,7 @@
 #ifndef SZ3_RUNLENGTH_ENCODER_HPP
 #define SZ3_RUNLENGTH_ENCODER_HPP
 
+#include <stdexcept>
 #include <vector>
 
 #include "Encoder.hpp"
@@ -44,12 +45,8 @@ class RunlengthEncoder : public concepts::EncoderInterface<T> {
         T value;
         int cnt;
         for (size_t i = 0; i < bins.size();) {
-            if (remaining_length < sizeof(T) + sizeof(int)) {
-                throw std::out_of_range("SZ3 runlength encoder: ran out of input before the bins were filled");
-            }
-            remaining_length -= sizeof(T) + sizeof(int);
-            read(value, bytes);
-            read(cnt, bytes);
+            read(value, bytes, remaining_length);
+            read(cnt, bytes, remaining_length);
             if (cnt < 0) {
                 throw std::out_of_range("SZ3 runlength encoder: negative run length");
             }

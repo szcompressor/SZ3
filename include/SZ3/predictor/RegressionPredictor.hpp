@@ -2,6 +2,7 @@
 #define SZ3_REGRESSION_PREDICTOR_HPP
 
 #include <iostream>
+#include <stdexcept>
 
 #include "SZ3/encoder/HuffmanEncoder.hpp"
 #include "SZ3/predictor/Predictor.hpp"

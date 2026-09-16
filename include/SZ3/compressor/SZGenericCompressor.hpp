@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <stdexcept>
 #include <type_traits>
 
 #include "SZ3/compressor/Compressor.hpp"
@@ -70,7 +71,7 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
 
     T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *decData) override {
         uchar *buffer = nullptr;
-        // bufferSize goes in as a cap on the allocation and comes back as the size decompressed; 0 is no cap.
+        // No cap: this buffer holds the uncompressed stream, whose size conf does not bound.
         size_t bufferSize = 0;
         lossless.decompress(cmpData, cmpSize, buffer, bufferSize);
 
@@ -85,7 +86,8 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
 
         size_t quant_inds_size = 0;
         read(quant_inds_size, bufferPos, bufferSize);
-        // At most one bin per element, so conf.num is the ceiling for the count the stream declares.
+        // A decomposition takes at most one bin per element, and BIOMDXTC's multi-frame path takes fewer,
+        // so conf.num is a ceiling rather than the count. Each decomposition checks its own floor.
         if (quant_inds_size > conf.num) {
             throw std::out_of_range("SZ3: declared bin count exceeds the configured element count");
         }

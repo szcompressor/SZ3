@@ -5,6 +5,7 @@
 #include <map>
 #include <queue>
 #include <stack>
+#include <stdexcept>
 #include <vector>
 
 #include "SZ3/def.hpp"
@@ -435,14 +436,19 @@ public:
     }
 
     std::vector<T> decode(const uchar*& bytes, size_t targetLength, size_t& remaining_length) override {
-        // The reads below are not individually bounded; charge remaining_length for what they consume.
+        // The reads below are not individually bounded, so check what they consumed before charging it:
+        // subtracting more than is left would wrap remaining_length and unbound everything parsed after.
         const uchar* decode_start = bytes;
         if (tree.maxval == 1) {
             size_t len = bytesToInt64_bigEndian(bytes) ^ 0x1234abcd;
             bytes += 8;
             //                assert(len==targetLength);
 
-            remaining_length -= static_cast<size_t>(bytes - decode_start);
+            const size_t consumed = static_cast<size_t>(bytes - decode_start);
+            if (consumed > remaining_length) {
+                throw std::out_of_range("SZ3 HuffmanEncoderV2: decode read past the end of the compressed buffer");
+            }
+            remaining_length -= consumed;
             return std::vector<T>(len, tree.offset);
         }
 
@@ -519,7 +525,11 @@ public:
 
             bytes += (len + 7) >> 3;
 
-            remaining_length -= static_cast<size_t>(bytes - decode_start);
+            const size_t consumed = static_cast<size_t>(bytes - decode_start);
+            if (consumed > remaining_length) {
+                throw std::out_of_range("SZ3 HuffmanEncoderV2: decode read past the end of the compressed buffer");
+            }
+            remaining_length -= consumed;
             return out;
         }
 
@@ -673,7 +683,11 @@ public:
 
         // timer.stop("decode");
 
-        remaining_length -= static_cast<size_t>(bytes - decode_start);
+        const size_t consumed = static_cast<size_t>(bytes - decode_start);
+        if (consumed > remaining_length) {
+            throw std::out_of_range("SZ3 HuffmanEncoderV2: decode read past the end of the compressed buffer");
+        }
+        remaining_length -= consumed;
         return out;
     }
 
