@@ -5,6 +5,10 @@
 #ifndef SZ3_LOSSLESS_HPP
 #define SZ3_LOSSLESS_HPP
 
+#include <cstddef>
+
+#include "SZ3/def.hpp"
+
 namespace SZ3::concepts {
 
 /**
@@ -29,8 +33,9 @@ class LosslessInterface {
      * reverse of compress(), decompress the data with lossless compressors
      * @param src data to be decompressed
      * @param srcLen length (in bytes) of the data to be decompressed (as input) or the data decompressed (as output).
-     * @param dst decompressed data
-     * @param dstLen length (in bytes) of the decompressed data
+     * @param dst decompressed data; allocated by the callee when null on entry
+     * @param dstLen in: the capacity of *dst, or of the allocation made when *dst is null; 0 for no cap.
+     *               out: length (in bytes) of the data decompressed
      * @return length (in bytes) of the data decompressed
      */
     virtual size_t decompress(const uchar *src, const size_t srcLen, uchar *&dst, size_t &dstLen) = 0;

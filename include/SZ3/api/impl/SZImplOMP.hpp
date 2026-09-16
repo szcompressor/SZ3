@@ -2,7 +2,9 @@
 #define SZ3_IMPL_SZDISPATCHER_OMP_HPP
 
 #include <cmath>
+#include <cstdlib>
 #include <memory>
+#include <new>
 
 #include "SZ3/api/impl/SZDispatcher.hpp"
 

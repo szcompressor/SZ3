@@ -5,6 +5,14 @@
 #ifndef SZ3_EXTRACTION_HPP
 #define SZ3_EXTRACTION_HPP
 
+#include <algorithm>
+#include <cassert>
+#include <numeric>
+#include <vector>
+
+#include "SZ3/def.hpp"
+#include "SZ3/utils/Timer.hpp"
+
 namespace SZ3 {
 
 template <uint N>

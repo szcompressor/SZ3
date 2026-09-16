@@ -1,6 +1,8 @@
 #ifndef SZ3_SZALGO_INTERP_HPP
 #define SZ3_SZALGO_INTERP_HPP
 
+#include <memory>
+
 #include "SZ3/api/impl/SZAlgoLorenzoReg.hpp"
 #include "SZ3/decomposition/BlockwiseDecomposition.hpp"
 #include "SZ3/decomposition/InterpolationDecomposition.hpp"

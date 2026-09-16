@@ -1,6 +1,9 @@
 #ifndef SZ3_TIME_SERIES_DECOMPOSITION_HPP
 #define SZ3_TIME_SERIES_DECOMPOSITION_HPP
 
+#include <cassert>
+#include <limits>
+
 #include "Decomposition.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/predictor/LorenzoPredictor.hpp"

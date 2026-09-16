@@ -2,6 +2,9 @@
 #define SZ3_QUANTIZER_HPP
 
 #include <SZ3/def.hpp>
+#include <cstddef>
+#include <type_traits>
+#include <utility>
 
 namespace SZ3::concepts {
 

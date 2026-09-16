@@ -38,8 +38,6 @@ public:
 
     std::pair<int, int> get_out_range() const override { return std::make_pair(0, radius * 2); }
 
-    // quantize the data with a prediction value, and returns the quantization index and the decompressed data
-    // int quantize(T data, T pred, T& dec_data);
     ALWAYS_INLINE int quantize_and_overwrite(T& data, T pred) override {
         T diff = data - pred;
         auto quant_index = static_cast<int64_t>(fabs(diff) * this->error_bound_reciprocal) + 1;
@@ -55,7 +53,6 @@ public:
                 quant_index_shifted = this->radius + half_index;
             }
             T decompressed_data = pred + quant_index * this->error_bound;
-            // if data is NaN, the diff is NaN, and NaN <= 0 is false
             diff = fabs(decompressed_data - data);
             if (diff <= this->error_bound || (!strict_eb && diff <= this->error_bound * 1.1)) {
                 data = decompressed_data;

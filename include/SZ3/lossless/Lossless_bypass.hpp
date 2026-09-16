@@ -6,6 +6,8 @@
 #define SZ3_LOSSLESS_BYPASS_HPP
 
 #include <cstring>
+#include <stdexcept>
+
 #include "SZ3/def.hpp"
 #include "SZ3/lossless/Lossless.hpp"
 
@@ -14,7 +16,6 @@ class Lossless_bypass : public concepts::LosslessInterface {
 public:
     size_t compress(const uchar *src, size_t srcLen, uchar *dst, size_t dstCap) override {
         std::memcpy(dst, src, srcLen);
-        // dst = src;
         return srcLen;
     }
 

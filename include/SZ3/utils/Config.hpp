@@ -15,8 +15,10 @@
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <numeric>
+#include <stdexcept>
 #include <vector>
 
 #include "SZ3/def.hpp"
@@ -357,6 +359,7 @@ class Config {
      * @brief Deserialize the configuration from a byte array.
      *
      * @param c Pointer to the byte array.
+     * @param remaining_length bytes readable from `c`; decremented by what is consumed.
      */
     void load(const unsigned char*& c) {
         uchar confSize = 0;

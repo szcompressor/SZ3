@@ -5,6 +5,10 @@
 #ifndef SZ3_STATISTIC_HPP
 #define SZ3_STATISTIC_HPP
 
+#include <algorithm>
+#include <cmath>
+#include <stdexcept>
+
 #include "Config.hpp"
 
 namespace SZ3 {

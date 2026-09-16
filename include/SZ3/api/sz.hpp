@@ -21,6 +21,8 @@
 #ifndef SZ3_SZ_HPP
 #define SZ3_SZ_HPP
 
+#include <memory>
+
 #include "SZ3/api/impl/SZImpl.hpp"
 #include "SZ3/version.hpp"
 

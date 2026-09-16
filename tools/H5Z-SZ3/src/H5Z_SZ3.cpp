@@ -1,5 +1,6 @@
 #include "H5Z_SZ3.hpp"
 
+#include <algorithm>
 #include <fstream>
 #include <iterator>
 #include <memory>

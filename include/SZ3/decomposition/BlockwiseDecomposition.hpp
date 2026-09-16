@@ -2,12 +2,15 @@
 #define SZ3_BLOCKWISE_DECOMPOSITION_HPP
 
 #include <cstring>
+#include <limits>
+#include <memory>
 
 #include "Decomposition.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/predictor/LorenzoPredictor.hpp"
 #include "SZ3/predictor/Predictor.hpp"
 #include "SZ3/quantizer/LinearQuantizer.hpp"
+#include "SZ3/utils/BlockwiseIterator.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/FileUtil.hpp"
 #include "SZ3/utils/BlockwiseIterator.hpp"

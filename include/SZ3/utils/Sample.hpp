@@ -1,6 +1,9 @@
 #ifndef SZ3_SAMPLE_HPP
 #define SZ3_SAMPLE_HPP
 
+#include <cassert>
+#include <vector>
+
 #include "SZ3/def.hpp"
 #include <vector>
 

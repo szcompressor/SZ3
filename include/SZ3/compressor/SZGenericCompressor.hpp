@@ -1,7 +1,10 @@
 #ifndef SZ3_COMPRESSOR_TYPE_ONE_HPP
 #define SZ3_COMPRESSOR_TYPE_ONE_HPP
 
+#include <cstdlib>
 #include <cstring>
+#include <memory>
+#include <type_traits>
 
 #include "SZ3/compressor/Compressor.hpp"
 #include "SZ3/decomposition/Decomposition.hpp"
@@ -51,7 +54,7 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         decomposition.save(buffer_pos);
         encoder.save(buffer_pos);
 
-        //store the size of quant_inds is necessary as it is not always equal to conf.num
+        // store the size of quant_inds is necessary as it is not always equal to conf.num
         write<size_t>(quant_inds.size(), buffer_pos);
         encoder.encode(quant_inds, buffer_pos);
         encoder.postprocess_encode();
@@ -64,6 +67,7 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
 
     T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *decData) override {
         uchar *buffer = nullptr;
+        // bufferSize goes in as a cap on the allocation and comes back as the size decompressed; 0 is no cap.
         size_t bufferSize = 0;
         lossless.decompress(cmpData, cmpSize, buffer, bufferSize);
 

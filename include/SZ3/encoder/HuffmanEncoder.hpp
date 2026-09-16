@@ -1,11 +1,22 @@
 #ifndef SZ3_HUFFMAN_ENCODER_HPP
 #define SZ3_HUFFMAN_ENCODER_HPP
 
+#include <cassert>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
+#include <limits>
+#include <map>
+#include <set>
+#include <stdexcept>
+#include <unordered_set>
 
 #include "SZ3/def.hpp"
 #include "SZ3/encoder/Encoder.hpp"
 #include "SZ3/utils/ByteUtil.hpp"
+#include "SZ3/utils/Collections.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
 #include "SZ3/utils/Timer.hpp"
 #include "SZ3/utils/Collections.hpp"

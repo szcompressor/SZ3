@@ -1,9 +1,12 @@
 #ifndef SZ3_SZ_BIOMD_HPP
 #define SZ3_SZ_BIOMD_HPP
 
+#include "SZ3/compressor/SZGenericCompressor.hpp"
 #include "SZ3/decomposition/SZBioMDDecomposition.hpp"
 #include "SZ3/decomposition/SZBioMDXtcDecomposition.hpp"
 #include "SZ3/def.hpp"
+#include "SZ3/encoder/HuffmanEncoder.hpp"
+#include "SZ3/encoder/HuffmanEncoderV2.hpp"
 #include "SZ3/encoder/XtcBasedEncoder.hpp"
 #include "SZ3/lossless/Lossless_bypass.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"

@@ -5,6 +5,7 @@
 #ifndef SZ3_LOSSLESS_ZSTD_HPP
 #define SZ3_LOSSLESS_ZSTD_HPP
 
+#include <memory>
 #include <stdexcept>
 
 #include "SZ3/def.hpp"

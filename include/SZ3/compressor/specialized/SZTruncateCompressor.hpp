@@ -2,6 +2,7 @@
 #define SZ3_Truncate_COMPRESSOR_HPP
 
 #include <cstring>
+#include <memory>
 
 #include "SZ3/compressor/Compressor.hpp"
 #include "SZ3/decomposition/Decomposition.hpp"
