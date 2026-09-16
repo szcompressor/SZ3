@@ -70,8 +70,7 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
 
     T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *decData) override {
         uchar *buffer = nullptr;
-        size_t bufferSize = 0;  // zero asks the lossless layer to allocate
-        lossless.decompress(cmpData, cmpSize, buffer, bufferSize);
+        size_t bufferSize = lossless.decompress(cmpData, cmpSize, buffer, 0);
 
         // malloc'd by the lossless layer, hence free(). Owned, because the parsing below can throw.
         std::unique_ptr<uchar, void (*)(void *)> buffer_owner(buffer, &free);

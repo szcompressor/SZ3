@@ -22,9 +22,7 @@ void runFunctionalTest() {
 
     std::vector<SZ3::uchar> decompressed(N);
     SZ3::uchar* decompressed_pos = decompressed.data();
-    // Goes in as this buffer's capacity, comes back as the size decompressed.
-    size_t decompressedSize = decompressed.size();
-    lossless.decompress(dst.data(), compressedSize, decompressed_pos, decompressedSize);
+    size_t decompressedSize = lossless.decompress(dst.data(), compressedSize, decompressed_pos, decompressed.size());
 
     EXPECT_EQ(decompressedSize, src.size());
     EXPECT_EQ(std::vector<SZ3::uchar>(decompressed.data(), decompressed.data() + decompressedSize), src);

@@ -81,9 +81,8 @@ template <class T, uint N>
 void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
     if (conf.cmprAlgo == ALGO_LOSSLESS) {
         auto zstd = Lossless_zstd();
-        size_t decDataSize = conf.num * sizeof(T);
         auto decDataPos = reinterpret_cast<uchar *>(decData);
-        zstd.decompress(cmpData, cmpSize, decDataPos, decDataSize);
+        size_t decDataSize = zstd.decompress(cmpData, cmpSize, decDataPos, conf.num * sizeof(T));
         if (decDataSize != conf.num * sizeof(T)) {
             throw std::runtime_error("Decompressed data size does not match the original data size");
         }

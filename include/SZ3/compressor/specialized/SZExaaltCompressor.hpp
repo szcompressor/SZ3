@@ -125,8 +125,7 @@ class SZExaaltCompressor : public SZ3::concepts::CompressorInterface<T> {
     //        T *decompress(uchar const *lossless_compressed_data, const size_t length) {
     T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *dec_data) override {
         uchar *buffer = nullptr;
-        size_t bufferSize = 0;
-        lossless.decompress(cmpData, cmpSize, buffer, bufferSize);
+        size_t bufferSize = lossless.decompress(cmpData, cmpSize, buffer, 0);
         // The parsing below walks the decompressed buffer, so bufferSize is its bound, not cmpSize.
         size_t remaining_length = bufferSize;
         uchar const *buffer_pos = buffer;
