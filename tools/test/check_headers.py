@@ -25,6 +25,20 @@ INCLUDE = REPO / "include"
 SKIP_DIRS = {"thirdparty", "testing"}  # testing/ needs GoogleTest, which the library does not depend on
 
 
+def eigen_include_dirs(config_dir):
+    """Include dirs for an Eigen found through its CMake config.
+
+    Eigen3_DIR points at the config (<prefix>/share/eigen3/cmake, <prefix>/lib/cmake/eigen3, or a
+    FetchContent build dir), never at the headers. Walk up to the prefix that owns them.
+    """
+    found = [config_dir, config_dir.parent / "eigen-src"]
+    for parent in config_dir.parents:
+        for candidate in (parent / "include" / "eigen3", parent / "include"):
+            if (candidate / "Eigen" / "Dense").is_file():
+                found.append(candidate)
+    return found
+
+
 def find_include_dirs(build_dir):
     """Repo headers, the build tree's generated headers, and the third-party dirs it configured."""
     dirs = [INCLUDE]
@@ -38,8 +52,7 @@ def find_include_dirs(build_dir):
             for line in cache.read_text(errors="replace").splitlines():
                 key, _, value = line.partition("=")
                 if key.startswith("Eigen3_DIR"):
-                    d = pathlib.Path(value.strip())
-                    dirs += [d, d.parent / "eigen-src"]
+                    dirs += eigen_include_dirs(pathlib.Path(value.strip()))
                 elif key.startswith(("ZSTD_CFLAGS", "ZSTD_INCLUDE_DIR")):
                     for token in value.split():
                         dirs.append(pathlib.Path(token[2:] if token.startswith("-I") else token))
