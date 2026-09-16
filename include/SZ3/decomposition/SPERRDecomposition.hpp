@@ -3,8 +3,8 @@
  * @ingroup Decomposition
  */
 
-#ifndef SZ3_SZ3_SPERR_DECOMPOSITION_HPP
-#define SZ3_SZ3_SPERR_DECOMPOSITION_HPP
+#ifndef SZ3_SPERR_DECOMPOSITION_HPP
+#define SZ3_SPERR_DECOMPOSITION_HPP
 
 #include <algorithm>
 #include <cfenv>
@@ -294,4 +294,4 @@ class SPERRDecomposition : public concepts::DecompositionInterface<T, int64_t, N
 
 }  // namespace SZ3
 
-#endif  // SZ3_SZ3_SPERR_DECOMPOSITION_HPP
+#endif  // SZ3_SPERR_DECOMPOSITION_HPP
