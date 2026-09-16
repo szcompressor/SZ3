@@ -12,6 +12,7 @@
 #ifndef SZ3_Config_HPP
 #define SZ3_Config_HPP
 
+#include <algorithm>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
@@ -365,15 +366,15 @@ class Config {
      */
     void load(const unsigned char*& c, size_t& remaining_length) {
         const unsigned char* const c0 = c;
+        const unsigned char* const cend = c + remaining_length;
         uchar confSize = 0;
         read(confSize, c, remaining_length);
-        // `confSize` is the total size of the config blob, including this prefix byte.
-        if (confSize > remaining_length + sizeof(confSize))
-            throw std::out_of_range("SZ3 Config::load: config size exceeds the buffer");
-        auto c1 = c0 + confSize;
+        // Where the optional fields at the end stop. A writer that declares more than it sends stops
+        // at the buffer instead.
+        const unsigned char* const c1 = std::min(c0 + confSize, cend);
 
         read(N, c, remaining_length);
-        if (N < 1 || N > 4) throw std::out_of_range("SZ3 Config::load: invalid number of dimensions");
+        if (N > 4) throw std::out_of_range("SZ3 Config::load: invalid number of dimensions");
         uint8_t bitWidth;
         read(bitWidth, c, remaining_length);
         if (bitWidth > 64) throw std::out_of_range("SZ3 Config::load: invalid dimension bit width");
@@ -383,9 +384,10 @@ class Config {
         dims = bytes2vector<size_t>(c, bitWidth, N);
         remaining_length -= dim_bytes;
         read(num, c, remaining_length);
-        // The element count must equal the product of the dimensions, or the predictor would iterate over
-        // more grid positions than were allocated.
-        size_t dims_product = 1;
+        // num must equal the product of the dimensions, or the predictor walks more grid positions than
+        // were allocated. No dimensions means no elements: the HDF5 filter loads a config from cd_values
+        // before it knows the dataset shape.
+        size_t dims_product = dims.empty() ? 0 : 1;
         bool dims_ok = true;
         for (size_t dim : dims) {
             if (dim == 0 || dims_product > std::numeric_limits<size_t>::max() / dim) {
@@ -411,8 +413,7 @@ class Config {
             read(absErrorBound, c, remaining_length);
             read(relErrorBound, c, remaining_length);
         } else {
-            // save() always writes a bound here. A mode with no branch would leave those bytes unread and
-            // shift every field below it, dataType included.
+            // save() always writes a bound here, so an unhandled mode would shift every field below it.
             throw std::invalid_argument("SZ3 Config::load: unknown error bound mode");
         }
 

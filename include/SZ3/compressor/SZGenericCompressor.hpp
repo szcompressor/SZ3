@@ -50,8 +50,7 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         size_t bufferSize = std::max<size_t>(
             1000, 2 * (decomposition.size_est() + encoder.size_est() + sizeof(T) * quant_inds.size()));
 
-        // Owned: the encoder and the lossless layer can throw and the caller continues, so a bare delete
-        // at the end leaks on every failed compression.
+        // Owned, because the encoder and the lossless layer below can throw.
         std::unique_ptr<uchar[]> buffer_owner(new uchar[bufferSize]);
         uchar *const buffer = buffer_owner.get();
         uchar *buffer_pos = buffer;
@@ -71,12 +70,10 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
 
     T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *decData) override {
         uchar *buffer = nullptr;
-        // No cap: this buffer holds the uncompressed stream, whose size conf does not bound.
-        size_t bufferSize = 0;
+        size_t bufferSize = 0;  // zero asks the lossless layer to allocate
         lossless.decompress(cmpData, cmpSize, buffer, bufferSize);
 
-        // malloc'd by the lossless layer, hence the free() deleter. Owned because the parsing below is on
-        // untrusted data and can throw.
+        // malloc'd by the lossless layer, hence free(). Owned, because the parsing below can throw.
         std::unique_ptr<uchar, void (*)(void *)> buffer_owner(buffer, &free);
 
         uchar const *bufferPos = buffer;
@@ -86,11 +83,6 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
 
         size_t quant_inds_size = 0;
         read(quant_inds_size, bufferPos, bufferSize);
-        // A decomposition takes at most one bin per element, and BIOMDXTC's multi-frame path takes fewer,
-        // so conf.num is a ceiling rather than the count. Each decomposition checks its own floor.
-        if (quant_inds_size > conf.num) {
-            throw std::out_of_range("SZ3: declared bin count exceeds the configured element count");
-        }
         auto quant_inds = encoder.decode(bufferPos, quant_inds_size, bufferSize);
         encoder.postprocess_decode();
 

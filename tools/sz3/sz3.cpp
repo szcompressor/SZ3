@@ -130,8 +130,7 @@ template <class T>
 void compress(char *inPath, char *cmpPath, SZ3::Config &conf) {
     T *data = new T[conf.num];
     SZ3::readfile<T>(inPath, conf.num, data);
-    // SZ_compress refuses anything below its own bound, which 2 * the raw size falls under for small
-    // inputs -- the same sizing the HDF5 filter had.
+    // SZ_compress refuses a capacity below its own bound, which a small input falls under.
     size_t bytesCap = SZ3::SZ_compress_size_bound<T>(conf);
     auto bytes = new char[bytesCap];
 

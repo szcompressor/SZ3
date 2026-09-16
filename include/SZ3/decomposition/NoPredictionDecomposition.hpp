@@ -18,7 +18,6 @@ class NoPredictionDecomposition : public concepts::DecompositionInterface<T, int
     }
 
     T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) override {
-        // The loop below indexes quant_inds up to conf.num and does not check as it goes.
         if (quant_inds.size() < conf.num) {
             throw std::out_of_range("SZ3 no-prediction: fewer bins than the data has elements");
         }

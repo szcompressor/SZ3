@@ -73,8 +73,7 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
 
         conf_t[tid] = conf;
         conf_t[tid].setDims(dims_t.begin(), dims_t.end());
-        // Room for the size header Lossless_zstd::compress writes ahead of the zstd stream; without it the
-        // direct lossless path in SZ_compress_dispatcher throws on poorly compressible chunks.
+        // Room for the size header Lossless_zstd::compress writes ahead of the zstd stream.
         size_t cmp_size_cap = sizeof(size_t) + ZSTD_compressBound(conf_t[tid].num * sizeof(T));
         std::unique_ptr<uchar[]> compressed_owner(new uchar[cmp_size_cap]);
         compressed_t[tid] = compressed_owner.get();

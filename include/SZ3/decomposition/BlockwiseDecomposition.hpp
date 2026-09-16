@@ -49,8 +49,6 @@ class BlockwiseDecomposition : public concepts::DecompositionInterface<T, int, N
     }
 
     T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) override {
-        // The block walk below takes one bin per element and does not check as it goes; on an empty vector
-        // &quant_inds[0] is already out of bounds.
         if (quant_inds.size() < conf.num) {
             throw std::out_of_range("SZ3 blockwise: fewer bins than the grid consumes");
         }

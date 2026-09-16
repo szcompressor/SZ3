@@ -39,7 +39,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
 
         init();
 
-        // The walk below takes one bin per element and does not check as it goes.
         if (quant_inds.size() < num_elements) {
             throw std::out_of_range("SZ3 interpolation: fewer bins than the grid consumes");
         }
@@ -197,13 +196,10 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
    private:
     void init() {
         quant_index = 0;
-        // load() takes all four from the compressed payload, and the asserts that used to stand here are
-        // compiled out of a release build. interp_id and direction_sequence_id index fixed tables below.
+        // All four come from the compressed payload; interp_id and direction_sequence_id index the fixed
+        // tables built below.
         if (blocksize == 0 || blocksize % 2 != 0) {
             throw std::out_of_range("SZ3 interpolation: block size must be a positive even number");
-        }
-        if ((anchor_stride & (anchor_stride - 1)) != 0) {
-            throw std::out_of_range("SZ3 interpolation: anchor stride must be zero or a power of two");
         }
         if (interp_id < 0 || static_cast<size_t>(interp_id) >= interpolators.size()) {
             throw std::out_of_range("SZ3 interpolation: interpolator id is out of range");
@@ -221,6 +217,11 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
         }
         if (!use_anchor)
             anchor_stride = 0;
+        // log2() and the anchor grid below need a power of two; a stride wider than the data is
+        // already zero by here.
+        if (anchor_stride > 0 && (anchor_stride & (anchor_stride - 1)) != 0) {
+            throw std::out_of_range("SZ3 interpolation: anchor stride must be a power of two");
+        }
         if (anchor_stride > 0) {
             int max_interpolation_level = static_cast<int>(log2(anchor_stride)) + 1;
             if (max_interpolation_level <= interp_level) {

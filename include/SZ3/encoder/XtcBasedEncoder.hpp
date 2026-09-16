@@ -319,9 +319,8 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         struct DataBuffer buffer;
         std::unique_ptr<int, void (*)(void *)> index_owner(
             static_cast<int *>(malloc(size3 * sizeof(int))), &free);
-        // Zeroed: the bit packing below leaves the bits it does not set untouched, and buffer.index bytes
-        // of this go into the compressed output. Uninitialised, it puts heap contents in the file and makes
-        // the same input compress to different bytes on every run.
+        // Zeroed: the bit packing below leaves untouched the bits it does not set, and buffer.index bytes
+        // of this go into the compressed output.
         std::unique_ptr<unsigned char, void (*)(void *)> buffer_owner(
             static_cast<unsigned char *>(calloc(bufferSize, sizeof(int))), &free);
         if (index_owner == nullptr || buffer_owner == nullptr) {
@@ -441,9 +440,8 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         }
         *intOutputPtr++ = smallIdx;
 
-        // LASTIDX is the table's length, one past the last entry. The loop above stops there when no entry
-        // reaches minDiff -- which is every input with fewer than two triplets, minDiff being still INT_MAX
-        // -- and smallIdx + CHAR_BIT runs past it too. The decoder clamps the same way.
+        // LASTIDX is one past the last entry, and the loop above stops there when no entry reaches minDiff,
+        // which is every input with fewer than two triplets. The decoder clamps the same way.
         const int smallLookup = std::min(smallIdx, LASTIDX - 1);
         int maxIdx = std::min(LASTIDX - 1, smallIdx + CHAR_BIT);
         int minIdx = maxIdx - CHAR_BIT; /* often this equal smallIdx */
