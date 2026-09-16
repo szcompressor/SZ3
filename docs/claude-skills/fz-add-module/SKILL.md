@@ -82,7 +82,7 @@ class FooQuantizer : public concepts::QuantizerInterface<T, int> {
 };
 ```
 
-Unique `uid` byte per quantizer (current values: `LinearQuantizer=0b10`, `FixedPointQuantizer=0b11`, `ScalarQuantizer=0b100`, `BitTruncationQuantizer=0b101`, `LogDomainQuantizer=0b111`, `GranularBitRoundQuantizer=0b1000`, `ClusterQuantizer=0b1001`, `LevelQuantizer=0b1010` — pick a free one). Saving/loading uid lets the bitstream catch mismatched-quantizer errors.
+Unique `uid` byte per quantizer (current values: `LinearQuantizer=0b10`, `FixedPointQuantizer=0b11`, `ScalarQuantizer=0b100`, `BitTruncationQuantizer=0b101`, `LogDomainQuantizer=0b111`, `GranularBitRoundQuantizer=0b1000`, `ClusterQuantizer=0b1001`, `LevelQuantizer=0b1010`, `OutlierQuantizer=0b1011` — pick a free one). Saving/loading uid lets the bitstream catch mismatched-quantizer errors.
 
 Reference implementations: `LinearQuantizer.hpp` (default), `FixedPointQuantizer.hpp` (calibrated), `ScalarQuantizer.hpp` (asymmetric reconstruction tweaks).
 

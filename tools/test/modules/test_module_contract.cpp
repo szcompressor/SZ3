@@ -1,5 +1,10 @@
-// Group-level acceptance checks. Every module in the library must pass the contract for its
-// group; see docs/MODULE_ACCEPTANCE.md.
+// Group-level acceptance checks; the standard is the Testing section of
+// docs/claude-skills/fz-add-module/SKILL.md.
+//
+// A module belongs here when a decomposition can host it and SZGenericCompressor will see its
+// range. OutlierQuantizer does not: it is a second pass held inside MGARDFused, SPERR and
+// MultiLevel, whose bins go straight into their own save(), so its range deliberately spans the
+// whole bin type rather than starting at zero.
 
 #include "SZ3/testing/ModuleContract.hpp"
 #include "SZ3/compressor/SZGenericCompressor.hpp"
