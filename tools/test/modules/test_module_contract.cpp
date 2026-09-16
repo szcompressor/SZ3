@@ -4,7 +4,8 @@
 // A module belongs here when a decomposition can host it and SZGenericCompressor will see its
 // range. OutlierQuantizer does not: it is a second pass held inside MGARDFused, SPERR and
 // MultiLevel, whose bins go straight into their own save(), so its range deliberately spans the
-// whole bin type rather than starting at zero.
+// whole bin type rather than starting at zero. The encoders SPERR and ZFP carry are likewise
+// driven by their own decomposition rather than composed freely.
 
 #include "SZ3/testing/ModuleContract.hpp"
 #include "SZ3/compressor/SZGenericCompressor.hpp"
@@ -12,6 +13,9 @@
 #include "SZ3/decomposition/InterpolationDecomposition.hpp"
 #include "SZ3/decomposition/MGARDFusedDecomposition.hpp"
 #include "SZ3/decomposition/MultiLevelDecomposition.hpp"
+#include "SZ3/decomposition/PaSTRIDecomposition.hpp"
+#include "SZ3/decomposition/SPERRDecomposition.hpp"
+#include "SZ3/decomposition/SPERRFusedDecomposition.hpp"
 #include "SZ3/decomposition/NoPredictionDecomposition.hpp"
 #include "SZ3/encoder/ArithmeticEncoder.hpp"
 #include "SZ3/encoder/BitshuffleEncoder.hpp"
@@ -258,4 +262,26 @@ TEST(SZ3_ModuleContract, CompressorRejectsRangeWiderThanInt) {
     // preprocess_encode takes an int; a decomposition with no usable range must report 0 instead.
     EXPECT_ANY_THROW(compressWithRange<1>(conf, 0, std::numeric_limits<int64_t>::max()));
     EXPECT_NO_THROW(compressWithRange<1>(conf, 0, 0));
+}
+
+TEST(SZ3_ModuleContract, PaSTRIDecomposition) {
+    const double eb = 1e-3;
+    auto conf = conf3D(8, 8, 8, eb);
+    SZ3_test::expectDecompositionContract<double>(
+        "PaSTRIDecomposition", conf,
+        [&] { return SZ3::PaSTRIDecomposition<double, 3>(eb, std::array<int, 4>{1, 1, 1, 1}); }, eb);
+}
+
+TEST(SZ3_ModuleContract, SPERRFusedDecomposition) {
+    const double eb = 1e-3;
+    auto conf = conf3D(16, 16, 16, eb);
+    SZ3_test::expectDecompositionContract<float>(
+        "SPERRFusedDecomposition", conf, [&] { return SZ3::SPERRFusedDecomposition<float, 3>(); }, eb);
+}
+
+TEST(SZ3_ModuleContract, SPERRDecompositionComposable) {
+    const double eb = 1e-3;
+    auto conf = conf3D(16, 16, 16, eb);
+    SZ3_test::expectDecompositionContract<float>(
+        "SPERRDecomposition", conf, [&] { return SZ3::SPERRDecomposition<float, 3>(); }, eb);
 }
