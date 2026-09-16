@@ -43,7 +43,7 @@ namespace SZ3 {
  * @tparam Predictor A class implementing `PredictorInterface<T, N>`
  * @tparam Quantizer A class implementing `QuantizerInterface<T, int>`
  */
-template <class T, uint N, class Predictor, class Quantizer, class To = quantizer_bin_t<T, Quantizer>>
+template <class T, uint N, class Predictor, class Quantizer, class To = typename Quantizer::bin_type>
 class BlockwiseDecomposition : public concepts::DecompositionInterface<T, To, N> {
    public:
     using Block_iter = typename block_data<T, N>::block_iterator;
@@ -57,6 +57,8 @@ class BlockwiseDecomposition : public concepts::DecompositionInterface<T, To, N>
      */
     BlockwiseDecomposition(const Config &conf, Predictor predictor, Quantizer quantizer)
         : predictor(predictor), quantizer(quantizer), fallback_predictor(conf.absErrorBound) {
+        static_assert(std::is_same<To, typename Quantizer::bin_type>::value,
+                      "To must be the Quantizer's bin_type");
         static_assert(std::is_base_of<concepts::PredictorInterface<T, N>, Predictor>::value,
                       "must implement the Predictor interface");
     }

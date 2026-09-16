@@ -15,7 +15,7 @@
 
 namespace SZ3 {
 
-template <class T, uint N, class Quantizer, class To = quantizer_bin_t<T, Quantizer>>
+template <class T, uint N, class Quantizer, class To = typename Quantizer::bin_type>
 class NoPredictionDecomposition : public concepts::DecompositionInterface<T, To, N> {
    public:
     NoPredictionDecomposition(const Config &conf, Quantizer quantizer) : quantizer(quantizer) {

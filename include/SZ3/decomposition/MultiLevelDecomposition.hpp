@@ -82,9 +82,11 @@ namespace SZ3 {
  * @tparam To Bin type, deduced from `Quantizer`
  */
 template <class T, uint N, class Quantizer = LinearQuantizer<T>, class Transform = MGARDTransform<T, N>,
-          class To = quantizer_bin_t<T, Quantizer>>
+          class To = typename Quantizer::bin_type>
 class MultiLevelDecomposition : public concepts::DecompositionInterface<T, To, N> {
    public:
+        static_assert(std::is_same<To, typename Quantizer::bin_type>::value,
+                      "To must be the Quantizer's bin_type");
     /// Builds the quantizer for one level from that level's absolute error bound.
     using QuantizerFactory = std::function<Quantizer(double level_eb)>;
 

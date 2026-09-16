@@ -41,5 +41,8 @@ if (Python3_FOUND)
 endif ()
 
 # Not a test: prints CR, error and throughput as CSV for a composition on a real dataset,
-# which has no pass/fail to assert. Built with the tests so it does not rot.
-add_subdirectory(bench)
+# which has no pass/fail to assert. Built with the tests so it does not rot -- except on MinGW,
+# where the SPERR and MGARD pipelines it exists to compare are not available.
+if (NOT MINGW)
+    add_subdirectory(bench)
+endif ()
