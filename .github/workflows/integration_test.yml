@@ -10,7 +10,25 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        dataset: [exaalt-small, hurricane, miranda, cesm-atm, scale-letkf, hacc, exaalt-copper, exaalt-helium]
+        # A dataset entry may name the fields to run, so one too slow to be a single job is spread
+        # over several. hacc took 2h09 as one job, scale-letkf 1h00 and exaalt-helium 46m; the rest
+        # were already under half an hour. Split to keep every job near 35 minutes.
+        dataset:
+          - exaalt-small
+          - cesm-atm
+          - miranda
+          - hurricane
+          - exaalt-copper
+          - "hacc:vx.f32"
+          - "hacc:vz.f32"
+          - "hacc:vy.f32"
+          - "hacc:zz.f32"
+          - "hacc:xx.f32"
+          - "hacc:yy.f32"
+          - "exaalt-helium:dataset1-7852x1037.x.f32.dat,dataset1-7852x1037.y.f32.dat,dataset1-7852x1037.z.f32.dat"
+          - "exaalt-helium:dataset2-2338x106711.x.f32.dat,dataset2-2338x106711.y.f32.dat,dataset2-2338x106711.z.f32.dat"
+          - "scale-letkf:T-98x1200x1200.f32,PRES-98x1200x1200.f32,U-98x1200x1200.f32,V-98x1200x1200.f32,QC-98x1200x1200.f32,QS-98x1200x1200.f32"
+          - "scale-letkf:QG-98x1200x1200.f32,QV-98x1200x1200.f32,W-98x1200x1200.f32,QI-98x1200x1200.f32,RH-98x1200x1200.f32,QR-98x1200x1200.f32"
       fail-fast: false
     name: Test ${{ matrix.dataset }}
 

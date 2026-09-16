@@ -9,10 +9,14 @@
 #define _SZ_XTC3_ENCODER_HPP
 
 #include <climits>
+#include <cmath>
+#include <memory>
+#include <stdexcept>
 #include <vector>
 
 #include "SZ3/def.hpp"
 #include "SZ3/encoder/Encoder.hpp"
+#include "SZ3/utils/Config.hpp"
 
 // #define DEBUG_OUTPUT
 
@@ -313,12 +317,17 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
 
         size_t bufferSize = size3 * 1.2;
         struct DataBuffer buffer;
-        int *intBufferPoiner = reinterpret_cast<int *>(malloc(size3 * sizeof(*intBufferPoiner)));
-        buffer.data = reinterpret_cast<unsigned char *>(malloc(bufferSize * sizeof(int)));
-        if (buffer.data == nullptr) {
-            fprintf(stderr, "malloc failed\n");
-            exit(1);
+        std::unique_ptr<int, void (*)(void *)> index_owner(
+            static_cast<int *>(malloc(size3 * sizeof(int))), &free);
+        // Zeroed: the bit packing below leaves untouched the bits it does not set, and buffer.index bytes
+        // of this go into the compressed output.
+        std::unique_ptr<unsigned char, void (*)(void *)> buffer_owner(
+            static_cast<unsigned char *>(calloc(bufferSize, sizeof(int))), &free);
+        if (index_owner == nullptr || buffer_owner == nullptr) {
+            throw std::runtime_error("SZ3 Xtc: can not allocate the compression buffer");
         }
+        int *intBufferPoiner = index_owner.get();
+        buffer.data = buffer_owner.get();
         buffer.index = 0;
         buffer.lastbits = 0;
         buffer.lastbyte = 0;
@@ -431,14 +440,17 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         }
         *intOutputPtr++ = smallIdx;
 
-        int maxIdx = std::min(LASTIDX, smallIdx + CHAR_BIT);
+        // LASTIDX is one past the last entry, and the loop above stops there when no entry reaches minDiff,
+        // which is every input with fewer than two triplets. The decoder clamps the same way.
+        const int smallLookup = std::min(smallIdx, LASTIDX - 1);
+        int maxIdx = std::min(LASTIDX - 1, smallIdx + CHAR_BIT);
         int minIdx = maxIdx - CHAR_BIT; /* often this equal smallIdx */
-        int smaller = magicInts[std::max(FIRSTIDX, smallIdx - 1)] / 2;
-        int smallNum = magicInts[smallIdx] / 2;
+        int smaller = magicInts[std::max(FIRSTIDX, smallLookup - 1)] / 2;
+        int smallNum = magicInts[smallLookup] / 2;
         unsigned int sizeSmall[3];
-        sizeSmall[0] = magicInts[smallIdx];
-        sizeSmall[1] = magicInts[smallIdx];
-        sizeSmall[2] = magicInts[smallIdx];
+        sizeSmall[0] = magicInts[smallLookup];
+        sizeSmall[1] = magicInts[smallLookup];
+        sizeSmall[2] = magicInts[smallLookup];
         int larger = magicInts[maxIdx] / 2;
         size_t i = 0;
         unsigned int *localUnsignedIntBufferPointer = reinterpret_cast<unsigned int *>(intBufferPoiner);
@@ -563,8 +575,6 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             remain -= batchSize;
         } while (remain > 0);
 
-        free(buffer.data);
-        free(intBufferPoiner);
 
         size_t outputSize = charOutputPtr - bytes;
 
@@ -586,7 +596,10 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
      * this routine decompresses a large number of compressed 3d coordinates.
      *
      */
-    std::vector<T> decode(const unsigned char *&bytes, size_t targetLength) override {
+    std::vector<T> decode(const unsigned char *&bytes, size_t targetLength, size_t &remaining_length) override {
+        // The reads below are not individually bounded, so check what they consumed before charging it:
+        // subtracting more than is left would wrap remaining_length and unbound everything parsed after.
+        const unsigned char *decode_start = bytes;
 #ifdef DEBUG_OUTPUT
         printf("\nDecoding, targetLength: %ld\n", targetLength);
 #endif
@@ -597,10 +610,8 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
 
         size_t bufferSize = targetLength * 1.2;
         struct DataBuffer buffer;
-        buffer.data = reinterpret_cast<unsigned char *>(malloc(bufferSize * sizeof(int)));
-        if (buffer.data == nullptr) {
-            fprintf(stderr, "malloc failed\n");
-        }
+        // Allocated below, once size3 is known.
+        buffer.data = nullptr;
         buffer.index = 0;
         buffer.lastbits = 0;
         buffer.lastbyte = 0;
@@ -637,19 +648,31 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         }
 
         int smallIdx = *inputIntPtr++;
+        // The encoder writes LASTIDX when no table entry reaches minDiff, and clamps its own lookups.
+        if (smallIdx < 0 || smallIdx > LASTIDX) throw std::out_of_range("SZ3 Xtc: small index out of range");
+        const int smallLookup = std::min(smallIdx, LASTIDX - 1);
 
-        int smaller = magicInts[std::max(FIRSTIDX, smallIdx - 1)] / 2;
-        int smallNum = magicInts[smallIdx] / 2;
+        int smaller = magicInts[std::max(FIRSTIDX, smallLookup - 1)] / 2;
+        int smallNum = magicInts[smallLookup] / 2;
         unsigned int sizeSmall[3];
-        sizeSmall[0] = magicInts[smallIdx];
-        sizeSmall[1] = magicInts[smallIdx];
-        sizeSmall[2] = magicInts[smallIdx];
+        sizeSmall[0] = magicInts[smallLookup];
+        sizeSmall[1] = magicInts[smallLookup];
+        sizeSmall[2] = magicInts[smallLookup];
 
         size_t size3 = targetLength;
         bufferSize = size3 * 1.2;
-        buffer.data = reinterpret_cast<unsigned char *>(malloc(bufferSize * sizeof(int)));
+        std::unique_ptr<unsigned char, void (*)(void *)> buffer_owner(
+            static_cast<unsigned char *>(malloc(bufferSize * sizeof(int))), &free);
+        buffer.data = buffer_owner.get();
+        if (buffer.data == nullptr) {
+            throw std::runtime_error("SZ3 Xtc: can not allocate the decompression buffer");
+        }
         buffer.index = *(reinterpret_cast<const uint64_t *>(inputIntPtr));
         inputIntPtr += sizeof(uint64_t) / sizeof(int);
+
+        // buffer.index is the byte count the memcpy loop below copies into buffer.data.
+        if (buffer.index > bufferSize * sizeof(int))
+            throw std::out_of_range("SZ3 Xtc: packed data size exceeds the decompression buffer");
 
         size_t offset = 0;
         size_t remain = buffer.index;
@@ -669,7 +692,12 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
 
         int run = 0;
         size_t i = 0;
-        int *intBufferPoiner = reinterpret_cast<int *>(malloc(size3 * sizeof(*intBufferPoiner)));
+        std::unique_ptr<int, void (*)(void *)> index_owner(
+            static_cast<int *>(malloc(size3 * sizeof(int))), &free);
+        if (index_owner == nullptr) {
+            throw std::runtime_error("SZ3 Xtc: can not allocate the index buffer");
+        }
+        int *intBufferPoiner = index_owner.get();
         int *localIntBufferPointer = intBufferPoiner;
         unsigned char *charOutputPtr = reinterpret_cast<unsigned char *>(quantData.data());
         int *intOutputPtr = reinterpret_cast<int *>(charOutputPtr);
@@ -756,8 +784,6 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             }
             sizeSmall[0] = sizeSmall[1] = sizeSmall[2] = magicInts[smallIdx];
         }
-        free(buffer.data);
-        free(intBufferPoiner);
 
 #ifdef DEBUG_OUTPUT
         printf("Decoded %llu triplets.\n", numTriplets);
@@ -773,6 +799,11 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             quantData[quantData.size() - 1] = reminder1;
             quantData[quantData.size() - 2] = reminder2;
         }
+        const size_t consumed = static_cast<size_t>(bytes - decode_start);
+        if (consumed > remaining_length) {
+            throw std::out_of_range("SZ3 Xtc: decode read past the end of the compressed buffer");
+        }
+        remaining_length -= consumed;
         return quantData;
     }
 

@@ -12,11 +12,14 @@
 #ifndef SZ3_Config_HPP
 #define SZ3_Config_HPP
 
+#include <algorithm>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <numeric>
+#include <stdexcept>
 #include <vector>
 
 #include "SZ3/def.hpp"
@@ -337,6 +340,8 @@ class Config {
         } else if (errorBoundMode == EB_ABS_AND_REL) {
             write(absErrorBound, c);
             write(relErrorBound, c);
+        } else {
+            throw std::invalid_argument("SZ3 Config::save: unknown error bound mode");
         }
 
         uint8_t boolvals = (lorenzo & 1) << 7 | (lorenzo2 & 1) << 6 | (regression & 1) << 5 | (regression2 & 1) << 4 |
@@ -357,59 +362,74 @@ class Config {
      * @brief Deserialize the configuration from a byte array.
      *
      * @param c Pointer to the byte array.
+     * @param remaining_length bytes readable from `c`; decremented by what is consumed.
      */
-    void load(const unsigned char*& c) {
+    void load(const unsigned char*& c, size_t& remaining_length) {
+        const unsigned char* const c0 = c;
+        const unsigned char* const cend = c + remaining_length;
         uchar confSize = 0;
-        read(confSize, c);
-        auto c1 = c + confSize;
+        read(confSize, c, remaining_length);
+        // Where the optional fields at the end stop. A writer that declares more than it sends stops
+        // at the buffer instead.
+        const unsigned char* const c1 = std::min(c0 + confSize, cend);
 
-        read(N, c);
+        read(N, c, remaining_length);
+        if (N > 4) throw std::out_of_range("SZ3 Config::load: invalid number of dimensions");
         uint8_t bitWidth;
-        read(bitWidth, c);
+        read(bitWidth, c, remaining_length);
+        if (bitWidth > 64) throw std::out_of_range("SZ3 Config::load: invalid dimension bit width");
+        const size_t dim_bytes = (static_cast<size_t>(N) * bitWidth + 7) / 8;
+        if (dim_bytes > remaining_length)
+            throw std::out_of_range("SZ3 Config::load: dimensions exceed the buffer");
         dims = bytes2vector<size_t>(c, bitWidth, N);
-        // dims.resize(N);
-        // read(dims.data(), N, c);
-        read(num, c);
-        read(cmprAlgo, c);
+        remaining_length -= dim_bytes;
+        read(num, c, remaining_length);
+        // num must equal the product of the dimensions, or the predictor walks more grid positions than
+        // were allocated. No dimensions means no elements: the HDF5 filter loads a config from cd_values
+        // before it knows the dataset shape.
+        size_t dims_product = dims.empty() ? 0 : 1;
+        bool dims_ok = true;
+        for (size_t dim : dims) {
+            if (dim == 0 || dims_product > std::numeric_limits<size_t>::max() / dim) {
+                dims_ok = false;
+                break;
+            }
+            dims_product *= dim;
+        }
+        if (!dims_ok || dims_product != num)
+            throw std::out_of_range("SZ3 Config::load: dimensions inconsistent with the element count");
+        read(cmprAlgo, c, remaining_length);
 
-        read(errorBoundMode, c);
+        read(errorBoundMode, c, remaining_length);
         if (errorBoundMode == EB_ABS) {
-            read(absErrorBound, c);
+            read(absErrorBound, c, remaining_length);
         } else if (errorBoundMode == EB_REL) {
-            read(relErrorBound, c);
+            read(relErrorBound, c, remaining_length);
         } else if (errorBoundMode == EB_PSNR) {
-            read(psnrErrorBound, c);
+            read(psnrErrorBound, c, remaining_length);
         } else if (errorBoundMode == EB_L2NORM) {
-            read(l2normErrorBound, c);
-        } else if (errorBoundMode == EB_ABS_OR_REL) {
-            read(absErrorBound, c);
-            read(relErrorBound, c);
-        } else if (errorBoundMode == EB_ABS_AND_REL) {
-            read(absErrorBound, c);
-            read(relErrorBound, c);
+            read(l2normErrorBound, c, remaining_length);
+        } else if (errorBoundMode == EB_ABS_OR_REL || errorBoundMode == EB_ABS_AND_REL) {
+            read(absErrorBound, c, remaining_length);
+            read(relErrorBound, c, remaining_length);
+        } else {
+            // save() always writes a bound here, so an unhandled mode would shift every field below it.
+            throw std::invalid_argument("SZ3 Config::load: unknown error bound mode");
         }
 
         if (c < c1) {
             uint8_t boolvals;
-            read(boolvals, c);
+            read(boolvals, c, remaining_length);
             lorenzo = (boolvals >> 7) & 1;
             lorenzo2 = (boolvals >> 6) & 1;
             regression = (boolvals >> 5) & 1;
             regression2 = (boolvals >> 4) & 1;
             openmp = (boolvals >> 3) & 1;
         }
-        if (c < c1) {
-            read(dataType, c);
-        }
-        if (c < c1) {
-            read(quantbinCnt, c);
-        }
-        if (c < c1) {
-            read(blockSize, c);
-        }
-        if (c < c1) {
-            read(predDim, c);
-        }
+        if (c < c1) read(dataType, c, remaining_length);
+        if (c < c1) read(quantbinCnt, c, remaining_length);
+        if (c < c1) read(blockSize, c, remaining_length);
+        if (c < c1) read(predDim, c, remaining_length);
     }
 
     /**

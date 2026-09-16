@@ -2,15 +2,18 @@
 #define SZ3_BLOCKWISE_DECOMPOSITION_HPP
 
 #include <cstring>
+#include <limits>
+#include <memory>
+#include <stdexcept>
 
 #include "Decomposition.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/predictor/LorenzoPredictor.hpp"
 #include "SZ3/predictor/Predictor.hpp"
 #include "SZ3/quantizer/LinearQuantizer.hpp"
+#include "SZ3/utils/BlockwiseIterator.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/FileUtil.hpp"
-#include "SZ3/utils/BlockwiseIterator.hpp"
 #include "SZ3/utils/Timer.hpp"
 
 namespace SZ3 {
@@ -46,6 +49,9 @@ class BlockwiseDecomposition : public concepts::DecompositionInterface<T, int, N
     }
 
     T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) override {
+        if (quant_inds.size() < conf.num) {
+            throw std::out_of_range("SZ3 blockwise: fewer bins than the grid consumes");
+        }
         int *quant_inds_pos = &quant_inds[0];
 
         auto data_with_padding =

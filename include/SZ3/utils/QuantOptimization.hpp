@@ -1,7 +1,10 @@
 #ifndef SZ3_optimize_quant_intervals_hpp
 #define SZ3_optimize_quant_intervals_hpp
 
+#include <cmath>
 #include <vector>
+
+#include "SZ3/def.hpp"
 
 namespace SZ3 {
 

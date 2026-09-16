@@ -1,7 +1,11 @@
 #ifndef SZ3_COMPRESSOR_TYPE_ONE_HPP
 #define SZ3_COMPRESSOR_TYPE_ONE_HPP
 
+#include <cstdlib>
 #include <cstring>
+#include <memory>
+#include <stdexcept>
+#include <type_traits>
 
 #include "SZ3/compressor/Compressor.hpp"
 #include "SZ3/decomposition/Decomposition.hpp"
@@ -13,6 +17,7 @@
 #include "SZ3/utils/Timer.hpp"
 
 namespace SZ3 {
+
 /**
  * SZGenericCompressor glues together decomposition, encoder, and lossless modules to form the compressor.
  * It only takes Decomposition, not Predictor.
@@ -45,27 +50,30 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         size_t bufferSize = std::max<size_t>(
             1000, 2 * (decomposition.size_est() + encoder.size_est() + sizeof(T) * quant_inds.size()));
 
-        auto buffer = static_cast<uchar *>(malloc(bufferSize));
+        // Owned, because the encoder and the lossless layer below can throw.
+        std::unique_ptr<uchar[]> buffer_owner(new uchar[bufferSize]);
+        uchar *const buffer = buffer_owner.get();
         uchar *buffer_pos = buffer;
 
         decomposition.save(buffer_pos);
         encoder.save(buffer_pos);
 
-        //store the size of quant_inds is necessary as it is not always equal to conf.num
+        // store the size of quant_inds is necessary as it is not always equal to conf.num
         write<size_t>(quant_inds.size(), buffer_pos);
         encoder.encode(quant_inds, buffer_pos);
         encoder.postprocess_encode();
         
         auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
-        free(buffer);
 
         return cmpSize;
     }
 
     T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *decData) override {
         uchar *buffer = nullptr;
-        size_t bufferSize = 0;
-        lossless.decompress(cmpData, cmpSize, buffer, bufferSize);
+        size_t bufferSize = lossless.decompress(cmpData, cmpSize, buffer, 0);
+
+        // malloc'd by the lossless layer, hence free(). Owned, because the parsing below can throw.
+        std::unique_ptr<uchar, void (*)(void *)> buffer_owner(buffer, &free);
 
         uchar const *bufferPos = buffer;
 
@@ -73,11 +81,12 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         encoder.load(bufferPos, bufferSize);
 
         size_t quant_inds_size = 0;
-        read(quant_inds_size, bufferPos);
-        auto quant_inds = encoder.decode(bufferPos, quant_inds_size);
+        read(quant_inds_size, bufferPos, bufferSize);
+        auto quant_inds = encoder.decode(bufferPos, quant_inds_size, bufferSize);
         encoder.postprocess_decode();
 
-        free(buffer);
+        // The remaining work uses `quant_inds` and `decData` only, so release the internal buffer now.
+        buffer_owner.reset();
 
         decomposition.decompress(conf, quant_inds, decData);
         return decData;

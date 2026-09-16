@@ -253,7 +253,7 @@ std::vector<T> bytes2vector(const unsigned char *&c, uint8_t bit_width, size_t n
             size_t byte_index = bit_index / 8;
             size_t bit_offset = bit_index % 8;
 
-            value |= ((c[byte_index] >> bit_offset) & 1) << j;
+            value |= static_cast<T>((c[byte_index] >> bit_offset) & 1) << j;
         }
         data[i] = value;
     }
