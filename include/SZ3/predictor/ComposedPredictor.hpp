@@ -8,6 +8,7 @@
 
 #include <cassert>
 #include <memory>
+#include <stdexcept>
 
 #include "SZ3/encoder/HuffmanEncoder.hpp"
 #include "SZ3/predictor/Predictor.hpp"
@@ -62,7 +63,12 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
     }
 
     bool predecompress(const block_iter &block) override {
+        // selection and its entries are untrusted, and predict()/estimate_error() reuse the sid set here.
+        if (current_index >= selection.size())
+            throw std::out_of_range("SZ3: ran out of predictor selections while decompressing");
         sid = selection[current_index++];
+        if (sid < 0 || static_cast<size_t>(sid) >= predictors.size())
+            throw std::out_of_range("SZ3: predictor selection index is out of range");
         return predictors[sid]->predecompress(block);
     }
 
@@ -89,7 +95,7 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
         if (selection_size > 0) {
             HuffmanEncoder<int> selection_encoder;
             selection_encoder.load(c, remaining_length);
-            this->selection = selection_encoder.decode(c, selection_size);
+            this->selection = selection_encoder.decode(c, selection_size, remaining_length);
             selection_encoder.postprocess_decode();
         }
     }

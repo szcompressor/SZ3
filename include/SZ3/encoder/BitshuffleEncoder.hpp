@@ -49,8 +49,14 @@ namespace SZ3 {
             return byte_size;
         }
 
-        std::vector<T> decode(const uchar *&bytes, size_t targetLength) override {
+        std::vector<T> decode(const uchar *&bytes, size_t targetLength, size_t &remaining_length) override {
             std::vector<T> data(targetLength);
+            // One bit per value per bit position, rounded up to whole bytes.
+            if (targetLength > (remaining_length * 8) / (sizeof(T) * 8)) {
+                throw std::out_of_range("SZ3 bitshuffle: bit planes exceed the compressed buffer");
+            }
+            const size_t consumed = (targetLength * sizeof(T) * 8 + 7) / 8;
+            remaining_length -= consumed;
             const unsigned char* compressed_data = bytes;
             size_t in_offset = 0;
 
@@ -72,7 +78,7 @@ namespace SZ3 {
                     }
                 }
             }
-            bytes += (targetLength * sizeof(T) * 8 + 7) / 8;
+            bytes += consumed;
             return data;
         }
 

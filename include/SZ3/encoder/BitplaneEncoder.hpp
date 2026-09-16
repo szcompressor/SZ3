@@ -100,13 +100,19 @@ class BitplaneEncoder : public concepts::EncoderInterface<T> {
         return static_cast<size_t>(bytes - start);
     }
 
-    std::vector<T> decode(const uchar*& bytes, size_t targetLength) override {
+    std::vector<T> decode(const uchar*& bytes, size_t targetLength, size_t& remaining_length) override {
         if (targetLength != n_) {
             throw std::runtime_error("BitplaneEncoder: decode targetLength does not match saved bin count.");
         }
         std::vector<T> bins(n_, 0);
         if (n_ == 0) return bins;
         const size_t plane_bytes = (n_ + 7) / 8;
+        // A sign plane when present, then one plane per magnitude bit.
+        const size_t planes = static_cast<size_t>(num_planes_) + (has_signs_ ? 1 : 0);
+        if (planes > remaining_length / plane_bytes) {
+            throw std::out_of_range("SZ3 bitplane: bit planes exceed the compressed buffer");
+        }
+        remaining_length -= planes * plane_bytes;
 
         std::vector<uint8_t> signs;
         if (has_signs_) {

@@ -86,7 +86,8 @@ int main(int argc, char* argv[]) {
 
         SZ3::Config conf;
         auto buffer = reinterpret_cast<const unsigned char*>(cd_values.data());
-        conf.load(buffer);
+        size_t cd_bytes = cd_values.size() * sizeof(unsigned int);
+        conf.load(buffer, cd_bytes);
 
         std::ofstream file(outPath);
         if (!file.is_open()) {

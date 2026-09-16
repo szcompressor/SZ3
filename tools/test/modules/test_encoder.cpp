@@ -43,7 +43,7 @@ void runFunctionalTest() {
         const SZ3::uchar *buffer_conf_pos = buffer_conf.data();
         Encoder coder;
         coder.load(buffer_conf_pos, conf_len);
-        auto dataDecoded = coder.decode(buffer_data_pos, N);
+        auto dataDecoded = coder.decode(buffer_data_pos, N, data_len);
         for (int i = 0; i < N; i++) {
             EXPECT_EQ(data[i], dataDecoded[i]);
         }
@@ -101,7 +101,8 @@ static void roundtripBins(const std::vector<int>& bins) {
     const SZ3::uchar* dp_in = data_buf.data();
     Encoder e2;
     e2.load(cp_in, conf_len);
-    auto out = e2.decode(dp_in, bins.size());
+    size_t data_len = data_buf.size();
+    auto out = e2.decode(dp_in, bins.size(), data_len);
     ASSERT_EQ(out.size(), bins.size());
     for (size_t i = 0; i < bins.size(); i++) EXPECT_EQ(out[i], bins[i]) << "i=" << i;
 }

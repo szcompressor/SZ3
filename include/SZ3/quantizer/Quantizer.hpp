@@ -1,7 +1,12 @@
 #ifndef SZ3_QUANTIZER_HPP
 #define SZ3_QUANTIZER_HPP
 
+#include <cstddef>
+#include <type_traits>
+#include <utility>
+
 #include "SZ3/def.hpp"
+#include <SZ3/def.hpp>
 
 namespace SZ3::concepts {
 

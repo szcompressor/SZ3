@@ -7,6 +7,7 @@
 #define SZ3_ArithmeticEncoder_HPP
 
 #include <cassert>
+#include <cmath>
 #include <iostream>
 
 #include "SZ3/encoder/Encoder.hpp"
@@ -511,6 +512,12 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
             put_codes_to_output(buf, pending_bits + 1, &bytes, &lackBits, &outSize);
         }
         bytes += 1;
+        // decode() opens with an eight-byte read and then keeps its cursor a few bytes ahead of what it
+        // has consumed, so it always ran past the end of what this wrote. Pad by that much.
+        for (size_t i = 0; i < 8; i++) {
+            *bytes++ = 0;
+            outSize++;
+        }
         return outSize;
     }
 
@@ -523,7 +530,10 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
      * @param int *out (output) : the result (type array decompressed from the stream 's')
      *
      * */
-    std::vector<T> decode(const uchar *&bytes, size_t targetLength) override {
+    std::vector<T> decode(const uchar *&bytes, size_t targetLength, size_t &remaining_length) override {
+        // The reads below are not individually bounded, so check what they consumed before charging it:
+        // subtracting more than is left would wrap remaining_length and unbound everything parsed after.
+        const uchar *decode_start = bytes;
         std::vector<T> out(targetLength);
 
         //        void ari_decode(AriCoder *ariCoder, unsigned char *s, size_t s_len, size_t targetLength, int *out) {
@@ -533,7 +543,7 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
         size_t total_frequency = ariCoder.total_frequency;
         const uchar *sp = bytes + 5;
         unsigned int offset = 4;
-        size_t value = (bytesToInt64_bigEndian(bytes) >> 20);  // alignment with the MAX_CODE
+        size_t value = (static_cast<uint64_t>(bytesToInt64_bigEndian(bytes)) >> 20);  // alignment with the MAX_CODE
         size_t s_counter = sizeof(int);
 
         for (i = 0; i < targetLength; i++) {
@@ -587,6 +597,11 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
             }
         }
         bytes += s_counter;
+        const size_t consumed = static_cast<size_t>(bytes - decode_start);
+        if (consumed > remaining_length) {
+            throw std::out_of_range("SZ3 arithmetic encoder: decode read past the end of the compressed buffer");
+        }
+        remaining_length -= consumed;
         return out;
     }
 

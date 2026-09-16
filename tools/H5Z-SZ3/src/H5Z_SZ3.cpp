@@ -1,5 +1,6 @@
 #include "H5Z_SZ3.hpp"
 
+#include <algorithm>
 #include <fstream>
 #include <iterator>
 #include <memory>
@@ -65,7 +66,8 @@ herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config& conf) {
         // if not empty, load cd_values into config
         if (cd_nelmts > 0) {
             auto buffer = reinterpret_cast<const unsigned char*>(cd_values.data());
-            conf.load(buffer);
+            size_t cd_bytes = cd_nelmts * sizeof(unsigned int);
+            conf.load(buffer, cd_bytes);
         }
     }
     return 1;
@@ -159,7 +161,9 @@ void process_data(SZ3::Config& conf, void** buf, size_t* buf_size, size_t nbytes
         *buf = processedData;
         *buf_size = conf.num * sizeof(T);
     } else {
-        size_t cmpCap = sizeof(T) * conf.num * 2;
+        // The bound assumes the payload fits in the raw size, so leave headroom on top of it for
+        // algorithms whose output can reach or exceed that.
+        size_t cmpCap = std::max(SZ3::SZ_compress_size_bound<T>(conf), sizeof(T) * conf.num * 2);
         char* cmpData = static_cast<char*>(malloc(cmpCap));
         *buf_size = SZ_compress(conf, static_cast<T*>(*buf), cmpData, cmpCap);
         free(*buf);
@@ -186,7 +190,8 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
     SZ3::Config conf;
 
     auto buffer = reinterpret_cast<const unsigned char*>(cd_values);
-    conf.load(buffer);
+    size_t cd_bytes = cd_nelmts * sizeof(unsigned int);
+    conf.load(buffer, cd_bytes);
     //    conf.print();
 
     if (conf.num < 20) return nbytes;

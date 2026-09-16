@@ -11,7 +11,9 @@
 #ifndef SZ3_SZBIOMDXTCBASED_FRONTEND
 #define SZ3_SZBIOMDXTCBASED_FRONTEND
 
+#include <limits>
 #include <list>
+#include <stdexcept>
 
 #include "Decomposition.hpp"
 #include "SZ3/utils/Config.hpp"
@@ -186,8 +188,8 @@ private:
     }
 
     Config conf;
-    size_t firstFillFrame_;
-    T fillValue_;
+    size_t firstFillFrame_ = 0;
+    T fillValue_ = 0;
     Quantizer quantizer;
 };
 

@@ -7,6 +7,7 @@
 #define SZ3_REGRESSION_PREDICTOR_HPP
 
 #include <iostream>
+#include <stdexcept>
 
 #include "SZ3/encoder/HuffmanEncoder.hpp"
 #include "SZ3/predictor/Predictor.hpp"
@@ -136,9 +137,8 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
             quantizer_liner.load(c, remaining_length);
             HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
             encoder.load(c, remaining_length);
-            regression_coeff_quant_inds = encoder.decode(c, coeff_size);
+            regression_coeff_quant_inds = encoder.decode(c, coeff_size, remaining_length);
             encoder.postprocess_decode();
-            remaining_length -= coeff_size * sizeof(int);
             std::fill(current_coeffs.begin(), current_coeffs.end(), 0);
             regression_coeff_index = 0;
         }
@@ -177,6 +177,8 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
     }
 
     void pred_and_recover_coefficients() {
+        if (regression_coeff_index + N + 1 > regression_coeff_quant_inds.size())
+            throw std::out_of_range("SZ3: ran out of regression coefficients while decompressing");
         for (int i = 0; i < static_cast<int>(N); i++) {
             current_coeffs[i] =
                 quantizer_liner.recover(current_coeffs[i], regression_coeff_quant_inds[regression_coeff_index++]);

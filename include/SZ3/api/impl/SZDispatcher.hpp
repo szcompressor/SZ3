@@ -30,6 +30,13 @@
 #include "SZ3/api/impl/SZAlgoSPERR.hpp"
 #include "SZ3/api/impl/SZAlgoMGARD.hpp"
 #endif
+
+#include <memory>
+#include <stdexcept>
+#include "SZ3/api/impl/SZAlgoBioMD.hpp"
+#include "SZ3/api/impl/SZAlgoInterp.hpp"
+#include "SZ3/api/impl/SZAlgoLorenzoReg.hpp"
+#include "SZ3/api/impl/SZAlgoNopred.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/Statistic.hpp"
 
@@ -140,15 +147,14 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
     if (conf.num * sizeof(T) / 1.0 / cmpSize < 3) {
         auto zstd = Lossless_zstd();
         auto zstdCmpCap = ZSTD_compressBound(conf.num * sizeof(T)) + sizeof(size_t);
-        auto zstdCmpData = static_cast<uchar *>(malloc(zstdCmpCap));
-        size_t zstdCmpSize =
-            zstd.compress(reinterpret_cast<const uchar *>(data), conf.num * sizeof(T), zstdCmpData, zstdCmpCap);
+        std::unique_ptr<uchar[]> zstdCmpData(new uchar[zstdCmpCap]);
+        size_t zstdCmpSize = zstd.compress(reinterpret_cast<const uchar *>(data), conf.num * sizeof(T),
+                                           zstdCmpData.get(), zstdCmpCap);
         if (zstdCmpSize < cmpSize && zstdCmpSize <= cmpCap) {
             conf.cmprAlgo = ALGO_LOSSLESS;
-            memcpy(cmpData, zstdCmpData, zstdCmpSize);
+            memcpy(cmpData, zstdCmpData.get(), zstdCmpSize);
             cmpSize = zstdCmpSize;
         }
-        free(zstdCmpData);
     }
     return cmpSize;
 }
@@ -169,9 +175,8 @@ template <class T, uint N>
 void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
     if (conf.cmprAlgo == ALGO_LOSSLESS) {
         auto zstd = Lossless_zstd();
-        size_t decDataSize = 0;
         auto decDataPos = reinterpret_cast<uchar *>(decData);
-        zstd.decompress(cmpData, cmpSize, decDataPos, decDataSize);
+        size_t decDataSize = zstd.decompress(cmpData, cmpSize, decDataPos, conf.num * sizeof(T));
         if (decDataSize != conf.num * sizeof(T)) {
             throw std::runtime_error("Decompressed data size does not match the original data size");
         }

@@ -6,6 +6,8 @@
 #ifndef SZ3_NO_PREDICTION_DECOMPOSITION_HPP
 #define SZ3_NO_PREDICTION_DECOMPOSITION_HPP
 
+#include <stdexcept>
+
 #include "Decomposition.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/quantizer/Quantizer.hpp"
@@ -22,6 +24,9 @@ class NoPredictionDecomposition : public concepts::DecompositionInterface<T, int
     }
 
     T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) override {
+        if (quant_inds.size() < conf.num) {
+            throw std::out_of_range("SZ3 no-prediction: fewer bins than the data has elements");
+        }
         for (size_t i = 0; i < conf.num; i++) {
             dec_data[i] = quantizer.recover(0, quant_inds[i]);
         }
@@ -37,6 +42,8 @@ class NoPredictionDecomposition : public concepts::DecompositionInterface<T, int
         quantizer.postcompress_data();
         return quant_inds;
     }
+
+    size_t size_est() override { return quantizer.size_est() + 64; }
 
     void save(uchar *&c) override { quantizer.save(c); }
 

@@ -1,6 +1,7 @@
 #ifndef SZ3_DECOMPOSITION_INTERFACE
 #define SZ3_DECOMPOSITION_INTERFACE
 
+#include <utility>
 #include <vector>
 
 #include "SZ3/def.hpp"
