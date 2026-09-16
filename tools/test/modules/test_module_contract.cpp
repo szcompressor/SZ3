@@ -18,6 +18,8 @@
 #include "SZ3/decomposition/SPERRFusedDecomposition.hpp"
 #include "SZ3/decomposition/NoPredictionDecomposition.hpp"
 #include "SZ3/encoder/ArithmeticEncoder.hpp"
+#include "SZ3/encoder/BitplaneEncoder.hpp"
+#include "SZ3/encoder/BitplaneRLEEncoder.hpp"
 #include "SZ3/encoder/BitshuffleEncoder.hpp"
 #include "SZ3/encoder/BypassEncoder.hpp"
 #include "SZ3/encoder/HuffmanEncoder.hpp"
@@ -114,6 +116,14 @@ TEST(SZ3_ModuleContract, BypassEncoder) {
 
 TEST(SZ3_ModuleContract, RunlengthEncoder) {
     SZ3_test::expectEncoderContract<int>("RunlengthEncoder", [] { return SZ3::RunlengthEncoder<int>(); });
+}
+
+TEST(SZ3_ModuleContract, BitplaneEncoder) {
+    SZ3_test::expectEncoderContract<int>("BitplaneEncoder", [] { return SZ3::BitplaneEncoder<int>(); });
+}
+
+TEST(SZ3_ModuleContract, BitplaneRLEEncoder) {
+    SZ3_test::expectEncoderContract<int>("BitplaneRLEEncoder", [] { return SZ3::BitplaneRLEEncoder<int>(); });
 }
 
 TEST(SZ3_ModuleContract, BitshuffleEncoder) {
