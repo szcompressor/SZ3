@@ -6,14 +6,8 @@ on:
       - master
       - fz
 
-# One run per pull request. These jobs take hours; a new push must supersede the run in flight
-# rather than compete with it for runners.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
-# One run per pull request. A newer push supersedes the one in flight, which otherwise queues a
-# second full matrix and evicts the long jobs of the first.
+# One run per pull request. These jobs take hours, so a newer push has to supersede the one in
+# flight rather than queue a second full matrix and compete with it for runners.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
