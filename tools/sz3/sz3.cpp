@@ -1,6 +1,8 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <exception>
+#include <iostream>
 
 #include "SZ3/api/sz.hpp"
 
@@ -188,7 +190,7 @@ void decompress(char *inPath, char *cmpPath, char *decPath, SZ3::Config &conf, i
     printf("decompressed file = %s\n", outputFilePath);
 }
 
-int main(int argc, char *argv[]) {
+static int run(int argc, char *argv[]) {
     bool binaryOutput = true;
     int printCmpResults = 0;
     int printMeta = 0;
@@ -496,4 +498,17 @@ int main(int argc, char *argv[]) {
         remove(cmpPath);
     }
     return 0;
+}
+
+// A configuration the algorithms refuse arrives here as an exception; a caller needs a message
+// and an exit code, not a signal.
+int main(int argc, char *argv[]) {
+    try {
+        return run(argc, argv);
+    } catch (const std::exception &e) {
+        std::cerr << "sz3: " << e.what() << std::endl;
+    } catch (...) {
+        std::cerr << "sz3: unknown error" << std::endl;
+    }
+    return 1;
 }

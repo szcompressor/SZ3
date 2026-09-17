@@ -27,7 +27,6 @@
 extern "C" {
 #endif
 
-extern hid_t H5Z_SZ_ERRCLASS;
 #define ERROR(FNAME)                                                                    \
     do {                                                                                \
         int saved_errno = errno;                                                         \
@@ -36,10 +35,11 @@ extern hid_t H5Z_SZ_ERRCLASS;
         return 1;                                                                       \
     } while (0)
 
-#define H5Z_SZ_PUSH_AND_GOTO(MAJ, MIN, RET, MSG)                                              \
-    do {                                                                                      \
-        H5Epush(H5E_DEFAULT, __FILE__, _funcname_, __LINE__, H5Z_SZ_ERRCLASS, MAJ, MIN, MSG); \
-        return RET;                                                                           \
+// MSG is a printf format string, so anything that is not a literal goes through "%s".
+#define H5Z_SZ_PUSH_AND_GOTO(MAJ, MIN, RET, ...)                                                  \
+    do {                                                                                          \
+        H5Epush(H5E_DEFAULT, __FILE__, _funcname_, __LINE__, H5E_ERR_CLS, MAJ, MIN, __VA_ARGS__); \
+        return RET;                                                                               \
     } while (0)
 
 static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_id);
