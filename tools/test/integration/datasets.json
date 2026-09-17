@@ -100,5 +100,56 @@
       "dataset2-2338x106711.y.f32.dat": {"dims": [2338, 106711], "dtype": "float32"},
       "dataset2-2338x106711.z.f32.dat": {"dims": [2338, 106711], "dtype": "float32"}
     }
+  },
+  "md-peg-1chain": {
+    "path": "mdtraj:peg-1chain",
+    "fields": {
+      "xyz.f32": {"dims": [50, 13406, 3], "dtype": "float32"},
+      "x.f32": {"dims": [50, 13406], "dtype": "float32"}
+    }
+  },
+  "md-ifabp-water": {
+    "path": "mdtraj:ifabp-water",
+    "fields": {
+      "xyz.f32": {"dims": [500, 12445, 3], "dtype": "float32"},
+      "x.f32": {"dims": [500, 12445], "dtype": "float32"}
+    }
+  },
+  "md-adk-equilibrium": {
+    "path": "mdtraj:adk-equilibrium",
+    "fields": {
+      "xyz.f32": {"dims": [4187, 3341, 3], "dtype": "float32"},
+      "x.f32": {"dims": [4187, 3341], "dtype": "float32"}
+    }
+  },
+  "md-cg-fiber": {
+    "path": "mdtraj:cg-fiber",
+    "fields": {
+      "xyz.f32": {"dims": [2221, 8364, 3], "dtype": "float32"},
+      "x.f32": {"dims": [2221, 8364], "dtype": "float32"}
+    }
+  },
+  "md-membrane-peptide": {
+    "path": "mdtraj:membrane-peptide",
+    "fields": {
+      "xyz.f32": {"dims": [1001, 18727, 3], "dtype": "float32"},
+      "x.f32": {"dims": [1001, 18727], "dtype": "float32"}
+    }
+  },
+  "md-nhaa-equilibrium": {
+    "path": "mdtraj:nhaa-equilibrium",
+    "max_frames": 200,
+    "fields": {
+      "xyz.f32": {"dims": [200, 60702, 3], "dtype": "float32"},
+      "x.f32": {"dims": [200, 60702], "dtype": "float32"}
+    }
+  },
+  "md-yiip-equilibrium": {
+    "path": "mdtraj:yiip-equilibrium",
+    "max_frames": 100,
+    "fields": {
+      "xyz.f32": {"dims": [100, 111815, 3], "dtype": "float32"},
+      "x.f32": {"dims": [100, 111815], "dtype": "float32"}
+    }
   }
 }

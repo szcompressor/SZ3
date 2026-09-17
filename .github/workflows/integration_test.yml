@@ -12,6 +12,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
+# One run per pull request. A newer push supersedes the one in flight, which otherwise queues a
+# second full matrix and evicts the long jobs of the first.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -36,6 +42,16 @@ jobs:
           - "exaalt-helium:dataset2-2338x106711.x.f32.dat,dataset2-2338x106711.y.f32.dat,dataset2-2338x106711.z.f32.dat"
           - "scale-letkf:T-98x1200x1200.f32,PRES-98x1200x1200.f32,U-98x1200x1200.f32,V-98x1200x1200.f32,QC-98x1200x1200.f32,QS-98x1200x1200.f32"
           - "scale-letkf:QG-98x1200x1200.f32,QV-98x1200x1200.f32,W-98x1200x1200.f32,QI-98x1200x1200.f32,RH-98x1200x1200.f32,QR-98x1200x1200.f32"
+          # Molecular dynamics trajectories, which arrive as {frames, atoms, xyz}. Nothing above
+          # has three as its last dimension, so ALGO_BIOMD and ALGO_BIOMDXTC only ever saw the
+          # layout they were written for through this.
+          - md-peg-1chain
+          - md-ifabp-water
+          - md-adk-equilibrium
+          - md-cg-fiber
+          - md-membrane-peptide
+          - md-nhaa-equilibrium
+          - md-yiip-equilibrium
       fail-fast: false
     name: Test ${{ matrix.dataset }}
 
@@ -86,6 +102,8 @@ jobs:
         sudo apt-get install -y libhdf5-dev hdf5-tools
         python -m pip install --upgrade pip
         pip install numpy h5py requests --no-binary h5py
+        # Reads the DCD, XTC and NetCDF trajectories the md-* datasets are published as.
+        pip install MDAnalysis
 
     - name: Run integration test
       run: |
@@ -93,3 +111,11 @@ jobs:
         # prints -- including the captured output of every test it runs -- is lost if the job is killed,
         # leaving a log that stops at the last subprocess write and says nothing about where it died.
         python -u tools/test/integration/integration_test_driver.py tools/test/integration/datasets.json ${{ matrix.dataset }}
+
+    - name: Upload compression metrics
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: metrics-${{ strategy.job-index }}
+        path: integration_metrics.csv
+        if-no-files-found: ignore
