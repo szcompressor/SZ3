@@ -6,8 +6,6 @@
 #include <memory>
 
 
-hid_t H5Z_SZ_ERRCLASS = -1;
-
 // filter definition
 const H5Z_class2_t H5Z_SZ3[1] = {{
     H5Z_CLASS_T_VERS,                                       /* H5Z_class_t version */
@@ -73,7 +71,7 @@ herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config& conf) {
     return 1;
 }
 
-static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_id) {
+static herr_t H5Z_sz3_set_local_impl(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_id) {
     // printf("start H5Z_sz3_set_local\n");
 
     // printf("start in H5Z_sz3_set_local, dcpl_id = %d\n", dcpl_id);
@@ -180,8 +178,8 @@ void process_data(SZ3::Config& conf, void** buf, size_t* buf_size, size_t nbytes
  * cannot be done in place then the filter should allocate a new buffer with malloc() and assign it to *buf, assigning
  * the allocated size of that buffer to *buf_size. The old buffer should be freed by calling free().
  */
-static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[], size_t nbytes,
-                             size_t* buf_size, void** buf) {
+static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[],
+                                  size_t nbytes, size_t* buf_size, void** buf) {
     // printf("start H5Z_filter_sz3\n");
 
     if (cd_nelmts == 0) // this is special data such as string, which should not be treated as values.
@@ -231,8 +229,32 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
             break;
 #endif
         default:
-            std::cerr << (is_decompress ? "Decompression" : "Compression") << " Error: Unknown Datatype" << std::endl;
-            std::exit(EXIT_FAILURE);
+            throw std::invalid_argument("SZ3 HDF5 filter: unknown datatype in cd_values");
     }
     return *buf_size;
+}
+
+// HDF5 calls these from C, where an exception that escapes ends the application. Zero is how a
+// filter reports failure; set_local uses a negative return.
+static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[], size_t nbytes,
+                             size_t* buf_size, void** buf) {
+    static char const* _funcname_ = "H5Z_filter_sz3";
+    try {
+        return H5Z_filter_sz3_impl(flags, cd_nelmts, cd_values, nbytes, buf_size, buf);
+    } catch (const std::exception& e) {
+        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_CALLBACK, 0, "%s", e.what());
+    } catch (...) {
+        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_CALLBACK, 0, "unknown error");
+    }
+}
+
+static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_id) {
+    static char const* _funcname_ = "H5Z_sz3_set_local";
+    try {
+        return H5Z_sz3_set_local_impl(dcpl_id, type_id, chunk_space_id);
+    } catch (const std::exception& e) {
+        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_CALLBACK, -1, "%s", e.what());
+    } catch (...) {
+        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_CALLBACK, -1, "unknown error");
+    }
 }

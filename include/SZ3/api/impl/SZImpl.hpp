@@ -20,9 +20,6 @@ size_t SZ_compress_impl(Config &conf, const T *data, uchar *cmpData, size_t cmpC
 
 template <class T, uint N>
 void SZ_decompress_impl(Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
-#ifndef _OPENMP
-    conf.openmp = false;
-#endif
     if (conf.openmp) {
         SZ_decompress_OMP<T, N>(conf, cmpData, cmpSize, decData);
     } else {
