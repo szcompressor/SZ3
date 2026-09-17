@@ -50,13 +50,10 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     }
 
     void load(const uchar *&c, size_t &remaining_length) override {
-        //            clear();
-        const uchar *c_pos = c;
         read(site, c, remaining_length);
         read(firstFillFrame_, c, remaining_length);
         read(fillValue_, c, remaining_length);
         quantizer.load(c, remaining_length);
-        remaining_length -= c_pos - c;
     }
 
     //        void clear() {
@@ -346,8 +343,8 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     Quantizer quantizer;
     Config conf;
     int site = 0;
-    size_t firstFillFrame_;
-    T fillValue_;
+    size_t firstFillFrame_ = 0;
+    T fillValue_ = 0;
 };
 
 template <class T, uint N, class Quantizer>
