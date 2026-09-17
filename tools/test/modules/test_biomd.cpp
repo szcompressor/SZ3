@@ -7,6 +7,7 @@
 // does not run there at all. A trajectory buffer that holds fewer frames than it has room for
 // does, which is the case a simulation writing through the HDF5 filter produces.
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
