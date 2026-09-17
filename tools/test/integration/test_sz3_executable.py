@@ -2,6 +2,7 @@ import numpy as np
 import subprocess
 import os
 import sys
+import time
 from shutil import rmtree
 import tempfile
 
@@ -24,8 +25,11 @@ def run_sz3_compress(sz3_executable, input_file, output_file, bound, dims, cwd, 
                '-M',
                'ABS', str(bound), f'-{len(dims)}'] + dims
         print(f"Running sz3 compression with command: {' '.join(cmd)}")
+        started = time.monotonic()
         subprocess.run(cmd, check=True, cwd=cwd)
+        elapsed = time.monotonic() - started
         print(f"sz3 compression completed. Output file: '{output_file}'")
+        return elapsed
     except subprocess.CalledProcessError as e:
         print(f"Error running sz3 compression: {e}")
         print(f"stderr: {e.stderr}")
@@ -40,8 +44,11 @@ def run_sz3_decompress(sz3_executable, compressed_file, decompressed_file, dims,
         cmd = [sz3_executable, dtype_flag, '-s', os.path.basename(compressed_file), '-o',
                os.path.basename(decompressed_file), f'-{len(dims)}'] + dims
         print(f"Running sz3 decompression with command: {' '.join(cmd)}")
+        started = time.monotonic()
         subprocess.run(cmd, check=True, cwd=cwd)
+        elapsed = time.monotonic() - started
         print(f"sz3 decompression completed. Output file: '{decompressed_file}'")
+        return elapsed
     except subprocess.CalledProcessError as e:
         print(f"Error running sz3 decompression: {e}")
         print(f"stderr: {e.stderr}")
@@ -136,11 +143,13 @@ def main():
     original_wd = os.getcwd()
     os.chdir(output_dir)
 
-    run_sz3_compress(sz3_executable, raw_file, compressed_file, bound, [str(d) for d in shape[::-1]], output_dir,
-                     dtype_flag)
+    compress_seconds = run_sz3_compress(sz3_executable, raw_file, compressed_file, bound,
+                                        [str(d) for d in shape[::-1]], output_dir, dtype_flag)
 
-    run_sz3_decompress(sz3_executable, compressed_file, decompressed_file, [str(d) for d in shape[::-1]], output_dir,
-                       dtype_flag)
+    decompress_seconds = run_sz3_decompress(sz3_executable, compressed_file, decompressed_file,
+                                            [str(d) for d in shape[::-1]], output_dir, dtype_flag)
+
+    ratio = os.path.getsize(raw_file) / os.path.getsize(compressed_file)
 
     os.chdir(original_wd)
 
@@ -149,11 +158,18 @@ def main():
 
     max_error = compare_data(original_data, decompressed_data)
 
-    if max_error <= (bound * 3 if cmpr_algo in ['ALGO_BIOMDXTC'] else bound * 1.2):
-        result = "PASS"
-    else:
+    if max_error > (bound * 3 if cmpr_algo in ['ALGO_BIOMDXTC'] else bound * 1.2):
         result = "FAIL"
+    elif ratio < 1.0:
+        # No ratio is guaranteed, but producing a file larger than the input is a defect.
+        print(f"Compressed output is larger than the input: ratio {ratio:.3f}")
+        result = "FAIL"
+    else:
+        result = "PASS"
 
+    # Collected by the driver so a ratio or a timing can be compared across runs.
+    print(f"METRICS ratio={ratio:.6f} compress_s={compress_seconds:.3f} "
+          f"decompress_s={decompress_seconds:.3f} max_error={max_error:.6g}")
     print(f"Test Result for AbsErrorBound = {bound}: {result}")
 
     rmtree(output_dir)
