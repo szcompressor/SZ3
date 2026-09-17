@@ -75,6 +75,48 @@ jobs:
           echo "Parsed error: $ERR"
           awk -v err="$ERR" -v tol="${{ env.TOL }}" 'BEGIN { if (err > tol) exit 1; }'
 
+      - name: Run sz3 with OpenMP and check error
+        shell: bash
+        working-directory: build
+        run: |
+          # The OpenMP path splits the data along the slowest dimension and compresses each piece on
+          # its own thread, so it has its own stream framing and its own decoder. Nothing else in CI
+          # enters it.
+          # find_package(OpenMP) is not REQUIRED, so a runner without it builds a library that reads
+          # no OpenMP stream at all. Checking here names that as the cause instead of letting the
+          # decoder report a stream it cannot read.
+          grep -q '^OpenMP_CXX_FLAGS:STRING=.' CMakeCache.txt \
+            || { echo "cmake found no OpenMP on this runner, so the OpenMP path is untested"; exit 1; }
+          printf '[GlobalSettings]\nOpenMP = YES\n' > omp.config
+          ./tools/sz3/sz3 -f -i ../input.dat -3 ${{ env.DIMS }} -M ${{ env.MODE }} ${{ env.TOL }} -a \
+                           -c omp.config -o omp.dat -z omp.sz3 \
+            | tee omp.log
+          ERR=$(grep -E 'Max absolute error =' omp.log \
+                | sed -E 's/.*Max absolute error = *([0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?).*/\1/')
+
+          [ -n "$ERR" ] || { echo "Could not parse Max absolute error!"; exit 1; }
+          echo "Parsed error: $ERR"
+          awk -v err="$ERR" -v tol="${{ env.TOL }}" 'BEGIN { if (err > tol) exit 1; }'
+
+          # A stream carries the thread count it was written with, and the reader asks the runtime
+          # for that many. It may get fewer, and then it must still decode every chunk. Only
+          # OMP_THREAD_LIMIT can force that: it caps the whole program, so a num_threads request
+          # cannot exceed it. OMP_NUM_THREADS cannot -- num_threads overrides it -- so setting that
+          # on the reader would leave the count unchanged and test nothing.
+          for w in 1 4 8; do
+            OMP_NUM_THREADS=$w ./tools/sz3/sz3 -f -i ../input.dat -3 ${{ env.DIMS }} \
+                -M ${{ env.MODE }} ${{ env.TOL }} -c omp.config -z omp$w.sz3 > /dev/null
+            ./tools/sz3/sz3 -f -s omp$w.sz3 -o omp$w.ref.dat -3 ${{ env.DIMS }} > /dev/null \
+              || { echo "a $w-thread stream did not read back"; exit 1; }
+            for l in 1 2 3; do
+              OMP_THREAD_LIMIT=$l ./tools/sz3/sz3 -f -s omp$w.sz3 -o omp$w.$l.dat \
+                  -3 ${{ env.DIMS }} > /dev/null \
+                || { echo "$w-thread stream failed to read under OMP_THREAD_LIMIT=$l"; exit 1; }
+              cmp -s omp$w.ref.dat omp$w.$l.dat \
+                || { echo "OMP_THREAD_LIMIT=$l changed the data from a $w-thread stream"; exit 1; }
+            done
+          done
+
       - name: Compute SHA256 of compressed
         id: calc
         shell: bash

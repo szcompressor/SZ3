@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <cstdlib>
+#include <exception>
 #include <memory>
 #include <new>
 
@@ -34,22 +35,28 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
     }
     if (conf.dims[0] < static_cast<size_t>(nThreads)) {
         nThreads = static_cast<int>(conf.dims[0]);
-        omp_set_num_threads(nThreads);
     }
-    printf("OpenMP enabled for compression, threads = %d\n", nThreads);
     compressed_t.resize(nThreads);
     cmp_size_t.resize(nThreads + 1);
     cmp_start_t.resize(nThreads + 1);
     conf_t.resize(nThreads);
     min_t.resize(nThreads);
     max_t.resize(nThreads);
-#pragma omp parallel
-    {
+    // An exception that leaves an OpenMP region does not unwind to the caller -- the runtime calls
+    // std::terminate -- so each thread stores its own and the first one is rethrown below, outside
+    // the region, where an ordinary catch can see it.
+    std::exception_ptr failure;
+    // num_threads(nThreads) applies to this region alone. omp_set_num_threads(nThreads) would write
+    // the process-wide nthreads-var instead, and that outlives the call: an application running 32
+    // threads that compresses one chunk here would go on running 8 afterwards. SZ3 is a library
+    // inside someone else's program and has no business changing that.
+#pragma omp parallel num_threads(nThreads)
+    try {
         int tid = omp_get_thread_num();
 
         auto dims_t = conf.dims;
-        int lo = tid * conf.dims[0] / nThreads;
-        int hi = (tid + 1) * conf.dims[0] / nThreads;
+        size_t lo = static_cast<size_t>(tid) * conf.dims[0] / nThreads;
+        size_t hi = static_cast<size_t>(tid + 1) * conf.dims[0] / nThreads;
         dims_t[0] = hi - lo;
         auto it = dims_t.begin();
         size_t num_t_base = std::accumulate(++it, dims_t.end(), static_cast<size_t>(1), std::multiplies<size_t>());
@@ -110,6 +117,14 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
         }
 
         memcpy(buffer_pos + cmp_start_t[tid], compressed_t[tid], cmp_size_t[tid]);
+    } catch (...) {
+#pragma omp critical
+        {
+            if (!failure) failure = std::current_exception();
+        }
+    }
+    if (failure) {
+        std::rethrow_exception(failure);
     }
 
     return buffer_pos - cmpData + cmp_start_t[nThreads];
@@ -133,8 +148,6 @@ void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* de
     // Each thread contributes at least a config and a size, so the count cannot exceed the buffer size.
     if (nThreads <= 0 || static_cast<size_t>(nThreads) > cmpSize)
         throw std::out_of_range("SZ3 OMP: invalid thread count");
-    omp_set_num_threads(nThreads);
-    printf("OpenMP enabled for decompression, threads = %d\n", nThreads);
 
     std::vector<Config> conf_t(nThreads);
     for (int i = 0; i < nThreads; i++) {
@@ -171,34 +184,54 @@ void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* de
         cmp_start_t[i] = cmp_start_t[i - 1] + cmp_size_t[i - 1];
     }
 
-#pragma omp parallel
-    {
-        int tid = omp_get_thread_num();
-        auto dims_t = conf.dims;
-        int lo = tid * conf.dims[0] / nThreads;
-        int hi = (tid + 1) * conf.dims[0] / nThreads;
-        dims_t[0] = hi - lo;
-        auto it = dims_t.begin();
-        size_t num_t_base = std::accumulate(++it, dims_t.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+    std::exception_ptr failure;
+#pragma omp parallel num_threads(nThreads)
+    try {
+        // nThreads is how many chunks the writer split the data into -- it came out of the stream,
+        // not from this machine. num_threads asks for that many threads but nothing guarantees
+        // them: OMP_THREAD_LIMIT caps the whole program, dynamic adjustment may lower it, and a
+        // region nested inside the caller's own gets exactly one thread unless nested parallelism
+        // was turned on, which it is not by default -- the case a filter called from inside an
+        // application's parallel region lands in. Indexing the chunks by thread id would then skip
+        // every chunk whose id no thread has, leaving that span of the output untouched and
+        // reporting success, so each thread walks the chunks in strides of however many arrived.
+        const int actual = omp_get_num_threads();
+        for (int tid = omp_get_thread_num(); tid < nThreads; tid += actual) {
+            auto dims_t = conf.dims;
+            size_t lo = static_cast<size_t>(tid) * conf.dims[0] / nThreads;
+            size_t hi = static_cast<size_t>(tid + 1) * conf.dims[0] / nThreads;
+            dims_t[0] = hi - lo;
+            auto it = dims_t.begin();
+            size_t num_t_base = std::accumulate(++it, dims_t.end(), static_cast<size_t>(1), std::multiplies<size_t>());
 
-        if (conf_t[tid].N == 1) {
-            SZ_decompress_dispatcher<T, 1>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid],
-                                           decData + lo * num_t_base);
-        } else if (conf_t[tid].N == 2) {
-            SZ_decompress_dispatcher<T, 2>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid],
-                                           decData + lo * num_t_base);
-        } else if (conf_t[tid].N == 3) {
-            SZ_decompress_dispatcher<T, 3>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid],
-                               decData + lo * num_t_base);
-        } else if (conf_t[tid].N == 4) {
-            SZ_decompress_dispatcher<T, 4>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid],
-                               decData + lo * num_t_base);
-        } else {
-            throw std::invalid_argument("Unsupported N");
+            if (conf_t[tid].N == 1) {
+                SZ_decompress_dispatcher<T, 1>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid],
+                                               decData + lo * num_t_base);
+            } else if (conf_t[tid].N == 2) {
+                SZ_decompress_dispatcher<T, 2>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid],
+                                               decData + lo * num_t_base);
+            } else if (conf_t[tid].N == 3) {
+                SZ_decompress_dispatcher<T, 3>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid],
+                                               decData + lo * num_t_base);
+            } else if (conf_t[tid].N == 4) {
+                SZ_decompress_dispatcher<T, 4>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid],
+                                               decData + lo * num_t_base);
+            } else {
+                throw std::invalid_argument("Unsupported N");
+            }
+        }
+    } catch (...) {
+#pragma omp critical
+        {
+            if (!failure) failure = std::current_exception();
         }
     }
+    if (failure) {
+        std::rethrow_exception(failure);
+    }
 #else
-    SZ_decompress_dispatcher<T, N>(conf, cmpData, cmpSize, decData);
+    throw std::invalid_argument(
+        "SZ3: this data was compressed with OpenMP; decompressing it needs an OpenMP-enabled build");
 #endif
 }
 
