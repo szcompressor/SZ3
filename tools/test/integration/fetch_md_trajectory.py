@@ -98,17 +98,20 @@ def download(file_id, filename, sha256, into):
                 with open(target, "wb") as out:
                     for chunk in response.iter_content(chunk_size=1 << 20):
                         out.write(chunk)
-            break
+            # A connection that drops mid-transfer often closes cleanly, so the checksum rather
+            # than an exception is what says the file is short. Both are worth retrying.
+            digest = file_digest(target)
+            if digest == sha256:
+                return target
+            raise OSError(f"expected sha256 {sha256}, got {digest}")
         except (requests.exceptions.RequestException, OSError) as error:
+            if os.path.exists(target):
+                os.remove(target)
             if attempt == 4:
-                raise
+                raise SystemExit(f"{filename}: {error}")
             print(f"Download failed ({error}), retrying")
             time.sleep(random.uniform(5, 20))
-
-    digest = file_digest(target)
-    if digest != sha256:
-        raise SystemExit(f"{filename}: expected sha256 {sha256}, got {digest}")
-    return target
+    raise SystemExit(f"{filename}: exhausted retries")
 
 
 def file_digest(path):
@@ -138,8 +141,10 @@ def convert(topology, trajectory, output_dir, expected_shape, fields, max_frames
         frames = max_frames
 
     paths = {name: os.path.join(output_dir, f"{name}.f32") for name in fields}
-    handles = {name: open(path, "wb") for name, path in paths.items()}
+    handles = {}
     try:
+        for name, path in paths.items():
+            handles[name] = open(path, "wb")
         for step, _ in enumerate(universe.trajectory):
             if step == frames:
                 break

@@ -21,10 +21,10 @@ namespace {
 
 constexpr SZ3::ALGO kAlgos[] = {SZ3::ALGO_BIOMD, SZ3::ALGO_BIOMDXTC};
 
-// Reconstruction rounds to float, so the bound holds to within an ulp of the reconstructed value
-// rather than exactly: 1.0014x at eb = 1e-4 here, and 1.0071x for ALGO_BIOMDXTC through the HDF5
-// filter, where each chunk quantizes on its own.
-constexpr double kBoundSlack = 1.01;
+// What LinearQuantizer(eb, XTC_radius, false) accepts: a difference up to eb * 1.1. Measured
+// overshoots sit well inside that -- 1.0014x at eb = 1e-4 here, 1.0071x for ALGO_BIOMDXTC through
+// the HDF5 filter, where each chunk quantizes on its own -- but the bound is the contract.
+constexpr double kBoundSlack = 1.1;
 
 const char *algo_name(SZ3::ALGO algo) { return algo == SZ3::ALGO_BIOMD ? "ALGO_BIOMD" : "ALGO_BIOMDXTC"; }
 
@@ -103,7 +103,7 @@ TEST(SZ3_BioMD, TrailingFilledFramesAreRestored) {
     const std::vector<size_t> dims = {16, 500, 3};
     const size_t frame = dims[1] * dims[2];
     const size_t written_frames = 9;
-    const float fill = 1.25f;
+    const float fill = 0.12345f;
 
     auto input = make_trajectory(dims[0], dims[1]);
     for (size_t f = written_frames; f < dims[0]; f++) {
@@ -119,7 +119,12 @@ TEST(SZ3_BioMD, TrailingFilledFramesAreRestored) {
         for (size_t i = written_frames * frame; i < input.size(); i++) {
             ASSERT_EQ(output[i], fill) << algo_name(algo) << " at element " << i;
         }
-        EXPECT_LT(compressed.size(), input.size() * sizeof(float)) << algo_name(algo);
+        // Skipping the filled tail has to cost less than quantizing it, or nothing here would
+        // notice the skip being removed.
+        std::vector<float> without_fill_output;
+        const auto without_fill = round_trip(algo, 1e-3, dims, make_trajectory(dims[0], dims[1]),
+                                             without_fill_output);
+        EXPECT_LT(compressed.size(), without_fill.size()) << algo_name(algo);
     }
 }
 
@@ -127,7 +132,7 @@ TEST(SZ3_BioMD, TrailingFilledFramesAreRestored) {
 TEST(SZ3_BioMD, EveryFrameAfterTheFirstIsFill) {
     const std::vector<size_t> dims = {8, 300, 3};
     const size_t frame = dims[1] * dims[2];
-    const float fill = -3.5f;
+    const float fill = -3.14159f;
 
     auto input = make_trajectory(dims[0], dims[1]);
     std::fill(input.begin() + frame, input.end(), fill);
@@ -143,9 +148,23 @@ TEST(SZ3_BioMD, EveryFrameAfterTheFirstIsFill) {
     }
 }
 
-/// A single frame is the shape a filter writes when it chunks a trajectory one frame at a time.
-TEST(SZ3_BioMD, SingleFrameTrajectory) {
+/// The chunk shape a filter writes when it stores one frame at a time. Config::setDims drops a
+/// dimension of 1, so this reaches the two-dimensional path rather than the trajectory one.
+TEST(SZ3_BioMD, OneFramePerChunk) {
     const std::vector<size_t> dims = {1, 1024, 3};
+    const auto input = make_trajectory(dims[0], dims[1]);
+
+    for (SZ3::ALGO algo : kAlgos) {
+        std::vector<float> output;
+        round_trip(algo, 1e-3, dims, input, output);
+        ASSERT_EQ(output.size(), input.size()) << algo_name(algo);
+        EXPECT_LE(max_abs_error(input, output), 1e-3 * kBoundSlack) << algo_name(algo);
+    }
+}
+
+/// The smallest trajectory that still reaches the multi-frame path.
+TEST(SZ3_BioMD, TwoFrameTrajectory) {
+    const std::vector<size_t> dims = {2, 1024, 3};
     const auto input = make_trajectory(dims[0], dims[1]);
 
     for (SZ3::ALGO algo : kAlgos) {
@@ -191,14 +210,19 @@ TEST(SZ3_BioMD, InputsTooShortForOneTriplet) {
 
 /// The same input has to produce the same file, or a trajectory cannot be checksummed.
 TEST(SZ3_BioMD, CompressionIsDeterministic) {
-    const std::vector<size_t> dims = {5, 777, 3};
-    const auto input = make_trajectory(dims[0], dims[1]);
-
-    for (SZ3::ALGO algo : kAlgos) {
-        std::vector<float> discard;
-        const auto first = round_trip(algo, 1e-3, dims, input, discard);
-        const auto second = round_trip(algo, 1e-3, dims, input, discard);
-        ASSERT_EQ(first.size(), second.size()) << algo_name(algo);
-        EXPECT_EQ(0, std::memcmp(first.data(), second.data(), first.size())) << algo_name(algo);
+    // A decomposition member that one compress() path leaves unassigned reaches save() from
+    // whatever the memory held, and the paths differ by dimensionality, so all three are here.
+    const std::vector<std::vector<size_t>> shapes = {{12288}, {64, 64}, {5, 777, 3}};
+    for (const auto &dims : shapes) {
+        const size_t atoms = dims.size() == 3 ? dims[1] : 4096;
+        const auto input = make_trajectory(dims.size() == 3 ? dims[0] : 1, atoms);
+        for (SZ3::ALGO algo : kAlgos) {
+            std::vector<float> discard;
+            const auto first = round_trip(algo, 1e-3, dims, input, discard);
+            const auto second = round_trip(algo, 1e-3, dims, input, discard);
+            ASSERT_EQ(first.size(), second.size()) << algo_name(algo) << " " << dims.size() << "D";
+            EXPECT_EQ(0, std::memcmp(first.data(), second.data(), first.size()))
+                << algo_name(algo) << " " << dims.size() << "D";
+        }
     }
 }

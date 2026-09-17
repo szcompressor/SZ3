@@ -213,6 +213,11 @@ def main():
         else:
             result = "FAIL"
 
+        # Collected by the driver. The filter is the path a simulation writes through, so its
+        # ratio is the one that describes what a user's files cost.
+        print(f"METRICS chunk={chunk} bytes={os.path.getsize(compressed_h5)} "
+              f"ratio={os.path.getsize(reference_h5) / os.path.getsize(compressed_h5):.6f} "
+              f"max_error={max_error:.6g}")
         print(f"Test Result for AbsErrorBound = {bound} Chunk = {chunk}: {result}")
 
         if result == "FAIL":

@@ -168,8 +168,9 @@ def main():
         result = "PASS"
 
     # Collected by the driver so a ratio or a timing can be compared across runs.
-    print(f"METRICS ratio={ratio:.6f} compress_s={compress_seconds:.3f} "
-          f"decompress_s={decompress_seconds:.3f} max_error={max_error:.6g}")
+    print(f"METRICS bytes={os.path.getsize(compressed_file)} ratio={ratio:.6f} "
+          f"compress_s={compress_seconds:.3f} decompress_s={decompress_seconds:.3f} "
+          f"max_error={max_error:.6g}")
     print(f"Test Result for AbsErrorBound = {bound}: {result}")
 
     rmtree(output_dir)
