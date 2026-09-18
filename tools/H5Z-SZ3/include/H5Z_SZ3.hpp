@@ -66,6 +66,12 @@ HDF5SZ3_EXPORT herr_t H5Z_SZ3_finalize(void);
 
 HDF5SZ3_EXPORT herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config &conf);
 
+/**
+ * @brief Load the SZ3 Config this property list carries.
+ *
+ * Returns 1 if a Config was loaded, 0 if the list carries no SZ3 filter, -1 if reading it failed.
+ * conf is left alone unless 1 is returned.
+ */
 HDF5SZ3_EXPORT herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config &conf);
 
 #ifdef __cplusplus

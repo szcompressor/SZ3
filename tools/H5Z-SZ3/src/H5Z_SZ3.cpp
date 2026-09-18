@@ -96,11 +96,11 @@ herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config& conf) {
 
     // Check both returns: on failure cd_nelmts keeps its input value and conf would load zeros.
     if (!sz3_filter_on_plist(propertyList)) {
-        return 1;
+        return 0;
     }
     if (0 > H5Pget_filter_by_id(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, &cd_nelmts, cd_values.data(), 0, NULL,
                                 NULL)) {
-        return 1;
+        return -1;
     }
     if (cd_nelmts > 0) {
         auto buffer = reinterpret_cast<const unsigned char*>(cd_values.data());
