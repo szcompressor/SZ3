@@ -64,7 +64,7 @@ jobs:
           #include <H5Z_SZ3.hpp>
           #include <SZ3/api/sz.hpp>
           int main() {
-              if (H5Zregister(H5PLget_plugin_info()) < 0) return 2;
+              if (H5Z_SZ3_initialize() < 0) return 2;
               hid_t dcpl = H5Pcreate(H5P_DATASET_CREATE);
               SZ3::Config conf(100);
               conf.absErrorBound = 1e-3;
@@ -75,6 +75,11 @@ jobs:
           cmake -S _consumer -B _consumer/build -DCMAKE_PREFIX_PATH="$PWD/_prefix"
           cmake --build _consumer/build --parallel 4
           ./_consumer/build/app
+          # Every other way the filter gets reached: h5repack, h5dump, h5ls, and the three
+          # link/registration shapes an application can take -- each asserting which path was
+          # taken and what a user is told when the plugin is not reachable. One HDF5 is enough:
+          # every assertion in here was measured identical on 1.10.6, 1.14.6 and 2.2.0.
+          tools/H5Z-SZ3/test/filter_access_modes.sh "$PWD/_prefix"
           ldd _prefix/lib/libhdf5sz3.so | tee _ldd.log
           ! grep -q 'not found' _ldd.log
           # Every include directory the export hands a consumer has to be inside the install prefix.
