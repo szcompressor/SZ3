@@ -49,21 +49,19 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
 
 
 /**
- * @brief Register the SZ3 filter with the HDF5 library.
+ * @brief Register the SZ3 filter, for an application that links this library rather than reaching
+ * it through HDF5_PLUGIN_PATH.
  *
- * For an application that links this library rather than reaching it through HDF5_PLUGIN_PATH.
- * Returns -1 on failure, 1 if this call registered the filter, and 0 if the filter was already
- * available and this call deferred to it. Zero is worth logging: HDF5 holds one filter per id,
- * so what answered may be another build of it -- a plugin on HDF5_PLUGIN_PATH, or another
- * library in the process -- and that is what will encode and decode, not this one.
+ * Returns -1 on failure, 1 if this call registered the filter, 0 if it was already available and
+ * this call deferred to it. Zero is worth logging: what answered may be another build of the
+ * filter, and that is what will encode and decode.
  */
 HDF5SZ3_EXPORT herr_t H5Z_SZ3_initialize(void);
 
 /**
  * @brief Undo H5Z_SZ3_initialize(). Returns 1 on success, -1 on failure.
  *
- * Only unregisters what this library registered, so it is a no-op if the filter reached HDF5
- * some other way. H5Zunregister() fails on a filter that is not registered.
+ * Only unregisters what this library registered; a no-op if the filter reached HDF5 another way.
  */
 HDF5SZ3_EXPORT herr_t H5Z_SZ3_finalize(void);
 

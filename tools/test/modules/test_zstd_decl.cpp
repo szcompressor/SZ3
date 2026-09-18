@@ -1,18 +1,11 @@
 // Lossless_zstd.hpp declares the four Zstd Simple-API functions SZ3 calls instead of including
-// <zstd.h>, so that an installed SZ3 needs Zstd's library but not its header. Nothing else checks
-// that those declarations still match the library SZ3 links: a divergence would compile cleanly on
-// both sides and go wrong at the call boundary, which is the worst way to find out.
-//
-// So this translation unit includes both, in that order -- SZ3's declarations first, then the real
-// header -- and zstd_decl_header_first.cpp, linked into this same executable, includes them the
-// other way round. A changed signature is a redeclaration conflict, which is a build failure.
-//
-// There is no way for this to pass vacuously: if <zstd.h> is not on the include path the file does
-// not compile, and if the declarations disagree it does not compile either.
+// <zstd.h>. Nothing else checks that those declarations still match the library SZ3 links: a
+// divergence compiles cleanly on both sides and goes wrong at the call boundary. This translation
+// unit includes both so a changed signature is a redeclaration conflict, and
+// zstd_decl_header_first.cpp includes them the other way round.
 // clang-format off
-// The order of these two is the test. clang-format sorts includes, and sorting them puts <zstd.h>
-// first -- which is what zstd_decl_header_first.cpp already covers, leaving this file testing
-// nothing. Do not remove these markers or reorder the two includes below.
+// The order is the test: clang-format would sort <zstd.h> first, which is what
+// zstd_decl_header_first.cpp already covers, leaving this file testing nothing.
 #include "SZ3/lossless/Lossless_zstd.hpp"  // SZ3's own declarations FIRST, no zstd.h
 #include <zstd.h>                          // then the real header; the two must agree
 // clang-format on

@@ -1,13 +1,10 @@
 #!/bin/bash
-# Every way an application or a user reaches the SZ3 HDF5 filter, asserted end to end
-# against an install tree. Run it by hand the same way CI does:
+# Every way an application or a user reaches the SZ3 HDF5 filter, asserted against an install tree.
 #
 #   tools/H5Z-SZ3/test/filter_access_modes.sh <install-prefix> [<hdf5 bin dir>]
 #
-# CMAKE_PREFIX_PATH in the environment is passed through, for anything else the probes need.
-#
-# Each check asserts which path was taken, not only that the command exited zero, and the
-# failure cases assert the diagnostic a user will actually paste into a bug report.
+# CMAKE_PREFIX_PATH is passed through for anything else the probes need. Each check asserts which
+# path was taken, not only that the command exited zero.
 set -u
 PREFIX=$(cd "$1" && pwd)
 H5BIN=${2:-}
@@ -31,9 +28,8 @@ skipped() { echo "SKIP  $1"; skip=$((skip+1)); }
 want() { if grep -qF "$2" "$3"; then ok "$1"; else bad "$1" "expected to find: $2" "got:" "$(head -5 "$3")"; fi; }
 notwant() { if grep -qF "$2" "$3"; then bad "$1" "did not expect: $2"; else ok "$1"; fi; }
 
-# h5repack, h5dump and h5ls are required, not optional: the checks that drive them are the ones
-# covering how a user reaches this filter without writing any code. Missing tools are refused here
-# so that they can never be mistaken for passing checks, and so the remedy is named once.
+# Required, not optional: they cover how a user reaches this filter without writing code. Refused
+# up front so a missing tool can never be mistaken for a passing check.
 missing=
 for tool in h5repack h5dump h5ls; do
     command -v "$(h5 $tool)" > /dev/null 2>&1 || missing="$missing $tool"
@@ -242,12 +238,9 @@ want "plugin-only-reader-works"  "READ OK" r_plug.log
 export HDF5_PLUGIN_PATH=$NOPLUGIN
 ./b/read a_both.h5 > r_noplug.log 2>&1
 want "plugin-only-reader-fails-without" "READ FAILED" r_noplug.log
-# Calling the function has to make the link real. Whether an unreferenced library is dropped at
-# all is decided by the backend compiler: /usr/bin/gcc on Debian and Ubuntu has --as-needed
-# patched into its link spec, the conda-forge driver does not and expects its activation script
-# to supply it. A wrapper such as mpicc only delegates, so it inherits whichever compiler it
-# calls ($OMPI_CC, else the one it was built with). Without the unreferencing control below
-# this check would pass by itself on any toolchain that keeps everything.
+# Whether an unreferenced library is dropped is up to the backend compiler -- Debian's gcc has
+# --as-needed in its link spec, the conda-forge driver does not -- so without the unreferencing
+# control below this check passes by itself on any toolchain that keeps everything.
 if ! command -v readelf > /dev/null 2>&1; then
     skipped "app-keeps-dt-needed (no readelf)"
 elif [ ! -f ./b/noref ] || [ ! -f ./b/app ]; then

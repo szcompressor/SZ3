@@ -6,10 +6,8 @@ include("${CMAKE_CURRENT_LIST_DIR}/SZ3Targets.cmake")
 
 set(SZ3_ZSTD_PROVIDER "@SZ3_ZSTD_PROVIDER@")
 if(SZ3_ZSTD_PROVIDER STREQUAL "system")
-  # SZ3 is header-only, so its Zstd calls compile into the consumer's objects and the consumer links
-  # Zstd too. Which Zstd cannot come out of the export -- the build machine's path need not exist
-  # here -- so one is found again, in the same prefixes find_package(SZ3) itself came from. The
-  # library only: SZ3 declares the four Zstd functions it calls, so no zstd.h has to be found.
+  # Found again rather than taken from the export: the build machine's path need not exist here.
+  # The library only -- SZ3 declares the Zstd functions it calls, so no zstd.h is needed.
   find_library(SZ3_ZSTD_LIBRARY NAMES zstd)
   if(NOT SZ3_ZSTD_LIBRARY)
     set(SZ3_NOT_FOUND_MESSAGE "SZ3 was built against the system Zstd, and no libzstd was found on this machine. Install Zstd's development package (libzstd-dev on Debian/Ubuntu, libzstd-devel on Fedora/RHEL, zstd on Homebrew), or set SZ3_ZSTD_LIBRARY to the library.")
@@ -20,10 +18,9 @@ if(SZ3_ZSTD_PROVIDER STREQUAL "system")
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/HDF5SZ3.cmake")
-  # find_dependency, not find_package(... REQUIRED): this file runs inside the consumer's
-  # find_package(SZ3), which is routinely an optional QUIET probe, and a missing dependency has to
-  # set SZ3_NOT_FOUND_MESSAGE and return rather than end their configure. No find_package(MPI)
-  # either: the filter calls no MPI function, and a parallel HDF5 brings its own.
+  # find_dependency, never find_package(... REQUIRED): this runs inside the consumer's
+  # find_package(SZ3), routinely an optional QUIET probe, and must not end their configure.
+  # No MPI search: the filter calls no MPI function, and a parallel HDF5 brings its own.
   find_dependency(HDF5 COMPONENTS C)
   include("${CMAKE_CURRENT_LIST_DIR}/HDF5SZ3.cmake")
 endif()
@@ -34,9 +31,8 @@ if(@OpenMP_FOUND@)
   find_dependency(OpenMP COMPONENTS CXX)
 endif()
 
-# An in-tree SZ3 offers these under their plain names, so code written against one says
-# target_link_libraries(x PRIVATE hdf5sz3). An installed SZ3 exports only the namespaced names, and
-# that line silently became -lhdf5sz3.
+# An in-tree SZ3 offers these under their plain names; without the aliases
+# target_link_libraries(x PRIVATE hdf5sz3) silently becomes -lhdf5sz3.
 foreach(sz3_target SZ3 hdf5sz3)
   if(TARGET SZ3::${sz3_target} AND NOT TARGET ${sz3_target})
     add_library(${sz3_target} INTERFACE IMPORTED)

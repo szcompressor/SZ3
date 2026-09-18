@@ -161,8 +161,6 @@ void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* de
         throw std::invalid_argument("magic number mismatch, the input data is not compressed by SZ3");
     }
     if (versionStr(conf_t[0].sz3DataVer) != SZ3_DATA_VER) {
-        // Same contract as the serial path in sz.hpp: the exception carries the whole diagnostic,
-        // so nothing here writes to the caller's stdout.
         std::stringstream ss;
         ss << "SZ3 " << SZ3_VER << " reads data version " << SZ3_DATA_VER << ", but this data is version "
            << versionStr(conf_t[0].sz3DataVer) << ". Use SZ3 v" << versionStr(conf_t[0].sz3DataVer)
@@ -261,6 +259,6 @@ size_t SZ_compress_size_bound_omp(const Config& conf) {
     return conf.size_est() + Lossless_zstd::compress_bound(conf.num * sizeof(T));
 #endif
 }
-}  // namespace SZ3
+} // namespace SZ3
 
 #endif

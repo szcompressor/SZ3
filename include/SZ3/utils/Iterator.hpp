@@ -200,7 +200,6 @@ class multi_dimensional_range : public std::enable_shared_from_this<multi_dimens
         static_assert(std::is_convertible<typename std::iterator_traits<ForwardIt1>::value_type, std::size_t>::value,
                       "ForwardIt1 must be convertible to std::size_t");
         if (global_dims_end - global_dims_begin != N) {
-            // The counts go in the message rather than on stdout, which belongs to whoever called us.
             std::stringstream ss;
             ss << "#dimensions does not match: got " << global_dims_end - global_dims_begin << ", expected " << N;
             throw std::invalid_argument(ss.str());

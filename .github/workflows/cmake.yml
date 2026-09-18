@@ -21,13 +21,10 @@ jobs:
       - name: Install HDF5 and Zstd
         run: |
           sudo apt-get update
-          # libzstd-dev, not just the libzstd1 every Debian system already has: it is what carries
-          # libzstd.pc, and pkg_search_module(ZSTD) finding that .pc file is the whole of what sends
-          # a source build down the system path instead of the bundled one. Naming it here is what
-          # makes this job the system-Zstd leg rather than a job testing whichever path the runner
-          # image happened to leave lying around.
-          # hdf5-tools carries h5repack, h5dump and h5ls. libhdf5-dev does not, and the access-mode
-          # suite drives all three: without this package half of it cannot run.
+          # libzstd-dev, not the libzstd1 every Debian system has: it carries libzstd.pc, and
+          # pkg_search_module finding that is what sends this job down the system-Zstd path.
+          # hdf5-tools carries h5repack, h5dump and h5ls; libhdf5-dev does not, and the access-mode
+          # suite drives all three.
           sudo apt-get install -y libhdf5-dev hdf5-tools libzstd-dev
 
       - name: Create build dir
@@ -50,8 +47,6 @@ jobs:
       - name: Check this build took the system-Zstd path
         shell: bash
         run: |
-          # Asserted, not assumed: everything below tests whichever Zstd this build linked, and the
-          # two paths are different code. The bundled leg further down asserts the other one.
           if ! ldd build/tools/sz3/sz3 | grep -q 'libzstd\.so'; then
             echo "sz3 links no system libzstd, so this job is not testing the system path"
             ldd build/tools/sz3/sz3; exit 1
@@ -72,8 +67,6 @@ jobs:
       - name: Install and build a separate project against it
         shell: bash
         run: |
-          # Everything else here reaches SZ3 through add_subdirectory, which never reads
-          # SZ3Config.cmake. Whoever installs SZ3 and then find_package()es it does.
           cmake --install build --prefix "$PWD/_prefix"
           mkdir -p _consumer
           cat > _consumer/CMakeLists.txt <<'EOF'
@@ -81,7 +74,6 @@ jobs:
           project(consumer CXX)
           find_package(SZ3 REQUIRED)
           add_executable(app main.cpp)
-          # The plain names, as code written against an in-tree SZ3 already spells them.
           target_link_libraries(app PRIVATE SZ3 hdf5sz3)
           EOF
           cat > _consumer/main.cpp <<'EOF'
@@ -99,24 +91,16 @@ jobs:
           cmake -S _consumer -B _consumer/build -DCMAKE_PREFIX_PATH="$PWD/_prefix"
           cmake --build _consumer/build --parallel 4
           ./_consumer/build/app
-          # Every other way the filter gets reached: h5repack, h5dump, h5ls, and the three
-          # link/registration shapes an application can take -- each asserting which path was
-          # taken and what a user is told when the plugin is not reachable. One HDF5 is enough:
-          # every assertion in here was measured identical on 1.10.6, 1.14.6 and 2.2.0.
           tools/H5Z-SZ3/test/filter_access_modes.sh "$PWD/_prefix"
           ldd _prefix/lib/libhdf5sz3.so | tee _ldd.log
           # `! grep ...` would read as a check and never be one: bash exempts a !-inverted command
           # from set -e, so unless it is the last line of the step its failure is dropped.
           if grep -q 'not found' _ldd.log; then echo "a NEEDED library does not resolve"; exit 1; fi
-          # Every include directory the export hands a consumer has to be inside the install prefix.
-          # One naming this machine's HDF5 is compiled against whatever HDF5 the consumer found.
           grep -o 'INTERFACE_INCLUDE_DIRECTORIES "[^"]*"' _prefix/lib/cmake/SZ3/HDF5SZ3.cmake \
             | sed 's/.*"\(.*\)"/\1/' | tr ';' '\n' | tee _inc.log
           if grep -qv '^\${_IMPORT_PREFIX}/' _inc.log; then
             echo "an exported include directory points outside the install prefix"; exit 1
           fi
-          # A C-only consumer -- an HDF5 filter is exactly that -- may be told SZ3 was not found.
-          # What it may not be told is that it was, and then fail at generate or link time.
           mkdir -p _conly
           cat > _conly/CMakeLists.txt <<'EOF'
           cmake_minimum_required(VERSION 3.18)
@@ -130,7 +114,6 @@ jobs:
           printf 'int main(void){return 0;}\n' > _conly/main.c
           cmake -S _conly -B _conly/build -DCMAKE_PREFIX_PATH="$PWD/_prefix"
           cmake --build _conly/build --parallel 4
-          # An optional probe must decline, not end the consumer's configure.
           mkdir -p _probe
           cat > _probe/CMakeLists.txt <<'EOF'
           cmake_minimum_required(VERSION 3.18)
@@ -146,20 +129,13 @@ jobs:
       - name: The export must not carry this machine's Zstd, and must outlive the build tree
         shell: bash
         run: |
-          # This is the failure that took the export down: the resolved libzstd path was written
-          # into SZ3Targets.cmake, so a consumer on a machine where that path no longer existed got
-          # "No rule to make target '/usr/lib/x86_64-linux-gnu/libzstd.so'". Nothing about the build
-          # machine's Zstd may appear in the generated export. SZ3Config.cmake is deliberately not
-          # checked: the find_library it names runs on the CONSUMER's machine, which is the point.
+          # Nothing about the build machine's Zstd may appear in the generated export. SZ3Config.cmake
+          # is deliberately not checked: the find_library it names runs on the consumer's machine.
           if grep -En 'libzstd|PkgConfig::ZSTD' _prefix/lib/cmake/SZ3/SZ3Targets*.cmake; then
             echo "the installed export names this machine's Zstd"; exit 1
           fi
-          # And a consumer has to still build once the build tree is gone, which is what every
-          # conda environment, Spack view and torn-down CI image looks like to whoever installed
-          # from it. Deleting it is the only way to prove the export does not lean on it.
-          # Moved aside rather than deleted: later steps run the sz3 built in build/, and the
-          # proof is the same either way -- the directory genuinely does not exist while the
-          # consumer configures, builds and links.
+          # Moved aside, not deleted: later steps run the sz3 built in build/, and the directory is
+          # gone either way while the consumer configures, builds and links.
           rm -rf _consumer/build
           mv build build.aside
           cmake -S _consumer -B _consumer/build2 -DCMAKE_PREFIX_PATH="$PWD/_prefix"
@@ -170,8 +146,8 @@ jobs:
       - name: A packager can delete tools/zstd and still build against the system Zstd
         shell: bash
         run: |
-          # Debian and Fedora forbid embedded code copies, so the vendored tree has to be
-          # deletable rather than merely unused. git worktree, so the deletion cannot escape.
+          # Debian and Fedora forbid embedded code copies, so the vendored tree has to be deletable.
+          # git worktree, so the deletion cannot escape.
           git worktree add _nozstd HEAD
           rm -rf _nozstd/tools/zstd
           cmake -S _nozstd -B _nozstd/build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
@@ -189,21 +165,14 @@ jobs:
       - name: Keep the bundled Zstd to itself
         shell: bash
         run: |
-          # It is SZ3's private copy of a compressor, not a redistributable system library: it must
-          # not install over a file the system Zstd owns, must not put a zstd.h on a consumer's
-          # include path, and must not export symbols that interpose on the consumer's own Zstd.
           cmake -S . -B _bundled -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
                 -DSZ3_USE_BUNDLED_ZSTD=ON -DBUILD_H5Z_FILTER=ON
           cmake --build _bundled --parallel 4
           cmake --install _bundled --prefix "$PWD/_bprefix"
-          # The other half of the pair: the step above asserts the system path, this one asserts
-          # the bundled path, so neither leg can quietly end up testing the same Zstd twice.
           test -e _bprefix/lib/libsz3_zstd.a
           if ldd _bundled/tools/sz3/sz3 | grep -q 'libzstd\.so'; then
             echo "asked for the bundled Zstd and linked the system one anyway"; exit 1
           fi
-          # And it has to work, not merely exist -- a compressed stream only proves that by
-          # decompressing. testfloat_8_8_128.dat is in the tree, so this needs no download.
           _bundled/tools/sz3/sz3 -f -i tools/sz3/testfloat_8_8_128.dat -z _b.sz3 \
                                  -3 ${{ env.DIMS }} -M ${{ env.MODE }} ${{ env.TOL }}
           _bundled/tools/sz3/sz3 -f -s _b.sz3 -o _b.dat -3 ${{ env.DIMS }}
@@ -217,12 +186,9 @@ jobs:
                    lib/libzstd.a lib/libzstd.so include/SZ3/bundled_zstd/zstd.h; do
             if [ -e "_bprefix/$f" ]; then echo "installed $f, which the system Zstd owns"; exit 1; fi
           done
-          # Nothing SZ3 installs includes zstd.h any more, so no copy of it is staged or installed
-          # anywhere under the prefix, by any name.
           if find _bprefix -name 'zstd.h' | grep -q .; then
             echo "a zstd.h was installed:"; find _bprefix -name 'zstd.h'; exit 1
           fi
-          # The vendored archive must be referenced relative to the prefix, so the export relocates.
           if grep -q 'libsz3_zstd' _bprefix/lib/cmake/SZ3/SZ3Targets*.cmake && \
              grep 'libsz3_zstd' _bprefix/lib/cmake/SZ3/SZ3Targets*.cmake | grep -qv '_IMPORT_PREFIX'; then
             echo "the vendored Zstd is referenced by an absolute path, so the export cannot move"
@@ -243,14 +209,11 @@ jobs:
       - name: The serialized format must not change without SZ3_DATA_VERSION
         shell: bash
         run: |
-          # SZ3_DATA_VERSION is what a reader compares for exact equality, so a format change that
-          # does not move it produces files an older build accepts and then misreads. v3.3.0 and
-          # v3.3.1 shipped different layouts under the same declared 3.3.0 and nothing caught it:
-          # the cross-platform digest job only asks whether Linux and macOS agree with each other,
-          # and a format change moves both together.
-          # The _bundled tree from the step above, because the bytes depend on which Zstd compressed
-          # them and only the bundled one is pinned by this repository. Linux only -- the digest job
-          # establishes that macOS produces the same bytes.
+          # A format change that does not move SZ3_DATA_VERSION produces files an older build accepts
+          # and then misreads; v3.3.0 and v3.3.1 shipped different layouts under the same 3.3.0. The
+          # cross-platform digest job cannot catch it, since a format change moves both platforms.
+          # The _bundled tree, because the bytes depend on which Zstd compressed them and only the
+          # bundled one is pinned here. Linux only -- the digest job covers macOS agreeing.
           VER=$(sed -n 's/^#define SZ3_DATA_VER "\(.*\)"/\1/p' _bundled/include/SZ3/version.hpp)
           if [ -z "$VER" ]; then echo "could not read SZ3_DATA_VER from the generated header"; exit 1; fi
           ./_bundled/tools/sz3/sz3 -f -i tools/sz3/testfloat_8_8_128.dat -z fmt.sz3 \

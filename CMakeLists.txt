@@ -61,9 +61,8 @@ else ()
     target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_USE_SKA_HASH=0)
 endif ()
 
-# Zstd is a private dependency: Lossless_zstd.hpp declares the four Simple-API functions it calls,
-# so all that has to be arranged is the link -- here for this build, and again in SZ3Config.cmake on
-# the consumer's machine, because SZ3 is header-only and those calls compile into their objects.
+# Only the link has to be arranged, here and again in SZ3Config.cmake: SZ3 is header-only, so the
+# Zstd calls compile into the consumer's objects, and Lossless_zstd.hpp needs no zstd.h.
 if (MSVC)
     option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" ON)
 else ()
@@ -72,11 +71,10 @@ endif ()
 pkg_search_module(ZSTD libzstd)
 if (ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
     set(SZ3_ZSTD_PROVIDER "system")
-    # BUILD_INTERFACE, and the resolved library rather than PkgConfig::ZSTD: neither belongs in the
-    # install export. The path stops existing when the build prefix does, leaving a consumer with
-    # "No rule to make target .../libzstd.so", and an imported target is not defined in their
-    # project at all. Nor the include directory: under conda, Spack or Homebrew it is a whole prefix
-    # holding other packages' headers, so exporting it put this machine's hdf5.h ahead of theirs.
+    # BUILD_INTERFACE, and the resolved library rather than PkgConfig::ZSTD: an imported target is
+    # not defined in the consumer's project, and the path stops existing when the build prefix does.
+    # The include directory must not be exported either -- under conda, Spack or Homebrew it is a
+    # whole prefix, which put this machine's hdf5.h ahead of the consumer's.
     target_link_libraries(${PROJECT_NAME} INTERFACE $<BUILD_INTERFACE:${ZSTD_LINK_LIBRARIES}>)
 else ()
     set(SZ3_ZSTD_PROVIDER "vendored")
@@ -85,9 +83,8 @@ else ()
     add_subdirectory(tools/zstd)
     target_link_libraries(${PROJECT_NAME} INTERFACE zstd)
 endif ()
-# test_zstd_decl is the only thing in the tree that needs a real zstd.h. pkg-config drops
-# -I/usr/include from its answer, so an empty ZSTD_INCLUDE_DIRS is the normal Debian case, and the
-# vendored header settles the same question: that these four signatures do not vary.
+# test_zstd_decl is the only thing here needing a real zstd.h. An empty ZSTD_INCLUDE_DIRS is normal
+# on Debian -- pkg-config drops -I/usr/include -- and the vendored header answers the same question.
 set(SZ3_ZSTD_HEADER_DIRS "${ZSTD_INCLUDE_DIRS}")
 if (NOT SZ3_ZSTD_HEADER_DIRS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tools/zstd/lib/zstd.h")
     set(SZ3_ZSTD_HEADER_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/tools/zstd/lib")
