@@ -12,8 +12,7 @@
 #include "SZ3/lossless/Lossless.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
 
-// Do not include <zstd.h> here. SZ3 installs headers, so every consumer would then need zstd.h on
-// their include path. Under Homebrew, conda and Spack they have Zstd's library only.
+// Do not include <zstd.h> here: these headers are installed, so every consumer would need it too.
 #ifdef SZ3_USE_ZSTD_HEADER
 #include <zstd.h>
 #else
@@ -33,9 +32,7 @@ class Lossless_zstd : public concepts::LosslessInterface {
 
     Lossless_zstd(int comp_level) : compression_level(comp_level) {}
 
-    /**
-     * worst-case compressed size for srcLen bytes, for sizing the buffer handed to compress().
-     */
+    /** Worst-case compressed size for srcLen bytes. Use this, not ZSTD_compressBound, declared only here. */
     static size_t compress_bound(size_t srcLen) { return ZSTD_compressBound(srcLen); }
 
     /**

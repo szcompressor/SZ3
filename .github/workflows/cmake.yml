@@ -21,10 +21,8 @@ jobs:
       - name: Install HDF5 and Zstd
         run: |
           sudo apt-get update
-          # libzstd-dev, not the libzstd1 every Debian system has: it carries libzstd.pc, and
-          # pkg_search_module finding that is what sends this job down the system-Zstd path.
-          # hdf5-tools carries h5repack, h5dump and h5ls; libhdf5-dev does not, and the access-mode
-          # suite drives all three.
+          # libzstd-dev, not libzstd1: only the -dev package carries the libzstd.pc that sends this
+          # job down the system-Zstd path. hdf5-tools carries h5repack, h5dump and h5ls.
           sudo apt-get install -y libhdf5-dev hdf5-tools libzstd-dev
 
       - name: Create build dir
@@ -83,7 +81,7 @@ jobs:
               hid_t dcpl = H5Pcreate(H5P_DATASET_CREATE);
               SZ3::Config conf(100);
               conf.absErrorBound = 1e-3;
-              set_SZ3_conf_to_H5(dcpl, conf);  // used to fault inside HDF5 on a fresh list
+              set_SZ3_conf_to_H5(dcpl, conf);
               return H5Pget_nfilters(dcpl) == 1 ? 0 : 1;
           }
           EOF
@@ -92,8 +90,7 @@ jobs:
           ./_consumer/build/app
           tools/H5Z-SZ3/test/filter_access_modes.sh "$PWD/_prefix"
           ldd _prefix/lib/libhdf5sz3.so | tee _ldd.log
-          # `! grep ...` would read as a check and never be one: bash exempts a !-inverted command
-          # from set -e, so unless it is the last line of the step its failure is dropped.
+          # Not `! grep ...`: set -e exempts a !-inverted command, so it would never fail the step.
           if grep -q 'not found' _ldd.log; then echo "a NEEDED library does not resolve"; exit 1; fi
           grep -o 'INTERFACE_INCLUDE_DIRECTORIES "[^"]*"' _prefix/lib/cmake/SZ3/HDF5SZ3.cmake \
             | sed 's/.*"\(.*\)"/\1/' | tr ';' '\n' | tee _inc.log
@@ -128,13 +125,11 @@ jobs:
       - name: The export must not carry this machine's Zstd, and must outlive the build tree
         shell: bash
         run: |
-          # Nothing about the build machine's Zstd may appear in the generated export. SZ3Config.cmake
-          # is deliberately not checked: the find_library it names runs on the consumer's machine.
+          # SZ3Config.cmake is deliberately not grepped: its find_library runs on the consumer's machine.
           if grep -En 'libzstd|PkgConfig::ZSTD' _prefix/lib/cmake/SZ3/SZ3Targets*.cmake; then
             echo "the installed export names this machine's Zstd"; exit 1
           fi
-          # Moved aside, not deleted: later steps run the sz3 built in build/, and the directory is
-          # gone either way while the consumer configures, builds and links.
+          # Moved aside, not deleted: later steps run the sz3 in build/.
           rm -rf _consumer/build
           mv build build.aside
           cmake -S _consumer -B _consumer/build2 -DCMAKE_PREFIX_PATH="$PWD/_prefix"
@@ -208,11 +203,8 @@ jobs:
       - name: The serialized format must not change without SZ3_DATA_VERSION
         shell: bash
         run: |
-          # A format change that does not move SZ3_DATA_VERSION produces files an older build accepts
-          # and then misreads; v3.3.0 and v3.3.1 shipped different layouts under the same 3.3.0. The
-          # cross-platform digest job cannot catch it, since a format change moves both platforms.
-          # The _bundled tree, because the bytes depend on which Zstd compressed them and only the
-          # bundled one is pinned here. Linux only -- the digest job covers macOS agreeing.
+          # An unversioned format change produces files an older build accepts and then misreads.
+          # The _bundled tree: the bytes depend on which Zstd compressed them, and only it is pinned.
           VER=$(sed -n 's/^#define SZ3_DATA_VER "\(.*\)"/\1/p' _bundled/include/SZ3/version.hpp)
           if [ -z "$VER" ]; then echo "could not read SZ3_DATA_VER from the generated header"; exit 1; fi
           ./_bundled/tools/sz3/sz3 -f -i tools/sz3/testfloat_8_8_128.dat -z fmt.sz3 \

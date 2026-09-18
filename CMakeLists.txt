@@ -61,21 +61,14 @@ else ()
     target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_USE_SKA_HASH=0)
 endif ()
 
-# Only the link has to be arranged, here and again in SZ3Config.cmake: SZ3 is header-only, so the
-# Zstd calls compile into the consumer's objects, and Lossless_zstd.hpp needs no zstd.h.
-# Keep the quotes: MSVC is undefined on every other compiler, and unquoted the argument
-# vanishes instead of reading as OFF.
+# "${MSVC}" reads as ON under MSVC and OFF everywhere else. Keep the quotes.
 option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" "${MSVC}")
 pkg_search_module(ZSTD libzstd)
 if (ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
-    # BUILD_INTERFACE, and the resolved library rather than PkgConfig::ZSTD: an imported target is
-    # not defined in the consumer's project, and the path stops existing when the build prefix does.
-    # The include directory must not be exported either -- under conda, Spack or Homebrew it is a
-    # whole prefix, which put this machine's hdf5.h ahead of the consumer's.
+    # Not PkgConfig::ZSTD: that imported target does not exist in the consumer's project.
+    # BUILD_INTERFACE, and no include directory: both are paths on this machine only.
     target_link_libraries(${PROJECT_NAME} INTERFACE $<BUILD_INTERFACE:${ZSTD_LINK_LIBRARIES}>)
 else ()
-    # Exported as SZ3::zstd with an IMPORTED_LOCATION under ${_IMPORT_PREFIX}, so unlike a system
-    # Zstd this one relocates with the install prefix and SZ3Config.cmake has nothing to resolve.
     add_subdirectory(tools/zstd)
     target_link_libraries(${PROJECT_NAME} INTERFACE zstd)
 endif ()

@@ -3,8 +3,7 @@
 #
 #   tools/H5Z-SZ3/test/filter_access_modes.sh <install-prefix> [<hdf5 bin dir>]
 #
-# CMAKE_PREFIX_PATH is passed through for anything else the probes need. Each check asserts which
-# path was taken, not only that the command exited zero.
+# CMAKE_PREFIX_PATH is passed through. Assert which path was taken, never just that the exit was 0.
 set -u
 PREFIX=$(cd "$1" && pwd)
 H5BIN=${2:-}
@@ -21,15 +20,13 @@ LIBDIR=$PREFIX/lib
 pass=0; fail=0; skip=0
 ok()   { echo "PASS  $1"; pass=$((pass+1)); }
 bad()  { echo "FAIL  $1"; shift; for l in "$@"; do echo "        $l"; done; fail=$((fail+1)); }
-# Never counted as a pass. A suite that reports more checks than it ran is the failure this
-# whole file exists to catch.
+# Never counted as a pass: a suite that reports more checks than it ran is worse than no suite.
 skipped() { echo "SKIP  $1"; skip=$((skip+1)); }
-# want <name> <expected substring> <file> -- the diagnostic a user sees, not just an exit code
+# want <name> <expected substring> <file>
 want() { if grep -qF "$2" "$3"; then ok "$1"; else bad "$1" "expected to find: $2" "got:" "$(head -5 "$3")"; fi; }
 notwant() { if grep -qF "$2" "$3"; then bad "$1" "did not expect: $2"; else ok "$1"; fi; }
 
-# Required, not optional: they cover how a user reaches this filter without writing code. Refused
-# up front so a missing tool can never be mistaken for a passing check.
+# Required, not skipped: a missing tool must never look like a passing check.
 missing=
 for tool in h5repack h5dump h5ls; do
     command -v "$(h5 $tool)" > /dev/null 2>&1 || missing="$missing $tool"
@@ -45,7 +42,7 @@ echo "=== prefix $PREFIX ==="
 
 # ---------------------------------------------------------------- fixtures
 cat > gen.c <<'EOF'
-/* Writes an uncompressed float dataset; no SZ3 involved. */
+/* The input fixture. No SZ3 anywhere in it. */
 #include <hdf5.h>
 #include <math.h>
 int main(int argc, char **argv) {
@@ -132,15 +129,12 @@ target_link_libraries(read PRIVATE HDF5::HDF5 ${MATH_LIB})
 add_executable(app app.c)
 set_source_files_properties(app.c PROPERTIES LANGUAGE CXX)
 target_link_libraries(app PRIVATE SZ3::SZ3 SZ3::hdf5sz3)
-# The shape GROMACS had: linked, referencing nothing. It is the control for the DT_NEEDED
-# check below -- without it that check passes vacuously on a toolchain that never drops.
+# The control for the DT_NEEDED check below. Without it that check passes vacuously.
 add_executable(noref noref.c)
 set_source_files_properties(noref.c PROPERTIES LANGUAGE CXX)
 target_link_libraries(noref PRIVATE SZ3::SZ3 SZ3::hdf5sz3)
 EOF
-# When the tools were given explicitly, that HDF5 is the one to build against as well. Anything
-# else the consumer needs goes in CMAKE_PREFIX_PATH -- on Homebrew that is where zstd.h lives,
-# since the export deliberately does not put a whole prefix on a consumer's include path.
+# When the HDF5 tools were given explicitly, build against that same HDF5.
 CMPFX=$PREFIX
 [ -n "$H5BIN" ] && CMPFX="$PREFIX;$(cd "$H5BIN/.." && pwd)"
 [ -n "${CMAKE_PREFIX_PATH:-}" ] && CMPFX="$CMPFX;$CMAKE_PREFIX_PATH"
@@ -160,15 +154,13 @@ want "h5repack-applies-sz3"        "FILTER_ID 32024" rp.head
 want "h5repack-records-version"    "H5Z-SZ3-" rp.head
 ./b/read rp.h5 > rp.read 2>&1
 want "h5repack-output-reads-back"  "READ OK" rp.read
-# A COMMENT line only appears when the filter was registered as the dataset was created, so it
-# is also the tell that the filter really ran rather than being skipped as optional.
 "$(h5 h5repack)" -f NONE rp.h5 rp_none.h5 > strip.log 2>&1
 "$(h5 h5dump)" -pH rp_none.h5 > strip.head 2>&1
 notwant "h5repack-none-strips-sz3" "32024" strip.head
 "$(h5 h5ls)" rp_none.h5 > strip.ls 2>&1
 want "h5repack-none-keeps-dataset" "ds" strip.ls
 
-# The trap: with the filter unreachable h5repack exits 0 and quietly writes an UNFILTERED copy.
+# With the filter unreachable h5repack exits 0 and quietly writes an UNFILTERED copy.
 export HDF5_PLUGIN_PATH=$NOPLUGIN
 "$(h5 h5repack)" -f "$CD_ABS" plain.h5 rp_noplug.h5 > rpn.log 2>&1
 "$(h5 h5dump)" -pH rp_noplug.h5 > rpn.head 2>&1
@@ -179,11 +171,7 @@ want "h5repack-noplugin-warns-on-read" "filter is not available" lost.log
 "$(h5 h5ls)" rp_lost.h5 > lost.ls 2>&1
 notwant "h5repack-noplugin-loses-dataset" "ds" lost.ls
 
-# A cd_values array this filter did not write. The element count cannot be what identifies it:
-# it is dataset-dependent and has been 9, 11, 13, 14 and 15 across released versions, so
-# H5Z_sz3_set_local has to refuse on content.
-# h5repack turns that refusal into the same quiet unfiltered copy as a missing plugin, so what
-# is asserted is that no dataset was written claiming a filter that never parsed its parameters.
+# A cd_values array this filter did not write. h5repack turns the refusal into an unfiltered copy.
 export HDF5_PLUGIN_PATH=$PLUGIN_DIR
 "$(h5 h5repack)" -f "UD=32024,0,9,3,0,3,3341,20,0,1062232653,3539053052,0" plain.h5 rp_old.h5 > old.log 2>&1
 "$(h5 h5dump)" -pH rp_old.h5 > old.head 2>&1
@@ -238,9 +226,7 @@ want "plugin-only-reader-works"  "READ OK" r_plug.log
 export HDF5_PLUGIN_PATH=$NOPLUGIN
 ./b/read a_both.h5 > r_noplug.log 2>&1
 want "plugin-only-reader-fails-without" "READ FAILED" r_noplug.log
-# Whether an unreferenced library is dropped is up to the backend compiler -- Debian's gcc has
-# --as-needed in its link spec, the conda-forge driver does not -- so without the unreferencing
-# control below this check passes by itself on any toolchain that keeps everything.
+# Toolchains differ on dropping unreferenced libraries, so noref decides whether this can assert.
 if ! command -v readelf > /dev/null 2>&1; then
     skipped "app-keeps-dt-needed (no readelf)"
 elif [ ! -f ./b/noref ] || [ ! -f ./b/app ]; then

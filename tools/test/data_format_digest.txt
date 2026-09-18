@@ -1,14 +1,9 @@
-# SHA256 of tools/sz3/testfloat_8_8_128.dat compressed by a build configured with
-# SZ3_USE_BUNDLED_ZSTD=ON, as
+# SHA256 of tools/sz3/testfloat_8_8_128.dat compressed by a SZ3_USE_BUNDLED_ZSTD=ON build, as
 #   sz3 -f -i <that file> -z out -3 8 8 128 -M ABS 1e-3
 #
-# The bundled Zstd, because the bytes on disk depend on which Zstd compressed them -- system Zstd
-# 1.5.5 and 1.5.7 produce different lengths for this input -- and only the bundled one is pinned by
-# this repository. CI recomputes this and compares, so a row goes stale for one of two reasons: the
-# serialized SZ3 format changed, which needs SZ3_DATA_VERSION bumped and a new row; or the bundled
-# Zstd was re-vendored, which changes the bytes without changing the format and needs only this row
-# updated. A row is never edited for the first reason: a version whose bytes changed was a format
-# change under a version that had already been published.
+# The bundled Zstd, because the bytes depend on which Zstd compressed them and only it is pinned.
+#
+# A format change adds a row and bumps SZ3_DATA_VERSION. Only a re-vendored Zstd edits one.
 #
 # version  sha256
 3.3.2      3171437b621e26d902271216e9cda5525e2232b9973917c324c0012baa054a1c

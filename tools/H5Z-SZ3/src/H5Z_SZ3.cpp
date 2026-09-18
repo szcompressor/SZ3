@@ -21,13 +21,11 @@ HDF5SZ3_EXPORT H5PL_type_t H5PLget_plugin_type(void) { return H5PL_TYPE_FILTER; 
 
 HDF5SZ3_EXPORT const void* H5PLget_plugin_info(void) { return H5Z_SZ3; }
 
-// Only unregister what this library registered: HDF5 keeps one table entry per filter id, so a
-// registration from anywhere else is not ours to take back.
+// Whether this library registered the filter. Anything else's registration is not ours to undo.
 static int h5z_sz3_was_registered = 0;
 
 herr_t H5Z_SZ3_initialize(void) {
-    // Not a passive query: on a miss this searches HDF5_PLUGIN_PATH and registers what it finds,
-    // which may be a different build of this filter. The return says which happened.
+    // H5Zfilter_avail registers on a miss, from HDF5_PLUGIN_PATH; it is not a passive query.
     if (H5Zfilter_avail(H5Z_FILTER_SZ3) > 0) {
         return 0;
     }
@@ -48,9 +46,7 @@ herr_t H5Z_SZ3_finalize(void) {
 }
 
 namespace {
-// Do not use H5Zfilter_avail() to answer this. It reports whether the filter is registered with
-// the library, so once anything has registered it, it says yes for every property list, empty ones
-// included.
+// Do not use H5Zfilter_avail() here: it answers for the library, not for this property list.
 bool sz3_filter_on_plist(const hid_t propertyList) {
     const int nfilters = H5Pget_nfilters(propertyList);
     for (int i = 0; i < nfilters; i++) {
@@ -98,8 +94,7 @@ herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config& conf) {
     size_t cd_nelmts = std::ceil(conf.size_est() / 1.0 / sizeof(int));
     std::vector<unsigned int> cd_values(cd_nelmts, 0);
 
-    // A failed H5Pget_filter_by_id leaves cd_nelmts at its input value, so an unchecked return
-    // loads a Config out of the zero-filled buffer rather than leaving the caller's alone.
+    // Check both returns: on failure cd_nelmts keeps its input value and conf would load zeros.
     if (!sz3_filter_on_plist(propertyList)) {
         return 1;
     }
