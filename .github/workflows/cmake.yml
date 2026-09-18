@@ -88,7 +88,7 @@ jobs:
           cmake -S _consumer -B _consumer/build -DCMAKE_PREFIX_PATH="$PWD/_prefix"
           cmake --build _consumer/build --parallel 4
           ./_consumer/build/app
-          tools/H5Z-SZ3/test/filter_access_modes.sh "$PWD/_prefix"
+          tools/H5Z-SZ3/test/filterAccessModes.sh "$PWD/_prefix"
           ldd _prefix/lib/libhdf5sz3.so | tee _ldd.log
           # Not `! grep ...`: set -e exempts a !-inverted command, so it would never fail the step.
           if grep -q 'not found' _ldd.log; then echo "a NEEDED library does not resolve"; exit 1; fi

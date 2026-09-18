@@ -1,7 +1,7 @@
 #!/bin/bash
 # Every way an application or a user reaches the SZ3 HDF5 filter, asserted against an install tree.
 #
-#   tools/H5Z-SZ3/test/filter_access_modes.sh <install-prefix> [<hdf5 bin dir>]
+#   tools/H5Z-SZ3/test/filterAccessModes.sh <install-prefix> [<hdf5 bin dir>]
 #
 # CMAKE_PREFIX_PATH is passed through. Assert which path was taken, never just that the exit was 0.
 set -u
