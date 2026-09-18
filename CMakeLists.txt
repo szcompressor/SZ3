@@ -63,7 +63,7 @@ endif ()
 
 # Only the link has to be arranged, here and again in SZ3Config.cmake: SZ3 is header-only, so the
 # Zstd calls compile into the consumer's objects, and Lossless_zstd.hpp needs no zstd.h.
-option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" ${MSVC})
+option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" "${MSVC}")
 pkg_search_module(ZSTD libzstd)
 if (ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
     # BUILD_INTERFACE, and the resolved library rather than PkgConfig::ZSTD: an imported target is
