@@ -12,10 +12,10 @@ trap 'rm -rf "$WORK"' EXIT
 cd "$WORK" || exit 1
 
 h5() { if [ -n "$H5BIN" ]; then echo "$H5BIN/$1"; else echo "$1"; fi; }
-PLUGIN_DIR=$PREFIX/lib/plugin
-NOPLUGIN=$WORK/no-such-plugin-dir
 LIBDIR=$PREFIX/lib
 [ -d "$LIBDIR" ] || LIBDIR=$PREFIX/lib64
+PLUGIN_DIR=$LIBDIR/plugin
+NOPLUGIN=$WORK/no-such-plugin-dir
 
 pass=0; fail=0; skip=0
 ok()   { echo "PASS  $1"; pass=$((pass+1)); }
@@ -74,11 +74,15 @@ int main(int argc, char **argv) {
     }
     double m = 0;
     for (int i = 0; i < 64 * 64; i++) {
-        double e = fabs((double)d[i] - sin(0.01 * i) * 100.0);
+        double e = fabs((double)d[i] - (double)((float)sin(0.01 * i) * 100.0f));
         if (e > m) m = e;
     }
+    if (m > 1e-3) {
+        printf("READ OUT OF BOUND maxerr %.6f\n", m);
+        return 1;
+    }
     printf("READ OK maxerr %.6f\n", m);
-    return m <= 1e-3 * 1.000001 ? 0 : 1;
+    return 0;
 }
 EOF
 # Three link/registration shapes an application can take. argv[1] picks one.
