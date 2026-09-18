@@ -150,8 +150,7 @@ jobs:
           # into SZ3Targets.cmake, so a consumer on a machine where that path no longer existed got
           # "No rule to make target '/usr/lib/x86_64-linux-gnu/libzstd.so'". Nothing about the build
           # machine's Zstd may appear in the generated export. SZ3Config.cmake is deliberately not
-          # checked here: it names zstd::libzstd* inside the resolver it runs on the CONSUMER's
-          # machine, and carries the build-time libdir as a find_library HINT, which is the point.
+          # checked: the find_library it names runs on the CONSUMER's machine, which is the point.
           if grep -En 'libzstd|PkgConfig::ZSTD' _prefix/lib/cmake/SZ3/SZ3Targets*.cmake; then
             echo "the installed export names this machine's Zstd"; exit 1
           fi

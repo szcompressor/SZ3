@@ -24,11 +24,9 @@ include(GoogleTest)
 file(GLOB TEST_SOURCES "${CMAKE_SOURCE_DIR}/tools/test/modules/*.cpp")
 
 # test_zstd_decl is the one test that needs a real zstd.h, because proving SZ3's declarations agree
-# with the header is the whole of what it does. SZ3_ZSTD_HEADER_DIRS is the vendored lib/ on the
-# vendored path and whatever the system Zstd reported on the system path. It can be empty only if a
-# packager deleted tools/zstd/ AND their system Zstd reported no include directory, in which case
-# the test is dropped -- with a warning, because a test that quietly stops testing is worse than no
-# test at all.
+# with the header is the whole of what it does. SZ3_ZSTD_HEADER_DIRS can be empty only if a packager
+# deleted tools/zstd/ AND pkg-config named no include directory, in which case the test is dropped
+# -- with a warning, because a test that quietly stops testing is worse than no test at all.
 if (NOT SZ3_ZSTD_HEADER_DIRS)
     message(WARNING
             "No zstd.h was located, so test_zstd_decl (which checks that Lossless_zstd.hpp's "

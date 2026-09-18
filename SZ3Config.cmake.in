@@ -4,57 +4,19 @@ include(CMakeFindDependencyMacro)
 
 include("${CMAKE_CURRENT_LIST_DIR}/SZ3Targets.cmake")
 
-# Which Zstd this SZ3 was built against, for a consumer or a CI job that wants to assert it:
-# "system" means the library has to be found again here, "vendored" means SZ3::zstd carries it and
-# there is nothing to find.
 set(SZ3_ZSTD_PROVIDER "@SZ3_ZSTD_PROVIDER@")
-
-if(@SZ3_ZSTD_IS_EXTERNAL@ AND NOT _sz3_zstd_resolved)
-  # SZ3 was built against a system Zstd. An install export cannot carry that: the path was this
-  # machine's and stops existing when the build prefix does, and an imported target name is not
-  # even defined in the consumer's project. So the library is resolved again, here, with the same
-  # cascade the build used. Only the library -- SZ3's headers declare the four Zstd functions they
-  # call, so no zstd.h has to be found and no include directory is added.
-  set(_sz3_zstd "${SZ3_ZSTD_LIBRARY}")   # an explicit override wins: target name or full path
-  if(NOT _sz3_zstd)
-    find_package(zstd CONFIG QUIET)
-    # Three names, because no one of them is everywhere. zstd::libzstd arrived in Zstd 1.5.6, so
-    # Debian bookworm's 1.5.4 and Ubuntu noble's 1.5.5 do not have it; Arch and conda-forge build
-    # shared only, so they have no zstd::libzstd_static; a vcpkg triplet builds exactly one
-    # linkage. Shared first: where both exist, zstd::libzstd follows BUILD_SHARED_LIBS, which is
-    # OFF by default, so it would quietly pull a static Zstd into the consumer.
-    foreach(_t zstd::libzstd_shared zstd::libzstd zstd::libzstd_static)
-      if(TARGET ${_t})
-        set(_sz3_zstd ${_t})
-        break()
-      endif()
-    endforeach()
-  endif()
-  if(NOT _sz3_zstd)
-    # Zstd built by its own Makefile -- which is what Spack does by default, and what Ubuntu
-    # jammy and Debian bullseye shipped -- installs libzstd.pc and no CMake package at all.
-    find_package(PkgConfig QUIET)
-    if(PKG_CONFIG_FOUND)
-      pkg_search_module(_sz3_pc_zstd QUIET libzstd)
-    endif()
-    # The directory SZ3 itself was built against is a hint of last resort, never a link path: it
-    # helps a consumer inside the same Spack or conda environment and simply misses outside one.
-    # Its own cache entry, not SZ3_ZSTD_LIBRARY: that one is the user's to set, and find_library
-    # writing into it would make a second configure take the override branch and skip the
-    # zstd::* targets a first configure had preferred.
-    find_library(SZ3_ZSTD_LIBRARY_PATH NAMES zstd libzstd zstd_static
-                 HINTS ${_sz3_pc_zstd_LIBRARY_DIRS} "@_sz3_zstd_libdirs@")
-    set(_sz3_zstd "${SZ3_ZSTD_LIBRARY_PATH}")
-  endif()
-  if(NOT _sz3_zstd)
-    # Not a fatal error: this file runs inside the consumer's find_package(SZ3), which is routinely
-    # an optional QUIET probe, and ending their configure is not ours to do.
+if(SZ3_ZSTD_PROVIDER STREQUAL "system")
+  # SZ3 is header-only, so its Zstd calls compile into the consumer's objects and the consumer links
+  # Zstd too. Which Zstd cannot come out of the export -- the build machine's path need not exist
+  # here -- so one is found again, in the same prefixes find_package(SZ3) itself came from. The
+  # library only: SZ3 declares the four Zstd functions it calls, so no zstd.h has to be found.
+  find_library(SZ3_ZSTD_LIBRARY NAMES zstd)
+  if(NOT SZ3_ZSTD_LIBRARY)
     set(SZ3_NOT_FOUND_MESSAGE "SZ3 was built against the system Zstd, and no libzstd was found on this machine. Install Zstd's development package (libzstd-dev on Debian/Ubuntu, libzstd-devel on Fedora/RHEL, zstd on Homebrew), or set SZ3_ZSTD_LIBRARY to the library.")
     set(SZ3_FOUND FALSE)
     return()
   endif()
-  set_property(TARGET SZ3::SZ3 APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${_sz3_zstd}")
-  set(_sz3_zstd_resolved TRUE)
+  set_property(TARGET SZ3::SZ3 APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${SZ3_ZSTD_LIBRARY}")
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/HDF5SZ3.cmake")
