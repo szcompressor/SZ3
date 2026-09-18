@@ -12,10 +12,11 @@
 #include "SZ3/lossless/Lossless.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
 
-// Zstd is a private dependency: a consumer of an installed SZ3 links the library but never needs
-// zstd.h, which it would not have under Homebrew, conda or Spack. test_zstd_decl compiles these
-// declarations against the real header, in both orders, so a divergence is a build failure.
-// SZ3_USE_ZSTD_HEADER includes the header instead.
+// Do not replace these declarations with #include <zstd.h>. This is an installed public header,
+// so that would oblige every consumer to have zstd.h on their include path, which under Homebrew,
+// conda and Spack they do not -- they have Zstd's library, not its header.
+// test_zstd_decl compiles these against the real header in both include orders, so a drift between
+// them is a build failure. Define SZ3_USE_ZSTD_HEADER to include the header instead.
 #ifdef SZ3_USE_ZSTD_HEADER
 #include <zstd.h>
 #else

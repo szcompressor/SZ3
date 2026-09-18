@@ -374,8 +374,8 @@ class Config {
         const unsigned char* const c1 = std::min(c0 + confSize, cend);
 
         read(N, c, remaining_length);
-        // Unsigned because char's signedness is implementation-defined: where it is signed, 0xF3
-        // arrives as -13 and slips through `N > 4`.
+        // Not `N > 4`: char's signedness is implementation-defined, and where it is signed a
+        // byte of 0xF3 arrives as -13 and passes that test.
         if (static_cast<unsigned char>(N) > 4)
             throw std::out_of_range("SZ3 Config::load: invalid number of dimensions");
         uint8_t bitWidth;

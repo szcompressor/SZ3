@@ -21,8 +21,8 @@ HDF5SZ3_EXPORT H5PL_type_t H5PLget_plugin_type(void) { return H5PL_TYPE_FILTER; 
 
 HDF5SZ3_EXPORT const void* H5PLget_plugin_info(void) { return H5Z_SZ3; }
 
-// HDF5 keeps one table entry per filter id, so a registration from anywhere else is not ours to
-// take back.
+// Only unregister what this library registered: HDF5 keeps one table entry per filter id, so a
+// registration from anywhere else is not ours to take back.
 static int h5z_sz3_was_registered = 0;
 
 herr_t H5Z_SZ3_initialize(void) {
@@ -48,8 +48,9 @@ herr_t H5Z_SZ3_finalize(void) {
 }
 
 namespace {
-// H5Zfilter_avail() answers whether the filter is registered with the library at all, which once
-// anything has registered it is yes for every property list, including ones carrying no filter.
+// Do not use H5Zfilter_avail() to answer this. It says whether the filter is registered with the
+// library at all, which once anything has registered it is yes for every property list, including
+// ones carrying no filter.
 bool sz3_filter_on_plist(const hid_t propertyList) {
     const int nfilters = H5Pget_nfilters(propertyList);
     for (int i = 0; i < nfilters; i++) {
@@ -68,7 +69,6 @@ bool sz3_filter_on_plist(const hid_t propertyList) {
 herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config& conf) {
     static char const* _funcname_ = "set_SZ3_conf_to_H5";
 
-    // save conf into cd_values
     size_t cd_nelmts = std::ceil(conf.size_est() / 1.0 / sizeof(int));
     std::vector<unsigned int> cd_values(cd_nelmts, 0);
     auto buffer = reinterpret_cast<unsigned char*>(cd_values.data());
@@ -78,7 +78,6 @@ herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config& conf) {
     cd_nelmts = std::ceil(confSizeReal / 1.0 / sizeof(int));
 
     if (sz3_filter_on_plist(propertyList)) {
-        // filter already set, update filter
         if (0 > H5Pmodify_filter(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values.data())) {
             H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, 0, "failed to modify cd_values");
         }
