@@ -229,10 +229,22 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
 
     auto buffer = reinterpret_cast<const unsigned char*>(cd_values);
     size_t cd_bytes = cd_nelmts * sizeof(unsigned int);
-    conf.load(buffer, cd_bytes);
-    //    conf.print();
+    // Ahead of conf.load: every chunk this filter writes carries an SZ3 header, and a file from
+    // another version wrote cd_values in a layout this build would misread.
+    if (is_decompress) {
+        if (nbytes < 8) throw std::invalid_argument("SZ3 HDF5 filter: chunk is smaller than an SZ3 header");
+        auto header = reinterpret_cast<const unsigned char*>(*buf);
+        uint32_t magic = 0, dataVer = 0;
+        SZ3::read(magic, header);
+        SZ3::read(dataVer, header);
+        if (magic != SZ3_MAGIC_NUMBER)
+            throw std::invalid_argument("SZ3 HDF5 filter: chunk was not written by SZ3");
+        if (versionStr(dataVer) != SZ3_DATA_VER)
+            throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(dataVer) +
+                                        ", this build reads v" SZ3_DATA_VER);
+    }
 
-    if (conf.num < 20) return nbytes;
+    conf.load(buffer, cd_bytes);
 
     switch (conf.dataType) {
         case SZ_FLOAT:
