@@ -1,0 +1,10 @@
+function(build_hdf5_tool)
+    get_filename_component(tool_name ${ARGV0} NAME_WE)
+    add_executable(${tool_name} ${ARGV})
+    target_link_libraries(${tool_name} PUBLIC SZ3 hdf5sz3)
+endfunction(build_hdf5_tool)
+
+build_hdf5_tool(sz3ToHDF5.cpp)
+build_hdf5_tool(dsz3FromHDF5.cpp)
+build_hdf5_tool(convertBinToHDF5.cpp)
+build_hdf5_tool(cdvalueHelper.cpp)

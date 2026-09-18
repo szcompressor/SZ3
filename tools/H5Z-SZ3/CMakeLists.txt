@@ -30,6 +30,7 @@ target_include_directories(hdf5sz3
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/hdf5_sz3>
 )
 
+add_subdirectory(tools)
 add_subdirectory(test)
 
 install(TARGETS hdf5sz3 EXPORT HDF5SZ3
