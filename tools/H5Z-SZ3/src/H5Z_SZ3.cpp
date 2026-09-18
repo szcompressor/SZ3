@@ -22,6 +22,29 @@ HDF5SZ3_EXPORT H5PL_type_t H5PLget_plugin_type(void) { return H5PL_TYPE_FILTER; 
 
 HDF5SZ3_EXPORT const void* H5PLget_plugin_info(void) { return H5Z_SZ3; }
 
+namespace {
+/**
+ * @brief Whether this property list already carries the SZ3 filter.
+ *
+ * H5Zfilter_avail() answers a different question -- whether the filter is registered with the
+ * library at all -- and once H5Zregister() has run, or the plugin has been loaded, it answers yes
+ * for every property list, including ones that carry no filter.
+ */
+bool sz3_filter_on_plist(const hid_t propertyList) {
+    const int nfilters = H5Pget_nfilters(propertyList);
+    for (int i = 0; i < nfilters; i++) {
+        unsigned int flags = 0;
+        size_t cd_nelmts = 0;
+        unsigned int cd_values[1] = {0};
+        if (H5Z_FILTER_SZ3 ==
+            H5Pget_filter2(propertyList, static_cast<unsigned>(i), &flags, &cd_nelmts, cd_values, 0, NULL, NULL)) {
+            return true;
+        }
+    }
+    return false;
+}
+}  // namespace
+
 herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config& conf) {
     static char const* _funcname_ = "set_SZ3_conf_to_H5";
 
@@ -34,7 +57,9 @@ herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config& conf) {
     auto confSizeReal = conf.save(buffer);
     cd_nelmts = std::ceil(confSizeReal / 1.0 / sizeof(int));
 
-    if (H5Zfilter_avail(H5Z_FILTER_SZ3) > 0) {
+    // Reading H5Zfilter_avail() as "already on this list" sent a freshly created property list to
+    // H5Pmodify_filter, which faults inside HDF5.
+    if (sz3_filter_on_plist(propertyList)) {
         // filter already set, update filter
         if (0 > H5Pmodify_filter(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values.data())) {
             H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, 0, "failed to modify cd_values");
@@ -56,17 +81,23 @@ herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config& conf) {
     size_t cd_nelmts = std::ceil(conf.size_est() / 1.0 / sizeof(int));
     std::vector<unsigned int> cd_values(cd_nelmts, 0);
 
-    if (H5Zfilter_avail(H5Z_FILTER_SZ3) > 0) {
-        // read cd_values from HDF5
-        // note that cd_nelmts must be non-zero, otherwise, cd_values cannot be filled.
-        H5Pget_filter_by_id(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY,
-                            &cd_nelmts, cd_values.data(), 0, NULL, NULL);
-        // if not empty, load cd_values into config
-        if (cd_nelmts > 0) {
-            auto buffer = reinterpret_cast<const unsigned char*>(cd_values.data());
-            size_t cd_bytes = cd_nelmts * sizeof(unsigned int);
-            conf.load(buffer, cd_bytes);
-        }
+    // The same question as in set_SZ3_conf_to_H5. A failed read also leaves cd_nelmts at its input
+    // value, which is not zero, so ignoring the return loaded a Config out of the zero-filled buffer
+    // instead of leaving the caller's alone.
+    if (!sz3_filter_on_plist(propertyList)) {
+        return 1;
+    }
+    // read cd_values from HDF5
+    // note that cd_nelmts must be non-zero, otherwise, cd_values cannot be filled.
+    if (0 > H5Pget_filter_by_id(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, &cd_nelmts, cd_values.data(), 0, NULL,
+                                NULL)) {
+        return 1;
+    }
+    // if not empty, load cd_values into config
+    if (cd_nelmts > 0) {
+        auto buffer = reinterpret_cast<const unsigned char*>(cd_values.data());
+        size_t cd_bytes = cd_nelmts * sizeof(unsigned int);
+        conf.load(buffer, cd_bytes);
     }
     return 1;
 }
