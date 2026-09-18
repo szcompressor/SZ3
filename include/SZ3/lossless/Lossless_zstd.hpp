@@ -12,11 +12,8 @@
 #include "SZ3/lossless/Lossless.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
 
-// Do not replace these declarations with #include <zstd.h>. This is an installed public header,
-// so that would oblige every consumer to have zstd.h on their include path, which under Homebrew,
-// conda and Spack they do not -- they have Zstd's library, not its header.
-// test_zstd_decl compiles these against the real header in both include orders, so a drift between
-// them is a build failure. Define SZ3_USE_ZSTD_HEADER to include the header instead.
+// Do not include <zstd.h> here. SZ3 installs headers, so every consumer would then need zstd.h on
+// their include path. Under Homebrew, conda and Spack they have Zstd's library only.
 #ifdef SZ3_USE_ZSTD_HEADER
 #include <zstd.h>
 #else

@@ -48,9 +48,9 @@ herr_t H5Z_SZ3_finalize(void) {
 }
 
 namespace {
-// Do not use H5Zfilter_avail() to answer this. It says whether the filter is registered with the
-// library at all, which once anything has registered it is yes for every property list, including
-// ones carrying no filter.
+// Do not use H5Zfilter_avail() to answer this. It reports whether the filter is registered with
+// the library, so once anything has registered it, it says yes for every property list, empty ones
+// included.
 bool sz3_filter_on_plist(const hid_t propertyList) {
     const int nfilters = H5Pget_nfilters(propertyList);
     for (int i = 0; i < nfilters; i++) {
