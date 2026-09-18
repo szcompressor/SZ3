@@ -70,14 +70,12 @@ else ()
 endif ()
 pkg_search_module(ZSTD libzstd)
 if (ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
-    set(SZ3_ZSTD_PROVIDER "system")
     # BUILD_INTERFACE, and the resolved library rather than PkgConfig::ZSTD: an imported target is
     # not defined in the consumer's project, and the path stops existing when the build prefix does.
     # The include directory must not be exported either -- under conda, Spack or Homebrew it is a
     # whole prefix, which put this machine's hdf5.h ahead of the consumer's.
     target_link_libraries(${PROJECT_NAME} INTERFACE $<BUILD_INTERFACE:${ZSTD_LINK_LIBRARIES}>)
 else ()
-    set(SZ3_ZSTD_PROVIDER "vendored")
     # Exported as SZ3::zstd with an IMPORTED_LOCATION under ${_IMPORT_PREFIX}, so unlike a system
     # Zstd this one relocates with the install prefix and SZ3Config.cmake has nothing to resolve.
     add_subdirectory(tools/zstd)

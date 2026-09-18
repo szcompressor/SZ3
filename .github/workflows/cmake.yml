@@ -54,9 +54,8 @@ jobs:
           if find build -name 'libsz3_zstd.*' | grep -q .; then
             echo "the bundled Zstd was built as well, so which one is linked is not clear"; exit 1
           fi
-          if ! grep -q 'set(SZ3_ZSTD_PROVIDER "system")' build/SZ3Config.cmake; then
-            echo "SZ3Config.cmake does not report the system path"
-            grep SZ3_ZSTD_PROVIDER build/SZ3Config.cmake; exit 1
+          if grep -q 'SZ3::zstd' build/CMakeFiles/Export/*/SZ3Targets.cmake; then
+            echo "the export names SZ3::zstd, so this build did not take the system path"; exit 1
           fi
 
       - name: Run CTest
@@ -152,7 +151,7 @@ jobs:
           rm -rf _nozstd/tools/zstd
           cmake -S _nozstd -B _nozstd/build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
           cmake --build _nozstd/build --parallel 4
-          if ! grep -q 'set(SZ3_ZSTD_PROVIDER "system")' _nozstd/build/SZ3Config.cmake; then
+          if grep -q 'SZ3::zstd' _nozstd/build/CMakeFiles/Export/*/SZ3Targets.cmake; then
             echo "with tools/zstd gone this did not take the system path"; exit 1
           fi
           _nozstd/build/tools/sz3/sz3 -f -i tools/sz3/testfloat_8_8_128.dat -z _n.sz3 \
@@ -179,8 +178,8 @@ jobs:
           if [ "$(wc -c < _b.dat)" != "$(wc -c < tools/sz3/testfloat_8_8_128.dat)" ]; then
             echo "the bundled Zstd did not reproduce the input length"; exit 1
           fi
-          if ! grep -q 'set(SZ3_ZSTD_PROVIDER "vendored")' _bprefix/lib/cmake/SZ3/SZ3Config.cmake; then
-            echo "SZ3Config.cmake does not report the vendored path"; exit 1
+          if ! grep -q 'SZ3::zstd' _bprefix/lib/cmake/SZ3/SZ3Targets.cmake; then
+            echo "the export does not name SZ3::zstd, so a consumer has nothing to link"; exit 1
           fi
           for f in include/zstd.h include/zdict.h include/zbuff.h include/zstd_errors.h \
                    lib/libzstd.a lib/libzstd.so include/SZ3/bundled_zstd/zstd.h; do

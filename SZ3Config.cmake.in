@@ -4,8 +4,9 @@ include(CMakeFindDependencyMacro)
 
 include("${CMAKE_CURRENT_LIST_DIR}/SZ3Targets.cmake")
 
-set(SZ3_ZSTD_PROVIDER "@SZ3_ZSTD_PROVIDER@")
-if(SZ3_ZSTD_PROVIDER STREQUAL "system")
+# SZ3::zstd is in the export only when the vendored Zstd was built, and then it carries its own
+# location under the install prefix. Its absence is what says a system Zstd has to be found here.
+if(NOT TARGET SZ3::zstd)
   # Found again rather than taken from the export: the build machine's path need not exist here.
   # The library only -- SZ3 declares the Zstd functions it calls, so no zstd.h is needed.
   find_library(SZ3_ZSTD_LIBRARY NAMES zstd)
