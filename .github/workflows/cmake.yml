@@ -122,6 +122,39 @@ jobs:
           cmake -S _probe -B _probe/build -DCMAKE_PREFIX_PATH="$PWD/_prefix" \
                 -DCMAKE_DISABLE_FIND_PACKAGE_HDF5=ON
 
+      - name: A parallel-HDF5 consumer needs no MPI search of ours
+        shell: bash
+        run: |
+          # SZ3Config.cmake resolves no MPI: the filter calls none, and a parallel HDF5 carries the
+          # MPI it was built against. This is the case that proves it -- if it did not hold, the
+          # consumer would end up with a second, independently chosen MPI.
+          sudo apt-get install -y libhdf5-openmpi-dev openmpi-bin
+          HDF5_MPI_ROOT=/usr/lib/x86_64-linux-gnu/hdf5/openmpi
+          mkdir -p _mpi
+          cat > _mpi/CMakeLists.txt <<'EOF'
+          cmake_minimum_required(VERSION 3.18)
+          project(mpiconsumer C)
+          find_package(SZ3 REQUIRED)
+          add_executable(mapp main.c)
+          target_link_libraries(mapp PRIVATE SZ3::hdf5sz3)
+          EOF
+          cat > _mpi/main.c <<'EOF'
+          #include <hdf5.h>
+          #include <stdio.h>
+          int main(void) {
+              htri_t avail = H5Zfilter_avail(32024);
+              printf("filter avail=%d\n", (int)avail);
+              return avail > 0 ? 0 : 1;
+          }
+          EOF
+          cmake -S _mpi -B _mpi/build                 -DCMAKE_PREFIX_PATH="$PWD/_prefix;$HDF5_MPI_ROOT"                 -DCMAKE_C_COMPILER=mpicc
+          cmake --build _mpi/build --parallel 4
+          HDF5_PLUGIN_PATH="$PWD/_prefix/lib/plugin" ./_mpi/build/mapp
+          ldd _mpi/build/mapp | grep -E 'libmpi|libhdf5' | tee _mpi.log
+          if [ "$(grep -c 'libmpi' _mpi.log)" -gt 1 ]; then
+            echo "more than one MPI in the consumer's binary"; cat _mpi.log; exit 1
+          fi
+
       - name: The export must not carry this machine's Zstd, and must outlive the build tree
         shell: bash
         run: |
@@ -332,6 +365,41 @@ jobs:
         shell: bash
         working-directory: build
         run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
+
+      - name: Install and build a separate project against it
+        shell: bash
+        run: |
+          # The same shapes the Linux job checks. Mach-O resolves libraries by install name rather
+          # than RUNPATH, so an export that works there can still fail here.
+          cmake --install build --prefix "$PWD/_prefix"
+          mkdir -p _consumer
+          cat > _consumer/CMakeLists.txt <<'EOF'
+          cmake_minimum_required(VERSION 3.18)
+          project(consumer CXX)
+          find_package(SZ3 REQUIRED)
+          add_executable(app main.cpp)
+          target_link_libraries(app PRIVATE SZ3 hdf5sz3)
+          EOF
+          cat > _consumer/main.cpp <<'EOF'
+          #include <H5Z_SZ3.hpp>
+          #include <SZ3/api/sz.hpp>
+          int main() {
+              if (H5Z_SZ3_initialize() < 0) return 2;
+              hid_t dcpl = H5Pcreate(H5P_DATASET_CREATE);
+              SZ3::Config conf(100);
+              conf.absErrorBound = 1e-3;
+              set_SZ3_conf_to_H5(dcpl, conf);
+              return H5Pget_nfilters(dcpl) == 1 ? 0 : 1;
+          }
+          EOF
+          cmake -S _consumer -B _consumer/build -DCMAKE_PREFIX_PATH="$PWD/_prefix"
+          cmake --build _consumer/build --parallel 4
+          ./_consumer/build/app
+          otool -L _prefix/lib/libhdf5sz3.dylib | tee _otool.log
+          if grep -q '@rpath/libhdf5' _otool.log && ! otool -l _prefix/lib/libhdf5sz3.dylib | grep -q LC_RPATH; then
+            echo "libhdf5 is referenced through @rpath with no LC_RPATH to resolve it"; exit 1
+          fi
+          tools/H5Z-SZ3/test/filterAccessModes.sh "$PWD/_prefix"
 
       - name: Download test data
         shell: bash
