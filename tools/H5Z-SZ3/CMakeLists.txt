@@ -31,7 +31,9 @@ target_include_directories(hdf5sz3
 )
 
 add_subdirectory(tools)
-add_subdirectory(test)
+if (BUILD_TESTING)
+    add_subdirectory(test)
+endif ()
 
 install(TARGETS hdf5sz3 EXPORT HDF5SZ3
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}

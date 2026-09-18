@@ -45,9 +45,8 @@ herr_t H5Z_SZ3_finalize(void) {
     return ret < 0 ? -1 : 1;
 }
 
-namespace {
 // Do not use H5Zfilter_avail() here: it answers for the library, not for this property list.
-bool sz3_filter_on_plist(const hid_t propertyList) {
+static bool sz3_filter_on_plist(const hid_t propertyList) {
     const int nfilters = H5Pget_nfilters(propertyList);
     for (int i = 0; i < nfilters; i++) {
         unsigned int flags = 0;
@@ -60,7 +59,6 @@ bool sz3_filter_on_plist(const hid_t propertyList) {
     }
     return false;
 }
-}  // namespace
 
 herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config& conf) {
     static char const* _funcname_ = "set_SZ3_conf_to_H5";
