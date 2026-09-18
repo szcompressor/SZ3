@@ -35,7 +35,6 @@ class Lossless_zstd : public concepts::LosslessInterface {
 
     /**
      * worst-case compressed size for srcLen bytes, for sizing the buffer handed to compress().
-     * Keeps ZSTD_compressBound in this one file, which is what test_zstd_decl covers.
      */
     static size_t compress_bound(size_t srcLen) { return ZSTD_compressBound(srcLen); }
 

@@ -83,12 +83,6 @@ else ()
     add_subdirectory(tools/zstd)
     target_link_libraries(${PROJECT_NAME} INTERFACE zstd)
 endif ()
-# test_zstd_decl is the only thing here needing a real zstd.h. An empty ZSTD_INCLUDE_DIRS is normal
-# on Debian -- pkg-config drops -I/usr/include -- and the vendored header answers the same question.
-set(SZ3_ZSTD_HEADER_DIRS "${ZSTD_INCLUDE_DIRS}")
-if (NOT SZ3_ZSTD_HEADER_DIRS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tools/zstd/lib/zstd.h")
-    set(SZ3_ZSTD_HEADER_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/tools/zstd/lib")
-endif ()
 
 option(BUILD_TESTING "Build tests" OFF)
 if (BUILD_TESTING)
