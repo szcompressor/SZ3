@@ -245,6 +245,22 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
     if (cd_nelmts == 0) // this is special data such as string, which should not be treated as values.
         return nbytes;
 
+    bool is_decompress = flags & H5Z_FLAG_REVERSE;
+    // cd_values carries neither a magic number nor a version, so on read the payload header is the
+    // only thing that says which serialized format these bytes are in. A format this build cannot
+    // read is refused here, before cd_values is parsed under the layout this build assumes.
+    if (is_decompress && nbytes >= 8) {
+        auto header = reinterpret_cast<const unsigned char*>(*buf);
+        uint32_t magic = 0, dataVer = 0;
+        SZ3::read(magic, header);
+        SZ3::read(dataVer, header);
+        // A chunk the conf.num < 20 path below stored raw has no header, so a missing magic number
+        // is not by itself an error, and there is then no version to trust either.
+        if (magic == SZ3_MAGIC_NUMBER && versionStr(dataVer) != SZ3_DATA_VER)
+            throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(dataVer) +
+                                        ", this build reads v" SZ3_DATA_VER);
+    }
+
     SZ3::Config conf;
 
     auto buffer = reinterpret_cast<const unsigned char*>(cd_values);
@@ -254,7 +270,6 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
 
     if (conf.num < 20) return nbytes;
 
-    bool is_decompress = flags & H5Z_FLAG_REVERSE;
     switch (conf.dataType) {
         case SZ_FLOAT:
             process_data<float>(conf, buf, buf_size, nbytes, is_decompress);
