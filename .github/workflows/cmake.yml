@@ -240,6 +240,35 @@ jobs:
             fi
           done
 
+      - name: The serialized format must not change without SZ3_DATA_VERSION
+        shell: bash
+        run: |
+          # SZ3_DATA_VERSION is what a reader compares for exact equality, so a format change that
+          # does not move it produces files an older build accepts and then misreads. v3.3.0 and
+          # v3.3.1 shipped different layouts under the same declared 3.3.0 and nothing caught it:
+          # the cross-platform digest job only asks whether Linux and macOS agree with each other,
+          # and a format change moves both together.
+          # The _bundled tree from the step above, because the bytes depend on which Zstd compressed
+          # them and only the bundled one is pinned by this repository. Linux only -- the digest job
+          # establishes that macOS produces the same bytes.
+          VER=$(sed -n 's/^#define SZ3_DATA_VER "\(.*\)"/\1/p' _bundled/include/SZ3/version.hpp)
+          if [ -z "$VER" ]; then echo "could not read SZ3_DATA_VER from the generated header"; exit 1; fi
+          ./_bundled/tools/sz3/sz3 -f -i tools/sz3/testfloat_8_8_128.dat -z fmt.sz3 \
+                                   -3 8 8 128 -M ABS 1e-3 > /dev/null
+          GOT=$(sha256sum fmt.sz3 | awk '{print $1}')
+          WANT=$(awk -v v="$VER" '$1 == v { print $2 }' tools/test/data_format_digest.txt)
+          echo "SZ3_DATA_VERSION=$VER"
+          echo "  recorded: ${WANT:-<no row>}"
+          echo "  produced: $GOT"
+          if [ -z "$WANT" ]; then
+            echo "::error ::SZ3_DATA_VERSION $VER has no row in tools/test/data_format_digest.txt. Add: $VER      $GOT"
+            exit 1
+          fi
+          if [ "$WANT" != "$GOT" ]; then
+            echo "::error ::The bytes this version produces have changed. If the serialized format changed, bump SZ3_DATA_VERSION in CMakeLists.txt and add a row for the new version. If the bundled Zstd was re-vendored, replace this row with: $VER      $GOT"
+            exit 1
+          fi
+
       - name: Download test data
         shell: bash
         run: |
