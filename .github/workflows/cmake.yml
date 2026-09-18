@@ -18,10 +18,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Install HDF5
+      - name: Install HDF5 and Zstd
         run: |
           sudo apt-get update
-          sudo apt-get install -y libhdf5-dev
+          # libzstd-dev, not just the libzstd1 every Debian system already has: it is what carries
+          # libzstd.pc, and pkg_search_module(ZSTD) finding that .pc file is the whole of what sends
+          # a source build down the system path instead of the bundled one. Naming it here is what
+          # makes this job the system-Zstd leg rather than a job testing whichever path the runner
+          # image happened to leave lying around.
+          sudo apt-get install -y libhdf5-dev libzstd-dev
 
       - name: Create build dir
         run: cmake -E make_directory build
@@ -39,6 +44,19 @@ jobs:
         shell: bash
         working-directory: build
         run: cmake --build . --config ${{ env.BUILD_TYPE }} --parallel 4
+
+      - name: Check this build took the system-Zstd path
+        shell: bash
+        run: |
+          # Asserted, not assumed: everything below tests whichever Zstd this build linked, and the
+          # two paths are different code. The bundled leg further down asserts the other one.
+          if ! ldd build/tools/sz3/sz3 | grep -q 'libzstd\.so'; then
+            echo "sz3 links no system libzstd, so this job is not testing the system path"
+            ldd build/tools/sz3/sz3; exit 1
+          fi
+          if find build -name 'libsz3_zstd.*' | grep -q .; then
+            echo "the bundled Zstd was built as well, so which one is linked is not clear"; exit 1
+          fi
 
       - name: Run CTest
         shell: bash
@@ -81,12 +99,16 @@ jobs:
           # every assertion in here was measured identical on 1.10.6, 1.14.6 and 2.2.0.
           tools/H5Z-SZ3/test/filter_access_modes.sh "$PWD/_prefix"
           ldd _prefix/lib/libhdf5sz3.so | tee _ldd.log
-          ! grep -q 'not found' _ldd.log
+          # `! grep ...` would read as a check and never be one: bash exempts a !-inverted command
+          # from set -e, so unless it is the last line of the step its failure is dropped.
+          if grep -q 'not found' _ldd.log; then echo "a NEEDED library does not resolve"; exit 1; fi
           # Every include directory the export hands a consumer has to be inside the install prefix.
           # One naming this machine's HDF5 is compiled against whatever HDF5 the consumer found.
           grep -o 'INTERFACE_INCLUDE_DIRECTORIES "[^"]*"' _prefix/lib/cmake/SZ3/HDF5SZ3.cmake \
             | sed 's/.*"\(.*\)"/\1/' | tr ';' '\n' | tee _inc.log
-          ! grep -qv '^\${_IMPORT_PREFIX}/' _inc.log
+          if grep -qv '^\${_IMPORT_PREFIX}/' _inc.log; then
+            echo "an exported include directory points outside the install prefix"; exit 1
+          fi
           # A C-only consumer -- an HDF5 filter is exactly that -- may be told SZ3 was not found.
           # What it may not be told is that it was, and then fail at generate or link time.
           mkdir -p _conly
@@ -122,10 +144,23 @@ jobs:
           # not install over a file the system Zstd owns, must not put a zstd.h on a consumer's
           # include path, and must not export symbols that interpose on the consumer's own Zstd.
           cmake -S . -B _bundled -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
-                -DSZ3_USE_BUNDLED_ZSTD=ON -DBUILD_SZ3_BINARY=OFF -DBUILD_H5Z_FILTER=ON
+                -DSZ3_USE_BUNDLED_ZSTD=ON -DBUILD_H5Z_FILTER=ON
           cmake --build _bundled --parallel 4
           cmake --install _bundled --prefix "$PWD/_bprefix"
+          # The other half of the pair: the step above asserts the system path, this one asserts
+          # the bundled path, so neither leg can quietly end up testing the same Zstd twice.
           test -e _bprefix/lib/libsz3_zstd.a
+          if ldd _bundled/tools/sz3/sz3 | grep -q 'libzstd\.so'; then
+            echo "asked for the bundled Zstd and linked the system one anyway"; exit 1
+          fi
+          # And it has to work, not merely exist -- a compressed stream only proves that by
+          # decompressing. testfloat_8_8_128.dat is in the tree, so this needs no download.
+          _bundled/tools/sz3/sz3 -f -i tools/sz3/testfloat_8_8_128.dat -z _b.sz3 \
+                                 -3 ${{ env.DIMS }} -M ${{ env.MODE }} ${{ env.TOL }}
+          _bundled/tools/sz3/sz3 -f -s _b.sz3 -o _b.dat -3 ${{ env.DIMS }}
+          if [ "$(wc -c < _b.dat)" != "$(wc -c < tools/sz3/testfloat_8_8_128.dat)" ]; then
+            echo "the bundled Zstd did not reproduce the input length"; exit 1
+          fi
           for f in include/zstd.h include/zdict.h include/zbuff.h include/zstd_errors.h \
                    lib/libzstd.a lib/libzstd.so; do
             if [ -e "_bprefix/$f" ]; then echo "installed $f, which the system Zstd owns"; exit 1; fi
