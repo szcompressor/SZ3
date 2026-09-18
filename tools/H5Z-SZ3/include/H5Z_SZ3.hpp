@@ -48,6 +48,25 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
                              size_t *buf_size, void **buf);
 
 
+/**
+ * @brief Register the SZ3 filter with the HDF5 library.
+ *
+ * For an application that links this library rather than reaching it through HDF5_PLUGIN_PATH.
+ * Returns -1 on failure, 1 if this call registered the filter, and 0 if the filter was already
+ * available and this call deferred to it. Zero is worth logging: HDF5 holds one filter per id,
+ * so what answered may be another build of it -- a plugin on HDF5_PLUGIN_PATH, or another
+ * library in the process -- and that is what will encode and decode, not this one.
+ */
+HDF5SZ3_EXPORT herr_t H5Z_SZ3_initialize(void);
+
+/**
+ * @brief Undo H5Z_SZ3_initialize(). Returns 1 on success, -1 on failure.
+ *
+ * Only unregisters what this library registered, so it is a no-op if the filter reached HDF5
+ * some other way. H5Zunregister() fails on a filter that is not registered.
+ */
+HDF5SZ3_EXPORT herr_t H5Z_SZ3_finalize(void);
+
 HDF5SZ3_EXPORT herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config &conf);
 
 HDF5SZ3_EXPORT herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config &conf);

@@ -60,9 +60,9 @@ int main(int argc, char *argv[]) {
     /*Retrieve dataset creation property list.*/
     dcpl = H5Dget_create_plist(dset);
 
-    herr_t ret = H5Zregister(H5PLget_plugin_info());
+    herr_t ret = H5Z_SZ3_initialize();
     if (ret < 0) {
-        printf("Error: H5Zregister < 0\n");
+        printf("Error: H5Z_SZ3_initialize < 0\n");
         exit(0);
     }
     /*Check that filter is not registered with the library yet*/

@@ -43,6 +43,27 @@ install(TARGETS hdf5sz3 EXPORT HDF5SZ3
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+# A second copy of the same library, in a directory that holds nothing else, for HDF5 to find by
+# itself. Without one the only way to reach the filter is HDF5_PLUGIN_PATH=<prefix>/lib, and that
+# is both destructive and expensive: the variable REPLACES HDF5's compiled-in default rather than
+# extending it (H5PLpath.c, H5PL__create_path_table), and HDF5 dlopens every lib*.so in each
+# directory on it until one answers to the filter id (H5PLpath.c, H5PL__find_plugin_in_path).
+# lib/plugin is what the HDF Group's own filters use; the cache variable is H5Z-ZFP's precedent,
+# for a packager who installs the copy somewhere else or not at all. HDF5's own pkg-config
+# PluginDir is deliberately not consulted: it names a path outside this prefix.
+set(H5Z_SZ3_PLUGIN_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/plugin" CACHE STRING
+        "Directory to install the HDF5 filter plugin copy into; empty installs no copy")
+if (BUILD_SHARED_LIBS AND H5Z_SZ3_PLUGIN_INSTALL_DIR)
+    install(TARGETS hdf5sz3
+            LIBRARY DESTINATION ${H5Z_SZ3_PLUGIN_INSTALL_DIR}
+            RUNTIME DESTINATION ${H5Z_SZ3_PLUGIN_INSTALL_DIR}
+            # Windows puts the DLL under RUNTIME and an import library under ARCHIVE. The import
+            # library belongs beside the other one, not in a directory HDF5 scans.
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
+endif ()
+
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/hdf5_sz3)
 install(EXPORT HDF5SZ3 NAMESPACE SZ3:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3)
 export(TARGETS hdf5sz3 FILE HDF5SZ3.cmake NAMESPACE SZ3::)

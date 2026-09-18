@@ -6,13 +6,14 @@
 #include <memory>
 
 
-// filter definition
+// filter definition. The name carries the version because it is what goes into the file and what
+// h5dump reports back, which is the provenance the HDF5 User Guide asks a filter to record.
 const H5Z_class2_t H5Z_SZ3[1] = {{
     H5Z_CLASS_T_VERS,                                       /* H5Z_class_t version */
     H5Z_FILTER_SZ3,                                         /* Filter id number */
     1,                                                      /* encoder_present flag (set to true) */
     1,                                                      /* decoder_present flag (set to true) */
-    "SZ3 compressor/decompressor for floating-point data.", /* Filter name for debugging */
+    "H5Z-SZ3-" SZ3_VER " (data format " SZ3_DATA_VER ")",   /* Filter name for debugging */
     NULL,                                                   /* The "can apply" callback */
     H5Z_sz3_set_local,                                      /* The "set local" callback */
     static_cast<H5Z_func_t>(H5Z_filter_sz3),                /* The actual filter function */
@@ -21,6 +22,34 @@ const H5Z_class2_t H5Z_SZ3[1] = {{
 HDF5SZ3_EXPORT H5PL_type_t H5PLget_plugin_type(void) { return H5PL_TYPE_FILTER; }
 
 HDF5SZ3_EXPORT const void* H5PLget_plugin_info(void) { return H5Z_SZ3; }
+
+// Whether our own H5Zregister() is what put the filter in HDF5's table. HDF5 keeps one table
+// entry per filter id, so a registration from anywhere else -- including the copy of this
+// library that HDF5 loads off HDF5_PLUGIN_PATH -- is not ours to take back.
+static int h5z_sz3_was_registered = 0;
+
+herr_t H5Z_SZ3_initialize(void) {
+    // Not a passive query: on a miss H5Zfilter_avail() searches HDF5_PLUGIN_PATH and registers
+    // whatever it finds there. Either way the filter ends up registered exactly once -- but it
+    // may be a different build of this filter, so the caller is told which happened.
+    if (H5Zfilter_avail(H5Z_FILTER_SZ3) > 0) {
+        return 0;
+    }
+    if (0 > H5Zregister(H5Z_SZ3)) {
+        return -1;
+    }
+    h5z_sz3_was_registered = 1;
+    return 1;
+}
+
+herr_t H5Z_SZ3_finalize(void) {
+    herr_t ret = 0;
+    if (h5z_sz3_was_registered) {
+        ret = H5Zunregister(H5Z_FILTER_SZ3);
+    }
+    h5z_sz3_was_registered = 0;
+    return ret < 0 ? -1 : 1;
+}
 
 namespace {
 /**
