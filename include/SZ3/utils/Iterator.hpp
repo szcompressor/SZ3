@@ -9,6 +9,7 @@
 #include <iterator>
 #include <memory>
 #include <numeric>
+#include <sstream>
 #include <stdexcept>
 #include <type_traits>
 #include <typeinfo>
@@ -199,9 +200,10 @@ class multi_dimensional_range : public std::enable_shared_from_this<multi_dimens
         static_assert(std::is_convertible<typename std::iterator_traits<ForwardIt1>::value_type, std::size_t>::value,
                       "ForwardIt1 must be convertible to std::size_t");
         if (global_dims_end - global_dims_begin != N) {
-            std::cout << global_dims_end - global_dims_begin << " " << N << std::endl;
-            std::cerr << "#dimensions does not match\n";
-            throw std::invalid_argument("#dimensions does not match");
+            // The counts go in the message rather than on stdout, which belongs to whoever called us.
+            std::stringstream ss;
+            ss << "#dimensions does not match: got " << global_dims_end - global_dims_begin << ", expected " << N;
+            throw std::invalid_argument(ss.str());
         }
         set_access_stride(stride_);
         // set global dimensions
