@@ -183,8 +183,9 @@ want "h5repack-noplugin-warns-on-read" "filter is not available" lost.log
 "$(h5 h5ls)" rp_lost.h5 > lost.ls 2>&1
 notwant "h5repack-noplugin-loses-dataset" "ds" lost.ls
 
-# cd_values from an older build of this same filter -- the layout hdf5plugin still ships under
-# id 32024, nine elements where this one takes eight. H5Z_sz3_set_local has to refuse them.
+# A cd_values array this filter did not write. The element count cannot be what identifies it:
+# it is dataset-dependent and has been 9, 11, 13, 14 and 15 across released versions, so
+# H5Z_sz3_set_local has to refuse on content.
 # h5repack turns that refusal into the same quiet unfiltered copy as a missing plugin, so what
 # is asserted is that no dataset was written claiming a filter that never parsed its parameters.
 export HDF5_PLUGIN_PATH=$PLUGIN_DIR
