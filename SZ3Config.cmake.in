@@ -9,7 +9,7 @@ if(NOT TARGET SZ3::zstd)
   # Found again, not taken from the export: the build machine's path need not exist here.
   find_library(SZ3_ZSTD_LIBRARY NAMES zstd)
   if(NOT SZ3_ZSTD_LIBRARY)
-    set(SZ3_NOT_FOUND_MESSAGE "SZ3 was built against the system Zstd, and no libzstd was found on this machine. Install Zstd's development package (libzstd-dev on Debian/Ubuntu, libzstd-devel on Fedora/RHEL, zstd on Homebrew), or set SZ3_ZSTD_LIBRARY to the library.")
+    set(SZ3_NOT_FOUND_MESSAGE "SZ3 was built against the system Zstd and no libzstd was found here. Install Zstd's development package, or set SZ3_ZSTD_LIBRARY.")
     set(SZ3_FOUND FALSE)
     return()
   endif()
