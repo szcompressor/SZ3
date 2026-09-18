@@ -11,6 +11,7 @@ A small bundle of [Claude Code skills](https://docs.claude.com/en/docs/claude-co
 | `fz-add-module` | "add a new encoder/quantizer/decomposition/lossless module" |
 | `fz-add-algorithm` | "add a new ALGO_*", "register a new algorithm in the dispatcher" |
 | `fz-bench-multibound` | "benchmark across multiple error bounds", "compare two algorithms head-to-head" |
+| `fz-ci-matrix` | "packaging", "find_package", "zstd", "HDF5 filter", "why did the consumer build break", "who uses SZ3" |
 
 ## Install
 
@@ -41,7 +42,7 @@ cp -r docs/claude-skills/* ~/.claude/skills/
 
 ## Verify
 
-After installing, restart your Claude Code session (or run `/skills`) and confirm the five skills appear. Trigger one with a prompt like "what algorithms does fz support?" — Claude should cite `fz-overview` and answer from it.
+After installing, restart your Claude Code session (or run `/skills`) and confirm the six skills appear. Trigger one with a prompt like "what algorithms does fz support?" — Claude should cite `fz-overview` and answer from it.
 
 ## Editing
 

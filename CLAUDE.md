@@ -133,6 +133,7 @@ The `docs/claude-skills/` directory ships installable Claude Code skills that wa
 - `fz-add-module` — add a brand-new Decomposition / Quantizer / Encoder / Lossless
 - `fz-add-algorithm` — add a brand-new `ALGO_*` enum + dispatch + wiring
 - `fz-bench-multibound` — multi-bound benchmark recipe
+- `fz-ci-matrix` — every way fz is reached and consumed, what each has caught, and what CI covers
 
 See `docs/claude-skills/README.md` for install instructions (symlink or copy into `.claude/skills/`).
 
