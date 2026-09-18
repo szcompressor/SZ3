@@ -331,6 +331,64 @@ jobs:
           name: temp-linux-out-sz3
           path: build/out.sz3
 
+  hdf5-versions:
+    name: HDF5 ${{ matrix.hdf5 }}
+    runs-on: ubuntu-latest
+    # A separate job rather than a matrix over build-linux, which feeds one digest to compare and
+    # one artifact to build-windows; both would become ambiguous under a matrix.
+    strategy:
+      fail-fast: false
+      matrix:
+        hdf5: ["1.10.6", "1.14.6", "2.2.0"]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: h5
+          create-args: >-
+            hdf5=${{ matrix.hdf5 }}
+            zstd
+          init-shell: bash
+
+      - name: Build, install, and consume against this HDF5
+        shell: bash -el {0}
+        run: |
+          # The filter's API moved between these: H5Zregister's class struct, the H5PL entry points
+          # and h5repack's own behaviour all differ across 1.10, 1.14 and 2.x.
+          cmake -S . -B build \
+                -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+                -DBUILD_TESTING=ON \
+                -DBUILD_H5Z_FILTER=ON \
+                -DCMAKE_PREFIX_PATH="$CONDA_PREFIX"
+          cmake --build build --parallel 4
+          (cd build && ctest --output-on-failure -C ${{ env.BUILD_TYPE }})
+          cmake --install build --prefix "$PWD/_prefix"
+          mkdir -p _consumer
+          cat > _consumer/CMakeLists.txt <<'EOF'
+          cmake_minimum_required(VERSION 3.18)
+          project(consumer CXX)
+          find_package(SZ3 REQUIRED)
+          add_executable(app main.cpp)
+          target_link_libraries(app PRIVATE SZ3 hdf5sz3)
+          EOF
+          cat > _consumer/main.cpp <<'EOF'
+          #include <H5Z_SZ3.hpp>
+          #include <SZ3/api/sz.hpp>
+          int main() {
+              if (H5Z_SZ3_initialize() < 0) return 2;
+              hid_t dcpl = H5Pcreate(H5P_DATASET_CREATE);
+              SZ3::Config conf(100);
+              conf.absErrorBound = 1e-3;
+              set_SZ3_conf_to_H5(dcpl, conf);
+              return H5Pget_nfilters(dcpl) == 1 ? 0 : 1;
+          }
+          EOF
+          cmake -S _consumer -B _consumer/build -DCMAKE_PREFIX_PATH="$PWD/_prefix;$CONDA_PREFIX"
+          cmake --build _consumer/build --parallel 4
+          ./_consumer/build/app
+          tools/H5Z-SZ3/test/filterAccessModes.sh "$PWD/_prefix" "$CONDA_PREFIX/bin"
+
   build-macos:
     name: Build & Test (macOS)
     runs-on: macos-latest
