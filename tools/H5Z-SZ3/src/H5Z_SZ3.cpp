@@ -230,15 +230,13 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
         return nbytes;
 
     bool is_decompress = flags & H5Z_FLAG_REVERSE;
-    // cd_values carries no magic and no version, so the payload header is the only thing that says
-    // which format these bytes are in. Refused here, before cd_values is parsed under this layout.
+    // Refuse a format this build cannot read, before cd_values is parsed.
     if (is_decompress && nbytes >= 8) {
         auto header = reinterpret_cast<const unsigned char*>(*buf);
         uint32_t magic = 0, dataVer = 0;
         SZ3::read(magic, header);
         SZ3::read(dataVer, header);
-        // A chunk the conf.num < 20 path stored raw has no header, so a missing magic is not an
-        // error and there is no version to trust either.
+        // A small chunk is stored raw and has no header, so a missing magic is not an error.
         if (magic == SZ3_MAGIC_NUMBER && versionStr(dataVer) != SZ3_DATA_VER)
             throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(dataVer) +
                                         ", this build reads v" SZ3_DATA_VER);
