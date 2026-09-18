@@ -57,6 +57,10 @@ jobs:
           if find build -name 'libsz3_zstd.*' | grep -q .; then
             echo "the bundled Zstd was built as well, so which one is linked is not clear"; exit 1
           fi
+          if ! grep -q 'set(SZ3_ZSTD_PROVIDER "system")' build/SZ3Config.cmake; then
+            echo "SZ3Config.cmake does not report the system path"
+            grep SZ3_ZSTD_PROVIDER build/SZ3Config.cmake; exit 1
+          fi
 
       - name: Run CTest
         shell: bash
@@ -137,6 +141,45 @@ jobs:
           cmake -S _probe -B _probe/build -DCMAKE_PREFIX_PATH="$PWD/_prefix" \
                 -DCMAKE_DISABLE_FIND_PACKAGE_HDF5=ON
 
+      - name: The export must not carry this machine's Zstd, and must outlive the build tree
+        shell: bash
+        run: |
+          # This is the failure that took the export down: the resolved libzstd path was written
+          # into SZ3Targets.cmake, so a consumer on a machine where that path no longer existed got
+          # "No rule to make target '/usr/lib/x86_64-linux-gnu/libzstd.so'". Nothing about the build
+          # machine's Zstd may appear in the generated export. SZ3Config.cmake is deliberately not
+          # checked here: it names zstd::libzstd* inside the resolver it runs on the CONSUMER's
+          # machine, and carries the build-time libdir as a find_library HINT, which is the point.
+          if grep -En 'libzstd|PkgConfig::ZSTD' _prefix/lib/cmake/SZ3/SZ3Targets*.cmake; then
+            echo "the installed export names this machine's Zstd"; exit 1
+          fi
+          # And a consumer has to still build once the build tree is gone, which is what every
+          # conda environment, Spack view and torn-down CI image looks like to whoever installed
+          # from it. Deleting it is the only way to prove the export does not lean on it.
+          rm -rf build _consumer/build
+          cmake -S _consumer -B _consumer/build2 -DCMAKE_PREFIX_PATH="$PWD/_prefix"
+          cmake --build _consumer/build2 --parallel 4
+          ./_consumer/build2/app
+
+      - name: A packager can delete tools/zstd and still build against the system Zstd
+        shell: bash
+        run: |
+          # Debian and Fedora forbid embedded code copies, so the vendored tree has to be
+          # deletable rather than merely unused. git worktree, so the deletion cannot escape.
+          git worktree add _nozstd HEAD
+          rm -rf _nozstd/tools/zstd
+          cmake -S _nozstd -B _nozstd/build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          cmake --build _nozstd/build --parallel 4
+          if ! grep -q 'set(SZ3_ZSTD_PROVIDER "system")' _nozstd/build/SZ3Config.cmake; then
+            echo "with tools/zstd gone this did not take the system path"; exit 1
+          fi
+          _nozstd/build/tools/sz3/sz3 -f -i tools/sz3/testfloat_8_8_128.dat -z _n.sz3 \
+                                      -3 ${{ env.DIMS }} -M ${{ env.MODE }} ${{ env.TOL }}
+          _nozstd/build/tools/sz3/sz3 -f -s _n.sz3 -o _n.dat -3 ${{ env.DIMS }}
+          if [ "$(wc -c < _n.dat)" != "$(wc -c < tools/sz3/testfloat_8_8_128.dat)" ]; then
+            echo "the system Zstd did not reproduce the input length"; exit 1
+          fi
+
       - name: Keep the bundled Zstd to itself
         shell: bash
         run: |
@@ -161,10 +204,24 @@ jobs:
           if [ "$(wc -c < _b.dat)" != "$(wc -c < tools/sz3/testfloat_8_8_128.dat)" ]; then
             echo "the bundled Zstd did not reproduce the input length"; exit 1
           fi
+          if ! grep -q 'set(SZ3_ZSTD_PROVIDER "vendored")' _bprefix/lib/cmake/SZ3/SZ3Config.cmake; then
+            echo "SZ3Config.cmake does not report the vendored path"; exit 1
+          fi
           for f in include/zstd.h include/zdict.h include/zbuff.h include/zstd_errors.h \
-                   lib/libzstd.a lib/libzstd.so; do
+                   lib/libzstd.a lib/libzstd.so include/SZ3/bundled_zstd/zstd.h; do
             if [ -e "_bprefix/$f" ]; then echo "installed $f, which the system Zstd owns"; exit 1; fi
           done
+          # Nothing SZ3 installs includes zstd.h any more, so no copy of it is staged or installed
+          # anywhere under the prefix, by any name.
+          if find _bprefix -name 'zstd.h' | grep -q .; then
+            echo "a zstd.h was installed:"; find _bprefix -name 'zstd.h'; exit 1
+          fi
+          # The vendored archive must be referenced relative to the prefix, so the export relocates.
+          if grep -q 'libsz3_zstd' _bprefix/lib/cmake/SZ3/SZ3Targets*.cmake && \
+             grep 'libsz3_zstd' _bprefix/lib/cmake/SZ3/SZ3Targets*.cmake | grep -qv '_IMPORT_PREFIX'; then
+            echo "the vendored Zstd is referenced by an absolute path, so the export cannot move"
+            grep 'libsz3_zstd' _bprefix/lib/cmake/SZ3/SZ3Targets*.cmake; exit 1
+          fi
           grep -ho 'INTERFACE_INCLUDE_DIRECTORIES "[^"]*"' _bprefix/lib/cmake/SZ3/*.cmake \
             | sed 's/.*"\(.*\)"/\1/' | tr ';' '\n' | sed "s|\${_IMPORT_PREFIX}|$PWD/_bprefix|" \
             | sort -u | tee _incdirs.log

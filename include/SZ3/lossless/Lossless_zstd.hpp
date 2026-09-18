@@ -11,12 +11,42 @@
 #include "SZ3/def.hpp"
 #include "SZ3/lossless/Lossless.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
-// The bundled Zstd defines SZ3_BUNDLED_ZSTD and is reached only by this full path, so that
-// nothing SZ3 installs answers a consumer's own #include <zstd.h>.
-#ifdef SZ3_BUNDLED_ZSTD
-#include "SZ3/bundled_zstd/zstd.h"
+
+// SZ3 calls four functions of Zstd's Simple API. They are declared here rather than reached
+// through <zstd.h>, which makes Zstd a private dependency: a consumer of an installed SZ3 needs
+// the Zstd *library* but never its *header*.
+//
+// This is an installed public header, so including <zstd.h> obliged everyone who compiles
+// against SZ3 to have zstd.h on their include path. Outside /usr/include -- Homebrew, conda,
+// Spack -- they do not, and that is the Homebrew/conda/Spack consumer compile failure. Fixing
+// it by exporting the directory Zstd was found in does not work either: under those three that
+// directory is a whole prefix holding other packages' headers, so exporting it put this
+// machine's hdf5.h ahead of the one the consumer found.
+//
+// These four signatures are stable. They are byte-identical in every release from 1.4.5 to
+// 1.5.7, they are part of the API Zstd's own stability guarantee covers, and changing them
+// would break every caller of Zstd in existence. Nothing here is a guess about an internal:
+// they are the first functions in zstd.h, above the "Simple API" banner.
+//
+// test_zstd_decl compiles these declarations and the real zstd.h into one translation unit, in
+// both orders, so a future divergence is a build failure here rather than a silent ABI
+// mismatch at the call site. Both GCC and Clang accept the pair in either order, including
+// under -fvisibility=hidden, which is why no attribute is written on them.
+//
+// Define SZ3_USE_ZSTD_HEADER to include the real header instead of declaring. Note that on the
+// vendored path this reaches whatever zstd.h the environment provides, which need not be the
+// version SZ3 linked -- SZ3 installs no copy of the vendored header on purpose, so that nothing
+// it installs answers a consumer's own #include <zstd.h>.
+#ifdef SZ3_USE_ZSTD_HEADER
+#include <zstd.h>
 #else
-#include "zstd.h"
+#include <stddef.h>
+extern "C" {
+size_t ZSTD_compress(void *dst, size_t dstCapacity, const void *src, size_t srcSize, int compressionLevel);
+size_t ZSTD_decompress(void *dst, size_t dstCapacity, const void *src, size_t compressedSize);
+size_t ZSTD_compressBound(size_t srcSize);
+unsigned ZSTD_isError(size_t code);
+}
 #endif
 
 namespace SZ3 {
@@ -25,6 +55,23 @@ class Lossless_zstd : public concepts::LosslessInterface {
     Lossless_zstd() = default;
 
     Lossless_zstd(int comp_level) : compression_level(comp_level) {}
+
+    /**
+     * worst-case compressed size for srcLen bytes, which callers use to size the buffer they hand
+     * to compress().
+     *
+     * This exists so that ZSTD_compressBound appears in one file rather than in four. SZImpl.hpp,
+     * SZImplOMP.hpp and SZDispatcher.hpp size their output buffers with it and used to call it
+     * directly, reaching a declaration they never made through whatever chain of headers happened
+     * to include this one. Wrapping it keeps every Zstd symbol in this translation unit, which is
+     * what test_zstd_decl has to cover.
+     *
+     * Not a virtual on LosslessInterface: a new pure virtual breaks every out-of-tree implementer.
+     * Which leaves the pre-existing wrinkle that those three callers ask Zstd for a bound even when
+     * the lossless stage in play is Lossless_bypass. That is safe -- Zstd's bound exceeds what
+     * bypass needs -- and it is left alone here.
+     */
+    static size_t compress_bound(size_t srcLen) { return ZSTD_compressBound(srcLen); }
 
     /**
      * Attention
