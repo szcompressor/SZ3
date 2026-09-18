@@ -26,7 +26,9 @@ jobs:
           # a source build down the system path instead of the bundled one. Naming it here is what
           # makes this job the system-Zstd leg rather than a job testing whichever path the runner
           # image happened to leave lying around.
-          sudo apt-get install -y libhdf5-dev libzstd-dev
+          # hdf5-tools carries h5repack, h5dump and h5ls. libhdf5-dev does not, and the access-mode
+          # suite drives all three: without this package half of it cannot run.
+          sudo apt-get install -y libhdf5-dev hdf5-tools libzstd-dev
 
       - name: Create build dir
         run: cmake -E make_directory build

@@ -31,6 +31,19 @@ skipped() { echo "SKIP  $1"; skip=$((skip+1)); }
 want() { if grep -qF "$2" "$3"; then ok "$1"; else bad "$1" "expected to find: $2" "got:" "$(head -5 "$3")"; fi; }
 notwant() { if grep -qF "$2" "$3"; then bad "$1" "did not expect: $2"; else ok "$1"; fi; }
 
+# h5repack, h5dump and h5ls are required, not optional: the checks that drive them are the ones
+# covering how a user reaches this filter without writing any code. Missing tools are refused here
+# so that they can never be mistaken for passing checks, and so the remedy is named once.
+missing=
+for tool in h5repack h5dump h5ls; do
+    command -v "$(h5 $tool)" > /dev/null 2>&1 || missing="$missing $tool"
+done
+if [ -n "$missing" ]; then
+    echo "HDF5 command-line tools not found:$missing"
+    echo "Install them (Debian/Ubuntu: hdf5-tools) or pass their directory as the second argument."
+    exit 1
+fi
+
 echo "=== prefix $PREFIX ==="
 "$(h5 h5dump)" --version 2>&1 | head -1 | sed 's/^/    /'
 
