@@ -158,10 +158,15 @@ jobs:
           # And a consumer has to still build once the build tree is gone, which is what every
           # conda environment, Spack view and torn-down CI image looks like to whoever installed
           # from it. Deleting it is the only way to prove the export does not lean on it.
-          rm -rf build _consumer/build
+          # Moved aside rather than deleted: later steps run the sz3 built in build/, and the
+          # proof is the same either way -- the directory genuinely does not exist while the
+          # consumer configures, builds and links.
+          rm -rf _consumer/build
+          mv build build.aside
           cmake -S _consumer -B _consumer/build2 -DCMAKE_PREFIX_PATH="$PWD/_prefix"
           cmake --build _consumer/build2 --parallel 4
           ./_consumer/build2/app
+          mv build.aside build
 
       - name: A packager can delete tools/zstd and still build against the system Zstd
         shell: bash
