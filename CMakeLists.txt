@@ -88,11 +88,6 @@ if (BUILD_TESTING)
     add_subdirectory(tools/test)
 endif ()
 
-find_package(GSL)
-if (GSL_FOUND)
-    target_compile_definitions(${PROJECT_NAME} INTERFACE -DSZ3_ENABLE_GSL)
-    target_link_libraries(${PROJECT_NAME} INTERFACE GSL::gsl)
-endif ()
 
 option(BUILD_SZ3_BINARY "build SZ3 tools" ON)
 if (BUILD_SZ3_BINARY)

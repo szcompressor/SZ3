@@ -17,9 +17,6 @@ if(@OpenMP_FOUND@)
   # which is what links an HDF5 filter -- was told SZ3_FOUND=1 and then failed at link.
   find_dependency(OpenMP COMPONENTS CXX)
 endif()
-if(@GSL_FOUND@)
-  find_dependency(GSL)
-endif()
 
 # An in-tree SZ3 offers these under their plain names, so code written against one says
 # target_link_libraries(x PRIVATE hdf5sz3). An installed SZ3 exports only the namespaced names, and
