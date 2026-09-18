@@ -68,7 +68,15 @@ else ()
 endif ()
 pkg_search_module(ZSTD IMPORTED_TARGET libzstd)
 if (ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
-    target_link_libraries(${PROJECT_NAME} INTERFACE PkgConfig::ZSTD)
+    # The library itself, not PkgConfig::ZSTD: an imported target exists only inside the build that
+    # created it, so naming one in the install export made the consumer's find_package(SZ3) die at
+    # generate time with "the link interface of target SZ3::SZ3 contains: PkgConfig::ZSTD".
+    target_link_libraries(${PROJECT_NAME} INTERFACE ${ZSTD_LINK_LIBRARIES})
+    # BUILD_INTERFACE only. This is a whole prefix, not a Zstd-only directory: under conda, Spack or
+    # Homebrew it holds other packages' headers too, so exporting it put this machine's hdf5.h ahead
+    # of the one the consumer found, and once that prefix was gone it broke their configure outright.
+    # An installed consumer gets zstd.h from their own environment.
+    target_include_directories(${PROJECT_NAME} INTERFACE $<BUILD_INTERFACE:${ZSTD_INCLUDE_DIRS}>)
 else ()
     add_subdirectory(tools/zstd)
     target_link_libraries(${PROJECT_NAME} INTERFACE zstd)

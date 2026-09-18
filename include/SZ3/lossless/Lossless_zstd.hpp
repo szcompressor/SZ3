@@ -11,7 +11,13 @@
 #include "SZ3/def.hpp"
 #include "SZ3/lossless/Lossless.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
+// The bundled Zstd defines SZ3_BUNDLED_ZSTD and is reached only by this full path, so that
+// nothing SZ3 installs answers a consumer's own #include <zstd.h>.
+#ifdef SZ3_BUNDLED_ZSTD
+#include "SZ3/bundled_zstd/zstd.h"
+#else
 #include "zstd.h"
+#endif
 
 namespace SZ3 {
 class Lossless_zstd : public concepts::LosslessInterface {

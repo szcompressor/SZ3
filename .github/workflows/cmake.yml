@@ -45,6 +45,98 @@ jobs:
         working-directory: build
         run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
 
+      - name: Install and build a separate project against it
+        shell: bash
+        run: |
+          # Everything else here reaches SZ3 through add_subdirectory, which never reads
+          # SZ3Config.cmake. Whoever installs SZ3 and then find_package()es it does.
+          cmake --install build --prefix "$PWD/_prefix"
+          mkdir -p _consumer
+          cat > _consumer/CMakeLists.txt <<'EOF'
+          cmake_minimum_required(VERSION 3.18)
+          project(consumer CXX)
+          find_package(SZ3 REQUIRED)
+          add_executable(app main.cpp)
+          # The plain names, as code written against an in-tree SZ3 already spells them.
+          target_link_libraries(app PRIVATE SZ3 hdf5sz3)
+          EOF
+          cat > _consumer/main.cpp <<'EOF'
+          #include <H5Z_SZ3.hpp>
+          #include <SZ3/api/sz.hpp>
+          int main() {
+              if (H5Zregister(H5PLget_plugin_info()) < 0) return 2;
+              hid_t dcpl = H5Pcreate(H5P_DATASET_CREATE);
+              SZ3::Config conf(100);
+              conf.absErrorBound = 1e-3;
+              set_SZ3_conf_to_H5(dcpl, conf);  // used to fault inside HDF5 on a fresh list
+              return H5Pget_nfilters(dcpl) == 1 ? 0 : 1;
+          }
+          EOF
+          cmake -S _consumer -B _consumer/build -DCMAKE_PREFIX_PATH="$PWD/_prefix"
+          cmake --build _consumer/build --parallel 4
+          ./_consumer/build/app
+          ldd _prefix/lib/libhdf5sz3.so | tee _ldd.log
+          ! grep -q 'not found' _ldd.log
+          # Every include directory the export hands a consumer has to be inside the install prefix.
+          # One naming this machine's HDF5 is compiled against whatever HDF5 the consumer found.
+          grep -o 'INTERFACE_INCLUDE_DIRECTORIES "[^"]*"' _prefix/lib/cmake/SZ3/HDF5SZ3.cmake \
+            | sed 's/.*"\(.*\)"/\1/' | tr ';' '\n' | tee _inc.log
+          ! grep -qv '^\${_IMPORT_PREFIX}/' _inc.log
+          # A C-only consumer -- an HDF5 filter is exactly that -- may be told SZ3 was not found.
+          # What it may not be told is that it was, and then fail at generate or link time.
+          mkdir -p _conly
+          cat > _conly/CMakeLists.txt <<'EOF'
+          cmake_minimum_required(VERSION 3.18)
+          project(conly C)
+          find_package(SZ3 QUIET)
+          if (SZ3_FOUND)
+              add_executable(c1 main.c)
+              target_link_libraries(c1 PRIVATE SZ3::hdf5sz3)
+          endif ()
+          EOF
+          printf 'int main(void){return 0;}\n' > _conly/main.c
+          cmake -S _conly -B _conly/build -DCMAKE_PREFIX_PATH="$PWD/_prefix"
+          cmake --build _conly/build --parallel 4
+          # An optional probe must decline, not end the consumer's configure.
+          mkdir -p _probe
+          cat > _probe/CMakeLists.txt <<'EOF'
+          cmake_minimum_required(VERSION 3.18)
+          project(probe CXX)
+          find_package(SZ3 QUIET)
+          if (SZ3_FOUND)
+              message(FATAL_ERROR "SZ3 reported itself found with no HDF5 to be had")
+          endif ()
+          EOF
+          cmake -S _probe -B _probe/build -DCMAKE_PREFIX_PATH="$PWD/_prefix" \
+                -DCMAKE_DISABLE_FIND_PACKAGE_HDF5=ON
+
+      - name: Keep the bundled Zstd to itself
+        shell: bash
+        run: |
+          # It is SZ3's private copy of a compressor, not a redistributable system library: it must
+          # not install over a file the system Zstd owns, must not put a zstd.h on a consumer's
+          # include path, and must not export symbols that interpose on the consumer's own Zstd.
+          cmake -S . -B _bundled -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+                -DSZ3_USE_BUNDLED_ZSTD=ON -DBUILD_SZ3_BINARY=OFF -DBUILD_H5Z_FILTER=ON
+          cmake --build _bundled --parallel 4
+          cmake --install _bundled --prefix "$PWD/_bprefix"
+          test -e _bprefix/lib/libsz3_zstd.a
+          for f in include/zstd.h include/zdict.h include/zbuff.h include/zstd_errors.h \
+                   lib/libzstd.a lib/libzstd.so; do
+            if [ -e "_bprefix/$f" ]; then echo "installed $f, which the system Zstd owns"; exit 1; fi
+          done
+          grep -ho 'INTERFACE_INCLUDE_DIRECTORIES "[^"]*"' _bprefix/lib/cmake/SZ3/*.cmake \
+            | sed 's/.*"\(.*\)"/\1/' | tr ';' '\n' | sed "s|\${_IMPORT_PREFIX}|$PWD/_bprefix|" \
+            | sort -u | tee _incdirs.log
+          while read -r d; do
+            if [ -n "$d" ] && [ -e "$d/zstd.h" ]; then echo "a zstd.h reachable from $d"; exit 1; fi
+          done < _incdirs.log
+          for lib in _bprefix/lib/*.so; do
+            if nm -D --defined-only "$lib" | grep ' T \(ZSTD_\|ZDICT_\|ZBUFF_\)'; then
+              echo "$lib exports Zstd's symbols"; exit 1
+            fi
+          done
+
       - name: Download test data
         shell: bash
         run: |
