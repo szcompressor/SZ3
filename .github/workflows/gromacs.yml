@@ -120,26 +120,26 @@ jobs:
         shell: bash -el {0}
         run: |
           tools/test/gromacsConsumerMatrix.sh gromacs _m/found "$PWD/_prefix" "$CONDA_PREFIX" \
-              external ${{ matrix.gmx }}
+              found ${{ matrix.gmx }}
 
       - name: With no SZ3 to find, AUTO still configures
         shell: bash -el {0}
         run: |
           tools/test/gromacsConsumerMatrix.sh gromacs _m/absent - "$CONDA_PREFIX" \
-              internal ${{ matrix.gmx }}
+              absent ${{ matrix.gmx }}
 
       - name: An SZ3 that cannot resolve its own dependencies declines, and AUTO still configures
         shell: bash -el {0}
         run: |
-          # Hiding the system library directories from the consumer's finds stands in for an SZ3
-          # installed on a machine that no longer carries what it was built against; which
-          # dependency goes missing first is the machine's business. What matters is the shape:
-          # SZ3Config.cmake reports not-found and returns, leaving AUTO its fallback. Before, it
-          # reported SZ3 found either way and handed GROMACS a link line it could not use.
-          # The Zstd-specific export shapes are packaging.yml's job, not this one's.
+          # An SZ3 installed on a machine that no longer carries what it was built against. Taken
+          # away by name rather than by hiding directories: where SZ3's dependencies live differs
+          # per machine, and in the MPI row every one of them is in the conda prefix the consumer
+          # itself needs. OpenMP is the one SZ3Config.cmake resolves that this GROMACS does not.
+          # What matters is the shape: it reports not-found and returns, leaving AUTO its fallback.
+          # Before, it reported SZ3 found either way and handed GROMACS a link line it could not
+          # use. The Zstd-specific export shapes are packaging.yml's job, not this one's.
           tools/test/gromacsConsumerMatrix.sh gromacs _m/undeps "$PWD/_prefix" "$CONDA_PREFIX" \
-              internal ${{ matrix.gmx }} \
-              "-DCMAKE_IGNORE_PATH=/usr/lib/x86_64-linux-gnu;/usr/lib;/lib/x86_64-linux-gnu;/lib"
+              declined ${{ matrix.gmx }} -DCMAKE_DISABLE_FIND_PACKAGE_OpenMP=ON
 
   # The link line is asserted at configure time above; this is the build that proves it, and the
   # h5md unit tests that run against the library it linked.

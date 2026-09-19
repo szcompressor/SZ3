@@ -2,12 +2,13 @@
 # Every value of GROMACS's GMX_USE_SZ3, asserted against an installed SZ3.
 #
 #   tools/test/gromacsConsumerMatrix.sh <gromacs source> <workdir> <sz3 prefix|-> <hdf5 prefix> \
-#                                       <external|internal> [extra cmake args...]
+#                                       <found|absent|declined> [extra cmake args...]
 #
-# The fifth argument says what an installed SZ3 is expected to do here: be found (external), or
-# decline so GROMACS falls back to its own copy (internal). Declining and being absent look the
+# The fifth argument says what the installed SZ3 does here: get found, not be installed at all, or
+# decline because a dependency of its own cannot be resolved. Declining and being absent look the
 # same to GROMACS, which is the point -- an SZ3 that ends the configure instead of declining
-# breaks GMX_USE_SZ3=AUTO, whose contract is the fallback.
+# breaks GMX_USE_SZ3=AUTO, whose contract is the fallback. They must not look the same to this
+# script, so it asks the installed SZ3 itself before believing anything GROMACS says about it.
 #
 # Assert which library was wired in, never just that the configure exited 0.
 set -u
@@ -21,8 +22,20 @@ shift 5
 mkdir -p "$WORK"
 WORK=$(cd "$WORK" && pwd)
 
-if [ "$SZ3_PREFIX" = "-" ] && [ "$EXPECT" = "external" ]; then
-    echo "expecting SZ3 to be found, with no SZ3 prefix to find it in"
+# Which library GROMACS should end up with. An SZ3 that declines and an SZ3 that was never
+# installed both leave it its own copy, which is why the two are named apart here.
+case $EXPECT in
+found)    WIRED=external ;;
+declined) WIRED=internal ;;
+absent)   WIRED=internal ;;
+*)        echo "unknown expectation $EXPECT: want found, absent or declined"; exit 1 ;;
+esac
+if [ "$EXPECT" = absent ] && [ "$SZ3_PREFIX" != "-" ]; then
+    echo "expecting no SZ3 to be installed, but $SZ3_PREFIX was given as one to find"
+    exit 1
+fi
+if [ "$EXPECT" != absent ] && [ "$SZ3_PREFIX" = "-" ]; then
+    echo "expecting an installed SZ3 to be $EXPECT, with no prefix for it to be installed in"
     exit 1
 fi
 
@@ -75,8 +88,46 @@ EXTRA=("$@")
 echo "=== GMX_USE_SZ3 matrix: $GMXSRC ==="
 echo "    hdf5    $HDF5_PREFIX"
 echo "    sz3     ${SZ3_PREFIX} ${SZ3_VERSION:+(version $SZ3_VERSION)}"
-echo "    expect  $EXPECT"
+echo "    expect  $EXPECT, so GROMACS should wire in the $WIRED SZ3"
 echo "    extra   ${EXTRA[*]:-none}"
+
+# GROMACS asks with find_package(SZ3 ... QUIET), which prints neither the answer nor the reason, so
+# every expectation below rests on a premise no GROMACS log can confirm. Put the same question to
+# the installed SZ3 directly and stop here if the answer is not the one this run was set up to get:
+# a scenario that failed to arrange itself reads, ten lines later, like the defect it looks for.
+mkdir -p "$WORK/probe"
+cat > "$WORK/probe/CMakeLists.txt" <<'EOF'
+cmake_minimum_required(VERSION 3.18)
+# C and CXX, as GROMACS enables both: SZ3Config.cmake resolves OpenMP for whichever it is given.
+project(sz3probe C CXX)
+find_package(SZ3 QUIET)
+if(SZ3_FOUND)
+    set(answer found)
+elseif(SZ3_NOT_FOUND_MESSAGE)
+    set(answer declined)
+elseif(SZ3_CONSIDERED_CONFIGS)
+    # An SZ3Config.cmake that was neither accepted nor declined -- too old a version, say.
+    set(answer rejected)
+else()
+    set(answer absent)
+endif()
+string(STRIP "${answer} ${SZ3_NOT_FOUND_MESSAGE}" sz3_answer)
+message(STATUS "answer: ${sz3_answer}")
+if(NOT answer STREQUAL SZ3_EXPECTED_ANSWER)
+    message(FATAL_ERROR "the installed SZ3 answers ${answer}, not ${SZ3_EXPECTED_ANSWER}")
+endif()
+EOF
+rm -rf "$WORK/probe/b"
+cmake -S "$WORK/probe" -B "$WORK/probe/b" --no-warn-unused-cli \
+      "-DCMAKE_PREFIX_PATH=$PREFIX_PATH" "-DSZ3_EXPECTED_ANSWER=$EXPECT" "${EXTRA[@]}" \
+      > "$WORK/probe.log" 2>&1
+probe_rc=$?
+echo "    asked   $(sed -n 's/^-- answer: //p' "$WORK/probe.log" | head -1)"
+if [ "$probe_rc" != 0 ]; then
+    echo "this run's premise does not hold, so nothing below would mean what it says:"
+    tail -6 "$WORK/probe.log" | sed 's/^/        /'
+    exit 1
+fi
 
 for mode in EXTERNAL AUTO INTERNAL OFF; do
     rm -rf "$WORK/b-$mode"
@@ -91,7 +142,7 @@ for mode in EXTERNAL AUTO INTERNAL OFF; do
     from_prefix < "$WORK/$mode.link" > "$WORK/$mode.installed"
     elsewhere   < "$WORK/$mode.link" > "$WORK/$mode.own"
 
-    case "$mode:$EXPECT" in
+    case "$mode:$WIRED" in
     EXTERNAL:external)
         if [ "$rc" = 0 ]; then ok "EXTERNAL configures"; else bad "EXTERNAL configures" "$(tail -15 "$WORK/$mode.log")"; fi
         want "EXTERNAL reports the installed SZ3 $SZ3_VERSION" \
@@ -163,7 +214,9 @@ for mode in EXTERNAL AUTO INTERNAL OFF; do
         fi
         ;;
     *)
-        bad "unknown expectation" "$mode:$EXPECT"
+        # Unreachable while $WIRED is validated above; here so a mode added to the loop is not
+        # silently unasserted.
+        bad "unhandled GMX_USE_SZ3 value" "$mode:$WIRED"
         ;;
     esac
 done
