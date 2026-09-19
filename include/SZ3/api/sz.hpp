@@ -187,7 +187,14 @@ template <class T>
 T* SZ_decompress(SZ3::Config& config, const char* cmpData, size_t cmpSize) {
     using namespace SZ3;
     T* decData = nullptr;
-    SZ_decompress<T>(config, cmpData, cmpSize, decData);
+    try {
+        SZ_decompress<T>(config, cmpData, cmpSize, decData);
+    } catch (...) {
+        // The four-argument overload allocates through the reference and can throw afterwards, and
+        // the caller never sees the pointer when it does.
+        delete[] decData;
+        throw;
+    }
     return decData;
 }
 
