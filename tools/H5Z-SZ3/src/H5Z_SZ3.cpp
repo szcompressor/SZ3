@@ -11,7 +11,10 @@ const H5Z_class2_t H5Z_SZ3[1] = {{
     H5Z_FILTER_SZ3,                                         /* Filter id number */
     1,                                                      /* encoder_present flag (set to true) */
     1,                                                      /* decoder_present flag (set to true) */
-    "H5Z-SZ3-" SZ3_VER,                                     /* Filter name for debugging */
+    // Written into every dataset that uses the filter, and quoted back by HDF5 when the filter
+    // is missing, so it has to say where to get it.
+    "H5Z-SZ3-" SZ3_VER " (data format " SZ3_DATA_VER "); see "
+    "https://github.com/szcompressor/SZ3/tree/master/tools/H5Z-SZ3",
     NULL,                                                   /* The "can apply" callback */
     H5Z_sz3_set_local,                                      /* The "set local" callback */
     static_cast<H5Z_func_t>(H5Z_filter_sz3),                /* The actual filter function */
