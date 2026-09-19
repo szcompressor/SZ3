@@ -1,7 +1,6 @@
 #ifndef SZ3_BLOCKWISE_DECOMPOSITION_HPP
 #define SZ3_BLOCKWISE_DECOMPOSITION_HPP
 
-#include <algorithm>
 #include <cstring>
 #include <limits>
 #include <memory>
@@ -24,10 +23,7 @@ class BlockwiseDecomposition : public concepts::DecompositionInterface<T, int, N
     using Block_iter = typename block_data<T, N>::block_iterator;
 
     BlockwiseDecomposition(const Config &conf, Predictor predictor_, Quantizer quantizer_)
-        : predictor(predictor_),
-          quantizer(quantizer_),
-          fallback_predictor(conf.absErrorBound),
-          block_count(predictor_block_count(conf.dims, static_cast<size_t>(std::max(conf.blockSize, 0)))) {
+        : predictor(predictor_), quantizer(quantizer_), fallback_predictor(conf.absErrorBound) {
         static_assert(std::is_base_of<concepts::PredictorInterface<T, N>, Predictor>::value,
                       "must implement the Predictor interface");
     }
@@ -83,8 +79,8 @@ class BlockwiseDecomposition : public concepts::DecompositionInterface<T, int, N
     }
 
     void load(const uchar *&c, size_t &remaining_length) override {
-        fallback_predictor.load(c, remaining_length, block_count);
-        predictor.load(c, remaining_length, block_count);
+        fallback_predictor.load(c, remaining_length);
+        predictor.load(c, remaining_length);
         quantizer.load(c, remaining_length);
     }
 
@@ -94,9 +90,6 @@ class BlockwiseDecomposition : public concepts::DecompositionInterface<T, int, N
     Predictor predictor;
     Quantizer quantizer;
     LorenzoPredictor<T, N, 1> fallback_predictor;
-    // Blocks the compress()/decompress() walks above visit. The predictors save at most one record per
-    // block, so this is what their load() bounds an untrusted per-block count against.
-    size_t block_count;
 };
 
 template <class T, uint N, class Predictor, class Quantizer>

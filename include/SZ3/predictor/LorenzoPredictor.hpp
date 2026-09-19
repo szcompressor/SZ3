@@ -48,9 +48,7 @@ class LorenzoPredictor : public concepts::PredictorInterface<T, N> {
 
     void save(uchar *&) override {}
 
-    // Lorenzo prediction is fixed by the block's own neighbours, so nothing is serialized per block and
-    // the caller's block count has nothing to bound.
-    void load(const uchar *&, size_t &, size_t) override {}
+    void load(const uchar *&, size_t &) override {}
 
     void print() const override {
         std::cout << L << "-Layer " << N << "D Lorenzo predictor, noise = " << noise << "\n";
