@@ -2,6 +2,12 @@ name: HDF5
 
 on: [ push ]
 
+# One run per ref. A newer push supersedes the one in flight, which otherwise queues a second
+# full set of jobs behind work that is already superseded.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   BUILD_TYPE: Release
 
