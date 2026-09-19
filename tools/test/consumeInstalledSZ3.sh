@@ -25,6 +25,11 @@ LIBDIR=$PREFIX/lib
 CMPFX=$(native "$PREFIX")
 [ -n "$EXTRA_PREFIX" ] && CMPFX="$CMPFX;$(native "$(cd "$EXTRA_PREFIX" && pwd)")"
 [ -n "${CMAKE_PREFIX_PATH:-}" ] && CMPFX="$CMPFX;$CMAKE_PREFIX_PATH"
+# Windows resolves a DLL through PATH and has no RPATH for an install tree to be recorded in, so
+# <prefix>/bin -- where the install rule puts the runtime artifact -- is the only way the consumer
+# built below reaches hdf5sz3. POSIX form: bash splits PATH on ':', and the MSYS2 runtime converts
+# the whole variable when it spawns a native program.
+export PATH="$PREFIX/bin:$PATH"
 
 pass=0; fail=0
 ok()  { echo "PASS  $1"; pass=$((pass+1)); }

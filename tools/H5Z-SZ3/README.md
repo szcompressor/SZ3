@@ -20,13 +20,17 @@ Add -DBUILD_H5Z_FILTER=true to the CMake command to enable H5Z-SZ3 filter in SZ3
 
 ### Step 2: Configure Environment
 Installing puts a copy of the filter in `<prefix>/lib/plugin` (`H5Z_SZ3_PLUGIN_INSTALL_DIR`), a
-directory that holds nothing else. Point `HDF5_PLUGIN_PATH` at that, not at `<prefix>/lib`: HDF5
-dlopens every `lib*.so` in each directory on the path. The variable also replaces HDF5's own
-compiled-in plugin directory rather than adding to it, so list that too if other filters are in use.
+directory that holds nothing else. Point `HDF5_PLUGIN_PATH` at that, not at `<prefix>/lib` or
+`<prefix>/bin`: HDF5 dlopens every `lib*.so` in each directory on the path, and every `*.dll` on
+Windows. The variable also replaces HDF5's own compiled-in plugin directory rather than adding to
+it, so list that too if other filters are in use.
 ```bash
 export HDF5_PLUGIN_PATH=<PREFIX>/lib/plugin
 ```
 An application that links `SZ3::hdf5sz3` can call `H5Z_SZ3_initialize()` instead and set nothing.
+On Windows it still has to find the library: the install puts `hdf5sz3.dll` (`libhdf5sz3.dll` under
+MinGW) in `<prefix>/bin` and only the import library in `<prefix>/lib`, and there is no RPATH to
+record either, so `<prefix>/bin` has to be on `PATH` before the application runs.
 
 ## H5Z-SZ3 cd_values
 * HDF5 restricts the parameters that can be passed to filters through an integers array called `cd_values`.

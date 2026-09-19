@@ -23,6 +23,11 @@ NOPLUGIN=$WORK/no-such-plugin-dir
 # HDF5 reads HDF5_PLUGIN_PATH itself, so it needs the same native form cmake does.
 PLUGIN_PATH=$(native "$PLUGIN_DIR")
 NOPLUGIN_PATH=$(native "$NOPLUGIN")
+# Windows resolves a DLL through PATH and has no RPATH for an install tree to be recorded in, so
+# <prefix>/bin -- where the install rule puts the runtime artifact -- is the only way an application
+# that links the shared filter reaches libhdf5sz3.dll. POSIX form: bash splits PATH on ':', and the
+# MSYS2 runtime converts the whole variable when it spawns a native program.
+export PATH="$PREFIX/bin:$PATH"
 
 # Every spelling the filter takes when it is shared: .so on Linux, .dylib on macOS, hdf5sz3.dll
 # under MSVC and libhdf5sz3.dll under MinGW. An archive is deliberately not among them.
@@ -226,17 +231,20 @@ want "h5dump-header-needs-no-plugin"   "FILTER_ID 32024" d_meta.head
 want "h5dump-header-shows-version"     "H5Z-SZ3-" d_meta.head
 "$(h5 h5ls)" -v rp.h5 > d_meta.ls 2>&1
 want "h5ls-verbose-shows-version"      "H5Z-SZ3-" d_meta.ls
-if "$(h5 h5dump)" -d /ds rp.h5 > d_data.out 2> d_data.err; then
+# "ds" rather than "/ds": an argument that looks like an absolute POSIX path is rewritten into a
+# Windows one by the MSYS2 runtime before a native h5dump ever sees it, and the dataset it then
+# looks for is <msys root>/ds. HDF5 resolves an unrooted name against the root group regardless.
+if "$(h5 h5dump)" -d ds rp.h5 > d_data.out 2> d_data.err; then
     bad "h5dump-data-noplugin-fails" "h5dump exited 0 with the filter unreachable"
 else
     ok "h5dump-data-noplugin-fails"
 fi
 want "h5dump-data-noplugin-message"    "unable to print data" d_data.err
-"$(h5 h5dump)" --enable-error-stack -d /ds rp.h5 > d_stack.out 2> d_stack.err
+"$(h5 h5dump)" --enable-error-stack -d ds rp.h5 > d_stack.out 2> d_stack.err
 want "h5dump-names-the-filter"         "is not registered" d_stack.err
 want "h5dump-names-our-version"        "H5Z-SZ3-" d_stack.err
 export HDF5_PLUGIN_PATH=$PLUGIN_PATH
-"$(h5 h5dump)" -d /ds rp.h5 > d_ok.out 2> d_ok.err
+"$(h5 h5dump)" -d ds rp.h5 > d_ok.out 2> d_ok.err
 want "h5dump-data-with-plugin"         "DATA {" d_ok.out
 notwant "h5dump-data-with-plugin-clean" "unable to print data" d_ok.err
 else
