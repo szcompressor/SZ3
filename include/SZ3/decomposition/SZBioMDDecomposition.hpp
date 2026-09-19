@@ -97,7 +97,9 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
             size_t lprev = 0;
             for (size_t i = 1; i < std::min<size_t>(dims[numDims - 2], 100); i++) {
                 auto c = data[i * dims[numDims - 1] + j], p = data[(i - 1) * dims[numDims - 1] + j];
-                if (fabs(c - p) / c > 0.5) {
+                // Relative to |c|: a coordinate may be negative, and dividing by it made the ratio
+                // negative, so no jump was ever seen along that stretch and the period went unnoticed.
+                if (fabs(c - p) / fabs(c) > 0.5) {
                     sites.push_back(i - lprev);
                     //                        printf("%d %d\n", i, i - lprev);
                     lprev = i;
