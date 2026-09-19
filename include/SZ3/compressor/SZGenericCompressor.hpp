@@ -82,6 +82,12 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
 
         size_t quant_inds_size = 0;
         read(quant_inds_size, bufferPos, bufferSize);
+        // quant_inds is recovered one bin per output element, and decData holds conf.num of them, so a valid
+        // frame never carries more. This is also the only cap on the encoder's constant path: a single-symbol
+        // Huffman tree stores its bins in zero bits, leaving decode no stream length to check the count against.
+        if (quant_inds_size > conf.num) {
+            throw std::out_of_range("SZ3: quant_inds size exceeds the number of data elements");
+        }
         auto quant_inds = encoder.decode(bufferPos, quant_inds_size, bufferSize);
         encoder.postprocess_decode();
 
