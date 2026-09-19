@@ -69,9 +69,10 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
         }
     }
 
-    void load(const uchar *&c, size_t &remaining_length) override {
+    void load(const uchar *&c, size_t &remaining_length, size_t block_count) override {
         for (const auto &p : predictors) {
-            p->load(c, remaining_length);
+            // The composed predictors run over the same block walk as this one, so they inherit its ceiling.
+            p->load(c, remaining_length, block_count);
         }
         size_t selection_size = 0;
         read(selection_size, c, remaining_length);

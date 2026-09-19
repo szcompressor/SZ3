@@ -1,9 +1,11 @@
 #ifndef SZ3_TIME_SERIES_DECOMPOSITION_HPP
 #define SZ3_TIME_SERIES_DECOMPOSITION_HPP
 
+#include <algorithm>
 #include <cassert>
 #include <limits>
 #include <stdexcept>
+#include <vector>
 
 #include "Decomposition.hpp"
 #include "SZ3/def.hpp"
@@ -25,6 +27,7 @@ public:
           fallback_predictor(LorenzoPredictor<T, N - 1, 1>(conf.absErrorBound)),
           quantizer(quantizer),
           num_elements(conf.num),
+          block_count(spatial_block_count(conf)),
           data_ts0(data_ts0) {
         static_assert(std::is_base_of<concepts::PredictorInterface<T, N - 1>, Predictor>::value,
                       "must implement the predictor interface");
@@ -134,18 +137,30 @@ public:
     }
 
     void load(const uchar*& c, size_t& remaining_length) override {
-        fallback_predictor.load(c, remaining_length);
-        predictor.load(c, remaining_length);
+        fallback_predictor.load(c, remaining_length, block_count);
+        predictor.load(c, remaining_length, block_count);
         quantizer.load(c, remaining_length);
     }
 
     std::pair<int, int> get_out_range() override { return quantizer.get_out_range(); }
 
 private:
+    // Only timestep 0 is predicted block by block, and only over the spatial dimensions: dims[0] is time.
+    // So these are the blocks the predictor can be committed on, and what its load() bounds an untrusted
+    // per-block count against. Malformed dims leave no valid block walk, hence no records to accept.
+    static size_t spatial_block_count(const Config& conf) {
+        if (conf.dims.size() < 2) {
+            return 0;
+        }
+        return predictor_block_count(std::vector<size_t>(conf.dims.begin() + 1, conf.dims.end()),
+                                     static_cast<size_t>(std::max(conf.blockSize, 0)));
+    }
+
     Predictor predictor;
     LorenzoPredictor<T, N - 1, 1> fallback_predictor;
     Quantizer quantizer;
     size_t num_elements;
+    size_t block_count;
     T* data_ts0 = nullptr;
 };
 

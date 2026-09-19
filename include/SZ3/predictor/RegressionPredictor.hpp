@@ -2,6 +2,7 @@
 #define SZ3_REGRESSION_PREDICTOR_HPP
 
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 
 #include "SZ3/encoder/HuffmanEncoder.hpp"
@@ -107,9 +108,21 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
         }
     }
 
-    void load(const uchar *&c, size_t &remaining_length) override {
+    void load(const uchar *&c, size_t &remaining_length, size_t block_count) override {
         size_t coeff_size = 0;
         read(coeff_size, c, remaining_length);
+        // pred_and_quantize_coefficients() appends exactly N linear terms plus one independent term per
+        // block it is committed on, and the caller walks block_count blocks, so no stream this predictor
+        // wrote carries more. Checked before decode sizes its output vector from coeff_size: a
+        // single-symbol Huffman tree spends zero bits per coefficient, so the encoder's own
+        // encodedLength * 8 ceiling never bites on the constant path. Saturate rather than wrap, so an
+        // unreachably large grid cannot fold the ceiling down below a legitimate count.
+        const size_t max_coeffs = block_count > std::numeric_limits<size_t>::max() / (N + 1)
+                                      ? std::numeric_limits<size_t>::max()
+                                      : block_count * (N + 1);
+        if (coeff_size > max_coeffs) {
+            throw std::out_of_range("SZ3 regression: more coefficients than the block grid can hold");
+        }
         if (coeff_size > 0) {
             quantizer_independent.load(c, remaining_length);
             quantizer_liner.load(c, remaining_length);
