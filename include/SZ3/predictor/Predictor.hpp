@@ -21,6 +21,14 @@ class PredictorInterface {
 
     virtual ~PredictorInterface() = default;
 
+    // Declared because the virtual destructor above suppresses the implicit ones. These interfaces
+    // hold no state, and SZGenericCompressor takes its stages by value, so copying has to work.
+    PredictorInterface() = default;
+    PredictorInterface(const PredictorInterface &) = default;
+    PredictorInterface &operator=(const PredictorInterface &) = default;
+    PredictorInterface(PredictorInterface &&) noexcept = default;
+    PredictorInterface &operator=(PredictorInterface &&) noexcept = default;
+
     /**
      * predict the value for a single data point
      * @param block_iter the iterator of the block

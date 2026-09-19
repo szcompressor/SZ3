@@ -19,6 +19,14 @@ class   QuantizerInterface {
    public:
     virtual ~QuantizerInterface() = default;
 
+    // Declared because the virtual destructor above suppresses the implicit ones. These interfaces
+    // hold no state, and SZGenericCompressor takes its stages by value, so copying has to work.
+    QuantizerInterface() = default;
+    QuantizerInterface(const QuantizerInterface &) = default;
+    QuantizerInterface &operator=(const QuantizerInterface &) = default;
+    QuantizerInterface(QuantizerInterface &&) noexcept = default;
+    QuantizerInterface &operator=(QuantizerInterface &&) noexcept = default;
+
     /**
      * quantize the error (error=data-pred) based on error bound, and overwrite the data with reconstructed value
      * @param data single data point

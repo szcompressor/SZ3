@@ -19,6 +19,14 @@ class LosslessInterface {
    public:
     virtual ~LosslessInterface() = default;
 
+    // Declared because the virtual destructor above suppresses the implicit ones. These interfaces
+    // hold no state, and SZGenericCompressor takes its stages by value, so copying has to work.
+    LosslessInterface() = default;
+    LosslessInterface(const LosslessInterface &) = default;
+    LosslessInterface &operator=(const LosslessInterface &) = default;
+    LosslessInterface(LosslessInterface &&) noexcept = default;
+    LosslessInterface &operator=(LosslessInterface &&) noexcept = default;
+
     /**
      * compress data with lossless compressors
      * @param src  data to be compressed

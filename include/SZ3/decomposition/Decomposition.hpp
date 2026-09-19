@@ -23,6 +23,14 @@ class DecompositionInterface {
    public:
     virtual ~DecompositionInterface() = default;
 
+    // Declared because the virtual destructor above suppresses the implicit ones. These interfaces
+    // hold no state, and SZGenericCompressor takes its stages by value, so copying has to work.
+    DecompositionInterface() = default;
+    DecompositionInterface(const DecompositionInterface &) = default;
+    DecompositionInterface &operator=(const DecompositionInterface &) = default;
+    DecompositionInterface(DecompositionInterface &&) noexcept = default;
+    DecompositionInterface &operator=(DecompositionInterface &&) noexcept = default;
+
     /**
      * predict the data and quantize the error
      * @param data original input

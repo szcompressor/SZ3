@@ -20,6 +20,14 @@ class EncoderInterface {
    public:
     virtual ~EncoderInterface() = default;
 
+    // Declared because the virtual destructor above suppresses the implicit ones. These interfaces
+    // hold no state, and SZGenericCompressor takes its stages by value, so copying has to work.
+    EncoderInterface() = default;
+    EncoderInterface(const EncoderInterface &) = default;
+    EncoderInterface &operator=(const EncoderInterface &) = default;
+    EncoderInterface(EncoderInterface &&) noexcept = default;
+    EncoderInterface &operator=(EncoderInterface &&) noexcept = default;
+
     /**
      * init the encoder
      * E.g., Huffman will build tree in this step

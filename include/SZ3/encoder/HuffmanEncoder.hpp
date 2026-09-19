@@ -56,6 +56,14 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
     ~HuffmanEncoder() override { SZ_FreeHuffman(); }
 
+    // Declared because the destructor above suppresses the implicit ones. Copying is shallow and
+    // has to stay -- the SZAlgo* wirings pass encoders by value -- so do not copy one that has
+    // built its tree: both copies would free huffmanTree. Today every copy happens before that.
+    HuffmanEncoder(const HuffmanEncoder &) = default;
+    HuffmanEncoder &operator=(const HuffmanEncoder &) = default;
+    HuffmanEncoder(HuffmanEncoder &&) noexcept = default;
+    HuffmanEncoder &operator=(HuffmanEncoder &&) noexcept = default;
+
     // build huffman tree
     HuffmanTree *createHuffmanTree(int stateNum) {
         HuffmanTree *tree = static_cast<HuffmanTree *>(malloc(sizeof(HuffmanTree)));
