@@ -36,6 +36,8 @@ void readfile(const char *file, const size_t num, Type *data) {
 
 /**
  * read binary file and put it to a new memory space
+ * @param num out. Set to the number of Type elements read, which the file's size decides. The overload above takes it
+ * by value instead and rejects a file of any other length; these two differ in nothing else.
  */
 template <typename Type>
 std::unique_ptr<Type[]> readfile(const char *file, size_t &num) {

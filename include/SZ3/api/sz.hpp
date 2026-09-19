@@ -169,15 +169,19 @@ void SZ_decompress(SZ3::Config& config, const char* cmpData, size_t cmpSize, T*&
 }
 
 /**
- * Decompresses the compressed data into a pre-allocated buffer using the configuration loaded from the compressed data.
+ * Decompresses the compressed data into a buffer it allocates itself, using the configuration loaded from the
+ * compressed data. Pass a buffer to the four-argument overload instead to decompress into memory you already hold.
  * @tparam T The data type of the decompressed data.
  * @param config Configuration placeholder that will be overwritten with the compression configuration from the compressed data.
  * @param cmpData Pointer to the compressed data.
  * @param cmpSize The size of the compressed data in bytes.
+ * @return A new[] buffer of config.num elements, which the caller owns and must delete[]. There is no null return to
+ * test: the four-argument overload throws, so a value arriving here is always a buffer.
  * @example
- * auto decData = new float[100 * 200 * 300];
  * SZ3::Config conf;
- * SZ_decompress(conf, cmpData, cmpSize, decData);
+ * float* decData = SZ_decompress<float>(conf, cmpData, cmpSize);
+ * // conf now describes the data; conf.num is the element count of decData
+ * delete[] decData;
  */
 template <class T>
 T* SZ_decompress(SZ3::Config& config, const char* cmpData, size_t cmpSize) {

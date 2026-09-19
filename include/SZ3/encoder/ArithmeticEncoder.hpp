@@ -286,11 +286,9 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
 
     /**
      * Reconstruct AriCoder based on the bytes loaded from compressed data
-     * @param AriCoder** ariCoder (ourput)
-     * @param unsigned char* bytes (input)
-     *
-     * @return offset
-     * */
+     * @param p start location of the encoder in the buffer; advanced past what this reads
+     * @param remaining_length the remaining length of the buffer; decremented by what is consumed
+     */
     void load(const uchar *&p, size_t &remaining_length) override {
         //        int unpad_ariCoder(AriCoder **ariCoder, unsigned char *bytes) {
         int offset = 0;
@@ -517,13 +515,12 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
 
     /**
      * Arithmetic Decoding algorithm
-     * @param AriCoder *ariCoder (input): the encoder with the constructed frequency information
-     * @param unsigned char *s (input): the compressed stream of bytes
-     * @param size_t s_len (input): the number of bytes in the 'unsigned char *s'
-     * @param size_t targetLength (input): the target number of elements in the type array
-     * @param int *out (output) : the result (type array decompressed from the stream 's')
-     *
-     * */
+     * @param bytes the compressed stream of bytes; advanced past what this reads
+     * @param targetLength the target number of elements to produce. An arithmetic stream carries no terminator, so
+     * nothing in the bytes themselves says when to stop
+     * @param remaining_length bytes readable from `bytes`; decremented by what is consumed
+     * @return the decoded values
+     */
     std::vector<T> decode(const uchar *&bytes, size_t targetLength, size_t &remaining_length) override {
         // The reads below are not individually bounded, so check what they consumed before charging it:
         // subtracting more than is left would wrap remaining_length and unbound everything parsed after.
@@ -635,12 +632,10 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
 
     /**
      * Get the integer code based on Arithmetic Coding Value
-     * @param AriCoder *ariCoder (input)
-     * @param size_t scaled_value (input)
-     *
-     * @return Prob* (output)
-     *
-     * */
+     * @param scaled_value the coding value scaled into the cumulative-frequency range
+     * @return the first state whose cumulative high bound exceeds it. The frequency table is this object's own, put
+     * there by preprocess_encode() or load(), where the C original took it as an argument
+     */
     Prob *getCode(size_t scaled_value) {
         int numOfRealStates = ariCoder.numOfRealStates;
         int i = 0;
@@ -653,11 +648,10 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
 
     /**
      * Get one bit from the input stream of bytes
-     * @param unsigned char* p (input): the current location to be read (byte) of the byte stream
-     * @param int offset (input): the offset of the specified byte in the byte stream
-     *
-     * @return unsigned char (output) : 1 or 0
-     * */
+     * @param p the byte of the stream to read
+     * @param offset which bit of that byte, counted from the most significant end
+     * @return 1 or 0
+     */
     inline unsigned char get_bit(const uchar *p, int offset) { return ((*p) >> (7 - offset)) & 0x01; }
 
     /**

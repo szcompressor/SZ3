@@ -90,7 +90,8 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
     /**
      * build huffman tree using bins
-     * @param bins the bins to build the tree from
+     * @param stateNum ignored. The interface offers it as a promise that the bins fall in [0, stateNum); this encoder
+     * takes its range from the bins themselves, so the promise buys it nothing.
      */
     void preprocess_encode(const std::vector<T> &bins, int stateNum) override {
         preprocess_encode(bins.data(), bins.size(), stateNum);
@@ -98,8 +99,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
     /**
      * build huffman tree using bins
-     * @param bins the bins to build the tree from
-     * @param num_bin how many
+     * @param num_bin how many bins `bins` points at; a raw pointer carries no length of its own
      */
     void preprocess_encode(const T *bins, size_t num_bin, int /*stateNum*/) {
         nodeCount = 0;
@@ -519,7 +519,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     /**
      * Compute the frequency of the data and build the Huffman tree
      * @param s the bins to measure
-     * @param length how many
+     * @param length how many bins `s` points at; a raw pointer carries no length of its own
      */
     void init(const T *s, size_t length) {
         T max = s[0];

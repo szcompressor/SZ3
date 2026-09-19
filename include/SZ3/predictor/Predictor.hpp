@@ -37,7 +37,6 @@ class PredictorInterface {
 
     /**
      * compute auxiliary info (e.g., coefficients) for the given data block
-     * Takes the block iterator.
      * @return whether the predictor is suitable for the block (e.g., data with 100x1 shape is not suitable for 2D
      * regression)
      */
