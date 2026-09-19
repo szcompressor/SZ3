@@ -76,6 +76,14 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
         }
         size_t selection_size = 0;
         read(selection_size, c, remaining_length);
+        // precompress_block_commit() appends exactly one selection per block, and predecompress() consumes
+        // one per block over the caller's block_count blocks, so no stream this predictor wrote carries
+        // more. Checked before decode sizes its output vector from selection_size: a single-symbol Huffman
+        // tree spends zero bits per selection, so the encoder's own encodedLength * 8 ceiling never bites
+        // on the constant path -- which is the usual path here, since one predictor normally wins outright.
+        if (selection_size > block_count) {
+            throw std::out_of_range("SZ3 composed predictor: more block selections than the block grid holds");
+        }
         if (selection_size > 0) {
             HuffmanEncoder<int> selection_encoder;
             selection_encoder.load(c, remaining_length);
