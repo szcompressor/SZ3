@@ -449,13 +449,13 @@ public:
         BucketAllocatorTraits::deallocate(*this, new_buckets - 1, num_buckets + 2);
     }
 
-    void reserve(size_t num_elements)
+    void reserve(size_t num_elements_)
     {
-        if (!num_elements)
+        if (!num_elements_)
             return;
-        num_elements = static_cast<size_t>(std::ceil(num_elements / static_cast<double>(_max_load_factor)));
-        if (num_elements > bucket_count())
-            rehash(num_elements);
+        num_elements_ = static_cast<size_t>(std::ceil(num_elements_ / static_cast<double>(_max_load_factor)));
+        if (num_elements_ > bucket_count())
+            rehash(num_elements_);
     }
 
     // the return value is a type that can be converted to an iterator
