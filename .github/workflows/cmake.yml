@@ -138,7 +138,8 @@ jobs:
         working-directory: build
         run: |
           DIGEST=$(sha256sum out.sz3 | awk '{print $1}')
-          echo "::set-output name=digest::$DIGEST"
+          [ -n "$DIGEST" ] || { echo "no digest to compare against macOS"; exit 1; }
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
 
       - name: Upload Linux-compressed artifact
         uses: actions/upload-artifact@v4
@@ -248,7 +249,8 @@ jobs:
         working-directory: build
         run: |
           DIGEST=$(shasum -a 256 out.sz3 | awk '{print $1}')
-          echo "::set-output name=digest::$DIGEST"
+          [ -n "$DIGEST" ] || { echo "no digest to compare against Linux"; exit 1; }
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
 
   build-windows:
     name: Build & Test (Windows)
@@ -414,6 +416,12 @@ jobs:
           M=${{ needs.build-macos.outputs.digest }}
           echo "linux: $L"
           echo "macos: $M"
+          # Two digests that never arrived are equal to each other, so this job would report the
+          # platforms agreeing when neither had said anything.
+          if [ -z "$L" ] || [ -z "$M" ]; then
+            echo "::error ::A digest did not reach this job, so nothing was compared."
+            exit 1
+          fi
           if [[ "$L" != "$M" ]]; then
             echo "::error ::Compressed outputs differ between Linux and macOS!"
             exit 1
