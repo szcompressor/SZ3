@@ -217,6 +217,43 @@ void process_data(SZ3::Config& conf, void** buf, size_t* buf_size, size_t nbytes
     }
 }
 
+static size_t sz3_type_size(uint8_t dataType) {
+    switch (dataType) {
+        case SZ_INT8:
+        case SZ_UINT8:
+            return 1;
+        case SZ_INT16:
+        case SZ_UINT16:
+            return 2;
+        case SZ_FLOAT:
+        case SZ_INT32:
+        case SZ_UINT32:
+            return 4;
+        case SZ_DOUBLE:
+        case SZ_INT64:
+        case SZ_UINT64:
+            return 8;
+        default:
+            return 0;
+    }
+}
+
+// v3.3.2 and older returned a chunk untouched, on write as much as on read, when cd_values said
+// fewer than 20 elements; those chunks sit in the file raw, with no header to recognize them by.
+// Matched exactly -- config, threshold and the chunk being precisely the uncompressed size -- so
+// that a chunk from something that is not SZ3 still fails instead of being handed back as data.
+static bool sz3_legacy_uncompressed_chunk(const unsigned char* cd_buffer, size_t cd_bytes, size_t nbytes) {
+    SZ3::Config conf;
+    try {
+        conf.load(cd_buffer, cd_bytes);
+    } catch (const std::exception&) {
+        return false;
+    }
+    if (conf.num == 0 || conf.num >= 20) return false;
+    const size_t tsize = sz3_type_size(conf.dataType);
+    return tsize != 0 && nbytes == conf.num * tsize;
+}
+
 /**
  * https://docs.hdfgroup.org/hdf5/v1_14/_f_i_l_t_e_r.html
  * The flags, cd_nelmts, and cd_values are the same as for the H5Pset_filter() function with the additional flag
@@ -238,19 +275,29 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
 
     auto buffer = reinterpret_cast<const unsigned char*>(cd_values);
     size_t cd_bytes = cd_nelmts * sizeof(unsigned int);
-    // Ahead of conf.load: every chunk this filter writes carries an SZ3 header, and a file from
-    // another version wrote cd_values in a layout this build would misread.
+    // Ahead of conf.load: cd_values is a bare Config blob carrying no version of its own, so one
+    // written by another data format would be misparsed here rather than refused.
     if (is_decompress) {
-        if (nbytes < 8) throw std::invalid_argument("SZ3 HDF5 filter: chunk is smaller than an SZ3 header");
-        auto header = reinterpret_cast<const unsigned char*>(*buf);
-        uint32_t magic = 0, dataVer = 0;
-        SZ3::read(magic, header);
-        SZ3::read(dataVer, header);
-        if (magic != SZ3_MAGIC_NUMBER)
-            throw std::invalid_argument("SZ3 HDF5 filter: chunk was not written by SZ3");
-        if (versionStr(dataVer) != SZ3_DATA_VER)
-            throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(dataVer) +
-                                        ", this build reads v" SZ3_DATA_VER);
+        bool has_header = false;
+        if (nbytes >= 8) {
+            auto header = reinterpret_cast<const unsigned char*>(*buf);
+            uint32_t magic = 0, dataVer = 0;
+            SZ3::read(magic, header);
+            SZ3::read(dataVer, header);
+            has_header = magic == SZ3_MAGIC_NUMBER;
+            if (has_header && versionStr(dataVer) != SZ3_DATA_VER)
+                throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(dataVer) +
+                                            ", this build reads v" SZ3_DATA_VER);
+        }
+        // Everything this build writes carries a header, so a chunk without one is either the
+        // legacy uncompressed shape or not ours at all.
+        if (!has_header) {
+            if (!sz3_legacy_uncompressed_chunk(buffer, cd_bytes, nbytes))
+                throw std::invalid_argument(
+                    "SZ3 HDF5 filter: chunk carries no SZ3 header, and is not the uncompressed chunk that SZ3 "
+                    "v3.3.2 and older stored for fewer than 20 elements");
+            return nbytes;
+        }
     }
 
     conf.load(buffer, cd_bytes);

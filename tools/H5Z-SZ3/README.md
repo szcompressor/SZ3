@@ -37,6 +37,14 @@ record either, so `<prefix>/bin` has to be on `PATH` before the application runs
 * H5Z-SZ3 uses `cd_values` to pass the desired compression settings (e.g., algorithm, error bounds) to the compression process. It serializes the `Config` object to `cd_values` using the `save()` function.
 * During decompression, H5Z-SZ3 does not rely on `cd_values`. Instead, it reads all the configuration directly from the compressed data.
 
+## Reading files written by older SZ3
+
+Every chunk this filter writes carries an SZ3 header, and a chunk without one is refused. SZ3
+v3.3.2 and older made one exception: when `cd_values` said fewer than 20 elements the filter
+returned the chunk untouched, on write as well as on read, so those chunks are in the file raw and
+headerless. They are still read, recognized by `cd_values` plus the chunk being exactly the
+uncompressed size. Anything else without a header is an error naming both possibilities.
+
 ## Usage
 
 ### HDF5 Executables
