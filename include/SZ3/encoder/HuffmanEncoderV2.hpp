@@ -804,7 +804,9 @@ private:
         }
     }
 
-    static uchar readBit(const uchar* const & c, int i) { return ((*(c + (i >> 3))) >> (i & 7)) & 1; }
+    // The bit index walks a whole tree section, which can be longer than an int holds; truncating it would
+    // send the read backwards out of the buffer.
+    static uchar readBit(const uchar* const& c, size_t i) { return ((*(c + (i >> 3))) >> (i & 7)) & 1; }
 
     void saveAsCode(uchar*& c) {
         // Timer timer(true);
@@ -1115,6 +1117,12 @@ private:
         tree.usemp = (*bytes) >> 7;
         tree.mbft = (*bytes) & 0x3f;
         ++bytes;
+        // mbft is how many bits a leaf value occupies, and the leaf is rebuilt by shifting single bits into
+        // a T, so a width T cannot hold shifts past the end of the type. preprocess_encode() stops raising
+        // mbft once 1 << mbft covers maxval, which a T holds, so it never writes one this wide.
+        if (tree.mbft >= sizeof(T) * 8) {
+            throw std::out_of_range("SZ3 HuffmanEncoderV2: leaf width exceeds the bin type");
+        }
 
         for (size_t i = 0; i < sizeof(T); i++) {
             tree.offset |= static_cast<T>(*bytes) << (i << 3);
@@ -1155,6 +1163,13 @@ private:
         }
 
         if (tree.n == 1) {
+            // constructHuffmanTree() collapses a one-leaf tree to maxval == 1, and encode() keys off that
+            // to spend no bits on the bins, so the pair is settled before either is written. A stream that
+            // pairs n == 1 with any other maxval sends decode down the general walk instead, into a root
+            // with only one child, where the first 1 bit steps onto a null pointer.
+            if (tree.maxval != 1) {
+                throw std::out_of_range("SZ3 HuffmanEncoderV2: one-leaf tree declares more than one value");
+            }
             tree.ht.resize(2);
             tree.root = 0;
             tree.ht[0] = Node(0, &tree.ht[1]);
@@ -1176,9 +1191,18 @@ private:
         stk.push(&tree.ht[0]);
         size_t i = 1;
 
+        // A full binary tree with tree.n leaves has tree.n - 1 interior nodes, so the walk below builds
+        // 2 * tree.n - 1 nodes and no more, which is what the reserve above already assumed. It has to hold:
+        // the Node* in the stack and in the children linked so far point into that storage, so a bitstream
+        // that pushed past the reserve would reallocate it out from under them, and the walk would then
+        // read and write freed memory. Each turn of the loop pushes exactly one node.
+        const size_t max_nodes = static_cast<size_t>(tree.n) * 2 - 1;
+
         while (!stk.empty()) {
             Node* u = stk.top();
 
+            if (tree.ht.size() >= max_nodes)
+                throw std::out_of_range("SZ3 HuffmanEncoderV2: tree holds more nodes than its leaf count allows");
             if (static_cast<size_t>(i >> 3) >= dfs_bytes)
                 throw std::out_of_range("SZ3 HuffmanEncoderV2: tree bitstream exceeds the compressed buffer");
             if (readBit(bytes, i++) == 0x00) {
@@ -1195,6 +1219,14 @@ private:
                     if (static_cast<size_t>(i >> 3) >= dfs_bytes)
                         throw std::out_of_range("SZ3 HuffmanEncoderV2: tree bitstream exceeds the compressed buffer");
                     c |= static_cast<T>(readBit(bytes, i++)) << j;
+                }
+                // With usemp == 0 the codebook is a pair of dense tables indexed by the leaf value itself,
+                // so a value outside them is an out-of-bounds write once dfs_vec walks the finished tree.
+                // addElementInVector() only ever enters values from [0, maxval), so no tree the encoder
+                // wrote is turned away here.
+                if (tree.usemp == 0x00 &&
+                    (static_cast<int64_t>(c) < 0 || static_cast<uint64_t>(c) >= tree.veclen.size())) {
+                    throw std::out_of_range("SZ3 HuffmanEncoderV2: tree leaf outside the declared value range");
                 }
                 tree.ht.push_back(Node(c));
                 if (u->p[0] == nullptr)
