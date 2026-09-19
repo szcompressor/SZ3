@@ -81,9 +81,12 @@ packaging or the compressed format, this is the blast radius.
 | **Debian/Ubuntu** | SZ3 3.1.7 source inside `python-hdf5plugin` | 3.1.7 | Stripped (`HDF5PLUGIN_STRIP=all`), so nothing is compiled. No standalone SZ3 package. |
 | **The HDF5 filter registry** | filter id **32024** | n/a | Maintained by disheng222, ayzk and robertu94. The registry entry documents **no `cd_values` layout at all** — unlike ZFP (32013) and Delta-Rice (32025), which give parameter tables and `h5repack --filter` examples. `community/sz3/README.md` in `HDFGroup/hdf5_plugins` is an unfilled template. The HDF Group does not build or ship SZ3. |
 
-Not recorded here because the details were not confirmed: **libpressio**, the **sz3-rs** Rust crate,
-and **conda-forge**. Each is known to package or wrap SZ3; the version each carries should be
-established before the next format change.
+**libpressio** is now confirmed and built in CI: `find_package(SZ3 REQUIRED)` behind
+`LIBPRESSIO_HAS_SZ3`, linking `SZ3::SZ3`, with a plugin that touches 19 `Config` fields — four of
+which (`lossless`, `encoder`, `interpBlockSize`, `stride`) we removed and its option lists still
+name. It has no CI of its own and Spack's `sz3` stops at 3.2.0, so nothing anywhere had compiled it
+against 3.3.x. Still unconfirmed: the **sz3-rs** Rust crate and **conda-forge** — the version each
+carries should be established before the next format change.
 
 ### What this implies for a format change
 
@@ -115,38 +118,53 @@ It can run more than is there now. The limits worth knowing:
 - **libc++ on Linux** needs `apt-get install -y libc++-dev libc++abi-dev` and
   `-stdlib=libc++` with clang.
 
-## The gap, as of this writing
+## What CI covers
 
-What CI runs today, and what only ever ran on a developer's machine:
+Rewritten after PR #150, which closed most of what this section used to list as gaps. Every row was checked against the workflow files, not from memory.
 
-| Case | In CI? |
-|---|---|
-| Install + `find_package` + link + run | Linux only |
-| `filter_access_modes.sh`, 31 assertions over h5repack/h5dump/h5ls and 4 application shapes | Linux only |
-| Export carries no build-machine path; survives the build tree being deleted | Linux only |
-| Packager deletes `tools/zstd/` | Linux only |
-| Bundled Zstd: private, hidden symbols, no header installed | Linux only (MSVC defaults to it, so the Windows job exercises the build) |
-| Format digest pinned to `SZ3_DATA_VERSION` | Linux only |
-| OpenMP write-N read-M | Linux only |
-| Linux vs macOS produce identical bytes | yes |
-| Windows MSVC, Windows MinGW | build + ctest + round trip only |
-| **Parallel HDF5 / MPI** | **no** |
-| **More than one HDF5 version** | **no** |
-| **`find_package(SZ3)` from a C project** | **no** |
-| **A consumer on a shared prefix (conda/Homebrew)** | **no** |
-| **Standalone-header compile, libstdc++ and libc++** | **no** — `tools/test/check_headers.py` exists and is run by hand |
+| Case | Where |
+| --- | --- |
+| Install + `find_package` + link + run (`consumeInstalledSZ3.sh`) | Linux, macOS, Windows MSVC, Windows MinGW — `packaging.yml`, `hdf5.yml` |
+| `filterAccessModes.sh`, 31 assertions over h5repack/h5dump/h5ls and 4 application shapes | same four |
+| An install that carries the filter while the export does not declare it | fails; a prefix genuinely built without `BUILD_H5Z_FILTER` skips by name |
+| Export carries no build-machine path; survives the build tree being deleted | `packaging.yml` |
+| Packager deletes `tools/zstd/` | `packaging.yml` |
+| Bundled Zstd: private, hidden symbols, no header installed | `packaging.yml` (`bundledZstdIsolation.sh`); MSVC defaults to it |
+| Format digest pinned to `SZ3_DATA_VERSION` | `packaging.yml` |
+| OpenMP thread counts | `cmake.yml` |
+| Linux vs macOS produce identical bytes | `cmake.yml` (`compare`) |
+| Parallel HDF5 / MPI | `hdf5.yml` (`parallel`) |
+| More than one HDF5 version | `hdf5.yml` (`versions`): 1.10.6, 1.14.6, 2.2.0; `coexist` for two at once |
+| `find_package(SZ3)` from a C project | `consumeInstalledSZ3.sh`, C-only section |
+| GROMACS as a consumer | `gromacs.yml`: `consumer`, `h5md-tests`, `roundtrip` |
+| libpressio as a consumer | `libpressio.yml` — nothing anywhere else builds it against 3.3.x |
+| static vs shared × 4 toolchains | `cmake.yml` (`toolchains`): gcc-12/14, clang-16/18 × shared ON/OFF |
+| `BUILD_MDZ` | `packaging.yml` (`windows-msvc`) — the only place it is ON |
+| Windows installs, not just builds | `packaging.yml` (`windows-msvc`, `windows-mingw`) |
+| **Standalone-header compile, libstdc++ and libc++** | **no** — `tools/test/check_headers.py` is run by hand |
 | **Cross-version decompression against released fz** | **no** |
-| **GROMACS as a consumer** | **no** |
-| **static vs shared, `add_subdirectory` as a consumer** | **no** |
+| **A consumer on a shared prefix (conda/Homebrew)** | **no** |
+
+`tools/test/check_headers.py` and this file live on `fz` only; neither is on `master`.
 
 ## How to add a case
 
-1. Write it as an assertion that **names the path taken**, not just an exit code. `filter_access_modes.sh`
+1. Write it as an assertion that **names the path taken**, not just an exit code. `filterAccessModes.sh`
    is the model: `want <name> <expected substring> <file>`.
 2. **Prove it can fail.** Break the thing it tests, watch the check go red, put it back. A check that
    has never failed is not known to be a check.
-3. Two shell forms in this repository have produced checks that could not fail:
+3. Seven forms in this repository have produced checks that could not fail. Five were found by
+   PR #150, two of them twice:
    - `set -e` is disabled inside a subshell on the left of `&&`
    - `set -e` exempts a `!`-inverted command, so `! grep ...` reads as a check and is not one
+   - an unmatched glob reaches the command as a literal, so `grep -E pat dir/Foo*.cmake` with no
+     match exits 2 and the step passes. List the files first, then grep what the listing named
+   - `ctest` exits 0 on a tree with no tests unless you pass `--no-tests=error`
+   - YAML 1.1 reads bare `on`, `ON` and `OFF` as booleans, so a matrix value written unquoted never
+     equals the string a shell comparison tests it against. Quote every matrix value
+   - `${{ env.X }}` on a variable no `env:` block declares expands to the empty string rather than
+     failing. `tools/test/check_workflow_env.py` catches this statically and runs in `cmake.yml`
+   - a warning check that compiles nothing reports zero warnings. Give it a canary that must warn,
+     and fail the run if the canary comes back silent
 4. If the case needs something the runner lacks, say so in the step rather than skipping silently.
    A suite that reports more checks than it ran is the failure this whole file exists to catch.
