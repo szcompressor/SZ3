@@ -8,7 +8,6 @@
 namespace SZ3 {
 namespace concepts {
 
-
 /**
  * Encoder changes the input to a more compact representative
  * Usually this step is lossless instead of lossy
@@ -16,18 +15,8 @@ namespace concepts {
  * @tparam T bin type
  */
 template <class T, class TAllocator = std::allocator<T>>
-class EncoderInterface {
+class EncoderInterface : public Interface {
    public:
-    virtual ~EncoderInterface() = default;
-
-    // Declared because the virtual destructor above suppresses the implicit ones. These interfaces
-    // hold no state, and SZGenericCompressor takes its stages by value, so copying has to work.
-    EncoderInterface() = default;
-    EncoderInterface(const EncoderInterface &) = default;
-    EncoderInterface &operator=(const EncoderInterface &) = default;
-    EncoderInterface(EncoderInterface &&) noexcept = default;
-    EncoderInterface &operator=(EncoderInterface &&) noexcept = default;
-
     /**
      * init the encoder
      * E.g., Huffman will build tree in this step

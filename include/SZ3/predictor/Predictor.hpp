@@ -15,19 +15,9 @@ namespace SZ3::concepts {
  *
  */
 template <class T, uint N>
-class PredictorInterface {
+class PredictorInterface : public Interface {
    public:
     using block_iter = typename block_data<T, N>::block_iterator;
-
-    virtual ~PredictorInterface() = default;
-
-    // Declared because the virtual destructor above suppresses the implicit ones. These interfaces
-    // hold no state, and SZGenericCompressor takes its stages by value, so copying has to work.
-    PredictorInterface() = default;
-    PredictorInterface(const PredictorInterface &) = default;
-    PredictorInterface &operator=(const PredictorInterface &) = default;
-    PredictorInterface(PredictorInterface &&) noexcept = default;
-    PredictorInterface &operator=(PredictorInterface &&) noexcept = default;
 
     /**
      * predict the value for a single data point
