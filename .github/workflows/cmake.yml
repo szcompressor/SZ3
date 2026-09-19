@@ -125,6 +125,48 @@ jobs:
           name: temp-linux-out-sz3
           path: build/out.sz3
 
+  toolchains:
+    name: ${{ matrix.cc }} shared=${{ matrix.shared }}
+    runs-on: ubuntu-latest
+    # Separate from build-linux, which feeds one digest to compare and one artifact to
+    # build-windows; a matrix would make both ambiguous.
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc-12, gcc-14, clang-16, clang-18]
+        shared: ["ON", "OFF"]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install the toolchain and HDF5
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libhdf5-dev hdf5-tools libzstd-dev ${{ matrix.cc }}
+
+      - name: Build and test
+        shell: bash
+        run: |
+          # A header-only library sees more of a compiler than most: every template it has is
+          # instantiated in the consumer's translation unit. BUILD_SHARED_LIBS decides what shape
+          # hdf5sz3 and SZ3c take, and the static one is what a packager on Windows gets.
+          CXX=${{ matrix.cc }}
+          case "$CXX" in clang-*) CXX="clang++-${CXX#clang-}";; gcc-*) CXX="g++-${CXX#gcc-}";; esac
+          cmake -S . -B build \
+                -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+                -DCMAKE_C_COMPILER=${{ matrix.cc }} \
+                -DCMAKE_CXX_COMPILER="$CXX" \
+                -DBUILD_SHARED_LIBS=${{ matrix.shared }} \
+                -DBUILD_TESTING=ON \
+                -DBUILD_H5Z_FILTER=ON
+          cmake --build build --parallel 4
+          (cd build && ctest --output-on-failure -C ${{ env.BUILD_TYPE }})
+          # Asserted, not assumed: the matrix leg has to have produced the shape it asked for.
+          if [ "${{ matrix.shared }}" = "ON" ]; then
+            test -e build/tools/H5Z-SZ3/libhdf5sz3.so
+          else
+            test -e build/tools/H5Z-SZ3/libhdf5sz3.a
+          fi
+
   build-macos:
     name: Build & Test (macOS)
     runs-on: macos-latest
