@@ -26,6 +26,25 @@ LIBDIR=$PREFIX/lib
 # BUILD_H5Z_FILTER is off by default -- so a prefix without it is sound, not broken.
 HAVE_FILTER=0
 [ -f "$LIBDIR/cmake/SZ3/HDF5SZ3.cmake" ] && HAVE_FILTER=1
+# ... but only when nothing else in the prefix says the filter was built. tools/H5Z-SZ3 installs its
+# headers and its binary through install() rules separate from install(EXPORT), so either one
+# arriving without HDF5SZ3.cmake means the export was dropped -- which is the regression this suite
+# exists to catch, and which it used to report as "built without the filter" and skip past. The
+# distinction is load-bearing on Windows, where this script is the only filter coverage there is.
+# Matched on *hdf5sz3*, not lib*: MSVC names them hdf5sz3.dll and hdf5sz3.lib, with no lib prefix.
+if [ "$HAVE_FILTER" = 0 ]; then
+    traces=$(ls -d "$PREFIX"/include/hdf5_sz3 2>/dev/null
+             ls "$PREFIX"/lib*/*hdf5sz3* "$PREFIX"/lib*/plugin/*hdf5sz3* "$PREFIX"/bin/*hdf5sz3* 2>/dev/null)
+    if [ -n "$traces" ]; then
+        echo "FAIL  the install carries the filter but the export does not declare it"
+        echo "        missing: $LIBDIR/cmake/SZ3/HDF5SZ3.cmake"
+        echo "        present:"
+        echo "$traces" | sed 's/^/          /'
+        echo "        SZ3::hdf5sz3 does not exist for any consumer, and every filter check below"
+        echo "        would have been skipped as though this SZ3 had been built without the filter."
+        exit 1
+    fi
+fi
 CMPFX=$(native "$PREFIX")
 [ -n "$EXTRA_PREFIX" ] && CMPFX="$CMPFX;$(native "$(cd "$EXTRA_PREFIX" && pwd)")"
 [ -n "${CMAKE_PREFIX_PATH:-}" ] && CMPFX="$CMPFX;$CMAKE_PREFIX_PATH"
