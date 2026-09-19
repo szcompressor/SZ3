@@ -219,3 +219,97 @@ jobs:
       - name: Every way an application reaches the filter
         shell: bash
         run: tools/H5Z-SZ3/test/filterAccessModes.sh "$PWD/_prefix"
+
+  windows-msvc:
+    name: Install and consume (Windows MSVC)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # As in cmake.yml's Windows job: vcpkg is where an MSVC build of this repository gets HDF5.
+      - name: Bootstrap vcpkg & install HDF5
+        shell: pwsh
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
+          cd C:\vcpkg
+          .\bootstrap-vcpkg.bat
+          .\vcpkg.exe install hdf5:x64-windows
+
+      - name: Configure
+        shell: bash
+        run: |
+          # No BUILD_TESTING, for the reason the Linux job gives. BUILD_MDZ because no other job in
+          # any workflow builds tools/mdz at all, and its install rule is one of the two a
+          # multi-config generator breaks -- the other being tools/sz3, which this job installs too.
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake \
+            -DVCPKG_TARGET_TRIPLET=x64-windows \
+            -DBUILD_H5Z_FILTER=ON \
+            -DBUILD_MDZ=ON
+
+      - name: Build
+        shell: bash
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel 4
+
+      - name: Install it for a consumer to find
+        shell: bash
+        # --config here as well as on the build: the Visual Studio generator is multi-config, and an
+        # install that names no configuration looks for Release whatever was built.
+        run: cmake --install build --config ${{ env.BUILD_TYPE }} --prefix "$PWD/_prefix"
+
+      - name: Every binary the install rules promise
+        shell: bash
+        run: |
+          # An install rule that points one directory too high, or drops the .exe, is how this got
+          # here: `cmake --install` failed outright and nothing after it reached the prefix.
+          for exe in sz3 sz3_smoke_test sz3_customized_demo mdz mdz_smoke_test; do
+            [ -f "_prefix/bin/$exe.exe" ] || { echo "no $exe.exe in the install prefix"; exit 1; }
+          done
+          ./_prefix/bin/mdz_smoke_test.exe
+
+      - name: Every shape a consumer builds in
+        shell: bash
+        run: |
+          # The consumer links HDF5's import library and Windows resolves the matching DLL through
+          # PATH, which no RPATH in an install tree can stand in for.
+          export PATH="/c/vcpkg/installed/x64-windows/bin:$PATH"
+          tools/test/consumeInstalledSZ3.sh "$PWD/_prefix" /c/vcpkg/installed/x64-windows
+
+  windows-mingw:
+    name: Install and consume (Windows MinGW)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup MSYS2 with MinGW64
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-hdf5
+            make
+
+      - name: Configure
+        run: |
+          # No BUILD_TESTING, for the reason the Linux job gives.
+          cmake -S . -B build \
+            -G "Ninja" \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DBUILD_H5Z_FILTER=ON
+
+      - name: Build
+        run: cmake --build build --parallel 4
+
+      - name: Install it for a consumer to find
+        run: cmake --install build --prefix "$PWD/_prefix"
+
+      - name: Every shape a consumer builds in
+        run: tools/test/consumeInstalledSZ3.sh "$PWD/_prefix"
