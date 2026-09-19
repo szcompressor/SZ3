@@ -36,6 +36,10 @@ env:
     -DGMX_OPENMP=OFF
     -DGMX_BUILD_OWN_FFTW=OFF
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # GMX_USE_SZ3 in each of its four values, against an installed SZ3 that is present, absent, and
   # present but unusable. Configure only, which is where the export decides what the consumer gets.
