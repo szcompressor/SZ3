@@ -15,8 +15,10 @@ namespace SZ3::concepts {
  * Lossless compressors is used in addition to lossy compression to further reduce the data size
  * Usually this module calls into existing lossless compress APIs, instead of re-implementing the lossless algorithms.
  */
-class LosslessInterface : public Interface {
+class LosslessInterface {
    public:
+    virtual ~LosslessInterface() = default;
+
     /**
      * compress data with lossless compressors
      * @param src  data to be compressed

@@ -15,8 +15,10 @@ namespace concepts {
  * @tparam T bin type
  */
 template <class T, class TAllocator = std::allocator<T>>
-class EncoderInterface : public Interface {
+class EncoderInterface {
    public:
+    virtual ~EncoderInterface() = default;
+
     /**
      * init the encoder
      * E.g., Huffman will build tree in this step

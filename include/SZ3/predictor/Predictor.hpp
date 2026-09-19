@@ -15,8 +15,10 @@ namespace SZ3::concepts {
  *
  */
 template <class T, uint N>
-class PredictorInterface : public Interface {
+class PredictorInterface {
    public:
+    virtual ~PredictorInterface() = default;
+
     using block_iter = typename block_data<T, N>::block_iterator;
 
     /**
