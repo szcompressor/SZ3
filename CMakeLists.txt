@@ -57,12 +57,14 @@ else ()
     target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_DEBUG_TIMINGS=0)
 endif ()
 
+# SZ3_USE_SKA_HASH decides which type SZ3::unordered_map names, so it cannot travel as an INTERFACE
+# compile definition: a consumer who compiles our headers without CMake would not get it and would
+# resolve the alias the other way, giving one program two layouts for HuffmanEncoder and friends.
+# It is baked into a generated header instead, which every consumer reads whatever their build.
 option(SZ3_USE_SKA_HASH "use ska hashmap instead of std hashmap, default is ska for better speed" ON)
-if (SZ3_USE_SKA_HASH)
-    target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_USE_SKA_HASH=1)
-else ()
-    target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_USE_SKA_HASH=0)
-endif ()
+configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/SZ3/options.hpp.in
+        ${CMAKE_CURRENT_BINARY_DIR}/include/SZ3/options.hpp)
 
 # "${MSVC}" reads as ON under MSVC and OFF everywhere else. Keep the quotes.
 option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" "${MSVC}")
@@ -112,6 +114,7 @@ install(TARGETS ${PROJECT_NAME}
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(FILES
         "${CMAKE_CURRENT_BINARY_DIR}/include/SZ3/version.hpp"
+        "${CMAKE_CURRENT_BINARY_DIR}/include/SZ3/options.hpp"
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/SZ3/"
 )
 install(EXPORT SZ3Targets NAMESPACE SZ3:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3)
