@@ -29,7 +29,7 @@ class Timer {
 
     double stop([[maybe_unused]] const std::string &msg) {
         double seconds = stop();
-#if SZ3_DEBUG_TIMINGS
+#if defined(SZ3_DEBUG_TIMINGS) && SZ3_DEBUG_TIMINGS
         std::cout << msg << " time = " << seconds << "s" << std::endl;
 #endif
         return seconds;
