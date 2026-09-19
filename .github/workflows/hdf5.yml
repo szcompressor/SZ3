@@ -1,0 +1,191 @@
+name: HDF5
+
+on: [ push ]
+
+# One run per ref. A newer push supersedes the one in flight, which otherwise queues a second
+# full set of jobs behind work that is already superseded.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+
+# The filter against more than one HDF5 at a time: several versions, a parallel one, and two
+# installed side by side. What a build with a single HDF5 on the machine cannot see is whether the
+# export hands a consumer paths belonging to the HDF5 we built against instead of theirs.
+jobs:
+  versions:
+    name: HDF5 ${{ matrix.hdf5 }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        hdf5: ["1.10.6", "1.14.6", "2.2.0"]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: h5
+          create-args: >-
+            hdf5=${{ matrix.hdf5 }}
+            zstd
+          init-shell: bash
+
+      # One step each, because the matrix leg's name says only which HDF5 and these fail for
+      # unrelated reasons: a build failure is the filter's API drifting, a ctest failure is its
+      # behaviour, and a consumer failure is the export handing out this job's HDF5 paths.
+      - name: Configure
+        shell: bash -el {0}
+        run: |
+          # The filter's API moved between these: H5Zregister's class struct, the H5PL entry points
+          # and h5repack's own behaviour all differ across 1.10, 1.14 and 2.x.
+          cmake -S . -B build \
+                -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+                -DBUILD_TESTING=ON \
+                -DBUILD_H5Z_FILTER=ON \
+                -DCMAKE_PREFIX_PATH="$CONDA_PREFIX"
+
+      - name: Build
+        shell: bash -el {0}
+        run: cmake --build build --parallel 4
+
+      - name: Run CTest
+        shell: bash -el {0}
+        working-directory: build
+        run: ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }}
+
+      - name: Install it for a consumer to find
+        shell: bash -el {0}
+        run: cmake --install build --prefix "$PWD/_prefix"
+
+      - name: Every shape a consumer builds in
+        shell: bash -el {0}
+        run: tools/test/consumeInstalledSZ3.sh "$PWD/_prefix" "$CONDA_PREFIX"
+
+      - name: Every way an application reaches the filter
+        shell: bash -el {0}
+        run: tools/H5Z-SZ3/test/filterAccessModes.sh "$PWD/_prefix" "$CONDA_PREFIX/bin"
+
+  coexist:
+    name: Two HDF5s on one machine
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: h5build
+          create-args: >-
+            hdf5=1.14.6
+            zstd
+          init-shell: bash
+
+      - name: Install a second HDF5 the build will not see
+        shell: bash -el {0}
+        run: micromamba create -y -n h5use -c conda-forge hdf5=2.2.0
+
+      - name: A consumer compiles against its own HDF5, not ours
+        shell: bash -el {0}
+        run: |
+          # The export must name no include directory belonging to the HDF5 SZ3 was built against.
+          # Unguarded, it did, and a consumer who found a different HDF5 compiled against ours.
+          USE=$MAMBA_ROOT_PREFIX/envs/h5use
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DBUILD_H5Z_FILTER=ON \
+                -DCMAKE_PREFIX_PATH="$CONDA_PREFIX"
+          cmake --build build --parallel 4
+          cmake --install build --prefix "$PWD/_prefix"
+          mkdir -p _c
+          cat > _c/CMakeLists.txt <<'EOF'
+          cmake_minimum_required(VERSION 3.18)
+          project(c CXX)
+          find_package(SZ3 REQUIRED)
+          add_executable(app main.cpp)
+          target_link_libraries(app PRIVATE SZ3 hdf5sz3)
+          EOF
+          cat > _c/main.cpp <<'EOF'
+          #include <H5Z_SZ3.hpp>
+          #include <cstdio>
+          int main() {
+              printf("%d.%d.%d\n", H5_VERS_MAJOR, H5_VERS_MINOR, H5_VERS_RELEASE);
+              return 0;
+          }
+          EOF
+          cmake -S _c -B _c/build -DCMAKE_PREFIX_PATH="$PWD/_prefix;$USE"
+          cmake --build _c/build --parallel 4
+          SAW=$(./_c/build/app)
+          echo "consumer compiled against HDF5 $SAW; SZ3 was built against 1.14.6"
+          if [ "$SAW" != "2.2.0" ]; then
+            echo "the consumer got the HDF5 SZ3 was built against, not the one it asked for"; exit 1
+          fi
+
+  parallel:
+    name: Parallel HDF5
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install HDF5 and Zstd
+        run: |
+          sudo apt-get update
+          # libzstd-dev, not libzstd1: only the -dev package carries the libzstd.pc that sends this
+          # job down the system-Zstd path. hdf5-tools carries h5repack, h5dump and h5ls.
+          sudo apt-get install -y libhdf5-dev hdf5-tools libzstd-dev
+
+      - name: Create build dir
+        run: cmake -E make_directory build
+
+      - name: Configure
+        shell: bash
+        working-directory: build
+        run: |
+          # No BUILD_TESTING: nothing in this job runs ctest, and it would install googletest into
+          # the prefix the consumer below finds SZ3 in.
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DBUILD_H5Z_FILTER=ON
+
+      - name: Build
+        shell: bash
+        working-directory: build
+        run: cmake --build . --config ${{ env.BUILD_TYPE }} --parallel 4
+
+      - name: Install it for the consumer to find
+        shell: bash
+        run: cmake --install build --prefix "$PWD/_prefix"
+
+      - name: A parallel-HDF5 consumer needs no MPI search of ours
+        shell: bash
+        run: |
+          # SZ3Config.cmake resolves no MPI: the filter calls none, and a parallel HDF5 carries the
+          # MPI it was built against. This is the case that proves it -- if it did not hold, the
+          # consumer would end up with a second, independently chosen MPI.
+          sudo apt-get install -y libhdf5-openmpi-dev openmpi-bin
+          HDF5_MPI_ROOT=/usr/lib/x86_64-linux-gnu/hdf5/openmpi
+          mkdir -p _mpi
+          cat > _mpi/CMakeLists.txt <<'EOF'
+          cmake_minimum_required(VERSION 3.18)
+          project(mpiconsumer C)
+          find_package(SZ3 REQUIRED)
+          add_executable(mapp main.c)
+          target_link_libraries(mapp PRIVATE SZ3::hdf5sz3)
+          EOF
+          cat > _mpi/main.c <<'EOF'
+          #include <hdf5.h>
+          #include <stdio.h>
+          int main(void) {
+              htri_t avail = H5Zfilter_avail(32024);
+              printf("filter avail=%d\n", (int)avail);
+              return avail > 0 ? 0 : 1;
+          }
+          EOF
+          cmake -S _mpi -B _mpi/build \
+                -DCMAKE_PREFIX_PATH="$PWD/_prefix;$HDF5_MPI_ROOT" \
+                -DCMAKE_C_COMPILER=mpicc
+          cmake --build _mpi/build --parallel 4
+          HDF5_PLUGIN_PATH="$PWD/_prefix/lib/plugin" ./_mpi/build/mapp
+          ldd _mpi/build/mapp | grep -E 'libmpi|libhdf5' | tee _mpi.log
+          if [ "$(grep -c 'libmpi' _mpi.log)" -gt 1 ]; then
+            echo "more than one MPI in the consumer's binary"; cat _mpi.log; exit 1
+          fi

@@ -1,16 +1,48 @@
 @PACKAGE_INIT@
 
+include(CMakeFindDependencyMacro)
+
 include("${CMAKE_CURRENT_LIST_DIR}/SZ3Targets.cmake")
-if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/HDF5SZ3.cmake")
-  find_package(HDF5 COMPONENTS C REQUIRED)
-  if(@HDF5_IS_PARALLEL@)
-    find_package(MPI COMPONENTS CXX REQUIRED)
+
+# No SZ3::zstd in the export means the build used a system Zstd.
+if(NOT TARGET SZ3::zstd)
+  # Found again, not taken from the export: the build machine's path need not exist here.
+  find_library(SZ3_ZSTD_LIBRARY NAMES zstd)
+  if(NOT SZ3_ZSTD_LIBRARY)
+    set(SZ3_NOT_FOUND_MESSAGE "SZ3 was built against the system Zstd and no libzstd was found here. Install Zstd's development package, or set SZ3_ZSTD_LIBRARY.")
+    set(SZ3_FOUND FALSE)
+    return()
   endif()
+  set_property(TARGET SZ3::SZ3 APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${SZ3_ZSTD_LIBRARY}")
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/HDF5SZ3.cmake")
+  # find_dependency, not find_package(... REQUIRED): REQUIRED would end the consumer's configure.
+  find_dependency(HDF5 COMPONENTS C)
   include("${CMAKE_CURRENT_LIST_DIR}/HDF5SZ3.cmake")
 endif()
 
-find_package(OpenMP)
-if(@GSL_FOUND@)
-  find_package(GSL REQUIRED)
+if(@OpenMP_FOUND@)
+  # SZ3 was built with OpenMP, so a consumer has to link its runtime. FindOpenMP can only produce
+  # the target for a language that consumer enabled, and C and C++ share one runtime on every
+  # compiler SZ3 builds under, so ask for whichever of the two is available here. A C-only consumer
+  # asked for CXX instead gets "Could NOT find OpenMP (missing: OpenMP_CXX_FOUND CXX)".
+  get_property(sz3_enabled_languages GLOBAL PROPERTY ENABLED_LANGUAGES)
+  if("CXX" IN_LIST sz3_enabled_languages)
+    find_dependency(OpenMP COMPONENTS CXX)
+    set_property(TARGET SZ3::SZ3 APPEND PROPERTY INTERFACE_LINK_LIBRARIES OpenMP::OpenMP_CXX)
+  elseif("C" IN_LIST sz3_enabled_languages)
+    find_dependency(OpenMP COMPONENTS C)
+    set_property(TARGET SZ3::SZ3 APPEND PROPERTY INTERFACE_LINK_LIBRARIES OpenMP::OpenMP_C)
+  endif()
+  unset(sz3_enabled_languages)
 endif()
+
+# Without these, target_link_libraries(x PRIVATE hdf5sz3) silently becomes -lhdf5sz3.
+foreach(sz3_target SZ3 hdf5sz3)
+  if(TARGET SZ3::${sz3_target} AND NOT TARGET ${sz3_target})
+    add_library(${sz3_target} INTERFACE IMPORTED)
+    target_link_libraries(${sz3_target} INTERFACE SZ3::${sz3_target})
+  endif()
+endforeach()
 check_required_components(SZ3)

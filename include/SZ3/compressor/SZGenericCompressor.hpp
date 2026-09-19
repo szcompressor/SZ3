@@ -30,8 +30,8 @@ namespace SZ3 {
 template <class T, uint N, class Decomposition, class Encoder, class Lossless>
 class SZGenericCompressor : public concepts::CompressorInterface<T> {
    public:
-    SZGenericCompressor(Decomposition decomposition, Encoder encoder, Lossless lossless)
-        : decomposition(decomposition), encoder(encoder), lossless(lossless) {
+    SZGenericCompressor(Decomposition decomposition_, Encoder encoder_, Lossless lossless_)
+        : decomposition(decomposition_), encoder(encoder_), lossless(lossless_) {
         static_assert(std::is_base_of<concepts::DecompositionInterface<T, int, N>, Decomposition>::value,
                       "must implement the frontend interface");
         static_assert(std::is_base_of<concepts::EncoderInterface<int>, Encoder>::value,

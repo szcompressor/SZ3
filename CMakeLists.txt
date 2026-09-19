@@ -44,7 +44,10 @@ target_compile_features(${PROJECT_NAME}
 
 find_package(OpenMP)
 if (OpenMP_FOUND)
-    target_link_libraries(${PROJECT_NAME} INTERFACE OpenMP::OpenMP_CXX)
+    # BUILD_INTERFACE only: SZ3Config.cmake names the OpenMP target for the language the consumer
+    # actually enabled. Exported as it stands, OpenMP::OpenMP_CXX is a target a C-only consumer
+    # cannot be given, and CMake ends its configure rather than its own.
+    target_link_libraries(${PROJECT_NAME} INTERFACE $<BUILD_INTERFACE:OpenMP::OpenMP_CXX>)
 endif ()
 
 option(SZ3_DEBUG_TIMINGS "print debug timing information" OFF)
@@ -54,21 +57,22 @@ else ()
     target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_DEBUG_TIMINGS=0)
 endif ()
 
+# SZ3_USE_SKA_HASH decides which type SZ3::unordered_map names, so it cannot travel as an INTERFACE
+# compile definition: a consumer who compiles our headers without CMake would not get it and would
+# resolve the alias the other way, giving one program two layouts for HuffmanEncoder and friends.
+# It is baked into a generated header instead, which every consumer reads whatever their build.
 option(SZ3_USE_SKA_HASH "use ska hashmap instead of std hashmap, default is ska for better speed" ON)
-if (SZ3_USE_SKA_HASH)
-    target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_USE_SKA_HASH=1)
-else ()
-    target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_USE_SKA_HASH=0)
-endif ()
+configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/SZ3/options.hpp.in
+        ${CMAKE_CURRENT_BINARY_DIR}/include/SZ3/options.hpp)
 
-if (MSVC)
-    option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" ON)
-else ()
-    option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" OFF)
-endif ()
-pkg_search_module(ZSTD IMPORTED_TARGET libzstd)
+# "${MSVC}" reads as ON under MSVC and OFF everywhere else. Keep the quotes.
+option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" "${MSVC}")
+pkg_search_module(ZSTD libzstd)
 if (ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
-    target_link_libraries(${PROJECT_NAME} INTERFACE PkgConfig::ZSTD)
+    # Not PkgConfig::ZSTD: that imported target does not exist in the consumer's project.
+    # BUILD_INTERFACE, and no include directory: both are paths on this machine only.
+    target_link_libraries(${PROJECT_NAME} INTERFACE $<BUILD_INTERFACE:${ZSTD_LINK_LIBRARIES}>)
 else ()
     add_subdirectory(tools/zstd)
     target_link_libraries(${PROJECT_NAME} INTERFACE zstd)
@@ -80,11 +84,6 @@ if (BUILD_TESTING)
     add_subdirectory(tools/test)
 endif ()
 
-find_package(GSL)
-if (GSL_FOUND)
-    target_compile_definitions(${PROJECT_NAME} INTERFACE -DSZ3_ENABLE_GSL)
-    target_link_libraries(${PROJECT_NAME} INTERFACE GSL::gsl)
-endif ()
 
 option(BUILD_SZ3_BINARY "build SZ3 tools" ON)
 if (BUILD_SZ3_BINARY)
@@ -115,6 +114,7 @@ install(TARGETS ${PROJECT_NAME}
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(FILES
         "${CMAKE_CURRENT_BINARY_DIR}/include/SZ3/version.hpp"
+        "${CMAKE_CURRENT_BINARY_DIR}/include/SZ3/options.hpp"
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/SZ3/"
 )
 install(EXPORT SZ3Targets NAMESPACE SZ3:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3)

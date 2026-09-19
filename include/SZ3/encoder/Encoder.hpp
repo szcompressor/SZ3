@@ -8,18 +8,15 @@
 namespace SZ3 {
 namespace concepts {
 
-
 /**
  * Encoder changes the input to a more compact representative
  * Usually this step is lossless instead of lossy
  * Examples: huffman, runlenth, etc.
- * @tparam T
+ * @tparam T bin type
  */
 template <class T, class TAllocator = std::allocator<T>>
-class EncoderInterface {
+class EncoderInterface : public Interface {
    public:
-    virtual ~EncoderInterface() = default;
-
     /**
      * init the encoder
      * E.g., Huffman will build tree in this step

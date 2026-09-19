@@ -1,0 +1,374 @@
+name: GROMACS
+
+# GROMACS is the consumer that an installed SZ3 has to satisfy, in two shapes: mainline finds it
+# with find_package(SZ3) behind GMX_USE_SZ3, and the H5MD prototype vendors it and writes
+# SZ3-compressed trajectories through it.
+#
+# Not on push. Measured at four cores this is around an hour of runner time across the matrix, and
+# it depends on gitlab.com and a 70 MB download, so a broken third party would redden every commit.
+# What it guards -- the shape of the installed export -- changes at the pace of a release.
+on:
+  schedule:
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+env:
+  GROMACS_URL: https://gitlab.com/gromacs/gromacs.git
+  # Mainline, on the branch that added GMX_USE_SZ3. Pinned by sha: on a moving branch a red run
+  # becomes a question about which GROMACS rather than an answer about SZ3.
+  GROMACS_MAIN_REF: 67345c60629773e67cd17f269b15a2cb303c6a9c
+  # The H5MD prototype. This is the branch on which SZ3-compressed H5MD output actually works.
+  GROMACS_PROTO_REF: fcc10d133b3411c9f3912b381f12a8e7515cf2dd
+  # MDAnalysisData's membrane peptide, 1001 frames of 18727 atoms: a real solvated membrane system,
+  # already named in tools/test/integration/datasets.json, and a .xtc/.tpr pair that gmx reads
+  # directly. 70 MB, against 1.34 GB for the Zenodo set, which buys nothing this does not.
+  TRAJ_URL: https://ndownloader.figshare.com/files/14993174
+  TRAJ_SHA: f9bdfee4e1aa69ccfeef21cb74703202f6728f514543c4125382bd5250773eb7
+  TOPOL_URL: https://ndownloader.figshare.com/files/14993171
+  TOPOL_SHA: 677a3ae55e35c24f37f2610eafa92d19285d1774731d6ffb9a99dfde39b8c437
+  # Nothing here runs a simulation, so no SIMD, no GPU and the bundled FFT. It is the cheapest
+  # GROMACS that still generates the h5md link line and builds the binaries these checks drive.
+  GMX_CHEAP: >-
+    -DCMAKE_BUILD_TYPE=Release
+    -DGMX_SIMD=None
+    -DGMX_FFT_LIBRARY=fftpack
+    -DGMX_GPU=OFF
+    -DGMX_OPENMP=OFF
+    -DGMX_BUILD_OWN_FFTW=OFF
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # GMX_USE_SZ3 in each of its four values, against an installed SZ3 that is present, absent, and
+  # present but unusable. Configure only, which is where the export decides what the consumer gets.
+  consumer:
+    name: GMX_USE_SZ3 ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # The OpenMPI wrappers in the environment carry no compiler of their own.
+      OMPI_CC: /usr/bin/gcc
+      OMPI_CXX: /usr/bin/g++
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: serial
+            hdf5: hdf5=1.14.6
+            bundled_zstd: "OFF"
+            gmx: ""
+            sz3: ""
+          - name: MPI
+            hdf5: hdf5=*=mpi_openmpi*
+            bundled_zstd: "OFF"
+            gmx: "-DGMX_MPI=ON -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx"
+            sz3: "-DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx"
+          - name: bundled Zstd
+            hdf5: hdf5=1.14.6
+            bundled_zstd: "ON"
+            gmx: ""
+            sz3: ""
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: h5
+          create-args: >-
+            ${{ matrix.hdf5 }}
+          init-shell: bash
+
+      - name: Install a system Zstd
+        run: |
+          sudo apt-get update
+          # libzstd-dev, not libzstd1: only the -dev package carries the libzstd.pc and the
+          # libzstd.so that the system-Zstd path needs at build and at find_package time.
+          sudo apt-get install -y libzstd-dev
+
+      - name: Fetch GROMACS
+        run: |
+          git init -q gromacs
+          git -C gromacs remote add origin "$GROMACS_URL"
+          git -C gromacs fetch -q --depth 1 origin "$GROMACS_MAIN_REF"
+          git -C gromacs checkout -q FETCH_HEAD
+          git -C gromacs rev-parse HEAD
+
+      - name: Build and install SZ3
+        shell: bash -el {0}
+        run: |
+          cmake -S . -B build \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DBUILD_H5Z_FILTER=ON \
+                -DBUILD_TESTING=OFF \
+                -DSZ3_USE_BUNDLED_ZSTD=${{ matrix.bundled_zstd }} \
+                -DCMAKE_PREFIX_PATH="$CONDA_PREFIX" \
+                ${{ matrix.sz3 }}
+          cmake --build build --parallel 4
+          cmake --install build --prefix "$PWD/_prefix"
+
+      - name: The installed SZ3 is the one GROMACS uses
+        shell: bash -el {0}
+        run: |
+          tools/test/gromacsConsumerMatrix.sh gromacs _m/found "$PWD/_prefix" "$CONDA_PREFIX" \
+              external ${{ matrix.gmx }}
+
+      - name: With no SZ3 to find, AUTO still configures
+        shell: bash -el {0}
+        run: |
+          tools/test/gromacsConsumerMatrix.sh gromacs _m/absent - "$CONDA_PREFIX" \
+              internal ${{ matrix.gmx }}
+
+      - name: An SZ3 that cannot resolve its own dependencies declines, and AUTO still configures
+        shell: bash -el {0}
+        run: |
+          # Hiding the system library directories from the consumer's finds stands in for an SZ3
+          # installed on a machine that no longer carries what it was built against; which
+          # dependency goes missing first is the machine's business. What matters is the shape:
+          # SZ3Config.cmake reports not-found and returns, leaving AUTO its fallback. Before, it
+          # reported SZ3 found either way and handed GROMACS a link line it could not use.
+          # The Zstd-specific export shapes are packaging.yml's job, not this one's.
+          tools/test/gromacsConsumerMatrix.sh gromacs _m/undeps "$PWD/_prefix" "$CONDA_PREFIX" \
+              internal ${{ matrix.gmx }} \
+              "-DCMAKE_IGNORE_PATH=/usr/lib/x86_64-linux-gnu;/usr/lib;/lib/x86_64-linux-gnu;/lib"
+
+  # The link line is asserted at configure time above; this is the build that proves it, and the
+  # h5md unit tests that run against the library it linked.
+  h5md-tests:
+    name: h5md unit tests ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      OMPI_CC: /usr/bin/gcc
+      OMPI_CXX: /usr/bin/g++
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: serial
+            hdf5: hdf5=1.14.6
+            gmx: ""
+            sz3: ""
+          - name: MPI
+            hdf5: hdf5=*=mpi_openmpi*
+            gmx: "-DGMX_MPI=ON -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx"
+            sz3: "-DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx"
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: h5
+          create-args: >-
+            ${{ matrix.hdf5 }}
+          init-shell: bash
+
+      - name: Install a system Zstd
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libzstd-dev
+
+      - name: Fetch GROMACS
+        run: |
+          git init -q gromacs
+          git -C gromacs remote add origin "$GROMACS_URL"
+          git -C gromacs fetch -q --depth 1 origin "$GROMACS_MAIN_REF"
+          git -C gromacs checkout -q FETCH_HEAD
+
+      - name: Build and install SZ3
+        shell: bash -el {0}
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_H5Z_FILTER=ON -DBUILD_TESTING=OFF \
+                -DCMAKE_PREFIX_PATH="$CONDA_PREFIX" ${{ matrix.sz3 }}
+          cmake --build build --parallel 4
+          cmake --install build --prefix "$PWD/_prefix"
+
+      - name: Build h5md-test against the installed SZ3
+        shell: bash -el {0}
+        run: |
+          cmake -S gromacs -B gbuild $GMX_CHEAP \
+                -DBUILD_TESTING=ON \
+                -DGMX_USE_HDF5=ON \
+                -DGMX_USE_SZ3=EXTERNAL \
+                -DCMAKE_PREFIX_PATH="$CONDA_PREFIX;$PWD/_prefix" \
+                ${{ matrix.gmx }}
+          LINK=gbuild/src/gromacs/fileio/h5md/tests/CMakeFiles/h5md-test.dir/link.txt
+          tr ' ' '\n' < "$LINK" | grep -i sz3 | tee sz3.link
+          # A bare -lhdf5sz3 here is the export failing to carry the unversioned target GROMACS
+          # asks for. It configures, and then the link below cannot find the library.
+          if grep -qF "$PWD/_prefix" sz3.link; then
+            echo "h5md links the installed SZ3 by path"
+          else
+            echo "h5md did not link the installed SZ3: $(cat sz3.link)"; exit 1
+          fi
+          cmake --build gbuild --parallel 4 --target h5md-test
+
+      - name: Run the h5md unit tests
+        shell: bash -el {0}
+        run: |
+          # pipefail, or tee would swallow a failing suite.
+          set -o pipefail
+          gbuild/bin/h5md-test | tee h5md.log
+          # gtest exits 0 for a run with no tests in it, so count them as well.
+          RAN=$(sed -n 's/^\[==========\] \([0-9]*\) tests from .* ran.*/\1/p' h5md.log | tail -1)
+          echo "tests run: ${RAN:-0}"
+          if [ "${RAN:-0}" -ge 100 ]; then
+            echo "the h5md suite ran"
+          else
+            echo "the h5md suite did not run"; exit 1
+          fi
+
+  # The part that is not "it builds": GROMACS writes a real trajectory through SZ3 and everything
+  # that reads it back is checked against the coordinates it started from.
+  roundtrip:
+    name: H5MD round trip
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          # The prototype's own headers declare hsize_t as unsigned long long, which is what HDF5
+          # was up to 1.12; against 1.14 or later its h5md sources do not compile at all.
+          environment-name: h5
+          create-args: >-
+            hdf5=1.10.6
+            numpy
+          init-shell: bash
+
+      - name: Install a system Zstd
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libzstd-dev
+
+      - name: Fetch the H5MD prototype
+        run: |
+          git init -q gromacs
+          git -C gromacs remote add origin "$GROMACS_URL"
+          git -C gromacs fetch -q --depth 1 origin "$GROMACS_PROTO_REF"
+          git -C gromacs checkout -q FETCH_HEAD
+
+      - name: Put this SZ3 where the prototype vendors its own
+        run: |
+          # The prototype reaches SZ3 by add_subdirectory on src/external/SZ3-bio, which it ships at
+          # 3.1.8. The directory name is in its #include paths, so the name has to stay.
+          rm -rf gromacs/src/external/SZ3-bio
+          git archive HEAD --prefix=SZ3-bio/ | tar x -C gromacs/src/external
+          grep -m1 'project(SZ3' gromacs/src/external/SZ3-bio/CMakeLists.txt
+          python3 - <<'PY'
+          p = "gromacs/cmake/gmxManageHDF5.cmake"
+          s = open(p).read()
+          old = "        set(BUILD_H5Z_FILTER ON)\n"
+          new = old + (
+              "        # SZ3 reads these itself. Without them BUILD_TESTING leaks in and SZ3\n"
+              "        # fetches its own googletest, whose targets collide with GROMACS's.\n"
+              "        set(BUILD_TESTING OFF)\n"
+              "        set(BUILD_SZ3_BINARY OFF)\n"
+              "        set(BUILD_MDZ OFF)\n"
+              "        set(BUILD_PARAVIEW_PLUGIN OFF)\n")
+          assert s.count(old) == 1, "gmxManageHDF5.cmake no longer looks like this"
+          open(p, "w").write(s.replace(old, new))
+          PY
+
+      - name: Build gmx
+        shell: bash -el {0}
+        run: |
+          # trjconv is what writes .h5md, so this one needs the gmx driver rather than a test binary.
+          cmake -S gromacs -B gbuild $GMX_CHEAP \
+                -DBUILD_TESTING=OFF \
+                -DGMX_USE_HDF5=ON \
+                -DCMAKE_PREFIX_PATH="$CONDA_PREFIX"
+          cmake --build gbuild --parallel 4 --target gmx
+          if ldd gbuild/bin/gmx | grep hdf5sz3; then
+            echo "gmx links the SZ3 filter library"
+          else
+            echo "gmx links no SZ3 filter library, so nothing below would be testing SZ3"; exit 1
+          fi
+
+      - name: Cache the trajectory
+        id: traj
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: mdanalysisdata-memb-pept-${{ env.TRAJ_SHA }}
+
+      - name: Fetch the trajectory
+        if: steps.traj.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p data
+          curl -sSL -o data/memb_pept.xtc "$TRAJ_URL"
+          curl -sSL -o data/memb_pept.tpr "$TOPOL_URL"
+
+      - name: Check the trajectory
+        run: |
+          # Also on a cache hit: a cache is not a checksum.
+          echo "$TRAJ_SHA  data/memb_pept.xtc" | sha256sum -c -
+          echo "$TOPOL_SHA  data/memb_pept.tpr" | sha256sum -c -
+
+      - name: Round trip at three error bounds
+        shell: bash -el {0}
+        run: |
+          export PYTHON=$CONDA_PREFIX/bin/python
+          # The filter has to identify itself as the SZ3 in this tree, not as the 3.1.8 the
+          # prototype vendored.
+          export SZ3_EXPECT_VERSION=$(sed -n 's/^project(SZ3 VERSION \([0-9.]*\)).*/\1/p' CMakeLists.txt)
+          # sed exits 0 when it matches nothing, and an empty pin leaves the assertion looking for
+          # "H5Z-SZ3-", which the vendored 3.1.8 satisfies as readily as this tree does.
+          [ -n "$SZ3_EXPECT_VERSION" ] \
+            || { echo "could not read the version out of project(SZ3 VERSION ...)"; exit 1; }
+          echo "expecting filter version $SZ3_EXPECT_VERSION"
+          # -ndec 1, 2 and 3 ask SZ3 for 0.05, 0.005 and 0.0005 nm. One bound says the path works;
+          # three say the bound is the thing that moves.
+          for ndec in 1 2 3; do
+            tools/test/gromacsH5mdRoundtrip.sh gbuild/bin/gmx gbuild/lib "$CONDA_PREFIX/bin" \
+                data/memb_pept.xtc data/memb_pept.tpr "_rt/n$ndec" $ndec
+            # Each round holds about a gigabyte of trajectory; the runner has 14.
+            rm -rf "_rt/n$ndec"
+          done
+
+      - name: H5Z_SZ3_initialize is what lets a linked application skip HDF5_PLUGIN_PATH
+        shell: bash -el {0}
+        run: |
+          mkdir -p _init
+          cd _init
+          run_it() {
+            echo 0 | env -u HDF5_PLUGIN_PATH ../gbuild/bin/gmx trjconv \
+                -f ../data/memb_pept.xtc -s ../data/memb_pept.tpr -o "$1" -ndec 2 -e 50 \
+                > "$1.log" 2>&1
+          }
+          # As shipped, the prototype registers the filter through H5Pset_filter alone, so it needs
+          # the plugin on HDF5_PLUGIN_PATH even though it links the library.
+          if run_it before.h5md; then
+            echo "expected the prototype to fail without HDF5_PLUGIN_PATH, and it did not"; exit 1
+          fi
+          if grep -m1 "SZ3 compression filter" before.h5md.log; then
+            echo "and it failed for the documented reason"
+          else
+            echo "it failed for some other reason"; tail -20 before.h5md.log; exit 1
+          fi
+          cd ..
+          python3 - <<'PY'
+          p = "gromacs/src/gromacs/fileio/h5md_low_level_util.cpp"
+          s = open(p).read()
+          old = "void registerSz3FilterImplicitly()\n{\n"
+          new = old + "    H5Z_SZ3_initialize();\n"
+          assert s.count(old) == 1, "registerSz3FilterImplicitly no longer looks like this"
+          open(p, "w").write(s.replace(old, new))
+          PY
+          cmake --build gbuild --parallel 4 --target gmx
+          cd _init
+          if run_it after.h5md; then
+            echo "the same call now works with no HDF5_PLUGIN_PATH set"
+          else
+            tail -20 after.h5md.log; exit 1
+          fi
+          # And what it wrote without the plugin path is SZ3-compressed, not a silent fallback.
+          HDF5_PLUGIN_PATH=/nonexistent "$CONDA_PREFIX/bin/h5dump" -pH \
+              -d /particles/system/position/value after.h5md > after.layout
+          if grep -q "FILTER_ID 32024" after.layout; then
+            grep -E 'FILTER_ID|COMMENT' after.layout
+          else
+            echo "the file it wrote carries no SZ3 filter"; cat after.layout; exit 1
+          fi

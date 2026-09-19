@@ -17,27 +17,43 @@ add_library(SZ3::hdf5sz3 ALIAS hdf5sz3)
 target_link_libraries(hdf5sz3
         PUBLIC SZ3 HDF5::HDF5
 )
-if (${HDF5_IS_PARALLEL})
-    find_package(MPI REQUIRED)
-    target_link_libraries(hdf5sz3
-            PUBLIC MPI::MPI_CXX)
-endif ()
-set(HDF5_IS_PARALLEL ${HDF5_IS_PARALLEL} PARENT_SCOPE)
+# Do not add an MPI search: the filter calls no MPI function, and a parallel HDF5 brings its own.
+
+# Keep this: without a RUNPATH the installed library cannot find a conda, Spack or module HDF5.
+set_target_properties(hdf5sz3 PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 target_include_directories(hdf5sz3
         PUBLIC
-        ${HDF5_INCLUDE_DIRS}
+        # BUILD_INTERFACE only: exported, this machine's HDF5 headers would outrank a consumer's.
+        $<BUILD_INTERFACE:${HDF5_INCLUDE_DIRS}>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/hdf5_sz3>
 )
 
-add_subdirectory(test)
+add_subdirectory(tools)
+if (BUILD_TESTING)
+    add_subdirectory(test)
+endif ()
 
 install(TARGETS hdf5sz3 EXPORT HDF5SZ3
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+# A copy for HDF5 to find on its own. Its own directory, because HDF5 dlopens every lib*.so on
+# HDF5_PLUGIN_PATH.
+set(H5Z_SZ3_PLUGIN_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/plugin" CACHE STRING
+        "Directory to install the HDF5 filter plugin copy into; empty installs no copy")
+if (BUILD_SHARED_LIBS AND H5Z_SZ3_PLUGIN_INSTALL_DIR)
+    install(TARGETS hdf5sz3
+            LIBRARY DESTINATION ${H5Z_SZ3_PLUGIN_INSTALL_DIR}
+            RUNTIME DESTINATION ${H5Z_SZ3_PLUGIN_INSTALL_DIR}
+            # The Windows import library belongs beside the real one, not where HDF5 scans.
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
+endif ()
+
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/hdf5_sz3)
 install(EXPORT HDF5SZ3 NAMESPACE SZ3:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3)
 export(TARGETS hdf5sz3 FILE HDF5SZ3.cmake NAMESPACE SZ3::)

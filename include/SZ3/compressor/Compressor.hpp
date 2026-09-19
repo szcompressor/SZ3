@@ -12,10 +12,8 @@ namespace SZ3::concepts {
  * @tparam T input data type
  */
 template <class T>
-class CompressorInterface {
+class CompressorInterface : public Interface {
    public:
-    virtual ~CompressorInterface() = default;
-
     /**
      * decompress data
      * @param cmpData compressed data in bytes

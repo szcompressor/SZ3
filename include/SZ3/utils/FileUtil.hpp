@@ -17,10 +17,6 @@ namespace SZ3 {
 
 /**
  * read binary file and put it to a existing memory space
- * @tparam Type
- * @param file
- * @param num
- * @param data
  */
 template <typename Type>
 void readfile(const char *file, const size_t num, Type *data) {
@@ -40,10 +36,6 @@ void readfile(const char *file, const size_t num, Type *data) {
 
 /**
  * read binary file and put it to a new memory space
- * @tparam Type
- * @param file
- * @param num
- * @return
  */
 template <typename Type>
 std::unique_ptr<Type[]> readfile(const char *file, size_t &num) {

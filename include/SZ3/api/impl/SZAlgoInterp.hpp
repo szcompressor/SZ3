@@ -43,7 +43,7 @@ void SZ_decompress_Interp(const Config &conf, const uchar *cmpData, size_t cmpSi
 
 template <class T, uint N>
 double interp_compress_test(
-    const std::vector<std::vector<T>> sampled_blocks, const Config conf, int block_size, uchar *cmpData,
+    const std::vector<std::vector<T>> sampled_blocks, const Config conf, uchar *cmpData,
     size_t cmpCap) {  // test interp cmp on a set of sampled data blocks and return the compression ratio
     auto sz =
         make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2));
@@ -193,7 +193,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         testConfig.setDims(dims.begin(), dims.end());
         for (auto &interp_op : {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC}) {
             testConfig.interpAlgo = interp_op;
-            ratio = interp_compress_test<T, N>(sampled_blocks, testConfig, sampleBlockSize, buffer, bufferCap);
+            ratio = interp_compress_test<T, N>(sampled_blocks, testConfig, buffer, bufferCap);
             if (ratio > best_interp_ratio) {
                 best_interp_ratio = ratio;
                 conf.interpAlgo = interp_op;
@@ -202,7 +202,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
 
         testConfig.interpAlgo = conf.interpAlgo;
         testConfig.interpDirection = factorial(N) - 1;
-        ratio = interp_compress_test<T, N>(sampled_blocks, testConfig, sampleBlockSize, buffer, bufferCap);
+        ratio = interp_compress_test<T, N>(sampled_blocks, testConfig, buffer, bufferCap);
         if (ratio > best_interp_ratio * 1.02) {
             best_interp_ratio = ratio;
             conf.interpDirection = testConfig.interpDirection;
@@ -216,7 +216,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
             auto beta = betalist[i];
             testConfig.interpAlpha = alpha;
             testConfig.interpBeta = beta;
-            ratio = interp_compress_test<T, N>(sampled_blocks, testConfig, sampleBlockSize, buffer, bufferCap);
+            ratio = interp_compress_test<T, N>(sampled_blocks, testConfig, buffer, bufferCap);
             if (ratio > best_interp_ratio * 1.02) {
                 best_interp_ratio = ratio;
                 conf.interpAlpha = alpha;

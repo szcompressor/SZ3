@@ -244,18 +244,6 @@ cd tools/pysz
 pip install -e .
 ```
 
-### Library Not Found (Linux)
-
-```
-OSError: libzstd.so: cannot open shared object file
-```
-
-**Solution:**
-```bash
-export LD_LIBRARY_PATH="../../build/tools/zstd:$LD_LIBRARY_PATH"
-```
-
-
 ## Links
 
 - **Repository:** https://github.com/szcompressor/SZ3

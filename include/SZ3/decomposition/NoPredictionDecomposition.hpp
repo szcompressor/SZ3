@@ -12,7 +12,7 @@ namespace SZ3 {
 template <class T, uint N, class Quantizer>
 class NoPredictionDecomposition : public concepts::DecompositionInterface<T, int, N> {
    public:
-    NoPredictionDecomposition(const Config &conf, Quantizer quantizer) : quantizer(quantizer) {
+    NoPredictionDecomposition(const Config & /*conf*/, Quantizer quantizer_) : quantizer(quantizer_) {
         static_assert(std::is_base_of<concepts::QuantizerInterface<T, int>, Quantizer>::value,
                       "must implement the quantizer interface");
     }

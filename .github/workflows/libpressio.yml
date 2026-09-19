@@ -1,0 +1,84 @@
+name: libpressio
+
+on: [ push ]
+
+# One run per ref. A newer push supersedes the one in flight, which otherwise queues a second
+# full set of jobs behind work that is already superseded.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  # Both pinned at their release commits: on a moving branch a red run becomes a question about
+  # which libpressio rather than an answer about SZ3. gromacs.yml pins its refs for the same reason.
+  LIBPRESSIO_REF: 868a3a70d6ebf55ad67509fbca03bdd0bc1bc246  # v1.0.7, 2025-09-18
+  STD_COMPAT_REF: 514383ce8816b7bcb800fbe3ce842c1e838105e2  # v0.0.22, 2025-08-07
+
+# libpressio reaches SZ3 the way a packaged consumer does -- find_package(SZ3) and SZ3::SZ3 -- and
+# then compiles against the API itself: 19 Config fields, SZ_compress and SZ_decompress over ten
+# types, the EB/ALGO/INTERP_ALGO maps and the version macros. Nothing else here compiles a line of
+# anyone else's code against ours, and libpressio has no CI of its own to catch it at their end:
+# zero workflow runs ever, and its one stale Travis file never turned SZ3 on. On push rather than
+# the schedule gromacs.yml uses, because this is minutes rather than an hour.
+jobs:
+  build:
+    name: libpressio builds against an installed SZ3
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Zstd
+        run: |
+          sudo apt-get update
+          # Both sides need it: it sends SZ3 down the system-Zstd path, and libpressio resolves
+          # libzstd through pkg-config on the branch that its SZ3 plugin is on.
+          sudo apt-get install -y libzstd-dev
+
+      - name: Install SZ3 for libpressio to find
+        shell: bash
+        run: |
+          # No binaries, no filter, no BUILD_TESTING: libpressio links SZ3::SZ3 and reaches nothing
+          # else in the export.
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DBUILD_SZ3_BINARY=OFF
+          cmake --build build --parallel 4
+          cmake --install build --prefix "$PWD/_prefix"
+
+      - name: Install std_compat, the one dependency libpressio always needs
+        shell: bash
+        run: |
+          # Header-only and seconds to build, but packaged under that name nowhere a runner can
+          # install it from -- not apt, not conda-forge. Into the same prefix as SZ3, which is the
+          # shape a consumer on a conda or Spack view sees.
+          git clone -q https://github.com/robertu94/std_compat.git _std_compat
+          git -C _std_compat checkout -q ${{ env.STD_COMPAT_REF }}
+          # CMAKE_INSTALL_PREFIX at configure time, not --prefix at install time: its .pc files have
+          # an absolute DESTINATION built from the prefix, which --prefix cannot move, so an install
+          # driven that way writes to /usr/local/share/pkgconfig and stops there.
+          cmake -S _std_compat -B _std_compat/build \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_INSTALL_PREFIX="$PWD/_prefix" \
+            -DBUILD_TESTING=OFF
+          cmake --build _std_compat/build --parallel 4
+          cmake --install _std_compat/build
+
+      - name: libpressio compiles and links against this SZ3
+        shell: bash
+        run: |
+          git clone -q https://github.com/robertu94/libpressio.git _libpressio
+          git -C _libpressio checkout -q ${{ env.LIBPRESSIO_REF }}
+          cmake -S _libpressio -B _libpressio/build \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DBUILD_TESTING=OFF \
+            -DLIBPRESSIO_HAS_SZ3=ON \
+            -DCMAKE_PREFIX_PATH="$PWD/_prefix"
+          # The configure is not the check. With SZ3/api/sz.hpp replaced by a bare #error it still
+          # exits 0, because find_package(SZ3) reads the export and compiles nothing. The plugin's
+          # own translation unit is the only place the API surface is looked at.
+          cmake --build _libpressio/build --parallel 4
+          # Named, not assumed: with LIBPRESSIO_HAS_SZ3 off this builds just as happily, and the
+          # step would then be reporting on a library with no SZ3 in it.
+          nm -C _libpressio/build/liblibpressio.so | grep -q 'sz3_ns::registration' \
+            || { echo "the library carries no sz3 plugin, so nothing here tested SZ3"; exit 1; }

@@ -19,10 +19,8 @@ namespace SZ3::concepts {
  * @tparam N original data dimension
  */
 template <class Ti, class To, uint N, class ToAllocator = std::allocator<To>>
-class DecompositionInterface {
+class DecompositionInterface : public Interface {
    public:
-    virtual ~DecompositionInterface() = default;
-
     /**
      * predict the data and quantize the error
      * @param data original input

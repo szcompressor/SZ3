@@ -5,7 +5,6 @@ Automatically downloads and builds SZ3 with bundled zstd.
 
 import sys
 import subprocess
-import shutil
 from pathlib import Path
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext as _build_ext
@@ -24,29 +23,11 @@ class BuildSZ3Extension(_build_ext):
         for ext in self.extensions:
             ext.include_dirs.insert(0, str(sz3_dir / "include"))
             ext.include_dirs.insert(0, str(sz3_dir / "build" / "include"))
-            ext.include_dirs.append(str(sz3_dir / "build" / "_deps" / "zstdfetched-src" / "lib"))
             ext.library_dirs.append(str(sz3_dir / "build" / "tools" / "zstd"))
             ext.library_dirs.append(str(sz3_dir / "build" / "tools" / "zstd" / "Release"))
             ext.library_dirs.append(str(sz3_dir / "build" / "tools" / "zstd" / "Debug"))
 
         super().run()
-
-        if sys.platform == "darwin":
-            zstd_lib_name = "libzstd.dylib"
-        elif sys.platform == "win32":
-            zstd_lib_name = "zstd.dll"
-        else:
-            zstd_lib_name = "libzstd.so"
-
-        zstd_base = sz3_dir / "build" / "tools" / "zstd"
-        package_dir = Path(self.build_lib) / "pysz"
-        if package_dir.exists():
-            for subdir in ["", "Release", "Debug"]:
-                zstd_lib = zstd_base / subdir / zstd_lib_name
-                if zstd_lib.exists():
-                    shutil.copy2(zstd_lib, package_dir / zstd_lib.name)
-                    print(f"Copied {zstd_lib.name} to package")
-                    break
 
     def download_and_build_sz3(self):
         build_temp = Path(self.build_temp).absolute()
@@ -89,7 +70,7 @@ class BuildSZ3Extension(_build_ext):
 def create_extensions():
     include_dirs = [np.get_include()]
     library_dirs = []
-    libraries = ['zstd']
+    libraries = ['sz3_zstd']
     extra_compile_args = []
     extra_link_args = []
     

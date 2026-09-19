@@ -19,6 +19,13 @@
 #define DATASET "testdata_compressed"
 #define MAX_CHUNK_SIZE 4294967295  // 2^32-1
 
+// H5Fcreate runs before the reads, so a failed read would leave an empty output file behind.
+#define READ_ERROR()               \
+    do {                           \
+        remove(outputFilePath);    \
+        ERROR(H5Dread);            \
+    } while (0)
+
 int main(int argc, char *argv[]) {
     // int dimSize = 0;
     // size_t r5 = 0, r4 = 0, r3 = 0, r2 = 0, r1 = 0;
@@ -60,9 +67,9 @@ int main(int argc, char *argv[]) {
     /*Retrieve dataset creation property list.*/
     dcpl = H5Dget_create_plist(dset);
 
-    herr_t ret = H5Zregister(H5PLget_plugin_info());
+    herr_t ret = H5Z_SZ3_initialize();
     if (ret < 0) {
-        printf("Error: H5Zregister < 0\n");
+        printf("Error: H5Z_SZ3_initialize < 0\n");
         exit(0);
     }
     /*Check that filter is not registered with the library yet*/
@@ -123,6 +130,7 @@ int main(int argc, char *argv[]) {
                     status = H5Dread(dset, H5T_IEEE_F32LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
                 else  // H5T_ORDER_BE
                     status = H5Dread(dset, H5T_IEEE_F32BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+                if (status < 0) READ_ERROR();
                 /*Print the first 20 data values to check the correctness.*/
                 printf("reconstructed data = ");
                 for (int i = 0; i < 20; i++) printf("%f ", data[i]);
@@ -143,6 +151,7 @@ int main(int argc, char *argv[]) {
                     status = H5Dread(dset, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
                 else
                     status = H5Dread(dset, H5T_IEEE_F64BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+                if (status < 0) READ_ERROR();
                 /*Print the first 10 data values to check the correctness.*/
                 printf("reconstructed data = ");
                 for (int i = 0; i < 20; i++) printf("%f ", data[i]);
@@ -164,6 +173,7 @@ int main(int argc, char *argv[]) {
                         status = H5Dread(dset, H5T_STD_U8LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
                     else
                         status = H5Dread(dset, H5T_STD_U8BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+                    if (status < 0) READ_ERROR();
                     printf("reconstructed data = ");
                     for (int i = 0; i < 20; i++) printf("%d ", data[i]);
                     printf("\n");
@@ -175,6 +185,7 @@ int main(int argc, char *argv[]) {
                         status = H5Dread(dset, H5T_STD_U16LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
                     else
                         status = H5Dread(dset, H5T_STD_U16BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+                    if (status < 0) READ_ERROR();
                     printf("reconstructed data = ");
                     for (int i = 0; i < 20; i++) printf("%d ", data[i]);
                     printf("\n");
@@ -186,6 +197,7 @@ int main(int argc, char *argv[]) {
                         status = H5Dread(dset, H5T_STD_U32LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
                     else
                         status = H5Dread(dset, H5T_STD_U32BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+                    if (status < 0) READ_ERROR();
                     printf("reconstructed data = ");
                     for (int i = 0; i < 20; i++) printf("%d ", data[i]);
                     printf("\n");
@@ -197,6 +209,7 @@ int main(int argc, char *argv[]) {
                         status = H5Dread(dset, H5T_STD_U64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
                     else
                         status = H5Dread(dset, H5T_STD_U64BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+                    if (status < 0) READ_ERROR();
                     printf("reconstructed data = ");
                     for (int i = 0; i < 20; i++) printf("%" PRIu64 " ", data[i]);
                     printf("\n");
@@ -210,6 +223,7 @@ int main(int argc, char *argv[]) {
                         status = H5Dread(dset, H5T_STD_I8LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
                     else
                         status = H5Dread(dset, H5T_STD_I8BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+                    if (status < 0) READ_ERROR();
                     printf("reconstructed data = ");
                     for (int i = 0; i < 20; i++) printf("%d ", data[i]);
                     printf("\n");
@@ -221,6 +235,7 @@ int main(int argc, char *argv[]) {
                         status = H5Dread(dset, H5T_STD_I16LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
                     else
                         status = H5Dread(dset, H5T_STD_I16BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+                    if (status < 0) READ_ERROR();
                     printf("reconstructed data = ");
                     for (int i = 0; i < 20; i++) printf("%d ", data[i]);
                     printf("\n");
@@ -232,6 +247,7 @@ int main(int argc, char *argv[]) {
                         status = H5Dread(dset, H5T_STD_I32LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
                     else
                         status = H5Dread(dset, H5T_STD_I32BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+                    if (status < 0) READ_ERROR();
                     printf("reconstructed data = ");
                     for (int i = 0; i < 20; i++) printf("%d ", data[i]);
                     printf("\n");
@@ -243,6 +259,7 @@ int main(int argc, char *argv[]) {
                         status = H5Dread(dset, H5T_STD_I64LE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
                     else
                         status = H5Dread(dset, H5T_STD_I64BE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+                    if (status < 0) READ_ERROR();
                     printf("reconstructed data = ");
                     for (int i = 0; i < 20; i++) printf("%" PRId64 " ", data[i]);
                     printf("\n");
@@ -256,10 +273,6 @@ int main(int argc, char *argv[]) {
             exit(1);
     }
 
-    if (status < 0) {
-        printf("Error: H5Dread < 0\n");
-        exit(0);
-    }
     // Close reading resources
     status = H5Pclose(dcpl);
     status = H5Dclose(dset);

@@ -133,11 +133,11 @@ void SZ_decompress(SZ3::Config& config, const char* cmpData, size_t cmpSize, T*&
 
     read(config.sz3DataVer, cmpDataPos);
     if (versionStr(config.sz3DataVer) != SZ3_DATA_VER) {
+        // Do not print here. In the HDF5 filter stdout is the user's output file.
         std::stringstream ss;
-        printf("program v%s , program-data %s , input data v%s\n", SZ3_VER, SZ3_DATA_VER,
-               versionStr(config.sz3DataVer).data());
-        ss << "Please use SZ3 v" << versionStr(config.sz3DataVer) << " to decompress the data" << std::endl;
-        std::cerr << ss.str();
+        ss << "SZ3 " << SZ3_VER << " reads data version " << SZ3_DATA_VER << ", but this data is version "
+           << versionStr(config.sz3DataVer) << ". Use SZ3 v" << versionStr(config.sz3DataVer)
+           << " to decompress it.";
         throw std::invalid_argument(ss.str());
     }
 
@@ -174,7 +174,6 @@ void SZ_decompress(SZ3::Config& config, const char* cmpData, size_t cmpSize, T*&
  * @param config Configuration placeholder that will be overwritten with the compression configuration from the compressed data.
  * @param cmpData Pointer to the compressed data.
  * @param cmpSize The size of the compressed data in bytes.
- * @param decData Reference to a pointer for the pre-allocated buffer for decompressed data. If null, a new buffer is allocated.
  * @example
  * auto decData = new float[100 * 200 * 300];
  * SZ3::Config conf;

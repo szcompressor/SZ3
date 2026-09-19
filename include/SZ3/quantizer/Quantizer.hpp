@@ -15,10 +15,8 @@ namespace SZ3::concepts {
  * @tparam To quantized data type
  */
 template <class Ti, class To>
-class   QuantizerInterface {
+class QuantizerInterface : public Interface {
    public:
-    virtual ~QuantizerInterface() = default;
-
     /**
      * quantize the error (error=data-pred) based on error bound, and overwrite the data with reconstructed value
      * @param data single data point
