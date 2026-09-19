@@ -27,7 +27,7 @@ class Timer {
         return std::chrono::duration<double>(end - begin).count();
     }
 
-    double stop(const std::string &msg) {
+    double stop([[maybe_unused]] const std::string &msg) {
         double seconds = stop();
 #if SZ3_DEBUG_TIMINGS
         std::cout << msg << " time = " << seconds << "s" << std::endl;

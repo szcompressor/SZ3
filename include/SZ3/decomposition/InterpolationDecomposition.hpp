@@ -20,12 +20,12 @@ namespace SZ3 {
 template <class T, uint N, class Quantizer>
 class InterpolationDecomposition : public concepts::DecompositionInterface<T, int, N> {
    public:
-    InterpolationDecomposition(const Config &conf, Quantizer quantizer) : quantizer(quantizer) {
+    InterpolationDecomposition(const Config & /*conf*/, Quantizer quantizer_) : quantizer(quantizer_) {
         static_assert(std::is_base_of<concepts::QuantizerInterface<T, int>, Quantizer>::value,
                       "must implement the quantizer interface");
     }
 
-    T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) override {
+    T *decompress(const Config &conf, std::vector<int> &quant_inds_, T *dec_data) override {
         // load() read original_dimensions from the payload, and the grid walk below is sized by it while
         // dec_data and quant_inds are sized by conf. A tampered value runs off both.
         if (conf.dims.size() != N) {
@@ -39,10 +39,10 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
 
         init();
 
-        if (quant_inds.size() < num_elements) {
+        if (quant_inds_.size() < num_elements) {
             throw std::out_of_range("SZ3 interpolation: fewer bins than the grid consumes");
         }
-        this->quant_inds = quant_inds.data();
+        this->quant_inds = quant_inds_.data();
         double eb = quantizer.get_eb();
 
         if (anchor_stride == 0) {                                               // check whether used anchor points
@@ -83,7 +83,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 }
                 interpolation(
                     dec_data, block.get_global_index(), end_idx, interpolators[interp_id],
-                    [&](size_t idx, T &d, T pred) { d = quantizer.recover(pred, quant_inds[quant_index++]); },
+                    [&](size_t /*idx*/, T &d, T pred) { d = quantizer.recover(pred, quant_inds_[quant_index++]); },
                     direction_sequence_id, stride);
             }
         }
@@ -151,7 +151,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
 
                 interpolation(
                     data, block.get_global_index(), end_idx, interpolators[interp_id],
-                    [&](size_t idx, T &d, T pred) {
+                    [&](size_t /*idx*/, T &d, T pred) {
                         quant_inds[quant_index++] = (quantizer.quantize_and_overwrite(d, pred));
                     },
                     direction_sequence_id, stride);

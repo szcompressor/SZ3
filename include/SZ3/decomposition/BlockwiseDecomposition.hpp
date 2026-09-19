@@ -22,8 +22,8 @@ class BlockwiseDecomposition : public concepts::DecompositionInterface<T, int, N
    public:
     using Block_iter = typename block_data<T, N>::block_iterator;
 
-    BlockwiseDecomposition(const Config &conf, Predictor predictor, Quantizer quantizer)
-        : predictor(predictor), quantizer(quantizer), fallback_predictor(conf.absErrorBound) {
+    BlockwiseDecomposition(const Config &conf, Predictor predictor_, Quantizer quantizer_)
+        : predictor(predictor_), quantizer(quantizer_), fallback_predictor(conf.absErrorBound) {
         static_assert(std::is_base_of<concepts::PredictorInterface<T, N>, Predictor>::value,
                       "must implement the Predictor interface");
     }

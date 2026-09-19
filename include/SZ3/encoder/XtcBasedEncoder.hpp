@@ -67,7 +67,7 @@ struct DataBuffer {
  *
  */
 
-static void sendbits(struct DataBuffer *buffer, int num_of_bits, int num) {
+static inline void sendbits(struct DataBuffer *buffer, int num_of_bits, int num) {
     unsigned int lastbyte;
     int lastbits;
 
@@ -99,7 +99,7 @@ static void sendbits(struct DataBuffer *buffer, int num_of_bits, int num) {
  *
  */
 
-static int sizeofint(const int size) {
+static inline int sizeofint(const int size) {
     int num = 1;
     int num_of_bits = 0;
 
@@ -120,7 +120,7 @@ static int sizeofint(const int size) {
  * So I don't need to call 'sizeofints for those calls.
  */
 
-static int sizeofints(const int num_of_ints, const unsigned int sizes[]) {
+static inline int sizeofints(const int num_of_ints, const unsigned int sizes[]) {
     int i, num;
     int bytes[32];
     unsigned int num_of_bytes, num_of_bits, bytecnt, tmp;
@@ -162,8 +162,8 @@ static int sizeofints(const int num_of_ints, const unsigned int sizes[]) {
  *
  */
 
-static void sendints(struct DataBuffer *buffer, const int num_of_ints, const int num_of_bits, unsigned int sizes[],
-                     unsigned int nums[]) {
+static inline void sendints(struct DataBuffer *buffer, const int num_of_ints, const int num_of_bits,
+                            unsigned int sizes[], unsigned int nums[]) {
     int i, num_of_bytes, bytecnt;
     unsigned int bytes[32], tmp;
 
@@ -215,7 +215,7 @@ static void sendints(struct DataBuffer *buffer, const int num_of_ints, const int
  *
  */
 
-static int receivebits(struct DataBuffer *buffer, int num_of_bits) {
+static inline int receivebits(struct DataBuffer *buffer, int num_of_bits) {
     int num, lastbits;
     unsigned int lastbyte;
     int mask = (1 << num_of_bits) - 1;
@@ -252,8 +252,8 @@ static int receivebits(struct DataBuffer *buffer, int num_of_bits) {
  *
  */
 
-static void receiveints(struct DataBuffer *buffer, const int num_of_ints, int num_of_bits, const unsigned int sizes[],
-                        int nums[]) {
+static inline void receiveints(struct DataBuffer *buffer, const int num_of_ints, int num_of_bits,
+                               const unsigned int sizes[], int nums[]) {
     int bytes[32];
     int i, j, num_of_bytes, p, num;
 
@@ -285,7 +285,7 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
     Config conf_;
 
    public:
-    void preprocess_encode(const std::vector<T> &quantData, int stateNum) override {
+    void preprocess_encode(const std::vector<T> &quantData, int /*stateNum*/) override {
         auto nreminder = quantData.size() % 3;
         if (nreminder == 1) {
             reminder1 = quantData[quantData.size() - 1];

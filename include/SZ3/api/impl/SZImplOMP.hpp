@@ -138,7 +138,8 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
 }
 
 template <class T, uint N>
-void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* decData) {
+void SZ_decompress_OMP([[maybe_unused]] Config& conf, [[maybe_unused]] const uchar* cmpData,
+                       [[maybe_unused]] size_t cmpSize, [[maybe_unused]] T* decData) {
 #ifdef _OPENMP
 
     auto cmpr_data_pos = cmpData;

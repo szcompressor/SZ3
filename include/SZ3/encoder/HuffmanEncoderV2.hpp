@@ -244,8 +244,8 @@ public:
 
         switch ((flag & 0xc0) >> 6) {
             case 0: {
-                if (tree.maxval >= (1 << 12) && num_bin < 2 * static_cast<size_t>(__maxval)
-                    || tree.maxval >= (1 << 28)) {
+                if ((tree.maxval >= (1 << 12) && num_bin < 2 * static_cast<size_t>(__maxval)) ||
+                    tree.maxval >= (1 << 28)) {
                     tree.usemp = 1;
                 } else {
                     tree.usemp = 0;
@@ -911,7 +911,7 @@ private:
         //            printf("compressed huffman tree size = %d\n",(int)compressed_tree_size);
     }
 
-    void loadAsCode(const uchar*& bytes, size_t& remaining_length) {
+    void loadAsCode(const uchar*& bytes, size_t& /*remaining_length*/) {
         // Timer timer(true);
 
         tree.init();

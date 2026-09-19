@@ -5,6 +5,14 @@
 #include <iterator>
 #include <memory>
 
+// The filter's own callbacks. HDF5 reaches them through H5Z_SZ3 below, so they stay out of the
+// public header, where every consumer of the filter would see them declared and never defined.
+extern "C" {
+static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_id);
+
+static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[], size_t nbytes,
+                             size_t* buf_size, void** buf);
+}
 
 const H5Z_class2_t H5Z_SZ3[1] = {{
     H5Z_CLASS_T_VERS,                                       /* H5Z_class_t version */

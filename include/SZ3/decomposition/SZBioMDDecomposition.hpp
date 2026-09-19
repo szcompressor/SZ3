@@ -16,13 +16,13 @@ namespace SZ3 {
 template <class T, uint N, class Quantizer>
 class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> {
    public:
-    SZBioMDDecomposition(const Config &conf, Quantizer quantizer) : quantizer(quantizer), conf(conf) {
+    SZBioMDDecomposition(const Config &conf_, Quantizer quantizer_) : quantizer(quantizer_), conf(conf_) {
         if (N != 1 && N != 2 && N != 3) {
             throw std::invalid_argument("SZBioMDDecomposition only support 1D, 2D or 3D data");
         }
     }
 
-    std::vector<int> compress(const Config &conf, T *data) override {
+    std::vector<int> compress(const Config & /*conf*/, T *data) override {
         if (N == 1) {
             return compress_1d(data);
         } else if (N == 2) {
@@ -32,7 +32,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         }
     }
 
-    T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) override {
+    T *decompress(const Config & /*conf*/, std::vector<int> &quant_inds, T *dec_data) override {
         if (N == 1) {
             return decompress_1d(quant_inds, dec_data);
         } else if (N == 2) {

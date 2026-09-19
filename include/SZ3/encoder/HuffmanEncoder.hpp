@@ -58,26 +58,26 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
     // build huffman tree
     HuffmanTree *createHuffmanTree(int stateNum) {
-        HuffmanTree *huffmanTree = static_cast<HuffmanTree *>(malloc(sizeof(HuffmanTree)));
-        memset(huffmanTree, 0, sizeof(HuffmanTree));
-        huffmanTree->stateNum = stateNum;
-        huffmanTree->allNodes = 2 * stateNum;
+        HuffmanTree *tree = static_cast<HuffmanTree *>(malloc(sizeof(HuffmanTree)));
+        memset(tree, 0, sizeof(HuffmanTree));
+        tree->stateNum = stateNum;
+        tree->allNodes = 2 * stateNum;
 
-        huffmanTree->pool = static_cast<struct node_t *>(malloc(huffmanTree->allNodes * 2 * sizeof(struct node_t)));
-        huffmanTree->qqq = static_cast<node *>(malloc(huffmanTree->allNodes * 2 * sizeof(node)));
-        huffmanTree->code = static_cast<uint64_t **>(malloc(huffmanTree->stateNum * sizeof(uint64_t *)));
-        huffmanTree->cout = static_cast<unsigned char *>(malloc(huffmanTree->stateNum * sizeof(unsigned char)));
+        tree->pool = static_cast<struct node_t *>(malloc(tree->allNodes * 2 * sizeof(struct node_t)));
+        tree->qqq = static_cast<node *>(malloc(tree->allNodes * 2 * sizeof(node)));
+        tree->code = static_cast<uint64_t **>(malloc(tree->stateNum * sizeof(uint64_t *)));
+        tree->cout = static_cast<unsigned char *>(malloc(tree->stateNum * sizeof(unsigned char)));
 
-        memset(huffmanTree->pool, 0, huffmanTree->allNodes * 2 * sizeof(struct node_t));
-        memset(huffmanTree->qqq, 0, huffmanTree->allNodes * 2 * sizeof(node));
-        memset(huffmanTree->code, 0, huffmanTree->stateNum * sizeof(uint64_t *));
-        memset(huffmanTree->cout, 0, huffmanTree->stateNum * sizeof(unsigned char));
-        huffmanTree->qq = huffmanTree->qqq - 1;
-        huffmanTree->n_nodes = 0;
-        huffmanTree->n_inode = 0;
-        huffmanTree->qend = 1;
+        memset(tree->pool, 0, tree->allNodes * 2 * sizeof(struct node_t));
+        memset(tree->qqq, 0, tree->allNodes * 2 * sizeof(node));
+        memset(tree->code, 0, tree->stateNum * sizeof(uint64_t *));
+        memset(tree->cout, 0, tree->stateNum * sizeof(unsigned char));
+        tree->qq = tree->qqq - 1;
+        tree->n_nodes = 0;
+        tree->n_inode = 0;
+        tree->qend = 1;
 
-        return huffmanTree;
+        return tree;
     }
 
     /**
@@ -95,7 +95,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
      * @param num_bin
      * @param stateNum
      */
-    void preprocess_encode(const T *bins, size_t num_bin, int stateNum) {
+    void preprocess_encode(const T *bins, size_t num_bin, int /*stateNum*/) {
         nodeCount = 0;
         if (num_bin == 0) {
             throw std::invalid_argument("Huffman bins should not be empty");
@@ -307,18 +307,18 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     bool loaded = false;
     T offset;
 
-    node reconstruct_HuffTree_from_bytes_anyStates(const unsigned char *bytes, uint nodeCount) {
-        if (nodeCount <= 256) {
-            std::vector<unsigned char> L(nodeCount);
-            std::vector<unsigned char> R(nodeCount);
-            std::vector<T> C(nodeCount);
-            std::vector<unsigned char> t(nodeCount);
+    node reconstruct_HuffTree_from_bytes_anyStates(const unsigned char *bytes, uint nodeCount_) {
+        if (nodeCount_ <= 256) {
+            std::vector<unsigned char> L(nodeCount_);
+            std::vector<unsigned char> R(nodeCount_);
+            std::vector<T> C(nodeCount_);
+            std::vector<unsigned char> t(nodeCount_);
             // TODO: Endian type
             // unsigned char cmpSysEndianType = bytes[0];
             // if(cmpSysEndianType!=(unsigned char)sysEndianType)
             // {
-            // 	unsigned char* p = (unsigned char*)(bytes+1+2*nodeCount*sizeof(unsigned char));
-            // 	size_t i = 0, size = nodeCount*sizeof(unsigned int);
+            // 	unsigned char* p = (unsigned char*)(bytes+1+2*nodeCount_*sizeof(unsigned char));
+            // 	size_t i = 0, size = nodeCount_*sizeof(unsigned int);
             // 	while(1)
             // 	{
             // 		symTransform_4bytes(p);
@@ -329,28 +329,28 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             // 			break;
             // 	}
             // }
-            memcpy(L.data(), bytes + 1, nodeCount * sizeof(unsigned char));
-            memcpy(R.data(), bytes + 1 + nodeCount * sizeof(unsigned char), nodeCount * sizeof(unsigned char));
-            memcpy(C.data(), bytes + 1 + 2 * nodeCount * sizeof(unsigned char), nodeCount * sizeof(T));
-            memcpy(t.data(), bytes + 1 + 2 * nodeCount * sizeof(unsigned char) + nodeCount * sizeof(T),
-                   nodeCount * sizeof(unsigned char));
-            std::vector<bool> seen(nodeCount, false);
+            memcpy(L.data(), bytes + 1, nodeCount_ * sizeof(unsigned char));
+            memcpy(R.data(), bytes + 1 + nodeCount_ * sizeof(unsigned char), nodeCount_ * sizeof(unsigned char));
+            memcpy(C.data(), bytes + 1 + 2 * nodeCount_ * sizeof(unsigned char), nodeCount_ * sizeof(T));
+            memcpy(t.data(), bytes + 1 + 2 * nodeCount_ * sizeof(unsigned char) + nodeCount_ * sizeof(T),
+                   nodeCount_ * sizeof(unsigned char));
+            std::vector<bool> seen(nodeCount_, false);
             seen[0] = true;
             node root = this->new_node2(C[0], t[0]);
-            this->unpad_tree<uchar>(L.data(), R.data(), C.data(), t.data(), 0, root, nodeCount, seen);
+            this->unpad_tree<uchar>(L.data(), R.data(), C.data(), t.data(), 0, root, nodeCount_, seen);
             return root;
-        } else if (nodeCount <= 65536) {
-            std::vector<unsigned short> L(nodeCount);
-            std::vector<unsigned short> R(nodeCount);
-            std::vector<T> C(nodeCount);
-            std::vector<unsigned char> t(nodeCount);
+        } else if (nodeCount_ <= 65536) {
+            std::vector<unsigned short> L(nodeCount_);
+            std::vector<unsigned short> R(nodeCount_);
+            std::vector<T> C(nodeCount_);
+            std::vector<unsigned char> t(nodeCount_);
 
             // TODO: Endian type
             // unsigned char cmpSysEndianType = bytes[0];
             // if(cmpSysEndianType!=(unsigned char)sysEndianType)
             // {
             // 	unsigned char* p = (unsigned char*)(bytes+1);
-            // 	size_t i = 0, size = 3*nodeCount*sizeof(unsigned int);
+            // 	size_t i = 0, size = 3*nodeCount_*sizeof(unsigned int);
             // 	while(1)
             // 	{
             // 		symTransform_4bytes(p);
@@ -362,30 +362,30 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             // 	}
             // }
 
-            memcpy(L.data(), bytes + 1, nodeCount * sizeof(unsigned short));
-            memcpy(R.data(), bytes + 1 + nodeCount * sizeof(unsigned short), nodeCount * sizeof(unsigned short));
-            memcpy(C.data(), bytes + 1 + 2 * nodeCount * sizeof(unsigned short), nodeCount * sizeof(T));
+            memcpy(L.data(), bytes + 1, nodeCount_ * sizeof(unsigned short));
+            memcpy(R.data(), bytes + 1 + nodeCount_ * sizeof(unsigned short), nodeCount_ * sizeof(unsigned short));
+            memcpy(C.data(), bytes + 1 + 2 * nodeCount_ * sizeof(unsigned short), nodeCount_ * sizeof(T));
 
-            memcpy(t.data(), bytes + 1 + 2 * nodeCount * sizeof(unsigned short) + nodeCount * sizeof(T),
-                   nodeCount * sizeof(unsigned char));
+            memcpy(t.data(), bytes + 1 + 2 * nodeCount_ * sizeof(unsigned short) + nodeCount_ * sizeof(T),
+                   nodeCount_ * sizeof(unsigned char));
 
-            std::vector<bool> seen(nodeCount, false);
+            std::vector<bool> seen(nodeCount_, false);
             seen[0] = true;
             node root = this->new_node2(0, 0);
-            this->unpad_tree<unsigned short>(L.data(), R.data(), C.data(), t.data(), 0, root, nodeCount, seen);
+            this->unpad_tree<unsigned short>(L.data(), R.data(), C.data(), t.data(), 0, root, nodeCount_, seen);
             return root;
-        } else  // nodeCount>65536
+        } else  // nodeCount_>65536
         {
-            std::vector<unsigned int> L(nodeCount);
-            std::vector<unsigned int> R(nodeCount);
-            std::vector<T> C(nodeCount);
-            std::vector<unsigned char> t(nodeCount);
+            std::vector<unsigned int> L(nodeCount_);
+            std::vector<unsigned int> R(nodeCount_);
+            std::vector<T> C(nodeCount_);
+            std::vector<unsigned char> t(nodeCount_);
             // TODO: Endian type
             // unsigned char cmpSysEndianType = bytes[0];
             // if(cmpSysEndianType!=(unsigned char)sysEndianType)
             // {
             // 	unsigned char* p = (unsigned char*)(bytes+1);
-            // 	size_t i = 0, size = 3*nodeCount*sizeof(unsigned int);
+            // 	size_t i = 0, size = 3*nodeCount_*sizeof(unsigned int);
             // 	while(1)
             // 	{
             // 		symTransform_4bytes(p);
@@ -397,17 +397,17 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             // 	}
             // }
 
-            memcpy(L.data(), bytes + 1, nodeCount * sizeof(unsigned int));
-            memcpy(R.data(), bytes + 1 + nodeCount * sizeof(unsigned int), nodeCount * sizeof(unsigned int));
-            memcpy(C.data(), bytes + 1 + 2 * nodeCount * sizeof(unsigned int), nodeCount * sizeof(T));
+            memcpy(L.data(), bytes + 1, nodeCount_ * sizeof(unsigned int));
+            memcpy(R.data(), bytes + 1 + nodeCount_ * sizeof(unsigned int), nodeCount_ * sizeof(unsigned int));
+            memcpy(C.data(), bytes + 1 + 2 * nodeCount_ * sizeof(unsigned int), nodeCount_ * sizeof(T));
 
-            memcpy(t.data(), bytes + 1 + 2 * nodeCount * sizeof(unsigned int) + nodeCount * sizeof(T),
-                   nodeCount * sizeof(unsigned char));
+            memcpy(t.data(), bytes + 1 + 2 * nodeCount_ * sizeof(unsigned int) + nodeCount_ * sizeof(T),
+                   nodeCount_ * sizeof(unsigned char));
 
-            std::vector<bool> seen(nodeCount, false);
+            std::vector<bool> seen(nodeCount_, false);
             seen[0] = true;
             node root = this->new_node2(0, 0);
-            this->unpad_tree<unsigned int>(L.data(), R.data(), C.data(), t.data(), 0, root, nodeCount, seen);
+            this->unpad_tree<unsigned int>(L.data(), R.data(), C.data(), t.data(), 0, root, nodeCount_, seen);
             return root;
         }
     }
@@ -587,32 +587,33 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     }
 
     template <class T1>
-    void unpad_tree(T1 *L, T1 *R, T *C, unsigned char *t, unsigned int i, node root, unsigned int nodeCount,
+    void unpad_tree(T1 *L, T1 *R, T *C, unsigned char *t, unsigned int i, node root, unsigned int nodeCount_,
                     std::vector<bool> &seen) {
         // root->c = C[i];
         if (root->t == 0) {
             T1 l, r;
             l = L[i];
             if (l != 0) {
-                // pad_tree gives a child a higher index than its parent, so a valid index satisfies i < l < nodeCount.
+                // pad_tree gives a child a higher index than its parent, so a valid index satisfies i < l < nodeCount_.
                 // Enforcing it keeps L/R/C/t reads inside the pool and rules out a cycle.
-                if (l <= i || l >= nodeCount) throw std::out_of_range("SZ3 Huffman: invalid left child index in tree");
+                if (l <= i || l >= nodeCount_) throw std::out_of_range("SZ3 Huffman: invalid left child index in tree");
                 // Increasing indices rule out a cycle but not two parents naming one child, which would
-                // expand the tree exponentially instead of building nodeCount nodes.
+                // expand the tree exponentially instead of building nodeCount_ nodes.
                 if (seen[l]) throw std::out_of_range("SZ3 Huffman: tree node reached twice");
                 seen[l] = true;
                 node lroot = new_node2(C[l], t[l]);
                 root->left = lroot;
-                unpad_tree(L, R, C, t, l, lroot, nodeCount, seen);
+                unpad_tree(L, R, C, t, l, lroot, nodeCount_, seen);
             }
             r = R[i];
             if (r != 0) {
-                if (r <= i || r >= nodeCount) throw std::out_of_range("SZ3 Huffman: invalid right child index in tree");
+                if (r <= i || r >= nodeCount_)
+                    throw std::out_of_range("SZ3 Huffman: invalid right child index in tree");
                 if (seen[r]) throw std::out_of_range("SZ3 Huffman: tree node reached twice");
                 seen[r] = true;
                 node rroot = new_node2(C[r], t[r]);
                 root->right = rroot;
-                unpad_tree(L, R, C, t, r, rroot, nodeCount, seen);
+                unpad_tree(L, R, C, t, r, rroot, nodeCount_, seen);
             }
             if (root->left == nullptr || root->right == nullptr) {
                 throw std::out_of_range("SZ3 Huffman: internal tree node is missing a child");
@@ -621,26 +622,26 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     }
 
     template <class T1>
-    unsigned int convert_HuffTree_to_bytes_anyStates(unsigned int nodeCount, unsigned char *out) {
-        T1 *L = static_cast<T1 *>(malloc(nodeCount * sizeof(T1)));
-        memset(L, 0, nodeCount * sizeof(T1));
-        T1 *R = static_cast<T1 *>(malloc(nodeCount * sizeof(T1)));
-        memset(R, 0, nodeCount * sizeof(T1));
-        T *C = static_cast<T *>(malloc(nodeCount * sizeof(T)));
-        memset(C, 0, nodeCount * sizeof(T));
-        unsigned char *t = static_cast<unsigned char *>(malloc(nodeCount * sizeof(unsigned char)));
-        memset(t, 0, nodeCount * sizeof(unsigned char));
+    unsigned int convert_HuffTree_to_bytes_anyStates(unsigned int nodeCount_, unsigned char *out) {
+        T1 *L = static_cast<T1 *>(malloc(nodeCount_ * sizeof(T1)));
+        memset(L, 0, nodeCount_ * sizeof(T1));
+        T1 *R = static_cast<T1 *>(malloc(nodeCount_ * sizeof(T1)));
+        memset(R, 0, nodeCount_ * sizeof(T1));
+        T *C = static_cast<T *>(malloc(nodeCount_ * sizeof(T)));
+        memset(C, 0, nodeCount_ * sizeof(T));
+        unsigned char *t = static_cast<unsigned char *>(malloc(nodeCount_ * sizeof(unsigned char)));
+        memset(t, 0, nodeCount_ * sizeof(unsigned char));
 
         pad_tree(L, R, C, t, 0, huffmanTree->qq[1]);
 
         unsigned int totalSize =
-            1 + 2 * nodeCount * sizeof(T1) + nodeCount * sizeof(unsigned char) + nodeCount * sizeof(T);
+            1 + 2 * nodeCount_ * sizeof(T1) + nodeCount_ * sizeof(unsigned char) + nodeCount_ * sizeof(T);
         //*out = (unsigned char*)malloc(totalSize);
         out[0] = sysEndianType;
-        memcpy(out + 1, L, nodeCount * sizeof(T1));
-        memcpy(out + 1 + nodeCount * sizeof(T1), R, nodeCount * sizeof(T1));
-        memcpy(out + 1 + 2 * nodeCount * sizeof(T1), C, nodeCount * sizeof(T));
-        memcpy(out + 1 + 2 * nodeCount * sizeof(T1) + nodeCount * sizeof(T), t, nodeCount * sizeof(unsigned char));
+        memcpy(out + 1, L, nodeCount_ * sizeof(T1));
+        memcpy(out + 1 + nodeCount_ * sizeof(T1), R, nodeCount_ * sizeof(T1));
+        memcpy(out + 1 + 2 * nodeCount_ * sizeof(T1), C, nodeCount_ * sizeof(T));
+        memcpy(out + 1 + 2 * nodeCount_ * sizeof(T1) + nodeCount_ * sizeof(T), t, nodeCount_ * sizeof(unsigned char));
 
         free(L);
         free(R);

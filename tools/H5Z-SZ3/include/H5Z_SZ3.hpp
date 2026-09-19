@@ -42,12 +42,6 @@ extern "C" {
         return RET;                                                                               \
     } while (0)
 
-static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_id);
-
-static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[], size_t nbytes,
-                             size_t *buf_size, void **buf);
-
-
 /**
  * @brief Register the SZ3 filter, for an application that links this library instead of using
  * HDF5_PLUGIN_PATH.
