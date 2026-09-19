@@ -11,7 +11,7 @@ const H5Z_class2_t H5Z_SZ3[1] = {{
     H5Z_FILTER_SZ3,                                         /* Filter id number */
     1,                                                      /* encoder_present flag (set to true) */
     1,                                                      /* decoder_present flag (set to true) */
-    "H5Z-SZ3-" SZ3_VER " (data format " SZ3_DATA_VER ")",   /* Filter name for debugging */
+    "H5Z-SZ3-" SZ3_VER,                                     /* Filter name for debugging */
     NULL,                                                   /* The "can apply" callback */
     H5Z_sz3_set_local,                                      /* The "set local" callback */
     static_cast<H5Z_func_t>(H5Z_filter_sz3),                /* The actual filter function */
