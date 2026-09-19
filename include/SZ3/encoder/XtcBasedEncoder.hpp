@@ -523,17 +523,14 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
                 isSmaller = 0;
             }
             while (isSmall && run < CHAR_BIT * 3) {
-                if (isSmaller == -1) {
-                    // smallNum reaches 2^23 at the top of magicInts, where these squares overflow a signed
-                    // int. Keep them unsigned; same wrap, so the run is cut in the same places.
-                    const unsigned int diff0 = static_cast<unsigned int>(thisCoord[0] - prevCoord[0]);
-                    const unsigned int diff1 = static_cast<unsigned int>(thisCoord[1] - prevCoord[1]);
-                    const unsigned int diff2 = static_cast<unsigned int>(thisCoord[2] - prevCoord[2]);
-                    const int distance = static_cast<int>(diff0 * diff0 + diff1 * diff1 + diff2 * diff2);
-                    const unsigned int smallerUnsigned = static_cast<unsigned int>(smaller);
-                    if (distance >= static_cast<int>(smallerUnsigned * smallerUnsigned)) {
-                        isSmaller = 0;
-                    }
+                // smallNum reaches 2^23 at the top of magicInts, where these squares overflow a signed
+                // int. Keep them unsigned; same wrap, so the run is cut in the same places.
+                const unsigned int d0 = static_cast<unsigned int>(thisCoord[0] - prevCoord[0]),
+                                   d1 = static_cast<unsigned int>(thisCoord[1] - prevCoord[1]),
+                                   d2 = static_cast<unsigned int>(thisCoord[2] - prevCoord[2]),
+                                   sq = static_cast<unsigned int>(smaller) * static_cast<unsigned int>(smaller);
+                if (isSmaller == -1 && static_cast<int>(d0 * d0 + d1 * d1 + d2 * d2) >= static_cast<int>(sq)) {
+                    isSmaller = 0;
                 }
 
                 tmpCoord[run++] = thisCoord[0] - prevCoord[0] + smallNum;
@@ -827,8 +824,7 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             quantData[quantData.size() - 1] = reminder1;
             quantData[quantData.size() - 2] = reminder2;
         }
-        // decode() has to leave the cursor past what it read; every read above went through
-        // inputBytesPointer. The check below is empty without this.
+        // decode() has to leave the cursor past what it read; the check below is empty without this.
         bytes = inputBytesPointer;
         const size_t consumed = static_cast<size_t>(bytes - decode_start);
         if (consumed > remaining_length) {

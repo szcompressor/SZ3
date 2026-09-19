@@ -93,7 +93,6 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
      * build huffman tree using bins
      * @param bins
      * @param num_bin
-     * @param stateNum
      */
     void preprocess_encode(const T *bins, size_t num_bin, int /*stateNum*/) {
         nodeCount = 0;

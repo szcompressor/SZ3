@@ -460,8 +460,8 @@ public:
 
         size_t len = bytesToInt64_bigEndian(bytes) ^ 0x1234abcd;
         bytes += 8;
-        // Bytes of code the stream holds. The cached-codebook walk below refills ahead of the code it is
-        // decoding, and past this it must shift in zeros; a well-formed stream never consumes those bits.
+        // The cached-codebook walk below refills ahead of the code it is decoding, and past this it must
+        // shift in zeros; a well-formed stream never consumes those bits.
         const size_t code_bytes = (len + 7) >> 3;
         std::vector<T> out(targetLength);
         size_t outLen = 0;
@@ -729,13 +729,13 @@ private:
             mask = index = 0;
 
             while (len >= 8) {
-                *c++ = val & (1 << 8) - 1;
+                *c++ = val & ((1 << 8) - 1);
                 val >>= 8;
                 len -= 8;
             }
         }
 
-        mask |= (val & (1 << len) - 1) << index;
+        mask |= (val & ((1 << len) - 1)) << index;
         index += len;
 
         // for(int i=0;i<len;i++){
