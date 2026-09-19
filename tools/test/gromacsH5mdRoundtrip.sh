@@ -155,8 +155,15 @@ else
     exit 1
 fi
 ldd ./rd > rd.ldd 2>&1
-if grep -qE 'gromacs|libSZ3|hdf5sz3' rd.ldd; then
-    bad "the reader links no GROMACS and no SZ3" "$(grep -E 'gromacs|libSZ3|hdf5sz3' rd.ldd)"
+# The dependency names, not the directories they resolve in: a reader that found its HDF5 under
+# a directory called sz3 or gromacs is still a reader with neither of them linked into it.
+deps=$(awk '{print $1}' rd.ldd | sed 's|.*/||')
+banned=$(echo "$deps" | grep -Ei 'gromacs|sz3' | tr '\n' ' ')
+if ! echo "$deps" | grep -q '^libhdf5'; then
+    # ldd's own error text matches nothing below, which would read as a pass.
+    bad "the reader links no GROMACS and no SZ3" "ldd listed no libhdf5:" "$(cat rd.ldd)"
+elif [ -n "$banned" ]; then
+    bad "the reader links no GROMACS and no SZ3" "$banned"
 else
     ok "the reader links no GROMACS and no SZ3"
 fi

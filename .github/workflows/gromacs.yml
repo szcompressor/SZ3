@@ -203,14 +203,18 @@ jobs:
                 -DCMAKE_PREFIX_PATH="$CONDA_PREFIX;$PWD/_prefix" \
                 ${{ matrix.gmx }}
           LINK=gbuild/src/gromacs/fileio/h5md/tests/CMakeFiles/h5md-test.dir/link.txt
-          tr ' ' '\n' < "$LINK" | grep -i sz3 | tee sz3.link
+          # Only the tokens that link an SZ3 library: the checkout is at /home/runner/work/SZ3/SZ3,
+          # so matching the text "sz3" also matches rpaths and -L flags, which link nothing.
+          tools/test/sz3LinkTokens.sh "$LINK" | tee sz3.link
           # A bare -lhdf5sz3 here is the export failing to carry the unversioned target GROMACS
           # asks for. It configures, and then the link below cannot find the library.
-          if grep -qF "$PWD/_prefix" sz3.link; then
-            echo "h5md links the installed SZ3 by path"
-          else
-            echo "h5md did not link the installed SZ3: $(cat sz3.link)"; exit 1
+          if [ ! -s sz3.link ]; then
+            echo "h5md linked no SZ3 library at all"; exit 1
           fi
+          if grep -v "^$PWD/_prefix/" sz3.link; then
+            echo "h5md linked an SZ3 library that is not the installed one"; exit 1
+          fi
+          echo "h5md links the installed SZ3 by path"
           cmake --build gbuild --parallel 4 --target h5md-test
 
       - name: Run the h5md unit tests
@@ -291,7 +295,9 @@ jobs:
                 -DGMX_USE_HDF5=ON \
                 -DCMAKE_PREFIX_PATH="$CONDA_PREFIX"
           cmake --build gbuild --parallel 4 --target gmx
-          if ldd gbuild/bin/gmx | grep hdf5sz3; then
+          # The dependency names, not the directories they resolve in: every path here is under
+          # /home/runner/work/SZ3/SZ3, so a whole-line match answers a question about the checkout.
+          if ldd gbuild/bin/gmx | awk '{print $1}' | grep hdf5sz3; then
             echo "gmx links the SZ3 filter library"
           else
             echo "gmx links no SZ3 filter library, so nothing below would be testing SZ3"; exit 1

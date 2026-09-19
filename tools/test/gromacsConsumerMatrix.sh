@@ -11,6 +11,7 @@
 #
 # Assert which library was wired in, never just that the configure exited 0.
 set -u
+HERE=$(cd "$(dirname "$0")" && pwd)
 GMXSRC=$(cd "$1" && pwd)
 WORK=$2
 SZ3_PREFIX=$3
@@ -32,6 +33,12 @@ if [ "$SZ3_PREFIX" != "-" ]; then
     PREFIX_PATH="$HDF5_PREFIX;$SZ3_PREFIX"
     SZ3_VERSION=$(sed -n 's/^set(PACKAGE_VERSION "\(.*\)").*/\1/p' \
                   "$SZ3_PREFIX"/lib*/cmake/SZ3/SZ3ConfigVersion.cmake 2>/dev/null | head -1)
+    # Required, not skipped: empty, the version assertion matches nothing and the check that
+    # INTERNAL ignores this prefix drops out silently, which reads as a pass.
+    if [ -z "$SZ3_VERSION" ]; then
+        echo "no version in $SZ3_PREFIX/lib*/cmake/SZ3/SZ3ConfigVersion.cmake"
+        exit 1
+    fi
 fi
 
 # The cheapest GROMACS that still generates the h5md link line: no SIMD, no GPU, bundled FFT.
@@ -54,6 +61,15 @@ bad() { echo "FAIL  $1"; shift; for l in "$@"; do echo "        $l"; done; fail=
 # want <name> <expected substring> <file>
 want() { if grep -qF "$2" "$3"; then ok "$1"; else bad "$1" "expected to find: $2" "got:" "$(grep -i sz3 "$3" | head -5)"; fi; }
 notwant() { if grep -qF "$2" "$3"; then bad "$1" "did not expect: $2" "$(grep -nF "$2" "$3" | head -3)"; else ok "$1"; fi; }
+# Which SZ3 a link token is: the installed one, or one GROMACS built in its own tree. A relative
+# path is a build-tree library by construction, so only the install prefix has to be named here.
+from_prefix() { while read -r t; do case $t in "$SZ3_PREFIX"/*) echo "$t";; esac; done; }
+elsewhere() { while read -r t; do case $t in "$SZ3_PREFIX"/*) ;; *) echo "$t";; esac; done; }
+oneline() { if [ -s "$1" ]; then tr '\n' ' ' < "$1" | sed 's/ *$//'; else printf '(none)'; fi; }
+
+# Every link-line check below rests on one question -- does this token link an SZ3 library --
+# so make the answer prove itself both ways before anything is asserted with it.
+"$HERE"/sz3LinkTokens.sh --self-test || exit 1
 
 EXTRA=("$@")
 echo "=== GMX_USE_SZ3 matrix: $GMXSRC ==="
@@ -71,22 +87,22 @@ for mode in EXTERNAL AUTO INTERNAL OFF; do
     echo "--- GMX_USE_SZ3=$mode: cmake exit $rc, $(( $(date +%s) - start ))s"
     LINE=$WORK/b-$mode/$LINKTXT
     : > "$WORK/$mode.link"
-    if [ -f "$LINE" ]; then
-        tr ' ' '\n' < "$LINE" | grep -i 'sz3' > "$WORK/$mode.link"
-    fi
+    [ -f "$LINE" ] && "$HERE"/sz3LinkTokens.sh "$LINE" > "$WORK/$mode.link"
+    from_prefix < "$WORK/$mode.link" > "$WORK/$mode.installed"
+    elsewhere   < "$WORK/$mode.link" > "$WORK/$mode.own"
 
     case "$mode:$EXPECT" in
     EXTERNAL:external)
         if [ "$rc" = 0 ]; then ok "EXTERNAL configures"; else bad "EXTERNAL configures" "$(tail -15 "$WORK/$mode.log")"; fi
         want "EXTERNAL reports the installed SZ3 $SZ3_VERSION" \
              "Found external SZ3 library (found version $SZ3_VERSION)" "$WORK/$mode.log"
-        if grep -qF "$SZ3_PREFIX" "$WORK/$mode.link"; then
+        if [ -s "$WORK/$mode.installed" ] && [ ! -s "$WORK/$mode.own" ]; then
             ok "EXTERNAL links the installed libhdf5sz3 by path"
-            sed 's/^/        /' "$WORK/$mode.link"
+            sed 's/^/        /' "$WORK/$mode.installed"
         else
             bad "EXTERNAL links the installed libhdf5sz3 by path" \
                 "the unversioned hdf5sz3 target has to come out of the export, not as a bare -l" \
-                "link line: $(cat "$WORK/$mode.link")"
+                "SZ3 libraries linked: $(oneline "$WORK/$mode.link")"
         fi
         ;;
     EXTERNAL:internal)
@@ -118,10 +134,21 @@ for mode in EXTERNAL AUTO INTERNAL OFF; do
     INTERNAL:*)
         if [ "$rc" = 0 ]; then ok "INTERNAL configures"; else bad "INTERNAL configures" "$(tail -15 "$WORK/$mode.log")"; fi
         want "INTERNAL uses GROMACS's own copy" "Using internal SZ3 library" "$WORK/$mode.log"
+        # Absence on its own would also be satisfied by a build that links no SZ3 whatsoever.
+        if [ -s "$WORK/$mode.own" ]; then
+            ok "INTERNAL links the SZ3 in GROMACS's own tree"
+            sed 's/^/        /' "$WORK/$mode.own"
+        else
+            bad "INTERNAL links the SZ3 in GROMACS's own tree" \
+                "SZ3 libraries linked: $(oneline "$WORK/$mode.link")"
+        fi
         # Only when there is an installed SZ3 to ignore: a check that cannot fail is not a check.
+        # Any mention of the prefix, not just a library from it: a -L or an rpath into it would
+        # still let the link, or the loaded binary, reach the copy INTERNAL is meant to skip.
         if [ -n "$SZ3_VERSION" ]; then
-            if grep -qF "$SZ3_PREFIX" "$WORK/$mode.link"; then
-                bad "INTERNAL ignores the installed SZ3" "link line: $(cat "$WORK/$mode.link")"
+            if [ -f "$LINE" ] && grep -qF "$SZ3_PREFIX" "$LINE"; then
+                bad "INTERNAL ignores the installed SZ3" \
+                    "$(tr ' ' '\n' < "$LINE" | grep -F "$SZ3_PREFIX" | head -5)"
             else
                 ok "INTERNAL ignores the installed SZ3"
             fi
@@ -130,7 +157,7 @@ for mode in EXTERNAL AUTO INTERNAL OFF; do
     OFF:*)
         if [ "$rc" = 0 ]; then ok "OFF configures"; else bad "OFF configures" "$(tail -15 "$WORK/$mode.log")"; fi
         if [ -s "$WORK/$mode.link" ]; then
-            bad "OFF links no SZ3 at all" "link line: $(cat "$WORK/$mode.link")"
+            bad "OFF links no SZ3 at all" "SZ3 libraries linked: $(oneline "$WORK/$mode.link")"
         else
             ok "OFF links no SZ3 at all"
         fi
