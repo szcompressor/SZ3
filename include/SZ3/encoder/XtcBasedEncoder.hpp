@@ -8,8 +8,10 @@
 #ifndef _SZ_XTC3_ENCODER_HPP
 #define _SZ_XTC3_ENCODER_HPP
 
+#include <algorithm>
 #include <climits>
 #include <cmath>
+#include <cstring>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -50,6 +52,18 @@ static const int magicInts[] = {
 #define LASTIDX static_cast<int>((sizeof(magicInts) / sizeof(*magicInts)))
 
 namespace SZ3 {
+
+/*! \brief read magicInts with the index held inside the table
+ *
+ * The index is smallIdx, which arrives on the compressed stream and then drifts by one per round. The
+ * encoder writes LASTIDX -- one past the last entry -- whenever no entry reaches minDiff, which every
+ * input shorter than two triplets produces, so even a well-formed stream names an index the table does
+ * not hold. Subscripting magicInts with it directly read off the end of the array.
+ *
+ * The encoder already clamps this same index for its own lookups, and clamping here cannot change a
+ * well-formed decode: a stream that names LASTIDX carries no run, so nothing downstream reads the value.
+ */
+static inline int magicIntAt(const int index) { return magicInts[std::min(std::max(index, 0), LASTIDX - 1)]; }
 
 struct DataBuffer {
     std::size_t index;
@@ -333,7 +347,6 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         buffer.lastbyte = 0;
 
         unsigned char *charOutputPtr = bytes;
-        unsigned int *intOutputPtr = reinterpret_cast<unsigned int *>(charOutputPtr);
         uint64_t numTriplets = size3 / 3;
 
 #ifdef DEBUG_OUTPUT
@@ -343,7 +356,6 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         }
 #endif
 
-        // size_t coordDataOffset = reinterpret_cast<unsigned char *>(intOutputPtr) - charOutputPtr;
         int *localIntBufferPointer = intBufferPoiner;
         int minInt[3] = {INT_MAX, INT_MAX, INT_MAX};
         int maxInt[3] = {INT_MIN, INT_MIN, INT_MIN};
@@ -389,11 +401,18 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             oldLocalValue3 = localValue3;
         }
 
+        // The header lands at whatever byte of the compressor's buffer the stages before this one reached,
+        // which carries no alignment guarantee. Storing through an unsigned int* aimed at that byte is
+        // undefined whenever it is not 4-aligned -- the decomposition ahead of this encoder puts it on an
+        // odd byte for every trajectory tried -- and is the kind of thing that survives until a vectorizing
+        // -O3, LTO, or a target that traps on it. memcpy writes the same bytes with no alignment demand.
         for (int i = 0; i < 3; i++) {
-            *intOutputPtr++ = minInt[i];
+            memcpy(charOutputPtr, &minInt[i], sizeof(int));
+            charOutputPtr += sizeof(int);
         }
         for (int i = 0; i < 3; i++) {
-            *intOutputPtr++ = maxInt[i];
+            memcpy(charOutputPtr, &maxInt[i], sizeof(int));
+            charOutputPtr += sizeof(int);
         }
 
         if (static_cast<float>(maxInt[0]) - static_cast<float>(minInt[0]) >= maxAbsoluteInt ||
@@ -413,10 +432,15 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
                     "overflow.\n");
             throw std::runtime_error("Error. Turning value in unsigned by subtracting minInt would cause overflow.");
         }
+        // An input with no complete triplet never enters the scan above, leaving these at their INT_MAX and
+        // INT_MIN seeds -- and the guard just above passes them, because the float difference of the seeds
+        // is negative. INT_MIN - INT_MAX then overflows a signed int, which is undefined however reliably
+        // it wraps today. The destination is unsigned, so doing the arithmetic there yields the very value
+        // the wrap yielded (2 for the seeds) for every input, and yields it by a defined route.
         unsigned int sizeInt[3];
-        sizeInt[0] = maxInt[0] - minInt[0] + 1;
-        sizeInt[1] = maxInt[1] - minInt[1] + 1;
-        sizeInt[2] = maxInt[2] - minInt[2] + 1;
+        sizeInt[0] = static_cast<unsigned int>(maxInt[0]) - static_cast<unsigned int>(minInt[0]) + 1;
+        sizeInt[1] = static_cast<unsigned int>(maxInt[1]) - static_cast<unsigned int>(minInt[1]) + 1;
+        sizeInt[2] = static_cast<unsigned int>(maxInt[2]) - static_cast<unsigned int>(minInt[2]) + 1;
         unsigned int bitSizeInt[3];
         int bitSize;
 
@@ -438,7 +462,8 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         while (smallIdx < LASTIDX && magicInts[smallIdx] < minDiff) {
             smallIdx++;
         }
-        *intOutputPtr++ = smallIdx;
+        memcpy(charOutputPtr, &smallIdx, sizeof(int));
+        charOutputPtr += sizeof(int);
 
         // LASTIDX is one past the last entry, and the loop above stops there when no entry reaches minDiff,
         // which is every input with fewer than two triplets. The decoder clamps the same way.
@@ -509,10 +534,21 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
                 isSmaller = 0;
             }
             while (isSmall && run < CHAR_BIT * 3) {
-                if (isSmaller == -1 && (SQR(thisCoord[0] - prevCoord[0]) + SQR(thisCoord[1] - prevCoord[1]) +
-                                            SQR(thisCoord[2] - prevCoord[2]) >=
-                                        smaller * smaller)) {
-                    isSmaller = 0;
+                if (isSmaller == -1) {
+                    // The three differences are each below smallNum, which reaches 2^23 at the top of
+                    // magicInts, so their squares and smaller*smaller overflow a signed int there -- reached
+                    // by any input whose closest neighbouring atoms still sit past the end of the table.
+                    // Squaring in unsigned and reading the sum back as int is the same wrap the signed
+                    // version relied on, so the run is cut in exactly the same places, without the
+                    // undefined behaviour that let a compiler assume it never wraps.
+                    const unsigned int diff0 = static_cast<unsigned int>(thisCoord[0] - prevCoord[0]);
+                    const unsigned int diff1 = static_cast<unsigned int>(thisCoord[1] - prevCoord[1]);
+                    const unsigned int diff2 = static_cast<unsigned int>(thisCoord[2] - prevCoord[2]);
+                    const int distance = static_cast<int>(diff0 * diff0 + diff1 * diff1 + diff2 * diff2);
+                    const unsigned int smallerUnsigned = static_cast<unsigned int>(smaller);
+                    if (distance >= static_cast<int>(smallerUnsigned * smallerUnsigned)) {
+                        isSmaller = 0;
+                    }
                 }
 
                 tmpCoord[run++] = thisCoord[0] - prevCoord[0] + smallNum;
@@ -557,15 +593,18 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             buffer.index++;
         }
 
-        *(reinterpret_cast<uint64_t *>(intOutputPtr)) = buffer.index;
-        intOutputPtr += sizeof(uint64_t) / sizeof(int);
+        // Eight bytes, written the same way and for the same reason as the seven ints above. The value goes
+        // through a uint64_t first so that the field stays eight bytes wide on a platform where size_t is
+        // narrower, which is what the old store through a uint64_t* also did.
+        const uint64_t packedByteCount = buffer.index;
+        memcpy(charOutputPtr, &packedByteCount, sizeof(uint64_t));
+        charOutputPtr += sizeof(uint64_t);
 
         // Since this file is full of old code, and many signed-to-unsigned conversions, we
         // read data in batches if the smallest number that is a multiple of 4 that
         // fits in a signed integer to keep data access aligned if possible.
         size_t offset = 0;
         size_t remain = buffer.index;
-        charOutputPtr = reinterpret_cast<unsigned char *>(intOutputPtr);
         do {
             // Max batch size is largest 4-tuple that fits in signed 32-bit int
             size_t batchSize = std::min(remain, static_cast<std::size_t>(2147483644));
@@ -606,7 +645,6 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         std::vector<T> quantData(targetLength, 0);
 
         const unsigned char *inputBytesPointer = bytes;
-        const int *inputIntPtr = reinterpret_cast<const int *>(inputBytesPointer);
 
         size_t bufferSize = targetLength * 1.2;
         struct DataBuffer buffer;
@@ -619,22 +657,30 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         int minInt[3];
         int maxInt[3];
 
-        minInt[0] = *inputIntPtr++;
-        minInt[1] = *inputIntPtr++;
-        minInt[2] = *inputIntPtr++;
-        maxInt[0] = *inputIntPtr++;
-        maxInt[1] = *inputIntPtr++;
-        maxInt[2] = *inputIntPtr++;
+        // The mirror of the encoder's header, and unaligned for the same reason: this is a byte position in
+        // the compressed stream, so loading through an int* aimed at it is undefined wherever it is not
+        // 4-aligned. memcpy reads the same bytes with no alignment demand.
+        for (int i = 0; i < 3; i++) {
+            memcpy(&minInt[i], inputBytesPointer, sizeof(int));
+            inputBytesPointer += sizeof(int);
+        }
+        for (int i = 0; i < 3; i++) {
+            memcpy(&maxInt[i], inputBytesPointer, sizeof(int));
+            inputBytesPointer += sizeof(int);
+        }
 
 #ifdef DEBUG_OUTPUT
         printf("    minInt %d %d %d, maxInt %d %d %d\n", minInt[0], minInt[1], minInt[2], maxInt[0], maxInt[1],
                maxInt[2]);
 #endif
 
+        // The encoder writes the INT_MAX and INT_MIN seeds for an input with no complete triplet, so the
+        // same signed overflow arrives here off the stream. Unsigned for the same reason: it is the value
+        // the wrap produced, reached by a defined route.
         unsigned int sizeInt[3];
-        sizeInt[0] = maxInt[0] - minInt[0] + 1;
-        sizeInt[1] = maxInt[1] - minInt[1] + 1;
-        sizeInt[2] = maxInt[2] - minInt[2] + 1;
+        sizeInt[0] = static_cast<unsigned int>(maxInt[0]) - static_cast<unsigned int>(minInt[0]) + 1;
+        sizeInt[1] = static_cast<unsigned int>(maxInt[1]) - static_cast<unsigned int>(minInt[1]) + 1;
+        sizeInt[2] = static_cast<unsigned int>(maxInt[2]) - static_cast<unsigned int>(minInt[2]) + 1;
         unsigned int bitSizeInt[3];
         int bitSize;
         /* check if one of the sizes is too big to be multiplied */
@@ -647,7 +693,9 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             bitSize = sizeofints(3, sizeInt);
         }
 
-        int smallIdx = *inputIntPtr++;
+        int smallIdx;
+        memcpy(&smallIdx, inputBytesPointer, sizeof(int));
+        inputBytesPointer += sizeof(int);
         // The encoder writes LASTIDX when no table entry reaches minDiff, and clamps its own lookups.
         if (smallIdx < 0 || smallIdx > LASTIDX) throw std::out_of_range("SZ3 Xtc: small index out of range");
         const int smallLookup = std::min(smallIdx, LASTIDX - 1);
@@ -667,8 +715,10 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         if (buffer.data == nullptr) {
             throw std::runtime_error("SZ3 Xtc: can not allocate the decompression buffer");
         }
-        buffer.index = *(reinterpret_cast<const uint64_t *>(inputIntPtr));
-        inputIntPtr += sizeof(uint64_t) / sizeof(int);
+        uint64_t packedByteCount;
+        memcpy(&packedByteCount, inputBytesPointer, sizeof(uint64_t));
+        inputBytesPointer += sizeof(uint64_t);
+        buffer.index = packedByteCount;
 
         // buffer.index is the byte count the memcpy loop below copies into buffer.data.
         if (buffer.index > bufferSize * sizeof(int))
@@ -676,7 +726,6 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
 
         size_t offset = 0;
         size_t remain = buffer.index;
-        inputBytesPointer = reinterpret_cast<const unsigned char *>(inputIntPtr);
         do {
             // Max batch size is largest 4-tuple that fits in signed 32-bit int
             size_t batchSize = std::min(remain, static_cast<std::size_t>(2147483644));
@@ -774,15 +823,15 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             if (isSmaller < 0) {
                 smallNum = smaller;
                 if (smallIdx > FIRSTIDX) {
-                    smaller = magicInts[smallIdx - 1] / 2;
+                    smaller = magicIntAt(smallIdx - 1) / 2;
                 } else {
                     smaller = 0;
                 }
             } else if (isSmaller > 0) {
                 smaller = smallNum;
-                smallNum = magicInts[smallIdx] / 2;
+                smallNum = magicIntAt(smallIdx) / 2;
             }
-            sizeSmall[0] = sizeSmall[1] = sizeSmall[2] = magicInts[smallIdx];
+            sizeSmall[0] = sizeSmall[1] = sizeSmall[2] = magicIntAt(smallIdx);
         }
 
 #ifdef DEBUG_OUTPUT
