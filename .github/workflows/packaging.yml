@@ -93,18 +93,20 @@ jobs:
             echo "an exported include directory points outside the install prefix"; exit 1
           fi
           mkdir -p _conly
+          # REQUIRED, and no if (SZ3_FOUND) around the executable. Written the other way this built
+          # nothing whenever SZ3 was not found, which is exactly when a C-only consumer is broken:
+          # the step then passed by doing nothing while the shape it names did not work at all.
           cat > _conly/CMakeLists.txt <<'EOF'
           cmake_minimum_required(VERSION 3.18)
           project(conly C)
-          find_package(SZ3 QUIET)
-          if (SZ3_FOUND)
-              add_executable(c1 main.c)
-              target_link_libraries(c1 PRIVATE SZ3::hdf5sz3)
-          endif ()
+          find_package(SZ3 REQUIRED)
+          add_executable(c1 main.c)
+          target_link_libraries(c1 PRIVATE SZ3::hdf5sz3)
           EOF
           printf 'int main(void){return 0;}\n' > _conly/main.c
           cmake -S _conly -B _conly/build -DCMAKE_PREFIX_PATH="$PWD/_prefix"
           cmake --build _conly/build --parallel 4
+          test -x _conly/build/c1
           mkdir -p _probe
           cat > _probe/CMakeLists.txt <<'EOF'
           cmake_minimum_required(VERSION 3.18)

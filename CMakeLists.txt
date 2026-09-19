@@ -44,7 +44,10 @@ target_compile_features(${PROJECT_NAME}
 
 find_package(OpenMP)
 if (OpenMP_FOUND)
-    target_link_libraries(${PROJECT_NAME} INTERFACE OpenMP::OpenMP_CXX)
+    # BUILD_INTERFACE only: SZ3Config.cmake names the OpenMP target for the language the consumer
+    # actually enabled. Exported as it stands, OpenMP::OpenMP_CXX is a target a C-only consumer
+    # cannot be given, and CMake ends its configure rather than its own.
+    target_link_libraries(${PROJECT_NAME} INTERFACE $<BUILD_INTERFACE:OpenMP::OpenMP_CXX>)
 endif ()
 
 option(SZ3_DEBUG_TIMINGS "print debug timing information" OFF)
