@@ -7,10 +7,17 @@ name: GROMACS
 # Not on push. Measured at four cores this is around an hour of runner time across the matrix, and
 # it depends on gitlab.com and a 70 MB download, so a broken third party would redden every commit.
 # What it guards -- the shape of the installed export -- changes at the pace of a release.
+#
+# On a pull request it runs only when the pull request carries the `gromacs` label. schedule and
+# workflow_dispatch are both read from the default branch, so neither can reach a workflow that is
+# still on a branch: without this, the one change that most needs GROMACS run against it is the one
+# change GROMACS cannot be run against.
 on:
   schedule:
     - cron: "23 4 * * 1"
   workflow_dispatch:
+  pull_request:
+    types: [labeled, synchronize, reopened]
 
 env:
   GROMACS_URL: https://gitlab.com/gromacs/gromacs.git
@@ -45,6 +52,7 @@ jobs:
   # present but unusable. Configure only, which is where the export decides what the consumer gets.
   consumer:
     name: GMX_USE_SZ3 ${{ matrix.name }}
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'gromacs')
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -137,6 +145,7 @@ jobs:
   # h5md unit tests that run against the library it linked.
   h5md-tests:
     name: h5md unit tests ${{ matrix.name }}
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'gromacs')
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -223,6 +232,7 @@ jobs:
   # that reads it back is checked against the coordinates it started from.
   roundtrip:
     name: H5MD round trip
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'gromacs')
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
