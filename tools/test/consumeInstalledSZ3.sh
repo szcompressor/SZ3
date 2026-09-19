@@ -65,9 +65,13 @@ int main() {
     return 0;
 }
 EOF
-if cmake -S cxx -B cxx/b -DCMAKE_PREFIX_PATH="$CMPFX" > cxx/cfg.log 2>&1; then
+# A multi-config generator defaults an unqualified build to Debug and writes it to b/<config>, so
+# the checks below look for a binary that is not there. Naming the config and its output directory
+# puts it at b/ either way: with no CMAKE_BUILD_TYPE here, a single-config generator ignores both.
+if cmake -S cxx -B cxx/b -DCMAKE_PREFIX_PATH="$CMPFX" \
+        -DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE="$(native "$WORK")/cxx/b" > cxx/cfg.log 2>&1; then
     ok "cxx-consumer-configures"
-    if cmake --build cxx/b --parallel 4 > cxx/build.log 2>&1; then
+    if cmake --build cxx/b --config Release --parallel 4 > cxx/build.log 2>&1; then
         ok "cxx-consumer-builds"
         if ./cxx/b/app > cxx/run.log 2>&1; then
             ok "cxx-consumer-runs"
@@ -101,9 +105,10 @@ add_executable(c1 main.c)
 target_link_libraries(c1 PRIVATE SZ3::hdf5sz3)
 EOF
 printf 'int main(void){return 0;}\n' > conly/main.c
-if cmake -S conly -B conly/b -DCMAKE_PREFIX_PATH="$CMPFX" > conly/cfg.log 2>&1; then
+if cmake -S conly -B conly/b -DCMAKE_PREFIX_PATH="$CMPFX" \
+        -DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE="$(native "$WORK")/conly/b" > conly/cfg.log 2>&1; then
     ok "c-only-consumer-configures"
-    if cmake --build conly/b --parallel 4 > conly/build.log 2>&1; then
+    if cmake --build conly/b --config Release --parallel 4 > conly/build.log 2>&1; then
         ok "c-only-consumer-builds"
     else
         bad "c-only-consumer-builds" "$(tail -15 conly/build.log)"

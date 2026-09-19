@@ -181,8 +181,12 @@ EOF
 CMPFX=$(native "$PREFIX")
 [ -n "$H5BIN" ] && CMPFX="$CMPFX;$(native "$(cd "$H5BIN/.." && pwd)")"
 [ -n "${CMAKE_PREFIX_PATH:-}" ] && CMPFX="$CMPFX;$CMAKE_PREFIX_PATH"
-cmake -S . -B b -DCMAKE_PREFIX_PATH="$CMPFX" -DCMAKE_BUILD_TYPE=Release > cmake.log 2>&1 \
-  && cmake --build b -j 4 >> cmake.log 2>&1 \
+# A multi-config generator ignores CMAKE_BUILD_TYPE and writes the probes to b/<config>, where the
+# ./b/... below cannot find them. Naming the config and its output directory puts them at b/ on
+# either generator kind.
+cmake -S . -B b -DCMAKE_PREFIX_PATH="$CMPFX" -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE="$(native "$WORK")/b" > cmake.log 2>&1 \
+  && cmake --build b --config Release -j 4 >> cmake.log 2>&1 \
   || { echo "FATAL: could not build the probes"; tail -20 cmake.log; exit 1; }
 ./b/gen plain.h5 || { echo "FATAL: could not write the fixture"; exit 1; }
 
