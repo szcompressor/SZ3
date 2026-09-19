@@ -460,10 +460,8 @@ public:
 
         size_t len = bytesToInt64_bigEndian(bytes) ^ 0x1234abcd;
         bytes += 8;
-        // On every other path `len` counts the bits encode() emitted, and they live in what is left of the
-        // buffer. The cached-codebook walk below refills ahead of the code it is decoding; past the last
-        // code byte it shifts in zeros rather than touching memory, which costs a well-formed stream
-        // nothing, because the only bits it reads that far ahead are ones it never consumes.
+        // Bytes of code the stream holds. The cached-codebook walk below refills ahead of the code it is
+        // decoding, and past this it must shift in zeros; a well-formed stream never consumes those bits.
         const size_t code_bytes = (len + 7) >> 3;
         std::vector<T> out(targetLength);
         size_t outLen = 0;

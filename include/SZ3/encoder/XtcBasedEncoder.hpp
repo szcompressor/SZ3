@@ -53,15 +53,10 @@ static const int magicInts[] = {
 
 namespace SZ3 {
 
-/*! \brief read magicInts with the index held inside the table
+/*! \brief read magicInts at an index that came off the stream
  *
- * The index is smallIdx, which arrives on the compressed stream and then drifts by one per round. The
- * encoder writes LASTIDX -- one past the last entry -- whenever no entry reaches minDiff, which every
- * input shorter than two triplets produces, so even a well-formed stream names an index the table does
- * not hold. Subscripting magicInts with it directly read off the end of the array.
- *
- * The encoder already clamps this same index for its own lookups, and clamping here cannot change a
- * well-formed decode: a stream that names LASTIDX carries no run, so nothing downstream reads the value.
+ * The encoder writes LASTIDX -- one past the last entry -- for any input with fewer than two triplets, so
+ * do not subscript the table directly. The clamped entry goes unread: such a stream carries no run.
  */
 static inline int magicIntAt(const int index) { return magicInts[std::min(std::max(index, 0), LASTIDX - 1)]; }
 
@@ -401,11 +396,8 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             oldLocalValue3 = localValue3;
         }
 
-        // The header lands at whatever byte of the compressor's buffer the stages before this one reached,
-        // which carries no alignment guarantee. Storing through an unsigned int* aimed at that byte is
-        // undefined whenever it is not 4-aligned -- the decomposition ahead of this encoder puts it on an
-        // odd byte for every trajectory tried -- and is the kind of thing that survives until a vectorizing
-        // -O3, LTO, or a target that traps on it. memcpy writes the same bytes with no alignment demand.
+        // The header lands at whatever byte the stages before this one reached, and that is an odd one for
+        // every trajectory tried. Do not store these through an int*; a misaligned store is undefined.
         for (int i = 0; i < 3; i++) {
             memcpy(charOutputPtr, &minInt[i], sizeof(int));
             charOutputPtr += sizeof(int);
@@ -432,11 +424,8 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
                     "overflow.\n");
             throw std::runtime_error("Error. Turning value in unsigned by subtracting minInt would cause overflow.");
         }
-        // An input with no complete triplet never enters the scan above, leaving these at their INT_MAX and
-        // INT_MIN seeds -- and the guard just above passes them, because the float difference of the seeds
-        // is negative. INT_MIN - INT_MAX then overflows a signed int, which is undefined however reliably
-        // it wraps today. The destination is unsigned, so doing the arithmetic there yields the very value
-        // the wrap yielded (2 for the seeds) for every input, and yields it by a defined route.
+        // An input with no complete triplet leaves these at their INT_MAX and INT_MIN seeds, where
+        // INT_MIN - INT_MAX overflows a signed int. Keep the arithmetic unsigned; the value is the same.
         unsigned int sizeInt[3];
         sizeInt[0] = static_cast<unsigned int>(maxInt[0]) - static_cast<unsigned int>(minInt[0]) + 1;
         sizeInt[1] = static_cast<unsigned int>(maxInt[1]) - static_cast<unsigned int>(minInt[1]) + 1;
@@ -535,12 +524,8 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             }
             while (isSmall && run < CHAR_BIT * 3) {
                 if (isSmaller == -1) {
-                    // The three differences are each below smallNum, which reaches 2^23 at the top of
-                    // magicInts, so their squares and smaller*smaller overflow a signed int there -- reached
-                    // by any input whose closest neighbouring atoms still sit past the end of the table.
-                    // Squaring in unsigned and reading the sum back as int is the same wrap the signed
-                    // version relied on, so the run is cut in exactly the same places, without the
-                    // undefined behaviour that let a compiler assume it never wraps.
+                    // smallNum reaches 2^23 at the top of magicInts, where these squares overflow a signed
+                    // int. Keep them unsigned; same wrap, so the run is cut in the same places.
                     const unsigned int diff0 = static_cast<unsigned int>(thisCoord[0] - prevCoord[0]);
                     const unsigned int diff1 = static_cast<unsigned int>(thisCoord[1] - prevCoord[1]);
                     const unsigned int diff2 = static_cast<unsigned int>(thisCoord[2] - prevCoord[2]);
@@ -593,9 +578,7 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             buffer.index++;
         }
 
-        // Eight bytes, written the same way and for the same reason as the seven ints above. The value goes
-        // through a uint64_t first so that the field stays eight bytes wide on a platform where size_t is
-        // narrower, which is what the old store through a uint64_t* also did.
+        // Through a uint64_t so the field stays eight bytes wide where size_t is narrower.
         const uint64_t packedByteCount = buffer.index;
         memcpy(charOutputPtr, &packedByteCount, sizeof(uint64_t));
         charOutputPtr += sizeof(uint64_t);
@@ -657,9 +640,7 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         int minInt[3];
         int maxInt[3];
 
-        // The mirror of the encoder's header, and unaligned for the same reason: this is a byte position in
-        // the compressed stream, so loading through an int* aimed at it is undefined wherever it is not
-        // 4-aligned. memcpy reads the same bytes with no alignment demand.
+        // The mirror of the encoder's header, on the same odd byte. Do not load these through an int*.
         for (int i = 0; i < 3; i++) {
             memcpy(&minInt[i], inputBytesPointer, sizeof(int));
             inputBytesPointer += sizeof(int);
@@ -674,9 +655,7 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
                maxInt[2]);
 #endif
 
-        // The encoder writes the INT_MAX and INT_MIN seeds for an input with no complete triplet, so the
-        // same signed overflow arrives here off the stream. Unsigned for the same reason: it is the value
-        // the wrap produced, reached by a defined route.
+        // The INT_MAX and INT_MIN seeds arrive here off the stream, so keep this unsigned too.
         unsigned int sizeInt[3];
         sizeInt[0] = static_cast<unsigned int>(maxInt[0]) - static_cast<unsigned int>(minInt[0]) + 1;
         sizeInt[1] = static_cast<unsigned int>(maxInt[1]) - static_cast<unsigned int>(minInt[1]) + 1;
@@ -848,13 +827,8 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             quantData[quantData.size() - 1] = reminder1;
             quantData[quantData.size() - 2] = reminder2;
         }
-        // encode() leaves `bytes` just past what it wrote and decode() has to match: the interface is a
-        // cursor into the frame, and remaining_length is what is left of it. Nothing above ever moved the
-        // cursor -- the reads all went through inputBytesPointer -- so consumed came out zero and the
-        // buffer was never charged. That is harmless only for as long as decode is the last thing read
-        // out of the frame, which it is in SZGenericCompressor, the one composition this encoder is wired
-        // into: nothing there reads either the cursor or the count afterwards. It is not a property the
-        // encoder can rely on, and the check above only means something once the cursor has moved.
+        // decode() has to leave the cursor past what it read; every read above went through
+        // inputBytesPointer. The check below is empty without this.
         bytes = inputBytesPointer;
         const size_t consumed = static_cast<size_t>(bytes - decode_start);
         if (consumed > remaining_length) {
