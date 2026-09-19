@@ -704,8 +704,11 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         int smallIdx;
         memcpy(&smallIdx, inputBytesPointer, sizeof(int));
         inputBytesPointer += sizeof(int);
-        // The encoder writes LASTIDX when no table entry reaches minDiff, and clamps its own lookups.
-        if (smallIdx < 0 || smallIdx > LASTIDX) throw std::out_of_range("SZ3 Xtc: small index out of range");
+        // smallIdx is a magicInts subscript, and below it is also the bit width receiveints reads a run
+        // body at. The encoder seeds it with FIRSTIDX and only ever walks it up through the table, so
+        // [FIRSTIDX, LASTIDX] is the whole of what it can write here -- LASTIDX included, because that is
+        // where the scan stops when no entry reaches minDiff. The lookups clamp LASTIDX away.
+        if (smallIdx < FIRSTIDX || smallIdx > LASTIDX) throw std::out_of_range("SZ3 Xtc: small index out of range");
         const int smallLookup = std::min(smallIdx, LASTIDX - 1);
 
         int smaller = magicInts[std::max(FIRSTIDX, smallLookup - 1)] / 2;
@@ -855,6 +858,19 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             }
 
             smallIdx += isSmaller;
+            // The step is +-1 per round off the stream, with nothing else holding it, and receiveints
+            // above reads a run body at smallIdx bits into an int[32]: past 256 it writes off the end of
+            // that array. The table's own extent is the bound. The encoder computes maxIdx and minIdx
+            // once, from the smallIdx it wrote, and never recomputes them; it raises smallIdx only while
+            // smallIdx < maxIdx and lowers it only while smallIdx > minIdx, so from the first round on it
+            // stays in [minIdx, maxIdx]. maxIdx is at most LASTIDX - 1, and minIdx is at least FIRSTIDX --
+            // it is either the seed itself, which the scan above leaves no lower than FIRSTIDX, or
+            // LASTIDX - 1 - CHAR_BIT. The one value outside that window the encoder can hold is the
+            // LASTIDX it may have started at. So no stream this encoder wrote leaves [FIRSTIDX, LASTIDX],
+            // and LASTIDX bits fills ten of the thirty-two entries receiveints has.
+            if (smallIdx < FIRSTIDX || smallIdx > LASTIDX) {
+                throw std::out_of_range("SZ3 Xtc: small index walked outside the table");
+            }
             if (isSmaller < 0) {
                 smallNum = smaller;
                 if (smallIdx > FIRSTIDX) {
