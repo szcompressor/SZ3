@@ -797,8 +797,25 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
                 isSmaller = run % 3;
                 run -= isSmaller;
                 isSmaller--;
+                // run is five raw bits, so up to 31, and the adjustment above leaves a multiple of three
+                // up to 30 -- ten triplets. The encoder cannot ask for that many: its run loop tests
+                // `run < CHAR_BIT * 3` at the top and adds three per turn, so CHAR_BIT * 3 is the largest
+                // run it ever holds, and what it puts on the stream is run + isSmaller + 1, at most 26.
+                if (run > CHAR_BIT * 3) {
+                    throw std::out_of_range("SZ3 Xtc: run length exceeds what the encoder can emit");
+                }
             }
+            // Bounding run is not enough on its own, because the while test above is only at the top: a
+            // run that starts near the last triplet walks off the end whatever its length. The encoder
+            // opens a run only when a further triplet follows, and its run loop stops as soon as i
+            // reaches numTriplets, so a stream it wrote never names more triplets than the frame still
+            // has room for -- and the frame, not the stream, is what the loop below writes into. Note
+            // that run carries over to the next round when flag is 0, which is why this is tested here
+            // and not only where run is read.
             if (run > 0) {
+                if (static_cast<uint64_t>(run / 3) > numTriplets - i) {
+                    throw std::out_of_range("SZ3 Xtc: run extends past the end of the frame");
+                }
                 thisCoord += 3;
                 for (int k = 0; k < run; k += 3) {
                     receiveints(&buffer, 3, smallIdx, sizeSmall, thisCoord);
