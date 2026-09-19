@@ -33,7 +33,10 @@ jobs:
             zstd
           init-shell: bash
 
-      - name: Build, install, and consume against this HDF5
+      # One step each, because the matrix leg's name says only which HDF5 and these fail for
+      # unrelated reasons: a build failure is the filter's API drifting, a ctest failure is its
+      # behaviour, and a consumer failure is the export handing out this job's HDF5 paths.
+      - name: Configure
         shell: bash -el {0}
         run: |
           # The filter's API moved between these: H5Zregister's class struct, the H5PL entry points
@@ -43,33 +46,27 @@ jobs:
                 -DBUILD_TESTING=ON \
                 -DBUILD_H5Z_FILTER=ON \
                 -DCMAKE_PREFIX_PATH="$CONDA_PREFIX"
-          cmake --build build --parallel 4
-          (cd build && ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }})
-          cmake --install build --prefix "$PWD/_prefix"
-          mkdir -p _consumer
-          cat > _consumer/CMakeLists.txt <<'EOF'
-          cmake_minimum_required(VERSION 3.18)
-          project(consumer CXX)
-          find_package(SZ3 REQUIRED)
-          add_executable(app main.cpp)
-          target_link_libraries(app PRIVATE SZ3 hdf5sz3)
-          EOF
-          cat > _consumer/main.cpp <<'EOF'
-          #include <H5Z_SZ3.hpp>
-          #include <SZ3/api/sz.hpp>
-          int main() {
-              if (H5Z_SZ3_initialize() < 0) return 2;
-              hid_t dcpl = H5Pcreate(H5P_DATASET_CREATE);
-              SZ3::Config conf(100);
-              conf.absErrorBound = 1e-3;
-              set_SZ3_conf_to_H5(dcpl, conf);
-              return H5Pget_nfilters(dcpl) == 1 ? 0 : 1;
-          }
-          EOF
-          cmake -S _consumer -B _consumer/build -DCMAKE_PREFIX_PATH="$PWD/_prefix;$CONDA_PREFIX"
-          cmake --build _consumer/build --parallel 4
-          ./_consumer/build/app
-          tools/H5Z-SZ3/test/filterAccessModes.sh "$PWD/_prefix" "$CONDA_PREFIX/bin"
+
+      - name: Build
+        shell: bash -el {0}
+        run: cmake --build build --parallel 4
+
+      - name: Run CTest
+        shell: bash -el {0}
+        working-directory: build
+        run: ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }}
+
+      - name: Install it for a consumer to find
+        shell: bash -el {0}
+        run: cmake --install build --prefix "$PWD/_prefix"
+
+      - name: Every shape a consumer builds in
+        shell: bash -el {0}
+        run: tools/test/consumeInstalledSZ3.sh "$PWD/_prefix" "$CONDA_PREFIX"
+
+      - name: Every way an application reaches the filter
+        shell: bash -el {0}
+        run: tools/H5Z-SZ3/test/filterAccessModes.sh "$PWD/_prefix" "$CONDA_PREFIX/bin"
 
   coexist:
     name: Two HDF5s on one machine
