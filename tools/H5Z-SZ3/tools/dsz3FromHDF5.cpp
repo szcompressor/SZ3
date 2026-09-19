@@ -20,10 +20,16 @@
 #define MAX_CHUNK_SIZE 4294967295  // 2^32-1
 
 // H5Fcreate runs before the reads, so a failed read would leave an empty output file behind.
-#define READ_ERROR()               \
-    do {                           \
-        remove(outputFilePath);    \
-        ERROR(H5Dread);            \
+// Windows refuses to unlink a file that is still open, so the handles on it are closed first --
+// on POSIX remove() would have succeeded either way, and on Windows it silently did not.
+#define READ_ERROR()                                                                       \
+    do {                                                                                   \
+        H5Pclose(cpid);                                                                    \
+        H5Sclose(sid);                                                                     \
+        H5Fclose(fid);                                                                     \
+        if (remove(outputFilePath) != 0)                                                   \
+            fprintf(stderr, "could not remove %s: %s\n", outputFilePath, strerror(errno)); \
+        ERROR(H5Dread);                                                                    \
     } while (0)
 
 int main(int argc, char *argv[]) {
