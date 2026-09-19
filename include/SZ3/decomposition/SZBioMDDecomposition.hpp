@@ -7,9 +7,9 @@
 #include "Decomposition.hpp"
 // #include "SZ3/utils/MemoryUtil.hpp"
 #include <list>
+#include <map>
 
 #include "SZ3/utils/Config.hpp"
-#include "SZ3/utils/Collections.hpp"
 
 namespace SZ3 {
 
@@ -106,7 +106,9 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
                 }
             }
         }
-        unordered_map<int, size_t> frequency;
+        // std::map, not SZ3::unordered_map: the loop below keeps the first of a tied pair, so an
+        // unordered container made the guess -- and the compressed bytes -- depend on its order.
+        std::map<int, size_t> frequency;
         for (size_t i = 0; i < sites.size(); i++) {
             frequency[sites[i]]++;
         }
