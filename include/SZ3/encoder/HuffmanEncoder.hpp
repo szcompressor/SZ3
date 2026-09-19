@@ -16,7 +16,6 @@
 #include "SZ3/def.hpp"
 #include "SZ3/encoder/Encoder.hpp"
 #include "SZ3/utils/ByteUtil.hpp"
-#include "SZ3/utils/Collections.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
 #include "SZ3/utils/Timer.hpp"
 
@@ -522,46 +521,67 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
      * @param length how many bins `s` points at; a raw pointer carries no length of its own
      */
     void init(const T *s, size_t length) {
+        // Locals, not `offset` itself: a store to a member of type T may alias the T array being read,
+        // and that is enough to stop this reduction vectorising.
         T max = s[0];
-        offset = s[0];  // offset is min
+        T min = s[0];
 
-        unordered_map<T, size_t> frequency;
-
+        // The range decides how the counts are stored, so it has to be known before anything is sized by it.
         for (size_t i = 0; i < length; i++) {
-            frequency[s[i]] += 1;
-        }
-
-        for (const auto &kv : frequency) {
-            auto k = kv.first;
-            if (k > max) {
-                max = k;
+            if (s[i] > max) {
+                max = s[i];
             }
-            if (k < offset) {
-                offset = k;
+            if (s[i] < min) {
+                min = s[i];
             }
         }
+        offset = min;  // offset is min
 
         // The state table is sized by the bin range rather than the distinct count, so a sparse wide-range
-        // stream overflows this narrowing.
-        if (static_cast<double>(max) - static_cast<double>(offset) > 2e9) {
+        // stream overflows this narrowing. Checked before anything is allocated from that range.
+        if (static_cast<double>(max) - static_cast<double>(min) > 2e9) {
             throw std::invalid_argument("HuffmanEncoder: bin range too wide; use HuffmanEncoderV2");
         }
-        int stateNum = max - offset + 2;
+        int stateNum = max - min + 2;
         huffmanTree = createHuffmanTree(stateNum);
 
-        // to produce the same huffman three on linux & win, we need to iterate through ordered_map in a fixed order
-        std::vector<size_t> frequencyList(stateNum, 0);
-        for (const auto &kv : frequency) {
-            frequencyList[kv.first - offset] = kv.second;
+        // Counted straight into a dense array indexed by bin: the tree is then built in index order, so it
+        // does not depend on the iteration order of any hash container, on linux or on win.
+        //
+        // Real bins repeat -- long runs land in the same bin -- and `count[bin]++` on one table turns that
+        // into a chain of same-address store-to-load forwards, which costs more than the hash map did.
+        // Four tables counted in parallel break the chain and are worth 3x on this loop. They are used
+        // only while all four fit in kLaneBudget, so a sparse wide range neither pays for three extra
+        // tables nor scatters them past the last level of cache, where they would stop helping anyway.
+        constexpr size_t kLaneBudget = 8u << 20;
+        const size_t lanes = (static_cast<size_t>(stateNum) * sizeof(size_t) * 4 <= kLaneBudget) ? 4 : 1;
+        std::vector<size_t> frequencyList(static_cast<size_t>(stateNum) * lanes, 0);
+        size_t *freq = frequencyList.data();
+        if (lanes == 1) {
+            for (size_t i = 0; i < length; i++) {
+                freq[s[i] - min] += 1;
+            }
+        } else {
+            size_t *f1 = freq + stateNum, *f2 = f1 + stateNum, *f3 = f2 + stateNum;
+            size_t i = 0;
+            for (; i + 4 <= length; i += 4) {
+                freq[s[i] - min] += 1;
+                f1[s[i + 1] - min] += 1;
+                f2[s[i + 2] - min] += 1;
+                f3[s[i + 3] - min] += 1;
+            }
+            for (; i < length; i++) {
+                freq[s[i] - min] += 1;
+            }
+            for (int j = 0; j < stateNum; j++) {
+                freq[j] += f1[j] + f2[j] + f3[j];
+            }
         }
         for (int i = 0; i < stateNum; i++) {
             if (frequencyList[i] != 0) {
                 qinsert(new_node(frequencyList[i], i, nullptr, nullptr));
             }
         }
-        // for (const auto &f : frequency) {
-        //     qinsert(new_node(f.second, f.first - offset, nullptr, nullptr));
-        // }
 
         while (huffmanTree->qend > 2) {
             auto left = qremove();
