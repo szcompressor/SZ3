@@ -67,12 +67,6 @@ static inline int magicIntAt(const int index) { return magicInts[std::min(std::m
 
 struct DataBuffer {
     std::size_t index;
-    /* Bits of `data` that receivebits() may still take: the allocation in bits, less what it has read.
-     * Nothing else in the struct records how much there is to read, and how far the cursor walks is
-     * decided by the stream, so this is what makes the walk boundable. Only the reader keeps it; encode()
-     * reads no bits back out and leaves it at zero.
-     */
-    std::size_t readableBits;
     int lastbits;
     unsigned int lastbyte;
     unsigned char *data;
@@ -125,12 +119,7 @@ static inline int sizeofint(const int size) {
 
     while (size >= num && num_of_bits < 32) {
         num_of_bits++;
-        // num doubles until it passes size, so a size of 2^30 or more takes it past INT_MAX and the loop's
-        // own exit then rests on a signed overflow. Only a crafted stream gets here: the encoder rejects a
-        // coordinate range that wide before calling this, which holds every size it asks about below 2^30.
-        // Doubling in unsigned and reading the result back as int is the wrap the signed version was
-        // relying on, so every size returns the width it returned before.
-        num = static_cast<int>(static_cast<unsigned int>(num) << 1);
+        num <<= 1;
     }
     return num_of_bits;
 }
@@ -233,14 +222,6 @@ static inline void sendints(struct DataBuffer *buffer, const int num_of_ints, co
     }
 }
 
-/*! \brief refuse a read that would walk off the end of buffer->data
- *
- * Out of line, so that the test in receivebits below is a compare and a branch that is never taken.
- */
-[[noreturn]] static inline void bitReaderOverrun() {
-    throw std::out_of_range("SZ3 Xtc: bit reader walked past the end of the decompression buffer");
-}
-
 /*! \brief decode number from buffer using specified number of bits
  *
  * extract the number of bits from the data array in buffer and construct an integer
@@ -251,31 +232,7 @@ static inline void sendints(struct DataBuffer *buffer, const int num_of_ints, co
 static inline int receivebits(struct DataBuffer *buffer, int num_of_bits) {
     int num, lastbits;
     unsigned int lastbyte;
-    // The mask keeps the low num_of_bits bits. Forming it as `1 << num_of_bits` is undefined at the 32
-    // sizeofint returns for a stream naming a coordinate range of 2^31 or more. Shifting in unsigned, with
-    // the width compared as unsigned so that the one test also covers a width outside [0, 32), makes the
-    // mask defined at every width this can be called at; below 32 it is the mask that was formed before,
-    // so no stream this encoder wrote decodes differently -- its range guard holds sizeofint at 30 or less.
-    const int mask =
-        static_cast<int>(static_cast<unsigned int>(num_of_bits) >= 32u ? 0xffffffffu : (1u << num_of_bits) - 1u);
-
-    // The cursor below had nothing holding it, and how far it walks is decided by the stream: the
-    // coordinate extremes in the header set the width of every base triplet, and smallIdx sets the width
-    // of a run body. The bound is buffer->data's allocation, in bits, because the allocation is what the
-    // cursor runs off -- unlike the packed byte count beside it, it is not itself a number the stream
-    // supplied. readableBits is that allocation less every bit already read, so this refuses exactly the
-    // reads that would leave the buffer, and a stream that stays inside it is never turned away. A
-    // well-formed one does stay inside: the encoder emitted these bits through sendbits into a buffer
-    // sized by the same targetLength * 1.2 * sizeof(int) formula, sendbits and receivebits carry lastbits
-    // identically so the decode takes back byte for byte what the encode put in, and decode() has already
-    // measured the packed byte count against this same allocation.
-    //
-    // The test belongs here rather than at the call sites: receiveints calls this in a loop, so a test
-    // outside would let the round that runs off the end do so before the next test was reached.
-    if (static_cast<std::size_t>(num_of_bits) > buffer->readableBits) {
-        bitReaderOverrun();
-    }
-    buffer->readableBits -= static_cast<std::size_t>(num_of_bits);
+    int mask = (1 << num_of_bits) - 1;
 
     lastbits = buffer->lastbits;
     lastbyte = buffer->lastbyte;
@@ -388,7 +345,6 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         buffer.index = 0;
         buffer.lastbits = 0;
         buffer.lastbyte = 0;
-        buffer.readableBits = 0;  // nothing is read back out of this buffer
 
         unsigned char *charOutputPtr = bytes;
         uint64_t numTriplets = size3 / 3;
@@ -683,14 +639,6 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         // The reads below are not individually bounded, so check what they consumed before charging it:
         // subtracting more than is left would wrap remaining_length and unbound everything parsed after.
         const unsigned char *decode_start = bytes;
-
-        // Seven 4-byte fields and an 8-byte count, read below without a bound of their own. Establishing
-        // that they are there is also what makes the rest of the buffer a number: the packed byte count
-        // read out of the last of them is measured against whatever follows them.
-        constexpr size_t headerBytes = 7 * sizeof(int) + sizeof(uint64_t);
-        if (remaining_length < headerBytes) {
-            throw std::out_of_range("SZ3 Xtc: compressed buffer is shorter than the encoder's header");
-        }
 #ifdef DEBUG_OUTPUT
         printf("\nDecoding, targetLength: %ld\n", targetLength);
 #endif
@@ -705,7 +653,6 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         buffer.index = 0;
         buffer.lastbits = 0;
         buffer.lastbyte = 0;
-        buffer.readableBits = 0;
 
         int minInt[3];
         int maxInt[3];
@@ -749,11 +696,8 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         int smallIdx;
         memcpy(&smallIdx, inputBytesPointer, sizeof(int));
         inputBytesPointer += sizeof(int);
-        // smallIdx is a magicInts subscript, and below it is also the bit width receiveints reads a run
-        // body at. The encoder seeds it with FIRSTIDX and only ever walks it up through the table, so
-        // [FIRSTIDX, LASTIDX] is the whole of what it can write here -- LASTIDX included, because that is
-        // where the scan stops when no entry reaches minDiff. The lookups clamp LASTIDX away.
-        if (smallIdx < FIRSTIDX || smallIdx > LASTIDX) throw std::out_of_range("SZ3 Xtc: small index out of range");
+        // The encoder writes LASTIDX when no table entry reaches minDiff, and clamps its own lookups.
+        if (smallIdx < 0 || smallIdx > LASTIDX) throw std::out_of_range("SZ3 Xtc: small index out of range");
         const int smallLookup = std::min(smallIdx, LASTIDX - 1);
 
         int smaller = magicInts[std::max(FIRSTIDX, smallLookup - 1)] / 2;
@@ -776,19 +720,9 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         inputBytesPointer += sizeof(uint64_t);
         buffer.index = packedByteCount;
 
-        // buffer.index is the byte count the memcpy loop below copies into buffer.data, so it has to fit
-        // the destination...
+        // buffer.index is the byte count the memcpy loop below copies into buffer.data.
         if (buffer.index > bufferSize * sizeof(int))
             throw std::out_of_range("SZ3 Xtc: packed data size exceeds the decompression buffer");
-        // ...and it has to be there to copy. The destination is sized from targetLength -- 4.8 bytes per
-        // element -- while the packed bytes run about one per element, so the check above alone let a
-        // stream claim roughly four times what it carried and read the difference off the end of the
-        // compressed buffer. What is left of that buffer after the header is the whole of what the loop
-        // may take, and it is exactly buffer.index for a stream this encoder wrote: encode() writes the
-        // packed bytes immediately after the header and is the last thing the compressor puts in the
-        // frame, so nothing else can be sharing the bytes counted here.
-        if (buffer.index > remaining_length - headerBytes)
-            throw std::out_of_range("SZ3 Xtc: packed data size exceeds the compressed buffer");
 
         size_t offset = 0;
         size_t remain = buffer.index;
@@ -804,11 +738,6 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         buffer.index = 0;
         buffer.lastbits = 0;
         buffer.lastbyte = 0;
-        // The reader starts here, with the whole allocation ahead of it -- the bound receivebits tests
-        // against. It is the allocation and not packedByteCount because the allocation is a fact of this
-        // process rather than a field the stream carried, and it is the wider of the two: the check above
-        // has already held packedByteCount inside it.
-        buffer.readableBits = bufferSize * sizeof(int) * CHAR_BIT;
 
         int run = 0;
         size_t i = 0;
@@ -850,25 +779,8 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
                 isSmaller = run % 3;
                 run -= isSmaller;
                 isSmaller--;
-                // run is five raw bits, so up to 31, and the adjustment above leaves a multiple of three
-                // up to 30 -- ten triplets. The encoder cannot ask for that many: its run loop tests
-                // `run < CHAR_BIT * 3` at the top and adds three per turn, so CHAR_BIT * 3 is the largest
-                // run it ever holds, and what it puts on the stream is run + isSmaller + 1, at most 26.
-                if (run > CHAR_BIT * 3) {
-                    throw std::out_of_range("SZ3 Xtc: run length exceeds what the encoder can emit");
-                }
             }
-            // Bounding run is not enough on its own, because the while test above is only at the top: a
-            // run that starts near the last triplet walks off the end whatever its length. The encoder
-            // opens a run only when a further triplet follows, and its run loop stops as soon as i
-            // reaches numTriplets, so a stream it wrote never names more triplets than the frame still
-            // has room for -- and the frame, not the stream, is what the loop below writes into. Note
-            // that run carries over to the next round when flag is 0, which is why this is tested here
-            // and not only where run is read.
             if (run > 0) {
-                if (static_cast<uint64_t>(run / 3) > numTriplets - i) {
-                    throw std::out_of_range("SZ3 Xtc: run extends past the end of the frame");
-                }
                 thisCoord += 3;
                 for (int k = 0; k < run; k += 3) {
                     receiveints(&buffer, 3, smallIdx, sizeSmall, thisCoord);
@@ -908,19 +820,6 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             }
 
             smallIdx += isSmaller;
-            // The step is +-1 per round off the stream, with nothing else holding it, and receiveints
-            // above reads a run body at smallIdx bits into an int[32]: past 256 it writes off the end of
-            // that array. The table's own extent is the bound. The encoder computes maxIdx and minIdx
-            // once, from the smallIdx it wrote, and never recomputes them; it raises smallIdx only while
-            // smallIdx < maxIdx and lowers it only while smallIdx > minIdx, so from the first round on it
-            // stays in [minIdx, maxIdx]. maxIdx is at most LASTIDX - 1, and minIdx is at least FIRSTIDX --
-            // it is either the seed itself, which the scan above leaves no lower than FIRSTIDX, or
-            // LASTIDX - 1 - CHAR_BIT. The one value outside that window the encoder can hold is the
-            // LASTIDX it may have started at. So no stream this encoder wrote leaves [FIRSTIDX, LASTIDX],
-            // and LASTIDX bits fills ten of the thirty-two entries receiveints has.
-            if (smallIdx < FIRSTIDX || smallIdx > LASTIDX) {
-                throw std::out_of_range("SZ3 Xtc: small index walked outside the table");
-            }
             if (isSmaller < 0) {
                 smallNum = smaller;
                 if (smallIdx > FIRSTIDX) {

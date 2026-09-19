@@ -436,28 +436,20 @@ public:
     }
 
     std::vector<T> decode(const uchar*& bytes, size_t targetLength, size_t& remaining_length) override {
-        // The code section opens with the encoder's own record of what it wrote. It is untrusted, so
-        // nothing below is sized or driven by it until it has been squared with the caller's targetLength:
-        // both describe the same run of symbols, and the caller's count is the one the decompressor is
-        // prepared to receive.
-        const uchar* const decode_start = bytes;
-        if (remaining_length < 8) {
-            throw std::out_of_range("SZ3 HuffmanEncoderV2: decode read past the end of the compressed buffer");
-        }
-        const size_t len = static_cast<size_t>(bytesToInt64_bigEndian(bytes) ^ 0x1234abcd);
-        bytes += 8;
-        const size_t code_bytes = remaining_length - 8;
-
+        // The reads below are not individually bounded, so check what they consumed before charging it:
+        // subtracting more than is left would wrap remaining_length and unbound everything parsed after.
+        const uchar* decode_start = bytes;
         if (tree.maxval == 1) {
-            // One distinct symbol: encode() spends no bits on the bins and writes their count in place of
-            // them, so `len` here is a symbol count with no stream length to measure it against. It is the
-            // same num_bin the compressor records and hands back as targetLength, so the two must agree.
-            // Sizing the result from the stream instead let a 29-byte frame return 2^28 values.
-            if (len != targetLength) {
-                throw std::out_of_range("SZ3 HuffmanEncoderV2: constant bin count disagrees with the caller");
+            size_t len = bytesToInt64_bigEndian(bytes) ^ 0x1234abcd;
+            bytes += 8;
+            //                assert(len==targetLength);
+
+            const size_t consumed = static_cast<size_t>(bytes - decode_start);
+            if (consumed > remaining_length) {
+                throw std::out_of_range("SZ3 HuffmanEncoderV2: decode read past the end of the compressed buffer");
             }
-            remaining_length -= static_cast<size_t>(bytes - decode_start);
-            return std::vector<T>(targetLength, tree.offset);
+            remaining_length -= consumed;
+            return std::vector<T>(len, tree.offset);
         }
 
         // Timer timer(true);
@@ -466,36 +458,18 @@ public:
 
         // Node *u = &tree.ht[tree.root];
 
+        size_t len = bytesToInt64_bigEndian(bytes) ^ 0x1234abcd;
+        bytes += 8;
         // On every other path `len` counts the bits encode() emitted, and they live in what is left of the
-        // buffer. Checking that up front is what keeps the walks below inside it: the old check ran only
-        // after the walk, by which time it had already read past the end.
-        const size_t len_bytes = len / 8 + (len % 8 != 0 ? 1 : 0);
-        if (len_bytes > code_bytes) {
-            throw std::out_of_range("SZ3 HuffmanEncoderV2: decode read past the end of the compressed buffer");
-        }
-
-        // Below the root every code costs at least one bit, so `len` bits cannot carry more than `len`
-        // symbols -- the ceiling HuffmanEncoder::decode uses, and one the fixed-length path meets too,
-        // since it spends mbft >= 1 bits apiece. Turning a larger count away here is what keeps the walks
-        // below proportional to the stream rather than to whatever count the caller was handed.
-        if (targetLength > len) {
-            throw std::out_of_range("SZ3 HuffmanEncoderV2: more bins requested than the encoded stream can hold");
-        }
-
+        // buffer. The cached-codebook walk below refills ahead of the code it is decoding; past the last
+        // code byte it shifts in zeros rather than touching memory, which costs a well-formed stream
+        // nothing, because the only bits it reads that far ahead are ones it never consumes.
+        const size_t code_bytes = (len + 7) >> 3;
         std::vector<T> out(targetLength);
         size_t outLen = 0;
 
         // For fixed length encoding
         if (tree.n == 0) {
-            // encode() spends exactly tree.mbft bits on every bin and records mbft * num_bin, and the
-            // caller asks for that same num_bin back, so this is the one length that fills `out` exactly.
-            // Holding `len` to the product is what bounds the walk: it emits one value per mbft bits, so it
-            // emits floor(len / mbft) == targetLength of them and cannot reach the end of `out`. Anything
-            // the encoder wrote has mbft >= 1; a zero would emit nothing and is rejected with the rest.
-            if (tree.mbft == 0 || len % tree.mbft != 0 || len / tree.mbft != targetLength) {
-                throw std::out_of_range("SZ3 HuffmanEncoderV2: fixed-length code length disagrees with the caller");
-            }
-
             size_t byteIndex = 0;
             size_t i = 0;
             size_t b;
@@ -547,20 +521,20 @@ public:
                 }
             }
 
-            // The rounds above stop with at most 8 bits to go; those live in one more byte, which only
-            // exists when there are bits left to take from it.
-            if (i < len) {
-                b = bytes[byteIndex];
+            b = bytes[byteIndex];
 
-                for (size_t k = 0; k < len - i; k++) {
-                    c |= ((b >> k) & 1) << j, ++j;
-                    if (j == tree.mbft) out[outLen++] = c + tree.offset, c = j = 0;
-                }
+            for (size_t k = 0; k < len - i; k++) {
+                c |= ((b >> k) & 1) << j, ++j;
+                if (j == tree.mbft) out[outLen++] = c + tree.offset, c = j = 0;
             }
 
             bytes += (len + 7) >> 3;
 
-            remaining_length -= static_cast<size_t>(bytes - decode_start);
+            const size_t consumed = static_cast<size_t>(bytes - decode_start);
+            if (consumed > remaining_length) {
+                throw std::out_of_range("SZ3 HuffmanEncoderV2: decode read past the end of the compressed buffer");
+            }
+            remaining_length -= consumed;
             return out;
         }
 
@@ -573,6 +547,7 @@ public:
             // https://github.com/szcompressor/SZ/blob/a92658e785c072de1061f549c6cbc6d42d0f7f22/sz/src/Huffman.c#L345
 
             int maxBits = 16;
+            size_t count = 0;
             Node* t = &tree.ht[tree.root];
             Node* n = t;
 
@@ -604,13 +579,9 @@ public:
             T currentValue = 0;
             size_t i = 0;
 
-            // This walk is driven by the caller's count, so `out` is safe by construction; what it does not
-            // bound is how far the refills read. Both of them keep the buffer at arm's length: past the
-            // last code byte they shift in zeros rather than touching memory, which costs a well-formed
-            // stream nothing, because the only bits it reads that far ahead are ones it never consumes.
-            while (outLen < targetLength) {
+            while (count < targetLength) {
                 while (static_cast<int>(leftBits) < maxBits) {
-                    if (i < len_bytes) currentValue += (bytes[i] << leftBits);
+                    if (i < code_bytes) currentValue += (bytes[i] << leftBits);
                     leftBits += 8;
                     i++;
                 }
@@ -618,11 +589,11 @@ public:
                 size_t index = currentValue & ((1 << maxBits) - 1);
                 T value = valueTable[index];
                 if (value != -1) {
-                    out[outLen] = value;
+                    out[count] = value;
                     int bitLength = lengthTable[index];
                     leftBits -= bitLength;
                     currentValue >>= bitLength;
-                    outLen++;
+                    count++;
                 } else {
                     int bitLength = lengthTable[index];
                     leftBits -= bitLength;
@@ -630,7 +601,7 @@ public:
                     n = nodeTable[index];
                     while (!n->isLeaf()) {
                         if (!leftBits) {
-                            if (i < len_bytes) currentValue += (bytes[i] << leftBits);
+                            if (i < code_bytes) currentValue += (bytes[i] << leftBits);
                             leftBits += 8;
                             i++;
                         }
@@ -638,17 +609,9 @@ public:
                         leftBits--;
                         currentValue >>= 1;
                     }
-                    out[outLen] = n->c + tree.offset;
-                    outLen++;
+                    out[count] = n->c + tree.offset;
+                    count++;
                 }
-            }
-
-            // 8 * i bits were shifted in and leftBits of them are still buffered, so the difference is what
-            // the codes actually consumed. A well-formed stream lands on exactly `len`; going past it means
-            // the tree decodes the bins into shorter codes than the one that wrote them, and the zeros fed
-            // above are being read as data.
-            if (8 * i - leftBits > len) {
-                throw std::out_of_range("SZ3 HuffmanEncoderV2: decode consumed more bits than the stream holds");
             }
         } else {
             // for small huffman tree, use loop unrolling to increase the performance
@@ -666,12 +629,7 @@ public:
             Node* u = &tree.ht[tree.root];
             auto offset = tree.offset;
 
-            // Eight bits can complete eight codes, so an unrolled round is only entered while eight more
-            // values still fit. Bounding `len` alone would not do it: every code below the root is at least
-            // one bit, so a tree whose codes are shorter than the ones the encoder used turns the very bits
-            // the stream does hold into more symbols than the caller asked for. That, and not an overlong
-            // length on its own, is what ran off the end of `out`.
-            for (; i + 8 < len && outLen + 8 <= targetLength; i += 8, byteIndex++) {
+            for (; i + 8 < len; i += 8, byteIndex++) {
                 b = bytes[byteIndex];
 
                 u = u->p[b & 1];
@@ -716,11 +674,10 @@ public:
                 }
             }
 
-            // Whatever an unrolled round could not take, one bit at a time, stopping at whichever limit
-            // comes first. i indexes the bit, so the byte it lands in stays inside the len_bytes checked
-            // above.
-            for (; i < len && outLen < targetLength; i++) {
-                u = u->p[(bytes[i >> 3] >> (i & 7)) & 1];
+            b = bytes[byteIndex];
+
+            for (size_t j = 0; j < len - i; j++) {
+                u = u->p[(b >> j) & 1];
                 if (u->isLeaf()) {
                     out[outLen++] = u->c + tree.offset;
                     u = &tree.ht[tree.root];
@@ -731,13 +688,11 @@ public:
 
         // timer.stop("decode");
 
-        // Both walks above stop at the shorter of the caller's count and the stream's bits, so a short
-        // count here means the bits ran out first: the stream cannot produce what the caller asked for.
-        if (outLen != targetLength) {
-            throw std::out_of_range("SZ3 HuffmanEncoderV2: corrupted encoded stream");
+        const size_t consumed = static_cast<size_t>(bytes - decode_start);
+        if (consumed > remaining_length) {
+            throw std::out_of_range("SZ3 HuffmanEncoderV2: decode read past the end of the compressed buffer");
         }
-
-        remaining_length -= static_cast<size_t>(bytes - decode_start);
+        remaining_length -= consumed;
         return out;
     }
 
@@ -804,9 +759,7 @@ private:
         }
     }
 
-    // The bit index walks a whole tree section, which can be longer than an int holds; truncating it would
-    // send the read backwards out of the buffer.
-    static uchar readBit(const uchar* const& c, size_t i) { return ((*(c + (i >> 3))) >> (i & 7)) & 1; }
+    static uchar readBit(const uchar* const & c, int i) { return ((*(c + (i >> 3))) >> (i & 7)) & 1; }
 
     void saveAsCode(uchar*& c) {
         // Timer timer(true);
@@ -1117,12 +1070,6 @@ private:
         tree.usemp = (*bytes) >> 7;
         tree.mbft = (*bytes) & 0x3f;
         ++bytes;
-        // mbft is how many bits a leaf value occupies, and the leaf is rebuilt by shifting single bits into
-        // a T, so a width T cannot hold shifts past the end of the type. preprocess_encode() stops raising
-        // mbft once 1 << mbft covers maxval, which a T holds, so it never writes one this wide.
-        if (tree.mbft >= sizeof(T) * 8) {
-            throw std::out_of_range("SZ3 HuffmanEncoderV2: leaf width exceeds the bin type");
-        }
 
         for (size_t i = 0; i < sizeof(T); i++) {
             tree.offset |= static_cast<T>(*bytes) << (i << 3);
@@ -1163,13 +1110,6 @@ private:
         }
 
         if (tree.n == 1) {
-            // constructHuffmanTree() collapses a one-leaf tree to maxval == 1, and encode() keys off that
-            // to spend no bits on the bins, so the pair is settled before either is written. A stream that
-            // pairs n == 1 with any other maxval sends decode down the general walk instead, into a root
-            // with only one child, where the first 1 bit steps onto a null pointer.
-            if (tree.maxval != 1) {
-                throw std::out_of_range("SZ3 HuffmanEncoderV2: one-leaf tree declares more than one value");
-            }
             tree.ht.resize(2);
             tree.root = 0;
             tree.ht[0] = Node(0, &tree.ht[1]);
@@ -1191,18 +1131,9 @@ private:
         stk.push(&tree.ht[0]);
         size_t i = 1;
 
-        // A full binary tree with tree.n leaves has tree.n - 1 interior nodes, so the walk below builds
-        // 2 * tree.n - 1 nodes and no more, which is what the reserve above already assumed. It has to hold:
-        // the Node* in the stack and in the children linked so far point into that storage, so a bitstream
-        // that pushed past the reserve would reallocate it out from under them, and the walk would then
-        // read and write freed memory. Each turn of the loop pushes exactly one node.
-        const size_t max_nodes = static_cast<size_t>(tree.n) * 2 - 1;
-
         while (!stk.empty()) {
             Node* u = stk.top();
 
-            if (tree.ht.size() >= max_nodes)
-                throw std::out_of_range("SZ3 HuffmanEncoderV2: tree holds more nodes than its leaf count allows");
             if (static_cast<size_t>(i >> 3) >= dfs_bytes)
                 throw std::out_of_range("SZ3 HuffmanEncoderV2: tree bitstream exceeds the compressed buffer");
             if (readBit(bytes, i++) == 0x00) {
@@ -1219,14 +1150,6 @@ private:
                     if (static_cast<size_t>(i >> 3) >= dfs_bytes)
                         throw std::out_of_range("SZ3 HuffmanEncoderV2: tree bitstream exceeds the compressed buffer");
                     c |= static_cast<T>(readBit(bytes, i++)) << j;
-                }
-                // With usemp == 0 the codebook is a pair of dense tables indexed by the leaf value itself,
-                // so a value outside them is an out-of-bounds write once dfs_vec walks the finished tree.
-                // addElementInVector() only ever enters values from [0, maxval), so no tree the encoder
-                // wrote is turned away here.
-                if (tree.usemp == 0x00 &&
-                    (static_cast<int64_t>(c) < 0 || static_cast<uint64_t>(c) >= tree.veclen.size())) {
-                    throw std::out_of_range("SZ3 HuffmanEncoderV2: tree leaf outside the declared value range");
                 }
                 tree.ht.push_back(Node(c));
                 if (u->p[0] == nullptr)

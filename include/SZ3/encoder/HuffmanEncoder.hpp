@@ -226,6 +226,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     // perform decoding
     std::vector<T> decode(const uchar *&bytes, size_t targetLength, size_t &remaining_length) override {
         node t = treeRoot;
+        std::vector<T> out(targetLength);
         size_t i = 0, byteIndex = 0, count = 0;
         int r;
         node n = treeRoot;
@@ -233,20 +234,12 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         read(encodedLength, bytes, remaining_length);
         if (n->t)  // root->t==1 means that all state values are the same (constant)
         {
-            // The single symbol of a one-leaf tree carries a zero-length code, so the stream holds no bits.
-            return std::vector<T>(targetLength, static_cast<T>(n->c + offset));
+            for (count = 0; count < targetLength; count++) out[count] = n->c + offset;
+            return out;
         }
 
         if (encodedLength > remaining_length)
             throw std::out_of_range("SZ3 Huffman: encoded length exceeds compressed buffer");
-
-        // Below the root every code is at least one bit, so encodedLength * 8 is the most symbols this
-        // stream can yield. A larger targetLength is the corrupted stream the walk below rejects anyway;
-        // rejecting it first is what keeps it from sizing `out`. The left clause bounds the product.
-        if (encodedLength > std::numeric_limits<size_t>::max() / 8 || targetLength > encodedLength * 8)
-            throw std::out_of_range("SZ3 Huffman: more bins requested than the encoded stream can hold");
-
-        std::vector<T> out(targetLength);
 
         // Walk at most the bits the stream holds, and stop once targetLength symbols are out.
         const size_t maxBits = targetLength > 0 ? encodedLength * 8 : 0;
