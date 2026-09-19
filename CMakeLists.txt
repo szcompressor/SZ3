@@ -27,12 +27,6 @@ endif ()
 
 find_package(PkgConfig)
 
-# SZ3_USE_SKA_HASH decides which type SZ3::unordered_map names, so it cannot travel as an INTERFACE
-# compile definition: a consumer who compiles our headers without CMake would not get it and would
-# resolve the alias the other way, giving one program two layouts for HuffmanEncoder and friends.
-# It is baked into version.hpp instead, which every consumer reads whatever their build. Declared
-# here rather than beside the other options because configure_file below has to see its value.
-option(SZ3_USE_SKA_HASH "use ska hashmap instead of std hashmap, default is ska for better speed" ON)
 configure_file(
         ${CMAKE_CURRENT_SOURCE_DIR}/include/SZ3/version.hpp.in
         ${CMAKE_CURRENT_BINARY_DIR}/include/SZ3/version.hpp)

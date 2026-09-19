@@ -18,11 +18,6 @@
 
 #define SZ3_DATA_VER "@SZ3_DATA_VERSION@"
 
-// A build option, not a version: it decides which type SZ3::unordered_map names, so it has to be
-// baked in rather than passed as an INTERFACE define. A consumer compiling these headers without
-// our CMake would otherwise resolve the alias the other way and disagree about every layout on top.
-#cmakedefine01 SZ3_USE_SKA_HASH
-
 inline uint32_t versionInt(const std::string& version) {
     uint32_t major = 0, minor = 0, patch = 0;
     char dot;

@@ -6,6 +6,7 @@
 #include <queue>
 #include <stack>
 #include <stdexcept>
+#include <unordered_map>
 #include <vector>
 
 #include "SZ3/def.hpp"
@@ -13,7 +14,6 @@
 #include "SZ3/utils/ByteUtil.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
 #include "SZ3/utils/Timer.hpp"
-#include "SZ3/utils/Collections.hpp"
 
 namespace SZ3 {
 template <class T>
@@ -92,12 +92,8 @@ private:
 
         std::vector<uchar> veclen;
         std::vector<int> veccode;
-        unordered_map<size_t, uchar> mplen;
-        unordered_map<size_t, int> mpcode;
-        //            std::unordered_map<size_t,uchar> mplen;
-        //            std::unordered_map<size_t,int> mpcode;
-        //            std::map<size_t,uchar> mplen;
-        //            std::map<size_t,int> mpcode;
+        std::unordered_map<size_t, uchar> mplen;
+        std::unordered_map<size_t, int> mpcode;
 
         T offset;
         // minimum bits for T
@@ -129,9 +125,7 @@ private:
         T maxval;
         std::vector<Node> ht;
         std::vector<size_t> vecfreq;
-        unordered_map<T, size_t> mpfreq;
-        //            std::unordered_map<T,size_t> mpfreq;
-        //            std::map<T,size_t> mpfreq;
+        std::unordered_map<T, size_t> mpfreq;
 
         void addElementInMap(T c, size_t freqc) {
             assert(!_constructed);
@@ -279,8 +273,6 @@ public:
             //                tree.mplen.reserve(num_bin);
             //                tree.mpcode.reserve(num_bin);
 
-            //                unordered_map<T,size_t> freq;
-            //                std::unordered_map<T,size_t> freq;
             std::map<T, size_t> freq;
             //                freq.reserve(num_bin);
 

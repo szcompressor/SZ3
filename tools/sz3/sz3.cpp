@@ -264,11 +264,6 @@ static int run(int argc, char *argv[]) {
             case 'v':
                 printf("SZ3 Version: %s\n", SZ3_VER);
                 printf("SZ3 Data Format Version: %s\n", SZ3_DATA_VER);
-                printf("\nThird-party libraries copyright notices:\n");
-                printf("----------------------------------------\n");
-                printf("ska_hash:\n");
-                printf("  Copyright (c) 2017 Malte Skarupke\n");
-                printf("  Licensed under the Boost Software License - Version 1.0\n");
                 exit(0);
             case 'b':
                 binaryOutput = true;

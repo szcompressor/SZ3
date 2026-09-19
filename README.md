@@ -83,4 +83,3 @@ Version New features
 
 ## 3rd party libraries/tools
 * [Zstandard](https://facebook.github.io/zstd/) v1.5.6 is vendored in `tools/zstd` and built if libzstd can not be found by pkg-config, or if `-DSZ3_USE_BUNDLED_ZSTD=ON` is given. It is linked statically as `libsz3_zstd` and kept private to SZ3.
-* The source code of ska_hash is included in SZ3.
