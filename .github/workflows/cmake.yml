@@ -1,4 +1,4 @@
-name: Cross-Platform SZ3 Verification
+name: Build & Test
 
 on: [ push ]
 
@@ -9,6 +9,9 @@ env:
   MODE: ABS
   TOL: 1
 
+# One job per platform: configure with every feature on, build, run the tests, round-trip the smoke
+# dataset. Anything that needs more than one configuration of anything lives in its own workflow --
+# packaging.yml for install and consume, hdf5.yml for the filter against more than one HDF5.
 jobs:
   build-linux:
     name: Build & Test (Linux)
@@ -42,219 +45,10 @@ jobs:
         working-directory: build
         run: cmake --build . --config ${{ env.BUILD_TYPE }} --parallel 4
 
-      - name: Check this build took the system-Zstd path
-        shell: bash
-        run: |
-          if ! ldd build/tools/sz3/sz3 | grep -q 'libzstd\.so'; then
-            echo "sz3 links no system libzstd, so this job is not testing the system path"
-            ldd build/tools/sz3/sz3; exit 1
-          fi
-          if find build -name 'libsz3_zstd.*' | grep -q .; then
-            echo "the bundled Zstd was built as well, so which one is linked is not clear"; exit 1
-          fi
-          if grep -q 'SZ3::zstd' build/CMakeFiles/Export/*/SZ3Targets.cmake; then
-            echo "the export names SZ3::zstd, so this build did not take the system path"; exit 1
-          fi
-
       - name: Run CTest
         shell: bash
         working-directory: build
         run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
-
-      - name: Install and build a separate project against it
-        shell: bash
-        run: |
-          cmake --install build --prefix "$PWD/_prefix"
-          mkdir -p _consumer
-          cat > _consumer/CMakeLists.txt <<'EOF'
-          cmake_minimum_required(VERSION 3.18)
-          project(consumer CXX)
-          find_package(SZ3 REQUIRED)
-          add_executable(app main.cpp)
-          target_link_libraries(app PRIVATE SZ3 hdf5sz3)
-          EOF
-          cat > _consumer/main.cpp <<'EOF'
-          #include <H5Z_SZ3.hpp>
-          #include <SZ3/api/sz.hpp>
-          int main() {
-              if (H5Z_SZ3_initialize() < 0) return 2;
-              hid_t dcpl = H5Pcreate(H5P_DATASET_CREATE);
-              SZ3::Config conf(100);
-              conf.absErrorBound = 1e-3;
-              set_SZ3_conf_to_H5(dcpl, conf);
-              return H5Pget_nfilters(dcpl) == 1 ? 0 : 1;
-          }
-          EOF
-          cmake -S _consumer -B _consumer/build -DCMAKE_PREFIX_PATH="$PWD/_prefix"
-          cmake --build _consumer/build --parallel 4
-          ./_consumer/build/app
-          tools/H5Z-SZ3/test/filterAccessModes.sh "$PWD/_prefix"
-          ldd _prefix/lib/libhdf5sz3.so | tee _ldd.log
-          # Not `! grep ...`: set -e exempts a !-inverted command, so it would never fail the step.
-          if grep -q 'not found' _ldd.log; then echo "a NEEDED library does not resolve"; exit 1; fi
-          grep -o 'INTERFACE_INCLUDE_DIRECTORIES "[^"]*"' _prefix/lib/cmake/SZ3/HDF5SZ3.cmake \
-            | sed 's/.*"\(.*\)"/\1/' | tr ';' '\n' | tee _inc.log
-          if grep -qv '^\${_IMPORT_PREFIX}/' _inc.log; then
-            echo "an exported include directory points outside the install prefix"; exit 1
-          fi
-          mkdir -p _conly
-          cat > _conly/CMakeLists.txt <<'EOF'
-          cmake_minimum_required(VERSION 3.18)
-          project(conly C)
-          find_package(SZ3 QUIET)
-          if (SZ3_FOUND)
-              add_executable(c1 main.c)
-              target_link_libraries(c1 PRIVATE SZ3::hdf5sz3)
-          endif ()
-          EOF
-          printf 'int main(void){return 0;}\n' > _conly/main.c
-          cmake -S _conly -B _conly/build -DCMAKE_PREFIX_PATH="$PWD/_prefix"
-          cmake --build _conly/build --parallel 4
-          mkdir -p _probe
-          cat > _probe/CMakeLists.txt <<'EOF'
-          cmake_minimum_required(VERSION 3.18)
-          project(probe CXX)
-          find_package(SZ3 QUIET)
-          if (SZ3_FOUND)
-              message(FATAL_ERROR "SZ3 reported itself found with no HDF5 to be had")
-          endif ()
-          EOF
-          cmake -S _probe -B _probe/build -DCMAKE_PREFIX_PATH="$PWD/_prefix" \
-                -DCMAKE_DISABLE_FIND_PACKAGE_HDF5=ON
-
-      - name: A parallel-HDF5 consumer needs no MPI search of ours
-        shell: bash
-        run: |
-          # SZ3Config.cmake resolves no MPI: the filter calls none, and a parallel HDF5 carries the
-          # MPI it was built against. This is the case that proves it -- if it did not hold, the
-          # consumer would end up with a second, independently chosen MPI.
-          sudo apt-get install -y libhdf5-openmpi-dev openmpi-bin
-          HDF5_MPI_ROOT=/usr/lib/x86_64-linux-gnu/hdf5/openmpi
-          mkdir -p _mpi
-          cat > _mpi/CMakeLists.txt <<'EOF'
-          cmake_minimum_required(VERSION 3.18)
-          project(mpiconsumer C)
-          find_package(SZ3 REQUIRED)
-          add_executable(mapp main.c)
-          target_link_libraries(mapp PRIVATE SZ3::hdf5sz3)
-          EOF
-          cat > _mpi/main.c <<'EOF'
-          #include <hdf5.h>
-          #include <stdio.h>
-          int main(void) {
-              htri_t avail = H5Zfilter_avail(32024);
-              printf("filter avail=%d\n", (int)avail);
-              return avail > 0 ? 0 : 1;
-          }
-          EOF
-          cmake -S _mpi -B _mpi/build                 -DCMAKE_PREFIX_PATH="$PWD/_prefix;$HDF5_MPI_ROOT"                 -DCMAKE_C_COMPILER=mpicc
-          cmake --build _mpi/build --parallel 4
-          HDF5_PLUGIN_PATH="$PWD/_prefix/lib/plugin" ./_mpi/build/mapp
-          ldd _mpi/build/mapp | grep -E 'libmpi|libhdf5' | tee _mpi.log
-          if [ "$(grep -c 'libmpi' _mpi.log)" -gt 1 ]; then
-            echo "more than one MPI in the consumer's binary"; cat _mpi.log; exit 1
-          fi
-
-      - name: The export must not carry this machine's Zstd, and must outlive the build tree
-        shell: bash
-        run: |
-          # SZ3Config.cmake is deliberately not grepped: its find_library runs on the consumer's machine.
-          if grep -En 'libzstd|PkgConfig::ZSTD' _prefix/lib/cmake/SZ3/SZ3Targets*.cmake; then
-            echo "the installed export names this machine's Zstd"; exit 1
-          fi
-          # Moved aside, not deleted: later steps run the sz3 in build/.
-          rm -rf _consumer/build
-          mv build build.aside
-          cmake -S _consumer -B _consumer/build2 -DCMAKE_PREFIX_PATH="$PWD/_prefix"
-          cmake --build _consumer/build2 --parallel 4
-          ./_consumer/build2/app
-          mv build.aside build
-
-      - name: A packager can delete tools/zstd and still build against the system Zstd
-        shell: bash
-        run: |
-          # Debian and Fedora forbid embedded code copies, so the vendored tree has to be deletable.
-          # git worktree, so the deletion cannot escape.
-          git worktree add _nozstd HEAD
-          rm -rf _nozstd/tools/zstd
-          cmake -S _nozstd -B _nozstd/build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
-          cmake --build _nozstd/build --parallel 4
-          if grep -q 'SZ3::zstd' _nozstd/build/CMakeFiles/Export/*/SZ3Targets.cmake; then
-            echo "with tools/zstd gone this did not take the system path"; exit 1
-          fi
-          _nozstd/build/tools/sz3/sz3 -f -i tools/sz3/testfloat_8_8_128.dat -z _n.sz3 \
-                                      -3 ${{ env.DIMS }} -M ${{ env.MODE }} ${{ env.TOL }}
-          _nozstd/build/tools/sz3/sz3 -f -s _n.sz3 -o _n.dat -3 ${{ env.DIMS }}
-          if [ "$(wc -c < _n.dat)" != "$(wc -c < tools/sz3/testfloat_8_8_128.dat)" ]; then
-            echo "the system Zstd did not reproduce the input length"; exit 1
-          fi
-
-      - name: Keep the bundled Zstd to itself
-        shell: bash
-        run: |
-          cmake -S . -B _bundled -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
-                -DSZ3_USE_BUNDLED_ZSTD=ON -DBUILD_H5Z_FILTER=ON
-          cmake --build _bundled --parallel 4
-          cmake --install _bundled --prefix "$PWD/_bprefix"
-          test -e _bprefix/lib/libsz3_zstd.a
-          if ldd _bundled/tools/sz3/sz3 | grep -q 'libzstd\.so'; then
-            echo "asked for the bundled Zstd and linked the system one anyway"; exit 1
-          fi
-          _bundled/tools/sz3/sz3 -f -i tools/sz3/testfloat_8_8_128.dat -z _b.sz3 \
-                                 -3 ${{ env.DIMS }} -M ${{ env.MODE }} ${{ env.TOL }}
-          _bundled/tools/sz3/sz3 -f -s _b.sz3 -o _b.dat -3 ${{ env.DIMS }}
-          if [ "$(wc -c < _b.dat)" != "$(wc -c < tools/sz3/testfloat_8_8_128.dat)" ]; then
-            echo "the bundled Zstd did not reproduce the input length"; exit 1
-          fi
-          if ! grep -q 'SZ3::zstd' _bprefix/lib/cmake/SZ3/SZ3Targets.cmake; then
-            echo "the export does not name SZ3::zstd, so a consumer has nothing to link"; exit 1
-          fi
-          for f in include/zstd.h include/zdict.h include/zbuff.h include/zstd_errors.h \
-                   lib/libzstd.a lib/libzstd.so include/SZ3/bundled_zstd/zstd.h; do
-            if [ -e "_bprefix/$f" ]; then echo "installed $f, which the system Zstd owns"; exit 1; fi
-          done
-          if find _bprefix -name 'zstd.h' | grep -q .; then
-            echo "a zstd.h was installed:"; find _bprefix -name 'zstd.h'; exit 1
-          fi
-          if grep -q 'libsz3_zstd' _bprefix/lib/cmake/SZ3/SZ3Targets*.cmake && \
-             grep 'libsz3_zstd' _bprefix/lib/cmake/SZ3/SZ3Targets*.cmake | grep -qv '_IMPORT_PREFIX'; then
-            echo "the vendored Zstd is referenced by an absolute path, so the export cannot move"
-            grep 'libsz3_zstd' _bprefix/lib/cmake/SZ3/SZ3Targets*.cmake; exit 1
-          fi
-          grep -ho 'INTERFACE_INCLUDE_DIRECTORIES "[^"]*"' _bprefix/lib/cmake/SZ3/*.cmake \
-            | sed 's/.*"\(.*\)"/\1/' | tr ';' '\n' | sed "s|\${_IMPORT_PREFIX}|$PWD/_bprefix|" \
-            | sort -u | tee _incdirs.log
-          while read -r d; do
-            if [ -n "$d" ] && [ -e "$d/zstd.h" ]; then echo "a zstd.h reachable from $d"; exit 1; fi
-          done < _incdirs.log
-          for lib in _bprefix/lib/*.so; do
-            if nm -D --defined-only "$lib" | grep ' T \(ZSTD_\|ZDICT_\|ZBUFF_\)'; then
-              echo "$lib exports Zstd's symbols"; exit 1
-            fi
-          done
-
-      - name: The serialized format must not change without SZ3_DATA_VERSION
-        shell: bash
-        run: |
-          # An unversioned format change produces files an older build accepts and then misreads.
-          # The _bundled tree: the bytes depend on which Zstd compressed them, and only it is pinned.
-          VER=$(sed -n 's/^#define SZ3_DATA_VER "\(.*\)"/\1/p' _bundled/include/SZ3/version.hpp)
-          if [ -z "$VER" ]; then echo "could not read SZ3_DATA_VER from the generated header"; exit 1; fi
-          ./_bundled/tools/sz3/sz3 -f -i tools/sz3/testfloat_8_8_128.dat -z fmt.sz3 \
-                                   -3 8 8 128 -M ABS 1e-3 > /dev/null
-          GOT=$(sha256sum fmt.sz3 | awk '{print $1}')
-          WANT=$(awk -v v="$VER" '$1 == v { print $2 }' tools/test/data_format_digest.txt)
-          echo "SZ3_DATA_VERSION=$VER"
-          echo "  recorded: ${WANT:-<no row>}"
-          echo "  produced: $GOT"
-          if [ -z "$WANT" ]; then
-            echo "::error ::SZ3_DATA_VERSION $VER has no row in tools/test/data_format_digest.txt. Add: $VER      $GOT"
-            exit 1
-          fi
-          if [ "$WANT" != "$GOT" ]; then
-            echo "::error ::The bytes this version produces have changed. If the serialized format changed, bump SZ3_DATA_VERSION in CMakeLists.txt and add a row for the new version. If the bundled Zstd was re-vendored, replace this row with: $VER      $GOT"
-            exit 1
-          fi
 
       - name: Download test data
         shell: bash
@@ -331,64 +125,6 @@ jobs:
           name: temp-linux-out-sz3
           path: build/out.sz3
 
-  hdf5-versions:
-    name: HDF5 ${{ matrix.hdf5 }}
-    runs-on: ubuntu-latest
-    # A separate job rather than a matrix over build-linux, which feeds one digest to compare and
-    # one artifact to build-windows; both would become ambiguous under a matrix.
-    strategy:
-      fail-fast: false
-      matrix:
-        hdf5: ["1.10.6", "1.14.6", "2.2.0"]
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: mamba-org/setup-micromamba@v2
-        with:
-          environment-name: h5
-          create-args: >-
-            hdf5=${{ matrix.hdf5 }}
-            zstd
-          init-shell: bash
-
-      - name: Build, install, and consume against this HDF5
-        shell: bash -el {0}
-        run: |
-          # The filter's API moved between these: H5Zregister's class struct, the H5PL entry points
-          # and h5repack's own behaviour all differ across 1.10, 1.14 and 2.x.
-          cmake -S . -B build \
-                -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
-                -DBUILD_TESTING=ON \
-                -DBUILD_H5Z_FILTER=ON \
-                -DCMAKE_PREFIX_PATH="$CONDA_PREFIX"
-          cmake --build build --parallel 4
-          (cd build && ctest --output-on-failure -C ${{ env.BUILD_TYPE }})
-          cmake --install build --prefix "$PWD/_prefix"
-          mkdir -p _consumer
-          cat > _consumer/CMakeLists.txt <<'EOF'
-          cmake_minimum_required(VERSION 3.18)
-          project(consumer CXX)
-          find_package(SZ3 REQUIRED)
-          add_executable(app main.cpp)
-          target_link_libraries(app PRIVATE SZ3 hdf5sz3)
-          EOF
-          cat > _consumer/main.cpp <<'EOF'
-          #include <H5Z_SZ3.hpp>
-          #include <SZ3/api/sz.hpp>
-          int main() {
-              if (H5Z_SZ3_initialize() < 0) return 2;
-              hid_t dcpl = H5Pcreate(H5P_DATASET_CREATE);
-              SZ3::Config conf(100);
-              conf.absErrorBound = 1e-3;
-              set_SZ3_conf_to_H5(dcpl, conf);
-              return H5Pget_nfilters(dcpl) == 1 ? 0 : 1;
-          }
-          EOF
-          cmake -S _consumer -B _consumer/build -DCMAKE_PREFIX_PATH="$PWD/_prefix;$CONDA_PREFIX"
-          cmake --build _consumer/build --parallel 4
-          ./_consumer/build/app
-          tools/H5Z-SZ3/test/filterAccessModes.sh "$PWD/_prefix" "$CONDA_PREFIX/bin"
-
   build-macos:
     name: Build & Test (macOS)
     runs-on: macos-latest
@@ -423,41 +159,6 @@ jobs:
         shell: bash
         working-directory: build
         run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
-
-      - name: Install and build a separate project against it
-        shell: bash
-        run: |
-          # The same shapes the Linux job checks. Mach-O resolves libraries by install name rather
-          # than RUNPATH, so an export that works there can still fail here.
-          cmake --install build --prefix "$PWD/_prefix"
-          mkdir -p _consumer
-          cat > _consumer/CMakeLists.txt <<'EOF'
-          cmake_minimum_required(VERSION 3.18)
-          project(consumer CXX)
-          find_package(SZ3 REQUIRED)
-          add_executable(app main.cpp)
-          target_link_libraries(app PRIVATE SZ3 hdf5sz3)
-          EOF
-          cat > _consumer/main.cpp <<'EOF'
-          #include <H5Z_SZ3.hpp>
-          #include <SZ3/api/sz.hpp>
-          int main() {
-              if (H5Z_SZ3_initialize() < 0) return 2;
-              hid_t dcpl = H5Pcreate(H5P_DATASET_CREATE);
-              SZ3::Config conf(100);
-              conf.absErrorBound = 1e-3;
-              set_SZ3_conf_to_H5(dcpl, conf);
-              return H5Pget_nfilters(dcpl) == 1 ? 0 : 1;
-          }
-          EOF
-          cmake -S _consumer -B _consumer/build -DCMAKE_PREFIX_PATH="$PWD/_prefix"
-          cmake --build _consumer/build --parallel 4
-          ./_consumer/build/app
-          otool -L _prefix/lib/libhdf5sz3.dylib | tee _otool.log
-          if grep -q '@rpath/libhdf5' _otool.log && ! otool -l _prefix/lib/libhdf5sz3.dylib | grep -q LC_RPATH; then
-            echo "libhdf5 is referenced through @rpath with no LC_RPATH to resolve it"; exit 1
-          fi
-          tools/H5Z-SZ3/test/filterAccessModes.sh "$PWD/_prefix"
 
       - name: Download test data
         shell: bash
