@@ -639,6 +639,14 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         // The reads below are not individually bounded, so check what they consumed before charging it:
         // subtracting more than is left would wrap remaining_length and unbound everything parsed after.
         const unsigned char *decode_start = bytes;
+
+        // Seven 4-byte fields and an 8-byte count, read below without a bound of their own. Establishing
+        // that they are there is also what makes the rest of the buffer a number: the packed byte count
+        // read out of the last of them is measured against whatever follows them.
+        constexpr size_t headerBytes = 7 * sizeof(int) + sizeof(uint64_t);
+        if (remaining_length < headerBytes) {
+            throw std::out_of_range("SZ3 Xtc: compressed buffer is shorter than the encoder's header");
+        }
 #ifdef DEBUG_OUTPUT
         printf("\nDecoding, targetLength: %ld\n", targetLength);
 #endif
@@ -720,9 +728,19 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         inputBytesPointer += sizeof(uint64_t);
         buffer.index = packedByteCount;
 
-        // buffer.index is the byte count the memcpy loop below copies into buffer.data.
+        // buffer.index is the byte count the memcpy loop below copies into buffer.data, so it has to fit
+        // the destination...
         if (buffer.index > bufferSize * sizeof(int))
             throw std::out_of_range("SZ3 Xtc: packed data size exceeds the decompression buffer");
+        // ...and it has to be there to copy. The destination is sized from targetLength -- 4.8 bytes per
+        // element -- while the packed bytes run about one per element, so the check above alone let a
+        // stream claim roughly four times what it carried and read the difference off the end of the
+        // compressed buffer. What is left of that buffer after the header is the whole of what the loop
+        // may take, and it is exactly buffer.index for a stream this encoder wrote: encode() writes the
+        // packed bytes immediately after the header and is the last thing the compressor puts in the
+        // frame, so nothing else can be sharing the bytes counted here.
+        if (buffer.index > remaining_length - headerBytes)
+            throw std::out_of_range("SZ3 Xtc: packed data size exceeds the compressed buffer");
 
         size_t offset = 0;
         size_t remain = buffer.index;
@@ -848,6 +866,14 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             quantData[quantData.size() - 1] = reminder1;
             quantData[quantData.size() - 2] = reminder2;
         }
+        // encode() leaves `bytes` just past what it wrote and decode() has to match: the interface is a
+        // cursor into the frame, and remaining_length is what is left of it. Nothing above ever moved the
+        // cursor -- the reads all went through inputBytesPointer -- so consumed came out zero and the
+        // buffer was never charged. That is harmless only for as long as decode is the last thing read
+        // out of the frame, which it is in SZGenericCompressor, the one composition this encoder is wired
+        // into: nothing there reads either the cursor or the count afterwards. It is not a property the
+        // encoder can rely on, and the check above only means something once the cursor has moved.
+        bytes = inputBytesPointer;
         const size_t consumed = static_cast<size_t>(bytes - decode_start);
         if (consumed > remaining_length) {
             throw std::out_of_range("SZ3 Xtc: decode read past the end of the compressed buffer");
