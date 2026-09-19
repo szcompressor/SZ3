@@ -12,16 +12,50 @@ trap 'rm -rf "$WORK"' EXIT
 cd "$WORK" || exit 1
 
 h5() { if [ -n "$H5BIN" ]; then echo "$H5BIN/$1"; else echo "$1"; fi; }
+# Under MSYS2 and Cygwin, cmake and the HDF5 tools are native Windows programs while this shell
+# deals in /d/... paths they cannot open. A prefix handed over unconverted is simply not searched,
+# and cmake then finds SZ3 wherever else it can -- in CI, the build tree on PATH.
+native() { if command -v cygpath > /dev/null 2>&1; then cygpath -m "$1"; else echo "$1"; fi; }
 LIBDIR=$PREFIX/lib
 [ -d "$LIBDIR" ] || LIBDIR=$PREFIX/lib64
 PLUGIN_DIR=$LIBDIR/plugin
 NOPLUGIN=$WORK/no-such-plugin-dir
+# HDF5 reads HDF5_PLUGIN_PATH itself, so it needs the same native form cmake does.
+PLUGIN_PATH=$(native "$PLUGIN_DIR")
+NOPLUGIN_PATH=$(native "$NOPLUGIN")
+
+# Every spelling the filter takes when it is shared: .so on Linux, .dylib on macOS, hdf5sz3.dll
+# under MSVC and libhdf5sz3.dll under MinGW. An archive is deliberately not among them.
+shared_filter_in() {
+    for f in "$1"/libhdf5sz3.so* "$1"/libhdf5sz3*.dylib "$1"/hdf5sz3.dll "$1"/libhdf5sz3.dll; do
+        [ -e "$f" ] && return 0
+    done
+    return 1
+}
+# The plugin is a shared object HDF5 dlopens. BUILD_SHARED_LIBS=OFF installs an archive instead, so
+# every mode that goes through HDF5_PLUGIN_PATH, and the DT_NEEDED entry the loader would record,
+# describe something this install tree does not contain. Reported as failures they say the filter is
+# broken; they are skips, named and counted, and the total at the bottom is asserted.
+HAVE_PLUGIN=0
+shared_filter_in "$PLUGIN_DIR" && HAVE_PLUGIN=1
+HAVE_SHARED=0
+shared_filter_in "$LIBDIR" && HAVE_SHARED=1
+shared_filter_in "$PREFIX/bin" && HAVE_SHARED=1
+# What decides the skip is the shape of the library, not the absence of the plugin file -- otherwise
+# a plugin that failed to install would excuse itself. A shared filter with no plugin beside it is
+# the install rule being wrong, and has to be read that way.
+if [ "$HAVE_SHARED" = 1 ] && [ "$HAVE_PLUGIN" = 0 ]; then
+    echo "FATAL: $LIBDIR holds a shared hdf5sz3 but $PLUGIN_DIR holds nothing for HDF5 to load"
+    exit 1
+fi
 
 pass=0; fail=0; skip=0
 ok()   { echo "PASS  $1"; pass=$((pass+1)); }
 bad()  { echo "FAIL  $1"; shift; for l in "$@"; do echo "        $l"; done; fail=$((fail+1)); }
 # Never counted as a pass: a suite that reports more checks than it ran is worse than no suite.
 skipped() { echo "SKIP  $1"; skip=$((skip+1)); }
+# reason <text>, then the names it covers
+skip_all() { reason=$1; shift; for n in "$@"; do skipped "$n ($reason)"; done; }
 # want <name> <expected substring> <file>
 want() { if grep -qF "$2" "$3"; then ok "$1"; else bad "$1" "expected to find: $2" "got:" "$(head -5 "$3")"; fi; }
 notwant() { if grep -qF "$2" "$3"; then bad "$1" "did not expect: $2"; else ok "$1"; fi; }
@@ -139,8 +173,8 @@ set_source_files_properties(noref.c PROPERTIES LANGUAGE CXX)
 target_link_libraries(noref PRIVATE SZ3::SZ3 SZ3::hdf5sz3)
 EOF
 # When the HDF5 tools were given explicitly, build against that same HDF5.
-CMPFX=$PREFIX
-[ -n "$H5BIN" ] && CMPFX="$PREFIX;$(cd "$H5BIN/.." && pwd)"
+CMPFX=$(native "$PREFIX")
+[ -n "$H5BIN" ] && CMPFX="$CMPFX;$(native "$(cd "$H5BIN/.." && pwd)")"
 [ -n "${CMAKE_PREFIX_PATH:-}" ] && CMPFX="$CMPFX;$CMAKE_PREFIX_PATH"
 cmake -S . -B b -DCMAKE_PREFIX_PATH="$CMPFX" -DCMAKE_BUILD_TYPE=Release > cmake.log 2>&1 \
   && cmake --build b -j 4 >> cmake.log 2>&1 \
@@ -150,8 +184,11 @@ cmake -S . -B b -DCMAKE_PREFIX_PATH="$CMPFX" -DCMAKE_BUILD_TYPE=Release > cmake.
 # The cd_values a user has to type. Mirrors SZ3::Config::save(); see cdvalueHelper.py.
 CD_ABS="UD=32024,0,8,32,0,16777216,4054449152,1348619730,41023,256,0"
 
-# ---------------------------------------------------------------- 1. h5repack
-export HDF5_PLUGIN_PATH=$PLUGIN_DIR
+# ---------------------------------------------------------------- 1. h5repack, 2. h5dump / h5ls
+# Both sections reach the filter only through HDF5_PLUGIN_PATH, and the h5dump section reads the
+# file h5repack wrote, so neither says anything without a plugin to dlopen.
+if [ "$HAVE_PLUGIN" = 1 ]; then
+export HDF5_PLUGIN_PATH=$PLUGIN_PATH
 "$(h5 h5repack)" -f "$CD_ABS" plain.h5 rp.h5 > rp.log 2>&1
 "$(h5 h5dump)" -pH rp.h5 > rp.head 2>&1
 want "h5repack-applies-sz3"        "FILTER_ID 32024" rp.head
@@ -165,7 +202,7 @@ notwant "h5repack-none-strips-sz3" "32024" strip.head
 want "h5repack-none-keeps-dataset" "ds" strip.ls
 
 # With the filter unreachable h5repack exits 0 and quietly writes an UNFILTERED copy.
-export HDF5_PLUGIN_PATH=$NOPLUGIN
+export HDF5_PLUGIN_PATH=$NOPLUGIN_PATH
 "$(h5 h5repack)" -f "$CD_ABS" plain.h5 rp_noplug.h5 > rpn.log 2>&1
 "$(h5 h5dump)" -pH rp_noplug.h5 > rpn.head 2>&1
 notwant "h5repack-noplugin-drops-filter-silently" "32024" rpn.head
@@ -176,15 +213,14 @@ want "h5repack-noplugin-warns-on-read" "filter is not available" lost.log
 notwant "h5repack-noplugin-loses-dataset" "ds" lost.ls
 
 # A cd_values array this filter did not write. h5repack turns the refusal into an unfiltered copy.
-export HDF5_PLUGIN_PATH=$PLUGIN_DIR
+export HDF5_PLUGIN_PATH=$PLUGIN_PATH
 "$(h5 h5repack)" -f "UD=32024,0,9,3,0,3,3341,20,0,1062232653,3539053052,0" plain.h5 rp_old.h5 > old.log 2>&1
 "$(h5 h5dump)" -pH rp_old.h5 > old.head 2>&1
 notwant "foreign-cdvalues-refused" "32024" old.head
 ./b/read rp_old.h5 > old.read 2>&1
 want "foreign-cdvalues-leaves-data-intact" "READ OK" old.read
 
-# ---------------------------------------------------------------- 2. h5dump / h5ls
-export HDF5_PLUGIN_PATH=$NOPLUGIN
+export HDF5_PLUGIN_PATH=$NOPLUGIN_PATH
 "$(h5 h5dump)" -pH rp.h5 > d_meta.head 2>&1
 want "h5dump-header-needs-no-plugin"   "FILTER_ID 32024" d_meta.head
 want "h5dump-header-shows-version"     "H5Z-SZ3-" d_meta.head
@@ -199,14 +235,26 @@ want "h5dump-data-noplugin-message"    "unable to print data" d_data.err
 "$(h5 h5dump)" --enable-error-stack -d /ds rp.h5 > d_stack.out 2> d_stack.err
 want "h5dump-names-the-filter"         "is not registered" d_stack.err
 want "h5dump-names-our-version"        "H5Z-SZ3-" d_stack.err
-export HDF5_PLUGIN_PATH=$PLUGIN_DIR
+export HDF5_PLUGIN_PATH=$PLUGIN_PATH
 "$(h5 h5dump)" -d /ds rp.h5 > d_ok.out 2> d_ok.err
 want "h5dump-data-with-plugin"         "DATA {" d_ok.out
 notwant "h5dump-data-with-plugin-clean" "unable to print data" d_ok.err
+else
+skip_all "hdf5sz3 was installed as an archive, so there is no plugin to load" \
+    h5repack-applies-sz3 h5repack-records-version h5repack-output-reads-back \
+    h5repack-none-strips-sz3 h5repack-none-keeps-dataset \
+    h5repack-noplugin-drops-filter-silently h5repack-noplugin-warns-on-read \
+    h5repack-noplugin-loses-dataset \
+    foreign-cdvalues-refused foreign-cdvalues-leaves-data-intact \
+    h5dump-header-needs-no-plugin h5dump-header-shows-version h5ls-verbose-shows-version \
+    h5dump-data-noplugin-fails h5dump-data-noplugin-message \
+    h5dump-names-the-filter h5dump-names-our-version \
+    h5dump-data-with-plugin h5dump-data-with-plugin-clean
+fi
 
 # ---------------------------------------------------------------- 3. application shapes
 # (a) links and calls H5Z_SZ3_initialize(), nothing on the plugin path
-export HDF5_PLUGIN_PATH=$NOPLUGIN
+export HDF5_PLUGIN_PATH=$NOPLUGIN_PATH
 ./b/app init a_init.h5 > a_init.log 2>&1
 want "app-init-registers"        "INIT RETURNED 1" a_init.log
 want "app-init-writes"           "WRITE OK" a_init.log
@@ -214,7 +262,8 @@ want "app-init-finalizes"        "FINI RETURNED 1" a_init.log
 ./b/read a_init.h5 > /dev/null 2>&1 && bad "app-init-file-needs-filter" "read without the filter succeeded" \
   || ok "app-init-file-needs-filter"
 # (b) links but never calls it, reaching the filter only through HDF5_PLUGIN_PATH
-export HDF5_PLUGIN_PATH=$PLUGIN_DIR
+if [ "$HAVE_PLUGIN" = 1 ]; then
+export HDF5_PLUGIN_PATH=$PLUGIN_PATH
 ./b/app plugin a_plug.h5 > a_plug.log 2>&1
 want "app-plugin-only-writes"    "WRITE OK" a_plug.log
 want "app-plugin-only-avail"     "AVAIL 1" a_plug.log
@@ -227,14 +276,24 @@ want "app-both-finalize-declines" "FINI RETURNED 1" a_both.log
 # (d) the plugin-only reader, the mode every third-party tool uses
 ./b/read a_both.h5 > r_plug.log 2>&1
 want "plugin-only-reader-works"  "READ OK" r_plug.log
-export HDF5_PLUGIN_PATH=$NOPLUGIN
+export HDF5_PLUGIN_PATH=$NOPLUGIN_PATH
 ./b/read a_both.h5 > r_noplug.log 2>&1
 want "plugin-only-reader-fails-without" "READ FAILED" r_noplug.log
+else
+skip_all "hdf5sz3 was installed as an archive, so there is no plugin to load" \
+    app-plugin-only-writes app-plugin-only-avail \
+    app-both-defers app-both-writes app-both-finalize-declines \
+    plugin-only-reader-works plugin-only-reader-fails-without
+fi
 # Toolchains differ on dropping unreferenced libraries, so noref decides whether this can assert.
-if ! command -v readelf > /dev/null 2>&1; then
+if [ "$HAVE_SHARED" != 1 ]; then
+    skipped "app-keeps-dt-needed (hdf5sz3 was installed as an archive, which the loader never records)"
+elif ! command -v readelf > /dev/null 2>&1; then
     skipped "app-keeps-dt-needed (no readelf)"
 elif [ ! -f ./b/noref ] || [ ! -f ./b/app ]; then
     bad "app-keeps-dt-needed" "one of the two probes is missing, so there is nothing to compare"
+elif ! readelf -d ./b/noref > /dev/null 2>&1; then
+    skipped "app-keeps-dt-needed (readelf does not read this platform's executables)"
 else
     n_app=$(readelf -d ./b/app   | grep -c 'NEEDED.*hdf5sz3')
     n_ref=$(readelf -d ./b/noref | grep -c 'NEEDED.*hdf5sz3')
@@ -249,4 +308,13 @@ fi
 
 echo
 echo "  $pass passed, $fail failed, $skip skipped"
+
+# Raise this with the check it comes with. A guard that skips the wrong list, or a section that
+# stops early, otherwise shows only as a smaller number at the bottom that nobody compares.
+EXPECTED=31
+ran=$((pass + fail + skip))
+if [ "$ran" -ne "$EXPECTED" ]; then
+    echo "  the suite accounted for $ran checks, not $EXPECTED"
+    exit 1
+fi
 exit $((fail > 0))
