@@ -11,8 +11,23 @@ env:
 
 # One job per platform: configure with every feature on, build, run the tests, round-trip the smoke
 # dataset. Anything that needs more than one configuration of anything lives in its own workflow --
-# packaging.yml for install and consume, hdf5.yml for the filter against more than one HDF5.
+# packaging.yml for install and consume, hdf5.yml for the filter against more than one HDF5. The
+# first job checks all of them, this one included, for keys that interpolate to nothing.
 jobs:
+  workflow-env:
+    name: Every workflow declares the env it reads
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check for env keys that interpolate to nothing
+        shell: bash
+        run: |
+          # An undeclared key expands to the empty string and cannot be made to fail on its own, so
+          # the argument it was carrying goes missing with nothing said. Splitting this workflow
+          # into three left three of them behind in packaging.yml, across eight references.
+          python3 tools/test/check_workflow_env.py
+
   build-linux:
     name: Build & Test (Linux)
     runs-on: ubuntu-latest

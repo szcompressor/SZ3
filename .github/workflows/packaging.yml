@@ -4,6 +4,9 @@ on: [ push ]
 
 env:
   BUILD_TYPE: Release
+  DIMS: "128 8 8"
+  MODE: ABS
+  TOL: 1
 
 # What an installed SZ3 hands someone else: the export, the consumer shapes it has to support, and
 # the promises the bundled Zstd makes. None of this is visible to a build that only ever runs from
@@ -132,6 +135,12 @@ jobs:
       - name: A packager can delete tools/zstd and still build against the system Zstd
         shell: bash
         run: |
+          # An undeclared env: key interpolates to the empty string, and sz3 answers the arguments
+          # that are left with its usage text and a non-zero exit -- which reads as a compressor
+          # that ran and failed. Name the missing key instead.
+          for v in DIMS MODE TOL; do
+            [ -n "${!v}" ] || { echo "workflow env: has no $v, so sz3 would lose an argument"; exit 1; }
+          done
           # Debian and Fedora forbid embedded code copies, so the vendored tree has to be deletable.
           # git worktree, so the deletion cannot escape.
           git worktree add _nozstd HEAD
@@ -151,6 +160,9 @@ jobs:
       - name: Keep the bundled Zstd to itself
         shell: bash
         run: |
+          for v in DIMS MODE TOL; do
+            [ -n "${!v}" ] || { echo "workflow env: has no $v, so sz3 would lose an argument"; exit 1; }
+          done
           cmake -S . -B _bundled -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
                 -DSZ3_USE_BUNDLED_ZSTD=ON -DBUILD_H5Z_FILTER=ON
           cmake --build _bundled --parallel 4
