@@ -22,6 +22,10 @@ cd "$WORK" || exit 1
 native() { if command -v cygpath > /dev/null 2>&1; then cygpath -m "$1"; else echo "$1"; fi; }
 LIBDIR=$PREFIX/lib
 [ -d "$LIBDIR" ] || LIBDIR=$PREFIX/lib64
+# SZ3Config.cmake decides whether SZ3::hdf5sz3 exists by looking for exactly this file, and
+# BUILD_H5Z_FILTER is off by default -- so a prefix without it is sound, not broken.
+HAVE_FILTER=0
+[ -f "$LIBDIR/cmake/SZ3/HDF5SZ3.cmake" ] && HAVE_FILTER=1
 CMPFX=$(native "$PREFIX")
 [ -n "$EXTRA_PREFIX" ] && CMPFX="$CMPFX;$(native "$(cd "$EXTRA_PREFIX" && pwd)")"
 [ -n "${CMAKE_PREFIX_PATH:-}" ] && CMPFX="$CMPFX;$CMAKE_PREFIX_PATH"
@@ -31,9 +35,13 @@ CMPFX=$(native "$PREFIX")
 # the whole variable when it spawns a native program.
 export PATH="$PREFIX/bin:$PATH"
 
-pass=0; fail=0
+pass=0; fail=0; skip=0
 ok()  { echo "PASS  $1"; pass=$((pass+1)); }
 bad() { echo "FAIL  $1"; shift; for l in "$@"; do echo "        $l"; done; fail=$((fail+1)); }
+# Never counted as a pass: a suite that reports more checks than it ran is worse than no suite.
+skipped() { echo "SKIP  $1"; skip=$((skip+1)); }
+# reason <text>, then the names it covers
+skip_all() { reason=$1; shift; for n in "$@"; do skipped "$n ($reason)"; done; }
 # want <name> <expected substring> <file>
 want() { if grep -qF "$2" "$3"; then ok "$1"; else bad "$1" "expected to find: $2" "got:" "$(head -10 "$3")"; fi; }
 
@@ -43,6 +51,7 @@ echo "    cmake prefix path $CMPFX"
 # ---------------------------------------------------------------- 1. C++, unversioned targets
 # target_link_libraries(app PRIVATE SZ3 hdf5sz3): the spelling with no SZ3:: namespace, which CMake
 # turns into a bare -lhdf5sz3 unless SZ3Config.cmake defines the alias.
+if [ "$HAVE_FILTER" = 1 ]; then
 mkdir -p cxx
 cat > cxx/CMakeLists.txt <<'EOF'
 cmake_minimum_required(VERSION 3.18)
@@ -91,11 +100,17 @@ else
 fi
 want "cxx-consumer-initializes-the-filter"   "INIT OK"    cxx/run.log
 want "cxx-consumer-sets-one-filter-on-a-dcpl" "NFILTERS 1" cxx/run.log
+else
+skip_all "this SZ3 was built without BUILD_H5Z_FILTER, so the export carries no hdf5sz3" \
+    cxx-consumer-configures cxx-consumer-builds cxx-consumer-runs \
+    cxx-consumer-initializes-the-filter cxx-consumer-sets-one-filter-on-a-dcpl
+fi
 
 # ---------------------------------------------------------------- 2. C only, namespaced target
 # A C project never enables CXX, so anything SZ3Config.cmake resolves per-language has to cope.
 # REQUIRED, and no if (SZ3_FOUND) around the executable: written the other way this builds nothing
 # whenever SZ3 is not found, which is exactly when a C-only consumer is broken.
+if [ "$HAVE_FILTER" = 1 ]; then
 mkdir -p conly
 cat > conly/CMakeLists.txt <<'EOF'
 cmake_minimum_required(VERSION 3.18)
@@ -122,6 +137,10 @@ if [ -x conly/b/c1 ] || [ -x conly/b/c1.exe ]; then
 else
     bad "c-only-consumer-produces-an-executable" "no c1 under conly/b"
 fi
+else
+skip_all "this SZ3 was built without BUILD_H5Z_FILTER, so the export carries no hdf5sz3" \
+    c-only-consumer-configures c-only-consumer-builds c-only-consumer-produces-an-executable
+fi
 
 # ---------------------------------------------------------------- 3. the exported include paths
 # A build directory or a third party's include tree named here reaches every consumer, and points
@@ -146,6 +165,8 @@ fi
 # ---------------------------------------------------------------- 4. no HDF5 on the machine
 # SZ3Config.cmake reports not-found and returns, rather than ending the consumer's configure or
 # handing them a link line they cannot use. GROMACS's GMX_USE_SZ3=AUTO depends on this shape.
+# Only the filter makes SZ3 depend on HDF5 at all, so without it there is no declining to observe.
+if [ "$HAVE_FILTER" = 1 ]; then
 mkdir -p probe
 cat > probe/CMakeLists.txt <<'EOF'
 cmake_minimum_required(VERSION 3.18)
@@ -161,14 +182,18 @@ if cmake -S probe -B probe/b -DCMAKE_PREFIX_PATH="$CMPFX" \
 else
     bad "sz3-declines-when-hdf5-cannot-be-found" "$(tail -15 probe/cfg.log)"
 fi
+else
+skip_all "this SZ3 was built without BUILD_H5Z_FILTER, so it depends on no HDF5" \
+    sz3-declines-when-hdf5-cannot-be-found
+fi
 
 echo
-echo "  $pass passed, $fail failed"
+echo "  $pass passed, $fail failed, $skip skipped"
 
 # Raise this with the check it comes with. A section that stops early otherwise shows only as a
 # smaller number at the bottom that nobody compares.
 EXPECTED=11
-ran=$((pass + fail))
+ran=$((pass + fail + skip))
 if [ "$ran" -ne "$EXPECTED" ]; then
     echo "  the suite accounted for $ran checks, not $EXPECTED"
     exit 1
