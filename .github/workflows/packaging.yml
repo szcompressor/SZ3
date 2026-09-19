@@ -38,9 +38,11 @@ jobs:
         shell: bash
         working-directory: build
         run: |
+          # No BUILD_TESTING: nothing here runs ctest, and it makes FetchContent pull googletest,
+          # whose own install rules put libgtest, libgmock and their headers into the prefix this
+          # job then inspects as an installed SZ3.
           cmake .. \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
-            -DBUILD_TESTING=ON \
             -DBUILD_H5Z_FILTER=ON
 
       - name: Build
@@ -58,7 +60,11 @@ jobs:
           if find build -name 'libsz3_zstd.*' | grep -q .; then
             echo "the bundled Zstd was built as well, so which one is linked is not clear"; exit 1
           fi
-          if grep -q 'SZ3::zstd' build/CMakeFiles/Export/*/SZ3Targets.cmake; then
+          # Named, not globbed at the grep: CMake picks the directory under Export/ and an
+          # unmatched glob reaches grep as a literal, which exits 2 and reads here as "clean".
+          EXPORT=$(echo build/CMakeFiles/Export/*/SZ3Targets.cmake)
+          [ -f "$EXPORT" ] || { echo "no generated export to check at $EXPORT"; exit 1; }
+          if grep -q 'SZ3::zstd' "$EXPORT"; then
             echo "the export names SZ3::zstd, so this build did not take the system path"; exit 1
           fi
 
@@ -155,7 +161,9 @@ jobs:
           rm -rf _nozstd/tools/zstd
           cmake -S _nozstd -B _nozstd/build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
           cmake --build _nozstd/build --parallel 4
-          if grep -q 'SZ3::zstd' _nozstd/build/CMakeFiles/Export/*/SZ3Targets.cmake; then
+          EXPORT=$(echo _nozstd/build/CMakeFiles/Export/*/SZ3Targets.cmake)
+          [ -f "$EXPORT" ] || { echo "no generated export to check at $EXPORT"; exit 1; }
+          if grep -q 'SZ3::zstd' "$EXPORT"; then
             echo "with tools/zstd gone this did not take the system path"; exit 1
           fi
           _nozstd/build/tools/sz3/sz3 -f -i tools/sz3/testfloat_8_8_128.dat -z _n.sz3 \
@@ -292,8 +300,13 @@ jobs:
           cmake -S _consumer -B _consumer/build -DCMAKE_PREFIX_PATH="$PWD/_prefix"
           cmake --build _consumer/build --parallel 4
           ./_consumer/build/app
-          otool -L _prefix/lib/libhdf5sz3.dylib | tee _otool.log
-          if grep -q '@rpath/libhdf5' _otool.log && ! otool -l _prefix/lib/libhdf5sz3.dylib | grep -q LC_RPATH; then
-            echo "libhdf5 is referenced through @rpath with no LC_RPATH to resolve it"; exit 1
-          fi
+          otool -L _prefix/lib/libhdf5sz3.dylib
+          # The load is the assertion, not the otool output. Line 2 of `otool -L` is this library's
+          # own LC_ID_DYLIB -- always @rpath/libhdf5sz3.dylib -- so a grep for '@rpath/libhdf5'
+          # matches whatever HDF5 does, and the presence of *an* LC_RPATH says nothing about
+          # whether it holds libhdf5. dlopen answers the question the step is named after.
+          printf '#include <dlfcn.h>\n#include <stdio.h>\nint main(int c,char**v){(void)c;void*h=dlopen(v[1],RTLD_NOW);if(!h){printf("%%s\\n",dlerror());return 1;}return 0;}\n' > _load.c
+          cc -o _load _load.c
+          ./_load "$PWD/_prefix/lib/libhdf5sz3.dylib"
+          ./_load "$PWD/_prefix/lib/plugin/libhdf5sz3.dylib"
           tools/H5Z-SZ3/test/filterAccessModes.sh "$PWD/_prefix"

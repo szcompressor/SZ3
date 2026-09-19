@@ -314,6 +314,10 @@ jobs:
           # The filter has to identify itself as the SZ3 in this tree, not as the 3.1.8 the
           # prototype vendored.
           export SZ3_EXPECT_VERSION=$(sed -n 's/^project(SZ3 VERSION \([0-9.]*\)).*/\1/p' CMakeLists.txt)
+          # sed exits 0 when it matches nothing, and an empty pin leaves the assertion looking for
+          # "H5Z-SZ3-", which the vendored 3.1.8 satisfies as readily as this tree does.
+          [ -n "$SZ3_EXPECT_VERSION" ] \
+            || { echo "could not read the version out of project(SZ3 VERSION ...)"; exit 1; }
           echo "expecting filter version $SZ3_EXPECT_VERSION"
           # -ndec 1, 2 and 3 ask SZ3 for 0.05, 0.005 and 0.0005 nm. One bound says the path works;
           # three say the bound is the thing that moves.

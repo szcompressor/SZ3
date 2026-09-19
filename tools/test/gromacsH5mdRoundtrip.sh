@@ -41,6 +41,12 @@ if [ -n "$missing" ]; then
     echo "required tools not found:$missing"
     exit 1
 fi
+# Required, not defaulted: empty, the version assertion below looks for "H5Z-SZ3-" and any version
+# satisfies it, which is the one thing this pin exists to rule out.
+if [ -z "${SZ3_EXPECT_VERSION:-}" ]; then
+    echo "set SZ3_EXPECT_VERSION to the version the filter has to report"
+    exit 1
+fi
 
 BOUND=$("$PY" -c "print(1.0 / (2.0 * 10 ** $NDEC))")
 echo "=== $($GMX --version 2>/dev/null | grep -i 'GROMACS version' | head -1 | sed 's/  */ /g') ==="

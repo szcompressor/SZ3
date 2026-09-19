@@ -69,7 +69,7 @@ jobs:
       - name: Run CTest
         shell: bash
         working-directory: build
-        run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
+        run: ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }}
 
       - name: Download test data
         shell: bash
@@ -181,7 +181,7 @@ jobs:
                 -DBUILD_TESTING=ON \
                 -DBUILD_H5Z_FILTER=ON
           cmake --build build --parallel 4
-          (cd build && ctest --output-on-failure -C ${{ env.BUILD_TYPE }})
+          (cd build && ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }})
           # Asserted, not assumed: the matrix leg has to have produced the shape it asked for.
           if [ "${{ matrix.shared }}" = "ON" ]; then
             test -e build/tools/H5Z-SZ3/libhdf5sz3.so
@@ -222,7 +222,7 @@ jobs:
       - name: Run CTest
         shell: bash
         working-directory: build
-        run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
+        run: ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }}
 
       - name: Download test data
         shell: bash
@@ -280,6 +280,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
             -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake `
             -DVCPKG_TARGET_TRIPLET=x64-windows `
+            -DBUILD_TESTING=ON `
             -DBUILD_H5Z_FILTER=ON
 
       - name: Build
@@ -290,7 +291,7 @@ jobs:
       - name: Run CTest
         shell: pwsh
         working-directory: build
-        run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
+        run: ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }}
 
       - name: Download test data
         shell: pwsh
@@ -385,7 +386,7 @@ jobs:
         working-directory: build
         run: |
           export PATH="$PWD/bin:$PWD/lib:$PATH"
-          ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
+          ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }}
 
       - name: Download test data
         run: |
