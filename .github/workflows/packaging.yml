@@ -85,8 +85,13 @@ jobs:
       - name: The export must not carry this machine's Zstd
         shell: bash
         run: |
+          # Listed before it is grepped, for the reason the generated-export check above gives: with
+          # no export installed the glob reaches grep as a literal, grep exits 2, and this reads as
+          # "clean". One file per configuration, so the variable is split on purpose.
+          EXPORTS=$(ls _prefix/lib/cmake/SZ3/SZ3Targets*.cmake 2> /dev/null)
+          [ -n "$EXPORTS" ] || { echo "no installed export to check under _prefix/lib/cmake/SZ3"; exit 1; }
           # SZ3Config.cmake is deliberately not grepped: its find_library runs on the consumer's machine.
-          if grep -En 'libzstd|PkgConfig::ZSTD' _prefix/lib/cmake/SZ3/SZ3Targets*.cmake; then
+          if grep -En 'libzstd|PkgConfig::ZSTD' $EXPORTS; then
             echo "the installed export names this machine's Zstd"; exit 1
           fi
 
@@ -267,6 +272,14 @@ jobs:
             [ -f "_prefix/bin/$exe.exe" ] || { echo "no $exe.exe in the install prefix"; exit 1; }
           done
           ./_prefix/bin/mdz_smoke_test.exe
+          # Named here as well as inside consumeInstalledSZ3.sh, because Linux asserts the filter
+          # with ldd and macOS with a dlopen probe and this job had neither: a filter that failed to
+          # install at all left the script with nothing to detect and nothing to consume.
+          # No lib prefix under MSVC, and the import library stays out of the plugin directory.
+          for f in bin/hdf5sz3.dll lib/hdf5sz3.lib lib/plugin/hdf5sz3.dll \
+                   lib/cmake/SZ3/HDF5SZ3.cmake include/hdf5_sz3/H5Z_SZ3.hpp; do
+            [ -f "_prefix/$f" ] || { echo "no $f in the install prefix"; exit 1; }
+          done
 
       - name: Every shape a consumer builds in
         shell: bash
@@ -310,6 +323,16 @@ jobs:
 
       - name: Install it for a consumer to find
         run: cmake --install build --prefix "$PWD/_prefix"
+
+      - name: Every binary the install rules promise
+        run: |
+          # As in the MSVC job: Linux asserts the filter with ldd and macOS with a dlopen probe,
+          # and this job had neither. MinGW keeps the lib prefix MSVC drops, and names the import
+          # library .dll.a, so the two Windows jobs cannot share one list.
+          for f in bin/libhdf5sz3.dll lib/libhdf5sz3.dll.a lib/plugin/libhdf5sz3.dll \
+                   lib/cmake/SZ3/HDF5SZ3.cmake include/hdf5_sz3/H5Z_SZ3.hpp; do
+            [ -f "_prefix/$f" ] || { echo "no $f in the install prefix"; exit 1; }
+          done
 
       - name: Every shape a consumer builds in
         run: tools/test/consumeInstalledSZ3.sh "$PWD/_prefix"
