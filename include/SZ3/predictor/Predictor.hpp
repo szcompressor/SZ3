@@ -31,23 +31,21 @@ class PredictorInterface {
 
     /**
      * predict the value for a single data point
-     * @param block_iter the iterator of the block
-     * @param T* the pointer to the single data point
-     * @param std::array<size_t, N> the relative index of the data point in the block
+     * Takes the block iterator, the pointer to the data point, and its relative index in the block.
      * @return the predicted value
      */
     virtual T predict(const block_iter &, T *, const std::array<size_t, N> &) = 0;
 
     /**
      * estimate the prediction error ( |prediction value - read value|)  for a single data point
-     * @param iter the iterator of the single data point
+     * Takes the same three arguments as predict().
      * @return the estimated prediction error
      */
     virtual T estimate_error(const block_iter &, T *, const std::array<size_t, N> &) = 0;
 
     /**
      * compute auxiliary info (e.g., coefficients) for the given data block
-     * @param block_iter of the block
+     * Takes the block iterator.
      * @return whether the predictor is suitable for the block (e.g., data with 100x1 shape is not suitable for 2D
      * regression)
      */

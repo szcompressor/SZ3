@@ -13,7 +13,7 @@ namespace concepts {
  * Encoder changes the input to a more compact representative
  * Usually this step is lossless instead of lossy
  * Examples: huffman, runlenth, etc.
- * @tparam T
+ * @tparam T bin type
  */
 template <class T, class TAllocator = std::allocator<T>>
 class EncoderInterface {

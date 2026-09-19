@@ -75,7 +75,7 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
         /**
          * @brief Gets a pointer to the data of the current block.
          *
-         * @tparam args The relative indices within the block.
+         * @param args The relative indices within the block.
          * @return A pointer to the data at the specified indices.
          */
         template <class... Idx>

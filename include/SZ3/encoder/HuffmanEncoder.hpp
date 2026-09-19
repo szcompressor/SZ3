@@ -90,8 +90,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
     /**
      * build huffman tree using bins
-     * @param bins
-     * @param stateNum
+     * @param bins the bins to build the tree from
      */
     void preprocess_encode(const std::vector<T> &bins, int stateNum) override {
         preprocess_encode(bins.data(), bins.size(), stateNum);
@@ -99,8 +98,8 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
     /**
      * build huffman tree using bins
-     * @param bins
-     * @param num_bin
+     * @param bins the bins to build the tree from
+     * @param num_bin how many
      */
     void preprocess_encode(const T *bins, size_t num_bin, int /*stateNum*/) {
         nodeCount = 0;
@@ -519,10 +518,9 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
     /**
      * Compute the frequency of the data and build the Huffman tree
-     * @param HuffmanTree* huffmanTree (output)
-     * @param int *s (input)
-     * @param size_t length (input)
-     * */
+     * @param s the bins to measure
+     * @param length how many
+     */
     void init(const T *s, size_t length) {
         T max = s[0];
         offset = s[0];  // offset is min

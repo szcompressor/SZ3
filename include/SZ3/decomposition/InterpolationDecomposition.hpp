@@ -270,14 +270,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
     /**
      * Do interpolations along a certain dimension, and move through that dimension only.
      * This is the original API, described in the ICDE'21 paper.
-     * @tparam QuantizeFunc
-     * @param data
-     * @param begin
-     * @param end
-     * @param stride
-     * @param interp_func
-     * @param quantize_func
-     * @return
      */
     template <class QuantizeFunc>
     double interpolation_1d(T *data, size_t begin, size_t end, size_t stride, const std::string &interp_func,
@@ -330,16 +322,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
     /**
      * Do all interpolations along a certain dimension on the full data grid. Moving on the fastest-dim.
      * This is the new API, described in the SIGMOD'24 paper.
-     * @tparam QuantizeFunc
-     * @param data
-     * @param begin_idx
-     * @param end_idx
-     * @param direction
-     * @param strides
-     * @param math_stride
-     * @param interp_func
-     * @param quantize_func
-     * @return
      */
     template <class QuantizeFunc>
     double interpolation_1d_fastest_dim_first(T *data, const std::array<size_t, N> &begin_idx,
