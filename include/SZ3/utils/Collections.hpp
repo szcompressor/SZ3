@@ -8,7 +8,7 @@
 // SZ3_USE_SKA_HASH is baked in at configure time, not passed as an INTERFACE define: it decides
 // which type SZ3::unordered_map names, and two translation units that disagree give every class
 // template holding one -- HuffmanEncoder among them -- two different layouts in one program.
-#include "SZ3/options.hpp"
+#include "SZ3/version.hpp"
 
 // One condition for the include and the alias together. Split, the else branch named
 // std::unordered_map without ever including <unordered_map>.
