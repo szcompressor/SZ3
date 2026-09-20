@@ -206,12 +206,39 @@ skip_all "this SZ3 was built without BUILD_H5Z_FILTER, so it depends on no HDF5"
     sz3-declines-when-hdf5-cannot-be-found
 fi
 
+# ---------------------------------------------------------------- 5. no Zstd on the machine
+# The other way SZ3Config.cmake declines. It resolves a system Zstd with find_library, which no
+# CMAKE_DISABLE_FIND_PACKAGE_ reaches, so point the library search at an empty root instead.
+# A bundled-Zstd build carries SZ3::zstd in the export and never runs that branch.
+if grep -q "TARGET SZ3::zstd" "$LIBDIR/cmake/SZ3/SZ3Targets.cmake" 2>/dev/null ||
+   [ -n "$(find "$LIBDIR" -name '*sz3_zstd*' 2>/dev/null)" ]; then
+    skip_all "this SZ3 bundles its own Zstd, so it looks for none here" \
+        sz3-declines-when-zstd-cannot-be-found
+else
+    mkdir -p zprobe/empty
+    cp probe/CMakeLists.txt zprobe/CMakeLists.txt 2>/dev/null || cat > zprobe/CMakeLists.txt <<'EOF'
+cmake_minimum_required(VERSION 3.18)
+project(probe CXX)
+find_package(SZ3 QUIET)
+if (SZ3_FOUND)
+    message(FATAL_ERROR "SZ3 reported itself found with no Zstd to be had")
+endif ()
+EOF
+    if cmake -S zprobe -B zprobe/b -DCMAKE_PREFIX_PATH="$CMPFX" \
+            -DCMAKE_FIND_ROOT_PATH="$(native "$WORK")/zprobe/empty" \
+            -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY > zprobe/cfg.log 2>&1; then
+        ok "sz3-declines-when-zstd-cannot-be-found"
+    else
+        bad "sz3-declines-when-zstd-cannot-be-found" "$(tail -15 zprobe/cfg.log)"
+    fi
+fi
+
 echo
 echo "  $pass passed, $fail failed, $skip skipped"
 
 # Raise this with the check it comes with. A section that stops early otherwise shows only as a
 # smaller number at the bottom that nobody compares.
-EXPECTED=11
+EXPECTED=12
 ran=$((pass + fail + skip))
 if [ "$ran" -ne "$EXPECTED" ]; then
     echo "  the suite accounted for $ran checks, not $EXPECTED"
