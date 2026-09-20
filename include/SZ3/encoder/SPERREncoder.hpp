@@ -123,6 +123,10 @@ class SPERREncoder : public concepts::EncoderInterface<T> {
         return from_signed_vector(signed_vals);
     }
 
+    size_t size_est() override {
+        return sizeof(total_len_) + dims_.size() * sizeof(typename SZ3::SPERR::dims_type::value_type);
+    }
+
     void save(uchar *&c) override {
         write(total_len_, c);
         write(dims_.data(), dims_.size(), c);
@@ -140,9 +144,7 @@ class SPERREncoder : public concepts::EncoderInterface<T> {
     void preprocess_decode() override {}
 
    private:
-    static size_t dims_product(const SZ3::SPERR::dims_type &dims) {
-        return dims[0] * dims[1] * dims[2];
-    }
+    static size_t dims_product(const SZ3::SPERR::dims_type &dims) { return dims[0] * dims[1] * dims[2]; }
 
     SZ3::SPERR::dims_type resolved_dims(size_t total_len) const {
         if (N == 1) {
@@ -244,7 +246,8 @@ class SPERREncoder : public concepts::EncoderInterface<T> {
         return encode_speck_1d_impl<uint64_t>(signed_vals);
     }
 
-    static std::vector<int64_t> decode_speck_1d(size_t total_len, const uchar *cmpData, size_t cmpSize, size_t &consumed) {
+    static std::vector<int64_t> decode_speck_1d(size_t total_len, const uchar *cmpData, size_t cmpSize,
+                                                size_t &consumed) {
         const uint8_t num_bitplanes = SZ3::SPERR::speck_int_get_num_bitplanes(cmpData);
         if (num_bitplanes <= 8) {
             return decode_speck_1d_impl<uint8_t>(total_len, cmpData, cmpSize, consumed);
@@ -258,7 +261,8 @@ class SPERREncoder : public concepts::EncoderInterface<T> {
         return decode_speck_1d_impl<uint64_t>(total_len, cmpData, cmpSize, consumed);
     }
 
-    static std::vector<uchar> encode_speck_2d(const std::vector<int64_t> &signed_vals, const SZ3::SPERR::dims_type &dims) {
+    static std::vector<uchar> encode_speck_2d(const std::vector<int64_t> &signed_vals,
+                                              const SZ3::SPERR::dims_type &dims) {
         const uint64_t max_mag = max_magnitude(signed_vals);
         if (max_mag <= static_cast<uint64_t>(std::numeric_limits<uint8_t>::max())) {
             return encode_speck_2d_impl<uint8_t>(signed_vals, dims);
@@ -287,7 +291,8 @@ class SPERREncoder : public concepts::EncoderInterface<T> {
         return decode_speck_2d_impl<uint64_t>(dims, cmpData, cmpSize, consumed);
     }
 
-    static std::vector<uchar> encode_speck_3d(const std::vector<int64_t> &signed_vals, const SZ3::SPERR::dims_type &dims) {
+    static std::vector<uchar> encode_speck_3d(const std::vector<int64_t> &signed_vals,
+                                              const SZ3::SPERR::dims_type &dims) {
         const uint64_t max_mag = max_magnitude(signed_vals);
         if (max_mag <= static_cast<uint64_t>(std::numeric_limits<uint8_t>::max())) {
             return encode_speck_3d_impl<uint8_t>(signed_vals, dims);
