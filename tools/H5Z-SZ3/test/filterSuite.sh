@@ -283,7 +283,7 @@ skip_all "hdf5sz3 was installed as an archive, so there is no plugin to load" \
     h5dump-header-needs-no-plugin h5dump-header-shows-version h5ls-verbose-shows-version \
     h5dump-data-noplugin-fails h5dump-data-noplugin-message \
     h5dump-names-the-filter h5dump-names-our-version \
-    h5dump-data-with-plugin h5dump-data-with-plugin-clean
+    h5dump-data-with-plugin h5dump-data-with-plugin-clean wide-chunk-still-compresses
 fi
 
 # ---------------------------------------------------------------- 3. application shapes
