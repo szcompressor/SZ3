@@ -70,8 +70,6 @@ done
 
 # Without this the suite is 24 checks on a library that was built with no OpenMP in it: the config
 # key is ignored, every stream is the plain serial one, and all of them round-trip perfectly.
-# Asking for more threads has to change the framing, which is what makes the checks above mean
-# anything.
 differ=0
 for w in 4 8; do
     cmp -s omp1.sz3 "omp$w.sz3" || differ=1

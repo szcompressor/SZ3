@@ -2,8 +2,6 @@ name: Packaging
 
 on: [ push ]
 
-# One run per ref. A newer push supersedes the one in flight, which otherwise queues a second
-# full set of jobs behind work that is already superseded.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -85,9 +83,8 @@ jobs:
       - name: The export must not carry this machine's Zstd
         shell: bash
         run: |
-          # Listed before it is grepped, for the reason the generated-export check above gives: with
-          # no export installed the glob reaches grep as a literal, grep exits 2, and this reads as
-          # "clean". One file per configuration, so the variable is split on purpose.
+          # Listed before it is grepped, for the reason the generated-export check above gives.
+          # One file per configuration, so the variable is split on purpose.
           EXPORTS=$(ls _prefix/lib/cmake/SZ3/SZ3Targets*.cmake 2> /dev/null)
           [ -n "$EXPORTS" ] || { echo "no installed export to check under _prefix/lib/cmake/SZ3"; exit 1; }
           # SZ3Config.cmake is deliberately not grepped: its find_library runs on the consumer's machine.
@@ -215,7 +212,7 @@ jobs:
           # The load is the assertion, not the otool output. Line 2 of `otool -L` is this library's
           # own LC_ID_DYLIB -- always @rpath/libhdf5sz3.dylib -- so a grep for '@rpath/libhdf5'
           # matches whatever HDF5 does, and the presence of *an* LC_RPATH says nothing about
-          # whether it holds libhdf5. dlopen answers the question the step is named after.
+          # whether it holds libhdf5.
           printf '#include <dlfcn.h>\n#include <stdio.h>\nint main(int c,char**v){(void)c;void*h=dlopen(v[1],RTLD_NOW);if(!h){printf("%%s\\n",dlerror());return 1;}return 0;}\n' > _load.c
           cc -o _load _load.c
           ./_load "$PWD/_prefix/lib/libhdf5sz3.dylib"
@@ -326,8 +323,7 @@ jobs:
 
       - name: Every binary the install rules promise
         run: |
-          # As in the MSVC job: Linux asserts the filter with ldd and macOS with a dlopen probe,
-          # and this job had neither. MinGW keeps the lib prefix MSVC drops, and names the import
+          # As in the MSVC job. MinGW keeps the lib prefix MSVC drops, and names the import
           # library .dll.a, so the two Windows jobs cannot share one list.
           for f in bin/libhdf5sz3.dll lib/libhdf5sz3.dll.a lib/plugin/libhdf5sz3.dll \
                    lib/cmake/SZ3/HDF5SZ3.cmake include/hdf5_sz3/H5Z_SZ3.hpp; do

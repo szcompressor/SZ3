@@ -28,9 +28,7 @@ HAVE_FILTER=0
 [ -f "$LIBDIR/cmake/SZ3/HDF5SZ3.cmake" ] && HAVE_FILTER=1
 # ... but only when nothing else in the prefix says the filter was built. tools/H5Z-SZ3 installs its
 # headers and its binary through install() rules separate from install(EXPORT), so either one
-# arriving without HDF5SZ3.cmake means the export was dropped -- which is the regression this suite
-# exists to catch, and which it used to report as "built without the filter" and skip past. The
-# distinction is load-bearing on Windows, where this script is the only filter coverage there is.
+# arriving without HDF5SZ3.cmake means the export was dropped rather than never built.
 # Matched on *hdf5sz3*, not lib*: MSVC names them hdf5sz3.dll and hdf5sz3.lib, with no lib prefix.
 if [ "$HAVE_FILTER" = 0 ]; then
     traces=$(ls -d "$PREFIX"/include/hdf5_sz3 2>/dev/null
@@ -57,7 +55,6 @@ export PATH="$PREFIX/bin:$PATH"
 pass=0; fail=0; skip=0
 ok()  { echo "PASS  $1"; pass=$((pass+1)); }
 bad() { echo "FAIL  $1"; shift; for l in "$@"; do echo "        $l"; done; fail=$((fail+1)); }
-# Never counted as a pass: a suite that reports more checks than it ran is worse than no suite.
 skipped() { echo "SKIP  $1"; skip=$((skip+1)); }
 # reason <text>, then the names it covers
 skip_all() { reason=$1; shift; for n in "$@"; do skipped "$n ($reason)"; done; }
@@ -174,7 +171,7 @@ if [ -s inc.log ]; then
 else
     bad "export-declares-include-directories" "no INTERFACE_INCLUDE_DIRECTORIES under $LIBDIR/cmake/SZ3"
 fi
-# grep -v, not a !-inverted grep: this has to report the offending line, and set -e would exempt it.
+# grep -v, not a !-inverted grep: this has to report the offending line.
 if grep -v '^\${_IMPORT_PREFIX}/' inc.log > outside.log; then
     bad "exported-include-dirs-stay-in-prefix" "outside the install prefix:" "$(cat outside.log)"
 else

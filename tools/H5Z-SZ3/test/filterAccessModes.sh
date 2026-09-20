@@ -57,7 +57,6 @@ fi
 pass=0; fail=0; skip=0
 ok()   { echo "PASS  $1"; pass=$((pass+1)); }
 bad()  { echo "FAIL  $1"; shift; for l in "$@"; do echo "        $l"; done; fail=$((fail+1)); }
-# Never counted as a pass: a suite that reports more checks than it ran is worse than no suite.
 skipped() { echo "SKIP  $1"; skip=$((skip+1)); }
 # reason <text>, then the names it covers
 skip_all() { reason=$1; shift; for n in "$@"; do skipped "$n ($reason)"; done; }

@@ -46,7 +46,7 @@ find_package(OpenMP)
 if (OpenMP_FOUND)
     # BUILD_INTERFACE only: SZ3Config.cmake names the OpenMP target for the language the consumer
     # actually enabled. Exported as it stands, OpenMP::OpenMP_CXX is a target a C-only consumer
-    # cannot be given, and CMake ends its configure rather than its own.
+    # cannot be given, and CMake ends the consumer's configure over it.
     target_link_libraries(${PROJECT_NAME} INTERFACE $<BUILD_INTERFACE:OpenMP::OpenMP_CXX>)
 endif ()
 

@@ -20,8 +20,7 @@
 #define MAX_CHUNK_SIZE 4294967295  // 2^32-1
 
 // H5Fcreate runs before the reads, so a failed read would leave an empty output file behind.
-// Windows refuses to unlink a file that is still open, so the handles on it are closed first --
-// on POSIX remove() would have succeeded either way, and on Windows it silently did not.
+// The handles are closed first because Windows refuses to unlink a file that is still open.
 #define READ_ERROR()                                                                       \
     do {                                                                                   \
         H5Pclose(cpid);                                                                    \

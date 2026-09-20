@@ -11,7 +11,6 @@
 # name* is an SZ3 library. -L, -I and -Wl,... name places to look, not libraries to link.
 set -u
 
-# Reads a link line on stdin.
 sz3_link_tokens() {
     tr '[:space:]' '\n' | awk '
         { t = $0; gsub(/^"+|"+$/, "", t) }

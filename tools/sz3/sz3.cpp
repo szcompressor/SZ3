@@ -136,8 +136,7 @@ inline void usage_sz2() {
 // A malformed argument is a caller error, not a help request: report it and let main() exit non-zero.
 [[noreturn]] static void argError(const std::string &msg) { throw std::invalid_argument(msg); }
 
-// A dimension is a positive element count. Reject signs, non-digits, trailing junk, zero, and overflow
-// here, so the SZ3 sizes derived from it downstream never come from a corrupt or absurd value.
+// Every SZ3 size downstream is derived from this, so nothing corrupt or absurd may get past here.
 static size_t parse_dim(const char *s) {
     if (s[0] < '0' || s[0] > '9') argError(std::string("invalid dimension '") + s + "'");
     errno = 0;
@@ -365,7 +364,7 @@ static int run(int argc, char *argv[]) {
                 if (++i == argc) argError("-M requires an error bound mode");
                 errBoundMode = argv[i];
                 // match_enum silently keeps the default when the name is unknown, which would accept a typo as
-                // ABS. Reject a name that is neither in the table nor the VR_REL alias handled during setup.
+                // ABS. VR_REL is an alias resolved during setup, so it is not in EB_MAP.
                 bool knownMode = strcmp(errBoundMode, "VR_REL") == 0;
                 for (const auto &kv : SZ3::EB_MAP) {
                     if (SZ3::to_lower(kv.first) == SZ3::to_lower(errBoundMode)) knownMode = true;

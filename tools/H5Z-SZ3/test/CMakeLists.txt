@@ -1,6 +1,5 @@
-# The access-mode suite runs against an install tree, so it installs one of its own first. Only
-# registered when the HDF5 command-line tools it drives are present -- CI installs them and runs
-# the script directly, so coverage there does not depend on this.
+# CI installs the HDF5 tools and runs filterAccessModes.sh directly, so coverage does not depend
+# on this registration.
 find_program(H5REPACK_EXECUTABLE h5repack)
 find_program(H5DUMP_EXECUTABLE h5dump)
 find_program(H5LS_EXECUTABLE h5ls)

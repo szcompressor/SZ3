@@ -148,8 +148,8 @@ def check(path):
         name = match.group(1)
         index = text.count("\n", 0, match.start())
         job, step = scopes[index]
-        # GitHub's order, innermost first: the step's env:, a $GITHUB_ENV write from an earlier
-        # step, the job's env:, the workflow's. Anything outside this chain is a different scope.
+        # GitHub's resolution order, innermost first. Anything outside this chain is a different
+        # scope.
         chain = []
         if step is not None:
             chain.append(steps.get((job, step), {}))

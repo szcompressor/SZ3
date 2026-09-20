@@ -1,5 +1,4 @@
-# Installs SZ3 into a throwaway prefix, then runs the access-mode suite against it, because what
-# the suite tests is an install tree rather than a build tree.
+# The suite tests an install tree, not a build tree.
 file(REMOVE_RECURSE "${SZ3_PREFIX}")
 execute_process(
         COMMAND ${CMAKE_COMMAND} --install "${SZ3_BUILD_DIR}" --prefix "${SZ3_PREFIX}"

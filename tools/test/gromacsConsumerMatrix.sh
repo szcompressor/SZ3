@@ -22,8 +22,6 @@ shift 5
 mkdir -p "$WORK"
 WORK=$(cd "$WORK" && pwd)
 
-# Which library GROMACS should end up with. An SZ3 that declines and an SZ3 that was never
-# installed both leave it its own copy, which is why the two are named apart here.
 case $EXPECT in
 found)    WIRED=external ;;
 declined) WIRED=internal ;;
@@ -54,7 +52,7 @@ if [ "$SZ3_PREFIX" != "-" ]; then
     fi
 fi
 
-# The cheapest GROMACS that still generates the h5md link line: no SIMD, no GPU, bundled FFT.
+# The cheapest GROMACS that still generates the h5md link line.
 # BUILD_TESTING is on only because h5md-test is the target whose link line names the library.
 COMMON=(-DCMAKE_BUILD_TYPE=Release
         -DGMX_SIMD=None
@@ -91,10 +89,9 @@ echo "    sz3     ${SZ3_PREFIX} ${SZ3_VERSION:+(version $SZ3_VERSION)}"
 echo "    expect  $EXPECT, so GROMACS should wire in the $WIRED SZ3"
 echo "    extra   ${EXTRA[*]:-none}"
 
-# GROMACS asks with find_package(SZ3 ... QUIET), which prints neither the answer nor the reason, so
-# every expectation below rests on a premise no GROMACS log can confirm. Put the same question to
-# the installed SZ3 directly and stop here if the answer is not the one this run was set up to get:
-# a scenario that failed to arrange itself reads, ten lines later, like the defect it looks for.
+# GROMACS asks with find_package(SZ3 ... QUIET), which logs neither the answer nor the reason, so
+# every expectation below rests on a premise no GROMACS log can confirm. A scenario that failed to
+# arrange itself otherwise reads, ten lines later, like the defect it looks for.
 mkdir -p "$WORK/probe"
 cat > "$WORK/probe/CMakeLists.txt" <<'EOF'
 cmake_minimum_required(VERSION 3.18)

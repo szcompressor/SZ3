@@ -2,8 +2,6 @@ name: libpressio
 
 on: [ push ]
 
-# One run per ref. A newer push supersedes the one in flight, which otherwise queues a second
-# full set of jobs behind work that is already superseded.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -11,16 +9,13 @@ concurrency:
 env:
   BUILD_TYPE: Release
   # Both pinned at their release commits: on a moving branch a red run becomes a question about
-  # which libpressio rather than an answer about SZ3. gromacs.yml pins its refs for the same reason.
+  # which libpressio rather than an answer about SZ3.
   LIBPRESSIO_REF: 868a3a70d6ebf55ad67509fbca03bdd0bc1bc246  # v1.0.7, 2025-09-18
   STD_COMPAT_REF: 514383ce8816b7bcb800fbe3ce842c1e838105e2  # v0.0.22, 2025-08-07
 
-# libpressio reaches SZ3 the way a packaged consumer does -- find_package(SZ3) and SZ3::SZ3 -- and
-# then compiles against the API itself: 19 Config fields, SZ_compress and SZ_decompress over ten
-# types, the EB/ALGO/INTERP_ALGO maps and the version macros. Nothing else here compiles a line of
-# anyone else's code against ours, and libpressio has no CI of its own to catch it at their end:
-# zero workflow runs ever, and its one stale Travis file never turned SZ3 on. On push rather than
-# the schedule gromacs.yml uses, because this is minutes rather than an hour.
+# libpressio reaches SZ3 the way a packaged consumer does -- find_package(SZ3), SZ3::SZ3 -- and is
+# the only thing in CI that compiles anyone else's code against our API. libpressio has no CI of
+# its own to catch a break at their end. On push, not gromacs.yml's schedule: this takes minutes.
 jobs:
   build:
     name: libpressio builds against an installed SZ3

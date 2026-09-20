@@ -33,8 +33,8 @@ env:
   TRAJ_SHA: f9bdfee4e1aa69ccfeef21cb74703202f6728f514543c4125382bd5250773eb7
   TOPOL_URL: https://ndownloader.figshare.com/files/14993171
   TOPOL_SHA: 677a3ae55e35c24f37f2610eafa92d19285d1774731d6ffb9a99dfde39b8c437
-  # Nothing here runs a simulation, so no SIMD, no GPU and the bundled FFT. It is the cheapest
-  # GROMACS that still generates the h5md link line and builds the binaries these checks drive.
+  # Nothing here runs a simulation: the cheapest GROMACS that still generates the h5md link line
+  # and builds the binaries these checks drive.
   GMX_CHEAP: >-
     -DCMAKE_BUILD_TYPE=Release
     -DGMX_SIMD=None
@@ -131,13 +131,10 @@ jobs:
       - name: An SZ3 that cannot resolve its own dependencies declines, and AUTO still configures
         shell: bash -el {0}
         run: |
-          # An SZ3 installed on a machine that no longer carries what it was built against. Taken
-          # away by name rather than by hiding directories: where SZ3's dependencies live differs
-          # per machine, and in the MPI row every one of them is in the conda prefix the consumer
-          # itself needs. OpenMP is the one SZ3Config.cmake resolves that this GROMACS does not.
-          # What matters is the shape: it reports not-found and returns, leaving AUTO its fallback.
-          # Before, it reported SZ3 found either way and handed GROMACS a link line it could not
-          # use. The Zstd-specific export shapes are packaging.yml's job, not this one's.
+          # Taken away by name rather than by hiding directories: where SZ3's dependencies live
+          # differs per machine, and in the MPI row every one of them is in the conda prefix the
+          # consumer itself needs. OpenMP is the one SZ3Config.cmake resolves that this GROMACS
+          # does not. The Zstd-specific export shapes are packaging.yml's job, not this one's.
           tools/test/gromacsConsumerMatrix.sh gromacs _m/undeps "$PWD/_prefix" "$CONDA_PREFIX" \
               declined ${{ matrix.gmx }} -DCMAKE_DISABLE_FIND_PACKAGE_OpenMP=ON
 
@@ -203,14 +200,12 @@ jobs:
                 -DCMAKE_PREFIX_PATH="$CONDA_PREFIX;$PWD/_prefix" \
                 ${{ matrix.gmx }}
           LINK=gbuild/src/gromacs/fileio/h5md/tests/CMakeFiles/h5md-test.dir/link.txt
-          # Only the tokens that link an SZ3 library: the checkout is at /home/runner/work/SZ3/SZ3,
-          # so matching the text "sz3" also matches rpaths and -L flags, which link nothing.
           tools/test/sz3LinkTokens.sh "$LINK" | tee sz3.link
-          # A bare -lhdf5sz3 here is the export failing to carry the unversioned target GROMACS
-          # asks for. It configures, and then the link below cannot find the library.
           if [ ! -s sz3.link ]; then
             echo "h5md linked no SZ3 library at all"; exit 1
           fi
+          # Catches a bare -lhdf5sz3, which is the export failing to carry the unversioned target
+          # GROMACS asks for: it configures, and then the link below cannot find the library.
           if grep -v "^$PWD/_prefix/" sz3.link; then
             echo "h5md linked an SZ3 library that is not the installed one"; exit 1
           fi

@@ -2,8 +2,6 @@ name: Build & Test
 
 on: [ push ]
 
-# One run per ref. A newer push supersedes the one in flight, which otherwise queues a second
-# full set of jobs behind work that is already superseded.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -15,10 +13,8 @@ env:
   MODE: ABS
   TOL: 1
 
-# One job per platform: configure with every feature on, build, run the tests, round-trip the smoke
-# dataset. Anything that needs more than one configuration of anything lives in its own workflow --
-# packaging.yml for install and consume, hdf5.yml for the filter against more than one HDF5. The
-# first job checks all of them, this one included, for keys that interpolate to nothing.
+# Anything that needs more than one configuration of anything lives in its own workflow:
+# packaging.yml for install and consume, hdf5.yml for the filter against more than one HDF5.
 jobs:
   workflow-env:
     name: Every workflow declares the env it reads
@@ -28,11 +24,7 @@ jobs:
 
       - name: Check for env keys that interpolate to nothing
         shell: bash
-        run: |
-          # An undeclared key expands to the empty string and cannot be made to fail on its own, so
-          # the argument it was carrying goes missing with nothing said. Splitting this workflow
-          # into three left three of them behind in packaging.yml, across eight references.
-          python3 tools/test/check_workflow_env.py
+        run: python3 tools/test/check_workflow_env.py
 
   build-linux:
     name: Build & Test (Linux)
@@ -165,7 +157,6 @@ jobs:
                 -DBUILD_H5Z_FILTER=ON
           cmake --build build --parallel 4
           (cd build && ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }})
-          # Asserted, not assumed: the matrix leg has to have produced the shape it asked for.
           if [ "${{ matrix.shared }}" = "ON" ]; then
             test -e build/tools/H5Z-SZ3/libhdf5sz3.so
           else
