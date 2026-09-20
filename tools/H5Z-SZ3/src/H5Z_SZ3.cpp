@@ -202,6 +202,9 @@ template <typename T>
 void process_data(SZ3::Config& conf, void** buf, size_t* buf_size, size_t nbytes, bool is_decompress) {
     if (is_decompress) {
         T* processedData = static_cast<T*>(malloc(conf.num * sizeof(T)));
+        // HDF5 frees what this returns, so it has to come from malloc. On null SZ_decompress would
+        // allocate with new[] instead, and that pairing is undefined.
+        if (processedData == nullptr) throw std::bad_alloc();
         SZ_decompress(conf, static_cast<char*>(*buf), nbytes, processedData);
         free(*buf);
         *buf = processedData;

@@ -16,11 +16,20 @@ if(NOT TARGET SZ3::zstd)
   set_property(TARGET SZ3::SZ3 APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${SZ3_ZSTD_LIBRARY}")
 endif()
 
-if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/HDF5SZ3.cmake")
-  # find_dependency, not find_package(... REQUIRED): REQUIRED would end the consumer's configure.
-  find_dependency(HDF5 COMPONENTS C)
-  include("${CMAKE_CURRENT_LIST_DIR}/HDF5SZ3.cmake")
+# The export CMake generates raises FATAL_ERROR when the library it names is gone, which would end
+# the configure of a consumer that only wanted the header-only SZ3. Skip it instead: the filter is
+# reached through HDF5's plugin path, so a consumer that does want it is not held up by the target.
+set(_sz3_filter "${CMAKE_CURRENT_LIST_DIR}/HDF5SZ3.cmake")
+if(EXISTS "${_sz3_filter}")
+  file(GLOB _sz3_filter_lib "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_LIBDIR@/*hdf5sz3*")
+  if(_sz3_filter_lib)
+    # find_dependency, not find_package(... REQUIRED): REQUIRED would end the consumer's configure.
+    find_dependency(HDF5 COMPONENTS C)
+    include("${_sz3_filter}")
+  endif()
+  unset(_sz3_filter_lib)
 endif()
+unset(_sz3_filter)
 
 if(@OpenMP_FOUND@)
   # SZ3 was built with OpenMP, so a consumer has to link its runtime. FindOpenMP can only produce
