@@ -1,7 +1,7 @@
 #!/bin/bash
 # Every way an application or a user reaches the SZ3 HDF5 filter, asserted against an install tree.
 #
-#   tools/H5Z-SZ3/test/filterAccessModes.sh <install-prefix> [<hdf5 bin dir>]
+#   tools/H5Z-SZ3/test/filterSuite.sh <install-prefix> [<hdf5 bin dir>]
 #
 # CMAKE_PREFIX_PATH is passed through. Assert which path was taken, never just that the exit was 0.
 set -u
@@ -83,6 +83,7 @@ cat > gen.c <<'EOF'
 /* The input fixture. No SZ3 anywhere in it. */
 #include <hdf5.h>
 #include <math.h>
+#include <stdlib.h>
 int main(int argc, char **argv) {
     hsize_t dims[2] = {64, 64}, ch[2] = {16, 64};
     float d[64 * 64];
@@ -93,7 +94,18 @@ int main(int argc, char **argv) {
     H5Pset_chunk(p, 2, ch);
     hid_t d2 = H5Dcreate2(f, "ds", H5T_NATIVE_FLOAT, s, H5P_DEFAULT, p, H5P_DEFAULT);
     herr_t r = H5Dwrite(d2, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, d);
-    H5Dclose(d2); H5Pclose(p); H5Sclose(s); H5Fclose(f);
+    H5Dclose(d2); H5Pclose(p); H5Sclose(s);
+
+    /* A side past 4096 makes the stored Config longer than a default-constructed one. */
+    hsize_t wide[3] = {8192, 4, 4};
+    float *w = malloc(8192 * 4 * 4 * sizeof(float));
+    for (int i = 0; i < 8192 * 4 * 4; i++) w[i] = (float)sin(0.001 * i) * 100.0f;
+    hid_t s3 = H5Screate_simple(3, wide, NULL);
+    hid_t p3 = H5Pcreate(H5P_DATASET_CREATE);
+    H5Pset_chunk(p3, 3, wide);
+    hid_t d3 = H5Dcreate2(f, "wide", H5T_NATIVE_FLOAT, s3, H5P_DEFAULT, p3, H5P_DEFAULT);
+    if (H5Dwrite(d3, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, w) < 0) r = -1;
+    H5Dclose(d3); H5Pclose(p3); H5Sclose(s3); free(w); H5Fclose(f);
     return r < 0;
 }
 EOF
@@ -203,6 +215,17 @@ want "h5repack-applies-sz3"        "FILTER_ID 32024" rp.head
 want "h5repack-records-version"    "H5Z-SZ3-" rp.head
 ./b/read rp.h5 > rp.read 2>&1
 want "h5repack-output-reads-back"  "READ OK" rp.read
+
+# A chunk with a side past 4096 stores a Config longer than a default-constructed one measures. Read
+# that back into a buffer sized from the default and the tail comes out as zeros -- quantbinCnt among
+# them, which turns quantisation off and leaves the chunk near its raw size with nothing reported.
+"$(h5 h5ls)" -v rp.h5/wide > wide.ls 2>&1
+wide_bytes=$(sed -n 's/.*Storage: *\([0-9]*\) logical bytes, *\([0-9]*\) allocated.*/\2/p' wide.ls | head -1)
+if [ -n "$wide_bytes" ] && [ "$wide_bytes" -lt 131072 ]; then
+    ok "wide-chunk-still-compresses"
+else
+    bad "wide-chunk-still-compresses" "524288 raw bytes stored as ${wide_bytes:-?}" "$(head -20 wide.ls)"
+fi
 "$(h5 h5repack)" -f NONE rp.h5 rp_none.h5 > strip.log 2>&1
 "$(h5 h5dump)" -pH rp_none.h5 > strip.head 2>&1
 notwant "h5repack-none-strips-sz3" "32024" strip.head
@@ -322,7 +345,7 @@ echo "  $pass passed, $fail failed, $skip skipped"
 
 # Raise this with the check it comes with. A guard that skips the wrong list, or a section that
 # stops early, otherwise shows only as a smaller number at the bottom that nobody compares.
-EXPECTED=31
+EXPECTED=32
 ran=$((pass + fail + skip))
 if [ "$ran" -ne "$EXPECTED" ]; then
     echo "  the suite accounted for $ran checks, not $EXPECTED"

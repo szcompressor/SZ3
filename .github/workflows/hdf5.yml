@@ -64,7 +64,7 @@ jobs:
 
       - name: Every way an application reaches the filter
         shell: bash -el {0}
-        run: tools/H5Z-SZ3/test/filterAccessModes.sh "$PWD/_prefix" "$CONDA_PREFIX/bin"
+        run: tools/H5Z-SZ3/test/filterSuite.sh "$PWD/_prefix" "$CONDA_PREFIX/bin"
 
   coexist:
     name: Two HDF5s on one machine
