@@ -23,14 +23,13 @@ class PredictorInterface {
 
     /**
      * predict the value for a single data point
-     * Takes the block iterator, the pointer to the data point, and its relative index in the block.
+     * The index is relative to the block, not to the whole field.
      * @return the predicted value
      */
     virtual T predict(const block_iter &, T *, const std::array<size_t, N> &) = 0;
 
     /**
      * estimate the prediction error ( |prediction value - read value|)  for a single data point
-     * Takes the same three arguments as predict().
      * @return the estimated prediction error
      */
     virtual T estimate_error(const block_iter &, T *, const std::array<size_t, N> &) = 0;

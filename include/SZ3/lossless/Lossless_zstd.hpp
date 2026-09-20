@@ -32,7 +32,7 @@ class Lossless_zstd : public concepts::LosslessInterface {
 
     Lossless_zstd(int comp_level) : compression_level(comp_level) {}
 
-    /** Worst-case compressed size for srcLen bytes. Use this, not ZSTD_compressBound, declared only here. */
+    /** ZSTD_compressBound is declared only in this header, so callers elsewhere go through this. */
     static size_t compress_bound(size_t srcLen) { return ZSTD_compressBound(srcLen); }
 
     /**

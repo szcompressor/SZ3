@@ -98,7 +98,6 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
     /**
      * build huffman tree using bins
-     * @param num_bin how many bins `bins` points at; a raw pointer carries no length of its own
      */
     void preprocess_encode(const T *bins, size_t num_bin, int /*stateNum*/) {
         nodeCount = 0;
@@ -518,7 +517,6 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     /**
      * Compute the frequency of the data and build the Huffman tree
      * @param s the bins to measure
-     * @param length how many bins `s` points at; a raw pointer carries no length of its own
      */
     void init(const T *s, size_t length) {
         // Locals, not `offset` itself: a store to a member of type T may alias the T array being read,
@@ -526,7 +524,6 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         T max = s[0];
         T min = s[0];
 
-        // The range decides how the counts are stored, so it has to be known before anything is sized by it.
         for (size_t i = 0; i < length; i++) {
             if (s[i] > max) {
                 max = s[i];
@@ -535,10 +532,10 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                 min = s[i];
             }
         }
-        offset = min;  // offset is min
+        offset = min;
 
         // The state table is sized by the bin range rather than the distinct count, so a sparse wide-range
-        // stream overflows this narrowing. Checked before anything is allocated from that range.
+        // stream overflows this narrowing.
         if (static_cast<double>(max) - static_cast<double>(min) > 2e9) {
             throw std::invalid_argument("HuffmanEncoder: bin range too wide; use HuffmanEncoderV2");
         }
