@@ -246,8 +246,15 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
         uint32_t magic = 0, dataVer = 0;
         SZ3::read(magic, header);
         SZ3::read(dataVer, header);
-        if (magic != SZ3_MAGIC_NUMBER)
+        if (magic != SZ3_MAGIC_NUMBER) {
+            // v3.2.0 through v3.3.2 stored a chunk raw, on write as much as on read, when cd_values
+            // said fewer than 20 elements; those carry no header. Either branch below leaves, so
+            // the cursor this advances is never the one the real load uses.
+            SZ3::Config legacy;
+            legacy.load(buffer, cd_bytes);
+            if (legacy.num > 0 && legacy.num < 20) return nbytes;
             throw std::invalid_argument("SZ3 HDF5 filter: chunk was not written by SZ3");
+        }
         if (versionStr(dataVer) != SZ3_DATA_VER)
             throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(dataVer) +
                                         ", this build reads v" SZ3_DATA_VER);
