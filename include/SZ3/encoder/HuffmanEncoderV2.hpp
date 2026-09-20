@@ -689,6 +689,13 @@ public:
     void postprocess_decode() override {
     }
 
+    size_t size_est() override {
+        // saveAsDFSOrder writes a fixed header, then one bit per tree node and tree.mbft bits per leaf.
+        const size_t leaves = static_cast<size_t>(tree.n);
+        const size_t nodes = leaves > 1 ? 2 * leaves - 1 : leaves;
+        return 1 + sizeof(T) + 2 * sizeof(size_t) + (nodes + leaves * tree.mbft + 7) / 8 + 2;
+    }
+
     void save(uchar*& c) override {
         //            saveAsCode(c);
         saveAsDFSOrder(c);
