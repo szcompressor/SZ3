@@ -32,7 +32,7 @@ HDF5SZ3_EXPORT H5PL_type_t H5PLget_plugin_type(void) { return H5PL_TYPE_FILTER; 
 
 HDF5SZ3_EXPORT const void* H5PLget_plugin_info(void) { return H5Z_SZ3; }
 
-// Whether this library registered the filter. Anything else's registration is not ours to undo.
+// Anything else's registration is not ours to undo.
 static int h5z_sz3_was_registered = 0;
 
 herr_t H5Z_SZ3_initialize(void) {
@@ -256,10 +256,9 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
             SZ3::read(dataVer, header);
         }
         if (magic != SZ3_MAGIC_NUMBER) {
-            // v3.2.0 through v3.3.2 stored a chunk raw, on write as much as on read, when cd_values
-            // said fewer than 20 elements; those carry no header, and one of a single element is
-            // too small to hold one. Either branch below leaves, so the cursor this advances is
-            // never the one the real load uses.
+            // v3.2.0 through v3.3.2 wrote and read a chunk raw when cd_values held fewer than 20
+            // elements, so those carry no header. Safe to consume the cursor: both paths out of
+            // here leave, so the real conf.load below never sees it moved.
             SZ3::Config legacy;
             legacy.load(buffer, cd_bytes);
             if (legacy.num > 0 && legacy.num < 20) return nbytes;
