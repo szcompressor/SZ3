@@ -100,20 +100,25 @@ herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config& conf) {
 herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config& conf) {
     // static char const* _funcname_ = "get_SZ3_conf_from_H5";
 
-    size_t cd_nelmts = std::ceil(conf.size_est() / 1.0 / sizeof(int));
-    std::vector<unsigned int> cd_values(cd_nelmts, 0);
-
-    // Check both returns: on failure cd_nelmts keeps its input value and conf would load zeros.
+    // H5Pget_filter_by_id fails when the list carries no SZ3 filter, which is not an error to report.
     if (!sz3_filter_on_plist(propertyList)) {
         return 0;
     }
-    if (0 > H5Pget_filter_by_id(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, &cd_nelmts, cd_values.data(), 0, NULL,
-                                NULL)) {
+    // Ask for the count before the values: a stored config carries the dataset's dimensions, so its
+    // length is not the caller's to guess, and HDF5 reports the real count even when it filled less.
+    size_t cd_nelmts = 0;
+    unsigned int probe[1] = {0};
+    if (0 > H5Pget_filter_by_id(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, &cd_nelmts, probe, 0, NULL, NULL)) {
         return -1;
     }
     if (cd_nelmts > 0) {
+        std::vector<unsigned int> cd_values(cd_nelmts, 0);
+        if (0 > H5Pget_filter_by_id(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, &cd_nelmts, cd_values.data(), 0,
+                                    NULL, NULL)) {
+            return -1;
+        }
         auto buffer = reinterpret_cast<const unsigned char*>(cd_values.data());
-        size_t cd_bytes = cd_nelmts * sizeof(unsigned int);
+        size_t cd_bytes = cd_values.size() * sizeof(unsigned int);
         conf.load(buffer, cd_bytes);
     }
     return 1;

@@ -1,3 +1,8 @@
+add_executable(filterLargeDims filterLargeDims.cpp)
+target_link_libraries(filterLargeDims PRIVATE hdf5sz3)
+add_test(NAME SZ3_FilterLargeDims
+        COMMAND filterLargeDims ${CMAKE_CURRENT_BINARY_DIR}/filterLargeDims.h5)
+
 # CI installs the HDF5 tools and runs filterAccessModes.sh directly, so coverage does not depend
 # on this registration.
 find_program(H5REPACK_EXECUTABLE h5repack)
