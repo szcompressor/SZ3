@@ -204,7 +204,7 @@ TEST(SZ3_DecompositionSaveLoad, BlockwiseSizeEstBoundsSaveAtSmallBlockSizes) {
             std::vector<std::shared_ptr<SZ3::concepts::PredictorInterface<float, 1>>> predictors;
             predictors.push_back(std::make_shared<SZ3::LorenzoPredictor<float, 1, 1>>(eb));
             predictors.push_back(
-                std::make_shared<SZ3::RegressionPredictor<float, 1>>(static_cast<uint>(blockSize), eb));
+                std::make_shared<SZ3::RegressionPredictor<float, 1>>(static_cast<SZ3::uint>(blockSize), eb));
 
             auto decomposition =
                 SZ3::make_decomposition_blockwise<float, 1>(conf, SZ3::ComposedPredictor<float, 1>(predictors),
