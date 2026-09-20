@@ -24,10 +24,9 @@ if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/HDF5SZ3.cmake")
 endif()
 
 if(@OpenMP_FOUND@)
-  # SZ3 was built with OpenMP, so a consumer has to link its runtime. FindOpenMP can only produce
-  # the target for a language that consumer enabled, and C and C++ share one runtime on every
-  # compiler SZ3 builds under, so ask for whichever of the two is available here. A C-only consumer
-  # asked for CXX instead gets "Could NOT find OpenMP (missing: OpenMP_CXX_FOUND CXX)".
+  # Asked per language, because FindOpenMP fails outright when it searches for one the consumer
+  # did not enable -- a C-only project gets "Could NOT find OpenMP_C" even from a bare
+  # find_dependency(OpenMP). C and C++ share one runtime everywhere SZ3 builds, so either will do.
   get_property(sz3_enabled_languages GLOBAL PROPERTY ENABLED_LANGUAGES)
   if("CXX" IN_LIST sz3_enabled_languages)
     find_dependency(OpenMP COMPONENTS CXX)
