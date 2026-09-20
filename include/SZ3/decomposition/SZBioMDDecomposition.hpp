@@ -61,7 +61,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     //        }
 
     size_t size_est() override {
-        return quantizer.size_est();  // unpred
+        return sizeof(site) + sizeof(firstFillFrame_) + sizeof(fillValue_) + quantizer.size_est();
     }
 
     std::pair<int, int> get_out_range() override { return quantizer.get_out_range(); }

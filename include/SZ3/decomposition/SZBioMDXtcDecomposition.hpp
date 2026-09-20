@@ -55,7 +55,7 @@ public:
         quantizer.load(c, remaining_length);
     }
 
-    size_t size_est() override { return 0; }
+    size_t size_est() override { return sizeof(firstFillFrame_) + sizeof(fillValue_) + quantizer.size_est(); }
 
     std::pair<int, int> get_out_range() override { return quantizer.get_out_range(); }
 

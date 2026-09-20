@@ -70,7 +70,9 @@ class EncoderInterface {
 
     virtual void preprocess_decode() = 0;
 
-    // return the size of the encoder itself (such as the tree size of the huffman encoder)
+    /// Upper bound -- not a guess -- on the bytes save() writes for this instance's current state.
+    /// The caller sizes one buffer from it; save() then writes with no bounds check of its own.
+    /// It must also cover whatever encode() writes beyond the sizeof(bin) per bin already budgeted.
     virtual size_t size_est() { return 0; }
 };
 }  // namespace concepts

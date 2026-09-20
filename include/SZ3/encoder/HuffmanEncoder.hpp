@@ -1,6 +1,7 @@
 #ifndef SZ3_HUFFMAN_ENCODER_HPP
 #define SZ3_HUFFMAN_ENCODER_HPP
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
@@ -130,11 +131,23 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         //            return c - cc;
     }
 
-    size_t size_est() override {
-        size_t b = (nodeCount <= 256) ? sizeof(unsigned char)
-                                      : ((nodeCount <= 65536) ? sizeof(unsigned short) : sizeof(unsigned int));
-        return 1 + 2 * nodeCount * b + nodeCount * sizeof(unsigned char) + nodeCount * sizeof(T) + sizeof(int) +
-               sizeof(int) + sizeof(T);
+    size_t size_est() override { return tree_size(nodeCount); }
+
+    /// Exactly what save() writes for a tree of `nodes` nodes: the same width choice it makes.
+    static size_t tree_size(size_t nodes) {
+        size_t b =
+            (nodes <= 256) ? sizeof(unsigned char) : ((nodes <= 65536) ? sizeof(unsigned short) : sizeof(unsigned int));
+        return 1 + 2 * nodes * b + nodes * sizeof(unsigned char) + nodes * sizeof(T) + sizeof(int) + sizeof(int) +
+               sizeof(T);
+    }
+
+    /// Upper bound on save() + encode() for a tree that has not been built yet, bounded from the
+    /// inputs. Huffman's mean code length stays under entropy+1 bits, so sizeof(T)*8 bits per bin
+    /// covers the payload; the slack is for encode()'s wide stores, which reach past the last code.
+    static size_t size_bound(size_t num_bins, size_t distinct_symbols) {
+        size_t leaves = std::min(num_bins, distinct_symbols);
+        size_t nodes = leaves > 0 ? 2 * leaves - 1 : 0;
+        return tree_size(nodes) + sizeof(size_t) + num_bins * sizeof(T) + 16;
     }
 
     // perform encoding

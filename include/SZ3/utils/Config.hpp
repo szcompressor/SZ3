@@ -353,7 +353,13 @@ class Config {
         write(blockSize, c);
         write(predDim, c);
 
-        auto confSize = static_cast<uchar>(c - c0);
+        // The one-byte length prefix is deliberate; outgrowing it would silently cut the trailing
+        // fields off on load.
+        const size_t written = static_cast<size_t>(c - c0);
+        if (written > std::numeric_limits<uchar>::max()) {
+            throw std::length_error("SZ3 Config::save: the config outgrew its one-byte length prefix");
+        }
+        auto confSize = static_cast<uchar>(written);
         write(confSize, c0);  // write conf size at reserved space
         return confSize;
     }

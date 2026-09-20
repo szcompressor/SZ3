@@ -53,6 +53,8 @@ class DecompositionInterface {
      */
     virtual void load(const uchar *&c, size_t &remaining_length) = 0;
 
+    /// Upper bound -- not a guess -- on the bytes save() writes for this instance's current state.
+    /// The caller sizes one buffer from it; save() then writes with no bounds check of its own.
     virtual size_t size_est() { return 0; }
 
     virtual std::pair<To, To> get_out_range() = 0;

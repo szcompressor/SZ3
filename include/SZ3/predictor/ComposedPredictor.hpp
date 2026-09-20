@@ -55,6 +55,17 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
         return predictors[sid]->predecompress(block);
     }
 
+    size_t size_est() override {
+        size_t total = sizeof(size_t);
+        for (const auto &p : predictors) {
+            total += p->size_est();
+        }
+        if (!selection.empty()) {
+            total += HuffmanEncoder<int>::size_bound(selection.size(), predictors.size());
+        }
+        return total;
+    }
+
     void save(uchar *&c) override {
         for (const auto &p : predictors) {
             p->save(c);
