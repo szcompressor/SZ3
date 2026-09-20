@@ -25,9 +25,10 @@ set_target_properties(hdf5sz3 PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
 target_include_directories(hdf5sz3
         PUBLIC
         # BUILD_INTERFACE only: exported, this machine's HDF5 headers would outrank a consumer's.
-        $<BUILD_INTERFACE:${HDF5_INCLUDE_DIRS}>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/hdf5_sz3>
+        # Quoted, or CMake reads the leading $ as a relative path and prepends the source directory.
+        "$<BUILD_INTERFACE:${HDF5_INCLUDE_DIRS}>"
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+        "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/hdf5_sz3>"
 )
 
 add_subdirectory(tools)
