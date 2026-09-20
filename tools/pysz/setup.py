@@ -14,15 +14,10 @@ import numpy as np
 
 
 
-# A released tag, never a branch or a bare commit: a published wheel has to be buildable from a
-# published source, and a branch is gone once it merges. pysz is tagged on its own schedule, so
-# this moves when SZ3 releases, not when SZ3 changes.
+# A released tag: a published wheel has to be buildable from a published source.
 SZ3_VERSION = "3.3.2"
 
-# Which of those releases this is decides where the bundled Zstd lives and what it is called:
-# v3.3.2 fetches it into build/_deps and builds `libzstd`, later trees vendor it under tools/zstd
-# and build `libsz3_zstd`. Both are found in the tree that was just built, so bumping the tag
-# above is the only edit the next release needs.
+# Both layouts, because the bundled Zstd's name and location changed after v3.3.2.
 ZSTD_HEADER_DIRS = (("tools", "zstd", "lib"), ("build", "_deps", "zstdfetched-src", "lib"))
 ZSTD_LIBRARY_DIRS = (("build", "tools", "zstd"),
                      ("build", "tools", "zstd", "Release"),
@@ -65,8 +60,7 @@ class BuildSZ3Extension(_build_ext):
 
         super().run()
 
-        # A shared bundled Zstd has to ride along in the wheel next to the extension that loads it
-        # -- the rpath below points there. A static one is already inside the extension.
+        # A shared one has to ride along next to the extension; a static one is already in it.
         package_dir = Path(self.build_lib) / "pysz"
         if package_dir.exists():
             for pattern in (f"lib{zstd_name}.dylib", f"lib{zstd_name}.so", f"{zstd_name}.dll"):

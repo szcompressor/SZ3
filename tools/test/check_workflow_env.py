@@ -29,7 +29,6 @@ ENV_BLOCK = re.compile(r"^(\s*)env:\s*(#.*)?$")
 # `echo "NAME=..." >> $GITHUB_ENV` and the PowerShell `"NAME=..." | Out-File ... GITHUB_ENV`, which
 # declare a key for later steps without an env: block.
 RUNTIME_KEY = re.compile(r"[\"']?([A-Za-z_][A-Za-z0-9_-]*)=")
-# Structure: a mapping key at any indent, the `steps:` list, and one of its `- ` items.
 MAPPING_KEY = re.compile(r"^(\s*)([A-Za-z_][A-Za-z0-9_-]*):")
 STEPS_BLOCK = re.compile(r"^(\s*)steps:\s*(#.*)?$")
 LIST_ITEM = re.compile(r"^(\s*)-(\s|$)")
@@ -149,9 +148,8 @@ def check(path):
         name = match.group(1)
         index = text.count("\n", 0, match.start())
         job, step = scopes[index]
-        # Innermost first, the order GitHub resolves them in: the step's own env:, then a
-        # $GITHUB_ENV write from an earlier step of the job, then the job's env:, then the
-        # workflow's. Anything outside this chain is another scope and does not reach here.
+        # GitHub's order, innermost first: the step's env:, a $GITHUB_ENV write from an earlier
+        # step, the job's env:, the workflow's. Anything outside this chain is a different scope.
         chain = []
         if step is not None:
             chain.append(steps.get((job, step), {}))
