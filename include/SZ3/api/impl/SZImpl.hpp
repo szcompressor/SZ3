@@ -4,6 +4,7 @@
 #include "SZ3/api/impl/SZDispatcher.hpp"
 #include "SZ3/api/impl/SZImplOMP.hpp"
 #include "SZ3/def.hpp"
+#include "SZ3/lossless/Lossless_zstd.hpp"
 
 namespace SZ3 {
 template <class T, uint N>
@@ -36,7 +37,7 @@ size_t SZ_compress_size_bound(const Config &conf) {
     if (omp) {
         return 4096 + SZ_compress_size_bound_omp<T>(conf);
     } else {
-        return 4096 + conf.size_est() + ZSTD_compressBound(conf.num * sizeof(T));
+        return 4096 + conf.size_est() + Lossless_zstd::compress_bound(conf.num * sizeof(T));
     }
 }
 

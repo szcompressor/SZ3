@@ -46,9 +46,9 @@ class LorenzoPredictor : public concepts::PredictorInterface<T, N> {
 
     bool predecompress(const block_iter &) override { return true; }
 
-    void save(uchar *&c) override {}
+    void save(uchar *&) override {}
 
-    void load(const uchar *&c, size_t &remaining_length) override {}
+    void load(const uchar *&, size_t &) override {}
 
     void print() const override {
         std::cout << L << "-Layer " << N << "D Lorenzo predictor, noise = " << noise << "\n";
@@ -60,7 +60,7 @@ class LorenzoPredictor : public concepts::PredictorInterface<T, N> {
         return fabs(*d - predict(block, d, index)) + this->noise;
     }
 
-    T predict(const block_iter &block, T *d, const std::array<size_t, N> &index) override {
+    T predict(const block_iter &block, T *d, const std::array<size_t, N> & /*index*/) override {
         auto ds = block.get_dim_strides();
         if constexpr (N == 1 && L == 1) {
             return prev1(d, 1);

@@ -133,11 +133,11 @@ void SZ_decompress(SZ3::Config& config, const char* cmpData, size_t cmpSize, T*&
 
     read(config.sz3DataVer, cmpDataPos);
     if (versionStr(config.sz3DataVer) != SZ3_DATA_VER) {
+        // Do not print here. In the HDF5 filter stdout is the user's output file.
         std::stringstream ss;
-        printf("program v%s , program-data %s , input data v%s\n", SZ3_VER, SZ3_DATA_VER,
-               versionStr(config.sz3DataVer).data());
-        ss << "Please use SZ3 v" << versionStr(config.sz3DataVer) << " to decompress the data" << std::endl;
-        std::cerr << ss.str();
+        ss << "SZ3 " << SZ3_VER << " reads data version " << SZ3_DATA_VER << ", but this data is version "
+           << versionStr(config.sz3DataVer) << ". Use SZ3 v" << versionStr(config.sz3DataVer)
+           << " to decompress it.";
         throw std::invalid_argument(ss.str());
     }
 
@@ -169,22 +169,32 @@ void SZ_decompress(SZ3::Config& config, const char* cmpData, size_t cmpSize, T*&
 }
 
 /**
- * Decompresses the compressed data into a pre-allocated buffer using the configuration loaded from the compressed data.
+ * Decompresses the compressed data into a buffer it allocates itself, using the configuration loaded from the
+ * compressed data. Pass a buffer to the four-argument overload instead to decompress into memory you already hold.
  * @tparam T The data type of the decompressed data.
  * @param config Configuration placeholder that will be overwritten with the compression configuration from the compressed data.
  * @param cmpData Pointer to the compressed data.
  * @param cmpSize The size of the compressed data in bytes.
- * @param decData Reference to a pointer for the pre-allocated buffer for decompressed data. If null, a new buffer is allocated.
+ * @return A new[] buffer of config.num elements, which the caller owns and must delete[]. There is no null return to
+ * test: the four-argument overload throws, so a value arriving here is always a buffer.
  * @example
- * auto decData = new float[100 * 200 * 300];
  * SZ3::Config conf;
- * SZ_decompress(conf, cmpData, cmpSize, decData);
+ * float* decData = SZ_decompress<float>(conf, cmpData, cmpSize);
+ * // conf now describes the data; conf.num is the element count of decData
+ * delete[] decData;
  */
 template <class T>
 T* SZ_decompress(SZ3::Config& config, const char* cmpData, size_t cmpSize) {
     using namespace SZ3;
     T* decData = nullptr;
-    SZ_decompress<T>(config, cmpData, cmpSize, decData);
+    try {
+        SZ_decompress<T>(config, cmpData, cmpSize, decData);
+    } catch (...) {
+        // The four-argument overload allocates through the reference and can throw afterwards, and
+        // the caller never sees the pointer when it does.
+        delete[] decData;
+        throw;
+    }
     return decData;
 }
 

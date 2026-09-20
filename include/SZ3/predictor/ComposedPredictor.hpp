@@ -16,8 +16,8 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
    public:
     using block_iter = typename block_data<T, N>::block_iterator;
 
-    ComposedPredictor(std::vector<std::shared_ptr<concepts::PredictorInterface<T, N>>> predictors)
-        : predictors(predictors) {
+    ComposedPredictor(std::vector<std::shared_ptr<concepts::PredictorInterface<T, N>>> predictors_)
+        : predictors(predictors_) {
         if (predictors.empty()) {
             throw std::invalid_argument("Empty predictor list for ComposedPredictor.");
         }

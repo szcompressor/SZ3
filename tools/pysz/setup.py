@@ -4,8 +4,8 @@ Automatically downloads and builds SZ3 with bundled zstd.
 """
 
 import sys
-import subprocess
 import shutil
+import subprocess
 from pathlib import Path
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext as _build_ext
@@ -14,39 +14,60 @@ import numpy as np
 
 
 
+# A released tag: a published wheel has to be buildable from a published source.
 SZ3_VERSION = "3.3.2"
+
+# Both layouts, because the bundled Zstd's name and location changed after v3.3.2.
+ZSTD_HEADER_DIRS = (("tools", "zstd", "lib"), ("build", "_deps", "zstdfetched-src", "lib"))
+ZSTD_LIBRARY_DIRS = (("build", "tools", "zstd"),
+                     ("build", "tools", "zstd", "Release"),
+                     ("build", "tools", "zstd", "Debug"))
+ZSTD_LIBRARY_NAMES = ("sz3_zstd", "zstd")
+
+
+def find_zstd_header_dir(sz3_dir):
+    for parts in ZSTD_HEADER_DIRS:
+        candidate = sz3_dir.joinpath(*parts)
+        if (candidate / "zstd.h").is_file():
+            return candidate
+    raise RuntimeError(f"no bundled zstd.h under {sz3_dir}; is SZ3_VERSION a tag that bundles Zstd?")
+
+
+def find_zstd_library(sz3_dir):
+    """The link name of the bundled Zstd this SZ3 build produced, and the directory holding it."""
+    for name in ZSTD_LIBRARY_NAMES:
+        for parts in ZSTD_LIBRARY_DIRS:
+            directory = sz3_dir.joinpath(*parts)
+            for pattern in (f"lib{name}.*", f"{name}.lib"):
+                if any(directory.glob(pattern)):
+                    return name, directory
+    raise RuntimeError(f"no bundled Zstd library under {sz3_dir / 'build' / 'tools' / 'zstd'}")
+
 
 class BuildSZ3Extension(_build_ext):
 
     def run(self):
         sz3_dir = self.download_and_build_sz3()
+        zstd_name, zstd_dir = find_zstd_library(sz3_dir)
+        print(f"Linking bundled Zstd: {zstd_name} from {zstd_dir}")
 
         for ext in self.extensions:
             ext.include_dirs.insert(0, str(sz3_dir / "include"))
             ext.include_dirs.insert(0, str(sz3_dir / "build" / "include"))
-            ext.include_dirs.append(str(sz3_dir / "build" / "_deps" / "zstdfetched-src" / "lib"))
-            ext.library_dirs.append(str(sz3_dir / "build" / "tools" / "zstd"))
-            ext.library_dirs.append(str(sz3_dir / "build" / "tools" / "zstd" / "Release"))
-            ext.library_dirs.append(str(sz3_dir / "build" / "tools" / "zstd" / "Debug"))
+            ext.include_dirs.append(str(find_zstd_header_dir(sz3_dir)))
+            ext.libraries.append(zstd_name)
+            ext.library_dirs.append(str(zstd_dir))
 
         super().run()
 
-        if sys.platform == "darwin":
-            zstd_lib_name = "libzstd.dylib"
-        elif sys.platform == "win32":
-            zstd_lib_name = "zstd.dll"
-        else:
-            zstd_lib_name = "libzstd.so"
-
-        zstd_base = sz3_dir / "build" / "tools" / "zstd"
+        # A shared one has to ride along next to the extension; a static one is already in it.
         package_dir = Path(self.build_lib) / "pysz"
         if package_dir.exists():
-            for subdir in ["", "Release", "Debug"]:
-                zstd_lib = zstd_base / subdir / zstd_lib_name
-                if zstd_lib.exists():
-                    shutil.copy2(zstd_lib, package_dir / zstd_lib.name)
-                    print(f"Copied {zstd_lib.name} to package")
-                    break
+            for pattern in (f"lib{zstd_name}.dylib", f"lib{zstd_name}.so", f"{zstd_name}.dll"):
+                for shared in sorted(zstd_dir.glob(pattern)):
+                    shutil.copy2(shared, package_dir / shared.name)
+                    print(f"Copied {shared.name} to package")
+                    return
 
     def download_and_build_sz3(self):
         build_temp = Path(self.build_temp).absolute()
@@ -89,7 +110,7 @@ class BuildSZ3Extension(_build_ext):
 def create_extensions():
     include_dirs = [np.get_include()]
     library_dirs = []
-    libraries = ['zstd']
+    libraries = []  # the bundled Zstd is appended once the build knows what it is called
     extra_compile_args = []
     extra_link_args = []
     

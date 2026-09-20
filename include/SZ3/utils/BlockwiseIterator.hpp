@@ -75,16 +75,16 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
         /**
          * @brief Gets a pointer to the data of the current block.
          *
-         * @tparam args The relative indices within the block.
+         * @param args The relative indices within the block.
          * @return A pointer to the data at the specified indices.
          */
         template <class... Idx>
         ALWAYS_INLINE T *get_block_data(Idx... args) const {
-            auto ds = get_dim_strides();
+            auto strides = get_dim_strides();
             auto idx = std::array<size_t, N>{static_cast<size_t>(std::forward<Idx>(args))...};
             size_t off = 0;
             for (uint i = 0; i < N; i++) {
-                off += (idx[i] + offset[i]) * ds[i];
+                off += (idx[i] + offset[i]) * strides[i];
             }
             return mddata->dataptr() + off;
         }
@@ -254,30 +254,30 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
     }
 
     void copy_data_with_padding(T *dst, const std::array<size_t, N> &dst_stride, const T *src,
-                                const std::array<size_t, N> &src_stride, const std::array<size_t, N> &dims) {
+                                const std::array<size_t, N> &src_stride, const std::array<size_t, N> &dims_) {
         if (dst == nullptr || src == nullptr) {
             throw std::invalid_argument("Null pointer passed to copy_data_with_padding");
             return;
         }
         if constexpr (N == 1) {
-            memcpy(&dst[0], &src[0], dims[0] * sizeof(T));
+            memcpy(&dst[0], &src[0], dims_[0] * sizeof(T));
         } else if constexpr (N == 2) {
-            for (size_t i = 0; i < dims[0]; i++) {
-                memcpy(&dst[i * dst_stride[0]], &src[i * src_stride[0]], dims[1] * sizeof(T));
+            for (size_t i = 0; i < dims_[0]; i++) {
+                memcpy(&dst[i * dst_stride[0]], &src[i * src_stride[0]], dims_[1] * sizeof(T));
             }
         } else if constexpr (N == 3) {
-            for (size_t i = 0; i < dims[0]; i++) {
-                for (size_t j = 0; j < dims[1]; j++) {
+            for (size_t i = 0; i < dims_[0]; i++) {
+                for (size_t j = 0; j < dims_[1]; j++) {
                     memcpy(&dst[i * dst_stride[0] + j * dst_stride[1]], &src[i * src_stride[0] + j * src_stride[1]],
-                           dims[2] * sizeof(T));
+                           dims_[2] * sizeof(T));
                 }
             }
         } else if constexpr (N == 4) {
-            for (size_t i = 0; i < dims[0]; i++) {
-                for (size_t j = 0; j < dims[1]; j++) {
-                    for (size_t k = 0; k < dims[2]; k++) {
+            for (size_t i = 0; i < dims_[0]; i++) {
+                for (size_t j = 0; j < dims_[1]; j++) {
+                    for (size_t k = 0; k < dims_[2]; k++) {
                         memcpy(&dst[i * dst_stride[0] + j * dst_stride[1] + k * dst_stride[2]],
-                               &src[i * src_stride[0] + j * src_stride[1] + k * src_stride[2]], dims[3] * sizeof(T));
+                               &src[i * src_stride[0] + j * src_stride[1] + k * src_stride[2]], dims_[3] * sizeof(T));
                     }
                 }
             }

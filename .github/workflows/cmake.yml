@@ -1,6 +1,10 @@
-name: Cross-Platform SZ3 Verification
+name: Build & Test
 
 on: [ push ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   BUILD_TYPE: Release
@@ -9,7 +13,19 @@ env:
   MODE: ABS
   TOL: 1
 
+# Anything that needs more than one configuration of anything lives in its own workflow:
+# packaging.yml for install and consume, hdf5.yml for the filter against more than one HDF5.
 jobs:
+  workflow-env:
+    name: Every workflow declares the env it reads
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check for env keys that interpolate to nothing
+        shell: bash
+        run: python3 tools/test/check_workflow_env.py
+
   build-linux:
     name: Build & Test (Linux)
     runs-on: ubuntu-latest
@@ -18,10 +34,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Install HDF5
+      - name: Install HDF5 and Zstd
         run: |
           sudo apt-get update
-          sudo apt-get install -y libhdf5-dev
+          # libzstd-dev, not libzstd1: only the -dev package carries the libzstd.pc that sends this
+          # job down the system-Zstd path. hdf5-tools is what registers SZ3_FilterSuite: the
+          # test only exists when h5repack, h5dump and h5ls are all found at configure time.
+          sudo apt-get install -y libhdf5-dev hdf5-tools libzstd-dev
 
       - name: Create build dir
         run: cmake -E make_directory build
@@ -43,7 +62,7 @@ jobs:
       - name: Run CTest
         shell: bash
         working-directory: build
-        run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
+        run: ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }}
 
       - name: Download test data
         shell: bash
@@ -57,54 +76,36 @@ jobs:
           ./tools/sz3/sz3 -f -i ../input.dat -3 ${{ env.DIMS }} -M ${{ env.MODE }} ${{ env.TOL }} -a \
                            -o out.dat -z out.sz3 \
             | tee sz3.log
-          ERR=$(grep -E 'Max absolute error =' sz3.log \
-                | sed -E 's/.*Max absolute error = *([0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?).*/\1/')
+          ../tools/test/checkMaxError.sh sz3.log ${{ env.TOL }}
 
-          [ -n "$ERR" ] || { echo "Could not parse Max absolute error!"; exit 1; }
-          echo "Parsed error: $ERR"
-          awk -v err="$ERR" -v tol="${{ env.TOL }}" 'BEGIN { if (err > tol) exit 1; }'
+      - name: cmake found OpenMP on this runner
+        shell: bash
+        working-directory: build
+        run: |
+          # find_package(OpenMP) is not REQUIRED, so a runner without it builds a library that reads
+          # no OpenMP stream at all. Asked here, the two steps below fail for what they are about
+          # instead of letting the decoder report a stream it cannot read.
+          grep -q '^OpenMP_CXX_FLAGS:STRING=.' CMakeCache.txt \
+            || { echo "cmake found no OpenMP on this runner, so the OpenMP path is untested"; exit 1; }
 
-      - name: Run sz3 with OpenMP and check error
+      - name: The OpenMP path stays inside the error bound
         shell: bash
         working-directory: build
         run: |
           # The OpenMP path splits the data along the slowest dimension and compresses each piece on
           # its own thread, so it has its own stream framing and its own decoder. Nothing else in CI
           # enters it.
-          # find_package(OpenMP) is not REQUIRED, so a runner without it builds a library that reads
-          # no OpenMP stream at all. Checking here names that as the cause instead of letting the
-          # decoder report a stream it cannot read.
-          grep -q '^OpenMP_CXX_FLAGS:STRING=.' CMakeCache.txt \
-            || { echo "cmake found no OpenMP on this runner, so the OpenMP path is untested"; exit 1; }
           printf '[GlobalSettings]\nOpenMP = YES\n' > omp.config
           ./tools/sz3/sz3 -f -i ../input.dat -3 ${{ env.DIMS }} -M ${{ env.MODE }} ${{ env.TOL }} -a \
                            -c omp.config -o omp.dat -z omp.sz3 \
             | tee omp.log
-          ERR=$(grep -E 'Max absolute error =' omp.log \
-                | sed -E 's/.*Max absolute error = *([0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?).*/\1/')
+          ../tools/test/checkMaxError.sh omp.log ${{ env.TOL }}
 
-          [ -n "$ERR" ] || { echo "Could not parse Max absolute error!"; exit 1; }
-          echo "Parsed error: $ERR"
-          awk -v err="$ERR" -v tol="${{ env.TOL }}" 'BEGIN { if (err > tol) exit 1; }'
-
-          # A stream carries the thread count it was written with, and the reader asks the runtime
-          # for that many. It may get fewer, and then it must still decode every chunk. Only
-          # OMP_THREAD_LIMIT can force that: it caps the whole program, so a num_threads request
-          # cannot exceed it. OMP_NUM_THREADS cannot -- num_threads overrides it -- so setting that
-          # on the reader would leave the count unchanged and test nothing.
-          for w in 1 4 8; do
-            OMP_NUM_THREADS=$w ./tools/sz3/sz3 -f -i ../input.dat -3 ${{ env.DIMS }} \
-                -M ${{ env.MODE }} ${{ env.TOL }} -c omp.config -z omp$w.sz3 > /dev/null
-            ./tools/sz3/sz3 -f -s omp$w.sz3 -o omp$w.ref.dat -3 ${{ env.DIMS }} > /dev/null \
-              || { echo "a $w-thread stream did not read back"; exit 1; }
-            for l in 1 2 3; do
-              OMP_THREAD_LIMIT=$l ./tools/sz3/sz3 -f -s omp$w.sz3 -o omp$w.$l.dat \
-                  -3 ${{ env.DIMS }} > /dev/null \
-                || { echo "$w-thread stream failed to read under OMP_THREAD_LIMIT=$l"; exit 1; }
-              cmp -s omp$w.ref.dat omp$w.$l.dat \
-                || { echo "OMP_THREAD_LIMIT=$l changed the data from a $w-thread stream"; exit 1; }
-            done
-          done
+      - name: An OpenMP stream decodes the same under any thread count
+        shell: bash
+        run: |
+          tools/test/openmpThreadCounts.sh build/tools/sz3/sz3 input.dat ${{ env.TOL }} \
+              -3 ${{ env.DIMS }}
 
       - name: Compute SHA256 of compressed
         id: calc
@@ -112,13 +113,55 @@ jobs:
         working-directory: build
         run: |
           DIGEST=$(sha256sum out.sz3 | awk '{print $1}')
-          echo "::set-output name=digest::$DIGEST"
+          [ -n "$DIGEST" ] || { echo "no digest to compare against macOS"; exit 1; }
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
 
       - name: Upload Linux-compressed artifact
         uses: actions/upload-artifact@v4
         with:
           name: temp-linux-out-sz3
           path: build/out.sz3
+
+  toolchains:
+    name: ${{ matrix.cc }} shared=${{ matrix.shared }}
+    runs-on: ubuntu-latest
+    # Separate from build-linux, which feeds one digest to compare and one artifact to
+    # build-windows; a matrix would make both ambiguous.
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc-12, gcc-14, clang-16, clang-18]
+        shared: ["ON", "OFF"]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install the toolchain and HDF5
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libhdf5-dev hdf5-tools libzstd-dev ${{ matrix.cc }}
+
+      - name: Build and test
+        shell: bash
+        run: |
+          # A header-only library sees more of a compiler than most: every template it has is
+          # instantiated in the consumer's translation unit. BUILD_SHARED_LIBS decides what shape
+          # hdf5sz3 and SZ3c take, and the static one is what a packager on Windows gets.
+          CXX=${{ matrix.cc }}
+          case "$CXX" in clang-*) CXX="clang++-${CXX#clang-}";; gcc-*) CXX="g++-${CXX#gcc-}";; esac
+          cmake -S . -B build \
+                -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+                -DCMAKE_C_COMPILER=${{ matrix.cc }} \
+                -DCMAKE_CXX_COMPILER="$CXX" \
+                -DBUILD_SHARED_LIBS=${{ matrix.shared }} \
+                -DBUILD_TESTING=ON \
+                -DBUILD_H5Z_FILTER=ON
+          cmake --build build --parallel 4
+          (cd build && ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }})
+          if [ "${{ matrix.shared }}" = "ON" ]; then
+            test -e build/tools/H5Z-SZ3/libhdf5sz3.so
+          else
+            test -e build/tools/H5Z-SZ3/libhdf5sz3.a
+          fi
 
   build-macos:
     name: Build & Test (macOS)
@@ -153,7 +196,7 @@ jobs:
       - name: Run CTest
         shell: bash
         working-directory: build
-        run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
+        run: ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }}
 
       - name: Download test data
         shell: bash
@@ -167,12 +210,7 @@ jobs:
           ./tools/sz3/sz3 -f -i ../input.dat -3 ${{ env.DIMS }} -M ${{ env.MODE }} ${{ env.TOL }} -a \
                            -o out.dat -z out.sz3 \
             | tee sz3.log
-          ERR=$(grep -E 'Max absolute error =' sz3.log \
-                | sed -E 's/.*Max absolute error = *([0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?).*/\1/')
-
-          [ -n "$ERR" ] || { echo "Could not parse Max absolute error!"; exit 1; }
-          echo "Parsed error: $ERR"
-          awk -v err="$ERR" -v tol="${{ env.TOL }}" 'BEGIN { if (err > tol) exit 1; }'
+          ../tools/test/checkMaxError.sh sz3.log ${{ env.TOL }}
 
       - name: Compute SHA256 of compressed
         id: calc
@@ -180,7 +218,8 @@ jobs:
         working-directory: build
         run: |
           DIGEST=$(shasum -a 256 out.sz3 | awk '{print $1}')
-          echo "::set-output name=digest::$DIGEST"
+          [ -n "$DIGEST" ] || { echo "no digest to compare against Linux"; exit 1; }
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
 
   build-windows:
     name: Build & Test (Windows)
@@ -210,6 +249,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
             -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake `
             -DVCPKG_TARGET_TRIPLET=x64-windows `
+            -DBUILD_TESTING=ON `
             -DBUILD_H5Z_FILTER=ON
 
       - name: Build
@@ -220,7 +260,7 @@ jobs:
       - name: Run CTest
         shell: pwsh
         working-directory: build
-        run: ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
+        run: ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }}
 
       - name: Download test data
         shell: pwsh
@@ -315,7 +355,7 @@ jobs:
         working-directory: build
         run: |
           export PATH="$PWD/bin:$PWD/lib:$PATH"
-          ctest --output-on-failure -C ${{ env.BUILD_TYPE }}
+          ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }}
 
       - name: Download test data
         run: |
@@ -327,12 +367,8 @@ jobs:
           ./tools/sz3/sz3.exe -f -i ../input.dat -3 ${{ env.DIMS }} -M ${{ env.MODE }} ${{ env.TOL }} -a \
                            -o out.dat -z out.sz3 \
             | tee sz3.log
-          ERR=$(grep -E 'Max absolute error =' sz3.log \
-                | sed -E 's/.*Max absolute error = *([0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?).*/\1/')
-
-          [ -n "$ERR" ] || { echo "Could not parse Max absolute error!"; exit 1; }
-          echo "Parsed error: $ERR"
-          awk -v err="$ERR" -v tol="${{ env.TOL }}" 'BEGIN { if (err > tol) exit 1; }'
+          # Through bash: a Windows checkout carries no executable bit for the script to be run by.
+          bash ../tools/test/checkMaxError.sh sz3.log ${{ env.TOL }}
 
   compare:
     name: Compare Digests (Linux vs macOS)
@@ -346,6 +382,12 @@ jobs:
           M=${{ needs.build-macos.outputs.digest }}
           echo "linux: $L"
           echo "macos: $M"
+          # Two digests that never arrived are equal to each other, so this job would report the
+          # platforms agreeing when neither had said anything.
+          if [ -z "$L" ] || [ -z "$M" ]; then
+            echo "::error ::A digest did not reach this job, so nothing was compared."
+            exit 1
+          fi
           if [[ "$L" != "$M" ]]; then
             echo "::error ::Compressed outputs differ between Linux and macOS!"
             exit 1

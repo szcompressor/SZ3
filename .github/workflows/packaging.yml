@@ -1,0 +1,335 @@
+name: Packaging
+
+on: [ push ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  DIMS: "128 8 8"
+  MODE: ABS
+  TOL: 1
+
+# What an installed SZ3 hands someone else: the export, the consumer shapes it has to support, and
+# the promises the bundled Zstd makes. None of this is visible to a build that only ever runs from
+# its own build tree, which is how every test in this repository reached SZ3 before.
+jobs:
+  linux:
+    name: Install and consume (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install HDF5 and Zstd
+        run: |
+          sudo apt-get update
+          # libzstd-dev, not libzstd1: only the -dev package carries the libzstd.pc that sends this
+          # job down the system-Zstd path. hdf5-tools because this job runs filterSuite.sh
+          # directly rather than through ctest, and the script drives h5repack, h5dump and h5ls.
+          sudo apt-get install -y libhdf5-dev hdf5-tools libzstd-dev
+
+      - name: Configure
+        shell: bash
+        run: |
+          # No BUILD_TESTING: nothing here runs ctest, and it makes FetchContent pull googletest,
+          # whose own install rules put libgtest, libgmock and their headers into the prefix this
+          # job then inspects as an installed SZ3.
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DBUILD_H5Z_FILTER=ON
+
+      - name: Build
+        shell: bash
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel 4
+
+      - name: Check this build took the system-Zstd path
+        shell: bash
+        run: |
+          if ! ldd build/tools/sz3/sz3 | grep -q 'libzstd\.so'; then
+            echo "sz3 links no system libzstd, so this job is not testing the system path"
+            ldd build/tools/sz3/sz3; exit 1
+          fi
+          if find build -name 'libsz3_zstd.*' | grep -q .; then
+            echo "the bundled Zstd was built as well, so which one is linked is not clear"; exit 1
+          fi
+          # Named, not globbed at the grep: CMake picks the directory under Export/ and an
+          # unmatched glob reaches grep as a literal, which exits 2 and reads here as "clean".
+          EXPORT=$(echo build/CMakeFiles/Export/*/SZ3Targets.cmake)
+          [ -f "$EXPORT" ] || { echo "no generated export to check at $EXPORT"; exit 1; }
+          if grep -q 'SZ3::zstd' "$EXPORT"; then
+            echo "the export names SZ3::zstd, so this build did not take the system path"; exit 1
+          fi
+
+      - name: Install it for a consumer to find
+        shell: bash
+        run: cmake --install build --prefix "$PWD/_prefix"
+
+      - name: Every shape a consumer builds in
+        shell: bash
+        run: tools/test/consumeInstalledSZ3.sh "$PWD/_prefix"
+
+      - name: Every way an application reaches the filter
+        shell: bash
+        run: tools/H5Z-SZ3/test/filterSuite.sh "$PWD/_prefix"
+
+      - name: The installed filter resolves every library it needs
+        shell: bash
+        run: |
+          ldd _prefix/lib/libhdf5sz3.so | tee _ldd.log
+          # Not `! grep ...`: set -e exempts a !-inverted command, so it would never fail the step.
+          if grep -q 'not found' _ldd.log; then echo "a NEEDED library does not resolve"; exit 1; fi
+
+      - name: The export must not carry this machine's Zstd
+        shell: bash
+        run: |
+          # Listed before it is grepped, for the reason the generated-export check above gives.
+          # One file per configuration, so the variable is split on purpose.
+          EXPORTS=$(ls _prefix/lib/cmake/SZ3/SZ3Targets*.cmake 2> /dev/null)
+          [ -n "$EXPORTS" ] || { echo "no installed export to check under _prefix/lib/cmake/SZ3"; exit 1; }
+          # SZ3Config.cmake is deliberately not grepped: its find_library runs on the consumer's machine.
+          if grep -En 'libzstd|PkgConfig::ZSTD' $EXPORTS; then
+            echo "the installed export names this machine's Zstd"; exit 1
+          fi
+
+      - name: A consumer still builds with the build tree gone
+        shell: bash
+        run: |
+          # An export that reaches back into the tree it was generated in works on this machine and
+          # nowhere else. Moved aside rather than deleted, so a red run still has the build to look at.
+          mv build build.aside
+          tools/test/consumeInstalledSZ3.sh "$PWD/_prefix"
+          mv build.aside build
+
+      - name: A packager can delete tools/zstd and still build against the system Zstd
+        shell: bash
+        run: |
+          # Debian and Fedora forbid embedded code copies, so the vendored tree has to be deletable.
+          # git worktree, so the deletion cannot escape.
+          git worktree add _nozstd HEAD
+          rm -rf _nozstd/tools/zstd
+          cmake -S _nozstd -B _nozstd/build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          cmake --build _nozstd/build --parallel 4
+          EXPORT=$(echo _nozstd/build/CMakeFiles/Export/*/SZ3Targets.cmake)
+          [ -f "$EXPORT" ] || { echo "no generated export to check at $EXPORT"; exit 1; }
+          if grep -q 'SZ3::zstd' "$EXPORT"; then
+            echo "with tools/zstd gone this did not take the system path"; exit 1
+          fi
+          _nozstd/build/tools/sz3/sz3 -f -i tools/sz3/testfloat_8_8_128.dat -z _n.sz3 \
+                                      -3 ${{ env.DIMS }} -M ${{ env.MODE }} ${{ env.TOL }}
+          _nozstd/build/tools/sz3/sz3 -f -s _n.sz3 -o _n.dat -3 ${{ env.DIMS }}
+          if [ "$(wc -c < _n.dat)" != "$(wc -c < tools/sz3/testfloat_8_8_128.dat)" ]; then
+            echo "the system Zstd did not reproduce the input length"; exit 1
+          fi
+
+      - name: Build and install with the bundled Zstd
+        shell: bash
+        run: |
+          cmake -S . -B _bundled -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+                -DSZ3_USE_BUNDLED_ZSTD=ON -DBUILD_H5Z_FILTER=ON
+          cmake --build _bundled --parallel 4
+          cmake --install _bundled --prefix "$PWD/_bprefix"
+
+      - name: The bundled Zstd round-trips the smoke dataset
+        shell: bash
+        run: |
+          _bundled/tools/sz3/sz3 -f -i tools/sz3/testfloat_8_8_128.dat -z _b.sz3 \
+                                 -3 ${{ env.DIMS }} -M ${{ env.MODE }} ${{ env.TOL }}
+          _bundled/tools/sz3/sz3 -f -s _b.sz3 -o _b.dat -3 ${{ env.DIMS }}
+          if [ "$(wc -c < _b.dat)" != "$(wc -c < tools/sz3/testfloat_8_8_128.dat)" ]; then
+            echo "the bundled Zstd did not reproduce the input length"; exit 1
+          fi
+
+      - name: The bundled Zstd stays inside SZ3
+        shell: bash
+        run: tools/test/bundledZstdIsolation.sh _bundled "$PWD/_bprefix"
+
+      - name: The serialized format must not change without SZ3_DATA_VERSION
+        shell: bash
+        run: |
+          # An unversioned format change produces files an older build accepts and then misreads.
+          # The _bundled tree: the bytes depend on which Zstd compressed them, and only it is pinned.
+          VER=$(sed -n 's/^#define SZ3_DATA_VER "\(.*\)"/\1/p' _bundled/include/SZ3/version.hpp)
+          if [ -z "$VER" ]; then echo "could not read SZ3_DATA_VER from the generated header"; exit 1; fi
+          ./_bundled/tools/sz3/sz3 -f -i tools/sz3/testfloat_8_8_128.dat -z fmt.sz3 \
+                                   -3 8 8 128 -M ABS 1e-3 > /dev/null
+          GOT=$(sha256sum fmt.sz3 | awk '{print $1}')
+          WANT=$(awk -v v="$VER" '$1 == v { print $2 }' tools/test/data_format_digest.txt)
+          echo "SZ3_DATA_VERSION=$VER"
+          echo "  recorded: ${WANT:-<no row>}"
+          echo "  produced: $GOT"
+          if [ -z "$WANT" ]; then
+            echo "::error ::SZ3_DATA_VERSION $VER has no row in tools/test/data_format_digest.txt. Add: $VER      $GOT"
+            exit 1
+          fi
+          if [ "$WANT" != "$GOT" ]; then
+            echo "::error ::The bytes this version produces have changed. If the serialized format changed, bump SZ3_DATA_VERSION in CMakeLists.txt and add a row for the new version. If the bundled Zstd was re-vendored, replace this row with: $VER      $GOT"
+            exit 1
+          fi
+
+  macos:
+    name: Install and consume (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install HDF5
+        run: |
+          brew update
+          brew install hdf5
+
+      - name: Create build dir
+        run: cmake -E make_directory build
+
+      - name: Configure
+        shell: bash
+        working-directory: build
+        run: |
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DBUILD_TESTING=ON \
+            -DBUILD_H5Z_FILTER=ON
+
+      - name: Build
+        shell: bash
+        working-directory: build
+        run: cmake --build . --config ${{ env.BUILD_TYPE }} --parallel 4
+
+      - name: Install it for a consumer to find
+        shell: bash
+        run: cmake --install build --prefix "$PWD/_prefix"
+
+      - name: Every shape a consumer builds in
+        shell: bash
+        run: tools/test/consumeInstalledSZ3.sh "$PWD/_prefix"
+
+      - name: The installed filter loads by the name recorded in it
+        shell: bash
+        run: |
+          # Mach-O resolves libraries by install name rather than RUNPATH, so an export that works
+          # on Linux can still fail here.
+          otool -L _prefix/lib/libhdf5sz3.dylib
+          # The load is the assertion, not the otool output. Line 2 of `otool -L` is this library's
+          # own LC_ID_DYLIB -- always @rpath/libhdf5sz3.dylib -- so a grep for '@rpath/libhdf5'
+          # matches whatever HDF5 does, and the presence of *an* LC_RPATH says nothing about
+          # whether it holds libhdf5.
+          printf '#include <dlfcn.h>\n#include <stdio.h>\nint main(int c,char**v){(void)c;void*h=dlopen(v[1],RTLD_NOW);if(!h){printf("%%s\\n",dlerror());return 1;}return 0;}\n' > _load.c
+          cc -o _load _load.c
+          ./_load "$PWD/_prefix/lib/libhdf5sz3.dylib"
+          ./_load "$PWD/_prefix/lib/plugin/libhdf5sz3.dylib"
+
+      - name: Every way an application reaches the filter
+        shell: bash
+        run: tools/H5Z-SZ3/test/filterSuite.sh "$PWD/_prefix"
+
+  windows-msvc:
+    name: Install and consume (Windows MSVC)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # As in cmake.yml's Windows job: vcpkg is where an MSVC build of this repository gets HDF5.
+      - name: Bootstrap vcpkg & install HDF5
+        shell: pwsh
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
+          cd C:\vcpkg
+          .\bootstrap-vcpkg.bat
+          .\vcpkg.exe install hdf5:x64-windows
+
+      - name: Configure
+        shell: bash
+        run: |
+          # No BUILD_TESTING, for the reason the Linux job gives. BUILD_MDZ because no other job in
+          # any workflow builds tools/mdz at all, and its install rule is one of the two a
+          # multi-config generator breaks -- the other being tools/sz3, which this job installs too.
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake \
+            -DVCPKG_TARGET_TRIPLET=x64-windows \
+            -DBUILD_H5Z_FILTER=ON \
+            -DBUILD_MDZ=ON
+
+      - name: Build
+        shell: bash
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel 4
+
+      - name: Install it for a consumer to find
+        shell: bash
+        # --config here as well as on the build: the Visual Studio generator is multi-config, and an
+        # install that names no configuration looks for Release whatever was built.
+        run: cmake --install build --config ${{ env.BUILD_TYPE }} --prefix "$PWD/_prefix"
+
+      - name: Every binary the install rules promise
+        shell: bash
+        run: |
+          # An install rule that points one directory too high, or drops the .exe, is how this got
+          # here: `cmake --install` failed outright and nothing after it reached the prefix.
+          for exe in sz3 sz3_smoke_test sz3_customized_demo mdz mdz_smoke_test; do
+            [ -f "_prefix/bin/$exe.exe" ] || { echo "no $exe.exe in the install prefix"; exit 1; }
+          done
+          ./_prefix/bin/mdz_smoke_test.exe
+          # Named here as well as inside consumeInstalledSZ3.sh, because Linux asserts the filter
+          # with ldd and macOS with a dlopen probe and this job had neither: a filter that failed to
+          # install at all left the script with nothing to detect and nothing to consume.
+          # No lib prefix under MSVC, and the import library stays out of the plugin directory.
+          for f in bin/hdf5sz3.dll lib/hdf5sz3.lib lib/plugin/hdf5sz3.dll \
+                   lib/cmake/SZ3/HDF5SZ3.cmake include/hdf5_sz3/H5Z_SZ3.hpp; do
+            [ -f "_prefix/$f" ] || { echo "no $f in the install prefix"; exit 1; }
+          done
+
+      - name: Every shape a consumer builds in
+        shell: bash
+        run: |
+          # The consumer links HDF5's import library and Windows resolves the matching DLL through
+          # PATH, which no RPATH in an install tree can stand in for.
+          export PATH="/c/vcpkg/installed/x64-windows/bin:$PATH"
+          tools/test/consumeInstalledSZ3.sh "$PWD/_prefix" /c/vcpkg/installed/x64-windows
+
+  windows-mingw:
+    name: Install and consume (Windows MinGW)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup MSYS2 with MinGW64
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-hdf5
+            make
+
+      - name: Configure
+        run: |
+          # No BUILD_TESTING, for the reason the Linux job gives.
+          cmake -S . -B build \
+            -G "Ninja" \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DBUILD_H5Z_FILTER=ON
+
+      - name: Build
+        run: cmake --build build --parallel 4
+
+      - name: Install it for a consumer to find
+        run: cmake --install build --prefix "$PWD/_prefix"
+
+      - name: Every binary the install rules promise
+        run: |
+          # As in the MSVC job. MinGW keeps the lib prefix MSVC drops, and names the import
+          # library .dll.a, so the two Windows jobs cannot share one list.
+          for f in bin/libhdf5sz3.dll lib/libhdf5sz3.dll.a lib/plugin/libhdf5sz3.dll \
+                   lib/cmake/SZ3/HDF5SZ3.cmake include/hdf5_sz3/H5Z_SZ3.hpp; do
+            [ -f "_prefix/$f" ] || { echo "no $f in the install prefix"; exit 1; }
+          done
+
+      - name: Every shape a consumer builds in
+        run: tools/test/consumeInstalledSZ3.sh "$PWD/_prefix"

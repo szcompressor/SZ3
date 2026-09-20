@@ -1,94 +1,70 @@
-include(FetchContent)
+# Vendored Zstd, unmodified. Do not edit lib/; a re-vendor replaces it wholesale.
+#
+#   Upstream: https://github.com/facebook/zstd/releases/download/v1.5.6/zstd-1.5.6.tar.gz
+#   SHA256:   8c29e06cf42aacc1eafc4077ae2ec6c6fcb96a626157e0593d5e82a34fd403c1
+#   License:  LICENSE beside this file (BSD-3-Clause; upstream dual-licenses GPLv2)
+#
+# Not 1.5.7: it made level 3, the one Lossless_zstd uses, 26-30% slower for under 0.6% of size.
+# Its correctness fix needs a ZSTD_CCtx reused across calls; SZ3 makes one per ZSTD_compress.
 
-if(POLICY CMP0135)
-        cmake_policy(SET CMP0135 NEW)
-endif()
-FetchContent_Declare(
-        zstdfetched
-        URL "https://github.com/facebook/zstd/releases/download/v1.4.5/zstd-1.4.5.tar.gz"
-        SOURCE_SUBDIR ""  # Disables automatic add_subdirectory()
-)
-FetchContent_MakeAvailable(zstdfetched)
+set(_zstd_lib "${CMAKE_CURRENT_SOURCE_DIR}/lib")
 
-if (MSVC)
-    set(ZSTD_BUILD_TYPE STATIC)
-else()
-    set(ZSTD_BUILD_TYPE SHARED)
-endif()
-set(zstd_SOURCE_DIR "${zstdfetched_SOURCE_DIR}/lib")
+# Listed rather than globbed: a glob would silently start compiling whatever a re-vendor drops in.
+add_library(zstd STATIC
+        "${_zstd_lib}/common/debug.c"
+        "${_zstd_lib}/common/entropy_common.c"
+        "${_zstd_lib}/common/error_private.c"
+        "${_zstd_lib}/common/fse_decompress.c"
+        "${_zstd_lib}/common/pool.c"
+        "${_zstd_lib}/common/threading.c"
+        "${_zstd_lib}/common/xxhash.c"
+        "${_zstd_lib}/common/zstd_common.c"
 
-add_library(zstd ${ZSTD_BUILD_TYPE}
-        "${zstd_SOURCE_DIR}/common/entropy_common.c"
-        "${zstd_SOURCE_DIR}/common/pool.c"
-        "${zstd_SOURCE_DIR}/common/threading.c"
-        "${zstd_SOURCE_DIR}/common/debug.c"
-        "${zstd_SOURCE_DIR}/common/xxhash.c"
-        "${zstd_SOURCE_DIR}/common/fse_decompress.c"
-        "${zstd_SOURCE_DIR}/common/zstd_common.c"
-        "${zstd_SOURCE_DIR}/common/error_private.c"
+        "${_zstd_lib}/compress/fse_compress.c"
+        "${_zstd_lib}/compress/hist.c"
+        "${_zstd_lib}/compress/huf_compress.c"
+        "${_zstd_lib}/compress/zstd_compress.c"
+        "${_zstd_lib}/compress/zstd_compress_literals.c"
+        "${_zstd_lib}/compress/zstd_compress_sequences.c"
+        "${_zstd_lib}/compress/zstd_compress_superblock.c"
+        "${_zstd_lib}/compress/zstd_double_fast.c"
+        "${_zstd_lib}/compress/zstd_fast.c"
+        "${_zstd_lib}/compress/zstd_lazy.c"
+        "${_zstd_lib}/compress/zstd_ldm.c"
+        "${_zstd_lib}/compress/zstd_opt.c"
+        "${_zstd_lib}/compress/zstdmt_compress.c"
 
-        "${zstd_SOURCE_DIR}/compress/zstd_ldm.c"
-        "${zstd_SOURCE_DIR}/compress/zstd_lazy.c"
-        "${zstd_SOURCE_DIR}/compress/huf_compress.c"
-        "${zstd_SOURCE_DIR}/compress/zstd_opt.c"
-        "${zstd_SOURCE_DIR}/compress/zstd_double_fast.c"
-        "${zstd_SOURCE_DIR}/compress/zstd_compress.c"
-        "${zstd_SOURCE_DIR}/compress/zstd_compress_superblock.c"
-        "${zstd_SOURCE_DIR}/compress/zstd_compress_sequences.c"
-        "${zstd_SOURCE_DIR}/compress/zstd_compress_literals.c"
-        "${zstd_SOURCE_DIR}/compress/zstd_fast.c"
-        "${zstd_SOURCE_DIR}/compress/fse_compress.c"
-        "${zstd_SOURCE_DIR}/compress/zstdmt_compress.c"
-        "${zstd_SOURCE_DIR}/compress/hist.c"
-
-        "${zstd_SOURCE_DIR}/decompress/zstd_decompress.c"
-        "${zstd_SOURCE_DIR}/decompress/huf_decompress.c"
-        "${zstd_SOURCE_DIR}/decompress/zstd_ddict.c"
-        "${zstd_SOURCE_DIR}/decompress/zstd_decompress.c"
-        "${zstd_SOURCE_DIR}/decompress/zstd_decompress_block.c"
-
-        "${zstd_SOURCE_DIR}/deprecated/zbuff_common.c"
-        "${zstd_SOURCE_DIR}/deprecated/zbuff_compress.c"
-        "${zstd_SOURCE_DIR}/deprecated/zbuff_decompress.c"
-
-        "${zstd_SOURCE_DIR}/legacy/zstd_v05.c"
-        "${zstd_SOURCE_DIR}/legacy/zstd_v04.c"
-        "${zstd_SOURCE_DIR}/legacy/zstd_v06.c"
-        "${zstd_SOURCE_DIR}/legacy/zstd_v07.c"
-        "${zstd_SOURCE_DIR}/legacy/zstd_v03.c"
-        "${zstd_SOURCE_DIR}/legacy/zstd_v02.c"
-        "${zstd_SOURCE_DIR}/legacy/zstd_v01.c"
-
-        "${zstd_SOURCE_DIR}/dictBuilder/cover.c"
-        "${zstd_SOURCE_DIR}/dictBuilder/divsufsort.c"
-        "${zstd_SOURCE_DIR}/dictBuilder/zdict.c"
-        "${zstd_SOURCE_DIR}/dictBuilder/fastcover.c"
+        "${_zstd_lib}/decompress/huf_decompress.c"
+        "${_zstd_lib}/decompress/zstd_ddict.c"
+        "${_zstd_lib}/decompress/zstd_decompress.c"
+        "${_zstd_lib}/decompress/zstd_decompress_block.c"
 )
 
+# libsz3_zstd, not libzstd: libzstd would overwrite the one already in the install prefix.
+# Hidden visibility keeps ZSTD_* out of libhdf5sz3.so, where it interposes on the consumer's Zstd.
+set_target_properties(zstd PROPERTIES
+        OUTPUT_NAME sz3_zstd
+        POSITION_INDEPENDENT_CODE ON
+        C_VISIBILITY_PRESET hidden)
+
+# ZSTDLIB_VISIBILITY=: Zstd's headers mark its API visibility("default"), past C_VISIBILITY_PRESET.
+# ZSTD_DISABLE_ASM=1: huf_decompress_amd64.S is not in the source list above.
+# ZSTD_LEGACY_SUPPORT=0: lib/legacy is not vendored.
+target_compile_definitions(zstd
+        PRIVATE ZSTDLIB_VISIBILITY= ZSTDERRORLIB_VISIBILITY= ZSTD_DISABLE_ASM=1 ZSTD_LEGACY_SUPPORT=0)
+
+# PRIVATE only: a public include directory would put this zstd.h ahead of a consumer's own.
 target_include_directories(zstd
-        PUBLIC
-        $<BUILD_INTERFACE:${zstd_SOURCE_DIR}/>
         PRIVATE
-        ${zstd_SOURCE_DIR}/common
-        ${zstd_SOURCE_DIR}/compress
-        ${zstd_SOURCE_DIR}/decompress
-        ${zstd_SOURCE_DIR}/deprecated
-        ${zstd_SOURCE_DIR}/dictBuilder
-        ${zstd_SOURCE_DIR}/dll
-        ${zstd_SOURCE_DIR}/legacy
+        "${_zstd_lib}"
+        "${_zstd_lib}/common"
+        "${_zstd_lib}/compress"
+        "${_zstd_lib}/decompress"
 )
 
 install(TARGETS zstd EXPORT SZ3Targets
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
-
-install(FILES
-        "${zstd_SOURCE_DIR}/deprecated/zbuff.h"
-        "${zstd_SOURCE_DIR}/dictBuilder/zdict.h"
-        "${zstd_SOURCE_DIR}/zstd.h"
-        "${zstd_SOURCE_DIR}/common/zstd_errors.h"
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/
 )
 
 export(TARGETS zstd FILE zstd.cmake)

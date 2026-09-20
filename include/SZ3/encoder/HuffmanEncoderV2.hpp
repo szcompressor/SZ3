@@ -6,6 +6,7 @@
 #include <queue>
 #include <stack>
 #include <stdexcept>
+#include <unordered_map>
 #include <vector>
 
 #include "SZ3/def.hpp"
@@ -13,7 +14,6 @@
 #include "SZ3/utils/ByteUtil.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
 #include "SZ3/utils/Timer.hpp"
-#include "SZ3/utils/Collections.hpp"
 
 namespace SZ3 {
 template <class T>
@@ -92,12 +92,8 @@ private:
 
         std::vector<uchar> veclen;
         std::vector<int> veccode;
-        unordered_map<size_t, uchar> mplen;
-        unordered_map<size_t, int> mpcode;
-        //            std::unordered_map<size_t,uchar> mplen;
-        //            std::unordered_map<size_t,int> mpcode;
-        //            std::map<size_t,uchar> mplen;
-        //            std::map<size_t,int> mpcode;
+        std::unordered_map<size_t, uchar> mplen;
+        std::unordered_map<size_t, int> mpcode;
 
         T offset;
         // minimum bits for T
@@ -129,9 +125,7 @@ private:
         T maxval;
         std::vector<Node> ht;
         std::vector<size_t> vecfreq;
-        unordered_map<T, size_t> mpfreq;
-        //            std::unordered_map<T,size_t> mpfreq;
-        //            std::map<T,size_t> mpfreq;
+        std::unordered_map<T, size_t> mpfreq;
 
         void addElementInMap(T c, size_t freqc) {
             assert(!_constructed);
@@ -244,8 +238,8 @@ public:
 
         switch ((flag & 0xc0) >> 6) {
             case 0: {
-                if (tree.maxval >= (1 << 12) && num_bin < 2 * static_cast<size_t>(__maxval)
-                    || tree.maxval >= (1 << 28)) {
+                if ((tree.maxval >= (1 << 12) && num_bin < 2 * static_cast<size_t>(__maxval)) ||
+                    tree.maxval >= (1 << 28)) {
                     tree.usemp = 1;
                 } else {
                     tree.usemp = 0;
@@ -279,8 +273,6 @@ public:
             //                tree.mplen.reserve(num_bin);
             //                tree.mpcode.reserve(num_bin);
 
-            //                unordered_map<T,size_t> freq;
-            //                std::unordered_map<T,size_t> freq;
             std::map<T, size_t> freq;
             //                freq.reserve(num_bin);
 
@@ -460,6 +452,9 @@ public:
 
         size_t len = bytesToInt64_bigEndian(bytes) ^ 0x1234abcd;
         bytes += 8;
+        // The cached-codebook walk below refills ahead of the code it is decoding, and past this it must
+        // shift in zeros; a well-formed stream never consumes those bits.
+        const size_t code_bytes = (len + 7) >> 3;
         std::vector<T> out(targetLength);
         size_t outLen = 0;
 
@@ -576,7 +571,7 @@ public:
 
             while (count < targetLength) {
                 while (static_cast<int>(leftBits) < maxBits) {
-                    currentValue += (bytes[i] << leftBits);
+                    if (i < code_bytes) currentValue += (bytes[i] << leftBits);
                     leftBits += 8;
                     i++;
                 }
@@ -596,7 +591,7 @@ public:
                     n = nodeTable[index];
                     while (!n->isLeaf()) {
                         if (!leftBits) {
-                            currentValue += (bytes[i] << leftBits);
+                            if (i < code_bytes) currentValue += (bytes[i] << leftBits);
                             leftBits += 8;
                             i++;
                         }
@@ -726,13 +721,13 @@ private:
             mask = index = 0;
 
             while (len >= 8) {
-                *c++ = val & (1 << 8) - 1;
+                *c++ = val & ((1 << 8) - 1);
                 val >>= 8;
                 len -= 8;
             }
         }
 
-        mask |= (val & (1 << len) - 1) << index;
+        mask |= (val & ((1 << len) - 1)) << index;
         index += len;
 
         // for(int i=0;i<len;i++){
@@ -911,7 +906,7 @@ private:
         //            printf("compressed huffman tree size = %d\n",(int)compressed_tree_size);
     }
 
-    void loadAsCode(const uchar*& bytes, size_t& remaining_length) {
+    void loadAsCode(const uchar*& bytes, size_t& /*remaining_length*/) {
         // Timer timer(true);
 
         tree.init();

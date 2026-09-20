@@ -4,7 +4,7 @@ import sys
 from shutil import rmtree
 import tempfile
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../H5Z-SZ3/test'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../H5Z-SZ3/tools'))
 from cdvalueHelper import SZ3
 
 if len(sys.argv) > 1:

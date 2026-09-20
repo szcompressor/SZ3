@@ -6,10 +6,11 @@ foreach (EXE IN LISTS exes)
     message(STATUS "Target = ${EXE}")
     add_executable(${EXE} ${EXE}.cpp)
     target_include_directories(${EXE} PUBLIC
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MDZ>
+            "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+            "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/MDZ>"
             )
     target_link_libraries(${EXE} SZ3)
-    install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/${EXE} TYPE BIN)
+    # As in tools/sz3: the spelled-out path misses both the per-config subdirectory and the .exe.
+    install(PROGRAMS $<TARGET_FILE:${EXE}> TYPE BIN)
 endforeach ()
 

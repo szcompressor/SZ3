@@ -19,15 +19,15 @@ static constexpr int XTC_radius = std::numeric_limits<int>::max() / 16;
 template <class T, uint N, class Quantizer>
 class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, N> {
 public:
-    SZBioMDXtcDecomposition(const Config& conf, Quantizer quantizer)
-        : conf(conf),
-          quantizer(quantizer) {
+    SZBioMDXtcDecomposition(const Config& conf_, Quantizer quantizer_)
+        : conf(conf_),
+          quantizer(quantizer_) {
         if (N != 1 && N != 2 && N != 3) {
             throw std::invalid_argument("SZBioMDXtcDecomposition only support 1D, 2D or 3D data");
         }
     }
 
-    std::vector<int> compress(const Config& conf, T* data) override {
+    std::vector<int> compress(const Config& /*conf*/, T* data) override {
         if (N <= 2) {
             return compressSingleFrame(data);
         } else {
@@ -35,7 +35,7 @@ public:
         }
     }
 
-    T* decompress(const Config& conf, std::vector<int>& quantData, T* decData) override {
+    T* decompress(const Config& /*conf*/, std::vector<int>& quantData, T* decData) override {
         if (N <= 2) {
             return decompressSingleFrame(quantData, decData);
         } else {

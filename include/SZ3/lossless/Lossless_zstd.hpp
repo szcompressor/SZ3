@@ -11,7 +11,19 @@
 #include "SZ3/def.hpp"
 #include "SZ3/lossless/Lossless.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
-#include "zstd.h"
+
+// Do not include <zstd.h> here: these headers are installed, so every consumer would need it too.
+#ifdef SZ3_USE_ZSTD_HEADER
+#include <zstd.h>
+#else
+#include <stddef.h>
+extern "C" {
+size_t ZSTD_compress(void *dst, size_t dstCapacity, const void *src, size_t srcSize, int compressionLevel);
+size_t ZSTD_decompress(void *dst, size_t dstCapacity, const void *src, size_t compressedSize);
+size_t ZSTD_compressBound(size_t srcSize);
+unsigned ZSTD_isError(size_t code);
+}
+#endif
 
 namespace SZ3 {
 class Lossless_zstd : public concepts::LosslessInterface {
@@ -19,6 +31,9 @@ class Lossless_zstd : public concepts::LosslessInterface {
     Lossless_zstd() = default;
 
     Lossless_zstd(int comp_level) : compression_level(comp_level) {}
+
+    /** ZSTD_compressBound is declared only in this header, so callers elsewhere go through this. */
+    static size_t compress_bound(size_t srcLen) { return ZSTD_compressBound(srcLen); }
 
     /**
      * Attention

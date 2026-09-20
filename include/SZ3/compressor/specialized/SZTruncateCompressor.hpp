@@ -45,6 +45,8 @@ class SZTruncateCompressor : public concepts::CompressorInterface<T> {
     T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *decData) override {
         uchar *buffer = nullptr;
         size_t bufferSize = lossless.decompress(cmpData, cmpSize, buffer, 0);
+        if (bufferSize < conf.num * byteLen)
+            throw std::out_of_range("SZ3 truncate: stream is shorter than the array it declares");
         // size_t remaining_length = bufferCap;
         uchar const *buffer_pos = buffer;
 

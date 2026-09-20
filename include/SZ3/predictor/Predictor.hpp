@@ -17,29 +17,25 @@ namespace SZ3::concepts {
 template <class T, uint N>
 class PredictorInterface {
    public:
-    using block_iter = typename block_data<T, N>::block_iterator;
-
     virtual ~PredictorInterface() = default;
+
+    using block_iter = typename block_data<T, N>::block_iterator;
 
     /**
      * predict the value for a single data point
-     * @param block_iter the iterator of the block
-     * @param T* the pointer to the single data point
-     * @param std::array<size_t, N> the relative index of the data point in the block
+     * The index is relative to the block, not to the whole field.
      * @return the predicted value
      */
     virtual T predict(const block_iter &, T *, const std::array<size_t, N> &) = 0;
 
     /**
      * estimate the prediction error ( |prediction value - read value|)  for a single data point
-     * @param iter the iterator of the single data point
      * @return the estimated prediction error
      */
     virtual T estimate_error(const block_iter &, T *, const std::array<size_t, N> &) = 0;
 
     /**
      * compute auxiliary info (e.g., coefficients) for the given data block
-     * @param block_iter of the block
      * @return whether the predictor is suitable for the block (e.g., data with 100x1 shape is not suitable for 2D
      * regression)
      */

@@ -8,10 +8,12 @@
 #include <new>
 
 #include "SZ3/api/impl/SZDispatcher.hpp"
+#include "SZ3/lossless/Lossless_zstd.hpp"
 
 #ifdef _OPENMP
 
 #include <omp.h>
+
 #include <stdexcept>
 
 #endif
@@ -81,7 +83,7 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
         conf_t[tid] = conf;
         conf_t[tid].setDims(dims_t.begin(), dims_t.end());
         // Room for the size header Lossless_zstd::compress writes ahead of the zstd stream.
-        size_t cmp_size_cap = sizeof(size_t) + ZSTD_compressBound(conf_t[tid].num * sizeof(T));
+        size_t cmp_size_cap = sizeof(size_t) + Lossless_zstd::compress_bound(conf_t[tid].num * sizeof(T));
         std::unique_ptr<uchar[]> compressed_owner(new uchar[cmp_size_cap]);
         compressed_t[tid] = compressed_owner.get();
         // we have to use conf_t[tid].N instead of N since each chunk may be a slice of the original data
@@ -136,7 +138,8 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
 }
 
 template <class T, uint N>
-void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* decData) {
+void SZ_decompress_OMP([[maybe_unused]] Config& conf, [[maybe_unused]] const uchar* cmpData,
+                       [[maybe_unused]] size_t cmpSize, [[maybe_unused]] T* decData) {
 #ifdef _OPENMP
 
     auto cmpr_data_pos = cmpData;
@@ -160,10 +163,9 @@ void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* de
     }
     if (versionStr(conf_t[0].sz3DataVer) != SZ3_DATA_VER) {
         std::stringstream ss;
-        printf("program v%s , program-data %s , input data v%s\n", SZ3_VER, SZ3_DATA_VER,
-               versionStr(conf_t[0].sz3DataVer).data());
-        ss << "Please use SZ3 v" << versionStr(conf_t[0].sz3DataVer) << " to decompress the data" << std::endl;
-        std::cerr << ss.str();
+        ss << "SZ3 " << SZ3_VER << " reads data version " << SZ3_DATA_VER << ", but this data is version "
+           << versionStr(conf_t[0].sz3DataVer) << ". Use SZ3 v" << versionStr(conf_t[0].sz3DataVer)
+           << " to decompress it.";
         throw std::invalid_argument(ss.str());
     }
 
@@ -252,10 +254,10 @@ size_t SZ_compress_size_bound_omp(const Config& conf) {
     // for each thread, we save conf, compressed size, and compressed data
     // the per-chunk compressed data may carry the size header written by Lossless_zstd::compress
     return sizeof(int) + nThreads * conf.size_est() + 2 * nThreads * sizeof(size_t) +
-           (nThreads - 1) * ZSTD_compressBound(chunk_size * sizeof(T)) +
-           ZSTD_compressBound(last_chunk_size * sizeof(T));
+           (nThreads - 1) * Lossless_zstd::compress_bound(chunk_size * sizeof(T)) +
+           Lossless_zstd::compress_bound(last_chunk_size * sizeof(T));
 #else
-    return conf.size_est() + ZSTD_compressBound(conf.num * sizeof(T));
+    return conf.size_est() + Lossless_zstd::compress_bound(conf.num * sizeof(T));
 #endif
 }
 } // namespace SZ3
