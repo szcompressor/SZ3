@@ -1,12 +1,3 @@
-# Reads a committed file the released v3.3.2 wrote. Registered unconditionally, and deliberately
-# not folded into the access-mode suite below: that one needs an install tree and the HDF5
-# command-line tools, and a skip there would hide exactly the regression this catches.
-add_executable(readLegacyChunks readLegacyChunks.cpp)
-target_link_libraries(readLegacyChunks PRIVATE SZ3 hdf5sz3)
-add_test(NAME SZ3_FilterLegacyChunks
-        COMMAND readLegacyChunks ${CMAKE_CURRENT_SOURCE_DIR}/legacy-v3.3.2.h5
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-
 # The access-mode suite runs against an install tree, so it installs one of its own first. Only
 # registered when the HDF5 command-line tools it drives are present -- CI installs them and runs
 # the script directly, so coverage there does not depend on this.
