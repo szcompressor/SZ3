@@ -1,0 +1,12 @@
+{
+  "lsp": {
+    "clangd": {
+      "binary": {
+        "path": "/usr/bin/clangd",
+        "arguments": [
+          "--compile-commands-dir=/Users/kzhao/code/fz/build-release"
+        ]
+      }
+    }
+  }
+}

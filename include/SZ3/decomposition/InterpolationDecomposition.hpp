@@ -35,16 +35,15 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
    public:
     /**
      * @brief Construct a new Interpolation Decomposition object
-     * 
-     * @param conf Configuration
+     *
      * @param quantizer Quantizer instance
      */
-    InterpolationDecomposition(const Config &conf, Quantizer quantizer) : quantizer(quantizer) {
+    InterpolationDecomposition(const Config & /*conf*/, Quantizer quantizer_) : quantizer(quantizer_) {
         static_assert(std::is_base_of<concepts::QuantizerInterface<T, int>, Quantizer>::value,
                       "must implement the quantizer interface");
     }
 
-    T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) override {
+    T *decompress(const Config &conf, std::vector<int> &quant_inds_, T *dec_data) override {
         // load() read original_dimensions from the payload, and the grid walk below is sized by it while
         // dec_data and quant_inds are sized by conf. A tampered value runs off both.
         if (conf.dims.size() != N) {
@@ -58,10 +57,10 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
 
         init();
 
-        if (quant_inds.size() < num_elements) {
+        if (quant_inds_.size() < num_elements) {
             throw std::out_of_range("SZ3 interpolation: fewer bins than the grid consumes");
         }
-        this->quant_inds = quant_inds.data();
+        this->quant_inds = quant_inds_.data();
         double eb = quantizer.get_eb();
 
         if (anchor_stride == 0) {                                               // check whether used anchor points
@@ -102,7 +101,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
                 }
                 interpolation(
                     dec_data, block.get_global_index(), end_idx, interpolators[interp_id],
-                    [&](size_t idx, T &d, T pred) { d = quantizer.recover(pred, quant_inds[quant_index++]); },
+                    [&](size_t /*idx*/, T &d, T pred) { d = quantizer.recover(pred, quant_inds_[quant_index++]); },
                     direction_sequence_id, stride);
             }
         }
@@ -170,7 +169,7 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
 
                 interpolation(
                     data, block.get_global_index(), end_idx, interpolators[interp_id],
-                    [&](size_t idx, T &d, T pred) {
+                    [&](size_t /*idx*/, T &d, T pred) {
                         quant_inds[quant_index++] = (quantizer.quantize_and_overwrite(d, pred));
                     },
                     direction_sequence_id, stride);
@@ -289,14 +288,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
     /**
      * Do interpolations along a certain dimension, and move through that dimension only.
      * This is the original API, described in the ICDE'21 paper.
-     * @tparam QuantizeFunc
-     * @param data
-     * @param begin
-     * @param end
-     * @param stride
-     * @param interp_func
-     * @param quantize_func
-     * @return
      */
     template <class QuantizeFunc>
     double interpolation_1d(T *data, size_t begin, size_t end, size_t stride, const std::string &interp_func,
@@ -349,16 +340,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
     /**
      * Do all interpolations along a certain dimension on the full data grid. Moving on the fastest-dim.
      * This is the new API, described in the SIGMOD'24 paper.
-     * @tparam QuantizeFunc
-     * @param data
-     * @param begin_idx
-     * @param end_idx
-     * @param direction
-     * @param strides
-     * @param math_stride
-     * @param interp_func
-     * @param quantize_func
-     * @return
      */
     template <class QuantizeFunc>
     double interpolation_1d_fastest_dim_first(T *data, const std::array<size_t, N> &begin_idx,

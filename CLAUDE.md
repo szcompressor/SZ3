@@ -52,7 +52,7 @@ Defined in `include/SZ3/utils/Config.hpp`. Each has a `SZAlgo*.hpp` wiring file 
 
 **Lossless** (`include/SZ3/lossless/`): `Lossless_zstd` (default), `Lossless_bypass`.
 
-**Preprocessor** (`include/SZ3/preprocessor/`): `Transpose`, `Wavelet`, `PreFilter`, `MGARDTransform<T,N>` (multigrid basis change, drives `MultiLevelDecomposition`), `SPERRTransform<T,N>` (conditioner + CDF9/7, drives `SPERRDecomposition`).
+**Preprocessor** (`include/SZ3/preprocessor/`): `Transpose`, `PreFilter`, `MGARDTransform<T,N>` (multigrid basis change, drives `MultiLevelDecomposition`), `SPERRTransform<T,N>` (conditioner + CDF9/7, drives `SPERRDecomposition`).
 
 ## Build
 
@@ -103,7 +103,7 @@ include/SZ3/
   encoder/                # all Encoder modules
   lossless/               # all Lossless modules
   predictor/              # building blocks for blockwise predictor decompositions
-  preprocessor/           # Transpose, Wavelet, ...
+  preprocessor/           # Transpose, PreFilter, ...
   utils/                  # Config, iterators, statistics, sperr utility types
   utils/thirdparty/       # bundled SOTA: sperr/, mgard/, zfp/, ska_hash/
 tools/

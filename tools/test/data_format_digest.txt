@@ -1,0 +1,9 @@
+# SHA256 of tools/sz3/testfloat_8_8_128.dat compressed by a SZ3_USE_BUNDLED_ZSTD=ON build, as
+#   sz3 -f -i <that file> -z out -3 8 8 128 -M ABS 1e-3
+#
+# The bundled Zstd, because the bytes depend on which Zstd compressed them and only it is pinned.
+#
+# A format change adds a row and bumps SZ3_DATA_VERSION. Only a re-vendored Zstd edits one.
+#
+# version  sha256
+3.3.2      3171437b621e26d902271216e9cda5525e2232b9973917c324c0012baa054a1c

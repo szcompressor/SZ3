@@ -17,7 +17,7 @@ cdef extern from "SZ3/utils/Config.hpp" namespace "SZ3":
         void load_ini(const string &ini_content)
         string save_ini() const
         size_t save(unsigned char *&c) const
-        void load(const unsigned char *&c)
+        void load(const unsigned char *&c, size_t &remaining_length)
         void print()
         size_t size_est() const
 

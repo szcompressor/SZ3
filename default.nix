@@ -17,7 +17,6 @@ stdenv.mkDerivation {
 
   buildInputs = [
     zstd
-    gsl
   ]
   ++ lib.optionals stdenv.cc.isClang [
     llvmPackages.openmp

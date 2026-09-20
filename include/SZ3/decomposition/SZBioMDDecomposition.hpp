@@ -12,9 +12,9 @@
 #include "Decomposition.hpp"
 // #include "SZ3/utils/MemoryUtil.hpp"
 #include <list>
+#include <map>
 
 #include "SZ3/utils/Config.hpp"
-#include "SZ3/utils/Collections.hpp"
 
 namespace SZ3 {
 
@@ -22,13 +22,13 @@ namespace SZ3 {
 template <class T, uint N, class Quantizer>
 class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> {
    public:
-    SZBioMDDecomposition(const Config &conf, Quantizer quantizer) : quantizer(quantizer), conf(conf) {
+    SZBioMDDecomposition(const Config &conf_, Quantizer quantizer_) : quantizer(quantizer_), conf(conf_) {
         if (N != 1 && N != 2 && N != 3) {
             throw std::invalid_argument("SZBioMDDecomposition only support 1D, 2D or 3D data");
         }
     }
 
-    std::vector<int> compress(const Config &conf, T *data) override {
+    std::vector<int> compress(const Config & /*conf*/, T *data) override {
         if (N == 1) {
             return compress_1d(data);
         } else if (N == 2) {
@@ -38,7 +38,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         }
     }
 
-    T *decompress(const Config &conf, std::vector<int> &quant_inds, T *dec_data) override {
+    T *decompress(const Config & /*conf*/, std::vector<int> &quant_inds, T *dec_data) override {
         if (N == 1) {
             return decompress_1d(quant_inds, dec_data);
         } else if (N == 2) {
@@ -103,14 +103,18 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
             size_t lprev = 0;
             for (size_t i = 1; i < std::min<size_t>(dims[numDims - 2], 100); i++) {
                 auto c = data[i * dims[numDims - 1] + j], p = data[(i - 1) * dims[numDims - 1] + j];
-                if (fabs(c - p) / c > 0.5) {
+                // Relative to |c|: a coordinate may be negative, and dividing by it made the ratio
+                // negative, so no jump was ever seen along that stretch and the period went unnoticed.
+                if (fabs(c - p) / fabs(c) > 0.5) {
                     sites.push_back(i - lprev);
                     //                        printf("%d %d\n", i, i - lprev);
                     lprev = i;
                 }
             }
         }
-        unordered_map<int, size_t> frequency;
+        // std::map, not SZ3::unordered_map: the loop below keeps the first of a tied pair, so an
+        // unordered container made the guess -- and the compressed bytes -- depend on its order.
+        std::map<int, size_t> frequency;
         for (size_t i = 0; i < sites.size(); i++) {
             frequency[sites[i]]++;
         }

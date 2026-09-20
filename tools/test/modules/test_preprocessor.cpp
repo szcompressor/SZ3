@@ -4,7 +4,6 @@
 // - PreFilter: header-compile + default-construct only. The preprocess() body
 //   reads `for (T &d : data)` where `data` is `T*` -- it cannot instantiate;
 //   functional testing is impossible without modifying the module.
-// - Wavelet: gated on SZ3_ENABLE_GSL (GSL build option). Header-compile only.
 // - PreProcessor: pure interface; covered by the concrete subclasses above.
 
 #include <array>
@@ -13,7 +12,6 @@
 #include "SZ3/preprocessor/PreFilter.hpp"
 #include "SZ3/preprocessor/PreProcessor.hpp"
 #include "SZ3/preprocessor/Transpose.hpp"
-#include "SZ3/preprocessor/Wavelet.hpp"
 #include "gtest/gtest.h"
 
 // NOTE: SZ3::Transpose<T, 1> has an `if (N == 1) return;` early-out, but the
@@ -63,12 +61,3 @@ TEST(SZ3_PreprocessorTest, PreFilterCompilesAndConstructs) {
     SUCCEED();
 }
 
-TEST(SZ3_PreprocessorTest, WaveletCompilesWhenGSLEnabled) {
-    // Wavelet header is gated by SZ3_ENABLE_GSL. Without GSL the type is not
-    // declared, so we only verify the include line itself doesn't break the TU.
-#ifdef SZ3_ENABLE_GSL
-    SZ3::Wavelet<double, 1> w;
-    (void)w;
-#endif
-    SUCCEED();
-}

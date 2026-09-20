@@ -5,14 +5,24 @@
 #include <iterator>
 #include <memory>
 
+// The filter's own callbacks. HDF5 reaches them through H5Z_SZ3 below, so they stay out of the
+// public header, where every consumer of the filter would see them declared and never defined.
+extern "C" {
+static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_id);
 
-// filter definition
+static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[], size_t nbytes,
+                             size_t* buf_size, void** buf);
+}
+
 const H5Z_class2_t H5Z_SZ3[1] = {{
     H5Z_CLASS_T_VERS,                                       /* H5Z_class_t version */
     H5Z_FILTER_SZ3,                                         /* Filter id number */
     1,                                                      /* encoder_present flag (set to true) */
     1,                                                      /* decoder_present flag (set to true) */
-    "SZ3 compressor/decompressor for floating-point data.", /* Filter name for debugging */
+    // Written into every dataset that uses the filter, and quoted back by HDF5 when the filter
+    // is missing, so it has to say where to get it.
+    "H5Z-SZ3-" SZ3_VER " (data format " SZ3_DATA_VER "); see "
+    "https://github.com/szcompressor/SZ3/tree/master/tools/H5Z-SZ3",
     NULL,                                                   /* The "can apply" callback */
     H5Z_sz3_set_local,                                      /* The "set local" callback */
     static_cast<H5Z_func_t>(H5Z_filter_sz3),                /* The actual filter function */
@@ -22,10 +32,48 @@ HDF5SZ3_EXPORT H5PL_type_t H5PLget_plugin_type(void) { return H5PL_TYPE_FILTER; 
 
 HDF5SZ3_EXPORT const void* H5PLget_plugin_info(void) { return H5Z_SZ3; }
 
+// Anything else's registration is not ours to undo.
+static int h5z_sz3_was_registered = 0;
+
+herr_t H5Z_SZ3_initialize(void) {
+    // H5Zfilter_avail registers on a miss, from HDF5_PLUGIN_PATH; it is not a passive query.
+    if (H5Zfilter_avail(H5Z_FILTER_SZ3) > 0) {
+        return 0;
+    }
+    if (0 > H5Zregister(H5Z_SZ3)) {
+        return -1;
+    }
+    h5z_sz3_was_registered = 1;
+    return 1;
+}
+
+herr_t H5Z_SZ3_finalize(void) {
+    herr_t ret = 0;
+    if (h5z_sz3_was_registered) {
+        ret = H5Zunregister(H5Z_FILTER_SZ3);
+    }
+    h5z_sz3_was_registered = 0;
+    return ret < 0 ? -1 : 1;
+}
+
+// Do not use H5Zfilter_avail() here: it answers for the library, not for this property list.
+static bool sz3_filter_on_plist(const hid_t propertyList) {
+    const int nfilters = H5Pget_nfilters(propertyList);
+    for (int i = 0; i < nfilters; i++) {
+        unsigned int flags = 0;
+        size_t cd_nelmts = 0;
+        unsigned int cd_values[1] = {0};
+        if (H5Z_FILTER_SZ3 ==
+            H5Pget_filter2(propertyList, static_cast<unsigned>(i), &flags, &cd_nelmts, cd_values, 0, NULL, NULL)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config& conf) {
     static char const* _funcname_ = "set_SZ3_conf_to_H5";
 
-    // save conf into cd_values
     size_t cd_nelmts = std::ceil(conf.size_est() / 1.0 / sizeof(int));
     std::vector<unsigned int> cd_values(cd_nelmts, 0);
     auto buffer = reinterpret_cast<unsigned char*>(cd_values.data());
@@ -34,8 +82,7 @@ herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config& conf) {
     auto confSizeReal = conf.save(buffer);
     cd_nelmts = std::ceil(confSizeReal / 1.0 / sizeof(int));
 
-    if (H5Zfilter_avail(H5Z_FILTER_SZ3) > 0) {
-        // filter already set, update filter
+    if (sz3_filter_on_plist(propertyList)) {
         if (0 > H5Pmodify_filter(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values.data())) {
             H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, 0, "failed to modify cd_values");
         }
@@ -53,20 +100,26 @@ herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config& conf) {
 herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config& conf) {
     // static char const* _funcname_ = "get_SZ3_conf_from_H5";
 
-    size_t cd_nelmts = std::ceil(conf.size_est() / 1.0 / sizeof(int));
-    std::vector<unsigned int> cd_values(cd_nelmts, 0);
-
-    if (H5Zfilter_avail(H5Z_FILTER_SZ3) > 0) {
-        // read cd_values from HDF5
-        // note that cd_nelmts must be non-zero, otherwise, cd_values cannot be filled.
-        H5Pget_filter_by_id(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY,
-                            &cd_nelmts, cd_values.data(), 0, NULL, NULL);
-        // if not empty, load cd_values into config
-        if (cd_nelmts > 0) {
-            auto buffer = reinterpret_cast<const unsigned char*>(cd_values.data());
-            size_t cd_bytes = cd_nelmts * sizeof(unsigned int);
-            conf.load(buffer, cd_bytes);
+    // H5Pget_filter_by_id fails when the list carries no SZ3 filter, which is not an error to report.
+    if (!sz3_filter_on_plist(propertyList)) {
+        return 0;
+    }
+    // Ask for the count before the values: a stored config carries the dataset's dimensions, so its
+    // length is not the caller's to guess, and HDF5 reports the real count even when it filled less.
+    size_t cd_nelmts = 0;
+    unsigned int probe[1] = {0};
+    if (0 > H5Pget_filter_by_id(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, &cd_nelmts, probe, 0, NULL, NULL)) {
+        return -1;
+    }
+    if (cd_nelmts > 0) {
+        std::vector<unsigned int> cd_values(cd_nelmts, 0);
+        if (0 > H5Pget_filter_by_id(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, &cd_nelmts, cd_values.data(), 0,
+                                    NULL, NULL)) {
+            return -1;
         }
+        auto buffer = reinterpret_cast<const unsigned char*>(cd_values.data());
+        size_t cd_bytes = cd_values.size() * sizeof(unsigned int);
+        conf.load(buffer, cd_bytes);
     }
     return 1;
 }
@@ -154,6 +207,9 @@ template <typename T>
 void process_data(SZ3::Config& conf, void** buf, size_t* buf_size, size_t nbytes, bool is_decompress) {
     if (is_decompress) {
         T* processedData = static_cast<T*>(malloc(conf.num * sizeof(T)));
+        // HDF5 frees what this returns, so it has to come from malloc. On null SZ_decompress would
+        // allocate with new[] instead, and that pairing is undefined.
+        if (processedData == nullptr) throw std::bad_alloc();
         SZ_decompress(conf, static_cast<char*>(*buf), nbytes, processedData);
         free(*buf);
         *buf = processedData;
@@ -185,16 +241,36 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
     if (cd_nelmts == 0) // this is special data such as string, which should not be treated as values.
         return nbytes;
 
+    bool is_decompress = flags & H5Z_FLAG_REVERSE;
     SZ3::Config conf;
 
     auto buffer = reinterpret_cast<const unsigned char*>(cd_values);
     size_t cd_bytes = cd_nelmts * sizeof(unsigned int);
+    // Ahead of conf.load: every chunk this filter writes carries an SZ3 header, and a file from
+    // another version wrote cd_values in a layout this build would misread.
+    if (is_decompress) {
+        uint32_t magic = 0, dataVer = 0;
+        if (nbytes >= 8) {
+            auto header = reinterpret_cast<const unsigned char*>(*buf);
+            SZ3::read(magic, header);
+            SZ3::read(dataVer, header);
+        }
+        if (magic != SZ3_MAGIC_NUMBER) {
+            // v3.2.0 through v3.3.2 wrote and read a chunk raw when cd_values held fewer than 20
+            // elements, so those carry no header. Safe to consume the cursor: both paths out of
+            // here leave, so the real conf.load below never sees it moved.
+            SZ3::Config legacy;
+            legacy.load(buffer, cd_bytes);
+            if (legacy.num > 0 && legacy.num < 20) return nbytes;
+            throw std::invalid_argument("SZ3 HDF5 filter: chunk was not written by SZ3");
+        }
+        if (versionStr(dataVer) != SZ3_DATA_VER)
+            throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(dataVer) +
+                                        ", this build reads v" SZ3_DATA_VER);
+    }
+
     conf.load(buffer, cd_bytes);
-    //    conf.print();
 
-    if (conf.num < 20) return nbytes;
-
-    bool is_decompress = flags & H5Z_FLAG_REVERSE;
     switch (conf.dataType) {
         case SZ_FLOAT:
             process_data<float>(conf, buf, buf_size, nbytes, is_decompress);

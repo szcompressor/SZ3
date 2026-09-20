@@ -26,6 +26,7 @@
 #include "SZ3/api/impl/SZAlgoInterp.hpp"
 #include "SZ3/api/impl/SZAlgoLorenzoReg.hpp"
 #include "SZ3/api/impl/SZAlgoNopred.hpp"
+#include "SZ3/lossless/Lossless_zstd.hpp"
 #include "SZ3/api/impl/SZAlgoSVD.hpp"
 #include "SZ3/api/impl/SZAlgoZFP.hpp"
 #if !defined(__MINGW32__)
@@ -141,7 +142,7 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
     // if lossy compression ratio < 3, test if lossless only mode has a better ratio than lossy
     if (conf.num * sizeof(T) / 1.0 / cmpSize < 3) {
         auto zstd = Lossless_zstd();
-        auto zstdCmpCap = ZSTD_compressBound(conf.num * sizeof(T)) + sizeof(size_t);
+        auto zstdCmpCap = Lossless_zstd::compress_bound(conf.num * sizeof(T)) + sizeof(size_t);
         std::unique_ptr<uchar[]> zstdCmpData(new uchar[zstdCmpCap]);
         size_t zstdCmpSize = zstd.compress(reinterpret_cast<const uchar *>(data), conf.num * sizeof(T),
                                            zstdCmpData.get(), zstdCmpCap);

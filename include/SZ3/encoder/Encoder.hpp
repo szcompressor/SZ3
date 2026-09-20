@@ -14,7 +14,6 @@ namespace SZ3 {
 
 namespace concepts {
 
-
 /**
  * @brief Interface for encoders
  * 

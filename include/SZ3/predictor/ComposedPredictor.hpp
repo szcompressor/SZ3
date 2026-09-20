@@ -29,12 +29,12 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
 
     /**
      * @brief Construct a new Composed Predictor
-     * 
-     * @param predictors List of predictors to choose from
+     *
+     * @param predictors_ List of predictors to choose from
      * @throw std::invalid_argument If predictor list is empty
      */
-    ComposedPredictor(std::vector<std::shared_ptr<concepts::PredictorInterface<T, N>>> predictors)
-        : predictors(predictors) {
+    ComposedPredictor(std::vector<std::shared_ptr<concepts::PredictorInterface<T, N>>> predictors_)
+        : predictors(predictors_) {
         if (predictors.empty()) {
             throw std::invalid_argument("Empty predictor list for ComposedPredictor.");
         }

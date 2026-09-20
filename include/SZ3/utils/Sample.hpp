@@ -209,7 +209,7 @@ inline void sample_blocks(T* data, std::vector<T>& sampling_data, std::vector<si
 template <class T, uint N>
 void sampleBlocks(T* data, std::vector<size_t>& dims, size_t sampleBlockSize,
                   std::vector<std::vector<T>>& sampled_blocks, double sample_rate, int profiling,
-                  std::vector<std::vector<size_t>>& starts, int var_first = 0) {
+                  std::vector<std::vector<size_t>>& starts) {
     for (uint i = 0; i < N; i++) {
         if (dims[i] < sampleBlockSize) {
             return;
@@ -243,9 +243,9 @@ void sampleBlocks(T* data, std::vector<size_t>& dims, size_t sampleBlockSize,
         if constexpr (N == 1) {
             for (size_t x_start = 0; x_start < dims[0] - sampleBlockSize; x_start += sampleBlockSize) {
                 if (idx % sample_stride == 0) {
-                    std::vector<size_t> starts{x_start};
+                    std::vector<size_t> block_start{x_start};
                     std::vector<T> s_block;
-                    sample_blocks<T, N>(data, s_block, dims, starts, sampleBlockSize + 1);
+                    sample_blocks<T, N>(data, s_block, dims, block_start, sampleBlockSize + 1);
                     sampled_blocks.push_back(s_block);
                 }
                 idx += 1;
@@ -254,9 +254,9 @@ void sampleBlocks(T* data, std::vector<size_t>& dims, size_t sampleBlockSize,
             for (size_t x_start = 0; x_start < dims[0] - sampleBlockSize; x_start += sampleBlockSize) {
                 for (size_t y_start = 0; y_start < dims[1] - sampleBlockSize; y_start += sampleBlockSize) {
                     if (idx % sample_stride == 0) {
-                        std::vector<size_t> starts{x_start, y_start};
+                        std::vector<size_t> block_start{x_start, y_start};
                         std::vector<T> s_block;
-                        sample_blocks<T, N>(data, s_block, dims, starts, sampleBlockSize + 1);
+                        sample_blocks<T, N>(data, s_block, dims, block_start, sampleBlockSize + 1);
                         sampled_blocks.push_back(s_block);
                     }
                     idx += 1;
@@ -267,9 +267,9 @@ void sampleBlocks(T* data, std::vector<size_t>& dims, size_t sampleBlockSize,
                 for (size_t y_start = 0; y_start < dims[1] - sampleBlockSize; y_start += sampleBlockSize) {
                     for (size_t z_start = 0; z_start < dims[2] - sampleBlockSize; z_start += sampleBlockSize) {
                         if (idx % sample_stride == 0) {
-                            std::vector<size_t> starts{x_start, y_start, z_start};
+                            std::vector<size_t> block_start{x_start, y_start, z_start};
                             std::vector<T> s_block;
-                            sample_blocks<T, N>(data, s_block, dims, starts, sampleBlockSize + 1);
+                            sample_blocks<T, N>(data, s_block, dims, block_start, sampleBlockSize + 1);
                             sampled_blocks.push_back(s_block);
                         }
                         idx += 1;
@@ -282,9 +282,9 @@ void sampleBlocks(T* data, std::vector<size_t>& dims, size_t sampleBlockSize,
                     for (size_t z_start = 0; z_start < dims[2] - sampleBlockSize; z_start += sampleBlockSize) {
                         for (size_t w_start = 0; w_start < dims[3] - sampleBlockSize; w_start += sampleBlockSize) {
                             if (idx % sample_stride == 0) {
-                                std::vector<size_t> starts{x_start, y_start, z_start, w_start};
+                                std::vector<size_t> block_start{x_start, y_start, z_start, w_start};
                                 std::vector<T> s_block;
-                                sample_blocks<T, N>(data, s_block, dims, starts, sampleBlockSize + 1);
+                                sample_blocks<T, N>(data, s_block, dims, block_start, sampleBlockSize + 1);
                                 sampled_blocks.push_back(s_block);
                             }
                             idx += 1;

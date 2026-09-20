@@ -97,7 +97,7 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
         return fabs(*d - predict(block, d, index));
     }
 
-    T predict(const block_iter &block, T *d, const std::array<size_t, N> &index) override {
+    T predict(const block_iter & /*block*/, T * /*d*/, const std::array<size_t, N> &index) override {
         if constexpr (N == 1) {
             return current_coeffs[0] * index[0] + current_coeffs[1];
         } else if constexpr (N == 2) {

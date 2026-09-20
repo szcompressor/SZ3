@@ -42,14 +42,30 @@ extern "C" {
         return RET;                                                                               \
     } while (0)
 
-static herr_t H5Z_sz3_set_local(hid_t dcpl_id, hid_t type_id, hid_t chunk_space_id);
+/**
+ * @brief Register the SZ3 filter, for an application that links this library instead of using
+ * HDF5_PLUGIN_PATH.
+ *
+ * Returns 1 if this call registered it, 0 if something else already had (possibly another build of
+ * this filter, which is then what encodes and decodes), -1 on failure.
+ */
+HDF5SZ3_EXPORT herr_t H5Z_SZ3_initialize(void);
 
-static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigned int cd_values[], size_t nbytes,
-                             size_t *buf_size, void **buf);
-
+/**
+ * @brief Undo H5Z_SZ3_initialize(). Returns 1 on success, -1 on failure.
+ *
+ * A no-op unless H5Z_SZ3_initialize() was the call that registered the filter.
+ */
+HDF5SZ3_EXPORT herr_t H5Z_SZ3_finalize(void);
 
 HDF5SZ3_EXPORT herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config &conf);
 
+/**
+ * @brief Load the SZ3 Config this property list carries.
+ *
+ * Returns 1 if a Config was loaded, 0 if the list carries no SZ3 filter, -1 if reading it failed.
+ * conf is left alone unless 1 is returned.
+ */
 HDF5SZ3_EXPORT herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config &conf);
 
 #ifdef __cplusplus

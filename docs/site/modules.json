@@ -2561,44 +2561,6 @@
       "references": []
     },
     {
-      "id": "Wavelet",
-      "name": "Daubechies Wavelet Transform (GSL)",
-      "category": "preprocessor",
-      "header": "include/SZ3/preprocessor/Wavelet.hpp",
-      "pipeline": {
-        "decomposition": "(downstream)",
-        "quantizer": "(downstream)",
-        "encoder": "(downstream)",
-        "lossless": "(downstream)"
-      },
-      "supported_dims": [
-        1
-      ],
-      "supported_dtypes": [
-        "float",
-        "double"
-      ],
-      "error_modes": [],
-      "keywords": [
-        "wavelet",
-        "DWT",
-        "Daubechies",
-        "GSL",
-        "decorrelation",
-        "energy compaction",
-        "preprocessing",
-        "SZ3_ENABLE_GSL",
-        "optional dependency"
-      ],
-      "best_for": "A 1D forward/inverse discrete wavelet transform (Daubechies-4, via GSL) applied in place before the rest of the pipeline, to compact the signal's energy into a few large coefficients that a quantizer can then handle cheaply. Two constraints decide whether it is usable for you. It is compiled only when the build sets SZ3_ENABLE_GSL, so it is absent from a default build. And it works on a power-of-two length: shorter inputs are zero-padded up internally, but only the first n values are copied back, so the round trip is exact only when n is already a power of two. Treat it as an experimental preprocessing hook; for production wavelet compression use SPERRFusedDecomposition, which carries a full CDF 9/7 transform and its own error control.",
-      "data_examples": [
-        "1D signals and traces where energy compaction helps",
-        "Power-of-two-length sequences"
-      ],
-      "used_by": [],
-      "references": []
-    },
-    {
       "id": "BitTruncationQuantizer",
       "name": "Bit-Truncation Quantizer",
       "category": "quantizer",

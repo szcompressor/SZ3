@@ -47,13 +47,13 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
 
     /**
      * @brief Construct a new SZGenericCompressor object
-     * 
-     * @param decomposition Decomposition module instance
-     * @param encoder Encoder module instance
-     * @param lossless Lossless module instance
+     *
+     * @param decomposition_ Decomposition module instance
+     * @param encoder_ Encoder module instance
+     * @param lossless_ Lossless module instance
      */
-    SZGenericCompressor(Decomposition decomposition, Encoder encoder, Lossless lossless)
-        : decomposition(decomposition), encoder(encoder), lossless(lossless) {
+    SZGenericCompressor(Decomposition decomposition_, Encoder encoder_, Lossless lossless_)
+        : decomposition(decomposition_), encoder(encoder_), lossless(lossless_) {
         static_assert(std::is_base_of<concepts::DecompositionInterface<T, To, N>, Decomposition>::value,
                       "must implement the frontend interface");
         static_assert(std::is_base_of<concepts::EncoderInterface<To>, Encoder>::value,

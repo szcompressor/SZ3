@@ -50,13 +50,13 @@ class BlockwiseDecomposition : public concepts::DecompositionInterface<T, To, N>
 
     /**
      * @brief Construct a new Blockwise Decomposition object
-     * 
+     *
      * @param conf Configuration
-     * @param predictor Predictor instance
-     * @param quantizer Quantizer instance
+     * @param predictor_ Predictor instance
+     * @param quantizer_ Quantizer instance
      */
-    BlockwiseDecomposition(const Config &conf, Predictor predictor, Quantizer quantizer)
-        : predictor(predictor), quantizer(quantizer), fallback_predictor(conf.absErrorBound) {
+    BlockwiseDecomposition(const Config &conf, Predictor predictor_, Quantizer quantizer_)
+        : predictor(predictor_), quantizer(quantizer_), fallback_predictor(conf.absErrorBound) {
         static_assert(std::is_same<To, typename Quantizer::bin_type>::value,
                       "To must be the Quantizer's bin_type");
         static_assert(std::is_base_of<concepts::PredictorInterface<T, N>, Predictor>::value,

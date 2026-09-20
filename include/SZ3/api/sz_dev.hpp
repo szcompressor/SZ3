@@ -59,10 +59,8 @@
 #include "SZ3/preprocessor/PreProcessor.hpp"
 #include "SZ3/preprocessor/SPERRTransform.hpp"
 #include "SZ3/preprocessor/Transpose.hpp"
-#include "SZ3/preprocessor/Wavelet.hpp"
 
 // --- Utilities ---
-#include "SZ3/utils/Collections.hpp"
 #include "SZ3/utils/Extraction.hpp"
 #include "SZ3/utils/Iterator.hpp"
 #include "SZ3/utils/KmeansUtil.hpp"

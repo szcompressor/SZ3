@@ -13,8 +13,8 @@ target_compile_definitions(SZ3c PRIVATE SZ3C_EXPORTS)
 target_include_directories(
         SZ3c
         PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SZ3c>
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+        "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SZ3c>"
 )
 
 install(TARGETS SZ3c EXPORT SZ3c

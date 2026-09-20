@@ -23,9 +23,9 @@ namespace SZ3::concepts {
 template <class T, uint N>
 class PredictorInterface {
    public:
-    using block_iter = typename block_data<T, N>::block_iterator;
-
     virtual ~PredictorInterface() = default;
+
+    using block_iter = typename block_data<T, N>::block_iterator;
 
     /**
      * @brief Predict the value for a single data point

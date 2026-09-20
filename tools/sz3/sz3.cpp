@@ -1,7 +1,13 @@
+#include <cerrno>
+#include <climits>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <exception>
 #include <iostream>
+#include <stdexcept>
+#include <string>
 
 #include "SZ3/api/sz.hpp"
 
@@ -127,6 +133,24 @@ inline void usage_sz2() {
     exit(0);
 }
 
+// A malformed argument is a caller error, not a help request: report it and let main() exit non-zero.
+[[noreturn]] static void argError(const std::string &msg) { throw std::invalid_argument(msg); }
+
+// Every SZ3 size downstream is derived from this, so nothing corrupt or absurd may get past here.
+static size_t parse_dim(const char *s) {
+    if (s[0] < '0' || s[0] > '9') argError(std::string("invalid dimension '") + s + "'");
+    errno = 0;
+    char *end = nullptr;
+    unsigned long long v = strtoull(s, &end, 10);
+    bool overflows_size_t = false;
+    if constexpr (sizeof(size_t) < sizeof(unsigned long long)) {
+        overflows_size_t = v > static_cast<unsigned long long>(SIZE_MAX);
+    }
+    if (*end != '\0' || errno == ERANGE || v == 0 || overflows_size_t)
+        argError(std::string("invalid dimension '") + s + "'");
+    return static_cast<size_t>(v);
+}
+
 template <class T>
 void compress(char *inPath, char *cmpPath, SZ3::Config &conf) {
     T *data = new T[conf.num];
@@ -226,8 +250,10 @@ static int run(int argc, char *argv[]) {
         if (argv[i][0] != '-' || argv[i][2]) {
             if (argv[i][1] == 'h' && argv[i][2] == '2') {
                 usage_sz2();
-            } else {
+            } else if (strcmp(argv[i], "--help") == 0) {
                 usage();
+            } else {
+                argError(std::string("unrecognized argument: ") + argv[i]);
             }
         }
         switch (argv[i][1]) {
@@ -237,11 +263,6 @@ static int run(int argc, char *argv[]) {
             case 'v':
                 printf("SZ3 Version: %s\n", SZ3_VER);
                 printf("SZ3 Data Format Version: %s\n", SZ3_DATA_VER);
-                printf("\nThird-party libraries copyright notices:\n");
-                printf("----------------------------------------\n");
-                printf("ska_hash:\n");
-                printf("  Copyright (c) 2017 Malte Skarupke\n");
-                printf("  Licensed under the Boost Software License - Version 1.0\n");
                 exit(0);
             case 'b':
                 binaryOutput = true;
@@ -284,64 +305,82 @@ static int run(int argc, char *argv[]) {
                 break;
             case 'I':
                 if (++i == argc || sscanf(argv[i], "%d", &width) != 1) {
-                    usage();
+                    argError("-I requires an integer width (32 or 64)");
                 }
                 if (width == 32) {
                     dataType = SZ_INT32;
                 } else if (width == 64) {
                     dataType = SZ_INT64;
                 } else {
-                    usage();
+                    argError("-I width must be 32 or 64");
                 }
                 break;
             case 'i':
-                if (++i == argc) usage();
+                if (++i == argc) argError("-i requires a file path");
                 inPath = argv[i];
                 break;
             case 'o':
-                if (++i == argc) usage();
+                if (++i == argc) argError("-o requires a file path");
                 decPath = argv[i];
                 break;
             case 's':
                 sz2mode = true;
-                if (++i == argc) usage();
+                if (++i == argc) argError("-s requires a file path");
                 cmpPath = argv[i];
                 break;
             case 'c':
-                if (++i == argc) usage();
+                if (++i == argc) argError("-c requires a config file path");
                 conPath = argv[i];
                 break;
             case '1':
-                if (++i == argc || sscanf(argv[i], "%zu", &r1) != 1) usage();
+                if (++i == argc) argError("-1 requires 1 dimension");
+                r1 = parse_dim(argv[i]);
                 break;
             case '2':
-                if (++i == argc || sscanf(argv[i], "%zu", &r1) != 1 || ++i == argc || sscanf(argv[i], "%zu", &r2) != 1)
-                    usage();
+                if (++i == argc) argError("-2 requires 2 dimensions");
+                r1 = parse_dim(argv[i]);
+                if (++i == argc) argError("-2 requires 2 dimensions");
+                r2 = parse_dim(argv[i]);
                 break;
             case '3':
-                if (++i == argc || sscanf(argv[i], "%zu", &r1) != 1 || ++i == argc ||
-                    sscanf(argv[i], "%zu", &r2) != 1 || ++i == argc || sscanf(argv[i], "%zu", &r3) != 1)
-                    usage();
+                if (++i == argc) argError("-3 requires 3 dimensions");
+                r1 = parse_dim(argv[i]);
+                if (++i == argc) argError("-3 requires 3 dimensions");
+                r2 = parse_dim(argv[i]);
+                if (++i == argc) argError("-3 requires 3 dimensions");
+                r3 = parse_dim(argv[i]);
                 break;
             case '4':
-                if (++i == argc || sscanf(argv[i], "%zu", &r1) != 1 || ++i == argc ||
-                    sscanf(argv[i], "%zu", &r2) != 1 || ++i == argc || sscanf(argv[i], "%zu", &r3) != 1 ||
-                    ++i == argc || sscanf(argv[i], "%zu", &r4) != 1)
-                    usage();
+                if (++i == argc) argError("-4 requires 4 dimensions");
+                r1 = parse_dim(argv[i]);
+                if (++i == argc) argError("-4 requires 4 dimensions");
+                r2 = parse_dim(argv[i]);
+                if (++i == argc) argError("-4 requires 4 dimensions");
+                r3 = parse_dim(argv[i]);
+                if (++i == argc) argError("-4 requires 4 dimensions");
+                r4 = parse_dim(argv[i]);
                 break;
-            case 'M':
-                if (++i == argc) usage();
+            case 'M': {
+                if (++i == argc) argError("-M requires an error bound mode");
                 errBoundMode = argv[i];
+                // match_enum silently keeps the default when the name is unknown, which would accept a typo as
+                // ABS. VR_REL is an alias resolved during setup, so it is not in EB_MAP.
+                bool knownMode = strcmp(errBoundMode, "VR_REL") == 0;
+                for (const auto &kv : SZ3::EB_MAP) {
+                    if (SZ3::to_lower(kv.first) == SZ3::to_lower(errBoundMode)) knownMode = true;
+                }
+                if (!knownMode) argError(std::string("unknown error bound mode: ") + errBoundMode);
                 if (i + 1 < argc && argv[i + 1][0] != '-') {
                     errBound = argv[++i];
                 }
                 break;
+            }
             case 'A':
-                if (++i == argc) usage();
+                if (++i == argc) argError("-A requires an absolute error bound");
                 absErrorBound = argv[i];
                 break;
             case 'R':
-                if (++i == argc) usage();
+                if (++i == argc) argError("-R requires a relative error bound");
                 relErrorBound = argv[i];
                 break;
                 //            case 'P':
@@ -350,23 +389,21 @@ static int run(int argc, char *argv[]) {
                 //                pwrErrorBound = argv[i];
                 //                break;
             case 'N':
-                if (++i == argc) usage();
+                if (++i == argc) argError("-N requires a norm error bound");
                 normErrorBound = argv[i];
                 break;
             case 'S':
-                if (++i == argc) usage();
+                if (++i == argc) argError("-S requires a PSNR value");
                 psnrErrorBound = argv[i];
                 break;
             default:
-                usage();
+                argError(std::string("unknown option: ") + argv[i]);
                 break;
         }
     }
 
     if ((inPath == nullptr) && (cmpPath == nullptr)) {
-        printf("Error: you need to specify either a raw binary data file or a compressed data file as input\n");
-        usage();
-        exit(0);
+        argError("you need to specify either a raw binary data file (-i) or a compressed data file (-s/-z) as input");
     }
 
     if (!sz2mode && inPath != nullptr && cmpPath != nullptr) {
@@ -387,8 +424,7 @@ static int run(int argc, char *argv[]) {
         compression = false;
     }
     if (!compression && !decompression) {
-        usage();
-        exit(0);
+        argError("nothing to do: specify compression (-i with -z/-o and an error bound) or decompression (-s/-x)");
     }
 
     SZ3::Config conf;
@@ -445,9 +481,7 @@ static int run(int argc, char *argv[]) {
         } else if (conf.errorBoundMode == SZ3::EB_ABS_AND_REL) {
         } else if (conf.errorBoundMode == SZ3::EB_ABS_OR_REL) {
         } else {
-            printf("Error: wrong error bound mode setting by using the option '-M'\n");
-            usage();
-            exit(0);
+            argError("wrong error bound mode setting by using the option '-M'");
         }
     }
 
@@ -463,15 +497,12 @@ static int run(int argc, char *argv[]) {
             compress<int64_t>(inPath, cmpPath, conf);
 #endif
         } else {
-            printf("Error: data type not supported \n");
-            usage();
-            exit(0);
+            argError("data type not supported");
         }
     }
     if (decompression) {
         if (printCmpResults && inPath == nullptr) {
-            printf("Error: Since you add -a option (analysis), please specify the original data path by -i <path>.\n");
-            exit(0);
+            argError("the -a option (analysis) needs the original data path, specify it with -i <path>");
         }
 
         if (dataType == SZ_FLOAT) {
@@ -485,9 +516,7 @@ static int run(int argc, char *argv[]) {
             decompress<int64_t>(inPath, cmpPath, decPath, conf, binaryOutput, printCmpResults);
 #endif
         } else {
-            printf("Error: data type not supported \n");
-            usage();
-            exit(0);
+            argError("data type not supported");
         }
     }
     if (printMeta) {
