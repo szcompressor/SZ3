@@ -14,8 +14,12 @@
 #include <random>
 #include <vector>
 
+#include "SZ3/decomposition/BlockwiseDecomposition.hpp"
 #include "SZ3/decomposition/SZBioMDDecomposition.hpp"
 #include "SZ3/decomposition/SZBioMDXtcDecomposition.hpp"
+#include "SZ3/predictor/ComposedPredictor.hpp"
+#include "SZ3/predictor/LorenzoPredictor.hpp"
+#include "SZ3/predictor/RegressionPredictor.hpp"
 #include "SZ3/quantizer/LinearQuantizer.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "gtest/gtest.h"
@@ -30,6 +34,35 @@ std::vector<float> noise(size_t count, uint32_t seed = 11) {
         value = spread(rng);
     }
     return data;
+}
+
+/// A ramp is what a regression predictor fits best, so it is also what makes it store the most.
+std::vector<float> ramp(size_t count, uint32_t seed = 3) {
+    std::mt19937 rng(seed);
+    std::uniform_real_distribution<float> jitter(-1.0f, 1.0f);
+    std::vector<float> data(count);
+    for (size_t i = 0; i < count; i++) {
+        data[i] = static_cast<float>(i) * 0.5f + jitter(rng);
+    }
+    return data;
+}
+
+/// The compressor allocates from size_est() and save() writes without checking, so check the
+/// bound directly: save with room to spare, so an overrun is this assertion, not a crash.
+template <class Decomposition>
+void expect_save_stays_within_size_est(Decomposition &decomposition, const SZ3::Config &conf, std::vector<float> data,
+                                       const char *what) {
+    SZ3::Config work = conf;
+    decomposition.compress(work, data.data());
+
+    const size_t declared = decomposition.size_est();
+    std::vector<SZ3::uchar> buffer(declared + (1u << 20));
+    SZ3::uchar *cursor = buffer.data();
+    decomposition.save(cursor);
+
+    const size_t written = static_cast<size_t>(cursor - buffer.data());
+    EXPECT_LE(written, declared) << what << ": save() wrote " << written << " bytes where size_est() promised "
+                                 << declared;
 }
 
 /// Compress over storage holding `poison`, and return what save() writes.
@@ -151,4 +184,44 @@ TEST(SZ3_DecompositionSaveLoad, BioMDXtcChargesWhatItReads) {
         {64, 64}, xtc_quantizer);
     expect_load_charges_what_it_reads<SZ3::SZBioMDXtcDecomposition<float, 3, SZ3::LinearQuantizer<float>>>(
         {5, 777, 3}, xtc_quantizer);
+}
+
+// BlockwiseDecomposition declared nothing while save() serialised the regression coefficients,
+// which grow as n/blockSize. Below the default block size that ran off the compressor's buffer.
+TEST(SZ3_DecompositionSaveLoad, BlockwiseSizeEstBoundsSaveAtSmallBlockSizes) {
+    for (int blockSize : {2, 3, 4, 6, 8, 128}) {
+        for (double eb : {1e-1, 1e-2, 1e-3, 1e-4}) {
+            SZ3::Config conf(16384);
+            conf.errorBoundMode = SZ3::EB_ABS;
+            conf.absErrorBound = eb;
+            conf.blockSize = blockSize;
+
+            std::vector<std::shared_ptr<SZ3::concepts::PredictorInterface<float, 1>>> predictors;
+            predictors.push_back(std::make_shared<SZ3::LorenzoPredictor<float, 1, 1>>(eb));
+            predictors.push_back(
+                std::make_shared<SZ3::RegressionPredictor<float, 1>>(static_cast<SZ3::uint>(blockSize), eb));
+
+            auto decomposition =
+                SZ3::make_decomposition_blockwise<float, 1>(conf, SZ3::ComposedPredictor<float, 1>(predictors),
+                                                            SZ3::LinearQuantizer<float>(eb, conf.quantbinCnt / 2));
+
+            SCOPED_TRACE("BlockSize=" + std::to_string(blockSize) + " eb=" + std::to_string(eb));
+            expect_save_stays_within_size_est(decomposition, conf, ramp(conf.num), "BlockwiseDecomposition");
+        }
+    }
+}
+
+TEST(SZ3_DecompositionSaveLoad, BioMDSizeEstBoundsSave) {
+    for (double eb : {1e-1, 1e-2, 1e-3, 1e-4}) {
+        SZ3::Config conf(5, 777, 3);
+        conf.errorBoundMode = SZ3::EB_ABS;
+        conf.absErrorBound = eb;
+        SCOPED_TRACE("eb=" + std::to_string(eb));
+
+        SZ3::SZBioMDDecomposition<float, 3, SZ3::LinearQuantizer<float>> biomd(conf, linear_quantizer(conf));
+        expect_save_stays_within_size_est(biomd, conf, ramp(conf.num), "SZBioMDDecomposition");
+
+        SZ3::SZBioMDXtcDecomposition<float, 3, SZ3::LinearQuantizer<float>> xtc(conf, xtc_quantizer(conf));
+        expect_save_stays_within_size_est(xtc, conf, ramp(conf.num), "SZBioMDXtcDecomposition");
+    }
 }

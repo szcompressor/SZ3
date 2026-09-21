@@ -122,6 +122,63 @@ jobs:
           name: temp-linux-out-sz3
           path: build/out.sz3
 
+  sanitizers:
+    name: Build & Test (Linux, ASan + UBSan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Zstd
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libzstd-dev
+
+      # No HDF5 filter here. The point is SZ3's own writes, and linking HDF5 would report its
+      # allocations as ours the moment leak detection is on.
+      - name: Configure
+        shell: bash
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DBUILD_TESTING=ON \
+            -DBUILD_H5Z_FILTER=OFF \
+            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined -g" \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined -g" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
+
+      - name: Build
+        shell: bash
+        run: cmake --build build --parallel 4
+
+      - name: Run CTest
+        shell: bash
+        working-directory: build
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+        run: ctest --output-on-failure --no-tests=error
+
+      # The unit tests check each stage against its own size_est(); this runs the whole CLI at a
+      # block size where the regression coefficients dominate the buffer.
+      - name: A small block size does not run off the compressor's buffer
+        shell: bash
+        working-directory: build
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+        run: |
+          python3 -c "
+          import struct, random
+          random.seed(1)
+          n = 16384
+          v = [i * 0.5 + random.uniform(-1, 1) for i in range(n)]
+          open('ramp.f32', 'wb').write(struct.pack('<%df' % n, *v))
+          "
+          for eb in 1e-1 1e-2 1e-3 1e-4 1e-5; do
+            for bs in 2 3 4 6; do
+              printf '[GlobalSettings]\nCmprAlgo = ALGO_LORENZO_REG\nErrorBoundMode = ABS\nAbsErrorBound = %s\n[AlgoSettings]\nBlockSize = %s\n' "$eb" "$bs" > ramp.ini
+              ./tools/sz3/sz3 -f -i ramp.f32 -z ramp.sz -1 16384 -c ramp.ini
+            done
+          done
+
   toolchains:
     name: ${{ matrix.cc }} shared=${{ matrix.shared }}
     runs-on: ubuntu-latest
