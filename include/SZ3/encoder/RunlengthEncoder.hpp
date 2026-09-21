@@ -15,8 +15,8 @@ class RunlengthEncoder : public concepts::EncoderInterface<T> {
    public:
     void preprocess_encode(const std::vector<T> &bins, int stateNum) override { num_bins = bins.size(); }
 
-    /// A run is a value plus a count, so bins that never repeat encode to twice the space they came
-    /// from, and the caller budgets only the bins themselves. The counts are charged here.
+    /// Each run stores a value and a count, so with no repeats the output is twice the input.
+    /// The caller only budgets the values; the counts are added here.
     size_t size_est() override { return num_bins * (sizeof(T) + sizeof(int)); }
 
     size_t encode(const std::vector<T> &bins, uchar *&bytes) override {
