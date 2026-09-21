@@ -353,11 +353,11 @@ class Config {
         write(blockSize, c);
         write(predDim, c);
 
-        // The one-byte length prefix is deliberate; outgrowing it would silently cut the trailing
-        // fields off on load.
         const size_t written = static_cast<size_t>(c - c0);
         if (written > std::numeric_limits<uchar>::max()) {
-            throw std::length_error("SZ3 Config::save: the config outgrew its one-byte length prefix");
+            throw std::length_error("SZ3 Config::save: a serialized config is at most " +
+                                    std::to_string(std::numeric_limits<uchar>::max()) + " bytes, this one is " +
+                                    std::to_string(written));
         }
         auto confSize = static_cast<uchar>(written);
         write(confSize, c0);  // write conf size at reserved space
@@ -387,8 +387,7 @@ class Config {
         read(bitWidth, c, remaining_length);
         if (bitWidth > 64) throw std::out_of_range("SZ3 Config::load: invalid dimension bit width");
         const size_t dim_bytes = (static_cast<size_t>(N) * bitWidth + 7) / 8;
-        if (dim_bytes > remaining_length)
-            throw std::out_of_range("SZ3 Config::load: dimensions exceed the buffer");
+        if (dim_bytes > remaining_length) throw std::out_of_range("SZ3 Config::load: dimensions exceed the buffer");
         dims = bytes2vector<size_t>(c, bitWidth, N);
         remaining_length -= dim_bytes;
         read(num, c, remaining_length);

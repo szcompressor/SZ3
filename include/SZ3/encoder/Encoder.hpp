@@ -70,9 +70,10 @@ class EncoderInterface {
 
     virtual void preprocess_decode() = 0;
 
-    /// Upper bound -- not a guess -- on the bytes save() writes for this instance's current state.
-    /// The caller sizes one buffer from it; save() then writes with no bounds check of its own.
-    /// It must also cover whatever encode() writes beyond the sizeof(bin) per bin already budgeted.
+    /// Most bytes save() can write, plus any amount by which encode()'s output can exceed the bins
+    /// it was handed: the caller budgets sizeof(bin) per bin for encode() and nothing more, so an
+    /// encoder that can expand, like RunlengthEncoder, adds the excess here. The caller allocates
+    /// from this and both write without checking, so too small corrupts the heap.
     virtual size_t size_est() { return 0; }
 };
 }  // namespace concepts
