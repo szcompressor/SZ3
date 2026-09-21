@@ -107,6 +107,8 @@ class BlockwiseDecomposition : public concepts::DecompositionInterface<T, To, N>
         return dec_data;
     }
 
+    size_t size_est() override { return fallback_predictor.size_est() + predictor.size_est() + quantizer.size_est(); }
+
     void save(uchar *&c) override {
         fallback_predictor.save(c);
         predictor.save(c);

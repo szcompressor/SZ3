@@ -7,8 +7,8 @@
 #define SZ3_SCALAR_QUANTIZER_HPP
 
 #include <cmath>
-#include <cstdio>
 #include <cstdint>
+#include <cstdio>
 #include <limits>
 #include <stdexcept>
 #include <type_traits>
@@ -40,8 +40,7 @@ class ScalarQuantizer : public concepts::QuantizerInterface<Ti, To> {
     }
 
     ALWAYS_INLINE To quantize_and_overwrite(Ti &data, Ti pred) override {
-        const long long q =
-            std::llrint((static_cast<double>(data) - static_cast<double>(pred)) * inv_step_);
+        const long long q = std::llrint((static_cast<double>(data) - static_cast<double>(pred)) * inv_step_);
         data = static_cast<Ti>(static_cast<double>(pred) + dequantize_delta(q));
         return static_cast<To>(q);
     }
@@ -51,8 +50,10 @@ class ScalarQuantizer : public concepts::QuantizerInterface<Ti, To> {
         return static_cast<Ti>(static_cast<double>(pred) + dequantize_delta(q));
     }
 
-    To force_save_unpred(Ti ori) override {
-        return static_cast<To>(std::llrint(static_cast<double>(ori) * inv_step_));
+    To force_save_unpred(Ti ori) override { return static_cast<To>(std::llrint(static_cast<double>(ori) * inv_step_)); }
+
+    size_t size_est() const override {
+        return sizeof(uid()) + sizeof(step_) + sizeof(one_bin_reconstruct_) + sizeof(tail_offset_);
     }
 
     void save(uchar *&c) const override {
@@ -80,8 +81,8 @@ class ScalarQuantizer : public concepts::QuantizerInterface<Ti, To> {
     }
 
     void print() override {
-        printf("[ScalarQuantizer] step=%.8G, one_bin_reconstruct=%.8G, tail_offset=%.8G\n", step_,
-               one_bin_reconstruct_, tail_offset_);
+        printf("[ScalarQuantizer] step=%.8G, one_bin_reconstruct=%.8G, tail_offset=%.8G\n", step_, one_bin_reconstruct_,
+               tail_offset_);
     }
 
    private:

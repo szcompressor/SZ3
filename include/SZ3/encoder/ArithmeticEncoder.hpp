@@ -134,6 +134,10 @@ class ArithmeticEncoder : public concepts::EncoderInterface<T> {
         free(freq);
     }
 
+    size_t size_est() override {
+        return 2 * sizeof(int) + sizeof(uint64_t) + static_cast<size_t>(ariCoder.numOfRealStates) * 20;
+    }
+
     void save(uchar *&p) override {
         int numOfRealStates = ariCoder.numOfRealStates;
         int numOfValidStates = ariCoder.numOfValidStates;

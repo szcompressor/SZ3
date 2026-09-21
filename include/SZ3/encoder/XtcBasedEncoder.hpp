@@ -841,6 +841,8 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
 
     void postprocess_decode() override {}
 
+    size_t size_est() override { return sizeof(reminder1) + sizeof(reminder2); }
+
     void save(uchar *&c) override {
         write(reminder1, c);
         write(reminder2, c);

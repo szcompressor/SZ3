@@ -24,7 +24,7 @@ namespace SZ3 {
 
 template <class T, uint N, class Predictor, class Quantizer>
 class TimeSeriesDecomposition : public concepts::DecompositionInterface<T, int, N> {
-public:
+   public:
     using Block_iter = typename block_data<T, N - 1>::block_iterator;
 
     TimeSeriesDecomposition(const Config& conf, Predictor predictor, Quantizer quantizer, T* data_ts0)
@@ -67,7 +67,7 @@ public:
                     predictor_withfallback = &fallback_predictor;
                 }
                 predictor_withfallback->precompress_block_commit();
-                Block_iter::foreach(block, [&](T* c, const std::array<size_t, N - 1>& index) {
+                Block_iter::foreach (block, [&](T* c, const std::array<size_t, N - 1>& index) {
                     T pred = predictor_withfallback->predict(block, c, index);
                     quant_inds[quant_count++] = quantizer.quantize_and_overwrite(*c, pred);
                 });
@@ -115,7 +115,7 @@ public:
                 if (!predictor.predecompress(block)) {
                     predictor_withfallback = &fallback_predictor;
                 }
-                Block_iter::foreach(block, [&](T* c, const std::array<size_t, N - 1>& index) {
+                Block_iter::foreach (block, [&](T* c, const std::array<size_t, N - 1>& index) {
                     T pred = predictor_withfallback->predict(block, c, index);
                     *c = quantizer.recover(pred, *(quant_inds_pos++));
                 });
@@ -134,6 +134,8 @@ public:
         return dec_data;
     }
 
+    size_t size_est() override { return fallback_predictor.size_est() + predictor.size_est() + quantizer.size_est(); }
+
     void save(uchar*& c) override {
         fallback_predictor.save(c);
         predictor.save(c);
@@ -148,7 +150,7 @@ public:
 
     std::pair<int, int> get_out_range() override { return quantizer.get_out_range(); }
 
-private:
+   private:
     Predictor predictor;
     LorenzoPredictor<T, N - 1, 1> fallback_predictor;
     Quantizer quantizer;
@@ -158,10 +160,10 @@ private:
 
 template <class T, uint N, class Predictor, class Quantizer>
 TimeSeriesDecomposition<T, N, Predictor, Quantizer> make_decomposition_timeseries(const Config& conf,
-    Predictor predictor,
-    Quantizer quantizer, T* data_ts0) {
+                                                                                  Predictor predictor,
+                                                                                  Quantizer quantizer, T* data_ts0) {
     return TimeSeriesDecomposition<T, N, Predictor, Quantizer>(conf, predictor, quantizer, data_ts0);
 }
-} // namespace SZ3
+}  // namespace SZ3
 
 #endif

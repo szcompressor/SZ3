@@ -43,7 +43,7 @@ jobs:
           # libzstd-dev, not libzstd1: only the -dev package carries the libzstd.pc that sends this
           # job down the system-Zstd path. hdf5-tools is what registers SZ3_FilterSuite: the
           # test only exists when h5repack, h5dump and h5ls are all found at configure time.
-          sudo apt-get install -y libhdf5-dev hdf5-tools libzstd-dev
+          sudo apt-get install -y libhdf5-dev hdf5-tools libzstd-dev libeigen3-dev
 
       - name: Create build dir
         run: cmake -E make_directory build
@@ -129,6 +129,63 @@ jobs:
           name: temp-linux-out-sz3
           path: build/out.sz3
 
+  sanitizers:
+    name: Build & Test (Linux, ASan + UBSan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Zstd
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libzstd-dev libeigen3-dev
+
+      # No HDF5 filter here. The point is SZ3's own writes, and linking HDF5 would report its
+      # allocations as ours the moment leak detection is on.
+      - name: Configure
+        shell: bash
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DBUILD_TESTING=ON \
+            -DBUILD_H5Z_FILTER=OFF \
+            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined -g" \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined -g" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
+
+      - name: Build
+        shell: bash
+        run: cmake --build build --parallel 4
+
+      - name: Run CTest
+        shell: bash
+        working-directory: build
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+        run: ctest --output-on-failure --no-tests=error -R "^SZ3_"
+
+      # The unit tests check each stage against its own size_est(); this runs the whole CLI at a
+      # block size where the regression coefficients dominate the buffer.
+      - name: A small block size does not run off the compressor's buffer
+        shell: bash
+        working-directory: build
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+        run: |
+          python3 -c "
+          import struct, random
+          random.seed(1)
+          n = 16384
+          v = [i * 0.5 + random.uniform(-1, 1) for i in range(n)]
+          open('ramp.f32', 'wb').write(struct.pack('<%df' % n, *v))
+          "
+          for eb in 1e-1 1e-2 1e-3 1e-4 1e-5; do
+            for bs in 2 3 4 6; do
+              printf '[GlobalSettings]\nCmprAlgo = ALGO_LORENZO_REG\nErrorBoundMode = ABS\nAbsErrorBound = %s\n[AlgoSettings]\nBlockSize = %s\n' "$eb" "$bs" > ramp.ini
+              ./tools/sz3/sz3 -f -i ramp.f32 -z ramp.sz -1 16384 -c ramp.ini
+            done
+          done
+
   toolchains:
     name: ${{ matrix.cc }} shared=${{ matrix.shared }}
     runs-on: ubuntu-latest
@@ -145,7 +202,7 @@ jobs:
       - name: Install the toolchain and HDF5
         run: |
           sudo apt-get update
-          sudo apt-get install -y libhdf5-dev hdf5-tools libzstd-dev ${{ matrix.cc }}
+          sudo apt-get install -y libhdf5-dev hdf5-tools libzstd-dev libeigen3-dev ${{ matrix.cc }}
 
       - name: Build and test
         shell: bash
@@ -163,7 +220,7 @@ jobs:
                 -DBUILD_TESTING=ON \
                 -DBUILD_H5Z_FILTER=ON
           cmake --build build --parallel 4
-          (cd build && ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }})
+          (cd build && ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }} -R "^SZ3_")
           if [ "${{ matrix.shared }}" = "ON" ]; then
             test -e build/tools/H5Z-SZ3/libhdf5sz3.so
           else
@@ -181,7 +238,7 @@ jobs:
       - name: Install HDF5
         run: |
           brew update
-          brew install hdf5
+          brew install hdf5 eigen
 
       - name: Create build dir
         run: cmake -E make_directory build
@@ -245,7 +302,7 @@ jobs:
           git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
           cd C:\vcpkg
           .\bootstrap-vcpkg.bat
-          .\vcpkg.exe install hdf5:x64-windows
+          .\vcpkg.exe install hdf5:x64-windows eigen3:x64-windows
           echo "VCPKG_ROOT=C:\vcpkg" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Create build dir
@@ -344,6 +401,7 @@ jobs:
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ninja
             mingw-w64-x86_64-hdf5
+            mingw-w64-x86_64-eigen3
             make
 
       - name: Create build dir

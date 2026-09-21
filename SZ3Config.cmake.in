@@ -2,6 +2,9 @@
 
 include(CMakeFindDependencyMacro)
 
+# Before the targets file: SZ3::SZ3 references Eigen3::Eigen, and that is where CMake checks it.
+find_dependency(Eigen3)
+
 include("${CMAKE_CURRENT_LIST_DIR}/SZ3Targets.cmake")
 
 # No SZ3::zstd in the export means the build used a system Zstd.
@@ -37,10 +40,6 @@ if(@OpenMP_FOUND@)
   endif()
   unset(sz3_enabled_languages)
 endif()
-if(@Eigen3_FOUND@)
-    find_package(Eigen3)
-endif()
-
 # Without these, target_link_libraries(x PRIVATE hdf5sz3) silently becomes -lhdf5sz3.
 foreach(sz3_target SZ3 hdf5sz3)
   if(TARGET SZ3::${sz3_target} AND NOT TARGET ${sz3_target})

@@ -83,7 +83,7 @@ class EncoderInterface {
 
     virtual void preprocess_decode() = 0;
 
-    // return the size of the encoder itself (such as the tree size of the huffman encoder)
+    /// Upper bound on the space save() needs for the current input.
     virtual size_t size_est() { return 0; }
 };
 }  // namespace concepts

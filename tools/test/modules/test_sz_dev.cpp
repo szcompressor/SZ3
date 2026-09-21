@@ -4,6 +4,6 @@
 
 #include <gtest/gtest.h>
 
-TEST(SZDevHeaderTest, IncludesCompile) {
+TEST(SZ3_SZDevHeaderTest, IncludesCompile) {
     SUCCEED();
 }

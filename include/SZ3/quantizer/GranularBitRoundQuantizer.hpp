@@ -145,6 +145,8 @@ class GranularBitRoundQuantizer : public concepts::QuantizerInterface<T, uint64_
      *
      * @param c Buffer pointer; advanced past the written bytes.
      */
+    size_t size_est() const override { return sizeof(uid_) + sizeof(nsd_); }
+
     void save(uchar*& c) const override {
         write(uid_, c);
         write(nsd_, c);

@@ -178,7 +178,9 @@ class SPERRDecomposition : public concepts::DecompositionInterface<T, int64_t, N
         outlier_quantizer_.load(c, remaining_length);
     }
 
-    size_t size_est() override { return transform_.size_est() + kScalarQuantizerBytes + outlier_quantizer_.size_est(); }
+    size_t size_est() override {
+        return transform_.size_est() + coeff_quantizer_.size_est() + outlier_quantizer_.size_est();
+    }
 
     /**
      * @brief Output range advertised to `SZGenericCompressor`.
@@ -284,7 +286,6 @@ class SPERRDecomposition : public concepts::DecompositionInterface<T, int64_t, N
     }
 
     /// `ScalarQuantizer::save()` writes a uid byte plus three doubles.
-    static constexpr size_t kScalarQuantizerBytes = sizeof(uchar) + 3 * sizeof(double);
 
     SPERRTransform<T, N> transform_;
     ScalarQuantizer<double, int64_t> coeff_quantizer_;

@@ -63,8 +63,6 @@ FetchContent_Declare(
   GIT_TAG 3.4.0
 )
 FetchContent_MakeAvailable(eigen)
-else()
-    set(Eigen3_FOUND TRUE)
 endif()
 target_link_libraries(${PROJECT_NAME} INTERFACE Eigen3::Eigen)
 

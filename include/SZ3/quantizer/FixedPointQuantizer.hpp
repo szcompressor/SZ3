@@ -36,8 +36,7 @@ namespace SZ3 {
 
 template <class T>
 class FixedPointQuantizer : public concepts::QuantizerInterface<T, int64_t> {
-    static_assert(std::is_floating_point<T>::value,
-                  "FixedPointQuantizer requires a floating-point input type.");
+    static_assert(std::is_floating_point<T>::value, "FixedPointQuantizer requires a floating-point input type.");
 
    public:
     explicit FixedPointQuantizer(int num_bits = 32) : num_bits_(num_bits) {
@@ -65,8 +64,7 @@ class FixedPointQuantizer : public concepts::QuantizerInterface<T, int64_t> {
         level_exp_ = e;
         scale_ = std::ldexp(1.0, num_bits_ - 1 - level_exp_);
         if (!std::isfinite(scale_) || scale_ <= 0.0) {
-            throw std::overflow_error(
-                "FixedPointQuantizer::calibrate produced a non-finite or non-positive scale.");
+            throw std::overflow_error("FixedPointQuantizer::calibrate produced a non-finite or non-positive scale.");
         }
     }
 
@@ -82,8 +80,7 @@ class FixedPointQuantizer : public concepts::QuantizerInterface<T, int64_t> {
 
     ALWAYS_INLINE int64_t quantize_and_overwrite(T& data, T /*pred*/) override {
         if (scale_ == 0.0) {
-            throw std::runtime_error(
-                "FixedPointQuantizer: must call calibrate() before quantize_and_overwrite().");
+            throw std::runtime_error("FixedPointQuantizer: must call calibrate() before quantize_and_overwrite().");
         }
         const double scaled = static_cast<double>(data) * scale_;
         int64_t fp = static_cast<int64_t>(std::lround(scaled));
@@ -112,6 +109,8 @@ class FixedPointQuantizer : public concepts::QuantizerInterface<T, int64_t> {
         return std::make_pair(static_cast<int64_t>(0), 2 * offset_);
     }
 
+    size_t size_est() const override { return sizeof(uid_) + sizeof(num_bits_) + sizeof(level_exp_) + sizeof(scale_); }
+
     void save(uchar*& c) const override {
         write(uid_, c);
         write(num_bits_, c);
@@ -132,15 +131,15 @@ class FixedPointQuantizer : public concepts::QuantizerInterface<T, int64_t> {
     }
 
     void print() override {
-        printf("[FixedPointQuantizer] num_bits=%d level_exp=%d scale=%.8g (max_err=%.4g)\n",
-               num_bits_, level_exp_, scale_, max_abs_error());
+        printf("[FixedPointQuantizer] num_bits=%d level_exp=%d scale=%.8g (max_err=%.4g)\n", num_bits_, level_exp_,
+               scale_, max_abs_error());
     }
 
    private:
     int num_bits_;
     int level_exp_ = 0;
     int64_t offset_ = 0;
-    double scale_ = 0.0;  // 0 = uncalibrated
+    double scale_ = 0.0;                 // 0 = uncalibrated
     static constexpr uchar uid_ = 0b11;  // distinct from LinearQuantizer (0b10)
 };
 

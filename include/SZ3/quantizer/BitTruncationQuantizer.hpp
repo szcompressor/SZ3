@@ -39,10 +39,8 @@ namespace SZ3 {
 
 template <class T>
 class BitTruncationQuantizer : public concepts::QuantizerInterface<T, uint64_t> {
-    static_assert(std::is_floating_point<T>::value,
-                  "BitTruncationQuantizer requires a floating-point input type.");
-    static_assert(sizeof(T) <= sizeof(uint64_t),
-                  "BitTruncationQuantizer only supports T up to 8 bytes.");
+    static_assert(std::is_floating_point<T>::value, "BitTruncationQuantizer requires a floating-point input type.");
+    static_assert(sizeof(T) <= sizeof(uint64_t), "BitTruncationQuantizer only supports T up to 8 bytes.");
 
    public:
     explicit BitTruncationQuantizer(int keep_bytes = sizeof(T) / 2) : keep_bytes_(keep_bytes) {
@@ -68,6 +66,8 @@ class BitTruncationQuantizer : public concepts::QuantizerInterface<T, uint64_t> 
         // 0 means "no bin range"; the encoder derives what it needs from the bins.
         return std::make_pair(uint64_t{0}, uint64_t{0});
     }
+
+    size_t size_est() const override { return sizeof(uid_) + sizeof(keep_bytes_); }
 
     void save(uchar*& c) const override {
         write(uid_, c);
