@@ -70,8 +70,7 @@ class EncoderInterface {
 
     virtual void preprocess_decode() = 0;
 
-    /// Upper bound on the bytes save() writes for the current input, plus whatever encode() writes
-    /// beyond the sizeof(bin) per bin the caller budgets for it.
+    /// Upper bound on the space save() needs for the current input.
     virtual size_t size_est() { return 0; }
 };
 }  // namespace concepts

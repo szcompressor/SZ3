@@ -15,8 +15,9 @@ class RunlengthEncoder : public concepts::EncoderInterface<T> {
    public:
     void preprocess_encode(const std::vector<T> &bins, int stateNum) override { num_bins = bins.size(); }
 
-    /// save() writes nothing here. Run-length output is a value and a count per run, so a sequence
-    /// that never repeats comes out larger than the bins it encodes; this is that excess.
+    /// save() writes nothing, so this covers encode() instead. A run is a value plus a count, and
+    /// the caller budgets only the values, so the counts are charged here. Bins that never repeat
+    /// are one run each, which is the worst case.
     size_t size_est() override { return num_bins * (sizeof(T) + sizeof(int)); }
 
     size_t encode(const std::vector<T> &bins, uchar *&bytes) override {

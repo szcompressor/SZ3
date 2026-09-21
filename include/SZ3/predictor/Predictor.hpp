@@ -63,7 +63,7 @@ class PredictorInterface {
      */
     virtual void load(const uchar *&c, size_t &remaining_length) = 0;
 
-    /// Upper bound on the bytes save() writes for the current input.
+    /// Upper bound on the space save() needs for the current input.
     virtual size_t size_est() { return 0; }
 
     virtual size_t get_padding() { return 0; }
