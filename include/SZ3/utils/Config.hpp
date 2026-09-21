@@ -292,8 +292,6 @@ class Config {
                     interpAlpha = std::stod(value);
                 else if (eq(key, "InterpolationBeta"))
                     interpBeta = std::stod(value);
-                else if (eq(key, "SVDTargetRank"))
-                    svd_target_rank = std::stoi(value);
                 else if (eq(key, "SVDOversamplingParam"))
                     svd_oversampling_param = std::stoi(value);
                 else if (eq(key, "SVDEnergyThreshold"))
@@ -333,7 +331,6 @@ class Config {
         ss << "InterpolationAnchorStride = " << interpAnchorStride << "\n";
         ss << "InterpolationAlpha = " << interpAlpha << "\n";
         ss << "InterpolationBeta = " << interpBeta << "\n";
-        ss << "SVDTargetRank = " << svd_target_rank << "\n";
         ss << "SVDOversamplingParam = " << svd_oversampling_param << "\n";
         ss << "SVDEnergyThreshold = " << svd_energy_threshold << "\n";
         ss << "SVDQuantEBScale = " << svd_quant_eb_scale << "\n";
@@ -386,12 +383,6 @@ class Config {
         write(quantbinCnt, c);
         write(blockSize, c);
         write(predDim, c);
-        
-        // SVD specific parameters
-        write(svd_target_rank, c);
-        write(svd_oversampling_param, c);
-        write(svd_energy_threshold, c);
-        write(svd_quant_eb_scale, c);
 
         const size_t written = static_cast<size_t>(c - c0);
         if (written > std::numeric_limits<uchar>::max()) {
@@ -477,11 +468,6 @@ class Config {
         if (c < c1) read(quantbinCnt, c, remaining_length);
         if (c < c1) read(blockSize, c, remaining_length);
         if (c < c1) read(predDim, c, remaining_length);
-        // SVD specific parameters
-        if (c < c1) read(svd_target_rank, c, remaining_length);
-        if (c < c1) read(svd_oversampling_param, c, remaining_length);
-        if (c < c1) read(svd_energy_threshold, c, remaining_length);
-        if (c < c1) read(svd_quant_eb_scale, c, remaining_length);
     }
 
     /**
@@ -517,8 +503,8 @@ class Config {
     std::vector<size_t> dims;  ///< Dimensions of the data
     size_t num = 0;            ///< Total number of data points
 
-    // SVD specific parameters
-    int svd_target_rank = 0;
+    // SVD tuning, read at compression time only: the quantizers carry their own error
+    // bounds through save()/load(), so decompression never consults these.
     int svd_oversampling_param = 5; // Default oversampling parameter
     double svd_energy_threshold = 0.99; // Default energy threshold for adaptive rank finding
     double svd_quant_eb_scale = 0.01;
