@@ -506,8 +506,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                 (huffmanTree->code[n->c])[1] = (len >= 128) ? out2 : (out2 << (128 - len));
             }
             huffmanTree->cout[n->c] = static_cast<unsigned char>(len);
-            // std::cout << "build_code: c = " << n->c << ", len = " << len << ", out1 = " << out1 << ", out2 = " <<
-            // out2
+            // std::cout << "build_code: c = " << n->c << ", len = " << len << ", out1 = " << out1 << ", out2 = " << out2
             //           << ", code0 = " << (huffmanTree->code[n->c])[0] << ", code1 = " << (huffmanTree->code[n->c])[1]
             //           << std::endl;
             return;
