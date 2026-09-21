@@ -87,7 +87,9 @@ void expectQuantizerContract(const std::string &name, Factory make) {
     {
         auto qa = make();
         std::vector<T> vals = adversarialValues<T>();
-        for (T x : vals) vals.push_back(x * T(0.5));
+        // Index, not a range-for: push_back reallocates out from under the iterator.
+        const size_t adversarial_count = vals.size();
+        for (size_t i = 0; i < adversarial_count; i++) vals.push_back(vals[i] * T(0.5));
         std::vector<decltype(qa.quantize_and_overwrite(vals[0], T(0)))> bins;
         std::vector<T> written;
         bins.reserve(vals.size());

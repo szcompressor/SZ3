@@ -28,7 +28,7 @@ jobs:
           sudo apt-get update
           # Both sides need it: it sends SZ3 down the system-Zstd path, and libpressio resolves
           # libzstd through pkg-config on the branch that its SZ3 plugin is on.
-          sudo apt-get install -y libzstd-dev
+          sudo apt-get install -y libzstd-dev libeigen3-dev
 
       - name: Install SZ3 for libpressio to find
         shell: bash

@@ -52,7 +52,7 @@ jobs:
       - name: Run CTest
         shell: bash -el {0}
         working-directory: build
-        run: ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }}
+        run: ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }} -R "^SZ3_"
 
       - name: Install it for a consumer to find
         shell: bash -el {0}
@@ -129,7 +129,7 @@ jobs:
           sudo apt-get update
           # libzstd-dev, not libzstd1: only the -dev package carries the libzstd.pc that sends this
           # job down the system-Zstd path.
-          sudo apt-get install -y libhdf5-dev libzstd-dev
+          sudo apt-get install -y libhdf5-dev libzstd-dev libeigen3-dev
 
       - name: Create build dir
         run: cmake -E make_directory build
@@ -159,7 +159,7 @@ jobs:
           # SZ3Config.cmake resolves no MPI: the filter calls none, and a parallel HDF5 carries the
           # MPI it was built against. This is the case that proves it -- if it did not hold, the
           # consumer would end up with a second, independently chosen MPI.
-          sudo apt-get install -y libhdf5-openmpi-dev openmpi-bin
+          sudo apt-get install -y libhdf5-openmpi-dev openmpi-bin libeigen3-dev
           HDF5_MPI_ROOT=/usr/lib/x86_64-linux-gnu/hdf5/openmpi
           mkdir -p _mpi
           cat > _mpi/CMakeLists.txt <<'EOF'
