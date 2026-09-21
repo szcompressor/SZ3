@@ -133,7 +133,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
     size_t size_est() override { return tree_size(nodeCount); }
 
-    /// Exactly what save() writes for a tree of `nodes` nodes: the same width choice it makes.
+    /// Exactly the bytes save() writes for a tree of this many nodes.
     static size_t tree_size(size_t nodes) {
         size_t b =
             (nodes <= 256) ? sizeof(unsigned char) : ((nodes <= 65536) ? sizeof(unsigned short) : sizeof(unsigned int));
@@ -141,9 +141,9 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                sizeof(T);
     }
 
-    /// Upper bound on save() + encode() for a tree that has not been built yet, bounded from the
-    /// inputs. Huffman's mean code length stays under entropy+1 bits, so sizeof(T)*8 bits per bin
-    /// covers the payload; the slack is for encode()'s wide stores, which reach past the last code.
+    /// Upper bound for a tree save() has not built yet, so the node count comes from the inputs.
+    /// Huffman's mean code length stays under entropy+1 bits, so the raw size covers the payload.
+    /// The trailing slack is for encode()'s wide stores, which reach past the last code it counts.
     static size_t size_bound(size_t num_bins, size_t distinct_symbols) {
         size_t leaves = std::min(num_bins, distinct_symbols);
         size_t nodes = leaves > 0 ? 2 * leaves - 1 : 0;
@@ -506,7 +506,8 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                 (huffmanTree->code[n->c])[1] = (len >= 128) ? out2 : (out2 << (128 - len));
             }
             huffmanTree->cout[n->c] = static_cast<unsigned char>(len);
-            // std::cout << "build_code: c = " << n->c << ", len = " << len << ", out1 = " << out1 << ", out2 = " << out2
+            // std::cout << "build_code: c = " << n->c << ", len = " << len << ", out1 = " << out1 << ", out2 = " <<
+            // out2
             //           << ", code0 = " << (huffmanTree->code[n->c])[0] << ", code1 = " << (huffmanTree->code[n->c])[1]
             //           << std::endl;
             return;

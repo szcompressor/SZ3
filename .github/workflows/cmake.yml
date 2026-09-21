@@ -157,9 +157,8 @@ jobs:
           ASAN_OPTIONS: detect_leaks=1
         run: ctest --output-on-failure --no-tests=error
 
-      # The unit tests check each stage against its own size_est(). This runs the whole CLI at a
-      # block size small enough that the regression coefficients dominate the buffer, which is the
-      # shape the overflow took: it compressed, printed a ratio, and exited 0.
+      # The unit tests check each stage against its own size_est(); this runs the whole CLI at a
+      # block size where the regression coefficients dominate the buffer.
       - name: A small block size does not run off the compressor's buffer
         shell: bash
         working-directory: build

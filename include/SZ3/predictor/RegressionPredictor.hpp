@@ -97,8 +97,7 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
         if (regression_coeff_quant_inds.empty()) {
             return sizeof(size_t);
         }
-        // save() builds a Huffman stream over the coefficients; on a small block size those
-        // coefficients outnumber the data by enough to dwarf the rest of the buffer.
+        // save() builds a Huffman stream over the coefficients, and nothing else counts it.
         size_t states = static_cast<size_t>(std::max(quantizer_independent.get_out_range().second,
                                                      quantizer_liner.get_out_range().second)) +
                         1;
