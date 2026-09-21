@@ -403,9 +403,21 @@ jobs:
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-hdf5
             mingw-w64-x86_64-eigen3
             make
+
+      # hdf5 comes in through a separate pacman call so it can carry --assume-installed. msys2's
+      # gcc-libgfortran pins gcc-libs to an exact build that the repository has already moved past,
+      # so fc-libs cannot resolve and pacman drops hdf5 from the transaction with only a warning.
+      # SZ3 asks for HDF5's C component alone, so the Fortran runtime is not ours to need.
+      - name: Install HDF5 without its Fortran runtime
+        run: |
+          pacman -S --noconfirm --needed \
+                 --assume-installed mingw-w64-x86_64-fc-libs \
+                 mingw-w64-x86_64-hdf5
+          # pacman warns and returns 0 when it drops a package it could not resolve, which is how
+          # this went unnoticed in the first place. Ask for the file the build actually needs.
+          test -f /mingw64/include/hdf5.h
 
       - name: Create build dir
         run: cmake -E make_directory build
