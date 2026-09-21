@@ -79,7 +79,7 @@ Version New features
 * SZ 3.3.0 Add key QoZ v1 and v2 features to improve compression speed and data quality. The full QoZ is available from **a separate branch** (https://github.com/szcompressor/SZ3/tree/QoZ). 
 * SZ 3.3.1: SZ3 Windows support for both Visual Studio and MinGW toolchains. pySZ v1 released and available via `pip install pysz`. Bio algorithms added.
 * SZ 3.3.2: bugfix for compressed format.
-* SZ 3.3.3: `find_package(SZ3)` works against an installed SZ3, and the HDF5 filter no longer crashes on a freshly created property list. Several defects reachable on valid data are fixed, among them a truncated configuration that silently disabled quantisation for datasets with a side past 4096. The vendored ska hash map is gone and compression is faster without it. The compressed format is unchanged.
+* SZ 3.3.3: `find_package(SZ3)` works against an installed SZ3, and the HDF5 filter no longer crashes on a freshly created property list. Fixes several defects reachable on valid data, one of which writes past the end of a buffer. Drops the vendored ska hash map, which makes compression faster. The compressed format is unchanged.
 
 ## 3rd party libraries/tools
 * [Zstandard](https://facebook.github.io/zstd/) v1.5.6 is vendored in `tools/zstd` and built if libzstd can not be found by pkg-config, or if `-DSZ3_USE_BUNDLED_ZSTD=ON` is given. It is linked statically as `libsz3_zstd` and kept private to SZ3.
