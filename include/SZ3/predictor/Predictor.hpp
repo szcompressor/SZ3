@@ -63,8 +63,7 @@ class PredictorInterface {
      */
     virtual void load(const uchar *&c, size_t &remaining_length) = 0;
 
-    /// Most bytes save() can write. BlockwiseDecomposition adds these up to size its buffer, so a
-    /// predictor that stores per-block state has to override this.
+    /// Upper bound on the bytes save() writes for the current input.
     virtual size_t size_est() { return 0; }
 
     virtual size_t get_padding() { return 0; }

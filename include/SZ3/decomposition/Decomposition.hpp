@@ -53,8 +53,7 @@ class DecompositionInterface {
      */
     virtual void load(const uchar *&c, size_t &remaining_length) = 0;
 
-    /// Most bytes save() can write for the data this instance just compressed. The caller
-    /// allocates from this and save() writes without checking, so too small corrupts the heap.
+    /// Upper bound on the bytes save() writes for the current input.
     virtual size_t size_est() { return 0; }
 
     virtual std::pair<To, To> get_out_range() = 0;
