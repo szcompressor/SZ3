@@ -678,7 +678,7 @@ inline auto SZ3::SPERR::any_ge_pow2(const T* buf, size_t len, T thld) -> bool
 #endif
 
 // Constructor
-SZ3::SPERR::Bitstream::Bitstream(size_t nbits)
+inline SZ3::SPERR::Bitstream::Bitstream(size_t nbits)
 {
   m_itr = m_buf.begin();
   this->reserve(nbits);
@@ -884,7 +884,7 @@ inline void SZ3::SPERR::Bitstream::parse_bitstream(const void* p, size_t num_bit
 #include <bit>
 #endif
 
-SZ3::SPERR::Bitmask::Bitmask(size_t nbits)
+inline SZ3::SPERR::Bitmask::Bitmask(size_t nbits)
 {
   auto num_longs = (nbits + 63) / 64;
   m_buf.assign(num_longs, 0);
@@ -1300,7 +1300,7 @@ inline void SZ3::SPERR::Conditioner::m_adjust_strides(size_t len)
 #endif
 
 // Destructor
-SZ3::SPERR::CDF97::~CDF97()
+inline SZ3::SPERR::CDF97::~CDF97()
 {
   if (m_aligned_buf)
     SZ3::SPERR::aligned_free(m_aligned_buf);
@@ -3510,7 +3510,7 @@ inline void SZ3::SPERR::SPECK1D_INT_DEC<T>::m_code_S(size_t idx1, size_t idx2)
 #include <cfloat>  // FLT_ROUNDS
 #include <cmath>
 
-SZ3::SPERR::Outlier::Outlier(size_t p, double e) : pos(p), err(e) {}
+inline SZ3::SPERR::Outlier::Outlier(size_t p, double e) : pos(p), err(e) {}
 
 inline void SZ3::SPERR::Outlier_Coder::add_outlier(Outlier out)
 {

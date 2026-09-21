@@ -43,7 +43,9 @@ target_compile_features(${PROJECT_NAME}
         INTERFACE cxx_std_17
 )
 
-target_precompile_headers(${PROJECT_NAME} INTERFACE <SZ3/stdafx.hpp>)
+# Guarded by language: stdafx.hpp includes Eigen, and a C consumer gets this too.
+# $<ANGLE-R> is the closing bracket of the include; a bare > would end the generator expression.
+target_precompile_headers(${PROJECT_NAME} INTERFACE "$<$<COMPILE_LANGUAGE:CXX>:<SZ3/stdafx.hpp$<ANGLE-R>>")
 
 
 find_package(OpenMP)

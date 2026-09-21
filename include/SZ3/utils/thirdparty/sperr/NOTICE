@@ -37,6 +37,10 @@ The following files in this directory were written by the SZ3 project and are
 not upstream SPERR code: `SperrConfig.h`, `SPERRHeaderOnly.hpp`,
 `SPERRTypes.hpp`.
 
+Four out-of-line constructors and one destructor (Bitstream, Bitmask, CDF97, Outlier)
+were marked `inline`. The vendoring pass that inlined every other definition matched on
+a return type, which a constructor does not have, so a static link saw them twice.
+
 Upstream files are otherwise unmodified and carry no per-file copyright notices
 of their own; upstream's own attribution comments have been retained verbatim,
 including the QccPack acknowledgement at the top of `CDF97.h`.
