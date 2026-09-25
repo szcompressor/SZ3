@@ -51,8 +51,9 @@ static std::vector<unsigned int> save_cd_values(const SZ3::Config& conf) {
 static void load_cd_values(const unsigned int* cd, size_t cd_nelmts, SZ3::Config& conf) {
     auto bytes = reinterpret_cast<const unsigned char*>(cd);
     size_t len = cd_nelmts * sizeof(unsigned int);
-    // This check exists for 3.3.2's cd_values, which have no version: their cd[0] starts with the Config's
-    // length byte, never 0, while versionInt() leaves the low byte 0. They skip the if and load from cd[0].
+    // Only to read 3.3.2's cd_values, which have no version: they start with the Config's length byte, never
+    // 0, while versionInt() leaves the low byte 0. Dropping 3.3.2 means keeping the body and removing the if.
+    // Anything older also skips the if, and conf.load() refuses it.
     if ((cd[0] & 0xFFu) == 0) {
         // Another data version may lay out the Config differently.
         if (versionStr(cd[0]) != SZ3_DATA_VER)
@@ -290,8 +291,8 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
             SZ3::read(dataVer, header);
         }
         if (magic != SZ3_MAGIC_NUMBER) {
-            // v3.2.0 through v3.3.2 wrote and read a chunk raw when cd_values held fewer than 20
-            // elements, so those carry no header.
+            // Only to read 3.3.2's chunks of fewer than 20 elements, stored raw with no header. Dropping 3.3.2
+            // means removing these three lines. Older versions stored them raw too, but their cd_values do not load.
             SZ3::Config legacy;
             load_cd_values(cd_values, cd_nelmts, legacy);
             if (legacy.num > 0 && legacy.num < 20) return nbytes;
