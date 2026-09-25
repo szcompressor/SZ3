@@ -293,6 +293,11 @@ want "foreign-cdvalues-leaves-data-intact" "READ OK" old.read
     rp_new.h5 > new.log 2>&1
 "$(h5 h5dump)" -pH rp_new.h5 > new.head 2>&1
 notwant "newer-data-version-refused" "32024" new.head
+# cd_values as 3.3.0 wrote them: refused, naming their version
+"$(h5 h5repack)" --enable-error-stack \
+    -f "UD=32024,0,11,4081251088,50528256,136316419,8388610,0,4227858688,1305670057,2688503906,16777216,1536,768" \
+    plain.h5 rp_330.h5 > v330.log 2>&1
+want "older-cdvalues-name-their-version" "data format v3.3.0" v330.log
 
 export HDF5_PLUGIN_PATH=$NOPLUGIN_PATH
 "$(h5 h5dump)" -pH rp.h5 > d_meta.head 2>&1
@@ -323,7 +328,7 @@ skip_all "hdf5sz3 was installed as an archive, so there is no plugin to load" \
     h5repack-noplugin-drops-filter-silently h5repack-noplugin-warns-on-read \
     h5repack-noplugin-loses-dataset \
     foreign-cdvalues-refused foreign-cdvalues-leaves-data-intact \
-    stored-cdvalues-carry-data-version newer-data-version-refused \
+    stored-cdvalues-carry-data-version newer-data-version-refused older-cdvalues-name-their-version \
     h5dump-header-needs-no-plugin h5dump-header-shows-version h5ls-verbose-shows-version \
     h5dump-data-noplugin-fails h5dump-data-noplugin-message \
     h5dump-names-the-filter h5dump-names-our-version \
@@ -390,7 +395,7 @@ echo "  $pass passed, $fail failed, $skip skipped"
 
 # Raise this with the check it comes with. A guard that skips the wrong list, or a section that
 # stops early, otherwise shows only as a smaller number at the bottom that nobody compares.
-EXPECTED=34
+EXPECTED=35
 ran=$((pass + fail + skip))
 if [ "$ran" -ne "$EXPECTED" ]; then
     echo "  the suite accounted for $ran checks, not $EXPECTED"

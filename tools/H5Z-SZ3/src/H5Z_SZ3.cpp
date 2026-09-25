@@ -51,6 +51,11 @@ static std::vector<unsigned int> save_cd_values(const SZ3::Config& conf) {
 static void load_cd_values(const unsigned int* cd, size_t cd_nelmts, SZ3::Config& conf) {
     auto bytes = reinterpret_cast<const unsigned char*>(cd);
     size_t len = cd_nelmts * sizeof(unsigned int);
+    // Only to name the version of cd_values from 3.2.0 to 3.3.0, which start with the magic number and the data
+    // version. Without it they fail in conf.load() below with an error that does not say why.
+    if (cd_nelmts > 1 && cd[0] == SZ3_MAGIC_NUMBER)
+        throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(cd[1]) +
+                                    ", this build reads v" SZ3_DATA_VER);
     // Only to read 3.3.2's cd_values, which have no version: they start with the Config's length byte, never
     // 0, while versionInt() leaves the low byte 0. Dropping 3.3.2 means removing this block.
     if ((cd[0] & 0xFFu) != 0) {
