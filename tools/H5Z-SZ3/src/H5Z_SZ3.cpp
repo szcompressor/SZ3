@@ -39,25 +39,16 @@ HDF5SZ3_EXPORT H5PL_type_t H5PLget_plugin_type(void) { return H5PL_TYPE_FILTER; 
 
 HDF5SZ3_EXPORT const void* H5PLget_plugin_info(void) { return H5Z_SZ3; }
 
-// cd_values carry the Config's bytes four to a word in little-endian order, as cdvalueHelper.py packs them, so
-// that they mean the same on every host. SZ3::read and SZ3::write do the byte order.
-static std::vector<unsigned int> save_cd_values(const SZ3::Config& conf) {
-    std::vector<unsigned char> buffer(conf.size_est() + sizeof(unsigned int), 0);
-    auto pos = buffer.data();
-    size_t words = (conf.save(pos) + sizeof(unsigned int) - 1) / sizeof(unsigned int);
-    std::vector<unsigned int> cd(1 + words);
-    cd[0] = versionInt(SZ3_DATA_VER);
-    const unsigned char* in = buffer.data();
-    SZ3::read(cd.data() + 1, words, in);
-    return cd;
-}
-
-static void load_cd_values(const unsigned int* cd, size_t cd_nelmts, SZ3::Config& conf) {
-    std::vector<unsigned char> buffer(cd_nelmts * sizeof(unsigned int));
-    auto out = buffer.data();
-    SZ3::write(cd, cd_nelmts, out);
-    const unsigned char* bytes = buffer.data();
-    size_t len = buffer.size();
+// set_SZ3_conf_to_H5() and load_conf() keep cd_values little-endian, even on big-endian hosts.
+static void load_conf(const unsigned int* cd, size_t cd_nelmts, SZ3::Config& conf) {
+#if SZ3_BIG_ENDIAN
+    std::vector<unsigned int> swapped(cd, cd + cd_nelmts);
+    for (auto& word : swapped) word = SZ3::byteswap(word);
+    auto bytes = reinterpret_cast<const unsigned char*>(swapped.data());
+#else
+    auto bytes = reinterpret_cast<const unsigned char*>(cd);
+#endif
+    size_t len = cd_nelmts * sizeof(unsigned int);
     // backward compatibility for v3.2.0 to v3.3.0; those versions store the magic number and the data version first.
     if (cd_nelmts > 1 && cd[0] == SZ3_MAGIC_NUMBER) {
         throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(cd[1]) +
@@ -95,7 +86,13 @@ static bool sz3_filter_on_plist(hid_t propertyList) {
 herr_t set_SZ3_conf_to_H5(hid_t propertyList, SZ3::Config& conf) {
     static char const* _funcname_ = "set_SZ3_conf_to_H5";
 
-    std::vector<unsigned int> cd_values = save_cd_values(conf);
+    std::vector<unsigned int> cd_values(1 + conf.size_est(), 0);
+    cd_values[0] = versionInt(SZ3_DATA_VER);
+    auto pos = reinterpret_cast<unsigned char*>(cd_values.data() + 1);
+    cd_values.resize(1 + (conf.save(pos) + sizeof(unsigned int) - 1) / sizeof(unsigned int));
+#if SZ3_BIG_ENDIAN
+    for (size_t i = 1; i < cd_values.size(); i++) cd_values[i] = SZ3::byteswap(cd_values[i]);
+#endif
     size_t cd_nelmts = cd_values.size();
 
     if (sz3_filter_on_plist(propertyList)) {
@@ -164,7 +161,7 @@ herr_t get_SZ3_conf_from_H5(hid_t propertyList, SZ3::Config& conf) {
         }
         try {
             SZ3::Config loaded;
-            load_cd_values(cd_values.data(), cd_values.size(), loaded);
+            load_conf(cd_values.data(), cd_values.size(), loaded);
             conf = loaded;
         } catch (const std::exception& e) {
             H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1, "%s", e.what());
@@ -293,7 +290,7 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
     bool is_decompress = flags & H5Z_FLAG_REVERSE;
     SZ3::Config conf;
 
-    // Ahead of load_cd_values: every chunk this filter writes carries an SZ3 header, and a file from
+    // Ahead of load_conf: every chunk this filter writes carries an SZ3 header, and a file from
     // another version wrote cd_values in a layout this build would misread.
     if (is_decompress) {
         uint32_t magic = 0, dataVer = 0;
@@ -306,7 +303,7 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
             // backward compatibility for v3.3.2; it stores chunks of fewer than 20 elements raw, with no header.
             {
                 SZ3::Config legacy;
-                load_cd_values(cd_values, cd_nelmts, legacy);
+                load_conf(cd_values, cd_nelmts, legacy);
                 if (legacy.num > 0 && legacy.num < 20) return nbytes;
             }
             throw std::invalid_argument("SZ3 HDF5 filter: chunk was not written by SZ3");
@@ -316,7 +313,7 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
                                         ", this build reads v" SZ3_DATA_VER);
     }
 
-    load_cd_values(cd_values, cd_nelmts, conf);
+    load_conf(cd_values, cd_nelmts, conf);
 
     switch (conf.dataType) {
         case SZ_FLOAT:
