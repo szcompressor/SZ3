@@ -52,16 +52,18 @@ static void load_cd_values(const unsigned int* cd, size_t cd_nelmts, SZ3::Config
     auto bytes = reinterpret_cast<const unsigned char*>(cd);
     size_t len = cd_nelmts * sizeof(unsigned int);
     // Only to read 3.3.2's cd_values, which have no version: they start with the Config's length byte, never
-    // 0, while versionInt() leaves the low byte 0. Dropping 3.3.2 means keeping the body and removing the if.
-    // Anything older also skips the if, and conf.load() refuses it.
-    if ((cd[0] & 0xFFu) == 0) {
-        // Another data version may lay out the Config differently.
-        if (versionStr(cd[0]) != SZ3_DATA_VER)
-            throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(cd[0]) +
-                                        ", this build reads v" SZ3_DATA_VER);
-        bytes += sizeof(unsigned int);
-        len -= sizeof(unsigned int);
+    // 0, while versionInt() leaves the low byte 0. Dropping 3.3.2 means removing this block. Anything older
+    // also lands here, and conf.load() refuses it.
+    if ((cd[0] & 0xFFu) != 0) {
+        conf.load(bytes, len);
+        return;
     }
+    // Another data version may lay out the Config differently.
+    if (versionStr(cd[0]) != SZ3_DATA_VER)
+        throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(cd[0]) +
+                                    ", this build reads v" SZ3_DATA_VER);
+    bytes += sizeof(unsigned int);
+    len -= sizeof(unsigned int);
     conf.load(bytes, len);
 }
 
