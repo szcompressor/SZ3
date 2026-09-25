@@ -35,7 +35,6 @@
 #define SZ_INT64 9
 /** End dataType in SZ2 (defines.h) **/
 
-// Windows-only notation for exporting functions from a DLL
 #ifdef _WIN32
 #ifdef SZ3C_EXPORTS
 #define SZ3C_API __declspec(dllexport)
@@ -43,7 +42,7 @@
 #define SZ3C_API __declspec(dllimport)
 #endif
 #else
-#define SZ3C_API
+#define SZ3C_API __attribute__((visibility("default")))
 #endif
 
 #ifdef __cplusplus

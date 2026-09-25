@@ -18,7 +18,7 @@
         #define HDF5SZ3_EXPORT __declspec(dllimport)
     #endif
 #else
-    #define HDF5SZ3_EXPORT
+    #define HDF5SZ3_EXPORT __attribute__((visibility("default")))
 #endif
 
 /* SZ3::EB and SZ3::ALGO, repeated because C cannot see them. */
