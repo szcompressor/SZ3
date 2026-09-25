@@ -17,9 +17,10 @@
 
 #endif
 namespace SZ3 {
+// Without OpenMP the pragmas below drop out and the same code runs as one thread, so a build
+// without OpenMP still reads and writes this chunked layout. Keep the code outside the pragmas.
 template <class T, uint N>
-size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCap) {
-#ifdef _OPENMP
+size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, [[maybe_unused]] size_t cmpCap) {
     unsigned char* buffer_pos = cmpData;
 
     std::vector<uchar*> compressed_t;
@@ -29,11 +30,13 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
     //    Timer timer(true);
     int nThreads = 1;
     // double eb;
+#ifdef _OPENMP
 #pragma omp parallel
 #pragma omp single
     {
         nThreads = omp_get_num_threads();
     }
+#endif
     if (conf.dims[0] < static_cast<size_t>(nThreads)) {
         nThreads = static_cast<int>(conf.dims[0]);
     }
@@ -51,9 +54,15 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
     // the process-wide nthreads-var instead, and that outlives the call: an application running 32
     // threads that compresses one chunk here would go on running 8 afterwards. SZ3 is a library
     // inside someone else's program and has no business changing that.
+#ifdef _OPENMP
 #pragma omp parallel num_threads(nThreads)
+#endif
     try {
+#ifdef _OPENMP
         int tid = omp_get_thread_num();
+#else
+        int tid = 0;
+#endif
 
         auto dims_t = conf.dims;
         size_t lo = static_cast<size_t>(tid) * conf.dims[0] / nThreads;
@@ -69,8 +78,10 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
             auto minmax = std::minmax_element(data_t, data_t + num_t);
             min_t[tid] = *minmax.first;
             max_t[tid] = *minmax.second;
+#ifdef _OPENMP
 #pragma omp barrier
 #pragma omp single
+#endif
             {
                 T range = *std::max_element(max_t.begin(), max_t.end()) - *std::min_element(min_t.begin(), min_t.end());
                 calAbsErrorBound<T>(conf, data, range);
@@ -98,8 +109,10 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
             throw std::invalid_argument("Unsupported N");
         }
 
+#ifdef _OPENMP
 #pragma omp barrier
 #pragma omp single
+#endif
         {
             //            timer.stop("OMP compression");
             //            timer.start();
@@ -119,7 +132,9 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
 
         memcpy(buffer_pos + cmp_start_t[tid], compressed_t[tid], cmp_size_t[tid]);
     } catch (...) {
+#ifdef _OPENMP
 #pragma omp critical
+#endif
         {
             if (!failure) failure = std::current_exception();
         }
@@ -130,14 +145,8 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
 
     return buffer_pos - cmpData + cmp_start_t[nThreads];
     //    timer.stop("OMP memcpy");
-
-#else
-    return SZ_compress_dispatcher<T, N>(conf, data, cmpData, cmpCap);
-#endif
 }
 
-// Without OpenMP the pragmas below drop out and the chunks decode one after another, so a build
-// without OpenMP still reads this layout. Keep the code outside the pragmas.
 template <class T, uint N>
 void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* decData) {
     auto cmpr_data_pos = cmpData;
@@ -243,13 +252,14 @@ void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* de
 
 template <class T>
 size_t SZ_compress_size_bound_omp(const Config& conf) {
-#ifdef _OPENMP
     int nThreads = 1;
+#ifdef _OPENMP
 #pragma omp parallel
 #pragma omp single
     {
         nThreads = omp_get_num_threads();
     }
+#endif
     if (conf.dims[0] < static_cast<size_t>(nThreads)) {
         nThreads = static_cast<int>(conf.dims[0]);
     }
@@ -260,9 +270,6 @@ size_t SZ_compress_size_bound_omp(const Config& conf) {
     return sizeof(int) + nThreads * conf.size_est() + 2 * nThreads * sizeof(size_t) +
            (nThreads - 1) * Lossless_zstd::compress_bound(chunk_size * sizeof(T)) +
            Lossless_zstd::compress_bound(last_chunk_size * sizeof(T));
-#else
-    return conf.size_est() + Lossless_zstd::compress_bound(conf.num * sizeof(T));
-#endif
 }
 } // namespace SZ3
 
