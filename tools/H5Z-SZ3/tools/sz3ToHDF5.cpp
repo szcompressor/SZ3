@@ -54,8 +54,12 @@ void process_data(const SZ3::Config &conf, const char *oriFilePath, int dataEndi
 
     hid_t dataset;
     hid_t h5Type = (dataEndianType == LITTLE_ENDIAN_DATA) ? h5TypeLE : h5TypeBE;
+    // The filter compresses host-order values only; H5Dwrite converts from the input's byte order.
+    hid_t storedType = H5Tget_native_type(h5Type, H5T_DIR_DEFAULT);
 
-    if ((dataset = H5Dcreate(fid, datasetName, h5Type, sid, H5P_DEFAULT, cpid, H5P_DEFAULT)) < 0) {
+    dataset = H5Dcreate(fid, datasetName, storedType, sid, H5P_DEFAULT, cpid, H5P_DEFAULT);
+    H5Tclose(storedType);
+    if (dataset < 0) {
         std::cerr << "Error in H5Dcreate\n";
         delete[] data;
         exit(EXIT_FAILURE);
