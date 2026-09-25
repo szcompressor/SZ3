@@ -42,20 +42,20 @@ extern "C" {
 #endif
 
 /* Bounds that errorBoundMode does not use are ignored. Returns 1, or -1 with the reason on the HDF5 error stack. */
-HDF5SZ3_EXPORT herr_t H5Pset_sz3(const hid_t propertyList, int cmprAlgo, int errorBoundMode, double absErrorBound,
+HDF5SZ3_EXPORT herr_t H5Pset_sz3(hid_t propertyList, int cmprAlgo, int errorBoundMode, double absErrorBound,
                                  double relErrorBound, double psnrErrorBound, double l2normErrorBound);
 
 #ifdef __cplusplus
 /* Returns 1 on success, 0 on failure. */
-HDF5SZ3_EXPORT herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config &conf);
+HDF5SZ3_EXPORT herr_t set_SZ3_conf_to_H5(hid_t propertyList, SZ3::Config &conf);
 
 /**
  * @brief Load the SZ3 Config this property list carries.
  *
- * Returns 1 if a Config was loaded, 0 if the list carries no SZ3 filter, -1 if reading it failed.
- * conf is left alone unless 1 is returned.
+ * Returns 1 if the list carries the SZ3 filter, 0 if it does not, -1 if its cd_values cannot be read.
+ * conf changes only when 1 is returned and the filter has cd_values; without them it is left as it is.
  */
-HDF5SZ3_EXPORT herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config &conf);
+HDF5SZ3_EXPORT herr_t get_SZ3_conf_from_H5(hid_t propertyList, SZ3::Config &conf);
 }
 #endif
 

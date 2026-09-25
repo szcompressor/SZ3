@@ -40,7 +40,7 @@ HDF5SZ3_EXPORT H5PL_type_t H5PLget_plugin_type(void) { return H5PL_TYPE_FILTER; 
 HDF5SZ3_EXPORT const void* H5PLget_plugin_info(void) { return H5Z_SZ3; }
 
 static std::vector<unsigned int> save_cd_values(const SZ3::Config& conf) {
-    std::vector<unsigned int> cd(1 + (conf.size_est() + sizeof(unsigned int) - 1) / sizeof(unsigned int), 0);
+    std::vector<unsigned int> cd(1 + conf.size_est(), 0);
     cd[0] = versionInt(SZ3_DATA_VER);
     auto pos = reinterpret_cast<unsigned char*>(cd.data() + 1);
     size_t len = conf.save(pos);
@@ -48,25 +48,30 @@ static std::vector<unsigned int> save_cd_values(const SZ3::Config& conf) {
     return cd;
 }
 
+static void check_data_version(uint32_t dataVer) {
+    if (versionStr(dataVer) != SZ3_DATA_VER)
+        throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(dataVer) +
+                                    ", this build reads v" SZ3_DATA_VER);
+}
+
 static void load_cd_values(const unsigned int* cd, size_t cd_nelmts, SZ3::Config& conf) {
     auto bytes = reinterpret_cast<const unsigned char*>(cd);
     size_t len = cd_nelmts * sizeof(unsigned int);
-    // cd[0]'s low byte is 0 when cd[0] is a version: versionInt() leaves it 0. cd_values written by
-    // 3.3.2 have no version, and that byte is then the Config's length, which is never 0.
+    // The low byte of cd[0] tells the two layouts apart:
+    // - save_cd_values() puts versionInt(SZ3_DATA_VER) in cd[0], and versionInt() leaves the low byte 0;
+    // - 3.3.2 wrote no version: cd[0] starts the Config, and its low byte is the Config's length, never 0.
     if (cd_nelmts > 0 && (cd[0] & 0xFFu) == 0) {
-        if (versionStr(cd[0]) != SZ3_DATA_VER) {
-            throw std::invalid_argument("SZ3 " SZ3_VER " reads data version " SZ3_DATA_VER
-                                        ", but this dataset's SZ3 settings are version " +
-                                        versionStr(cd[0]) + ". Use SZ3 v" + versionStr(cd[0]) + ".");
-        }
+        // Another data version may lay out the Config differently.
+        check_data_version(cd[0]);
         bytes += sizeof(unsigned int);
         len -= sizeof(unsigned int);
     }
+    // 3.3.2 cd_values skip the if above and are read from cd[0].
     conf.load(bytes, len);
 }
 
 // Do not use H5Zfilter_avail() here: it answers for the library, not for this property list.
-static bool sz3_filter_on_plist(const hid_t propertyList) {
+static bool sz3_filter_on_plist(hid_t propertyList) {
     const int nfilters = H5Pget_nfilters(propertyList);
     for (int i = 0; i < nfilters; i++) {
         unsigned int flags = 0;
@@ -80,7 +85,7 @@ static bool sz3_filter_on_plist(const hid_t propertyList) {
     return false;
 }
 
-herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config& conf) {
+herr_t set_SZ3_conf_to_H5(hid_t propertyList, SZ3::Config& conf) {
     static char const* _funcname_ = "set_SZ3_conf_to_H5";
 
     std::vector<unsigned int> cd_values = save_cd_values(conf);
@@ -101,8 +106,8 @@ herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config& conf) {
     return 1;
 }
 
-herr_t H5Pset_sz3(const hid_t propertyList, int cmprAlgo, int errorBoundMode, double absErrorBound,
-                  double relErrorBound, double psnrErrorBound, double l2normErrorBound) {
+herr_t H5Pset_sz3(hid_t propertyList, int cmprAlgo, int errorBoundMode, double absErrorBound, double relErrorBound,
+                  double psnrErrorBound, double l2normErrorBound) {
     static char const* _funcname_ = "H5Pset_sz3";
     static_assert(H5Z_SZ3_EB_ABS == SZ3::EB_ABS && H5Z_SZ3_EB_REL == SZ3::EB_REL && H5Z_SZ3_EB_PSNR == SZ3::EB_PSNR &&
                       H5Z_SZ3_EB_L2NORM == SZ3::EB_L2NORM && H5Z_SZ3_EB_ABS_AND_REL == SZ3::EB_ABS_AND_REL &&
@@ -130,7 +135,7 @@ herr_t H5Pset_sz3(const hid_t propertyList, int cmprAlgo, int errorBoundMode, do
     return set_SZ3_conf_to_H5(propertyList, conf) > 0 ? 1 : -1;
 }
 
-herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config& conf) {
+herr_t get_SZ3_conf_from_H5(hid_t propertyList, SZ3::Config& conf) {
     static char const* _funcname_ = "get_SZ3_conf_from_H5";
 
     // H5Pget_filter_by_id fails when the list carries no SZ3 filter, which is not an error to report.
@@ -298,9 +303,7 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
             if (legacy.num > 0 && legacy.num < 20) return nbytes;
             throw std::invalid_argument("SZ3 HDF5 filter: chunk was not written by SZ3");
         }
-        if (versionStr(dataVer) != SZ3_DATA_VER)
-            throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(dataVer) +
-                                        ", this build reads v" SZ3_DATA_VER);
+        check_data_version(dataVer);
     }
 
     load_cd_values(cd_values, cd_nelmts, conf);
