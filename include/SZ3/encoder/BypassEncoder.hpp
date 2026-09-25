@@ -7,6 +7,7 @@
 #define SZ3_BYPASS_ENCODER_HPP
 
 #include <cassert>
+#include <cstring>
 #include <stdexcept>
 #include <vector>
 
