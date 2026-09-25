@@ -6,6 +6,7 @@
 #include <exception>
 #include <memory>
 #include <new>
+#include <stdexcept>
 
 #include "SZ3/api/impl/SZDispatcher.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
@@ -13,8 +14,6 @@
 #ifdef _OPENMP
 
 #include <omp.h>
-
-#include <stdexcept>
 
 #endif
 namespace SZ3 {
@@ -137,11 +136,10 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
 #endif
 }
 
+// Without OpenMP the pragmas below drop out and the chunks decode one after another, so a build
+// without OpenMP still reads this layout. Keep the code outside the pragmas.
 template <class T, uint N>
-void SZ_decompress_OMP([[maybe_unused]] Config& conf, [[maybe_unused]] const uchar* cmpData,
-                       [[maybe_unused]] size_t cmpSize, [[maybe_unused]] T* decData) {
-#ifdef _OPENMP
-
+void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* decData) {
     auto cmpr_data_pos = cmpData;
     const uchar* const cmp_end = cmpData + cmpSize;
     int nThreads = 1;
@@ -187,7 +185,9 @@ void SZ_decompress_OMP([[maybe_unused]] Config& conf, [[maybe_unused]] const uch
     }
 
     std::exception_ptr failure;
+#ifdef _OPENMP
 #pragma omp parallel num_threads(nThreads)
+#endif
     try {
         // nThreads is how many chunks the writer split the data into -- it came out of the stream,
         // not from this machine. num_threads asks for that many threads but nothing guarantees
@@ -197,8 +197,14 @@ void SZ_decompress_OMP([[maybe_unused]] Config& conf, [[maybe_unused]] const uch
         // application's parallel region lands in. Indexing the chunks by thread id would then skip
         // every chunk whose id no thread has, leaving that span of the output untouched and
         // reporting success, so each thread walks the chunks in strides of however many arrived.
+#ifdef _OPENMP
         const int actual = omp_get_num_threads();
-        for (int tid = omp_get_thread_num(); tid < nThreads; tid += actual) {
+        const int first = omp_get_thread_num();
+#else
+        const int actual = 1;
+        const int first = 0;
+#endif
+        for (int tid = first; tid < nThreads; tid += actual) {
             auto dims_t = conf.dims;
             size_t lo = static_cast<size_t>(tid) * conf.dims[0] / nThreads;
             size_t hi = static_cast<size_t>(tid + 1) * conf.dims[0] / nThreads;
@@ -223,7 +229,9 @@ void SZ_decompress_OMP([[maybe_unused]] Config& conf, [[maybe_unused]] const uch
             }
         }
     } catch (...) {
+#ifdef _OPENMP
 #pragma omp critical
+#endif
         {
             if (!failure) failure = std::current_exception();
         }
@@ -231,10 +239,6 @@ void SZ_decompress_OMP([[maybe_unused]] Config& conf, [[maybe_unused]] const uch
     if (failure) {
         std::rethrow_exception(failure);
     }
-#else
-    throw std::invalid_argument(
-        "SZ3: this data was compressed with OpenMP; decompressing it needs an OpenMP-enabled build");
-#endif
 }
 
 template <class T>

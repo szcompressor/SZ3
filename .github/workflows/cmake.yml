@@ -82,9 +82,9 @@ jobs:
         shell: bash
         working-directory: build
         run: |
-          # find_package(OpenMP) is not REQUIRED, so a runner without it builds a library that reads
-          # no OpenMP stream at all. Asked here, the two steps below fail for what they are about
-          # instead of letting the decoder report a stream it cannot read.
+          # find_package(OpenMP) is not REQUIRED, so a runner without it builds an sz3 that never
+          # writes an OpenMP stream. Asked here, the two steps below fail for what they are about
+          # instead of passing on a serial stream.
           grep -q '^OpenMP_CXX_FLAGS:STRING=.' CMakeCache.txt \
             || { echo "cmake found no OpenMP on this runner, so the OpenMP path is untested"; exit 1; }
 
