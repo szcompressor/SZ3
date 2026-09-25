@@ -230,12 +230,25 @@ EOF
     fi
 fi
 
+# ---------------------------------------------------------------- 6. no SZ3 internals exported
+# Another SZ3 copy in the same process would take over any SZ3 function the filter exports.
+if [ -f "$LIBDIR/libhdf5sz3.so" ] && command -v nm > /dev/null 2>&1; then
+    nm -DC --defined-only "$LIBDIR/libhdf5sz3.so" | grep -E "^[0-9a-f]+ [TWVu] SZ3::" > exports.log
+    if [ -s exports.log ]; then
+        bad "hdf5sz3-exports-no-sz3-functions" "$(wc -l < exports.log) exported, for example:" "$(head -3 exports.log)"
+    else
+        ok "hdf5sz3-exports-no-sz3-functions"
+    fi
+else
+    skipped "hdf5sz3-exports-no-sz3-functions (no shared ELF libhdf5sz3 here)"
+fi
+
 echo
 echo "  $pass passed, $fail failed, $skip skipped"
 
 # Raise this with the check it comes with. A section that stops early otherwise shows only as a
 # smaller number at the bottom that nobody compares.
-EXPECTED=12
+EXPECTED=13
 ran=$((pass + fail + skip))
 if [ "$ran" -ne "$EXPECTED" ]; then
     echo "  the suite accounted for $ran checks, not $EXPECTED"

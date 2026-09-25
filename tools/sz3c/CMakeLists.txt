@@ -9,6 +9,7 @@ target_link_libraries(
 )
 
 target_compile_definitions(SZ3c PRIVATE SZ3C_EXPORTS)
+set_target_properties(SZ3c PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
 
 target_include_directories(
         SZ3c
