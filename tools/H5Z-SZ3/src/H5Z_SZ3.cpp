@@ -41,23 +41,24 @@ HDF5SZ3_EXPORT const void* H5PLget_plugin_info(void) { return H5Z_SZ3; }
 
 // set_SZ3_conf_to_H5() and get_sz3_conf_from_cdvalues() keep cd_values little-endian, even on big-endian hosts.
 static void get_sz3_conf_from_cdvalues(const unsigned int* cd, size_t cd_nelmts, SZ3::Config& conf) {
-#if SZ3_BIG_ENDIAN
-    std::vector<unsigned int> swapped(cd, cd + cd_nelmts);
-    for (auto& word : swapped) word = SZ3::byteswap(word);
-    auto bytes = reinterpret_cast<const unsigned char*>(swapped.data());
-#else
-    auto bytes = reinterpret_cast<const unsigned char*>(cd);
-#endif
-    size_t len = cd_nelmts * sizeof(unsigned int);
-    // backward compatibility for v3.2.0 to v3.3.0; those versions store the magic number and the data version first.
-    if (cd_nelmts > 1 && cd[0] == SZ3_MAGIC_NUMBER) {
-        throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(cd[1]) +
-                                    ", this build reads v" SZ3_DATA_VER);
+    std::vector<unsigned char> buffer(cd_nelmts * sizeof(unsigned int));
+    auto out = buffer.data();
+    SZ3::write(cd, cd_nelmts, out);
+    const unsigned char* bytes = buffer.data();
+    size_t len = buffer.size();
+    {
+        // backward compatibility for v3.2.0 to v3.3.0; they store the magic number and the data version first.
+        if (cd_nelmts > 1 && cd[0] == SZ3_MAGIC_NUMBER) {
+            throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(cd[1]) +
+                                        ", this build reads v" SZ3_DATA_VER);
+        }
     }
-    // backward compatibility for v3.3.2; it stores no version, so the first byte is the Config's length, never 0.
-    if (bytes[0] != 0) {
-        conf.load(bytes, len);
-        return;
+    {
+        // backward compatibility for v3.3.2; it stores no version, so the first byte is the Config's length, never 0.
+        if (bytes[0] != 0) {
+            conf.load(bytes, len);
+            return;
+        }
     }
     // Another data version may lay out the Config differently.
     if (versionStr(cd[0]) != SZ3_DATA_VER)
@@ -300,8 +301,8 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
             SZ3::read(dataVer, header);
         }
         if (magic != SZ3_MAGIC_NUMBER) {
-            // backward compatibility for v3.3.2; it stores chunks of fewer than 20 elements raw, with no header.
             {
+                // backward compatibility for v3.3.2; it stores chunks of fewer than 20 elements raw, with no header.
                 SZ3::Config legacy;
                 get_sz3_conf_from_cdvalues(cd_values, cd_nelmts, legacy);
                 if (legacy.num > 0 && legacy.num < 20) return nbytes;
