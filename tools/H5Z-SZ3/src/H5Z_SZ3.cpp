@@ -1,12 +1,9 @@
 #include "H5Z_SZ3.hpp"
 
 #include <algorithm>
-#include <cstring>
 #include <fstream>
 #include <iterator>
 #include <memory>
-#include <string>
-#include <vector>
 
 // The message is a printf format, so anything that is not a literal goes through "%s".
 #define H5Z_SZ_PUSH_AND_GOTO(MAJ, MIN, RET, ...)                                                  \
@@ -43,20 +40,19 @@ HDF5SZ3_EXPORT H5PL_type_t H5PLget_plugin_type(void) { return H5PL_TYPE_FILTER; 
 HDF5SZ3_EXPORT const void* H5PLget_plugin_info(void) { return H5Z_SZ3; }
 
 static std::vector<unsigned int> save_cd_values(const SZ3::Config& conf) {
-    std::vector<unsigned char> bytes(conf.size_est());
-    auto pos = bytes.data();
-    size_t len = conf.save(pos);
-    std::vector<unsigned int> cd(1 + (len + sizeof(unsigned int) - 1) / sizeof(unsigned int), 0);
+    std::vector<unsigned int> cd(1 + (conf.size_est() + sizeof(unsigned int) - 1) / sizeof(unsigned int), 0);
     cd[0] = versionInt(SZ3_DATA_VER);
-    memcpy(cd.data() + 1, bytes.data(), len);
+    auto pos = reinterpret_cast<unsigned char*>(cd.data() + 1);
+    size_t len = conf.save(pos);
+    cd.resize(1 + (len + sizeof(unsigned int) - 1) / sizeof(unsigned int));
     return cd;
 }
 
 static void load_cd_values(const unsigned int* cd, size_t cd_nelmts, SZ3::Config& conf) {
     auto bytes = reinterpret_cast<const unsigned char*>(cd);
     size_t len = cd_nelmts * sizeof(unsigned int);
-    // 3.3.2 stored the Config without the version in front. A Config starts with its length, which
-    // is never 0, and versionInt() always leaves the low byte 0: that byte tells the two apart.
+    // cd[0]'s low byte is 0 when cd[0] is a version: versionInt() leaves it 0. cd_values written by
+    // 3.3.2 have no version, and that byte is then the Config's length, which is never 0.
     if (cd_nelmts > 0 && (cd[0] & 0xFFu) == 0) {
         if (versionStr(cd[0]) != SZ3_DATA_VER) {
             throw std::invalid_argument("SZ3 " SZ3_VER " reads data version " SZ3_DATA_VER
@@ -105,33 +101,33 @@ herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config& conf) {
     return 1;
 }
 
-static_assert(H5Z_SZ3_EB_ABS == SZ3::EB_ABS && H5Z_SZ3_EB_REL == SZ3::EB_REL && H5Z_SZ3_EB_PSNR == SZ3::EB_PSNR &&
-                  H5Z_SZ3_EB_L2NORM == SZ3::EB_L2NORM && H5Z_SZ3_EB_ABS_AND_REL == SZ3::EB_ABS_AND_REL &&
-                  H5Z_SZ3_EB_ABS_OR_REL == SZ3::EB_ABS_OR_REL,
-              "H5Z_SZ3.hpp error-bound modes must match SZ3::EB");
-static_assert(H5Z_SZ3_ALGO_LORENZO_REG == SZ3::ALGO_LORENZO_REG &&
-                  H5Z_SZ3_ALGO_INTERP_LORENZO == SZ3::ALGO_INTERP_LORENZO && H5Z_SZ3_ALGO_INTERP == SZ3::ALGO_INTERP &&
-                  H5Z_SZ3_ALGO_NOPRED == SZ3::ALGO_NOPRED && H5Z_SZ3_ALGO_LOSSLESS == SZ3::ALGO_LOSSLESS &&
-                  H5Z_SZ3_ALGO_BIOMD == SZ3::ALGO_BIOMD && H5Z_SZ3_ALGO_BIOMDXTC == SZ3::ALGO_BIOMDXTC,
-              "H5Z_SZ3.hpp algorithms must match SZ3::ALGO");
-
-herr_t H5Pset_sz3(hid_t plist, int algo, int eb_mode, double abs_bound, double rel_bound, double psnr_bound,
-                  double l2norm_bound) {
+herr_t H5Pset_sz3(const hid_t propertyList, int cmprAlgo, int errorBoundMode, double absErrorBound,
+                  double relErrorBound, double psnrErrorBound, double l2normErrorBound) {
     static char const* _funcname_ = "H5Pset_sz3";
-    if (algo < H5Z_SZ3_ALGO_LORENZO_REG || algo > H5Z_SZ3_ALGO_BIOMDXTC) {
-        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1, "unknown SZ3 algorithm %d", algo);
+    static_assert(H5Z_SZ3_EB_ABS == SZ3::EB_ABS && H5Z_SZ3_EB_REL == SZ3::EB_REL && H5Z_SZ3_EB_PSNR == SZ3::EB_PSNR &&
+                      H5Z_SZ3_EB_L2NORM == SZ3::EB_L2NORM && H5Z_SZ3_EB_ABS_AND_REL == SZ3::EB_ABS_AND_REL &&
+                      H5Z_SZ3_EB_ABS_OR_REL == SZ3::EB_ABS_OR_REL,
+                  "H5Z_SZ3.hpp error-bound modes must match SZ3::EB");
+    static_assert(H5Z_SZ3_ALGO_LORENZO_REG == SZ3::ALGO_LORENZO_REG &&
+                      H5Z_SZ3_ALGO_INTERP_LORENZO == SZ3::ALGO_INTERP_LORENZO &&
+                      H5Z_SZ3_ALGO_INTERP == SZ3::ALGO_INTERP && H5Z_SZ3_ALGO_NOPRED == SZ3::ALGO_NOPRED &&
+                      H5Z_SZ3_ALGO_LOSSLESS == SZ3::ALGO_LOSSLESS && H5Z_SZ3_ALGO_BIOMD == SZ3::ALGO_BIOMD &&
+                      H5Z_SZ3_ALGO_BIOMDXTC == SZ3::ALGO_BIOMDXTC,
+                  "H5Z_SZ3.hpp algorithms must match SZ3::ALGO");
+    if (cmprAlgo < H5Z_SZ3_ALGO_LORENZO_REG || cmprAlgo > H5Z_SZ3_ALGO_BIOMDXTC) {
+        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1, "unknown SZ3 algorithm %d", cmprAlgo);
     }
-    if (eb_mode < H5Z_SZ3_EB_ABS || eb_mode > H5Z_SZ3_EB_ABS_OR_REL) {
-        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1, "unknown SZ3 error-bound mode %d", eb_mode);
+    if (errorBoundMode < H5Z_SZ3_EB_ABS || errorBoundMode > H5Z_SZ3_EB_ABS_OR_REL) {
+        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1, "unknown SZ3 error-bound mode %d", errorBoundMode);
     }
     SZ3::Config conf;
-    conf.cmprAlgo = static_cast<uint8_t>(algo);
-    conf.errorBoundMode = static_cast<uint8_t>(eb_mode);
-    conf.absErrorBound = abs_bound;
-    conf.relErrorBound = rel_bound;
-    conf.psnrErrorBound = psnr_bound;
-    conf.l2normErrorBound = l2norm_bound;
-    return set_SZ3_conf_to_H5(plist, conf) > 0 ? 1 : -1;
+    conf.cmprAlgo = static_cast<uint8_t>(cmprAlgo);
+    conf.errorBoundMode = static_cast<uint8_t>(errorBoundMode);
+    conf.absErrorBound = absErrorBound;
+    conf.relErrorBound = relErrorBound;
+    conf.psnrErrorBound = psnrErrorBound;
+    conf.l2normErrorBound = l2normErrorBound;
+    return set_SZ3_conf_to_H5(propertyList, conf) > 0 ? 1 : -1;
 }
 
 herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config& conf) {

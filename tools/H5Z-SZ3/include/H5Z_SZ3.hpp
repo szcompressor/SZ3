@@ -41,9 +41,9 @@
 extern "C" {
 #endif
 
-/* Bounds that eb_mode does not use are ignored. Returns 1, or -1 with the reason on the HDF5 error stack. */
-HDF5SZ3_EXPORT herr_t H5Pset_sz3(hid_t plist, int algo, int eb_mode, double abs_bound, double rel_bound,
-                                 double psnr_bound, double l2norm_bound);
+/* Bounds that errorBoundMode does not use are ignored. Returns 1, or -1 with the reason on the HDF5 error stack. */
+HDF5SZ3_EXPORT herr_t H5Pset_sz3(const hid_t propertyList, int cmprAlgo, int errorBoundMode, double absErrorBound,
+                                 double relErrorBound, double psnrErrorBound, double l2normErrorBound);
 
 #ifdef __cplusplus
 /* Returns 1 on success, 0 on failure. */
