@@ -36,7 +36,7 @@ record either, so `<prefix>/bin` has to be on `PATH` before the application runs
 
 ## H5Z-SZ3 cd_values
 * HDF5 restricts the parameters that can be passed to filters through an integers array called `cd_values`.
-* H5Z-SZ3 uses `cd_values` to pass the desired compression settings (e.g., algorithm, error bounds) to the compression process. `cd_values[0]` is a layout word (`0x0001FF00` for layout 1), followed by the `Config` object serialized with `save()`. A filter refuses a layout newer than it knows; it still reads the older layout with no layout word, which is what `cdvalueHelper` prints.
+* H5Z-SZ3 uses `cd_values` to pass the desired compression settings (e.g., algorithm, error bounds) to the compression process. `cd_values[0]` is the SZ3 data version, `(major << 24) | (minor << 16) | (patch << 8)` (`0x03030200` for 3.3.2), followed by the `Config` object serialized with `save()`. A filter refuses a data version other than its own. It still reads `cd_values` with no version in front, as SZ3 3.3.2 wrote them and as `cdvalueHelper` prints them.
 * During decompression, H5Z-SZ3 does not rely on `cd_values`. Instead, it reads all the configuration directly from the compressed data.
 
 ## Usage

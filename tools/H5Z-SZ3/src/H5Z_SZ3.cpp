@@ -45,18 +45,12 @@ HDF5SZ3_EXPORT H5PL_type_t H5PLget_plugin_type(void) { return H5PL_TYPE_FILTER; 
 
 HDF5SZ3_EXPORT const void* H5PLget_plugin_info(void) { return H5Z_SZ3; }
 
-// cd_values[0] names the layout of what follows. A 3.3.2 filter stored a bare Config, whose first
-// byte is its length and never zero; a zero low byte marks this layout instead, and the 0xFF
-// after it reads as 255 dimensions to such a filter, which then refuses rather than reads on.
-static constexpr unsigned int kCdVersion = 1;
-static constexpr unsigned int kCdTag = 0xFF00u;
-
 static std::vector<unsigned int> save_cd_values(const SZ3::Config& conf) {
     std::vector<unsigned char> bytes(conf.size_est());
     auto pos = bytes.data();
     size_t len = conf.save(pos);
     std::vector<unsigned int> cd(1 + (len + sizeof(unsigned int) - 1) / sizeof(unsigned int), 0);
-    cd[0] = (kCdVersion << 16) | kCdTag;
+    cd[0] = versionInt(SZ3_DATA_VER);
     memcpy(cd.data() + 1, bytes.data(), len);
     return cd;
 }
@@ -64,10 +58,13 @@ static std::vector<unsigned int> save_cd_values(const SZ3::Config& conf) {
 static void load_cd_values(const unsigned int* cd, size_t cd_nelmts, SZ3::Config& conf) {
     auto bytes = reinterpret_cast<const unsigned char*>(cd);
     size_t len = cd_nelmts * sizeof(unsigned int);
+    // 3.3.2 stored the Config without the version in front. A Config starts with its length, which
+    // is never 0, and versionInt() always leaves the low byte 0: that byte tells the two apart.
     if (cd_nelmts > 0 && (cd[0] & 0xFFu) == 0) {
-        if ((cd[0] & 0xFF00u) != kCdTag || (cd[0] >> 16) != kCdVersion) {
-            throw std::invalid_argument("SZ3 HDF5 filter: cd_values are in layout " + std::to_string(cd[0] >> 16) +
-                                        ", which H5Z-SZ3 " SZ3_VER " does not read; a newer SZ3 wrote them");
+        if (versionStr(cd[0]) != SZ3_DATA_VER) {
+            throw std::invalid_argument("SZ3 " SZ3_VER " reads data version " SZ3_DATA_VER
+                                        ", but this dataset's SZ3 settings are version " +
+                                        versionStr(cd[0]) + ". Use SZ3 v" + versionStr(cd[0]) + ".");
         }
         bytes += sizeof(unsigned int);
         len -= sizeof(unsigned int);

@@ -206,6 +206,9 @@ cmake -S . -B b -DCMAKE_PREFIX_PATH="$CMPFX" -DCMAKE_BUILD_TYPE=Release \
 
 # The cd_values a user has to type. Mirrors SZ3::Config::save(); see cdvalueHelper.py.
 CD_ABS="UD=32024,0,8,32,0,16777216,4054449152,1348619730,41023,256,0"
+# What the filter stores in front of the Config: versionInt(SZ3_DATA_VER).
+IFS=. read -r v1 v2 v3 <<< "$(sed -n 's/^#define SZ3_DATA_VER "\(.*\)"/\1/p' "$PREFIX/include/SZ3/version.hpp")"
+CD_VER=$(( (v1 << 24) | (v2 << 16) | (v3 << 8) ))
 
 # ---------------------------------------------------------------- 1. h5repack, 2. h5dump / h5ls
 # Both sections reach the filter only through HDF5_PLUGIN_PATH, and the h5dump section reads the
@@ -216,8 +219,8 @@ export HDF5_PLUGIN_PATH=$PLUGIN_PATH
 "$(h5 h5dump)" -pH rp.h5 > rp.head 2>&1
 want "h5repack-applies-sz3"        "FILTER_ID 32024" rp.head
 want "h5repack-records-version"    "H5Z-SZ3-" rp.head
-# CD_ABS is the older layout with no layout word; what gets stored carries one (0x0001FF00)
-want "stored-cdvalues-carry-layout" "PARAMS { 130816 " rp.head
+# CD_ABS has no version in front, as 3.3.2 wrote it; what gets stored starts with the data version
+want "stored-cdvalues-carry-data-version" "PARAMS { $CD_VER " rp.head
 ./b/read rp.h5 > rp.read 2>&1
 want "h5repack-output-reads-back"  "READ OK" rp.read
 
@@ -255,11 +258,11 @@ export HDF5_PLUGIN_PATH=$PLUGIN_PATH
 notwant "foreign-cdvalues-refused" "32024" old.head
 ./b/read rp_old.h5 > old.read 2>&1
 want "foreign-cdvalues-leaves-data-intact" "READ OK" old.read
-# A layout word from a newer SZ3 (layout 2) is refused the same way
-"$(h5 h5repack)" -f "UD=32024,0,9,196352,32,0,16777216,4054449152,1348619730,41023,256,0" plain.h5 rp_new.h5 \
-    > new.log 2>&1
+# A data version one patch release newer is refused the same way
+"$(h5 h5repack)" -f "UD=32024,0,9,$((CD_VER + 256)),32,0,16777216,4054449152,1348619730,41023,256,0" plain.h5 \
+    rp_new.h5 > new.log 2>&1
 "$(h5 h5dump)" -pH rp_new.h5 > new.head 2>&1
-notwant "newer-cdvalues-layout-refused" "32024" new.head
+notwant "newer-data-version-refused" "32024" new.head
 
 export HDF5_PLUGIN_PATH=$NOPLUGIN_PATH
 "$(h5 h5dump)" -pH rp.h5 > d_meta.head 2>&1
@@ -290,7 +293,7 @@ skip_all "hdf5sz3 was installed as an archive, so there is no plugin to load" \
     h5repack-noplugin-drops-filter-silently h5repack-noplugin-warns-on-read \
     h5repack-noplugin-loses-dataset \
     foreign-cdvalues-refused foreign-cdvalues-leaves-data-intact \
-    stored-cdvalues-carry-layout newer-cdvalues-layout-refused \
+    stored-cdvalues-carry-data-version newer-data-version-refused \
     h5dump-header-needs-no-plugin h5dump-header-shows-version h5ls-verbose-shows-version \
     h5dump-data-noplugin-fails h5dump-data-noplugin-message \
     h5dump-names-the-filter h5dump-names-our-version \
