@@ -1,10 +1,8 @@
 #include <cmath>
 #include <cstdint>
 
-#include "SZ3/encoder/ArithmeticEncoder.hpp"
 #include "SZ3/encoder/BypassEncoder.hpp"
 #include "SZ3/encoder/HuffmanEncoder.hpp"
-#include "SZ3/encoder/RunlengthEncoder.hpp"
 #include "gtest/gtest.h"
 
 template <typename Encoder, typename T>
@@ -46,9 +44,5 @@ void runAllTest() {
 }
 
 TEST(EncoderTest, HuffmanEncoder) { runAllTest<SZ3::HuffmanEncoder<int>, int>(); }
-
-TEST(EncoderTest, RunlengthEncoder) { runAllTest<SZ3::RunlengthEncoder<int>, int>(); }
-
-TEST(EncoderTest, ArithmeticEncoder) { runAllTest<SZ3::ArithmeticEncoder<int>, int>(); }
 
 TEST(EncoderTest, BypassEncoder) { runAllTest<SZ3::BypassEncoder<int>, int>(); }
