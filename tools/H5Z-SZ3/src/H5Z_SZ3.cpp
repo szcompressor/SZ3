@@ -5,6 +5,13 @@
 #include <iterator>
 #include <memory>
 
+// The message is a printf format, so anything that is not a literal goes through "%s".
+#define H5Z_SZ_PUSH_AND_GOTO(MAJ, MIN, RET, ...)                                                  \
+    do {                                                                                          \
+        H5Epush(H5E_DEFAULT, __FILE__, _funcname_, __LINE__, H5E_ERR_CLS, MAJ, MIN, __VA_ARGS__); \
+        return RET;                                                                               \
+    } while (0)
+
 // The filter's own callbacks. HDF5 reaches them through H5Z_SZ3 below, so they stay out of the
 // public header, where every consumer of the filter would see them declared and never defined.
 extern "C" {
@@ -32,32 +39,38 @@ HDF5SZ3_EXPORT H5PL_type_t H5PLget_plugin_type(void) { return H5PL_TYPE_FILTER; 
 
 HDF5SZ3_EXPORT const void* H5PLget_plugin_info(void) { return H5Z_SZ3; }
 
-// Anything else's registration is not ours to undo.
-static int h5z_sz3_was_registered = 0;
-
-herr_t H5Z_SZ3_initialize(void) {
-    // H5Zfilter_avail registers on a miss, from HDF5_PLUGIN_PATH; it is not a passive query.
-    if (H5Zfilter_avail(H5Z_FILTER_SZ3) > 0) {
-        return 0;
+// set_SZ3_conf_to_H5() and get_sz3_conf_from_cdvalues() keep cd_values little-endian, even on big-endian hosts.
+static void get_sz3_conf_from_cdvalues(const unsigned int* cd, size_t cd_nelmts, SZ3::Config& conf) {
+    std::vector<unsigned char> buffer(cd_nelmts * sizeof(unsigned int));
+    auto out = buffer.data();
+    SZ3::write(cd, cd_nelmts, out);
+    const unsigned char* bytes = buffer.data();
+    size_t len = buffer.size();
+    {
+        // backward compatibility for v3.2.0 to v3.3.0; they store the magic number and the data version first.
+        if (cd_nelmts > 1 && cd[0] == SZ3_MAGIC_NUMBER) {
+            throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(cd[1]) +
+                                        ", this build reads v" SZ3_DATA_VER);
+        }
     }
-    if (0 > H5Zregister(H5Z_SZ3)) {
-        return -1;
+    {
+        // backward compatibility for v3.3.2; it stores no version, so the first byte is the Config's length, never 0.
+        if (bytes[0] != 0) {
+            conf.load(bytes, len);
+            return;
+        }
     }
-    h5z_sz3_was_registered = 1;
-    return 1;
-}
-
-herr_t H5Z_SZ3_finalize(void) {
-    herr_t ret = 0;
-    if (h5z_sz3_was_registered) {
-        ret = H5Zunregister(H5Z_FILTER_SZ3);
-    }
-    h5z_sz3_was_registered = 0;
-    return ret < 0 ? -1 : 1;
+    // Another data version may lay out the Config differently.
+    if (versionStr(cd[0]) != SZ3_DATA_VER)
+        throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(cd[0]) +
+                                    ", this build reads v" SZ3_DATA_VER);
+    bytes += sizeof(unsigned int);
+    len -= sizeof(unsigned int);
+    conf.load(bytes, len);
 }
 
 // Do not use H5Zfilter_avail() here: it answers for the library, not for this property list.
-static bool sz3_filter_on_plist(const hid_t propertyList) {
+static bool sz3_filter_on_plist(hid_t propertyList) {
     const int nfilters = H5Pget_nfilters(propertyList);
     for (int i = 0; i < nfilters; i++) {
         unsigned int flags = 0;
@@ -71,16 +84,17 @@ static bool sz3_filter_on_plist(const hid_t propertyList) {
     return false;
 }
 
-herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config& conf) {
+herr_t set_SZ3_conf_to_H5(hid_t propertyList, SZ3::Config& conf) {
     static char const* _funcname_ = "set_SZ3_conf_to_H5";
 
-    size_t cd_nelmts = std::ceil(conf.size_est() / 1.0 / sizeof(int));
-    std::vector<unsigned int> cd_values(cd_nelmts, 0);
-    auto buffer = reinterpret_cast<unsigned char*>(cd_values.data());
-
-    // conf.save(buffer);
-    auto confSizeReal = conf.save(buffer);
-    cd_nelmts = std::ceil(confSizeReal / 1.0 / sizeof(int));
+    std::vector<unsigned int> cd_values(1 + conf.size_est(), 0);
+    cd_values[0] = versionInt(SZ3_DATA_VER);
+    auto pos = reinterpret_cast<unsigned char*>(cd_values.data() + 1);
+    cd_values.resize(1 + (conf.save(pos) + sizeof(unsigned int) - 1) / sizeof(unsigned int));
+#if SZ3_BIG_ENDIAN
+    for (size_t i = 1; i < cd_values.size(); i++) cd_values[i] = SZ3::byteswap(cd_values[i]);
+#endif
+    size_t cd_nelmts = cd_values.size();
 
     if (sz3_filter_on_plist(propertyList)) {
         if (0 > H5Pmodify_filter(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values.data())) {
@@ -97,8 +111,37 @@ herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config& conf) {
     return 1;
 }
 
-herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config& conf) {
-    // static char const* _funcname_ = "get_SZ3_conf_from_H5";
+herr_t H5Pset_sz3(hid_t propertyList, int cmprAlgo, int errorBoundMode, double absErrorBound, double relErrorBound,
+                  double psnrErrorBound, double l2normErrorBound) {
+    static char const* _funcname_ = "H5Pset_sz3";
+    static_assert(H5Z_SZ3_EB_ABS == SZ3::EB_ABS && H5Z_SZ3_EB_REL == SZ3::EB_REL && H5Z_SZ3_EB_PSNR == SZ3::EB_PSNR &&
+                      H5Z_SZ3_EB_L2NORM == SZ3::EB_L2NORM && H5Z_SZ3_EB_ABS_AND_REL == SZ3::EB_ABS_AND_REL &&
+                      H5Z_SZ3_EB_ABS_OR_REL == SZ3::EB_ABS_OR_REL,
+                  "H5Z_SZ3.hpp error-bound modes must match SZ3::EB");
+    static_assert(H5Z_SZ3_ALGO_LORENZO_REG == SZ3::ALGO_LORENZO_REG &&
+                      H5Z_SZ3_ALGO_INTERP_LORENZO == SZ3::ALGO_INTERP_LORENZO &&
+                      H5Z_SZ3_ALGO_INTERP == SZ3::ALGO_INTERP && H5Z_SZ3_ALGO_NOPRED == SZ3::ALGO_NOPRED &&
+                      H5Z_SZ3_ALGO_LOSSLESS == SZ3::ALGO_LOSSLESS && H5Z_SZ3_ALGO_BIOMD == SZ3::ALGO_BIOMD &&
+                      H5Z_SZ3_ALGO_BIOMDXTC == SZ3::ALGO_BIOMDXTC,
+                  "H5Z_SZ3.hpp algorithms must match SZ3::ALGO");
+    if (cmprAlgo < H5Z_SZ3_ALGO_LORENZO_REG || cmprAlgo > H5Z_SZ3_ALGO_BIOMDXTC) {
+        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1, "unknown SZ3 algorithm %d", cmprAlgo);
+    }
+    if (errorBoundMode < H5Z_SZ3_EB_ABS || errorBoundMode > H5Z_SZ3_EB_ABS_OR_REL) {
+        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1, "unknown SZ3 error-bound mode %d", errorBoundMode);
+    }
+    SZ3::Config conf;
+    conf.cmprAlgo = static_cast<uint8_t>(cmprAlgo);
+    conf.errorBoundMode = static_cast<uint8_t>(errorBoundMode);
+    conf.absErrorBound = absErrorBound;
+    conf.relErrorBound = relErrorBound;
+    conf.psnrErrorBound = psnrErrorBound;
+    conf.l2normErrorBound = l2normErrorBound;
+    return set_SZ3_conf_to_H5(propertyList, conf) > 0 ? 1 : -1;
+}
+
+herr_t get_SZ3_conf_from_H5(hid_t propertyList, SZ3::Config& conf) {
+    static char const* _funcname_ = "get_SZ3_conf_from_H5";
 
     // H5Pget_filter_by_id fails when the list carries no SZ3 filter, which is not an error to report.
     if (!sz3_filter_on_plist(propertyList)) {
@@ -117,9 +160,13 @@ herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config& conf) {
                                     NULL, NULL)) {
             return -1;
         }
-        auto buffer = reinterpret_cast<const unsigned char*>(cd_values.data());
-        size_t cd_bytes = cd_values.size() * sizeof(unsigned int);
-        conf.load(buffer, cd_bytes);
+        try {
+            SZ3::Config loaded;
+            get_sz3_conf_from_cdvalues(cd_values.data(), cd_values.size(), loaded);
+            conf = loaded;
+        } catch (const std::exception& e) {
+            H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1, "%s", e.what());
+        }
     }
     return 1;
 }
@@ -133,7 +180,7 @@ static herr_t H5Z_sz3_set_local_impl(hid_t dcpl_id, hid_t type_id, hid_t chunk_s
     // herr_t ret = H5Zregister(H5Z_SZ3);
 
     SZ3::Config conf;
-    get_SZ3_conf_from_H5(dcpl_id, conf);
+    if (get_SZ3_conf_from_H5(dcpl_id, conf) < 0) return -1;
 
     // read datatype and dims from HDF5
     H5T_class_t dclass;
@@ -244,9 +291,7 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
     bool is_decompress = flags & H5Z_FLAG_REVERSE;
     SZ3::Config conf;
 
-    auto buffer = reinterpret_cast<const unsigned char*>(cd_values);
-    size_t cd_bytes = cd_nelmts * sizeof(unsigned int);
-    // Ahead of conf.load: every chunk this filter writes carries an SZ3 header, and a file from
+    // Ahead of get_sz3_conf_from_cdvalues: every chunk this filter writes carries an SZ3 header, and a file from
     // another version wrote cd_values in a layout this build would misread.
     if (is_decompress) {
         uint32_t magic = 0, dataVer = 0;
@@ -256,12 +301,12 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
             SZ3::read(dataVer, header);
         }
         if (magic != SZ3_MAGIC_NUMBER) {
-            // v3.2.0 through v3.3.2 wrote and read a chunk raw when cd_values held fewer than 20
-            // elements, so those carry no header. Safe to consume the cursor: both paths out of
-            // here leave, so the real conf.load below never sees it moved.
-            SZ3::Config legacy;
-            legacy.load(buffer, cd_bytes);
-            if (legacy.num > 0 && legacy.num < 20) return nbytes;
+            {
+                // backward compatibility for v3.3.2; it stores chunks of fewer than 20 elements raw, with no header.
+                SZ3::Config legacy;
+                get_sz3_conf_from_cdvalues(cd_values, cd_nelmts, legacy);
+                if (legacy.num > 0 && legacy.num < 20) return nbytes;
+            }
             throw std::invalid_argument("SZ3 HDF5 filter: chunk was not written by SZ3");
         }
         if (versionStr(dataVer) != SZ3_DATA_VER)
@@ -269,7 +314,7 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
                                         ", this build reads v" SZ3_DATA_VER);
     }
 
-    conf.load(buffer, cd_bytes);
+    get_sz3_conf_from_cdvalues(cd_values, cd_nelmts, conf);
 
     switch (conf.dataType) {
         case SZ_FLOAT:
@@ -318,6 +363,12 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
     try {
         return H5Z_filter_sz3_impl(flags, cd_nelmts, cd_values, nbytes, buf_size, buf);
     } catch (const std::exception& e) {
+#if H5_VERSION_GE(1, 14, 5)
+        // 1.14.5 and 1.14.6 pause the error stack around filters, which drops what is pushed below. Print only
+        // then: stdout would land in h5dump's output.
+        bool paused = false;
+        if (H5Eis_paused(H5E_DEFAULT, &paused) >= 0 && paused) fprintf(stderr, "%s\n", e.what());
+#endif
         H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_CALLBACK, 0, "%s", e.what());
     } catch (...) {
         H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_CALLBACK, 0, "unknown error");

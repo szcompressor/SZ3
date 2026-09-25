@@ -12,9 +12,18 @@
 #include <cinttypes>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 #include "H5Z_SZ3.hpp"
 #include "hdf5.h"
+
+#define ERROR(FNAME)                                                                             \
+    do {                                                                                         \
+        int saved_errno = errno;                                                                 \
+        fprintf(stderr, #FNAME " failed at line %d, errno=%d (%s)\n", __LINE__, saved_errno,     \
+                saved_errno ? strerror(saved_errno) : "ok");                                     \
+        return 1;                                                                                \
+    } while (0)
 
 #define DATASET "testdata_compressed"
 #define MAX_CHUNK_SIZE 4294967295  // 2^32-1
@@ -72,9 +81,9 @@ int main(int argc, char *argv[]) {
     /*Retrieve dataset creation property list.*/
     dcpl = H5Dget_create_plist(dset);
 
-    herr_t ret = H5Z_SZ3_initialize();
+    herr_t ret = H5Zregister(H5PLget_plugin_info());
     if (ret < 0) {
-        printf("Error: H5Z_SZ3_initialize < 0\n");
+        printf("Error: H5Zregister < 0\n");
         exit(0);
     }
     /*Check that filter is not registered with the library yet*/

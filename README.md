@@ -2,9 +2,9 @@ SZ3: A Modular Error-bounded Lossy Compression Framework for Scientific Datasets
 =====
 (C) 2016 by Mathematics and Computer Science (MCS), Argonne National Laboratory. See COPYRIGHT in the top-level directory.
 
-* Major Authors: Sheng Di, Kai Zhao, Xin Liang, Jinyang Liu
-* Supervisor: Franck Cappello
-* Other Contributors: Robert Underwood, Sihuan Li, Ali M. Gok
+* Major developers: Kai Zhao, Robert Underwood, Jinyang Liu, Xin Liang, Sheng Di.
+* SZ project Lead: Franck Cappello
+
 
 ## Documentation for LLM users
 
@@ -83,8 +83,7 @@ Version New features
 * SZ 3.1.8 namespace changed from SZ to SZ3. H5Z-SZ3 supports configuration files now.
 * SZ 3.2.0 API reconstructed for FZ. H5Z-SZ3 rewrite. Compression version checking.
 * SZ 3.3.0 Add key QoZ v1 and v2 features to improve compression speed and data quality. The full QoZ is available from **a separate branch** (https://github.com/szcompressor/SZ3/tree/QoZ). 
-* SZ 3.3.1: SZ3 Windows support for both Visual Studio and MinGW toolchains. pySZ v1 released and available via `pip install pysz`. Bio algorithms added.
-* SZ 3.3.2: bugfix for compressed format.
+* SZ 3.3.2: SZ3 Windows support for both Visual Studio and MinGW toolchains. pySZ v1 released and available via `pip install pysz`. Bio algorithms added. Bugfix for compressed format.
 * SZ 3.3.3: `find_package(SZ3)` works against an installed SZ3, and the HDF5 filter no longer crashes on a freshly created property list. Fixes several defects reachable on valid data, one of which writes past the end of a buffer. Drops the vendored ska hash map, which makes compression faster. The compressed format is unchanged.
 
 ## 3rd party libraries/tools
