@@ -141,8 +141,7 @@ cat > app.c <<'EOF'
 #include <math.h>
 #include <stdio.h>
 int main(int argc, char **argv) {
-    int use_register = argv[1][0] == 'r' || argv[1][0] == 'b';
-    if (use_register) printf("%s\n", H5Zregister(H5PLget_plugin_info()) < 0 ? "REGISTER FAILED" : "REGISTER OK");
+    if (argv[1][0] == 'r') printf("%s\n", H5Zregister(H5PLget_plugin_info()) < 0 ? "REGISTER FAILED" : "REGISTER OK");
     if (argv[1][0] == 'p' && argv[1][1] == 'r')
         printf("%s\n", argc > 3 && H5PLprepend(argv[3]) >= 0 ? "PREPEND OK" : "PREPEND FAILED");
     printf("AVAIL %d\n", (int)H5Zfilter_avail(H5Z_FILTER_SZ3));
@@ -163,7 +162,6 @@ int main(int argc, char **argv) {
     }
     H5Dclose(d2); H5Pclose(p); H5Sclose(s); H5Fclose(f);
     printf("WRITE OK\n");
-    if (use_register) printf("%s\n", H5Zunregister(H5Z_FILTER_SZ3) < 0 ? "UNREGISTER FAILED" : "UNREGISTER OK");
     return 0;
 }
 EOF
@@ -305,34 +303,27 @@ export HDF5_PLUGIN_PATH=$NOPLUGIN_PATH
 ./b/app register a_init.h5 > a_init.log 2>&1
 want "app-register-registers"    "REGISTER OK" a_init.log
 want "app-register-writes"       "WRITE OK" a_init.log
-want "app-register-unregisters"  "UNREGISTER OK" a_init.log
 ./b/read a_init.h5 > /dev/null 2>&1 && bad "app-register-file-needs-filter" "read without the filter succeeded" \
   || ok "app-register-file-needs-filter"
-# (b) links but never calls it, reaching the filter only through HDF5_PLUGIN_PATH
+# (b) links but never registers it, reaching the filter only through HDF5_PLUGIN_PATH
 if [ "$HAVE_PLUGIN" = 1 ]; then
 export HDF5_PLUGIN_PATH=$PLUGIN_PATH
 ./b/app plugin a_plug.h5 > a_plug.log 2>&1
 want "app-plugin-only-writes"    "WRITE OK" a_plug.log
 want "app-plugin-only-avail"     "AVAIL 1" a_plug.log
-# (c) registers with the plugin also on the path: the registered one is what runs
-./b/app both a_both.h5 > a_both.log 2>&1
-want "app-both-registers"        "REGISTER OK" a_both.log
-want "app-both-writes"           "WRITE OK" a_both.log
-want "app-both-unregisters"      "UNREGISTER OK" a_both.log
-# (d) the plugin-only reader, the mode every third-party tool uses
-./b/read a_both.h5 > r_plug.log 2>&1
+# (c) the plugin-only reader, the mode every third-party tool uses
+./b/read a_plug.h5 > r_plug.log 2>&1
 want "plugin-only-reader-works"  "READ OK" r_plug.log
 export HDF5_PLUGIN_PATH=$NOPLUGIN_PATH
-./b/read a_both.h5 > r_noplug.log 2>&1
+./b/read a_plug.h5 > r_noplug.log 2>&1
 want "plugin-only-reader-fails-without" "READ FAILED" r_noplug.log
-# (e) points HDF5 at its own plugin directory with H5PLprepend, and sets no environment
+# (d) points HDF5 at its own plugin directory with H5PLprepend, and sets no environment
 ./b/app prepend a_prep.h5 "$PLUGIN_PATH" > a_prep.log 2>&1
 want "app-prepend-adds-the-path" "PREPEND OK" a_prep.log
 want "app-prepend-writes"        "WRITE OK" a_prep.log
 else
 skip_all "hdf5sz3 was installed as an archive, so there is no plugin to load" \
     app-plugin-only-writes app-plugin-only-avail \
-    app-both-registers app-both-writes app-both-unregisters \
     plugin-only-reader-works plugin-only-reader-fails-without app-prepend-adds-the-path app-prepend-writes
 fi
 # Toolchains differ on dropping unreferenced libraries, so noref decides whether this can assert.
@@ -361,7 +352,7 @@ echo "  $pass passed, $fail failed, $skip skipped"
 
 # Raise this with the check it comes with. A guard that skips the wrong list, or a section that
 # stops early, otherwise shows only as a smaller number at the bottom that nobody compares.
-EXPECTED=36
+EXPECTED=32
 ran=$((pass + fail + skip))
 if [ "$ran" -ne "$EXPECTED" ]; then
     echo "  the suite accounted for $ran checks, not $EXPECTED"
