@@ -358,6 +358,12 @@ static size_t H5Z_filter_sz3(unsigned int flags, size_t cd_nelmts, const unsigne
     try {
         return H5Z_filter_sz3_impl(flags, cd_nelmts, cd_values, nbytes, buf_size, buf);
     } catch (const std::exception& e) {
+#if H5_VERSION_GE(1, 14, 5)
+        // 1.14.5 and 1.14.6 pause the error stack around filters, which drops what is pushed below. Print only
+        // then: stdout would land in h5dump's output.
+        bool paused = false;
+        if (H5Eis_paused(H5E_DEFAULT, &paused) >= 0 && paused) fprintf(stderr, "%s\n", e.what());
+#endif
         H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_CALLBACK, 0, "%s", e.what());
     } catch (...) {
         H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_CALLBACK, 0, "unknown error");
