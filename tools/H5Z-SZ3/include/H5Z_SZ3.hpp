@@ -5,6 +5,7 @@
  * include this header too; the functions that take SZ3::Config are C++ only. */
 
 #include "hdf5.h"
+#include "H5PLextern.h"
 
 #define H5Z_FILTER_SZ3 32024
 

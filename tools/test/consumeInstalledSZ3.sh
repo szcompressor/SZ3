@@ -77,7 +77,6 @@ add_executable(app main.cpp)
 target_link_libraries(app PRIVATE SZ3 hdf5sz3)
 EOF
 cat > cxx/main.cpp <<'EOF'
-#include <H5PLextern.h>
 #include <H5Z_SZ3.hpp>
 #include <SZ3/api/sz.hpp>
 #include <cstdio>

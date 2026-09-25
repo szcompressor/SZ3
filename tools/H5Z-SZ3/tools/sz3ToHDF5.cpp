@@ -15,7 +15,6 @@
 
 #include "hdf5.h"
 // #include "H5Cpp.h"
-#include "H5PLextern.h"
 #include "H5Z_SZ3.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/FileUtil.hpp"

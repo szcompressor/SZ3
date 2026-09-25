@@ -14,7 +14,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "H5PLextern.h"
 #include "H5Z_SZ3.hpp"
 #include "hdf5.h"
 

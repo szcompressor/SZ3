@@ -9,8 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "H5PLextern.h"
-
 // MSG is a printf format string, so anything that is not a literal goes through "%s".
 #define H5Z_SZ_PUSH_AND_GOTO(MAJ, MIN, RET, ...)                                                  \
     do {                                                                                          \

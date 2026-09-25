@@ -137,7 +137,6 @@ int main(int argc, char **argv) {
 EOF
 # The ways an application can reach the filter. argv[1] picks one; prepend takes a directory.
 cat > app.c <<'EOF'
-#include <H5PLextern.h>
 #include <H5Z_SZ3.hpp>
 #include <math.h>
 #include <stdio.h>
