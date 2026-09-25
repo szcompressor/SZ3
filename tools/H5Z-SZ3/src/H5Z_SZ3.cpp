@@ -39,26 +39,32 @@ HDF5SZ3_EXPORT H5PL_type_t H5PLget_plugin_type(void) { return H5PL_TYPE_FILTER; 
 
 HDF5SZ3_EXPORT const void* H5PLget_plugin_info(void) { return H5Z_SZ3; }
 
+// cd_values carry the Config's bytes four to a word in little-endian order, as cdvalueHelper.py packs them, so
+// that they mean the same on every host. SZ3::read and SZ3::write do the byte order.
 static std::vector<unsigned int> save_cd_values(const SZ3::Config& conf) {
-    std::vector<unsigned int> cd(1 + conf.size_est(), 0);
+    std::vector<unsigned char> buffer(conf.size_est() + sizeof(unsigned int), 0);
+    auto pos = buffer.data();
+    size_t words = (conf.save(pos) + sizeof(unsigned int) - 1) / sizeof(unsigned int);
+    std::vector<unsigned int> cd(1 + words);
     cd[0] = versionInt(SZ3_DATA_VER);
-    auto pos = reinterpret_cast<unsigned char*>(cd.data() + 1);
-    size_t len = conf.save(pos);
-    cd.resize(1 + (len + sizeof(unsigned int) - 1) / sizeof(unsigned int));
+    const unsigned char* in = buffer.data();
+    SZ3::read(cd.data() + 1, words, in);
     return cd;
 }
 
 static void load_cd_values(const unsigned int* cd, size_t cd_nelmts, SZ3::Config& conf) {
-    auto bytes = reinterpret_cast<const unsigned char*>(cd);
-    size_t len = cd_nelmts * sizeof(unsigned int);
-    // Only to name the version of cd_values from 3.2.0 to 3.3.0, which start with the magic number and the data
-    // version. Without it they fail in conf.load() below with an error that does not say why.
-    if (cd_nelmts > 1 && cd[0] == SZ3_MAGIC_NUMBER)
+    std::vector<unsigned char> buffer(cd_nelmts * sizeof(unsigned int));
+    auto out = buffer.data();
+    SZ3::write(cd, cd_nelmts, out);
+    const unsigned char* bytes = buffer.data();
+    size_t len = buffer.size();
+    // backward compatibility for v3.2.0 to v3.3.0; those versions store the magic number and the data version first.
+    if (cd_nelmts > 1 && cd[0] == SZ3_MAGIC_NUMBER) {
         throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(cd[1]) +
                                     ", this build reads v" SZ3_DATA_VER);
-    // Only to read 3.3.2's cd_values, which have no version: they start with the Config's length byte, never
-    // 0, while versionInt() leaves the low byte 0. Dropping 3.3.2 means removing this block.
-    if ((cd[0] & 0xFFu) != 0) {
+    }
+    // backward compatibility for v3.3.2; it stores no version, so the first byte is the Config's length, never 0.
+    if (bytes[0] != 0) {
         conf.load(bytes, len);
         return;
     }
@@ -297,11 +303,12 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
             SZ3::read(dataVer, header);
         }
         if (magic != SZ3_MAGIC_NUMBER) {
-            // Only to read 3.3.2's chunks of fewer than 20 elements, stored raw with no header. Dropping 3.3.2
-            // means removing these three lines.
-            SZ3::Config legacy;
-            load_cd_values(cd_values, cd_nelmts, legacy);
-            if (legacy.num > 0 && legacy.num < 20) return nbytes;
+            // backward compatibility for v3.3.2; it stores chunks of fewer than 20 elements raw, with no header.
+            {
+                SZ3::Config legacy;
+                load_cd_values(cd_values, cd_nelmts, legacy);
+                if (legacy.num > 0 && legacy.num < 20) return nbytes;
+            }
             throw std::invalid_argument("SZ3 HDF5 filter: chunk was not written by SZ3");
         }
         if (versionStr(dataVer) != SZ3_DATA_VER)
