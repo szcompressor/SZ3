@@ -165,6 +165,37 @@ int main(int argc, char **argv) {
     return 0;
 }
 EOF
+# The C interface. Keep it C: nothing else compiles the header as C.
+cat > capi.c <<'EOF'
+#include <H5Z_SZ3.hpp>
+#include <math.h>
+#include <stdio.h>
+int main(int argc, char **argv) {
+    float d[64 * 64], r[64 * 64];
+    for (int i = 0; i < 64 * 64; i++) d[i] = (float)sin(0.01 * i) * 100.0f;
+    hsize_t dims[2] = {64, 64}, ch[2] = {16, 64};
+    H5Zregister(H5PLget_plugin_info());
+    hid_t p = H5Pcreate(H5P_DATASET_CREATE);
+    H5Pset_chunk(p, 2, ch);
+    if (H5Pset_sz3(p, H5Z_SZ3_ALGO_INTERP_LORENZO, 99, 0.5, 0, 0, 0) < 0) printf("UNKNOWN MODE REFUSED\n");
+    H5Pset_sz3(p, H5Z_SZ3_ALGO_INTERP_LORENZO, H5Z_SZ3_EB_ABS, 0.5, 0, 0, 0);
+    hid_t f = H5Fcreate(argv[1], H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    hid_t s = H5Screate_simple(2, dims, NULL);
+    hid_t ds = H5Dcreate2(f, "ds", H5T_NATIVE_FLOAT, s, H5P_DEFAULT, p, H5P_DEFAULT);
+    herr_t w = H5Dwrite(ds, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, d);
+    H5Dclose(ds); H5Pclose(p); H5Sclose(s); H5Fclose(f);
+    f = H5Fopen(argv[1], H5F_ACC_RDONLY, H5P_DEFAULT);
+    ds = H5Dopen2(f, "ds", H5P_DEFAULT);
+    if (w < 0 || H5Dread(ds, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, r) < 0) {
+        printf("ROUND TRIP FAILED\n"); return 1;
+    }
+    double m = 0;
+    for (int i = 0; i < 64 * 64; i++) if (fabs((double)r[i] - d[i]) > m) m = fabs((double)r[i] - d[i]);
+    /* Under a tenth of the bound means the filter ran with some other bound, or did not run. */
+    printf("maxerr %.6f\n%s\n", m, m > 0.05 && m <= 0.5 ? "BOUND OK" : "BOUND WRONG");
+    return 0;
+}
+EOF
 
 printf '#include <hdf5.h>\nint main(void){return H5open() < 0;}\n' > noref.c
 cat > CMakeLists.txt <<'EOF'
@@ -183,6 +214,8 @@ target_link_libraries(read PRIVATE HDF5::HDF5 ${MATH_LIB})
 add_executable(app app.c)
 set_source_files_properties(app.c PROPERTIES LANGUAGE CXX)
 target_link_libraries(app PRIVATE SZ3::SZ3 SZ3::hdf5sz3)
+add_executable(capi capi.c)
+target_link_libraries(capi PRIVATE SZ3::hdf5sz3 ${MATH_LIB})
 # The control for the DT_NEEDED check below. Without it that check passes vacuously.
 add_executable(noref noref.c)
 set_source_files_properties(noref.c PROPERTIES LANGUAGE CXX)
@@ -326,6 +359,11 @@ skip_all "hdf5sz3 was installed as an archive, so there is no plugin to load" \
     app-plugin-only-writes app-plugin-only-avail \
     plugin-only-reader-works plugin-only-reader-fails-without app-prepend-adds-the-path app-prepend-writes
 fi
+# (e) a C program, through H5Pset_sz3
+export HDF5_PLUGIN_PATH=$NOPLUGIN_PATH
+./b/capi c_api.h5 > c_api.log 2>&1
+want "c-api-refuses-an-unknown-mode" "UNKNOWN MODE REFUSED" c_api.log
+want "c-api-applies-its-bound"       "BOUND OK" c_api.log
 # Toolchains differ on dropping unreferenced libraries, so noref decides whether this can assert.
 if [ "$HAVE_SHARED" != 1 ]; then
     skipped "app-keeps-dt-needed (hdf5sz3 was installed as an archive, which the loader never records)"
@@ -352,7 +390,7 @@ echo "  $pass passed, $fail failed, $skip skipped"
 
 # Raise this with the check it comes with. A guard that skips the wrong list, or a section that
 # stops early, otherwise shows only as a smaller number at the bottom that nobody compares.
-EXPECTED=32
+EXPECTED=34
 ran=$((pass + fail + skip))
 if [ "$ran" -ne "$EXPECTED" ]; then
     echo "  the suite accounted for $ran checks, not $EXPECTED"
