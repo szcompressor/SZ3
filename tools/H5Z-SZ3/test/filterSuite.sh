@@ -183,6 +183,25 @@ int main(int argc, char **argv) {
     hid_t s = H5Screate_simple(2, dims, NULL);
     hid_t ds = H5Dcreate2(f, "ds", H5T_NATIVE_FLOAT, s, H5P_DEFAULT, p, H5P_DEFAULT);
     herr_t w = H5Dwrite(ds, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, d);
+    /* Types the filter cannot compress must fail at H5Dcreate, not come back as wrong data. */
+    hsize_t three = 3;
+    hid_t cmp = H5Tcreate(H5T_COMPOUND, 8), arr = H5Tarray_create2(H5T_NATIVE_FLOAT, 1, &three);
+    hid_t i24 = H5Tcopy(H5T_NATIVE_INT), f128 = H5Tcopy(H5T_NATIVE_DOUBLE), swapped = H5Tcopy(H5T_NATIVE_FLOAT);
+    H5Tinsert(cmp, "x", 0, H5T_NATIVE_FLOAT);
+    H5Tinsert(cmp, "id", 4, H5T_NATIVE_INT);
+    H5Tset_precision(i24, 24);
+    H5Tset_size(i24, 3);
+    H5Tset_size(f128, 16);
+    H5Tset_order(swapped, H5Tget_order(H5T_NATIVE_FLOAT) == H5T_ORDER_LE ? H5T_ORDER_BE : H5T_ORDER_LE);
+    const char *names[5] = {"compound", "array", "int24", "float128", "byteswapped"};
+    hid_t types[5] = {cmp, arr, i24, f128, swapped};
+    H5Eset_auto2(H5E_DEFAULT, NULL, NULL);
+    for (int k = 0; k < 5; k++) {
+        hid_t bad = H5Dcreate2(f, names[k], types[k], s, H5P_DEFAULT, p, H5P_DEFAULT);
+        printf("%s %s\n", names[k], bad < 0 ? "REFUSED" : "ACCEPTED");
+        if (bad >= 0) H5Dclose(bad);
+        H5Tclose(types[k]);
+    }
     H5Dclose(ds); H5Pclose(p); H5Sclose(s); H5Fclose(f);
     f = H5Fopen(argv[1], H5F_ACC_RDONLY, H5P_DEFAULT);
     ds = H5Dopen2(f, "ds", H5P_DEFAULT);
@@ -369,6 +388,9 @@ export HDF5_PLUGIN_PATH=$NOPLUGIN_PATH
 ./b/capi c_api.h5 > c_api.log 2>&1
 want "c-api-refuses-an-unknown-mode" "UNKNOWN MODE REFUSED" c_api.log
 want "c-api-applies-its-bound"       "BOUND OK" c_api.log
+for t in compound array int24 float128 byteswapped; do
+    want "c-api-refuses-$t" "$t REFUSED" c_api.log
+done
 # Toolchains differ on dropping unreferenced libraries, so noref decides whether this can assert.
 if [ "$HAVE_SHARED" != 1 ]; then
     skipped "app-keeps-dt-needed (hdf5sz3 was installed as an archive, which the loader never records)"
@@ -395,7 +417,7 @@ echo "  $pass passed, $fail failed, $skip skipped"
 
 # Raise this with the check it comes with. A guard that skips the wrong list, or a section that
 # stops early, otherwise shows only as a smaller number at the bottom that nobody compares.
-EXPECTED=35
+EXPECTED=40
 ran=$((pass + fail + skip))
 if [ "$ran" -ne "$EXPECTED" ]; then
     echo "  the suite accounted for $ran checks, not $EXPECTED"

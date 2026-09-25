@@ -196,11 +196,18 @@ static herr_t H5Z_sz3_set_local_impl(hid_t dcpl_id, hid_t type_id, hid_t chunk_s
     if (0 > (ndims = H5Sget_simple_extent_dims(chunk_space_id, dims_all, NULL)))
         H5Z_SZ_PUSH_AND_GOTO(H5E_ARGS, H5E_BADTYPE, -1, "not a data space");
     std::vector<size_t> dims(dims_all, dims_all + ndims);
+    // The filter reads a chunk as host values, so any other byte order would be compressed as garbage.
+    if (dsize > 1 && H5Tget_order(type_id) != H5Tget_order(H5T_NATIVE_INT))
+        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADTYPE, -1, "datatype byte order must match the host's");
     // update conf with datatype
-    conf.dataType = SZ_FLOAT;
-    if (dclass == H5T_FLOAT)
-        conf.dataType = dsize == 4 ? SZ_FLOAT : SZ_DOUBLE;
-    else if (dclass == H5T_INTEGER) {
+    if (dclass == H5T_FLOAT) {
+        if (dsize == 4)
+            conf.dataType = SZ_FLOAT;
+        else if (dsize == 8)
+            conf.dataType = SZ_DOUBLE;
+        else
+            H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADTYPE, -1, "floating-point data must be 4 or 8 bytes");
+    } else if (dclass == H5T_INTEGER) {
         H5T_sign_t dsign;
         if (0 > (dsign = H5Tget_sign(type_id)))
             H5Z_SZ_PUSH_AND_GOTO(H5E_ARGS, H5E_BADTYPE, -1, "Error in calling H5Tget_sign(type_id)....");
@@ -219,6 +226,8 @@ static herr_t H5Z_sz3_set_local_impl(hid_t dcpl_id, hid_t type_id, hid_t chunk_s
                 case 8:
                     conf.dataType = SZ_UINT64;
                     break;
+                default:
+                    H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADTYPE, -1, "integer data must be 1, 2, 4 or 8 bytes");
             }
         } else {
             switch (dsize) {
@@ -234,10 +243,12 @@ static herr_t H5Z_sz3_set_local_impl(hid_t dcpl_id, hid_t type_id, hid_t chunk_s
                 case 8:
                     conf.dataType = SZ_INT64;
                     break;
+                default:
+                    H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADTYPE, -1, "integer data must be 1, 2, 4 or 8 bytes");
             }
         }
     } else {
-        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADTYPE, 0, "datatype class must be H5T_FLOAT or H5T_INTEGER");
+        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADTYPE, -1, "datatype class must be H5T_FLOAT or H5T_INTEGER");
     }
     // update conf with dims
     conf.setDims(std::begin(dims), std::end(dims));
@@ -246,7 +257,7 @@ static herr_t H5Z_sz3_set_local_impl(hid_t dcpl_id, hid_t type_id, hid_t chunk_s
     conf.sz3MagicNumber = SZ3_MAGIC_NUMBER;
     conf.sz3DataVer = versionInt(SZ3_DATA_VER);
 
-    set_SZ3_conf_to_H5(dcpl_id, conf);
+    if (set_SZ3_conf_to_H5(dcpl_id, conf) <= 0) return -1;
     return 1;
 }
 
@@ -266,6 +277,7 @@ void process_data(SZ3::Config& conf, void** buf, size_t* buf_size, size_t nbytes
         // algorithms whose output can reach or exceed that.
         size_t cmpCap = std::max(SZ3::SZ_compress_size_bound<T>(conf), sizeof(T) * conf.num * 2);
         char* cmpData = static_cast<char*>(malloc(cmpCap));
+        if (cmpData == nullptr) throw std::bad_alloc();
         *buf_size = SZ_compress(conf, static_cast<T*>(*buf), cmpData, cmpCap);
         free(*buf);
         *buf = cmpData;
