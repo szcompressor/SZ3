@@ -106,9 +106,14 @@ herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config& conf) {
     return 1;
 }
 
-static_assert(H5Z_SZ3_EB_ABS == SZ3::EB_ABS && H5Z_SZ3_EB_ABS_OR_REL == SZ3::EB_ABS_OR_REL,
+static_assert(H5Z_SZ3_EB_ABS == SZ3::EB_ABS && H5Z_SZ3_EB_REL == SZ3::EB_REL && H5Z_SZ3_EB_PSNR == SZ3::EB_PSNR &&
+                  H5Z_SZ3_EB_L2NORM == SZ3::EB_L2NORM && H5Z_SZ3_EB_ABS_AND_REL == SZ3::EB_ABS_AND_REL &&
+                  H5Z_SZ3_EB_ABS_OR_REL == SZ3::EB_ABS_OR_REL,
               "H5Z_SZ3.hpp error-bound modes must match SZ3::EB");
-static_assert(H5Z_SZ3_ALGO_LORENZO_REG == SZ3::ALGO_LORENZO_REG && H5Z_SZ3_ALGO_BIOMDXTC == SZ3::ALGO_BIOMDXTC,
+static_assert(H5Z_SZ3_ALGO_LORENZO_REG == SZ3::ALGO_LORENZO_REG &&
+                  H5Z_SZ3_ALGO_INTERP_LORENZO == SZ3::ALGO_INTERP_LORENZO && H5Z_SZ3_ALGO_INTERP == SZ3::ALGO_INTERP &&
+                  H5Z_SZ3_ALGO_NOPRED == SZ3::ALGO_NOPRED && H5Z_SZ3_ALGO_LOSSLESS == SZ3::ALGO_LOSSLESS &&
+                  H5Z_SZ3_ALGO_BIOMD == SZ3::ALGO_BIOMD && H5Z_SZ3_ALGO_BIOMDXTC == SZ3::ALGO_BIOMDXTC,
               "H5Z_SZ3.hpp algorithms must match SZ3::ALGO");
 
 herr_t H5Pset_sz3(hid_t plist, int algo, int eb_mode, double abs_bound, double rel_bound, double psnr_bound,

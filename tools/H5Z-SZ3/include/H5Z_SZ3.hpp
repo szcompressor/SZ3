@@ -19,7 +19,7 @@
 #define HDF5SZ3_EXPORT
 #endif
 
-/* Error-bound modes and algorithms, with the values of SZ3::EB and SZ3::ALGO. */
+/* SZ3::EB and SZ3::ALGO, repeated because C cannot see them. */
 #define H5Z_SZ3_EB_ABS 0
 #define H5Z_SZ3_EB_REL 1
 #define H5Z_SZ3_EB_PSNR 2
