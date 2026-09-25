@@ -135,14 +135,15 @@ int main(int argc, char **argv) {
     return 0;
 }
 EOF
-# Three link/registration shapes an application can take. argv[1] picks one.
+# The ways an application can reach the filter. argv[1] picks one; prepend takes a directory.
 cat > app.c <<'EOF'
 #include <H5Z_SZ3.hpp>
 #include <math.h>
 #include <stdio.h>
 int main(int argc, char **argv) {
-    int use_init = argv[1][0] == 'i' || argv[1][0] == 'b';
-    if (use_init) printf("INIT RETURNED %d\n", (int)H5Z_SZ3_initialize());
+    if (argv[1][0] == 'r') printf("%s\n", H5Zregister(H5PLget_plugin_info()) < 0 ? "REGISTER FAILED" : "REGISTER OK");
+    if (argv[1][0] == 'p' && argv[1][1] == 'r')
+        printf("%s\n", argc > 3 && H5PLprepend(argv[3]) >= 0 ? "PREPEND OK" : "PREPEND FAILED");
     printf("AVAIL %d\n", (int)H5Zfilter_avail(H5Z_FILTER_SZ3));
     float d[64 * 64];
     for (int i = 0; i < 64 * 64; i++) d[i] = (float)sin(0.01 * i) * 100.0f;
@@ -161,7 +162,37 @@ int main(int argc, char **argv) {
     }
     H5Dclose(d2); H5Pclose(p); H5Sclose(s); H5Fclose(f);
     printf("WRITE OK\n");
-    if (use_init) printf("FINI RETURNED %d\n", (int)H5Z_SZ3_finalize());
+    return 0;
+}
+EOF
+# The C interface. Keep it C: nothing else compiles the header as C.
+cat > capi.c <<'EOF'
+#include <H5Z_SZ3.hpp>
+#include <math.h>
+#include <stdio.h>
+int main(int argc, char **argv) {
+    float d[64 * 64], r[64 * 64];
+    for (int i = 0; i < 64 * 64; i++) d[i] = (float)sin(0.01 * i) * 100.0f;
+    hsize_t dims[2] = {64, 64}, ch[2] = {16, 64};
+    H5Zregister(H5PLget_plugin_info());
+    hid_t p = H5Pcreate(H5P_DATASET_CREATE);
+    H5Pset_chunk(p, 2, ch);
+    if (H5Pset_sz3(p, H5Z_SZ3_ALGO_INTERP_LORENZO, 99, 0.5, 0, 0, 0) < 0) printf("UNKNOWN MODE REFUSED\n");
+    H5Pset_sz3(p, H5Z_SZ3_ALGO_INTERP_LORENZO, H5Z_SZ3_EB_ABS, 0.5, 0, 0, 0);
+    hid_t f = H5Fcreate(argv[1], H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    hid_t s = H5Screate_simple(2, dims, NULL);
+    hid_t ds = H5Dcreate2(f, "ds", H5T_NATIVE_FLOAT, s, H5P_DEFAULT, p, H5P_DEFAULT);
+    herr_t w = H5Dwrite(ds, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, d);
+    H5Dclose(ds); H5Pclose(p); H5Sclose(s); H5Fclose(f);
+    f = H5Fopen(argv[1], H5F_ACC_RDONLY, H5P_DEFAULT);
+    ds = H5Dopen2(f, "ds", H5P_DEFAULT);
+    if (w < 0 || H5Dread(ds, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, r) < 0) {
+        printf("ROUND TRIP FAILED\n"); return 1;
+    }
+    double m = 0;
+    for (int i = 0; i < 64 * 64; i++) if (fabs((double)r[i] - d[i]) > m) m = fabs((double)r[i] - d[i]);
+    /* Under a tenth of the bound means the filter ran with some other bound, or did not run. */
+    printf("maxerr %.6f\n%s\n", m, m > 0.05 && m <= 0.5 ? "BOUND OK" : "BOUND WRONG");
     return 0;
 }
 EOF
@@ -183,6 +214,8 @@ target_link_libraries(read PRIVATE HDF5::HDF5 ${MATH_LIB})
 add_executable(app app.c)
 set_source_files_properties(app.c PROPERTIES LANGUAGE CXX)
 target_link_libraries(app PRIVATE SZ3::SZ3 SZ3::hdf5sz3)
+add_executable(capi capi.c)
+target_link_libraries(capi PRIVATE SZ3::hdf5sz3 ${MATH_LIB})
 # The control for the DT_NEEDED check below. Without it that check passes vacuously.
 add_executable(noref noref.c)
 set_source_files_properties(noref.c PROPERTIES LANGUAGE CXX)
@@ -203,6 +236,9 @@ cmake -S . -B b -DCMAKE_PREFIX_PATH="$CMPFX" -DCMAKE_BUILD_TYPE=Release \
 
 # The cd_values a user has to type. Mirrors SZ3::Config::save(); see cdvalueHelper.py.
 CD_ABS="UD=32024,0,8,32,0,16777216,4054449152,1348619730,41023,256,0"
+# What the filter stores in front of the Config: versionInt(SZ3_DATA_VER).
+IFS=. read -r v1 v2 v3 <<< "$(sed -n 's/^#define SZ3_DATA_VER "\(.*\)"/\1/p' "$PREFIX/include/SZ3/version.hpp")"
+CD_VER=$(( (v1 << 24) | (v2 << 16) | (v3 << 8) ))
 
 # ---------------------------------------------------------------- 1. h5repack, 2. h5dump / h5ls
 # Both sections reach the filter only through HDF5_PLUGIN_PATH, and the h5dump section reads the
@@ -213,6 +249,8 @@ export HDF5_PLUGIN_PATH=$PLUGIN_PATH
 "$(h5 h5dump)" -pH rp.h5 > rp.head 2>&1
 want "h5repack-applies-sz3"        "FILTER_ID 32024" rp.head
 want "h5repack-records-version"    "H5Z-SZ3-" rp.head
+# CD_ABS has no version in front, as 3.3.2 wrote it; what gets stored starts with the data version
+want "stored-cdvalues-carry-data-version" "PARAMS { $CD_VER " rp.head
 ./b/read rp.h5 > rp.read 2>&1
 want "h5repack-output-reads-back"  "READ OK" rp.read
 
@@ -250,6 +288,16 @@ export HDF5_PLUGIN_PATH=$PLUGIN_PATH
 notwant "foreign-cdvalues-refused" "32024" old.head
 ./b/read rp_old.h5 > old.read 2>&1
 want "foreign-cdvalues-leaves-data-intact" "READ OK" old.read
+# A data version one patch release newer is refused the same way
+"$(h5 h5repack)" -f "UD=32024,0,9,$((CD_VER + 256)),32,0,16777216,4054449152,1348619730,41023,256,0" plain.h5 \
+    rp_new.h5 > new.log 2>&1
+"$(h5 h5dump)" -pH rp_new.h5 > new.head 2>&1
+notwant "newer-data-version-refused" "32024" new.head
+# cd_values as 3.3.0 wrote them: refused, naming their version
+"$(h5 h5repack)" --enable-error-stack \
+    -f "UD=32024,0,11,4081251088,50528256,136316419,8388610,0,4227858688,1305670057,2688503906,16777216,1536,768" \
+    plain.h5 rp_330.h5 > v330.log 2>&1
+want "older-cdvalues-name-their-version" "data format v3.3.0" v330.log
 
 export HDF5_PLUGIN_PATH=$NOPLUGIN_PATH
 "$(h5 h5dump)" -pH rp.h5 > d_meta.head 2>&1
@@ -280,6 +328,7 @@ skip_all "hdf5sz3 was installed as an archive, so there is no plugin to load" \
     h5repack-noplugin-drops-filter-silently h5repack-noplugin-warns-on-read \
     h5repack-noplugin-loses-dataset \
     foreign-cdvalues-refused foreign-cdvalues-leaves-data-intact \
+    stored-cdvalues-carry-data-version newer-data-version-refused older-cdvalues-name-their-version \
     h5dump-header-needs-no-plugin h5dump-header-shows-version h5ls-verbose-shows-version \
     h5dump-data-noplugin-fails h5dump-data-noplugin-message \
     h5dump-names-the-filter h5dump-names-our-version \
@@ -287,38 +336,39 @@ skip_all "hdf5sz3 was installed as an archive, so there is no plugin to load" \
 fi
 
 # ---------------------------------------------------------------- 3. application shapes
-# (a) links and calls H5Z_SZ3_initialize(), nothing on the plugin path
+# (a) links and registers the filter itself, nothing on the plugin path
 export HDF5_PLUGIN_PATH=$NOPLUGIN_PATH
-./b/app init a_init.h5 > a_init.log 2>&1
-want "app-init-registers"        "INIT RETURNED 1" a_init.log
-want "app-init-writes"           "WRITE OK" a_init.log
-want "app-init-finalizes"        "FINI RETURNED 1" a_init.log
-./b/read a_init.h5 > /dev/null 2>&1 && bad "app-init-file-needs-filter" "read without the filter succeeded" \
-  || ok "app-init-file-needs-filter"
-# (b) links but never calls it, reaching the filter only through HDF5_PLUGIN_PATH
+./b/app register a_init.h5 > a_init.log 2>&1
+want "app-register-registers"    "REGISTER OK" a_init.log
+want "app-register-writes"       "WRITE OK" a_init.log
+./b/read a_init.h5 > /dev/null 2>&1 && bad "app-register-file-needs-filter" "read without the filter succeeded" \
+  || ok "app-register-file-needs-filter"
+# (b) links but never registers it, reaching the filter only through HDF5_PLUGIN_PATH
 if [ "$HAVE_PLUGIN" = 1 ]; then
 export HDF5_PLUGIN_PATH=$PLUGIN_PATH
 ./b/app plugin a_plug.h5 > a_plug.log 2>&1
 want "app-plugin-only-writes"    "WRITE OK" a_plug.log
 want "app-plugin-only-avail"     "AVAIL 1" a_plug.log
-# (c) does both: the guard must defer to what the plugin already registered, and say so
-./b/app both a_both.h5 > a_both.log 2>&1
-want "app-both-defers"           "INIT RETURNED 0" a_both.log
-want "app-both-writes"           "WRITE OK" a_both.log
-# finalize must not unregister a filter it did not register
-want "app-both-finalize-declines" "FINI RETURNED 1" a_both.log
-# (d) the plugin-only reader, the mode every third-party tool uses
-./b/read a_both.h5 > r_plug.log 2>&1
+# (c) the plugin-only reader, the mode every third-party tool uses
+./b/read a_plug.h5 > r_plug.log 2>&1
 want "plugin-only-reader-works"  "READ OK" r_plug.log
 export HDF5_PLUGIN_PATH=$NOPLUGIN_PATH
-./b/read a_both.h5 > r_noplug.log 2>&1
+./b/read a_plug.h5 > r_noplug.log 2>&1
 want "plugin-only-reader-fails-without" "READ FAILED" r_noplug.log
+# (d) points HDF5 at its own plugin directory with H5PLprepend, and sets no environment
+./b/app prepend a_prep.h5 "$PLUGIN_PATH" > a_prep.log 2>&1
+want "app-prepend-adds-the-path" "PREPEND OK" a_prep.log
+want "app-prepend-writes"        "WRITE OK" a_prep.log
 else
 skip_all "hdf5sz3 was installed as an archive, so there is no plugin to load" \
     app-plugin-only-writes app-plugin-only-avail \
-    app-both-defers app-both-writes app-both-finalize-declines \
-    plugin-only-reader-works plugin-only-reader-fails-without
+    plugin-only-reader-works plugin-only-reader-fails-without app-prepend-adds-the-path app-prepend-writes
 fi
+# (e) a C program, through H5Pset_sz3
+export HDF5_PLUGIN_PATH=$NOPLUGIN_PATH
+./b/capi c_api.h5 > c_api.log 2>&1
+want "c-api-refuses-an-unknown-mode" "UNKNOWN MODE REFUSED" c_api.log
+want "c-api-applies-its-bound"       "BOUND OK" c_api.log
 # Toolchains differ on dropping unreferenced libraries, so noref decides whether this can assert.
 if [ "$HAVE_SHARED" != 1 ]; then
     skipped "app-keeps-dt-needed (hdf5sz3 was installed as an archive, which the loader never records)"
@@ -336,7 +386,7 @@ else
     elif [ "$n_app" -gt 0 ]; then
         ok "app-keeps-dt-needed"
     else
-        bad "app-keeps-dt-needed" "calling H5Z_SZ3_initialize() did not keep libhdf5sz3 as a DT_NEEDED"
+        bad "app-keeps-dt-needed" "calling into hdf5sz3 did not keep libhdf5sz3 as a DT_NEEDED"
     fi
 fi
 
@@ -345,7 +395,7 @@ echo "  $pass passed, $fail failed, $skip skipped"
 
 # Raise this with the check it comes with. A guard that skips the wrong list, or a section that
 # stops early, otherwise shows only as a smaller number at the bottom that nobody compares.
-EXPECTED=32
+EXPECTED=35
 ran=$((pass + fail + skip))
 if [ "$ran" -ne "$EXPECTED" ]; then
     echo "  the suite accounted for $ran checks, not $EXPECTED"

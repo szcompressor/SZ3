@@ -27,14 +27,16 @@ it, so list that too if other filters are in use.
 ```bash
 export HDF5_PLUGIN_PATH=<PREFIX>/lib/plugin
 ```
-An application that links `SZ3::hdf5sz3` can call `H5Z_SZ3_initialize()` instead and set nothing.
+An application that ships the plugin with itself can call `H5PLprepend("<its plugin directory>")` at
+startup instead and set nothing; one that links `SZ3::hdf5sz3` can call
+`H5Zregister(H5PLget_plugin_info())`.
 On Windows it still has to find the library: the install puts `hdf5sz3.dll` (`libhdf5sz3.dll` under
 MinGW) in `<prefix>/bin` and only the import library in `<prefix>/lib`, and there is no RPATH to
 record either, so `<prefix>/bin` has to be on `PATH` before the application runs.
 
 ## H5Z-SZ3 cd_values
 * HDF5 restricts the parameters that can be passed to filters through an integers array called `cd_values`.
-* H5Z-SZ3 uses `cd_values` to pass the desired compression settings (e.g., algorithm, error bounds) to the compression process. It serializes the `Config` object to `cd_values` using the `save()` function.
+* H5Z-SZ3 uses `cd_values` to pass the desired compression settings (e.g., algorithm, error bounds) to the compression process. `cd_values[0]` is the SZ3 data version, `(major << 24) | (minor << 16) | (patch << 8)` (`0x03030200` for 3.3.2), followed by the `Config` object serialized with `save()`.
 * During decompression, H5Z-SZ3 does not rely on `cd_values`. Instead, it reads all the configuration directly from the compressed data.
 
 ## Usage
@@ -92,4 +94,5 @@ with h5py.File('data.h5', 'w') as f:
 - Ensure HDF5 versions match between h5py and the plugin.
 
 ### C/C++
+A C program sets the filter on a dataset creation property list with `H5Pset_sz3`, declared in `H5Z_SZ3.hpp`.
 See examples `sz3ToHDF5.cpp` and `dsz3FromHDF5.cpp` for how to use the H5Z-SZ3 filter in your C/C++ projects.
