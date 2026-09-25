@@ -135,14 +135,17 @@ int main(int argc, char **argv) {
     return 0;
 }
 EOF
-# Three link/registration shapes an application can take. argv[1] picks one.
+# The ways an application can reach the filter. argv[1] picks one; prepend takes a directory.
 cat > app.c <<'EOF'
+#include <H5PLextern.h>
 #include <H5Z_SZ3.hpp>
 #include <math.h>
 #include <stdio.h>
 int main(int argc, char **argv) {
-    int use_init = argv[1][0] == 'i' || argv[1][0] == 'b';
-    if (use_init) printf("INIT RETURNED %d\n", (int)H5Z_SZ3_initialize());
+    int use_register = argv[1][0] == 'r' || argv[1][0] == 'b';
+    if (use_register) printf("%s\n", H5Zregister(H5PLget_plugin_info()) < 0 ? "REGISTER FAILED" : "REGISTER OK");
+    if (argv[1][0] == 'p' && argv[1][1] == 'r')
+        printf("%s\n", argc > 3 && H5PLprepend(argv[3]) >= 0 ? "PREPEND OK" : "PREPEND FAILED");
     printf("AVAIL %d\n", (int)H5Zfilter_avail(H5Z_FILTER_SZ3));
     float d[64 * 64];
     for (int i = 0; i < 64 * 64; i++) d[i] = (float)sin(0.01 * i) * 100.0f;
@@ -161,7 +164,7 @@ int main(int argc, char **argv) {
     }
     H5Dclose(d2); H5Pclose(p); H5Sclose(s); H5Fclose(f);
     printf("WRITE OK\n");
-    if (use_init) printf("FINI RETURNED %d\n", (int)H5Z_SZ3_finalize());
+    if (use_register) printf("%s\n", H5Zunregister(H5Z_FILTER_SZ3) < 0 ? "UNREGISTER FAILED" : "UNREGISTER OK");
     return 0;
 }
 EOF
@@ -213,6 +216,8 @@ export HDF5_PLUGIN_PATH=$PLUGIN_PATH
 "$(h5 h5dump)" -pH rp.h5 > rp.head 2>&1
 want "h5repack-applies-sz3"        "FILTER_ID 32024" rp.head
 want "h5repack-records-version"    "H5Z-SZ3-" rp.head
+# CD_ABS is the older layout with no layout word; what gets stored carries one (0x0001FF00)
+want "stored-cdvalues-carry-layout" "PARAMS { 130816 " rp.head
 ./b/read rp.h5 > rp.read 2>&1
 want "h5repack-output-reads-back"  "READ OK" rp.read
 
@@ -250,6 +255,11 @@ export HDF5_PLUGIN_PATH=$PLUGIN_PATH
 notwant "foreign-cdvalues-refused" "32024" old.head
 ./b/read rp_old.h5 > old.read 2>&1
 want "foreign-cdvalues-leaves-data-intact" "READ OK" old.read
+# A layout word from a newer SZ3 (layout 2) is refused the same way
+"$(h5 h5repack)" -f "UD=32024,0,9,196352,32,0,16777216,4054449152,1348619730,41023,256,0" plain.h5 rp_new.h5 \
+    > new.log 2>&1
+"$(h5 h5dump)" -pH rp_new.h5 > new.head 2>&1
+notwant "newer-cdvalues-layout-refused" "32024" new.head
 
 export HDF5_PLUGIN_PATH=$NOPLUGIN_PATH
 "$(h5 h5dump)" -pH rp.h5 > d_meta.head 2>&1
@@ -280,6 +290,7 @@ skip_all "hdf5sz3 was installed as an archive, so there is no plugin to load" \
     h5repack-noplugin-drops-filter-silently h5repack-noplugin-warns-on-read \
     h5repack-noplugin-loses-dataset \
     foreign-cdvalues-refused foreign-cdvalues-leaves-data-intact \
+    stored-cdvalues-carry-layout newer-cdvalues-layout-refused \
     h5dump-header-needs-no-plugin h5dump-header-shows-version h5ls-verbose-shows-version \
     h5dump-data-noplugin-fails h5dump-data-noplugin-message \
     h5dump-names-the-filter h5dump-names-our-version \
@@ -287,37 +298,40 @@ skip_all "hdf5sz3 was installed as an archive, so there is no plugin to load" \
 fi
 
 # ---------------------------------------------------------------- 3. application shapes
-# (a) links and calls H5Z_SZ3_initialize(), nothing on the plugin path
+# (a) links and registers the filter itself, nothing on the plugin path
 export HDF5_PLUGIN_PATH=$NOPLUGIN_PATH
-./b/app init a_init.h5 > a_init.log 2>&1
-want "app-init-registers"        "INIT RETURNED 1" a_init.log
-want "app-init-writes"           "WRITE OK" a_init.log
-want "app-init-finalizes"        "FINI RETURNED 1" a_init.log
-./b/read a_init.h5 > /dev/null 2>&1 && bad "app-init-file-needs-filter" "read without the filter succeeded" \
-  || ok "app-init-file-needs-filter"
+./b/app register a_init.h5 > a_init.log 2>&1
+want "app-register-registers"    "REGISTER OK" a_init.log
+want "app-register-writes"       "WRITE OK" a_init.log
+want "app-register-unregisters"  "UNREGISTER OK" a_init.log
+./b/read a_init.h5 > /dev/null 2>&1 && bad "app-register-file-needs-filter" "read without the filter succeeded" \
+  || ok "app-register-file-needs-filter"
 # (b) links but never calls it, reaching the filter only through HDF5_PLUGIN_PATH
 if [ "$HAVE_PLUGIN" = 1 ]; then
 export HDF5_PLUGIN_PATH=$PLUGIN_PATH
 ./b/app plugin a_plug.h5 > a_plug.log 2>&1
 want "app-plugin-only-writes"    "WRITE OK" a_plug.log
 want "app-plugin-only-avail"     "AVAIL 1" a_plug.log
-# (c) does both: the guard must defer to what the plugin already registered, and say so
+# (c) registers with the plugin also on the path: the registered one is what runs
 ./b/app both a_both.h5 > a_both.log 2>&1
-want "app-both-defers"           "INIT RETURNED 0" a_both.log
+want "app-both-registers"        "REGISTER OK" a_both.log
 want "app-both-writes"           "WRITE OK" a_both.log
-# finalize must not unregister a filter it did not register
-want "app-both-finalize-declines" "FINI RETURNED 1" a_both.log
+want "app-both-unregisters"      "UNREGISTER OK" a_both.log
 # (d) the plugin-only reader, the mode every third-party tool uses
 ./b/read a_both.h5 > r_plug.log 2>&1
 want "plugin-only-reader-works"  "READ OK" r_plug.log
 export HDF5_PLUGIN_PATH=$NOPLUGIN_PATH
 ./b/read a_both.h5 > r_noplug.log 2>&1
 want "plugin-only-reader-fails-without" "READ FAILED" r_noplug.log
+# (e) points HDF5 at its own plugin directory with H5PLprepend, and sets no environment
+./b/app prepend a_prep.h5 "$PLUGIN_PATH" > a_prep.log 2>&1
+want "app-prepend-adds-the-path" "PREPEND OK" a_prep.log
+want "app-prepend-writes"        "WRITE OK" a_prep.log
 else
 skip_all "hdf5sz3 was installed as an archive, so there is no plugin to load" \
     app-plugin-only-writes app-plugin-only-avail \
-    app-both-defers app-both-writes app-both-finalize-declines \
-    plugin-only-reader-works plugin-only-reader-fails-without
+    app-both-registers app-both-writes app-both-unregisters \
+    plugin-only-reader-works plugin-only-reader-fails-without app-prepend-adds-the-path app-prepend-writes
 fi
 # Toolchains differ on dropping unreferenced libraries, so noref decides whether this can assert.
 if [ "$HAVE_SHARED" != 1 ]; then
@@ -336,7 +350,7 @@ else
     elif [ "$n_app" -gt 0 ]; then
         ok "app-keeps-dt-needed"
     else
-        bad "app-keeps-dt-needed" "calling H5Z_SZ3_initialize() did not keep libhdf5sz3 as a DT_NEEDED"
+        bad "app-keeps-dt-needed" "calling into hdf5sz3 did not keep libhdf5sz3 as a DT_NEEDED"
     fi
 fi
 
@@ -345,7 +359,7 @@ echo "  $pass passed, $fail failed, $skip skipped"
 
 # Raise this with the check it comes with. A guard that skips the wrong list, or a section that
 # stops early, otherwise shows only as a smaller number at the bottom that nobody compares.
-EXPECTED=32
+EXPECTED=36
 ran=$((pass + fail + skip))
 if [ "$ran" -ne "$EXPECTED" ]; then
     echo "  the suite accounted for $ran checks, not $EXPECTED"

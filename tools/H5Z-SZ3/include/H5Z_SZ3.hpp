@@ -1,75 +1,70 @@
 #ifndef SZ3_H5Z_SZ3_H
 #define SZ3_H5Z_SZ3_H
 
+/* The SZ3 HDF5 filter. Everything outside the __cplusplus block is plain C, so C programs can
+ * include this header too; the functions that take SZ3::Config are C++ only. */
+
+#include "hdf5.h"
+
 #define H5Z_FILTER_SZ3 32024
 
-#include <cerrno>
-#include <cstdint>
-#include <cstdio>
-#include <cstring>
-
-#include "SZ3/api/sz.hpp"
-#include "hdf5.h"
-#include "H5PLextern.h"
-
-// Export macros for Windows DLL
 #ifdef _WIN32
-    #ifdef hdf5sz3_EXPORTS
-        #define HDF5SZ3_EXPORT __declspec(dllexport)
-    #else
-        #define HDF5SZ3_EXPORT __declspec(dllimport)
-    #endif
+#ifdef hdf5sz3_EXPORTS
+#define HDF5SZ3_EXPORT __declspec(dllexport)
 #else
-    #define HDF5SZ3_EXPORT
+#define HDF5SZ3_EXPORT __declspec(dllimport)
 #endif
+#else
+#define HDF5SZ3_EXPORT
+#endif
+
+/* Error-bound modes and algorithms, with the values of SZ3::EB and SZ3::ALGO. */
+#define H5Z_SZ3_EB_ABS 0
+#define H5Z_SZ3_EB_REL 1
+#define H5Z_SZ3_EB_PSNR 2
+#define H5Z_SZ3_EB_L2NORM 3
+#define H5Z_SZ3_EB_ABS_AND_REL 4
+#define H5Z_SZ3_EB_ABS_OR_REL 5
+
+#define H5Z_SZ3_ALGO_LORENZO_REG 0
+#define H5Z_SZ3_ALGO_INTERP_LORENZO 1
+#define H5Z_SZ3_ALGO_INTERP 2
+#define H5Z_SZ3_ALGO_NOPRED 3
+#define H5Z_SZ3_ALGO_LOSSLESS 4
+#define H5Z_SZ3_ALGO_BIOMD 5
+#define H5Z_SZ3_ALGO_BIOMDXTC 6
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define ERROR(FNAME)                                                                    \
-    do {                                                                                \
-        int saved_errno = errno;                                                         \
-        fprintf(stderr, #FNAME " failed at line %d, errno=%d (%s)\n", __LINE__, saved_errno, \
-                saved_errno ? strerror(saved_errno) : "ok");                           \
-        return 1;                                                                       \
-    } while (0)
+/* Put the SZ3 filter on a dataset-creation property list. Only the bounds the mode uses are read;
+ * pass 0 for the others. Returns 1 on success, -1 on failure with the reason on the HDF5 error
+ * stack. */
+HDF5SZ3_EXPORT herr_t H5Pset_sz3(hid_t plist, int algo, int eb_mode, double abs_bound, double rel_bound,
+                                 double psnr_bound, double l2norm_bound);
 
-// MSG is a printf format string, so anything that is not a literal goes through "%s".
-#define H5Z_SZ_PUSH_AND_GOTO(MAJ, MIN, RET, ...)                                                  \
-    do {                                                                                          \
-        H5Epush(H5E_DEFAULT, __FILE__, _funcname_, __LINE__, H5E_ERR_CLS, MAJ, MIN, __VA_ARGS__); \
-        return RET;                                                                               \
-    } while (0)
+/* H5Pset_sz3 with the default algorithm and an absolute bound. */
+HDF5SZ3_EXPORT herr_t H5Pset_sz3_abs(hid_t plist, double abs_bound);
 
-/**
- * @brief Register the SZ3 filter, for an application that links this library instead of using
- * HDF5_PLUGIN_PATH.
- *
- * Returns 1 if this call registered it, 0 if something else already had (possibly another build of
- * this filter, which is then what encodes and decodes), -1 on failure.
- */
-HDF5SZ3_EXPORT herr_t H5Z_SZ3_initialize(void);
-
-/**
- * @brief Undo H5Z_SZ3_initialize(). Returns 1 on success, -1 on failure.
- *
- * A no-op unless H5Z_SZ3_initialize() was the call that registered the filter.
- */
-HDF5SZ3_EXPORT herr_t H5Z_SZ3_finalize(void);
-
-HDF5SZ3_EXPORT herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config &conf);
-
-/**
- * @brief Load the SZ3 Config this property list carries.
- *
- * Returns 1 if a Config was loaded, 0 if the list carries no SZ3 filter, -1 if reading it failed.
- * conf is left alone unless 1 is returned.
- */
-HDF5SZ3_EXPORT herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config &conf);
+/* H5Pset_sz3 with the default algorithm and a bound relative to the data's value range. */
+HDF5SZ3_EXPORT herr_t H5Pset_sz3_rel(hid_t plist, double rel_bound);
 
 #ifdef __cplusplus
 }
+
+#include "SZ3/api/sz.hpp"
+
+extern "C" {
+
+/* Put the SZ3 filter on a dataset-creation property list with a full SZ3::Config.
+ * Returns 1 on success, 0 on failure. */
+HDF5SZ3_EXPORT herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config &conf);
+
+/* Load the SZ3::Config this property list carries. Returns 1 if a Config was loaded, 0 if the list
+ * carries no SZ3 filter, -1 if reading it failed. conf is left alone unless 1 is returned. */
+HDF5SZ3_EXPORT herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config &conf);
+}
 #endif
 
-#endif  // SZ3_H5Z_SZ3_H
+#endif /* SZ3_H5Z_SZ3_H */

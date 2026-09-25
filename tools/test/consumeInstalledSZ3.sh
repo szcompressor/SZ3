@@ -77,11 +77,12 @@ add_executable(app main.cpp)
 target_link_libraries(app PRIVATE SZ3 hdf5sz3)
 EOF
 cat > cxx/main.cpp <<'EOF'
+#include <H5PLextern.h>
 #include <H5Z_SZ3.hpp>
 #include <SZ3/api/sz.hpp>
 #include <cstdio>
 int main() {
-    printf("%s\n", H5Z_SZ3_initialize() < 0 ? "INIT FAILED" : "INIT OK");
+    printf("%s\n", H5Zregister(H5PLget_plugin_info()) < 0 ? "INIT FAILED" : "INIT OK");
     hid_t dcpl = H5Pcreate(H5P_DATASET_CREATE);
     SZ3::Config conf(100);
     conf.absErrorBound = 1e-3;

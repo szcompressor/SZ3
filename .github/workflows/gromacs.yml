@@ -339,7 +339,7 @@ jobs:
             rm -rf "_rt/n$ndec"
           done
 
-      - name: H5Z_SZ3_initialize is what lets a linked application skip HDF5_PLUGIN_PATH
+      - name: Registering the filter it links lets an application skip HDF5_PLUGIN_PATH
         shell: bash -el {0}
         run: |
           mkdir -p _init
@@ -364,9 +364,10 @@ jobs:
           p = "gromacs/src/gromacs/fileio/h5md_low_level_util.cpp"
           s = open(p).read()
           old = "void registerSz3FilterImplicitly()\n{\n"
-          new = old + "    H5Z_SZ3_initialize();\n"
+          new = old + "    H5Zregister(H5PLget_plugin_info());\n"
           assert s.count(old) == 1, "registerSz3FilterImplicitly no longer looks like this"
-          open(p, "w").write(s.replace(old, new))
+          s = "#include <H5PLextern.h>\n" + s.replace(old, new)
+          open(p, "w").write(s)
           PY
           cmake --build gbuild --parallel 4 --target gmx
           cd _init

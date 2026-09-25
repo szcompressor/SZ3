@@ -15,6 +15,7 @@
 
 #include "hdf5.h"
 // #include "H5Cpp.h"
+#include "H5PLextern.h"
 #include "H5Z_SZ3.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/FileUtil.hpp"
@@ -136,8 +137,8 @@ int main(int argc, char *argv[]) {
 
     set_SZ3_conf_to_H5(cpid, conf);
 
-    if (0 > H5Z_SZ3_initialize()) {
-        printf("Error in H5Z_SZ3_initialize");
+    if (0 > H5Zregister(H5PLget_plugin_info())) {
+        printf("Error in H5Zregister");
         exit(0);
     }
     if (H5Zfilter_avail(H5Z_FILTER_SZ3)) {
