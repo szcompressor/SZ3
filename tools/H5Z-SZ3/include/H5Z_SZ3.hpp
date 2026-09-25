@@ -45,12 +45,6 @@ extern "C" {
 HDF5SZ3_EXPORT herr_t H5Pset_sz3(hid_t plist, int algo, int eb_mode, double abs_bound, double rel_bound,
                                  double psnr_bound, double l2norm_bound);
 
-/* H5Pset_sz3 with the default algorithm and an absolute bound. */
-HDF5SZ3_EXPORT herr_t H5Pset_sz3_abs(hid_t plist, double abs_bound);
-
-/* H5Pset_sz3 with the default algorithm and a bound relative to the data's value range. */
-HDF5SZ3_EXPORT herr_t H5Pset_sz3_rel(hid_t plist, double rel_bound);
-
 #ifdef __cplusplus
 }
 

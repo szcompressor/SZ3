@@ -130,14 +130,6 @@ herr_t H5Pset_sz3(hid_t plist, int algo, int eb_mode, double abs_bound, double r
     return set_SZ3_conf_to_H5(plist, conf) > 0 ? 1 : -1;
 }
 
-herr_t H5Pset_sz3_abs(hid_t plist, double abs_bound) {
-    return H5Pset_sz3(plist, SZ3::Config().cmprAlgo, H5Z_SZ3_EB_ABS, abs_bound, 0, 0, 0);
-}
-
-herr_t H5Pset_sz3_rel(hid_t plist, double rel_bound) {
-    return H5Pset_sz3(plist, SZ3::Config().cmprAlgo, H5Z_SZ3_EB_REL, 0, rel_bound, 0, 0);
-}
-
 herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config& conf) {
     static char const* _funcname_ = "get_SZ3_conf_from_H5";
 
