@@ -52,8 +52,7 @@ static void load_cd_values(const unsigned int* cd, size_t cd_nelmts, SZ3::Config
     auto bytes = reinterpret_cast<const unsigned char*>(cd);
     size_t len = cd_nelmts * sizeof(unsigned int);
     // Only to read 3.3.2's cd_values, which have no version: they start with the Config's length byte, never
-    // 0, while versionInt() leaves the low byte 0. Dropping 3.3.2 means removing this block. Anything older
-    // also lands here, and conf.load() refuses it.
+    // 0, while versionInt() leaves the low byte 0. Dropping 3.3.2 means removing this block.
     if ((cd[0] & 0xFFu) != 0) {
         conf.load(bytes, len);
         return;
@@ -294,7 +293,7 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
         }
         if (magic != SZ3_MAGIC_NUMBER) {
             // Only to read 3.3.2's chunks of fewer than 20 elements, stored raw with no header. Dropping 3.3.2
-            // means removing these three lines. Older versions stored them raw too, but their cd_values do not load.
+            // means removing these three lines.
             SZ3::Config legacy;
             load_cd_values(cd_values, cd_nelmts, legacy);
             if (legacy.num > 0 && legacy.num < 20) return nbytes;
