@@ -214,23 +214,24 @@ static herr_t H5Z_sz3_set_local_impl(hid_t dcpl_id, hid_t type_id, hid_t chunk_s
 template <typename T>
 void process_data(SZ3::Config& conf, void** buf, size_t* buf_size, size_t nbytes, bool is_decompress) {
     if (is_decompress) {
-        T* processedData = static_cast<T*>(malloc(conf.num * sizeof(T)));
         // HDF5 frees what this returns, so it has to come from malloc. On null SZ_decompress would
         // allocate with new[] instead, and that pairing is undefined.
-        if (processedData == nullptr) throw std::bad_alloc();
-        SZ_decompress(conf, static_cast<char*>(*buf), nbytes, processedData);
+        std::unique_ptr<T, decltype(&free)> processedData(static_cast<T*>(malloc(conf.num * sizeof(T))), &free);
+        if (!processedData) throw std::bad_alloc();
+        T* decData = processedData.get();
+        SZ_decompress(conf, static_cast<char*>(*buf), nbytes, decData);
         free(*buf);
-        *buf = processedData;
+        *buf = processedData.release();
         *buf_size = conf.num * sizeof(T);
     } else {
         // The bound assumes the payload fits in the raw size, so leave headroom on top of it for
         // algorithms whose output can reach or exceed that.
         size_t cmpCap = std::max(SZ3::SZ_compress_size_bound<T>(conf), sizeof(T) * conf.num * 2);
-        char* cmpData = static_cast<char*>(malloc(cmpCap));
-        if (cmpData == nullptr) throw std::bad_alloc();
-        *buf_size = SZ_compress(conf, static_cast<T*>(*buf), cmpData, cmpCap);
+        std::unique_ptr<char, decltype(&free)> cmpData(static_cast<char*>(malloc(cmpCap)), &free);
+        if (!cmpData) throw std::bad_alloc();
+        *buf_size = SZ_compress(conf, static_cast<T*>(*buf), cmpData.get(), cmpCap);
         free(*buf);
-        *buf = cmpData;
+        *buf = cmpData.release();
     }
 }
 
