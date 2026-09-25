@@ -4,10 +4,7 @@
 
 #include <SZ3/api/sz.hpp>
 
-#include "SZ3/compressor/specialized/SZTruncateCompressor.hpp"
-#include "SZ3/encoder/ArithmeticEncoder.hpp"
 #include "SZ3/encoder/BypassEncoder.hpp"
-#include "SZ3/encoder/RunlengthEncoder.hpp"
 #include "SZ3/lossless/Lossless_bypass.hpp"
 
 int main(int argc, char **argv) {
