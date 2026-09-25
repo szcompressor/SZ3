@@ -51,10 +51,9 @@ static std::vector<unsigned int> save_cd_values(const SZ3::Config& conf) {
 static void load_cd_values(const unsigned int* cd, size_t cd_nelmts, SZ3::Config& conf) {
     auto bytes = reinterpret_cast<const unsigned char*>(cd);
     size_t len = cd_nelmts * sizeof(unsigned int);
-    // The low byte of cd[0] tells the two layouts apart:
-    // - save_cd_values() puts versionInt(SZ3_DATA_VER) in cd[0], and versionInt() leaves the low byte 0;
-    // - 3.3.2 wrote no version: cd[0] starts the Config, and its low byte is the Config's length, never 0.
-    if (cd_nelmts > 0 && (cd[0] & 0xFFu) == 0) {
+    // This check exists for 3.3.2's cd_values, which have no version: their cd[0] starts with the Config's
+    // length byte, never 0, while versionInt() leaves the low byte 0. They skip the if and load from cd[0].
+    if ((cd[0] & 0xFFu) == 0) {
         // Another data version may lay out the Config differently.
         if (versionStr(cd[0]) != SZ3_DATA_VER)
             throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(cd[0]) +
@@ -62,7 +61,6 @@ static void load_cd_values(const unsigned int* cd, size_t cd_nelmts, SZ3::Config
         bytes += sizeof(unsigned int);
         len -= sizeof(unsigned int);
     }
-    // 3.3.2 cd_values skip the if above and are read from cd[0].
     conf.load(bytes, len);
 }
 
