@@ -94,4 +94,5 @@ with h5py.File('data.h5', 'w') as f:
 - Ensure HDF5 versions match between h5py and the plugin.
 
 ### C/C++
+A C program sets the filter on a dataset creation property list with `H5Pset_sz3`, declared in `H5Z_SZ3.hpp`.
 See examples `sz3ToHDF5.cpp` and `dsz3FromHDF5.cpp` for how to use the H5Z-SZ3 filter in your C/C++ projects.
