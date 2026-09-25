@@ -48,12 +48,6 @@ static std::vector<unsigned int> save_cd_values(const SZ3::Config& conf) {
     return cd;
 }
 
-static void check_data_version(uint32_t dataVer) {
-    if (versionStr(dataVer) != SZ3_DATA_VER)
-        throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(dataVer) +
-                                    ", this build reads v" SZ3_DATA_VER);
-}
-
 static void load_cd_values(const unsigned int* cd, size_t cd_nelmts, SZ3::Config& conf) {
     auto bytes = reinterpret_cast<const unsigned char*>(cd);
     size_t len = cd_nelmts * sizeof(unsigned int);
@@ -62,7 +56,9 @@ static void load_cd_values(const unsigned int* cd, size_t cd_nelmts, SZ3::Config
     // - 3.3.2 wrote no version: cd[0] starts the Config, and its low byte is the Config's length, never 0.
     if (cd_nelmts > 0 && (cd[0] & 0xFFu) == 0) {
         // Another data version may lay out the Config differently.
-        check_data_version(cd[0]);
+        if (versionStr(cd[0]) != SZ3_DATA_VER)
+            throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(cd[0]) +
+                                        ", this build reads v" SZ3_DATA_VER);
         bytes += sizeof(unsigned int);
         len -= sizeof(unsigned int);
     }
@@ -303,7 +299,9 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
             if (legacy.num > 0 && legacy.num < 20) return nbytes;
             throw std::invalid_argument("SZ3 HDF5 filter: chunk was not written by SZ3");
         }
-        check_data_version(dataVer);
+        if (versionStr(dataVer) != SZ3_DATA_VER)
+            throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(dataVer) +
+                                        ", this build reads v" SZ3_DATA_VER);
     }
 
     load_cd_values(cd_values, cd_nelmts, conf);
