@@ -1,22 +1,24 @@
 #ifndef SZ3_H5Z_SZ3_H
 #define SZ3_H5Z_SZ3_H
 
-/* The SZ3 HDF5 filter. Everything outside the __cplusplus block is plain C, so C programs can
- * include this header too; the functions that take SZ3::Config are C++ only. */
-
-#include "hdf5.h"
-#include "H5PLextern.h"
+/* C programs include this header too: keep what is outside #ifdef __cplusplus plain C. */
 
 #define H5Z_FILTER_SZ3 32024
 
-#ifdef _WIN32
-#ifdef hdf5sz3_EXPORTS
-#define HDF5SZ3_EXPORT __declspec(dllexport)
-#else
-#define HDF5SZ3_EXPORT __declspec(dllimport)
+#ifdef __cplusplus
+#include "SZ3/api/sz.hpp"
 #endif
+#include "hdf5.h"
+#include "H5PLextern.h"
+
+#ifdef _WIN32
+    #ifdef hdf5sz3_EXPORTS
+        #define HDF5SZ3_EXPORT __declspec(dllexport)
+    #else
+        #define HDF5SZ3_EXPORT __declspec(dllimport)
+    #endif
 #else
-#define HDF5SZ3_EXPORT
+    #define HDF5SZ3_EXPORT
 #endif
 
 /* SZ3::EB and SZ3::ALGO, repeated because C cannot see them. */
@@ -39,25 +41,20 @@
 extern "C" {
 #endif
 
-/* Put the SZ3 filter on a dataset-creation property list. Only the bounds the mode uses are read;
- * pass 0 for the others. Returns 1 on success, -1 on failure with the reason on the HDF5 error
- * stack. */
+/* Bounds that eb_mode does not use are ignored. Returns 1, or -1 with the reason on the HDF5 error stack. */
 HDF5SZ3_EXPORT herr_t H5Pset_sz3(hid_t plist, int algo, int eb_mode, double abs_bound, double rel_bound,
                                  double psnr_bound, double l2norm_bound);
 
 #ifdef __cplusplus
-}
-
-#include "SZ3/api/sz.hpp"
-
-extern "C" {
-
-/* Put the SZ3 filter on a dataset-creation property list with a full SZ3::Config.
- * Returns 1 on success, 0 on failure. */
+/* Returns 1 on success, 0 on failure. */
 HDF5SZ3_EXPORT herr_t set_SZ3_conf_to_H5(const hid_t propertyList, SZ3::Config &conf);
 
-/* Load the SZ3::Config this property list carries. Returns 1 if a Config was loaded, 0 if the list
- * carries no SZ3 filter, -1 if reading it failed. conf is left alone unless 1 is returned. */
+/**
+ * @brief Load the SZ3 Config this property list carries.
+ *
+ * Returns 1 if a Config was loaded, 0 if the list carries no SZ3 filter, -1 if reading it failed.
+ * conf is left alone unless 1 is returned.
+ */
 HDF5SZ3_EXPORT herr_t get_SZ3_conf_from_H5(const hid_t propertyList, SZ3::Config &conf);
 }
 #endif

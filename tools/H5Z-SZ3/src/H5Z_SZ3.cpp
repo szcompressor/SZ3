@@ -1,7 +1,6 @@
 #include "H5Z_SZ3.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <cstring>
 #include <fstream>
 #include <iterator>
@@ -9,7 +8,7 @@
 #include <string>
 #include <vector>
 
-// MSG is a printf format string, so anything that is not a literal goes through "%s".
+// The message is a printf format, so anything that is not a literal goes through "%s".
 #define H5Z_SZ_PUSH_AND_GOTO(MAJ, MIN, RET, ...)                                                  \
     do {                                                                                          \
         H5Epush(H5E_DEFAULT, __FILE__, _funcname_, __LINE__, H5E_ERR_CLS, MAJ, MIN, __VA_ARGS__); \
@@ -286,7 +285,7 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
     bool is_decompress = flags & H5Z_FLAG_REVERSE;
     SZ3::Config conf;
 
-    // Ahead of conf.load: every chunk this filter writes carries an SZ3 header, and a file from
+    // Ahead of load_cd_values: every chunk this filter writes carries an SZ3 header, and a file from
     // another version wrote cd_values in a layout this build would misread.
     if (is_decompress) {
         uint32_t magic = 0, dataVer = 0;
