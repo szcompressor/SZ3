@@ -17,7 +17,8 @@ add_library(SZ3::hdf5sz3 ALIAS hdf5sz3)
 # copy loaded in the same process.
 set_target_properties(hdf5sz3 PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
 
-# The filter is built with SZ3's OpenMP; its consumers get SZ3core, without it.
+# PUBLIC SZ3core: the filter's consumers get SZ3 without OpenMP.
+# PRIVATE SZ3: the filter itself is compiled with SZ3's OpenMP.
 target_link_libraries(hdf5sz3
         PUBLIC SZ3core HDF5::HDF5
         PRIVATE SZ3
