@@ -15,11 +15,31 @@ SZ3: A Modular Error-bounded Lossy Compression Framework for Scientific Datasets
 
 Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [INSTALL_DIR]/include
 
+## CMake
+
+#### Build options
+Pass them to `cmake` as `-D<option>=ON` or `OFF`.
+
+| Option | Default | Builds |
+|---|---|---|
+| `BUILD_SHARED_LIBS` | ON | shared libraries; OFF builds static ones |
+| `BUILD_SZ3_BINARY` | ON | the `sz3` executable and the C API library SZ3c |
+| `BUILD_H5Z_FILTER` | OFF | the HDF5 filter H5Z-SZ3 (needs HDF5) |
+| `BUILD_MDZ` | OFF | the MDZ executable for molecular dynamics data |
+| `BUILD_PARAVIEW_PLUGIN` | OFF | the ParaView reader plugin (needs ParaView) |
+| `BUILD_TESTING` | OFF | the unit tests |
+| `SZ3_USE_BUNDLED_ZSTD` | OFF (ON with MSVC) | Zstd from `tools/zstd` instead of the system one |
+| `SZ3_DEBUG_TIMINGS` | OFF | debug timing output |
+
+`H5Z_SZ3_PLUGIN_INSTALL_DIR` (default `lib/plugin`) is where `make install` puts a copy of the filter for HDF5 to load; set it empty for no copy. SZ3 uses OpenMP when it finds it; `-DCMAKE_DISABLE_FIND_PACKAGE_OpenMP=ON` builds without it.
+
 #### Use SZ3 in a CMake project
-* Add [INSTALL_DIR] to `CMAKE_PREFIX_PATH`, then call `find_package(SZ3)` and link one of the two libraries it provides:
-  * `SZ3::SZ3core`: SZ3 with only the dependencies it cannot work without (Zstd).
-  * `SZ3::SZ3`: `SZ3::SZ3core` plus the optional dependencies SZ3 was built with (OpenMP).
-* Data compressed with either one can be decompressed with the other.
+Add [INSTALL_DIR] to `CMAKE_PREFIX_PATH`, call `find_package(SZ3)`, and link one of:
+* `SZ3::SZ3core`: SZ3 with only the dependencies it cannot work without (Zstd).
+* `SZ3::SZ3`: `SZ3::SZ3core` plus the optional dependencies SZ3 was built with (OpenMP).
+* `SZ3::hdf5sz3`: the HDF5 filter, if SZ3 was built with `BUILD_H5Z_FILTER`.
+
+Data compressed with `SZ3::SZ3core` or `SZ3::SZ3` can be decompressed with either.
 
 
 ## How to run
