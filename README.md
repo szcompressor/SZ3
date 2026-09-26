@@ -15,6 +15,12 @@ SZ3: A Modular Error-bounded Lossy Compression Framework for Scientific Datasets
 
 Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [INSTALL_DIR]/include
 
+#### Use SZ3 in a CMake project
+* Add [INSTALL_DIR] to `CMAKE_PREFIX_PATH`, then call `find_package(SZ3)` and link one of the two libraries it provides:
+  * `SZ3::SZ3core`: SZ3 with only the dependencies it cannot work without (Zstd).
+  * `SZ3::SZ3`: `SZ3::SZ3core` plus the optional dependencies SZ3 was built with (OpenMP).
+* Data compressed with either one can be decompressed with the other.
+
 
 ## How to run
 
@@ -25,7 +31,6 @@ Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [
 * Located in 'include/SZ3/api/sz.hpp'. 
 * Requiring a modern C++ compiler.  
 * Different with SZ2 API.
-* In CMake, `find_package(SZ3)` and link `SZ3::SZ3`, which adds OpenMP when SZ3 was built with it. Link `SZ3::SZ3core` to leave OpenMP out; it still reads data compressed with OpenMP.
 
 #### SZ3 C API
 * Located in 'tools/sz3c/include/sz3c.h'
