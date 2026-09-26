@@ -13,6 +13,9 @@ add_library(hdf5sz3
         src/H5Z_SZ3.cpp
 )
 add_library(SZ3::hdf5sz3 ALIAS hdf5sz3)
+# Export only what HDF5SZ3_EXPORT marks: an exported SZ3 internal can be taken over by another SZ3
+# copy loaded in the same process.
+set_target_properties(hdf5sz3 PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
 
 target_link_libraries(hdf5sz3
         PUBLIC SZ3 HDF5::HDF5
@@ -21,6 +24,8 @@ target_link_libraries(hdf5sz3
 
 # Keep this: without a RUNPATH the installed library cannot find a conda, Spack or module HDF5.
 set_target_properties(hdf5sz3 PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
+# SZ3 changes these functions' signatures and SZ3::Config's layout only in a new major.minor.
+set_target_properties(hdf5sz3 PROPERTIES VERSION ${SZ3_VERSION} SOVERSION ${SZ3_VERSION_MAJOR}.${SZ3_VERSION_MINOR})
 
 target_include_directories(hdf5sz3
         PUBLIC

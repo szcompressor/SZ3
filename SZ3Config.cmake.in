@@ -24,6 +24,7 @@ if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/HDF5SZ3.cmake")
   # REQUIRED gets SZ3_FOUND FALSE and a reason, which is what GMX_USE_SZ3=AUTO needs.
   find_dependency(HDF5 COMPONENTS C)
   include("${CMAKE_CURRENT_LIST_DIR}/HDF5SZ3.cmake")
+  set(SZ3_hdf5sz3_FOUND TRUE)
 endif()
 
 if(@OpenMP_FOUND@)

@@ -19,6 +19,7 @@
 #include <cstring>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "SZ3/def.hpp"
@@ -190,11 +191,8 @@ static inline void sendints(struct DataBuffer *buffer, const int num_of_ints, co
 
     for (i = 1; i < num_of_ints; i++) {
         if (nums[i] >= sizes[i]) {
-            fprintf(stderr,
-                    "major breakdown in sendints num %u doesn't "
-                    "match size %u\n",
-                    nums[i], sizes[i]);
-            exit(1);
+            throw std::runtime_error("SZ3 XTC encoder: value " + std::to_string(nums[i]) + " does not fit size " +
+                                     std::to_string(sizes[i]));
         }
         /* use one step multiply */
         tmp = nums[i];

@@ -230,12 +230,57 @@ EOF
     fi
 fi
 
+# ---------------------------------------------------------------- 6. no SZ3 internals exported
+# Another SZ3 copy in the same process would take over any SZ3 function these libraries export.
+for lib in hdf5sz3 SZ3c; do
+    if [ -f "$LIBDIR/lib$lib.so" ] && command -v nm > /dev/null 2>&1; then
+        if ! nm -DC --defined-only "$LIBDIR/lib$lib.so" > "nm_$lib.log" 2>&1; then
+            bad "$lib-exports-no-sz3-functions" "nm failed:" "$(head -3 "nm_$lib.log")"
+        elif grep -E "^[0-9a-f]+ [TWVu] SZ3::" "nm_$lib.log" > "exports_$lib.log"; then
+            bad "$lib-exports-no-sz3-functions" "$(wc -l < "exports_$lib.log") exported, for example:" \
+                "$(head -3 "exports_$lib.log")"
+        else
+            ok "$lib-exports-no-sz3-functions"
+        fi
+    else
+        skipped "$lib-exports-no-sz3-functions (no shared ELF lib$lib here)"
+    fi
+done
+
+# ---------------------------------------------------------------- 7. the filter as a component
+mkdir -p comp
+cat > comp/CMakeLists.txt <<'EOF'
+cmake_minimum_required(VERSION 3.18)
+project(comp CXX)
+find_package(SZ3 REQUIRED COMPONENTS hdf5sz3)
+EOF
+cmake -S comp -B comp/b -DCMAKE_PREFIX_PATH="$CMPFX" > comp/cfg.log 2>&1
+found=$?
+if { [ "$HAVE_FILTER" = 1 ] && [ "$found" = 0 ]; } || { [ "$HAVE_FILTER" = 0 ] && [ "$found" != 0 ]; }; then
+    ok "hdf5sz3-component-found-exactly-when-installed"
+else
+    bad "hdf5sz3-component-found-exactly-when-installed" "filter installed: $HAVE_FILTER, cmake exit: $found" \
+        "$(tail -15 comp/cfg.log)"
+fi
+
+# ---------------------------------------------------------------- 8. a versioned SONAME
+if [ -f "$LIBDIR/libhdf5sz3.so" ] && command -v readelf > /dev/null 2>&1; then
+    readelf -d "$LIBDIR/libhdf5sz3.so" > soname.log 2>&1
+    if grep -qE "SONAME.*libhdf5sz3\.so\.[0-9]" soname.log; then
+        ok "hdf5sz3-soname-carries-a-version"
+    else
+        bad "hdf5sz3-soname-carries-a-version" "$(grep SONAME soname.log)"
+    fi
+else
+    skipped "hdf5sz3-soname-carries-a-version (no shared ELF libhdf5sz3 here)"
+fi
+
 echo
 echo "  $pass passed, $fail failed, $skip skipped"
 
 # Raise this with the check it comes with. A section that stops early otherwise shows only as a
 # smaller number at the bottom that nobody compares.
-EXPECTED=12
+EXPECTED=16
 ran=$((pass + fail + skip))
 if [ "$ran" -ne "$EXPECTED" ]; then
     echo "  the suite accounted for $ran checks, not $EXPECTED"
