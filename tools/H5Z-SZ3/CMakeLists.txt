@@ -17,10 +17,9 @@ add_library(SZ3::hdf5sz3 ALIAS hdf5sz3)
 # copy loaded in the same process.
 set_target_properties(hdf5sz3 PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
 
-# The filter is built with SZ3's OpenMP, and its consumers are not: they get the headers without it.
-# A static filter's need for the OpenMP runtime reaches them as link-only, through SZ3 below.
+# The filter is built with SZ3's OpenMP; its consumers get SZ3core, without it.
 target_link_libraries(hdf5sz3
-        PUBLIC SZ3_no_openmp HDF5::HDF5
+        PUBLIC SZ3core HDF5::HDF5
         PRIVATE SZ3
 )
 # Do not add an MPI search: the filter calls no MPI function, and a parallel HDF5 brings its own.

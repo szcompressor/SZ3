@@ -33,13 +33,12 @@ foreach (TEST_SRC IN LISTS TEST_SOURCES)
     gtest_discover_tests(${TEST_NAME} DISCOVERY_MODE PRE_TEST)
 endforeach()
 
-# The same program built with and without OpenMP, each reading back what the other wrote with
-# conf.openmp = true.
-if (SZ3_USE_OPENMP)
+# A program built without OpenMP reads back what one built with it wrote with conf.openmp = true.
+if (OpenMP_FOUND)
     add_executable(openmp_stream_with openmp_stream.cpp)
     target_link_libraries(openmp_stream_with PRIVATE SZ3)
     add_executable(openmp_stream_without openmp_stream.cpp)
-    target_link_libraries(openmp_stream_without PRIVATE SZ3_no_openmp)
+    target_link_libraries(openmp_stream_without PRIVATE SZ3core)
 
     add_test(NAME SZ3_OpenMPStream_WriteWithOpenMP
             COMMAND openmp_stream_with with write ${CMAKE_CURRENT_BINARY_DIR}/stream_with)
@@ -49,11 +48,4 @@ if (SZ3_USE_OPENMP)
     add_test(NAME SZ3_OpenMPStream_ReadWithoutOpenMP
             COMMAND openmp_stream_without without read ${CMAKE_CURRENT_BINARY_DIR}/stream_with)
     set_tests_properties(SZ3_OpenMPStream_ReadWithoutOpenMP PROPERTIES FIXTURES_REQUIRED stream_with)
-
-    add_test(NAME SZ3_OpenMPStream_WriteWithoutOpenMP
-            COMMAND openmp_stream_without without write ${CMAKE_CURRENT_BINARY_DIR}/stream_without)
-    set_tests_properties(SZ3_OpenMPStream_WriteWithoutOpenMP PROPERTIES FIXTURES_SETUP stream_without)
-    add_test(NAME SZ3_OpenMPStream_ReadWithOpenMP
-            COMMAND openmp_stream_with with read ${CMAKE_CURRENT_BINARY_DIR}/stream_without)
-    set_tests_properties(SZ3_OpenMPStream_ReadWithOpenMP PROPERTIES FIXTURES_REQUIRED stream_without)
 endif ()

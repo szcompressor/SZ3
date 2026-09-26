@@ -3,11 +3,9 @@ add_library(
         src/sz3c.cpp
 )
 
-# PRIVATE: sz3c.h is plain C and includes nothing of SZ3, so SZ3c's callers need neither SZ3's headers
-# nor its OpenMP flags.
 target_link_libraries(
         SZ3c
-        PRIVATE SZ3
+        PUBLIC SZ3
 )
 
 target_compile_definitions(SZ3c PRIVATE SZ3C_EXPORTS)

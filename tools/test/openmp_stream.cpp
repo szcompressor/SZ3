@@ -3,8 +3,8 @@
 //   openmp_stream <with|without> write <prefix>   compress, write <prefix>.sz3 and its decode <prefix>.dec
 //   openmp_stream <with|without> read <prefix>    decode <prefix>.sz3, compare with <prefix>.dec bit for bit
 //
-// tools/test/CMakeLists.txt builds this twice, with OpenMP and without, and has each read what the
-// other wrote. The first argument says which build this is meant to be, so a build that got OpenMP
+// tools/test/CMakeLists.txt builds this twice, with OpenMP and without, and has the build without it
+// read what the other wrote. The first argument says which build this is meant to be, so a build that got OpenMP
 // when it should not have (or the reverse) fails instead of testing nothing.
 
 #include <cmath>
