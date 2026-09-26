@@ -43,7 +43,8 @@
 extern "C" {
 #endif
 
-/* Bounds that errorBoundMode does not use are ignored. Returns 1, or -1 with the reason on the HDF5 error stack. */
+/* Every bound must be finite and not negative; errorBoundMode decides which are used. Returns 1, or -1 with the reason on
+ * the HDF5 error stack. */
 HDF5SZ3_EXPORT herr_t H5Pset_sz3(hid_t propertyList, int cmprAlgo, int errorBoundMode, double absErrorBound,
                                  double relErrorBound, double psnrErrorBound, double l2normErrorBound);
 

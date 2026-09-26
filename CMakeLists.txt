@@ -131,7 +131,7 @@ if (SZ3_INSTALL)
     write_basic_package_version_file(
             "${CMAKE_CURRENT_BINARY_DIR}/SZ3ConfigVersion.cmake"
             VERSION ${PROJECT_VERSION}
-            COMPATIBILITY SameMinorVersion
+            COMPATIBILITY SameMajorVersion
     )
     install(FILES
             ${CMAKE_CURRENT_BINARY_DIR}/SZ3Config.cmake

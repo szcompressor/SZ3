@@ -193,6 +193,10 @@ void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* de
             dims_t[0] = hi - lo;
             auto it = dims_t.begin();
             size_t num_t_base = std::accumulate(++it, dims_t.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+            // A chunk's own Config decides how much is written into its share of decData.
+            if (conf_t[tid].num != dims_t[0] * num_t_base) {
+                throw std::invalid_argument("SZ3: a chunk of the OpenMP stream does not match its share of the data");
+            }
 
             if (conf_t[tid].N == 1) {
                 SZ_decompress_dispatcher<T, 1>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid],
