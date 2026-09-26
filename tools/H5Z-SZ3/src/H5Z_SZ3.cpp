@@ -1,6 +1,7 @@
 #include "H5Z_SZ3.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <iterator>
 #include <memory>
@@ -130,6 +131,11 @@ herr_t H5Pset_sz3(hid_t propertyList, int cmprAlgo, int errorBoundMode, double a
     if (errorBoundMode < H5Z_SZ3_EB_ABS || errorBoundMode > H5Z_SZ3_EB_ABS_OR_REL) {
         H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1, "unknown SZ3 error-bound mode %d", errorBoundMode);
     }
+    for (double bound : {absErrorBound, relErrorBound, psnrErrorBound, l2normErrorBound}) {
+        if (!(bound >= 0) || std::isinf(bound)) {
+            H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1, "SZ3 error bounds must be finite and not negative");
+        }
+    }
     SZ3::Config conf;
     conf.cmprAlgo = static_cast<uint8_t>(cmprAlgo);
     conf.errorBoundMode = static_cast<uint8_t>(errorBoundMode);
@@ -202,6 +208,9 @@ static herr_t H5Z_sz3_set_local_impl(hid_t dcpl_id, hid_t type_id, hid_t chunk_s
     conf.dataType = host_type->second;
     // update conf with dims
     conf.setDims(std::begin(dims), std::end(dims));
+    if (conf.N > 4)
+        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1, "SZ3 compresses at most 4 dimensions longer than 1, not %d",
+                             static_cast<int>(conf.N));
     //  need to update magic number and data version,
     //  as the config may be from cd_values passed by users
     conf.sz3MagicNumber = SZ3_MAGIC_NUMBER;
@@ -278,6 +287,19 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
     }
 
     get_sz3_conf_from_cdvalues(cd_values, cd_nelmts, conf);
+    if (is_decompress) {
+        // SZ_decompress writes as many elements as the chunk's own Config holds, into a buffer sized from cd_values.
+        auto pos = static_cast<const unsigned char*>(*buf) + 8;
+        uint64_t cmpDataSize = 0;
+        if (nbytes >= 16) SZ3::read(cmpDataSize, pos);
+        if (nbytes < 16 || cmpDataSize > nbytes - 16) throw std::invalid_argument("SZ3 HDF5 filter: chunk is truncated");
+        size_t remaining = nbytes - 16 - cmpDataSize;
+        pos += cmpDataSize;
+        SZ3::Config chunk;
+        chunk.load(pos, remaining);
+        if (chunk.num != conf.num)
+            throw std::invalid_argument("SZ3 HDF5 filter: chunk holds a different number of elements than cd_values");
+    }
 
     switch (conf.dataType) {
         case SZ_FLOAT:

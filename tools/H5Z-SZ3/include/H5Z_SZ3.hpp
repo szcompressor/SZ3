@@ -11,7 +11,9 @@
 #include "hdf5.h"
 #include "H5PLextern.h"
 
-#ifdef _WIN32
+#if defined(HDF5SZ3_STATIC)
+    #define HDF5SZ3_EXPORT
+#elif defined(_WIN32)
     #ifdef hdf5sz3_EXPORTS
         #define HDF5SZ3_EXPORT __declspec(dllexport)
     #else

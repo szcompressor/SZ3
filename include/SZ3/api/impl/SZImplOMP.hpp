@@ -20,16 +20,8 @@ namespace SZ3 {
 // Without OpenMP the pragmas below drop out and the same code runs as one thread, so a build
 // without OpenMP still reads and writes this chunked layout. Keep the code outside the pragmas.
 template <class T, uint N>
-size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, [[maybe_unused]] size_t cmpCap) {
-    unsigned char* buffer_pos = cmpData;
-
-    std::vector<uchar*> compressed_t;
-    std::vector<size_t> cmp_size_t, cmp_start_t;
-    std::vector<T> min_t, max_t;
-    std::vector<Config> conf_t;
-    //    Timer timer(true);
+size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCap) {
     int nThreads = 1;
-    // double eb;
 #ifdef _OPENMP
 #pragma omp parallel
 #pragma omp single
@@ -40,97 +32,57 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, [[maybe_unus
     if (conf.dims[0] < static_cast<size_t>(nThreads)) {
         nThreads = static_cast<int>(conf.dims[0]);
     }
-    compressed_t.resize(nThreads);
-    cmp_size_t.resize(nThreads + 1);
-    cmp_start_t.resize(nThreads + 1);
-    conf_t.resize(nThreads);
-    min_t.resize(nThreads);
-    max_t.resize(nThreads);
-    // An exception that leaves an OpenMP region does not unwind to the caller -- the runtime calls
-    // std::terminate -- so each thread stores its own and the first one is rethrown below, outside
-    // the region, where an ordinary catch can see it.
-    std::exception_ptr failure;
-    // num_threads(nThreads) applies to this region alone. omp_set_num_threads(nThreads) would write
-    // the process-wide nthreads-var instead, and that outlives the call: an application running 32
-    // threads that compresses one chunk here would go on running 8 afterwards. SZ3 is a library
-    // inside someone else's program and has no business changing that.
-#ifdef _OPENMP
-#pragma omp parallel num_threads(nThreads)
-#endif
-    try {
-#ifdef _OPENMP
-        int tid = omp_get_thread_num();
-#else
-        int tid = 0;
-#endif
+    const size_t num_t_base = conf.num / conf.dims[0];
+    std::vector<T> min_t(nThreads), max_t(nThreads);
+    std::vector<Config> conf_t(nThreads);
+    std::vector<std::unique_ptr<uchar[]>> compressed_t(nThreads);
+    std::vector<size_t> cmp_size_t(nThreads), cmp_start_t(nThreads + 1);
 
-        auto dims_t = conf.dims;
-        size_t lo = static_cast<size_t>(tid) * conf.dims[0] / nThreads;
-        size_t hi = static_cast<size_t>(tid + 1) * conf.dims[0] / nThreads;
-        dims_t[0] = hi - lo;
-        auto it = dims_t.begin();
-        size_t num_t_base = std::accumulate(++it, dims_t.end(), static_cast<size_t>(1), std::multiplies<size_t>());
-        size_t num_t = dims_t[0] * num_t_base;
-
-        const T* data_t = data + lo * num_t_base;
-        // std::vector<T> data_t(data + lo * num_t_base, data + lo * num_t_base + num_t);
-        if (conf.errorBoundMode != EB_ABS) {
-            auto minmax = std::minmax_element(data_t, data_t + num_t);
-            min_t[tid] = *minmax.first;
-            max_t[tid] = *minmax.second;
+    // Each loop below hands out chunks, not thread ids: a region may get fewer threads than asked
+    // for (nested parallelism, OMP_THREAD_LIMIT, dynamic adjustment), and every chunk still runs.
+    if (conf.errorBoundMode != EB_ABS) {
 #ifdef _OPENMP
-#pragma omp barrier
-#pragma omp single
+#pragma omp parallel for num_threads(nThreads)
 #endif
-            {
-                T range = *std::max_element(max_t.begin(), max_t.end()) - *std::min_element(min_t.begin(), min_t.end());
-                calAbsErrorBound<T>(conf, data, range);
-                //                timer.stop("OMP init");
-                //                timer.start();
-            }
+        for (int i = 0; i < nThreads; i++) {
+            auto minmax = std::minmax_element(data + static_cast<size_t>(i) * conf.dims[0] / nThreads * num_t_base,
+                                              data + static_cast<size_t>(i + 1) * conf.dims[0] / nThreads * num_t_base);
+            min_t[i] = *minmax.first;
+            max_t[i] = *minmax.second;
         }
+        T range = *std::max_element(max_t.begin(), max_t.end()) - *std::min_element(min_t.begin(), min_t.end());
+        calAbsErrorBound<T>(conf, data, range);
+    }
 
-        conf_t[tid] = conf;
-        conf_t[tid].setDims(dims_t.begin(), dims_t.end());
+    // An exception that leaves an OpenMP region does not unwind to the caller -- the runtime calls
+    // std::terminate -- so each chunk stores its own and the first one is rethrown below.
+    std::exception_ptr failure;
+#ifdef _OPENMP
+#pragma omp parallel for num_threads(nThreads)
+#endif
+    for (int i = 0; i < nThreads; i++) try {
+        size_t lo = static_cast<size_t>(i) * conf.dims[0] / nThreads;
+        size_t hi = static_cast<size_t>(i + 1) * conf.dims[0] / nThreads;
+        auto dims_t = conf.dims;
+        dims_t[0] = hi - lo;
+        conf_t[i] = conf;
+        conf_t[i].setDims(dims_t.begin(), dims_t.end());
         // Room for the size header Lossless_zstd::compress writes ahead of the zstd stream.
-        size_t cmp_size_cap = sizeof(size_t) + Lossless_zstd::compress_bound(conf_t[tid].num * sizeof(T));
-        std::unique_ptr<uchar[]> compressed_owner(new uchar[cmp_size_cap]);
-        compressed_t[tid] = compressed_owner.get();
-        // we have to use conf_t[tid].N instead of N since each chunk may be a slice of the original data
-        if (conf_t[tid].N == 1) {
-            cmp_size_t[tid] = SZ_compress_dispatcher<T, 1>(conf_t[tid], data_t, compressed_t[tid], cmp_size_cap);
-        } else if (conf_t[tid].N == 2) {
-            cmp_size_t[tid] = SZ_compress_dispatcher<T, 2>(conf_t[tid], data_t, compressed_t[tid], cmp_size_cap);
-        } else if (conf_t[tid].N == 3) {
-            cmp_size_t[tid] = SZ_compress_dispatcher<T, 3>(conf_t[tid], data_t, compressed_t[tid], cmp_size_cap);
-        } else if (conf_t[tid].N == 4) {
-            cmp_size_t[tid] = SZ_compress_dispatcher<T, 4>(conf_t[tid], data_t, compressed_t[tid], cmp_size_cap);
+        size_t cmp_size_cap = sizeof(size_t) + Lossless_zstd::compress_bound(conf_t[i].num * sizeof(T));
+        compressed_t[i].reset(new uchar[cmp_size_cap]);
+        const T* data_t = data + lo * num_t_base;
+        // we have to use conf_t[i].N instead of N since each chunk may be a slice of the original data
+        if (conf_t[i].N == 1) {
+            cmp_size_t[i] = SZ_compress_dispatcher<T, 1>(conf_t[i], data_t, compressed_t[i].get(), cmp_size_cap);
+        } else if (conf_t[i].N == 2) {
+            cmp_size_t[i] = SZ_compress_dispatcher<T, 2>(conf_t[i], data_t, compressed_t[i].get(), cmp_size_cap);
+        } else if (conf_t[i].N == 3) {
+            cmp_size_t[i] = SZ_compress_dispatcher<T, 3>(conf_t[i], data_t, compressed_t[i].get(), cmp_size_cap);
+        } else if (conf_t[i].N == 4) {
+            cmp_size_t[i] = SZ_compress_dispatcher<T, 4>(conf_t[i], data_t, compressed_t[i].get(), cmp_size_cap);
         } else {
             throw std::invalid_argument("Unsupported N");
         }
-
-#ifdef _OPENMP
-#pragma omp barrier
-#pragma omp single
-#endif
-        {
-            //            timer.stop("OMP compression");
-            //            timer.start();
-            cmp_start_t[0] = 0;
-            for (int i = 1; i <= nThreads; i++) {
-                cmp_start_t[i] = cmp_start_t[i - 1] + cmp_size_t[i - 1];
-            }
-            // size_t bufferSize = sizeof(int) + (nThreads + 1) * Config::size_est() + cmp_start_t[nThreads];
-            //                buffer = new uchar[bufferSize];
-            //                buffer_pos = buffer;
-            write(nThreads, buffer_pos);
-            for (int i = 0; i < nThreads; i++) {
-                conf_t[i].save(buffer_pos);
-            }
-            write(cmp_size_t.data(), nThreads, buffer_pos);
-        }
-
-        memcpy(buffer_pos + cmp_start_t[tid], compressed_t[tid], cmp_size_t[tid]);
     } catch (...) {
 #ifdef _OPENMP
 #pragma omp critical
@@ -143,8 +95,29 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, [[maybe_unus
         std::rethrow_exception(failure);
     }
 
+    size_t header_size = sizeof(int) + nThreads * sizeof(size_t);
+    cmp_start_t[0] = 0;
+    for (int i = 0; i < nThreads; i++) {
+        header_size += conf_t[i].size_est();
+        cmp_start_t[i + 1] = cmp_start_t[i] + cmp_size_t[i];
+    }
+    // cmpCap may come from a bound for fewer chunks, computed by a copy of this header built without OpenMP.
+    if (header_size + cmp_start_t[nThreads] > cmpCap) {
+        throw std::invalid_argument(SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
+    }
+    uchar* buffer_pos = cmpData;
+    write(nThreads, buffer_pos);
+    for (int i = 0; i < nThreads; i++) {
+        conf_t[i].save(buffer_pos);
+    }
+    write(cmp_size_t.data(), nThreads, buffer_pos);
+#ifdef _OPENMP
+#pragma omp parallel for num_threads(nThreads)
+#endif
+    for (int i = 0; i < nThreads; i++) {
+        memcpy(buffer_pos + cmp_start_t[i], compressed_t[i].get(), cmp_size_t[i]);
+    }
     return buffer_pos - cmpData + cmp_start_t[nThreads];
-    //    timer.stop("OMP memcpy");
 }
 
 template <class T, uint N>
@@ -252,13 +225,11 @@ void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* de
 
 template <class T>
 size_t SZ_compress_size_bound_omp(const Config& conf) {
+    // A region without num_threads has at most omp_get_max_threads() threads, so this bounds the
+    // chunk count SZ_compress_OMP picks, however many threads its region then gets.
     int nThreads = 1;
 #ifdef _OPENMP
-#pragma omp parallel
-#pragma omp single
-    {
-        nThreads = omp_get_num_threads();
-    }
+    nThreads = omp_get_max_threads();
 #endif
     if (conf.dims[0] < static_cast<size_t>(nThreads)) {
         nThreads = static_cast<int>(conf.dims[0]);
