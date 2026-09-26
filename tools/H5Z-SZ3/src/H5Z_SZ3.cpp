@@ -182,63 +182,24 @@ static herr_t H5Z_sz3_set_local_impl(hid_t dcpl_id, hid_t type_id, hid_t chunk_s
     SZ3::Config conf;
     if (get_SZ3_conf_from_H5(dcpl_id, conf) < 0) return -1;
 
-    // read datatype and dims from HDF5
-    H5T_class_t dclass;
-    if (0 > (dclass = H5Tget_class(type_id)))
-        H5Z_SZ_PUSH_AND_GOTO(H5E_ARGS, H5E_BADTYPE, -1, "not a datatype");
-
-    size_t dsize;
-    if (0 == (dsize = H5Tget_size(type_id)))
-        H5Z_SZ_PUSH_AND_GOTO(H5E_ARGS, H5E_BADTYPE, -1, "size is smaller than 0!");
-
     int ndims;
     hsize_t dims_all[H5S_MAX_RANK];
     if (0 > (ndims = H5Sget_simple_extent_dims(chunk_space_id, dims_all, NULL)))
         H5Z_SZ_PUSH_AND_GOTO(H5E_ARGS, H5E_BADTYPE, -1, "not a data space");
     std::vector<size_t> dims(dims_all, dims_all + ndims);
-    // update conf with datatype
-    conf.dataType = SZ_FLOAT;
-    if (dclass == H5T_FLOAT)
-        conf.dataType = dsize == 4 ? SZ_FLOAT : SZ_DOUBLE;
-    else if (dclass == H5T_INTEGER) {
-        H5T_sign_t dsign;
-        if (0 > (dsign = H5Tget_sign(type_id)))
-            H5Z_SZ_PUSH_AND_GOTO(H5E_ARGS, H5E_BADTYPE, -1, "Error in calling H5Tget_sign(type_id)....");
-        if (dsign == H5T_SGN_NONE) // unsigned
-        {
-            switch (dsize) {
-                case 1:
-                    conf.dataType = SZ_UINT8;
-                    break;
-                case 2:
-                    conf.dataType = SZ_UINT16;
-                    break;
-                case 4:
-                    conf.dataType = SZ_UINT32;
-                    break;
-                case 8:
-                    conf.dataType = SZ_UINT64;
-                    break;
-            }
-        } else {
-            switch (dsize) {
-                case 1:
-                    conf.dataType = SZ_INT8;
-                    break;
-                case 2:
-                    conf.dataType = SZ_INT16;
-                    break;
-                case 4:
-                    conf.dataType = SZ_INT32;
-                    break;
-                case 8:
-                    conf.dataType = SZ_INT64;
-                    break;
-            }
-        }
-    } else {
-        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADTYPE, 0, "datatype class must be H5T_FLOAT or H5T_INTEGER");
-    }
+    // The filter uses a chunk's bytes as host values, so the datatype has to be identical to a host
+    // type; H5Tequal also compares byte order, precision, offset and padding.
+    const std::pair<hid_t, uint8_t> host_types[] = {{H5T_NATIVE_FLOAT, SZ_FLOAT}, {H5T_NATIVE_DOUBLE, SZ_DOUBLE},
+                                                    {H5T_NATIVE_INT8, SZ_INT8},   {H5T_NATIVE_UINT8, SZ_UINT8},
+                                                    {H5T_NATIVE_INT16, SZ_INT16}, {H5T_NATIVE_UINT16, SZ_UINT16},
+                                                    {H5T_NATIVE_INT32, SZ_INT32}, {H5T_NATIVE_UINT32, SZ_UINT32},
+                                                    {H5T_NATIVE_INT64, SZ_INT64}, {H5T_NATIVE_UINT64, SZ_UINT64}};
+    const auto host_type = std::find_if(std::begin(host_types), std::end(host_types),
+                                        [&](const auto& t) { return H5Tequal(type_id, t.first) > 0; });
+    if (host_type == std::end(host_types))
+        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADTYPE, -1,
+                             "datatype must be the host's float, double, or 1, 2, 4 or 8-byte integer");
+    conf.dataType = host_type->second;
     // update conf with dims
     conf.setDims(std::begin(dims), std::end(dims));
     //  need to update magic number and data version,
@@ -246,29 +207,31 @@ static herr_t H5Z_sz3_set_local_impl(hid_t dcpl_id, hid_t type_id, hid_t chunk_s
     conf.sz3MagicNumber = SZ3_MAGIC_NUMBER;
     conf.sz3DataVer = versionInt(SZ3_DATA_VER);
 
-    set_SZ3_conf_to_H5(dcpl_id, conf);
+    if (set_SZ3_conf_to_H5(dcpl_id, conf) <= 0) return -1;
     return 1;
 }
 
 template <typename T>
 void process_data(SZ3::Config& conf, void** buf, size_t* buf_size, size_t nbytes, bool is_decompress) {
     if (is_decompress) {
-        T* processedData = static_cast<T*>(malloc(conf.num * sizeof(T)));
         // HDF5 frees what this returns, so it has to come from malloc. On null SZ_decompress would
         // allocate with new[] instead, and that pairing is undefined.
-        if (processedData == nullptr) throw std::bad_alloc();
-        SZ_decompress(conf, static_cast<char*>(*buf), nbytes, processedData);
+        std::unique_ptr<T, decltype(&free)> processedData(static_cast<T*>(malloc(conf.num * sizeof(T))), &free);
+        if (!processedData) throw std::bad_alloc();
+        T* decData = processedData.get();
+        SZ_decompress(conf, static_cast<char*>(*buf), nbytes, decData);
         free(*buf);
-        *buf = processedData;
+        *buf = processedData.release();
         *buf_size = conf.num * sizeof(T);
     } else {
         // The bound assumes the payload fits in the raw size, so leave headroom on top of it for
         // algorithms whose output can reach or exceed that.
         size_t cmpCap = std::max(SZ3::SZ_compress_size_bound<T>(conf), sizeof(T) * conf.num * 2);
-        char* cmpData = static_cast<char*>(malloc(cmpCap));
-        *buf_size = SZ_compress(conf, static_cast<T*>(*buf), cmpData, cmpCap);
+        std::unique_ptr<char, decltype(&free)> cmpData(static_cast<char*>(malloc(cmpCap)), &free);
+        if (!cmpData) throw std::bad_alloc();
+        *buf_size = SZ_compress(conf, static_cast<T*>(*buf), cmpData.get(), cmpCap);
         free(*buf);
-        *buf = cmpData;
+        *buf = cmpData.release();
     }
 }
 

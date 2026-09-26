@@ -10,6 +10,7 @@ target_link_libraries(
 
 target_compile_definitions(SZ3c PRIVATE SZ3C_EXPORTS)
 set_target_properties(SZ3c PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
+set_target_properties(SZ3c PROPERTIES VERSION ${SZ3_VERSION} SOVERSION ${SZ3_VERSION_MAJOR}.${SZ3_VERSION_MINOR})
 
 target_include_directories(
         SZ3c
