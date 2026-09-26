@@ -75,5 +75,5 @@ jobs:
           cmake --build _libpressio/build --parallel 4
           # Named, not assumed: with LIBPRESSIO_HAS_SZ3 off this builds just as happily, and the
           # step would then be reporting on a library with no SZ3 in it.
-          nm -C _libpressio/build/liblibpressio.so | grep -q 'sz3_ns::registration' \
+          nm -C _libpressio/build/liblibpressio.so | grep 'sz3_ns::registration' > /dev/null \
             || { echo "the library carries no sz3 plugin, so nothing here tested SZ3"; exit 1; }

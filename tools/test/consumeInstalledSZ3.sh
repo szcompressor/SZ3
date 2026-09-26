@@ -275,12 +275,76 @@ else
     skipped "hdf5sz3-soname-carries-a-version (no shared ELF libhdf5sz3 here)"
 fi
 
+# ---------------------------------------------------------------- 9. OpenMP
+# SZ3::SZ3 hands a consumer the OpenMP SZ3 was built with; SZ3::SZ3core and SZ3::hdf5sz3 do not.
+if grep -qxE 'if\((ON|TRUE|1)\)' "$LIBDIR/cmake/SZ3/SZ3Config.cmake"; then
+mkdir -p ompon
+cat > ompon/CMakeLists.txt <<'EOF'
+cmake_minimum_required(VERSION 3.18)
+project(ompon CXX)
+find_package(SZ3 REQUIRED)
+add_executable(ompon main.cpp)
+target_link_libraries(ompon PRIVATE SZ3::SZ3)
+EOF
+cat > ompon/main.cpp <<'EOF'
+#include <SZ3/api/sz.hpp>
+#ifndef _OPENMP
+#error "SZ3 was built with OpenMP, and linking SZ3::SZ3 did not compile this consumer with it"
+#endif
+int main() { return 0; }
+EOF
+if cmake -S ompon -B ompon/b -DCMAKE_PREFIX_PATH="$CMPFX" > ompon/cfg.log 2>&1 &&
+   cmake --build ompon/b --config Release > ompon/build.log 2>&1; then
+    ok "sz3-consumer-compiles-with-openmp"
+else
+    bad "sz3-consumer-compiles-with-openmp" "$(tail -15 ompon/cfg.log ompon/build.log 2>/dev/null)"
+fi
+else
+skip_all "this SZ3 was built without OpenMP" sz3-consumer-compiles-with-openmp
+fi
+
+# The GROMACS shape. A static filter still brings the OpenMP runtime to the link.
+mkdir -p ompoff
+cat > ompoff/CMakeLists.txt <<'EOF'
+cmake_minimum_required(VERSION 3.18)
+project(ompoff CXX)
+find_package(SZ3 REQUIRED)
+add_executable(ompoff main.cpp)
+target_link_libraries(ompoff PRIVATE SZ3::SZ3core)
+if(TARGET SZ3::hdf5sz3)
+  target_link_libraries(ompoff PRIVATE SZ3::hdf5sz3)
+  target_compile_definitions(ompoff PRIVATE WITH_FILTER)
+endif()
+EOF
+cat > ompoff/main.cpp <<'EOF'
+#ifdef WITH_FILTER
+#include <H5Z_SZ3.hpp>
+#endif
+#include <SZ3/api/sz.hpp>
+#ifdef _OPENMP
+#error "linking SZ3::SZ3core and SZ3::hdf5sz3 compiled this consumer with OpenMP"
+#endif
+int main() {
+#ifdef WITH_FILTER
+    return H5Zregister(H5PLget_plugin_info()) < 0;
+#else
+    return 0;
+#endif
+}
+EOF
+if cmake -S ompoff -B ompoff/b -DCMAKE_PREFIX_PATH="$CMPFX" > ompoff/cfg.log 2>&1 &&
+   cmake --build ompoff/b --config Release > ompoff/build.log 2>&1; then
+    ok "sz3core-consumer-compiles-without-openmp"
+else
+    bad "sz3core-consumer-compiles-without-openmp" "$(tail -15 ompoff/cfg.log ompoff/build.log 2>/dev/null)"
+fi
+
 echo
 echo "  $pass passed, $fail failed, $skip skipped"
 
 # Raise this with the check it comes with. A section that stops early otherwise shows only as a
 # smaller number at the bottom that nobody compares.
-EXPECTED=16
+EXPECTED=18
 ran=$((pass + fail + skip))
 if [ "$ran" -ne "$EXPECTED" ]; then
     echo "  the suite accounted for $ran checks, not $EXPECTED"

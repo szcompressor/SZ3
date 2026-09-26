@@ -31,17 +31,22 @@ configure_file(
         ${CMAKE_CURRENT_SOURCE_DIR}/include/SZ3/version.hpp.in
         ${CMAKE_CURRENT_BINARY_DIR}/include/SZ3/version.hpp)
 
-add_library(${PROJECT_NAME} INTERFACE)
+# SZ3::SZ3core is SZ3 with only the dependencies it cannot work without. SZ3::SZ3 adds the optional
+# ones SZ3 was built with, such as OpenMP. SZ3's headers still use OpenMP in a consumer compiled with it.
+add_library(SZ3core INTERFACE)
+add_library(SZ3::SZ3core ALIAS SZ3core)
 target_include_directories(
-        ${PROJECT_NAME} INTERFACE
+        SZ3core INTERFACE
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
         "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
 )
-target_compile_features(${PROJECT_NAME}
+target_compile_features(SZ3core
         INTERFACE cxx_std_17
 )
 
+add_library(${PROJECT_NAME} INTERFACE)
+target_link_libraries(${PROJECT_NAME} INTERFACE SZ3core)
 find_package(OpenMP)
 if (OpenMP_FOUND)
     # BUILD_INTERFACE only: SZ3Config.cmake names the OpenMP target for the language the consumer
@@ -52,9 +57,9 @@ endif ()
 
 option(SZ3_DEBUG_TIMINGS "print debug timing information" OFF)
 if (SZ3_DEBUG_TIMINGS)
-    target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_DEBUG_TIMINGS=1)
+    target_compile_definitions(SZ3core INTERFACE SZ3_DEBUG_TIMINGS=1)
 else ()
-    target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_DEBUG_TIMINGS=0)
+    target_compile_definitions(SZ3core INTERFACE SZ3_DEBUG_TIMINGS=0)
 endif ()
 
 # "${MSVC}" reads as ON under MSVC and OFF everywhere else. Keep the quotes.
@@ -63,10 +68,10 @@ pkg_search_module(ZSTD libzstd)
 if (ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
     # Not PkgConfig::ZSTD: that imported target does not exist in the consumer's project.
     # BUILD_INTERFACE, and no include directory: both are paths on this machine only.
-    target_link_libraries(${PROJECT_NAME} INTERFACE $<BUILD_INTERFACE:${ZSTD_LINK_LIBRARIES}>)
+    target_link_libraries(SZ3core INTERFACE $<BUILD_INTERFACE:${ZSTD_LINK_LIBRARIES}>)
 else ()
     add_subdirectory(tools/zstd)
-    target_link_libraries(${PROJECT_NAME} INTERFACE zstd)
+    target_link_libraries(SZ3core INTERFACE zstd)
 endif ()
 
 option(BUILD_TESTING "Build tests" OFF)
@@ -97,7 +102,7 @@ if (BUILD_PARAVIEW_PLUGIN)
     add_subdirectory(tools/paraview)
 endif ()
 
-install(TARGETS ${PROJECT_NAME}
+install(TARGETS ${PROJECT_NAME} SZ3core
         EXPORT SZ3Targets
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
@@ -124,4 +129,4 @@ install(FILES
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3
 )
 #export sz3 target for external use
-export(TARGETS SZ3 FILE SZ3.cmake)
+export(TARGETS SZ3 SZ3core FILE SZ3.cmake)
