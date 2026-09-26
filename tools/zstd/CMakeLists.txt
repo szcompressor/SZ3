@@ -10,7 +10,7 @@
 set(_zstd_lib "${CMAKE_CURRENT_SOURCE_DIR}/lib")
 
 # Listed rather than globbed: a glob would silently start compiling whatever a re-vendor drops in.
-add_library(zstd STATIC
+add_library(sz3_zstd STATIC
         "${_zstd_lib}/common/debug.c"
         "${_zstd_lib}/common/entropy_common.c"
         "${_zstd_lib}/common/error_private.c"
@@ -40,21 +40,22 @@ add_library(zstd STATIC
         "${_zstd_lib}/decompress/zstd_decompress_block.c"
 )
 
-# libsz3_zstd, not libzstd: libzstd would overwrite the one already in the install prefix.
+# sz3_zstd, not zstd: a project that adds SZ3 as a subdirectory may have a zstd target of its own,
+# and libzstd would overwrite the one already in the install prefix.
 # Hidden visibility keeps ZSTD_* out of libhdf5sz3.so, where it interposes on the consumer's Zstd.
-set_target_properties(zstd PROPERTIES
-        OUTPUT_NAME sz3_zstd
+set_target_properties(sz3_zstd PROPERTIES
+        EXPORT_NAME zstd
         POSITION_INDEPENDENT_CODE ON
         C_VISIBILITY_PRESET hidden)
 
 # ZSTDLIB_VISIBILITY=: Zstd's headers mark its API visibility("default"), past C_VISIBILITY_PRESET.
 # ZSTD_DISABLE_ASM=1: huf_decompress_amd64.S is not in the source list above.
 # ZSTD_LEGACY_SUPPORT=0: lib/legacy is not vendored.
-target_compile_definitions(zstd
+target_compile_definitions(sz3_zstd
         PRIVATE ZSTDLIB_VISIBILITY= ZSTDERRORLIB_VISIBILITY= ZSTD_DISABLE_ASM=1 ZSTD_LEGACY_SUPPORT=0)
 
 # PRIVATE only: a public include directory would put this zstd.h ahead of a consumer's own.
-target_include_directories(zstd
+target_include_directories(sz3_zstd
         PRIVATE
         "${_zstd_lib}"
         "${_zstd_lib}/common"
@@ -63,10 +64,10 @@ target_include_directories(zstd
 )
 
 if (SZ3_INSTALL)
-    install(TARGETS zstd EXPORT SZ3Targets
+    install(TARGETS sz3_zstd EXPORT SZ3Targets
             LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
             ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     )
 endif ()
 
-export(TARGETS zstd FILE zstd.cmake)
+export(TARGETS sz3_zstd FILE zstd.cmake)

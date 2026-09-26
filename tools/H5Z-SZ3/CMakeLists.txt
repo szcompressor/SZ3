@@ -21,11 +21,11 @@ if (NOT BUILD_SHARED_LIBS)
     target_compile_definitions(hdf5sz3 PUBLIC HDF5SZ3_STATIC)
 endif ()
 
-# PUBLIC SZ3core: the filter's consumers get SZ3 without OpenMP.
-# PRIVATE SZ3: the filter itself is compiled with SZ3's OpenMP.
+# SZ3core, not SZ3: SZ3::SZ3 gets OpenMP only where the consumer finds it, so a static hdf5sz3 built
+# with OpenMP would not link there, and a shared one would bring a second OpenMP runtime into programs
+# built with another compiler's. The filter compresses on one thread even when cd_values ask for OpenMP.
 target_link_libraries(hdf5sz3
         PUBLIC SZ3core HDF5::HDF5
-        PRIVATE SZ3
 )
 # Do not add an MPI search: the filter calls no MPI function, and a parallel HDF5 brings its own.
 

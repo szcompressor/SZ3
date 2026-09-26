@@ -50,4 +50,12 @@ if (OpenMP_FOUND)
     add_test(NAME SZ3_OpenMPStream_ReadWithoutOpenMP
             COMMAND openmp_stream_without without read ${CMAKE_CURRENT_BINARY_DIR}/stream_with)
     set_tests_properties(SZ3_OpenMPStream_ReadWithoutOpenMP PROPERTIES FIXTURES_REQUIRED stream_with)
+
+    add_executable(openmp_regions openmp_regions.cpp)
+    target_link_libraries(openmp_regions PRIVATE SZ3)
+    add_test(NAME SZ3_OpenMP_ChunkThrows COMMAND openmp_regions throw)
+    set_tests_properties(SZ3_OpenMP_ChunkThrows PROPERTIES TIMEOUT 60)
+    add_test(NAME SZ3_OpenMP_FewerThreadsThanAsked COMMAND openmp_regions nested)
+    set_tests_properties(SZ3_OpenMP_FewerThreadsThanAsked PROPERTIES
+            ENVIRONMENT "OMP_NUM_THREADS=4,4;OMP_THREAD_LIMIT=8;OMP_MAX_ACTIVE_LEVELS=2" TIMEOUT 300)
 endif ()

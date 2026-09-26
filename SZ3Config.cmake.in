@@ -2,10 +2,9 @@
 
 include(CMakeFindDependencyMacro)
 
-include("${CMAKE_CURRENT_LIST_DIR}/SZ3Targets.cmake")
-
-# No SZ3::zstd in the export means the build used a system Zstd.
-if(NOT TARGET SZ3::zstd)
+# Every search that can decline runs before any SZ3:: target exists, so a decline leaves none behind
+# for a consumer's own copy of SZ3 to collide with.
+if(NOT "@SZ3_USE_BUNDLED_ZSTD@")
   # Found again, not taken from the export: the build machine's path need not exist here.
   find_library(SZ3_ZSTD_LIBRARY NAMES zstd)
   if(NOT SZ3_ZSTD_LIBRARY)
@@ -13,30 +12,50 @@ if(NOT TARGET SZ3::zstd)
     set(SZ3_FOUND FALSE)
     return()
   endif()
-  set_property(TARGET SZ3::SZ3core APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${SZ3_ZSTD_LIBRARY}")
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/HDF5SZ3.cmake")
   # find_dependency, so this does not demand HDF5 on its own: a consumer who did not write
   # REQUIRED gets SZ3_FOUND FALSE and a reason, which is what GMX_USE_SZ3=AUTO needs.
   find_dependency(HDF5 COMPONENTS C)
-  include("${CMAKE_CURRENT_LIST_DIR}/HDF5SZ3.cmake")
   set(SZ3_hdf5sz3_FOUND TRUE)
 endif()
-
 if(@OpenMP_FOUND@)
-  # Asked per language, because FindOpenMP fails outright when it searches for one the consumer
-  # did not enable -- a C-only project gets "Could NOT find OpenMP_C" even from a bare
-  # find_dependency(OpenMP). C and C++ share one runtime everywhere SZ3 builds, so either will do.
+  # QUIET and never declining: SZ3::SZ3 goes without OpenMP when the consumer's compiler has none, and
+  # SZ3::SZ3core and SZ3::hdf5sz3 do not use it. Asked per language, because FindOpenMP fails outright
+  # when it searches for one the consumer did not enable. C and C++ share one runtime everywhere SZ3
+  # builds, so either will do.
   get_property(sz3_enabled_languages GLOBAL PROPERTY ENABLED_LANGUAGES)
   if("CXX" IN_LIST sz3_enabled_languages)
-    find_dependency(OpenMP COMPONENTS CXX)
-    set_property(TARGET SZ3::SZ3 APPEND PROPERTY INTERFACE_LINK_LIBRARIES OpenMP::OpenMP_CXX)
+    find_package(OpenMP QUIET COMPONENTS CXX)
+    if(OpenMP_CXX_FOUND)
+      set(sz3_openmp OpenMP::OpenMP_CXX)
+    endif()
   elseif("C" IN_LIST sz3_enabled_languages)
-    find_dependency(OpenMP COMPONENTS C)
-    set_property(TARGET SZ3::SZ3 APPEND PROPERTY INTERFACE_LINK_LIBRARIES OpenMP::OpenMP_C)
+    find_package(OpenMP QUIET COMPONENTS C)
+    if(OpenMP_C_FOUND)
+      set(sz3_openmp OpenMP::OpenMP_C)
+    endif()
   endif()
   unset(sz3_enabled_languages)
+endif()
+check_required_components(SZ3)
+# find_package clears a false SZ3_FOUND before running this file, so only check_required_components
+# can have set it false here.
+if(DEFINED SZ3_FOUND AND NOT SZ3_FOUND)
+  return()
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/SZ3Targets.cmake")
+if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/HDF5SZ3.cmake")
+  include("${CMAKE_CURRENT_LIST_DIR}/HDF5SZ3.cmake")
+endif()
+if(NOT "@SZ3_USE_BUNDLED_ZSTD@")
+  set_property(TARGET SZ3::SZ3core APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${SZ3_ZSTD_LIBRARY}")
+endif()
+if(sz3_openmp)
+  set_property(TARGET SZ3::SZ3 APPEND PROPERTY INTERFACE_LINK_LIBRARIES ${sz3_openmp})
+  unset(sz3_openmp)
 endif()
 
 # Without these, target_link_libraries(x PRIVATE hdf5sz3) silently becomes -lhdf5sz3.
@@ -46,4 +65,3 @@ foreach(sz3_target SZ3 hdf5sz3)
     target_link_libraries(${sz3_target} INTERFACE SZ3::${sz3_target})
   endif()
 endforeach()
-check_required_components(SZ3)

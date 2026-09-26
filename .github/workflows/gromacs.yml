@@ -128,15 +128,13 @@ jobs:
           tools/test/gromacsConsumerMatrix.sh gromacs _m/absent - "$CONDA_PREFIX" \
               absent ${{ matrix.gmx }}
 
-      - name: An SZ3 that cannot resolve its own dependencies declines, and AUTO still configures
+      - name: An SZ3 built with OpenMP serves a GROMACS that finds none
         shell: bash -el {0}
         run: |
-          # Taken away by name rather than by hiding directories: where SZ3's dependencies live
-          # differs per machine, and in the MPI row every one of them is in the conda prefix the
-          # consumer itself needs. OpenMP is the one SZ3Config.cmake resolves that this GROMACS
-          # does not. The Zstd-specific export shapes are packaging.yml's job, not this one's.
-          tools/test/gromacsConsumerMatrix.sh gromacs _m/undeps "$PWD/_prefix" "$CONDA_PREFIX" \
-              declined ${{ matrix.gmx }} -DCMAKE_DISABLE_FIND_PACKAGE_OpenMP=ON
+          # SZ3Config.cmake adds OpenMP to SZ3::SZ3 only where the consumer finds it, and GROMACS links
+          # SZ3::hdf5sz3, which needs none. A decline leaving targets behind is consumeInstalledSZ3.sh's.
+          tools/test/gromacsConsumerMatrix.sh gromacs _m/noomp "$PWD/_prefix" "$CONDA_PREFIX" \
+              found ${{ matrix.gmx }} -DCMAKE_DISABLE_FIND_PACKAGE_OpenMP=ON
 
   # The link line is asserted at configure time above; this is the build that proves it, and the
   # h5md unit tests that run against the library it linked.

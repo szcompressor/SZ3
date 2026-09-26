@@ -77,8 +77,10 @@ if (ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
     # BUILD_INTERFACE, and no include directory: both are paths on this machine only.
     target_link_libraries(SZ3core INTERFACE $<BUILD_INTERFACE:${ZSTD_LINK_LIBRARIES}>)
 else ()
+    # What this build uses, for SZ3Config.cmake: the option only states a preference.
+    set(SZ3_USE_BUNDLED_ZSTD ON)
     add_subdirectory(tools/zstd)
-    target_link_libraries(SZ3core INTERFACE zstd)
+    target_link_libraries(SZ3core INTERFACE sz3_zstd)
 endif ()
 
 option(BUILD_TESTING "Build tests" OFF)
