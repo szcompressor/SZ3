@@ -210,6 +210,15 @@ jobs:
             echo "h5md linked an SZ3 library that is not the installed one"; exit 1
           fi
           echo "h5md links the installed SZ3 by path"
+          # GMX_OPENMP=OFF, and the shared filter passes no OpenMP on: none in h5md's compile or link.
+          FLAGS=gbuild/src/gromacs/fileio/h5md/CMakeFiles/h5md.dir/flags.make
+          [ -f "$FLAGS" ] || { echo "no $FLAGS to check"; exit 1; }
+          if grep -n -- '-fopenmp' "$FLAGS"; then
+            echo "h5md is compiled with the OpenMP GROMACS turned off"; exit 1
+          fi
+          if grep -o '[^ ]*gomp[^ ]*' "$LINK"; then
+            echo "h5md-test links the OpenMP runtime GROMACS turned off"; exit 1
+          fi
           cmake --build gbuild --parallel 4 --target h5md-test
 
       - name: Run the h5md unit tests

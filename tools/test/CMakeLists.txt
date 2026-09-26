@@ -46,3 +46,20 @@ endif ()
 if (NOT MINGW)
     add_subdirectory(bench)
 endif ()
+
+# A program built without OpenMP reads back what one built with it wrote with conf.openmp = true.
+if (OpenMP_FOUND)
+    add_executable(openmp_stream_with openmp_stream.cpp)
+    target_link_libraries(openmp_stream_with PRIVATE SZ3)
+    add_executable(openmp_stream_without openmp_stream.cpp)
+    target_link_libraries(openmp_stream_without PRIVATE SZ3core)
+
+    add_test(NAME SZ3_OpenMPStream_WriteWithOpenMP
+            COMMAND openmp_stream_with with write ${CMAKE_CURRENT_BINARY_DIR}/stream_with)
+    # More than one thread, or the stream holds one chunk and the read below proves nothing.
+    set_tests_properties(SZ3_OpenMPStream_WriteWithOpenMP PROPERTIES
+            ENVIRONMENT OMP_NUM_THREADS=4 FIXTURES_SETUP stream_with)
+    add_test(NAME SZ3_OpenMPStream_ReadWithoutOpenMP
+            COMMAND openmp_stream_without without read ${CMAKE_CURRENT_BINARY_DIR}/stream_with)
+    set_tests_properties(SZ3_OpenMPStream_ReadWithoutOpenMP PROPERTIES FIXTURES_REQUIRED stream_with)
+endif ()
