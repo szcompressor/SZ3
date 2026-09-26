@@ -32,3 +32,28 @@ foreach (TEST_SRC IN LISTS TEST_SOURCES)
     # Use PRE_TEST mode to avoid running executable at build time (important for Windows DLL path issues)
     gtest_discover_tests(${TEST_NAME} DISCOVERY_MODE PRE_TEST)
 endforeach()
+
+# The same program built with and without OpenMP, each reading back what the other wrote with
+# conf.openmp = true.
+if (SZ3_USE_OPENMP)
+    add_executable(openmp_stream_with openmp_stream.cpp)
+    target_link_libraries(openmp_stream_with PRIVATE SZ3)
+    add_executable(openmp_stream_without openmp_stream.cpp)
+    target_link_libraries(openmp_stream_without PRIVATE SZ3_no_openmp)
+
+    add_test(NAME SZ3_OpenMPStream_WriteWithOpenMP
+            COMMAND openmp_stream_with with write ${CMAKE_CURRENT_BINARY_DIR}/stream_with)
+    # More than one thread, or the stream holds one chunk and the read below proves nothing.
+    set_tests_properties(SZ3_OpenMPStream_WriteWithOpenMP PROPERTIES
+            ENVIRONMENT OMP_NUM_THREADS=4 FIXTURES_SETUP stream_with)
+    add_test(NAME SZ3_OpenMPStream_ReadWithoutOpenMP
+            COMMAND openmp_stream_without without read ${CMAKE_CURRENT_BINARY_DIR}/stream_with)
+    set_tests_properties(SZ3_OpenMPStream_ReadWithoutOpenMP PROPERTIES FIXTURES_REQUIRED stream_with)
+
+    add_test(NAME SZ3_OpenMPStream_WriteWithoutOpenMP
+            COMMAND openmp_stream_without without write ${CMAKE_CURRENT_BINARY_DIR}/stream_without)
+    set_tests_properties(SZ3_OpenMPStream_WriteWithoutOpenMP PROPERTIES FIXTURES_SETUP stream_without)
+    add_test(NAME SZ3_OpenMPStream_ReadWithOpenMP
+            COMMAND openmp_stream_with with read ${CMAKE_CURRENT_BINARY_DIR}/stream_without)
+    set_tests_properties(SZ3_OpenMPStream_ReadWithOpenMP PROPERTIES FIXTURES_REQUIRED stream_without)
+endif ()

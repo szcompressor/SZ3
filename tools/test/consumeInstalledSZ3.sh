@@ -275,12 +275,187 @@ else
     skipped "hdf5sz3-soname-carries-a-version (no shared ELF libhdf5sz3 here)"
 fi
 
+# ---------------------------------------------------------------- 9. OpenMP
+# SZ3::SZ3 hands a consumer the OpenMP SZ3 was built with. SZ3::SZ3_no_openmp and SZ3::hdf5sz3 hand
+# it none, except that a static filter still needs the OpenMP runtime at link. Either way the
+# consumer reads OpenMP streams.
+# The configured if() around SZ3Config.cmake's OpenMP block says whether SZ3 was built with it.
+case $(grep -xE 'if\((ON|OFF|TRUE|FALSE)\)' "$LIBDIR/cmake/SZ3/SZ3Config.cmake" 2>/dev/null) in
+"if(ON)"  | "if(TRUE)")  BUILT_OMP=1 ;;
+"if(OFF)" | "if(FALSE)") BUILT_OMP=0 ;;
+*)                       BUILT_OMP= ;;
+esac
+
+if [ "$BUILT_OMP" = 1 ]; then
+mkdir -p ompdefault
+cat > ompdefault/CMakeLists.txt <<'EOF'
+cmake_minimum_required(VERSION 3.18)
+project(ompdefault CXX)
+find_package(SZ3 REQUIRED)
+add_executable(ompdefault main.cpp)
+target_link_libraries(ompdefault PRIVATE SZ3::SZ3)
+EOF
+cat > ompdefault/main.cpp <<'EOF'
+#include <SZ3/api/sz.hpp>
+#ifndef _OPENMP
+#error "SZ3 was built with OpenMP, and linking SZ3::SZ3 did not compile this consumer with it"
+#endif
+int main() { return 0; }
+EOF
+if cmake -S ompdefault -B ompdefault/b -DCMAKE_PREFIX_PATH="$CMPFX" > ompdefault/cfg.log 2>&1 &&
+   cmake --build ompdefault/b --config Release > ompdefault/build.log 2>&1; then
+    ok "sz3-default-consumer-compiles-with-openmp"
+else
+    bad "sz3-default-consumer-compiles-with-openmp" "$(tail -15 ompdefault/cfg.log ompdefault/build.log 2>/dev/null)"
+fi
+elif [ "$BUILT_OMP" = 0 ]; then
+skip_all "this SZ3 was built without OpenMP" sz3-default-consumer-compiles-with-openmp
+else
+bad "sz3-default-consumer-compiles-with-openmp" \
+    "no if(ON) or if(OFF) line in $LIBDIR/cmake/SZ3/SZ3Config.cmake says whether SZ3 was built with OpenMP"
+fi
+
+# The GROMACS shape: the filter, and SZ3's headers for its Config, with no OpenMP of its own.
+mkdir -p ompoff
+cat > ompoff/CMakeLists.txt <<'EOF'
+cmake_minimum_required(VERSION 3.18)
+project(ompoff CXX)
+find_package(SZ3 REQUIRED)
+add_executable(ompoff main.cpp)
+target_link_libraries(ompoff PRIVATE SZ3::SZ3_no_openmp)
+if(TARGET SZ3::hdf5sz3)
+  target_link_libraries(ompoff PRIVATE SZ3::hdf5sz3)
+  target_compile_definitions(ompoff PRIVATE WITH_FILTER)
+  get_target_property(type SZ3::hdf5sz3 TYPE)
+  message(STATUS "FILTER ${type}")
+endif()
+# Every usage requirement the consumer is handed, through every target, link-only ones included.
+set(pending SZ3::SZ3_no_openmp SZ3::hdf5sz3)
+set(seen)
+while(pending)
+  list(POP_FRONT pending t)
+  if(t IN_LIST seen OR NOT TARGET ${t})
+    continue()
+  endif()
+  list(APPEND seen ${t})
+  foreach(p INTERFACE_LINK_LIBRARIES INTERFACE_LINK_OPTIONS INTERFACE_COMPILE_OPTIONS INTERFACE_COMPILE_DEFINITIONS)
+    get_target_property(v ${t} ${p})
+    if(v)
+      foreach(item IN LISTS v)
+        message(STATUS "USAGE ${t} ${p} ${item}")
+        string(REGEX REPLACE "^\\$<LINK_ONLY:(.*)>$" "\\1" item "${item}")
+        list(APPEND pending "${item}")
+      endforeach()
+    endif()
+  endforeach()
+endwhile()
+EOF
+cat > ompoff/main.cpp <<'EOF'
+#ifdef WITH_FILTER
+#include <H5Z_SZ3.hpp>
+#endif
+#include <SZ3/api/sz.hpp>
+#include <cstdio>
+#include <fstream>
+#include <iterator>
+#include <vector>
+#ifdef _OPENMP
+#error "linking SZ3::SZ3_no_openmp and SZ3::hdf5sz3 compiled this consumer with OpenMP"
+#endif
+// Registers the filter, which links in its code; then decodes argv[1] into argv[2] and says whether
+// it was a chunked OpenMP stream and how many chunks.
+int main(int argc, char** argv) {
+#ifdef WITH_FILTER
+    printf("filter %s\n", H5Zregister(H5PLget_plugin_info()) < 0 ? "INIT FAILED" : "INIT OK");
+#endif
+    if (argc != 3) return 0;
+    std::ifstream in(argv[1], std::ios::binary);
+    std::vector<char> cmp((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    SZ3::Config conf;
+    float* dec = nullptr;
+    SZ_decompress(conf, cmp.data(), cmp.size(), dec);
+    std::ofstream(argv[2], std::ios::binary).write(reinterpret_cast<char*>(dec), conf.num * sizeof(float));
+    int32_t chunks = 0;
+    if (conf.openmp) {
+        const SZ3::uchar* pos = reinterpret_cast<const SZ3::uchar*>(cmp.data()) + 16;
+        SZ3::read(chunks, pos);
+    }
+    printf("openmp %d chunks %d\n", conf.openmp ? 1 : 0, static_cast<int>(chunks));
+    delete[] dec;
+    return 0;
+}
+EOF
+OMPOFF=
+if cmake -S ompoff -B ompoff/b -DCMAKE_PREFIX_PATH="$CMPFX" \
+        -DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE="$(native "$WORK")/ompoff/b" > ompoff/cfg.log 2>&1; then
+    sed -n 's/^-- USAGE //p' ompoff/cfg.log > ompoff/usage.log
+    grep -iE 'OpenMP::|fopenmp|[/-]openmp|gomp|libomp|iomp5|vcomp' ompoff/usage.log > ompoff/omp.log
+    # Empty, the walk did not run: SZ3::SZ3_no_openmp always carries at least a compile definition.
+    if [ ! -s ompoff/usage.log ]; then
+        bad "sz3-no-openmp-consumer-links-openmp-only-for-a-static-filter" "no usage requirements were listed"
+    elif [ ! -s ompoff/omp.log ] || grep -q '^-- FILTER STATIC_LIBRARY' ompoff/cfg.log; then
+        ok "sz3-no-openmp-consumer-links-openmp-only-for-a-static-filter"
+    else
+        bad "sz3-no-openmp-consumer-links-openmp-only-for-a-static-filter" \
+            "no static filter needs it, and the consumer is handed:" "$(cat ompoff/omp.log)"
+    fi
+    if cmake --build ompoff/b --config Release > ompoff/build.log 2>&1; then
+        ok "sz3-no-openmp-consumer-compiles-without-openmp"
+        OMPOFF=./ompoff/b/ompoff
+    else
+        bad "sz3-no-openmp-consumer-compiles-without-openmp" "$(tail -15 ompoff/build.log)"
+    fi
+else
+    bad "sz3-no-openmp-consumer-links-openmp-only-for-a-static-filter" "$(tail -15 ompoff/cfg.log)"
+    bad "sz3-no-openmp-consumer-compiles-without-openmp" "nothing was configured to build"
+fi
+
+if [ "$HAVE_FILTER" != 1 ]; then
+    skip_all "this SZ3 was built without BUILD_H5Z_FILTER" sz3-no-openmp-consumer-registers-the-filter
+elif [ -z "$OMPOFF" ]; then
+    bad "sz3-no-openmp-consumer-registers-the-filter" "nothing was built to run"
+elif "$OMPOFF" > ompoff/filter.log 2>&1 && grep -q '^filter INIT OK' ompoff/filter.log; then
+    ok "sz3-no-openmp-consumer-registers-the-filter"
+else
+    bad "sz3-no-openmp-consumer-registers-the-filter" "$(tail -5 ompoff/filter.log)"
+fi
+
+# The stream comes from the installed sz3, which was built with OpenMP, at more than one thread.
+DATA=$PREFIX/share/SZ3/testfloat_8_8_128.dat
+if [ "$BUILT_OMP" != 1 ]; then
+    skip_all "this SZ3 was built without OpenMP, so it writes no OpenMP stream" \
+        sz3-no-openmp-consumer-decodes-an-openmp-stream
+elif [ ! -f "$DATA" ] || ! command -v "$PREFIX/bin/sz3" > /dev/null 2>&1; then
+    skip_all "no installed sz3 and test data to write an OpenMP stream with" \
+        sz3-no-openmp-consumer-decodes-an-openmp-stream
+elif [ -z "$OMPOFF" ]; then
+    bad "sz3-no-openmp-consumer-decodes-an-openmp-stream" "nothing was built to run"
+else
+    printf '[GlobalSettings]\nOpenMP = YES\n' > ompoff/omp.config
+    if OMP_NUM_THREADS=4 "$PREFIX/bin/sz3" -f -i "$(native "$DATA")" -3 128 8 8 -M ABS 1e-3 \
+            -c ompoff/omp.config -z ompoff/omp.sz3 -o ompoff/omp.ref.dat > ompoff/sz3.log 2>&1 &&
+       "$OMPOFF" ompoff/omp.sz3 ompoff/omp.dec.dat > ompoff/run.log 2>&1; then
+        chunks=$(sed -n 's/^openmp 1 chunks \([0-9]*\)$/\1/p' ompoff/run.log)
+        # One chunk would decode the same through either path and prove nothing.
+        if [ "${chunks:-0}" -lt 2 ]; then
+            bad "sz3-no-openmp-consumer-decodes-an-openmp-stream" "not a multi-chunk OpenMP stream:" "$(cat ompoff/run.log)"
+        elif cmp -s ompoff/omp.ref.dat ompoff/omp.dec.dat; then
+            ok "sz3-no-openmp-consumer-decodes-an-openmp-stream"
+            echo "        $chunks chunks, decoded to the same bytes as the installed sz3"
+        else
+            bad "sz3-no-openmp-consumer-decodes-an-openmp-stream" "decoded to other bytes than the installed sz3"
+        fi
+    else
+        bad "sz3-no-openmp-consumer-decodes-an-openmp-stream" "$(tail -5 ompoff/sz3.log ompoff/run.log)"
+    fi
+fi
+
 echo
 echo "  $pass passed, $fail failed, $skip skipped"
 
 # Raise this with the check it comes with. A section that stops early otherwise shows only as a
 # smaller number at the bottom that nobody compares.
-EXPECTED=16
+EXPECTED=21
 ran=$((pass + fail + skip))
 if [ "$ran" -ne "$EXPECTED" ]; then
     echo "  the suite accounted for $ran checks, not $EXPECTED"
