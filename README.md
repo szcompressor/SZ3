@@ -25,6 +25,7 @@ Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [
 * Located in 'include/SZ3/api/sz.hpp'. 
 * Requiring a modern C++ compiler.  
 * Different with SZ2 API.
+* In CMake, `find_package(SZ3)` and link `SZ3::SZ3`, which adds OpenMP when SZ3 was built with it. Link `SZ3::SZ3_no_openmp` to leave OpenMP out; it still reads data compressed with OpenMP. `-DSZ3_USE_OPENMP=OFF` builds SZ3 without OpenMP.
 
 #### SZ3 C API
 * Located in 'tools/sz3c/include/sz3c.h'

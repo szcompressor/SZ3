@@ -13,7 +13,7 @@ if(NOT TARGET SZ3::zstd)
     set(SZ3_FOUND FALSE)
     return()
   endif()
-  set_property(TARGET SZ3::SZ3 APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${SZ3_ZSTD_LIBRARY}")
+  set_property(TARGET SZ3::SZ3_no_openmp APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${SZ3_ZSTD_LIBRARY}")
 endif()
 
 if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/HDF5SZ3.cmake")
@@ -24,7 +24,7 @@ if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/HDF5SZ3.cmake")
   set(SZ3_hdf5sz3_FOUND TRUE)
 endif()
 
-if(@OpenMP_FOUND@)
+if(@SZ3_USE_OPENMP@)
   # Asked per language, because FindOpenMP fails outright when it searches for one the consumer
   # did not enable -- a C-only project gets "Could NOT find OpenMP_C" even from a bare
   # find_dependency(OpenMP). C and C++ share one runtime everywhere SZ3 builds, so either will do.

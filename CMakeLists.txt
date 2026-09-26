@@ -31,19 +31,25 @@ configure_file(
         ${CMAKE_CURRENT_SOURCE_DIR}/include/SZ3/version.hpp.in
         ${CMAKE_CURRENT_BINARY_DIR}/include/SZ3/version.hpp)
 
-add_library(${PROJECT_NAME} INTERFACE)
+# SZ3::SZ3_no_openmp is SZ3::SZ3 without OpenMP, for a consumer that does not want OpenMP added to
+# its compile and link. SZ3's headers still use OpenMP in a consumer that compiles with it.
+add_library(SZ3_no_openmp INTERFACE)
+add_library(SZ3::SZ3_no_openmp ALIAS SZ3_no_openmp)
 target_include_directories(
-        ${PROJECT_NAME} INTERFACE
+        SZ3_no_openmp INTERFACE
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
         "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
 )
-target_compile_features(${PROJECT_NAME}
+target_compile_features(SZ3_no_openmp
         INTERFACE cxx_std_17
 )
 
+add_library(${PROJECT_NAME} INTERFACE)
+target_link_libraries(${PROJECT_NAME} INTERFACE SZ3_no_openmp)
 find_package(OpenMP)
-if (OpenMP_FOUND)
+option(SZ3_USE_OPENMP "build SZ3 with OpenMP and add it to SZ3::SZ3; on when OpenMP is found" ${OpenMP_CXX_FOUND})
+if (SZ3_USE_OPENMP)
     # BUILD_INTERFACE only: SZ3Config.cmake names the OpenMP target for the language the consumer
     # actually enabled. Exported as it stands, OpenMP::OpenMP_CXX is a target a C-only consumer
     # cannot be given, and CMake ends the consumer's configure over it.
@@ -52,9 +58,9 @@ endif ()
 
 option(SZ3_DEBUG_TIMINGS "print debug timing information" OFF)
 if (SZ3_DEBUG_TIMINGS)
-    target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_DEBUG_TIMINGS=1)
+    target_compile_definitions(SZ3_no_openmp INTERFACE SZ3_DEBUG_TIMINGS=1)
 else ()
-    target_compile_definitions(${PROJECT_NAME} INTERFACE SZ3_DEBUG_TIMINGS=0)
+    target_compile_definitions(SZ3_no_openmp INTERFACE SZ3_DEBUG_TIMINGS=0)
 endif ()
 
 # "${MSVC}" reads as ON under MSVC and OFF everywhere else. Keep the quotes.
@@ -63,10 +69,10 @@ pkg_search_module(ZSTD libzstd)
 if (ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
     # Not PkgConfig::ZSTD: that imported target does not exist in the consumer's project.
     # BUILD_INTERFACE, and no include directory: both are paths on this machine only.
-    target_link_libraries(${PROJECT_NAME} INTERFACE $<BUILD_INTERFACE:${ZSTD_LINK_LIBRARIES}>)
+    target_link_libraries(SZ3_no_openmp INTERFACE $<BUILD_INTERFACE:${ZSTD_LINK_LIBRARIES}>)
 else ()
     add_subdirectory(tools/zstd)
-    target_link_libraries(${PROJECT_NAME} INTERFACE zstd)
+    target_link_libraries(SZ3_no_openmp INTERFACE zstd)
 endif ()
 
 option(BUILD_TESTING "Build tests" OFF)
@@ -97,7 +103,7 @@ if (BUILD_PARAVIEW_PLUGIN)
     add_subdirectory(tools/paraview)
 endif ()
 
-install(TARGETS ${PROJECT_NAME}
+install(TARGETS ${PROJECT_NAME} SZ3_no_openmp
         EXPORT SZ3Targets
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
@@ -124,4 +130,4 @@ install(FILES
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3
 )
 #export sz3 target for external use
-export(TARGETS SZ3 FILE SZ3.cmake)
+export(TARGETS SZ3 SZ3_no_openmp FILE SZ3.cmake)
