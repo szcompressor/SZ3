@@ -11,6 +11,7 @@
 
 #include "Decomposition.hpp"
 // #include "SZ3/utils/MemoryUtil.hpp"
+#include <cmath>
 #include <list>
 #include <map>
 
