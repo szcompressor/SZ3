@@ -37,7 +37,6 @@ Defined in `include/SZ3/utils/Config.hpp`. Each has a `SZAlgo*.hpp` wiring file 
 | `ALGO_NOPRED` | `SZAlgoNopred.hpp` | Quantize-only baseline |
 | `ALGO_LOSSLESS` | `SZDispatcher.hpp` | Zstd passthrough |
 | `ALGO_BIOMD`, `ALGO_BIOMDXTC` | `SZAlgoBioMD.hpp` | Molecular-dynamics specializations |
-| `ALGO_SVD` | `SZAlgoSVD.hpp` | Tucker / SVD core decomposition (3D+) |
 | `ALGO_ZFP` | `SZAlgoZFP.hpp` | Bundled ZFP block transform (FP-only) |
 | `ALGO_SPERR` | `SZAlgoSPERR.hpp` | Bundled SPERR wavelet + SPECK (3D FP) |
 | `ALGO_MGARD` | `SZAlgoMGARD.hpp` | Bundled MGARD multigrid + LinearQuantizer + HuffmanEncoder + Zstd (1D/2D/3D FP) |

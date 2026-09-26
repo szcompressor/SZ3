@@ -568,98 +568,6 @@
       "niche_variant": true
     },
     {
-      "id": "ALGO_SVD",
-      "name": "SVD / Tucker decomposition",
-      "category": "algorithm",
-      "wiring_file": "include/SZ3/api/impl/SZAlgoSVD.hpp",
-      "pipeline": {
-        "decomposition": "SVDDecomposition",
-        "quantizer": "LinearQuantizer",
-        "encoder": "HuffmanEncoder",
-        "lossless": "Lossless_zstd"
-      },
-      "pipeline_notes": "SVDDecomposition is constructed with two LinearQuantizer instances (svd_quantizer scaled by Config::svd_quant_eb_scale, plus res_quantizer at the user error bound) - one for the SVD core/factors, one for the residual.",
-      "supported_dims": [
-        3,
-        4
-      ],
-      "supported_dtypes": [
-        "float",
-        "double"
-      ],
-      "error_modes": [
-        "ABS",
-        "REL",
-        "PSNR"
-      ],
-      "keywords": [
-        "SVD",
-        "Tucker",
-        "low rank",
-        "tensor",
-        "4D",
-        "4-dimensional",
-        "high-order tensor",
-        "core tensor",
-        "matrix decomposition",
-        "singular value",
-        "TTHRESH",
-        "HOSVD",
-        "ST-HOSVD",
-        "GPU",
-        "GPU compression",
-        "CUDA",
-        "global decomposition",
-        "tensor decomposition",
-        "higher-order SVD",
-        "low-rank approximation",
-        "tensor compression",
-        "higher-order tensor decomposition"
-      ],
-      "best_for": "Higher-order tensor data (3D and 4D) where most energy concentrates in a small number of singular components. Stores a low-rank core plus residuals. Best when the data has strong global structure rather than purely local correlations. Newest results (TZ at HPDC26) report ~10x higher CR than CPU/GPU SOTA on production datasets, including GPU implementations of Tucker decomposition.",
-      "data_examples": [
-        "S3D combustion (Sandia DNS, 4.5 TB / 6.7 TB SP/JICF runs)",
-        "ERA5 climate (15000 / 4000 snapshots)",
-        "BLASTNet H2/Air reacting jet flame (pressure, mass density, temperature)",
-        "SCALE-LETKF (temperature, z-velocity)",
-        "Isotropic turbulence (512^3 volumes)",
-        "Hyperspectral imagery (H x W x bands, naturally 3D)"
-      ],
-      "references": [
-        {
-          "title": "TTHRESH: Tensor Compression for Multidimensional Visual Data",
-          "venue": "IEEE TVCG",
-          "year": 2019,
-          "evidence": "TTHRESH (HOSVD + bit-plane coding) compresses a 512^3 isotropic turbulence volume by 10:1 with visually identical results and by 300:1 (512 MB to 1.71 MB) under heavy compression, outperforming ZFP and other compressors at low-to-medium bitrates."
-        },
-        {
-          "title": "TuckerMPI: A Parallel C++/MPI Software Package for Large-scale Data Compression via the Tucker Tensor Decomposition",
-          "venue": "ACM TOMS",
-          "year": 2020,
-          "evidence": "TuckerMPI compressed 4.5 TB and 6.7 TB S3D combustion datasets (SP and JICF) by 100x-200,000x (99-99.999% reduction) on 250-350 nodes in O(10-100) seconds, faster than reading the data from the parallel file system."
-        },
-        {
-          "title": "An Adaptive Two-stage Algorithm for Error-Bounded Scientific Data Compression",
-          "venue": "IPDPS",
-          "year": 2025,
-          "evidence": "A two-stage SVD compressor (ssz) consistently exceeds rSVD and SZ compression ratios at the same target NRMSE on ERA5 climate (15000 and 4000 snapshots), BLASTNet H2/Air reacting jet flame (pressure, mass density, temperature), and SCALE-LETKF (temperature, z-velocity)."
-        },
-        {
-          "title": "TZ: Achieving High-Ratio Scientific Data Compression on GPUs with Global Data Decomposition",
-          "venue": "HPDC",
-          "year": 2026,
-          "evidence": "TZ, a GPU-native global Tucker-decomposition compressor, achieves ~10x higher CR than state-of-the-art GPU compressors (cuSZ-Hi, cuSZp2, cuZFP) under the same error bound on production-scale datasets including NYX velocity_x, Miranda, and Hurricane ISABEL."
-        }
-      ],
-      "canonical_terms": [
-        "svd",
-        "tucker",
-        "svd tucker",
-        "tensor decomposition",
-        "low-rank tensor"
-      ]
-    },
-    {
       "id": "ALGO_ZFP",
       "name": "ZFP block transform",
       "category": "algorithm",
@@ -1403,9 +1311,7 @@
         "ERA5 climate",
         "BLASTNet jet flames"
       ],
-      "used_by": [
-        "ALGO_SVD"
-      ],
+      "used_by": [],
       "references": [
         {
           "title": "TTHRESH: Tensor Compression for Multidimensional Visual Data",
@@ -1863,7 +1769,6 @@
         "ALGO_INTERP_LORENZO",
         "ALGO_INTERP",
         "ALGO_NOPRED",
-        "ALGO_SVD",
         "ALGO_MGARD"
       ],
       "references": [
@@ -2202,7 +2107,6 @@
         "ALGO_NOPRED",
         "ALGO_LOSSLESS",
         "ALGO_BIOMD",
-        "ALGO_SVD",
         "ALGO_MGARD"
       ],
       "references": [
@@ -2793,7 +2697,6 @@
         "ALGO_INTERP_LORENZO",
         "ALGO_INTERP",
         "ALGO_NOPRED",
-        "ALGO_SVD",
         "ALGO_MGARD",
         "ALGO_BIOMD",
         "ALGO_BIOMDXTC"

@@ -18,6 +18,7 @@
 
 // Core API
 #include "SZ3/api/sz.hpp"
+#include "SZ3/api/impl/SZAlgoSVD.hpp"
 #include "SZ3/def.hpp"
 
 // --- Decompositions ---

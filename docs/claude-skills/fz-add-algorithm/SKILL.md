@@ -62,7 +62,7 @@ In `include/SZ3/utils/Config.hpp`:
 ```cpp
 enum ALGO {
     ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP, ALGO_NOPRED, ALGO_LOSSLESS,
-    ALGO_BIOMD, ALGO_BIOMDXTC, ALGO_SVD, ALGO_ZFP, ALGO_SPERR, ALGO_MGARD,
+    ALGO_BIOMD, ALGO_BIOMDXTC, ALGO_ZFP = 8, ALGO_SPERR, ALGO_MGARD,
     ALGO_FOO   // <-- append at end (preserves serialized values for older compressed files)
 };
 

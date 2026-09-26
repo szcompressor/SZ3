@@ -82,8 +82,8 @@ enum ALGO {
     ALGO_LOSSLESS,
     ALGO_BIOMD,
     ALGO_BIOMDXTC,
-    ALGO_SVD,
-    ALGO_ZFP,
+    // 7 was ALGO_SVD. Compressed data stores these values, so the ones below keep theirs.
+    ALGO_ZFP = 8,
     ALGO_SPERR,
     ALGO_MGARD
 };
@@ -102,7 +102,6 @@ const std::map<std::string, ALGO> ALGO_MAP = {
     {"ALGO_INTERP", ALGO_INTERP},           {"ALGO_NOPRED", ALGO_NOPRED},
     {"ALGO_LOSSLESS", ALGO_LOSSLESS},       {"ALGO_BIOMD", ALGO_BIOMD},
     {"ALGO_BIOMDXTC", ALGO_BIOMDXTC},
-    {"ALGO_SVD", ALGO_SVD},
     {"ALGO_ZFP", ALGO_ZFP},
     {"ALGO_SPERR", ALGO_SPERR},
     {"ALGO_MGARD", ALGO_MGARD},
