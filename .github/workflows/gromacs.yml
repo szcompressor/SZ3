@@ -102,6 +102,13 @@ jobs:
           git -C gromacs fetch -q --depth 1 origin "$GROMACS_MAIN_REF"
           git -C gromacs checkout -q FETCH_HEAD
           git -C gromacs rev-parse HEAD
+          # SZ3ConfigVersion accepts only the same major.minor, so ask for the SZ3 under test. GROMACS
+          # has to raise GMX_SZ3_MINIMUM_REQUIRED_VERSION the same way to use SZ3 3.4.
+          v=$(sed -n 's/^project(SZ3 VERSION \([0-9]*\.[0-9]*\).*/\1/p' CMakeLists.txt)
+          sed -i "s/set(GMX_SZ3_MINIMUM_REQUIRED_VERSION \"[0-9.]*\")/set(GMX_SZ3_MINIMUM_REQUIRED_VERSION \"$v\")/" \
+              gromacs/cmake/gmxManageSZ3.cmake
+          grep -q "GMX_SZ3_MINIMUM_REQUIRED_VERSION \"$v\"" gromacs/cmake/gmxManageSZ3.cmake \
+            || { echo "gmxManageSZ3.cmake no longer sets GMX_SZ3_MINIMUM_REQUIRED_VERSION"; exit 1; }
 
       - name: Build and install SZ3
         shell: bash -el {0}
@@ -179,6 +186,13 @@ jobs:
           git -C gromacs remote add origin "$GROMACS_URL"
           git -C gromacs fetch -q --depth 1 origin "$GROMACS_MAIN_REF"
           git -C gromacs checkout -q FETCH_HEAD
+          # SZ3ConfigVersion accepts only the same major.minor, so ask for the SZ3 under test. GROMACS
+          # has to raise GMX_SZ3_MINIMUM_REQUIRED_VERSION the same way to use SZ3 3.4.
+          v=$(sed -n 's/^project(SZ3 VERSION \([0-9]*\.[0-9]*\).*/\1/p' CMakeLists.txt)
+          sed -i "s/set(GMX_SZ3_MINIMUM_REQUIRED_VERSION \"[0-9.]*\")/set(GMX_SZ3_MINIMUM_REQUIRED_VERSION \"$v\")/" \
+              gromacs/cmake/gmxManageSZ3.cmake
+          grep -q "GMX_SZ3_MINIMUM_REQUIRED_VERSION \"$v\"" gromacs/cmake/gmxManageSZ3.cmake \
+            || { echo "gmxManageSZ3.cmake no longer sets GMX_SZ3_MINIMUM_REQUIRED_VERSION"; exit 1; }
 
       - name: Build and install SZ3
         shell: bash -el {0}
