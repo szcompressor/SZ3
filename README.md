@@ -25,7 +25,6 @@ Pass them to `cmake` as `-D<option>=ON` or `OFF`.
 | `BUILD_SHARED_LIBS` | ON | shared libraries; OFF builds static ones |
 | `BUILD_SZ3_BINARY` | ON | the `sz3` executable and the C API library SZ3c |
 | `BUILD_H5Z_FILTER` | OFF | the HDF5 filter H5Z-SZ3 (needs HDF5) |
-| `BUILD_MDZ` | OFF | the MDZ executable for molecular dynamics data |
 | `BUILD_PARAVIEW_PLUGIN` | OFF | the ParaView reader plugin (needs ParaView) |
 | `BUILD_TESTING` | OFF | the unit tests |
 | `SZ3_USE_BUNDLED_ZSTD` | OFF (ON with MSVC) | Zstd from `tools/zstd` instead of the system one |
