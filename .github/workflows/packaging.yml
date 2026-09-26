@@ -102,6 +102,30 @@ jobs:
           tools/test/consumeInstalledSZ3.sh "$PWD/_prefix"
           mv build.aside build
 
+      - name: A static filter, consumed by a program built without OpenMP
+        shell: bash
+        run: |
+          # consumeInstalledSZ3.sh links the filter from a consumer compiled without OpenMP. A static
+          # filter was compiled with it, so its OpenMP runtime has to reach that link through the export.
+          cmake -S . -B _static -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DBUILD_H5Z_FILTER=ON \
+                -DBUILD_SHARED_LIBS=OFF
+          cmake --build _static --parallel 4
+          cmake --install _static --prefix "$PWD/_sprefix"
+          test -f _sprefix/lib/libhdf5sz3.a || { echo "this install has no static filter to test"; exit 1; }
+          tools/test/consumeInstalledSZ3.sh "$PWD/_sprefix"
+
+      - name: With no OpenMP on the machine, SZ3 still installs and is consumed
+        shell: bash
+        run: |
+          # The shape AppleClang without libomp builds. The configured if(OFF) says it took effect.
+          cmake -S . -B _noomp -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DBUILD_H5Z_FILTER=ON \
+                -DCMAKE_DISABLE_FIND_PACKAGE_OpenMP=ON
+          cmake --build _noomp --parallel 4
+          cmake --install _noomp --prefix "$PWD/_nprefix"
+          grep -qx 'if(OFF)' _nprefix/lib/cmake/SZ3/SZ3Config.cmake \
+            || { echo "SZ3 was built with OpenMP after all, so this tests nothing"; exit 1; }
+          tools/test/consumeInstalledSZ3.sh "$PWD/_nprefix"
+
       - name: A packager can delete tools/zstd and still build against the system Zstd
         shell: bash
         run: |
