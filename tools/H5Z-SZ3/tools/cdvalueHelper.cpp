@@ -91,6 +91,11 @@ int main(int argc, char* argv[]) {
         SZ3::Config conf;
         auto buffer = reinterpret_cast<const unsigned char*>(cd_values.data());
         size_t cd_bytes = cd_values.size() * sizeof(unsigned int);
+        // Skip the data version the filter stores first; cd_values written by v3.3.2 start with the Config.
+        if (cd_bytes > 0 && buffer[0] == 0) {
+            buffer += sizeof(unsigned int);
+            cd_bytes -= sizeof(unsigned int);
+        }
         conf.load(buffer, cd_bytes);
 
         std::ofstream file(outPath);
@@ -107,11 +112,12 @@ int main(int argc, char* argv[]) {
         }
         SZ3::Config conf;
         conf.loadcfg(conPath);
-        std::vector<unsigned int> cd_values(std::ceil(conf.size_est() / 1.0 / sizeof(int)), 0);
-        auto buffer = reinterpret_cast<unsigned char*>(cd_values.data());
+        std::vector<unsigned int> cd_values(1 + std::ceil(conf.size_est() / 1.0 / sizeof(int)), 0);
+        cd_values[0] = versionInt(SZ3_DATA_VER);
+        auto buffer = reinterpret_cast<unsigned char*>(cd_values.data() + 1);
         auto confSizeReal = conf.save(buffer);
 
-        int cd_nelmts = std::ceil(confSizeReal / 1.0 / sizeof(int));
+        int cd_nelmts = 1 + std::ceil(confSizeReal / 1.0 / sizeof(int));
         // conf.print();
         if (cd_nelmts >= 20) {
             printf("h5repack can only take 20 cd_values, but got %d\n cd_values in SZ3", cd_nelmts);

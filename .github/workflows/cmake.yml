@@ -319,6 +319,19 @@ jobs:
         working-directory: build
         run: ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }}
 
+      - name: Build and test static libraries
+        shell: pwsh
+        run: |
+          # Static is what GROMACS builds on Windows.
+          cmake -S . -B build-static `
+            -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake `
+            -DVCPKG_TARGET_TRIPLET=x64-windows `
+            -DBUILD_SHARED_LIBS=OFF `
+            -DBUILD_TESTING=ON `
+            -DBUILD_H5Z_FILTER=ON
+          cmake --build build-static --config ${{ env.BUILD_TYPE }} --parallel 4
+          ctest --test-dir build-static --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }}
+
       - name: Download test data
         shell: pwsh
         run: Invoke-WebRequest -UseBasicParsing -Uri ${{ env.TEST_URL }} -OutFile input.dat

@@ -62,9 +62,11 @@ target_include_directories(zstd
         "${_zstd_lib}/decompress"
 )
 
-install(TARGETS zstd EXPORT SZ3Targets
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
+if (SZ3_INSTALL)
+    install(TARGETS zstd EXPORT SZ3Targets
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    )
+endif ()
 
 export(TARGETS zstd FILE zstd.cmake)

@@ -36,13 +36,6 @@ class Lossless_zstd : public concepts::LosslessInterface {
     static size_t compress_bound(size_t srcLen) { return ZSTD_compressBound(srcLen); }
 
     /**
-     * Attention
-     * When dstCap is smaller than the space needed, ZSTD will not throw any errors.
-     * Instead, it will write a portion of the compressed data to dst and stops.
-     * This behavior is not desirable in SZ, as we need the whole compressed data for decompression.
-     * Therefore, we need to check if the dst buffer (dstCap) is large enough for zstd
-     */
-    /**
      * compress data with lossless compressors
      * @param src  data to be compressed
      * @param srcLen length (in bytes) of the data to be compressed
@@ -53,10 +46,11 @@ class Lossless_zstd : public concepts::LosslessInterface {
     size_t compress(const uchar *src, size_t srcLen, uchar *dst, size_t dstCap) override {
         write(srcLen, dst);
         dstCap -= sizeof(size_t);  // reserve space for srcLen
-        if (dstCap < ZSTD_compressBound(srcLen)) {
+        // ZSTD_compress returns an error code when the output does not fit in dstCap.
+        size_t dstLen = ZSTD_compress(dst, dstCap, src, srcLen, compression_level);
+        if (ZSTD_isError(dstLen)) {
             throw std::length_error(SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
         }
-        size_t dstLen = ZSTD_compress(dst, dstCap, src, srcLen, compression_level);
         return dstLen + sizeof(size_t);
     }
 

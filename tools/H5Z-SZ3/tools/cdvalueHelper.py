@@ -60,7 +60,8 @@ class SZ3:
 
         serialized[0] = len(serialized)
         serialized_data = bytes(serialized)
-        self.cd_values = [int.from_bytes(serialized_data[i:i + 4], 'little')
+        # The filter stores the data version first: SZ3_DATA_VERSION in CMakeLists.txt, as versionInt() packs it.
+        self.cd_values = [(3 << 24) | (3 << 16) | (2 << 8)] + [int.from_bytes(serialized_data[i:i + 4], 'little')
                      for i in range(0, len(serialized_data), 4)]
 
 

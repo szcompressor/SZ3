@@ -1,5 +1,9 @@
-cmake_minimum_required(VERSION 3.18)
-project(SZ3 VERSION 3.3.3)
+cmake_minimum_required(VERSION 3.19)
+project(SZ3 VERSION 3.4.0)
+# So a parent project's normal variable wins over SZ3's cache variables from the first configure.
+if (POLICY CMP0126)
+    cmake_policy(SET CMP0126 NEW)
+endif ()
 
 #data version defines the version of the compressed data format
 #it is not always equal to the program version (e.g., SZ3 v3.1.0 and SZ3 v.3.1.1 may use the same data version of v.3.1.0)
@@ -7,6 +11,9 @@ project(SZ3 VERSION 3.3.3)
 set(SZ3_DATA_VERSION 3.3.2)
 
 include(GNUInstallDirs)
+# Off when SZ3 is added with add_subdirectory or FetchContent: the parent installs what it needs of SZ3.
+string(COMPARE EQUAL "${CMAKE_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}" SZ3_IS_TOP_LEVEL)
+option(SZ3_INSTALL "install SZ3's headers, libraries, tools and CMake package" ${SZ3_IS_TOP_LEVEL})
 
 
 option(BUILD_SHARED_LIBS "build shared libraries by default" ON)
@@ -102,31 +109,33 @@ if (BUILD_PARAVIEW_PLUGIN)
     add_subdirectory(tools/paraview)
 endif ()
 
-install(TARGETS ${PROJECT_NAME} SZ3core
-        EXPORT SZ3Targets
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-)
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-install(FILES
-        "${CMAKE_CURRENT_BINARY_DIR}/include/SZ3/version.hpp"
-        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/SZ3/"
-)
-install(EXPORT SZ3Targets NAMESPACE SZ3:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3)
-include(CMakePackageConfigHelpers)
-configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/SZ3Config.cmake.in
-        "${CMAKE_CURRENT_BINARY_DIR}/SZ3Config.cmake"
-        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3
-)
-write_basic_package_version_file(
-        "${CMAKE_CURRENT_BINARY_DIR}/SZ3ConfigVersion.cmake"
-        VERSION ${PROJECT_VERSION}
-        COMPATIBILITY AnyNewerVersion
-)
-install(FILES
-        ${CMAKE_CURRENT_BINARY_DIR}/SZ3Config.cmake
-        ${CMAKE_CURRENT_BINARY_DIR}/SZ3ConfigVersion.cmake
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3
-)
+if (SZ3_INSTALL)
+    install(TARGETS ${PROJECT_NAME} SZ3core
+            EXPORT SZ3Targets
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(FILES
+            "${CMAKE_CURRENT_BINARY_DIR}/include/SZ3/version.hpp"
+            DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/SZ3/"
+    )
+    install(EXPORT SZ3Targets NAMESPACE SZ3:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3)
+    include(CMakePackageConfigHelpers)
+    configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/SZ3Config.cmake.in
+            "${CMAKE_CURRENT_BINARY_DIR}/SZ3Config.cmake"
+            INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3
+    )
+    write_basic_package_version_file(
+            "${CMAKE_CURRENT_BINARY_DIR}/SZ3ConfigVersion.cmake"
+            VERSION ${PROJECT_VERSION}
+            COMPATIBILITY SameMinorVersion
+    )
+    install(FILES
+            ${CMAKE_CURRENT_BINARY_DIR}/SZ3Config.cmake
+            ${CMAKE_CURRENT_BINARY_DIR}/SZ3ConfigVersion.cmake
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3
+    )
+endif ()
 #export sz3 target for external use
 export(TARGETS SZ3 SZ3core FILE SZ3.cmake)

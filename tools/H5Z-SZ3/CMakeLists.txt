@@ -16,6 +16,10 @@ add_library(SZ3::hdf5sz3 ALIAS hdf5sz3)
 # Export only what HDF5SZ3_EXPORT marks: an exported SZ3 internal can be taken over by another SZ3
 # copy loaded in the same process.
 set_target_properties(hdf5sz3 PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
+if (NOT BUILD_SHARED_LIBS)
+    # Otherwise H5Z_SZ3.hpp marks the functions of a static hdf5sz3 dllimport on Windows.
+    target_compile_definitions(hdf5sz3 PUBLIC HDF5SZ3_STATIC)
+endif ()
 
 # PUBLIC SZ3core: the filter's consumers get SZ3 without OpenMP.
 # PRIVATE SZ3: the filter itself is compiled with SZ3's OpenMP.
@@ -39,30 +43,34 @@ target_include_directories(hdf5sz3
         "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/hdf5_sz3>"
 )
 
-add_subdirectory(tools)
+if (BUILD_SZ3_BINARY)
+    add_subdirectory(tools)
+endif ()
 if (BUILD_TESTING)
     add_subdirectory(test)
 endif ()
 
-install(TARGETS hdf5sz3 EXPORT HDF5SZ3
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
-
-# A copy for HDF5 to find on its own. Its own directory, because HDF5 dlopens every lib*.so on
-# HDF5_PLUGIN_PATH.
-set(H5Z_SZ3_PLUGIN_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/plugin" CACHE STRING
-        "Directory to install the HDF5 filter plugin copy into; empty installs no copy")
-if (BUILD_SHARED_LIBS AND H5Z_SZ3_PLUGIN_INSTALL_DIR)
-    install(TARGETS hdf5sz3
-            LIBRARY DESTINATION ${H5Z_SZ3_PLUGIN_INSTALL_DIR}
-            RUNTIME DESTINATION ${H5Z_SZ3_PLUGIN_INSTALL_DIR}
-            # The Windows import library belongs beside the real one, not where HDF5 scans.
+if (SZ3_INSTALL)
+    install(TARGETS hdf5sz3 EXPORT HDF5SZ3
             ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
-endif ()
 
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/hdf5_sz3)
-install(EXPORT HDF5SZ3 NAMESPACE SZ3:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3)
+    # A copy for HDF5 to find on its own. Its own directory, because HDF5 dlopens every lib*.so on
+    # HDF5_PLUGIN_PATH.
+    set(H5Z_SZ3_PLUGIN_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/plugin" CACHE STRING
+            "Directory to install the HDF5 filter plugin copy into; empty installs no copy")
+    if (BUILD_SHARED_LIBS AND H5Z_SZ3_PLUGIN_INSTALL_DIR)
+        install(TARGETS hdf5sz3
+                LIBRARY DESTINATION ${H5Z_SZ3_PLUGIN_INSTALL_DIR}
+                RUNTIME DESTINATION ${H5Z_SZ3_PLUGIN_INSTALL_DIR}
+                # The Windows import library belongs beside the real one, not where HDF5 scans.
+                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        )
+    endif ()
+
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/hdf5_sz3)
+    install(EXPORT HDF5SZ3 NAMESPACE SZ3:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3)
+endif ()
 export(TARGETS hdf5sz3 FILE HDF5SZ3.cmake NAMESPACE SZ3::)

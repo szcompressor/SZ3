@@ -12,6 +12,8 @@ if(NOT GTest_FOUND)
     if (MSVC)
         set(BUILD_SHARED_LIBS OFF)
     endif ()
+    # Otherwise `make install` puts googletest into SZ3's prefix.
+    set(INSTALL_GTEST OFF)
     FetchContent_MakeAvailable(googletest)
 else()
     message(STATUS "Using locally installed GTest")
@@ -21,7 +23,7 @@ include(CTest)
 include(GoogleTest)
 
 # Collect all test source files
-file(GLOB TEST_SOURCES "${CMAKE_SOURCE_DIR}/tools/test/modules/*.cpp")
+file(GLOB TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/modules/*.cpp")
 
 foreach (TEST_SRC IN LISTS TEST_SOURCES)
     get_filename_component(TEST_NAME ${TEST_SRC} NAME_WE)
