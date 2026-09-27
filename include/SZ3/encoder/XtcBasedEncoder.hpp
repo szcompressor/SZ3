@@ -404,9 +404,6 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             static_cast<float>(minInt[0]) <= -maxAbsoluteInt/4 ||
             static_cast<float>(minInt[1]) <= -maxAbsoluteInt/4 ||
             static_cast<float>(minInt[2]) <= -maxAbsoluteInt/4 ){
-            /* turning value in unsigned by subtracting minInt
-             * would cause overflow
-             */
             throw std::runtime_error("Error. Turning value in unsigned by subtracting minInt would cause overflow.");
         }
         // An input with no complete triplet leaves these at their INT_MAX and INT_MIN seeds, where
