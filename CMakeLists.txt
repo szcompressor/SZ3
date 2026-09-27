@@ -90,7 +90,7 @@ if (BUILD_TESTING)
 endif ()
 
 
-option(BUILD_SZ3_BINARY "build SZ3 tools" ${SZ3_IS_TOP_LEVEL})
+option(BUILD_SZ3_BINARY "build SZ3 tools" ON)
 if (BUILD_SZ3_BINARY)
     add_subdirectory(tools/sz3)
     add_subdirectory(tools/sz3c)
