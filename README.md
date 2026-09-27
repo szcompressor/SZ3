@@ -22,11 +22,11 @@ Pass them to `cmake` as `-D<option>=ON` or `OFF`.
 
 | Option | Default | Enables |
 |---|---|---|
-| `BUILD_SHARED_LIBS` | ON | shared libraries; OFF builds static ones |
+| `BUILD_SHARED_LIBS` | ON, the parent's when SZ3 is added with `add_subdirectory` or FetchContent | shared libraries; OFF builds static ones |
 | `BUILD_SZ3_BINARY` | ON, OFF when SZ3 is added with `add_subdirectory` or FetchContent | the `sz3` executable, the C API library SZ3c and the H5Z-SZ3 tools |
 | `BUILD_H5Z_FILTER` | OFF | the HDF5 filter H5Z-SZ3 (needs HDF5) |
 | `BUILD_PARAVIEW_PLUGIN` | OFF | the ParaView reader plugin (needs ParaView) |
-| `BUILD_TESTING` | OFF | the unit tests |
+| `BUILD_TESTING` | OFF, the parent's when SZ3 is added with `add_subdirectory` or FetchContent | the unit tests |
 | `SZ3_USE_BUNDLED_ZSTD` | OFF (ON with MSVC) | Zstd from `tools/zstd` instead of the system one |
 | `SZ3_DEBUG_TIMINGS` | OFF | debug timing output |
 | `SZ3_INSTALL` | ON, OFF when SZ3 is added with `add_subdirectory` or FetchContent | the install rules |

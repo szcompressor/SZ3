@@ -12,20 +12,24 @@ string(COMPARE EQUAL "${CMAKE_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}" SZ3_IS_TOP_LE
 option(SZ3_INSTALL "install SZ3's headers, libraries, tools and CMake package" ${SZ3_IS_TOP_LEVEL})
 
 
-option(BUILD_SHARED_LIBS "build shared libraries by default" ON)
+# A top-level project's defaults; as a subproject SZ3 leaves these to its parent.
+if (SZ3_IS_TOP_LEVEL)
+    option(BUILD_SHARED_LIBS "build shared libraries by default" ON)
+    set(default_build_type "Release")
+    if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+        message(STATUS "No build type was set. Setting build type to ${default_build_type}.")
+        set(CMAKE_BUILD_TYPE ${default_build_type} CACHE
+                STRING "Choose the type to build" FORCE)
+        set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"
+                "MinSizeRel" "RelWithDebInfo")
+    endif ()
+    option(BUILD_TESTING "Build tests" OFF)
+endif ()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
 else () #-Wunused-parameter
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wreorder -Wsign-compare -Wsuggest-override -Wold-style-cast -Wcast-qual -Wextra-semi -Wnon-virtual-dtor -Wcast-align -Wunused-variable")
-endif ()
-set(default_build_type "Release")
-if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    message(STATUS "No build type was set. Setting build type to ${default_build_type}.")
-    set(CMAKE_BUILD_TYPE ${default_build_type} CACHE
-            STRING "Choose the type to build" FORCE)
-    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"
-            "MinSizeRel" "RelWithDebInfo")
 endif ()
 
 find_package(PkgConfig)
@@ -79,7 +83,6 @@ else ()
     target_link_libraries(SZ3core INTERFACE sz3_zstd)
 endif ()
 
-option(BUILD_TESTING "Build tests" OFF)
 if (BUILD_TESTING)
     enable_testing()
     add_subdirectory(tools/test)
