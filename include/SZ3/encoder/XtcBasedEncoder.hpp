@@ -675,8 +675,9 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
 
         size_t size3 = targetLength;
         bufferSize = size3 * 1.2;
+        // Zeroed: a damaged stream can make receivebits() read past the packed bytes copied in below.
         std::unique_ptr<unsigned char, void (*)(void *)> buffer_owner(
-            static_cast<unsigned char *>(malloc(bufferSize * sizeof(int))), &free);
+            static_cast<unsigned char *>(calloc(bufferSize, sizeof(int))), &free);
         buffer.data = buffer_owner.get();
         if (buffer.data == nullptr) {
             throw std::runtime_error("SZ3 Xtc: can not allocate the decompression buffer");

@@ -17,7 +17,10 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/HDF5SZ3.cmake")
   # find_dependency, so this does not demand HDF5 on its own: a consumer who did not write
   # REQUIRED gets SZ3_FOUND FALSE and a reason.
-  find_dependency(HDF5 COMPONENTS C)
+  # Not again when the consumer already found it: FindHDF5 would reset its HDF5_* variables to C only.
+  if(NOT TARGET HDF5::HDF5)
+    find_dependency(HDF5 COMPONENTS C)
+  endif()
   set(SZ3_hdf5sz3_FOUND TRUE)
 endif()
 if(@OpenMP_FOUND@)

@@ -187,6 +187,9 @@ static herr_t H5Z_sz3_set_local_impl(hid_t dcpl_id, hid_t type_id, hid_t chunk_s
 
     SZ3::Config conf;
     if (get_SZ3_conf_from_H5(dcpl_id, conf) < 0) return -1;
+    // SZ3 compresses the dataset's values, so no filter may transform them before it.
+    if (H5Pget_filter2(dcpl_id, 0, NULL, NULL, NULL, 0, NULL, NULL) != H5Z_FILTER_SZ3)
+        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1, "SZ3 must be the first filter in the pipeline");
 
     int ndims;
     hsize_t dims_all[H5S_MAX_RANK];
@@ -208,8 +211,11 @@ static herr_t H5Z_sz3_set_local_impl(hid_t dcpl_id, hid_t type_id, hid_t chunk_s
     conf.dataType = host_type->second;
     // update conf with dims
     conf.setDims(std::begin(dims), std::end(dims));
-    if (conf.N > 4)
-        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1, "SZ3 compresses at most 4 dimensions longer than 1, not %d",
+    // The MD decompositions take at most 3 dimensions, the others 4.
+    const int max_dims = conf.cmprAlgo == SZ3::ALGO_BIOMD || conf.cmprAlgo == SZ3::ALGO_BIOMDXTC ? 3 : 4;
+    if (conf.N > max_dims)
+        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1,
+                             "SZ3 compresses at most %d dimensions longer than 1 with this algorithm, not %d", max_dims,
                              static_cast<int>(conf.N));
     //  need to update magic number and data version,
     //  as the config may be from cd_values passed by users
@@ -223,9 +229,10 @@ static herr_t H5Z_sz3_set_local_impl(hid_t dcpl_id, hid_t type_id, hid_t chunk_s
 template <typename T>
 void process_data(SZ3::Config& conf, void** buf, size_t* buf_size, size_t nbytes, bool is_decompress) {
     if (is_decompress) {
-        // HDF5 frees what this returns, so it has to come from malloc. On null SZ_decompress would
-        // allocate with new[] instead, and that pairing is undefined.
-        std::unique_ptr<T, decltype(&free)> processedData(static_cast<T*>(malloc(conf.num * sizeof(T))), &free);
+        // HDF5 frees what this returns, so it has to come from the C allocator. On null SZ_decompress would
+        // allocate with new[] instead, and that pairing is undefined. calloc checks the product, and conf.num
+        // comes from the chunk.
+        std::unique_ptr<T, decltype(&free)> processedData(static_cast<T*>(calloc(conf.num, sizeof(T))), &free);
         if (!processedData) throw std::bad_alloc();
         T* decData = processedData.get();
         SZ_decompress(conf, static_cast<char*>(*buf), nbytes, decData);

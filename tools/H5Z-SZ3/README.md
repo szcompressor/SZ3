@@ -30,7 +30,8 @@ export HDF5_PLUGIN_PATH=<PREFIX>/lib/plugin
 ```
 An application that ships the plugin with itself can call `H5PLprepend("<its plugin directory>")` at
 startup instead and set nothing; one that links `SZ3::hdf5sz3` can call
-`H5Zregister(H5PLget_plugin_info())`.
+`H5Zregister(H5PLget_plugin_info())`, unconditionally: `H5Zfilter_avail` loads whatever SZ3 plugin is on
+`HDF5_PLUGIN_PATH`.
 On Windows it still has to find the library: the install puts `hdf5sz3.dll` (`libhdf5sz3.dll` under
 MinGW) in `<prefix>/bin` and only the import library in `<prefix>/lib`, and there is no RPATH to
 record either, so `<prefix>/bin` has to be on `PATH` before the application runs.
