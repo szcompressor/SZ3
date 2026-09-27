@@ -215,7 +215,7 @@ private:
     HuffmanTree tree;
 
 public:
-    void preprocess_encode(const T* const bins, size_t num_bin, int stateNum, uchar flag = 0x00) {
+    void preprocess_encode(const T* const bins, size_t num_bin, int /*stateNum*/, uchar flag = 0x00) {
         // Timer timer(true);
 
         tree.init();
@@ -224,19 +224,15 @@ public:
 
         T __minval, __maxval;
 
-        if (stateNum == 0) {
-            __minval = *bins;
-            __maxval = *bins;
-            for (size_t i = 1; i < num_bin; i++) {
-                __minval = std::min(__minval, *(bins + i));
-                __maxval = std::max(__maxval, *(bins + i));
-            }
-            // decode() marks an unfinished table entry with the value -1.
-            if (__minval < 0) throw std::invalid_argument("HuffmanEncoderV2: bins must not be negative");
-        } else {
-            __minval = 0;
-            __maxval = stateNum - 1;
+        // The bins' own range, not stateNum: a quantizer's stateNum spans far more bins than one chunk uses.
+        __minval = *bins;
+        __maxval = *bins;
+        for (size_t i = 1; i < num_bin; i++) {
+            __minval = std::min(__minval, *(bins + i));
+            __maxval = std::max(__maxval, *(bins + i));
         }
+        // decode() marks an unfinished table entry with the value -1.
+        if (__minval < 0) throw std::invalid_argument("HuffmanEncoderV2: bins must not be negative");
 
         if (static_cast<double>(__maxval) - static_cast<double>(__minval) >=
             static_cast<double>(std::numeric_limits<T>::max())) {
@@ -247,7 +243,7 @@ public:
 
         switch ((flag & 0xc0) >> 6) {
             case 0: {
-                if ((tree.maxval >= (1 << 12) && num_bin < 2 * static_cast<size_t>(__maxval)) ||
+                if ((tree.maxval >= (1 << 16) && num_bin < 2 * static_cast<size_t>(__maxval)) ||
                     tree.maxval >= (1 << 28)) {
                     tree.usemp = 1;
                 } else {

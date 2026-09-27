@@ -439,10 +439,10 @@ TEST(SZ3_HuffmanEncoderV2, StreamFormatIsStable) {
     // Pins the bytes of four streams (dense, map, table-path, raw).
     std::vector<int> a(1000), b(3000), c = fibonacci_stream(20, iota_values(20, 3)), d(77);
     for (int i = 0; i < 1000; i++) a[i] = (i * i + 3 * i) % 37 + 12;
-    for (int i = 0; i < 3000; i++) b[i] = 32768 + ((i * 7919) % 97) - 48 + (i % 101 == 0 ? 20000 : 0);
+    for (int i = 0; i < 3000; i++) b[i] = 32768 + ((i * 7919) % 97) - 48 + (i % 101 == 0 ? 70000 : 0);
     for (int i = 0; i < 77; i++) d[i] = (i * 31) % 1000;
     EXPECT_EQ(fnv1a(check_round_trip(a, 0)), 0x400a81b62de4f5eeull);
-    EXPECT_EQ(fnv1a(check_round_trip(b, 65536)), 0x752ed22e48c4faa5ull);
+    EXPECT_EQ(fnv1a(check_round_trip(b, 65536)), 0xf29de062d2188424ull);
     EXPECT_EQ(fnv1a(check_round_trip(c, 0)), 0x73b66e4c02cbc398ull);
     EXPECT_EQ(fnv1a(check_round_trip(d, 0, 0x01)), 0x20e3cfd7450463adull);
 }
@@ -452,7 +452,7 @@ TEST(SZ3_HuffmanEncoderV2, EmptyInputThrows) {
     EXPECT_THROW(enc.preprocess_encode(std::vector<int>{}, 0), std::invalid_argument);
 }
 
-TEST(SZ3_HuffmanEncoderV2, NegativeBinsThrowWithoutStateNum) {
+TEST(SZ3_HuffmanEncoderV2, NegativeBinsThrow) {
     for (const auto& bins : {std::vector<int>{-1}, std::vector<int>{0, 5, -1}}) {
         V2 enc;
         EXPECT_THROW(enc.preprocess_encode(bins, 0), std::invalid_argument);
