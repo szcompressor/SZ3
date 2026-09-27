@@ -59,7 +59,7 @@ namespace SZ3 {
  * The encoder writes LASTIDX -- one past the last entry -- for any input with fewer than two triplets, so
  * do not subscript the table directly.
  */
-static inline int magicIntAt(const int index) { return magicInts[std::min(std::max(index, 0), LASTIDX - 1)]; }
+static inline int magicIntAt(const int index) { return magicInts[std::min(index, LASTIDX - 1)]; }
 
 struct DataBuffer {
     std::size_t index;
@@ -615,8 +615,6 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
      *
      */
     std::vector<T> decode(const unsigned char *&bytes, size_t targetLength, size_t &remaining_length) override {
-        // The reads below are not individually bounded, so check what they consumed before charging it:
-        // subtracting more than is left would wrap remaining_length and unbound everything parsed after.
         const unsigned char *decode_start = bytes;
 #ifdef DEBUG_OUTPUT
         printf("\nDecoding, targetLength: %ld\n", targetLength);
@@ -654,12 +652,12 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
                maxInt[2]);
 #endif
 
-        // The encoder writes the INT_MAX and INT_MIN seeds when there is no triplet, and otherwise refuses
-        // coordinates at or past maxAbsoluteInt / 4. Within these no size below is 0 or needs 31 bits, and no sum
-        // overflows.
+        // Past what the encoder writes (its INT_MAX/INT_MIN seeds with no triplet, else coordinates inside
+        // ±maxAbsoluteInt / 4) a size below is 0 or needs 31 bits.
         for (int k = 0; k < 3; k++) {
             if (targetLength < 3 ? minInt[k] != INT_MAX || maxInt[k] != INT_MIN
-                                 : minInt[k] > maxInt[k] || minInt[k] < -INT_MAX / 4 || maxInt[k] > INT_MAX / 4)
+                                 : minInt[k] > maxInt[k] || static_cast<float>(minInt[k]) <= -maxAbsoluteInt / 4 ||
+                                       static_cast<float>(maxInt[k]) >= maxAbsoluteInt / 4)
                 throw std::out_of_range("SZ3 Xtc: coordinate bounds out of range");
         }
         // The INT_MAX and INT_MIN seeds arrive here off the stream, so keep this unsigned too.
@@ -839,13 +837,8 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             quantData[quantData.size() - 1] = reminder1;
             quantData[quantData.size() - 2] = reminder2;
         }
-        // decode() has to leave the cursor past what it read; the check below is empty without this.
         bytes = inputBytesPointer;
-        const size_t consumed = static_cast<size_t>(bytes - decode_start);
-        if (consumed > remaining_length) {
-            throw std::out_of_range("SZ3 Xtc: decode read past the end of the compressed buffer");
-        }
-        remaining_length -= consumed;
+        remaining_length -= bytes - decode_start;
         return quantData;
     }
 

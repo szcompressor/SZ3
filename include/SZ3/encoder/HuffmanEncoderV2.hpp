@@ -437,9 +437,6 @@ public:
     }
 
     std::vector<T> decode(const uchar*& bytes, size_t targetLength, size_t& remaining_length) override {
-        // The reads below are not individually bounded, so check what they consumed before charging it:
-        // subtracting more than is left would wrap remaining_length and unbound everything parsed after.
-        const uchar* decode_start = bytes;
         if (remaining_length < 8) {
             throw std::out_of_range("SZ3 HuffmanEncoderV2: decode read past the end of the compressed buffer");
         }
@@ -447,12 +444,7 @@ public:
             size_t len = bytesToInt64_bigEndian(bytes) ^ 0x1234abcd;
             bytes += 8;
             if (len != targetLength) throw std::out_of_range("SZ3 HuffmanEncoderV2: value count mismatch");
-
-            const size_t consumed = static_cast<size_t>(bytes - decode_start);
-            if (consumed > remaining_length) {
-                throw std::out_of_range("SZ3 HuffmanEncoderV2: decode read past the end of the compressed buffer");
-            }
-            remaining_length -= consumed;
+            remaining_length -= 8;
             return std::vector<T>(len, tree.offset);
         }
 
@@ -464,7 +456,7 @@ public:
 
         size_t len = bytesToInt64_bigEndian(bytes) ^ 0x1234abcd;
         bytes += 8;
-        // Every path below reads bytes[0] even when len is 0, and no well-formed stream has an empty code.
+        // The fixed-width tail reads bytes[0] even when len is 0, which no encoder writes.
         if (len == 0 || len > (remaining_length - 8) * 8) {
             throw std::out_of_range("SZ3 HuffmanEncoderV2: decode read past the end of the compressed buffer");
         }
@@ -535,13 +527,8 @@ public:
                 if (j == tree.mbft) out[outLen++] = c + tree.offset, c = j = 0;
             }
 
-            bytes += (len + 7) >> 3;
-
-            const size_t consumed = static_cast<size_t>(bytes - decode_start);
-            if (consumed > remaining_length) {
-                throw std::out_of_range("SZ3 HuffmanEncoderV2: decode read past the end of the compressed buffer");
-            }
-            remaining_length -= consumed;
+            bytes += code_bytes;
+            remaining_length -= 8 + code_bytes;
             return out;
         }
 
@@ -691,15 +678,11 @@ public:
                 }
             }
         }
-        bytes += (len + 7) >> 3;
+        bytes += code_bytes;
 
         // timer.stop("decode");
 
-        const size_t consumed = static_cast<size_t>(bytes - decode_start);
-        if (consumed > remaining_length) {
-            throw std::out_of_range("SZ3 HuffmanEncoderV2: decode read past the end of the compressed buffer");
-        }
-        remaining_length -= consumed;
+        remaining_length -= 8 + code_bytes;
         return out;
     }
 
@@ -1096,12 +1079,15 @@ private:
         tree.maxval = bytesToInt64_bigEndian(bytes);
         bytes += sizeof(uint64_t);
 
-        // Each node costs at least one bit of the DFS stream, so the count can not exceed the bits available.
+        // Each leaf of a tree with two or more costs at least a bit of the DFS stream; a one-leaf tree writes none.
         // tree.n is an int holding a 64-bit read, so check the sign before comparing.
         const size_t dfs_bytes = remaining_length - header_size;
         if (tree.n < 0 || (tree.n > 1 && static_cast<size_t>(tree.n) > dfs_bytes * 8))
             throw std::out_of_range("SZ3 HuffmanEncoderV2: node count exceeds the compressed buffer");
         tree.ht.reserve(static_cast<size_t>(tree.n) << 1);
+        // A single value means maxval == 1, and decode() then never walks this tree, whose root has no p[1].
+        if (tree.n == 1 && tree.maxval != 1)
+            throw std::out_of_range("SZ3 HuffmanEncoderV2: one-leaf tree with maxval != 1");
 
         if (tree.usemp == 0x00) {
             // maxval sizes the dense tables below. preprocess_encode leaves usemp == 0 only under 1 << 28, so a
@@ -1129,8 +1115,6 @@ private:
         }
 
         if (tree.n == 1) {
-            // A single value means maxval == 1, and decode() then never walks this tree, whose root has no p[1].
-            if (tree.maxval != 1) throw std::out_of_range("SZ3 HuffmanEncoderV2: one-leaf tree with maxval != 1");
             tree.ht.resize(2);
             tree.root = 0;
             tree.ht[0] = Node(0, &tree.ht[1]);
