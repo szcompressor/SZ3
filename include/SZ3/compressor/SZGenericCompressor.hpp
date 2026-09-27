@@ -82,8 +82,6 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
 
         size_t quant_inds_size = 0;
         read(quant_inds_size, bufferPos, bufferSize);
-        // Every decomposition emits at most one bin per value, and the count sizes the decoder's output.
-        if (quant_inds_size > conf.num) throw std::out_of_range("SZ3: more bins than the data has values");
         auto quant_inds = encoder.decode(bufferPos, quant_inds_size, bufferSize);
         encoder.postprocess_decode();
 
