@@ -31,13 +31,13 @@ Pass them to `cmake` as `-D<option>=ON` or `OFF`.
 | `SZ3_DEBUG_TIMINGS` | OFF | debug timing output |
 | `SZ3_INSTALL` | ON, OFF when SZ3 is added with `add_subdirectory` or FetchContent | the install rules |
 
-`H5Z_SZ3_PLUGIN_INSTALL_DIR` (default `lib/plugin`) is where `make install` puts a copy of the filter for HDF5 to load; set it empty for no copy. SZ3 uses OpenMP when it finds it; `-DCMAKE_DISABLE_FIND_PACKAGE_OpenMP=ON` builds without it.
+SZ3 uses OpenMP when it finds it; `-DCMAKE_DISABLE_FIND_PACKAGE_OpenMP=ON` builds without it.
 
 #### Use SZ3 in a CMake project
 Add [INSTALL_DIR] to `CMAKE_PREFIX_PATH`, call `find_package(SZ3)`, and link one of:
 * `SZ3::SZ3core`: SZ3 with only the dependencies it cannot work without (Zstd).
 * `SZ3::SZ3`: `SZ3::SZ3core` plus the optional dependencies SZ3 was built with (OpenMP, when the consumer's compiler supports it).
-* `SZ3::hdf5sz3`: the HDF5 filter (without OpenMP), present only if SZ3 was built with `BUILD_H5Z_FILTER`. To require it, call `find_package(SZ3 COMPONENTS hdf5sz3)`.
+* `SZ3::hdf5sz3`: the HDF5 filter; see [tools/H5Z-SZ3/README.md](tools/H5Z-SZ3/README.md).
 
 Data compressed with `SZ3::SZ3core` or `SZ3::SZ3` can be decompressed with either.
 
@@ -104,7 +104,7 @@ Version New features
 * SZ 3.2.0 API reconstructed for FZ. H5Z-SZ3 rewrite. Compression version checking.
 * SZ 3.3.0 Add key QoZ v1 and v2 features to improve compression speed and data quality. The full QoZ is available from **a separate branch** (https://github.com/szcompressor/SZ3/tree/QoZ). 
 * SZ 3.3.2: SZ3 Windows support for both Visual Studio and MinGW toolchains. pySZ v1 released and available via `pip install pysz`. Bio algorithms added. Bugfix for compressed format.
-* SZ 3.4.0: `find_package(SZ3)` works against an installed SZ3, with `SZ3::SZ3core` for consumers that do not want OpenMP. The HDF5 filter gains `H5Pset_sz3`, stores the data version in `cd_values`, uses no OpenMP, and checks its input; it links `SZ3core`, so warning options a consumer sets on `SZ3` no longer reach code that includes `H5Z_SZ3.hpp`. OpenMP compression no longer writes an undecodable stream or hangs when a region gets fewer threads or a chunk fails. Fixes several defects reachable on valid data, one of which writes past the end of a buffer. Removes headers no build target used (ArithmeticEncoder, RunlengthEncoder, the preprocessors, SZTruncateCompressor, ska_hash), and `Config::load` takes the remaining length. The compressed stream format is unchanged.
+* SZ 3.4.0: CMake package with `SZ3::SZ3core` and `SZ3::SZ3`, a reworked HDF5 filter, and fixes for defects on valid data; the compressed format is unchanged. Details in [#161](https://github.com/szcompressor/SZ3/pull/161).
 
 ## 3rd party libraries/tools
 * [Zstandard](https://facebook.github.io/zstd/) v1.5.6 is vendored in `tools/zstd` and built if libzstd can not be found by pkg-config, or if `-DSZ3_USE_BUNDLED_ZSTD=ON` is given. It is linked statically as `libsz3_zstd` and kept private to SZ3.

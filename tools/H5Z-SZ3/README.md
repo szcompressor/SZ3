@@ -22,7 +22,7 @@ Add -DBUILD_H5Z_FILTER=true to the CMake command to enable H5Z-SZ3 filter in SZ3
 A filter built against HDF5 1.14.5 or newer needs HDF5 1.14.5 or newer at run time.
 
 ### Step 2: Configure Environment
-Installing puts a copy of the filter in `<prefix>/lib/plugin` (`H5Z_SZ3_PLUGIN_INSTALL_DIR`), a
+Installing puts a copy of the filter in `<prefix>/lib/plugin` (`H5Z_SZ3_PLUGIN_INSTALL_DIR`; empty for no copy), a
 directory that holds nothing else. Point `HDF5_PLUGIN_PATH` at that, not at `<prefix>/lib` or
 `<prefix>/bin`: HDF5 dlopens every `lib*.so` in each directory on the path, and every `*.dll` on
 Windows. The variable also replaces HDF5's own compiled-in plugin directory rather than adding to
@@ -97,7 +97,7 @@ with h5py.File('data.h5', 'w') as f:
 - Ensure HDF5 versions match between h5py and the plugin.
 
 ### C/C++
-A C program sets the filter on a dataset creation property list with `H5Pset_sz3`, declared in `H5Z_SZ3.hpp`.
+A C program sets the filter on a dataset creation property list with `H5Pset_sz3`, declared in `H5Z_SZ3.hpp`. A CMake project links `SZ3::hdf5sz3` and requires it with `find_package(SZ3 COMPONENTS hdf5sz3)`.
 - For molecular-dynamics coordinates use `H5Z_SZ3_ALGO_BIOMD` (better with several frames per chunk) or `H5Z_SZ3_ALGO_BIOMDXTC` (like GROMACS's xtc, it can round a coordinate slightly past the bound).
 - A chunk written again after it left the chunk cache is recompressed, and its error can then exceed the bound, except with `H5Z_SZ3_ALGO_BIOMDXTC` or `H5Z_SZ3_ALGO_NOPRED` and an absolute bound. `H5D_CHUNK_DONT_FILTER_PARTIAL_CHUNKS` avoids this when appending frames.
 - SZ3 has no checksum; add `H5Pset_fletcher32` after `H5Pset_sz3` to detect damaged chunks.
