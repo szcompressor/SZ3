@@ -28,6 +28,8 @@
  * static and cannot be called from user programs)
  */
 
+namespace SZ3 {
+
 // Integers above 2^24 do not have unique representations in
 // 32-bit floats ie with 24 bits of precision.  We use maxAbsoluteInt
 // to check that float values can be transformed into an in-range
@@ -36,9 +38,6 @@
 // reject all floats above that which converts to an in-range 32-bit integer.
 const float maxAbsoluteInt = std::nextafterf(float(INT_MAX), 0.F);  // NOLINT(cert-err58-cpp)
 
-#ifndef SQR
-#define SQR(x) ((x) * (x))
-#endif
 static const int magicInts[] = {
     0,       0,       0,       0,       0,        0,        0,       0,       0,       8,       10,
     12,      16,      20,      25,      32,       40,       50,      64,      80,      101,     128,
@@ -48,11 +47,9 @@ static const int magicInts[] = {
     330280,  416127,  524287,  660561,  832255,   1048576,  1321122, 1664510, 2097152, 2642245, 3329021,
     4194304, 5284491, 6658042, 8388607, 10568983, 13316085, 16777216};
 
-#define FIRSTIDX 9
+constexpr int FIRSTIDX = 9;
 /* note that magicInts[FIRSTIDX-1] == 0 */
-#define LASTIDX static_cast<int>((sizeof(magicInts) / sizeof(*magicInts)))
-
-namespace SZ3 {
+constexpr int LASTIDX = static_cast<int>(sizeof(magicInts) / sizeof(*magicInts));
 
 /*! \brief read magicInts at an index that came off the stream
  *
