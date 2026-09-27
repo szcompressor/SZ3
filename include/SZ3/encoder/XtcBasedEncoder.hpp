@@ -410,9 +410,6 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             /* turning value in unsigned by subtracting minInt
              * would cause overflow
              */
-            fprintf(stderr,
-                    "Error. Turning value in unsigned by subtracting minInt would cause "
-                    "overflow.\n");
             throw std::runtime_error("Error. Turning value in unsigned by subtracting minInt would cause overflow.");
         }
         // An input with no complete triplet leaves these at their INT_MAX and INT_MIN seeds, where
