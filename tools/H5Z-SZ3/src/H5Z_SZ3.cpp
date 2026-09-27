@@ -263,42 +263,30 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
     bool is_decompress = flags & H5Z_FLAG_REVERSE;
     SZ3::Config conf;
 
-    // Ahead of get_sz3_conf_from_cdvalues: every chunk this filter writes carries an SZ3 header, and a file from
-    // another version wrote cd_values in a layout this build would misread.
     if (is_decompress) {
+        // The chunk carries its own Config, which gives the element count and type to decompress.
         uint32_t magic = 0, dataVer = 0;
-        if (nbytes >= 8) {
-            auto header = reinterpret_cast<const unsigned char*>(*buf);
-            SZ3::read(magic, header);
-            SZ3::read(dataVer, header);
+        uint64_t cmpDataSize = 0;
+        auto pos = static_cast<const unsigned char*>(*buf);
+        if (nbytes >= 16) {
+            SZ3::read(magic, pos);
+            SZ3::read(dataVer, pos);
+            SZ3::read(cmpDataSize, pos);
         }
         if (magic != SZ3_MAGIC_NUMBER) {
-            {
-                // backward compatibility for v3.3.2; it stores chunks of fewer than 20 elements raw, with no header.
-                SZ3::Config legacy;
-                get_sz3_conf_from_cdvalues(cd_values, cd_nelmts, legacy);
-                if (legacy.num > 0 && legacy.num < 20) return nbytes;
-            }
+            // backward compatibility for v3.3.2; it stores chunks of fewer than 20 elements raw, with no header.
+            if (nbytes < 20 * sizeof(double)) return nbytes;
             throw std::invalid_argument("SZ3 HDF5 filter: chunk was not written by SZ3");
         }
         if (versionStr(dataVer) != SZ3_DATA_VER)
             throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(dataVer) +
                                         ", this build reads v" SZ3_DATA_VER);
-    }
-
-    get_sz3_conf_from_cdvalues(cd_values, cd_nelmts, conf);
-    if (is_decompress) {
-        // SZ_decompress writes as many elements as the chunk's own Config holds, into a buffer sized from cd_values.
-        auto pos = static_cast<const unsigned char*>(*buf) + 8;
-        uint64_t cmpDataSize = 0;
-        if (nbytes >= 16) SZ3::read(cmpDataSize, pos);
-        if (nbytes < 16 || cmpDataSize > nbytes - 16) throw std::invalid_argument("SZ3 HDF5 filter: chunk is truncated");
+        if (cmpDataSize > nbytes - 16) throw std::invalid_argument("SZ3 HDF5 filter: chunk is truncated");
         size_t remaining = nbytes - 16 - cmpDataSize;
         pos += cmpDataSize;
-        SZ3::Config chunk;
-        chunk.load(pos, remaining);
-        if (chunk.num != conf.num)
-            throw std::invalid_argument("SZ3 HDF5 filter: chunk holds a different number of elements than cd_values");
+        conf.load(pos, remaining);
+    } else {
+        get_sz3_conf_from_cdvalues(cd_values, cd_nelmts, conf);
     }
 
     switch (conf.dataType) {
