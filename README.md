@@ -37,7 +37,7 @@ Pass them to `cmake` as `-D<option>=ON` or `OFF`.
 Add [INSTALL_DIR] to `CMAKE_PREFIX_PATH`, call `find_package(SZ3)`, and link one of:
 * `SZ3::SZ3core`: SZ3 with only the dependencies it cannot work without (Zstd).
 * `SZ3::SZ3`: `SZ3::SZ3core` plus the optional dependencies SZ3 was built with (OpenMP, when the consumer's compiler supports it).
-* `SZ3::hdf5sz3`: the HDF5 filter, if SZ3 was built with `BUILD_H5Z_FILTER`. It is built without OpenMP.
+* `SZ3::hdf5sz3`: the HDF5 filter, if SZ3 was built with `BUILD_H5Z_FILTER`. It is built without OpenMP. A project that needs it calls `find_package(SZ3 COMPONENTS hdf5sz3)`, so an SZ3 built without the filter is not found.
 
 Data compressed with `SZ3::SZ3core` or `SZ3::SZ3` can be decompressed with either.
 

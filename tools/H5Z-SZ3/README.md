@@ -38,7 +38,7 @@ record either, so `<prefix>/bin` has to be on `PATH` before the application runs
 ## H5Z-SZ3 cd_values
 * HDF5 restricts the parameters that can be passed to filters through an integers array called `cd_values`.
 * H5Z-SZ3 uses `cd_values` to pass the desired compression settings (e.g., algorithm, error bounds) to the compression process. `cd_values[0]` is the SZ3 data version, `(major << 24) | (minor << 16) | (patch << 8)` (`0x03030200` for 3.3.2), followed by the `Config` object serialized with `save()`. H5Z-SZ3 3.4 reads the `cd_values` of files written by 3.3.2, which have no version in front.
-* During decompression, H5Z-SZ3 does not rely on `cd_values`. Instead, it reads all the configuration directly from the compressed data.
+* H5Z-SZ3 reads `cd_values` only when compressing, including when appending to an existing dataset, and checks their data version then. During decompression it does not rely on `cd_values`; it reads the configuration from the compressed data.
 
 ## Usage
 
@@ -95,5 +95,5 @@ with h5py.File('data.h5', 'w') as f:
 - Ensure HDF5 versions match between h5py and the plugin.
 
 ### C/C++
-A C program sets the filter on a dataset creation property list with `H5Pset_sz3`, declared in `H5Z_SZ3.hpp`. For molecular-dynamics coordinates stored one frame per chunk, `H5Z_SZ3_ALGO_BIOMD` and `H5Z_SZ3_ALGO_BIOMDXTC` compress far better than the default algorithm.
+A C program sets the filter on a dataset creation property list with `H5Pset_sz3`, declared in `H5Z_SZ3.hpp`. For molecular-dynamics coordinates, use `H5Z_SZ3_ALGO_BIOMD` or `H5Z_SZ3_ALGO_BIOMDXTC`; they predict across frames, so they compress better with several frames per chunk.
 See examples `sz3ToHDF5.cpp` and `dsz3FromHDF5.cpp` for how to use the H5Z-SZ3 filter in your C/C++ projects.

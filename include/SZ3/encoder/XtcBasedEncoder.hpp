@@ -57,7 +57,7 @@ namespace SZ3 {
 /*! \brief read magicInts at an index that came off the stream
  *
  * The encoder writes LASTIDX -- one past the last entry -- for any input with fewer than two triplets, so
- * do not subscript the table directly. The clamped entry goes unread: such a stream carries no run.
+ * do not subscript the table directly.
  */
 static inline int magicIntAt(const int index) { return magicInts[std::min(std::max(index, 0), LASTIDX - 1)]; }
 
@@ -84,7 +84,8 @@ static inline void sendbits(struct DataBuffer *buffer, int num_of_bits, int num)
     lastbits = buffer->lastbits;
     lastbyte = buffer->lastbyte;
     while (num_of_bits >= CHAR_BIT) {
-        lastbyte = (lastbyte << CHAR_BIT) | ((num >> (num_of_bits - CHAR_BIT)) /* & 0xff*/);
+        // sendints pads with up to 65 zero bits in one call.
+        lastbyte = (lastbyte << CHAR_BIT) | ((static_cast<uint64_t>(num) >> (num_of_bits - CHAR_BIT)) /* & 0xff*/);
         buffer->data[buffer->index++] = lastbyte >> lastbits;
         num_of_bits -= CHAR_BIT;
     }
@@ -635,6 +636,9 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         int minInt[3];
         int maxInt[3];
 
+        if (remaining_length < 7 * sizeof(int) + sizeof(uint64_t)) {
+            throw std::out_of_range("SZ3 Xtc: decode read past the end of the compressed buffer");
+        }
         // The mirror of the encoder's header, on the same odd byte. Do not load these through an int*.
         for (int i = 0; i < 3; i++) {
             memcpy(&minInt[i], inputBytesPointer, sizeof(int));
@@ -650,6 +654,14 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
                maxInt[2]);
 #endif
 
+        // The encoder writes the INT_MAX and INT_MIN seeds when there is no triplet, and otherwise refuses
+        // coordinates at or past maxAbsoluteInt / 4. Within these no size below is 0 or needs 31 bits, and no sum
+        // overflows.
+        for (int k = 0; k < 3; k++) {
+            if (targetLength < 3 ? minInt[k] != INT_MAX || maxInt[k] != INT_MIN
+                                 : minInt[k] > maxInt[k] || minInt[k] < -INT_MAX / 4 || maxInt[k] > INT_MAX / 4)
+                throw std::out_of_range("SZ3 Xtc: coordinate bounds out of range");
+        }
         // The INT_MAX and INT_MIN seeds arrive here off the stream, so keep this unsigned too.
         unsigned int sizeInt[3];
         sizeInt[0] = static_cast<unsigned int>(maxInt[0]) - static_cast<unsigned int>(minInt[0]) + 1;
@@ -671,7 +683,7 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         memcpy(&smallIdx, inputBytesPointer, sizeof(int));
         inputBytesPointer += sizeof(int);
         // The encoder writes LASTIDX when no table entry reaches minDiff, and clamps its own lookups.
-        if (smallIdx < 0 || smallIdx > LASTIDX) throw std::out_of_range("SZ3 Xtc: small index out of range");
+        if (smallIdx < FIRSTIDX || smallIdx > LASTIDX) throw std::out_of_range("SZ3 Xtc: small index out of range");
         const int smallLookup = std::min(smallIdx, LASTIDX - 1);
 
         int smaller = magicInts[std::max(FIRSTIDX, smallLookup - 1)] / 2;
@@ -697,6 +709,8 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         // buffer.index is the byte count the memcpy loop below copies into buffer.data.
         if (buffer.index > bufferSize * sizeof(int))
             throw std::out_of_range("SZ3 Xtc: packed data size exceeds the decompression buffer");
+        if (buffer.index > remaining_length - static_cast<size_t>(inputBytesPointer - decode_start))
+            throw std::out_of_range("SZ3 Xtc: decode read past the end of the compressed buffer");
 
         size_t offset = 0;
         size_t remain = buffer.index;
@@ -755,6 +769,8 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
                 isSmaller--;
             }
             if (run > 0) {
+                if (static_cast<size_t>(run / 3) > numTriplets - i)
+                    throw std::out_of_range("SZ3 Xtc: run past the last triplet");
                 thisCoord += 3;
                 for (int k = 0; k < run; k += 3) {
                     receiveints(&buffer, 3, smallIdx, sizeSmall, thisCoord);
@@ -794,6 +810,7 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             }
 
             smallIdx += isSmaller;
+            if (smallIdx < FIRSTIDX || smallIdx > LASTIDX) throw std::out_of_range("SZ3 Xtc: small index out of range");
             if (isSmaller < 0) {
                 smallNum = smaller;
                 if (smallIdx > FIRSTIDX) {

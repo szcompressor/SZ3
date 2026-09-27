@@ -33,6 +33,9 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     }
 
     T *decompress(const Config & /*conf*/, std::vector<int> &quant_inds, T *dec_data) override {
+        if (quant_inds.size() < conf.num) {
+            throw std::out_of_range("SZ3 BioMD: fewer bins than the data has elements");
+        }
         if (N == 1) {
             return decompress_1d(quant_inds, dec_data);
         } else if (N == 2) {
