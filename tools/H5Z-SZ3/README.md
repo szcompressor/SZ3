@@ -2,6 +2,8 @@
 
 The H5Z-SZ3 filter integrates the SZ3 compression library with HDF5, providing an efficient way to compress and decompress data within HDF5 files.
 
+Use the filter from SZ3 3.4.0 or later.
+
 ## Table of Contents
 - [Installation](#installation)
 - [H5Z-SZ3 cd_values](#h5z-sz3-cd_values)
