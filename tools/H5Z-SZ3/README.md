@@ -32,16 +32,15 @@ export HDF5_PLUGIN_PATH=<PREFIX>/lib/plugin
 ```
 An application that ships the plugin with itself can call `H5PLprepend("<its plugin directory>")` at
 startup instead and set nothing; one that links `SZ3::hdf5sz3` can call
-`H5Zregister(H5PLget_plugin_info())` without asking `H5Zfilter_avail` first, which loads whatever SZ3 plugin
-is on `HDF5_PLUGIN_PATH`.
+`H5Zregister(H5PLget_plugin_info())` (before any `H5Zfilter_avail`, which may load another SZ3 plugin).
 On Windows it still has to find the library: the install puts `hdf5sz3.dll` (`libhdf5sz3.dll` under
 MinGW) in `<prefix>/bin` and only the import library in `<prefix>/lib`, and there is no RPATH to
 record either, so `<prefix>/bin` has to be on `PATH` before the application runs.
 
 ## H5Z-SZ3 cd_values
 * HDF5 restricts the parameters that can be passed to filters through an integers array called `cd_values`.
-* H5Z-SZ3 uses `cd_values` to pass the desired compression settings (e.g., algorithm, error bounds) to the compression process. `cd_values[0]` is the SZ3 data version, `(major << 24) | (minor << 16) | (patch << 8)` (`0x03030200` for 3.3.2), followed by the `Config` object serialized with `save()`. H5Z-SZ3 3.4 reads the `cd_values` of files written by 3.3.2, which have no version in front.
-* H5Z-SZ3 reads `cd_values` only when compressing, including when appending to an existing dataset, and checks their data version then. During decompression it does not rely on `cd_values`; it reads the configuration from the compressed data.
+* H5Z-SZ3 uses `cd_values` to pass the desired compression settings (e.g., algorithm, error bounds) to the compression process. `cd_values[0]` is the SZ3 data version, `(major << 24) | (minor << 16) | (patch << 8)` (`0x03030200` for 3.3.2), followed by the `Config` object serialized with `save()`.
+* `cd_values` are read only when compressing, including appends; decompression reads the configuration from the compressed data.
 
 ## Usage
 
@@ -98,5 +97,9 @@ with h5py.File('data.h5', 'w') as f:
 - Ensure HDF5 versions match between h5py and the plugin.
 
 ### C/C++
-A C program sets the filter on a dataset creation property list with `H5Pset_sz3`, declared in `H5Z_SZ3.hpp`. For molecular-dynamics coordinates, use `H5Z_SZ3_ALGO_BIOMD` or `H5Z_SZ3_ALGO_BIOMDXTC`; `H5Z_SZ3_ALGO_BIOMD` predicts across frames, so it compresses better with several frames per chunk. HDF5 decompresses and compresses a chunk again when it is written to after leaving the chunk cache (the dataset or file was closed in between, or the chunk is larger than the cache); `H5Pset_chunk_opts(dcpl, H5D_CHUNK_DONT_FILTER_PARTIAL_CHUNKS)` avoids this for frames appended by extending the dataset. Each round can add up to the bound again, except with `H5Z_SZ3_EB_ABS` and `H5Z_SZ3_ALGO_BIOMDXTC` or `H5Z_SZ3_ALGO_NOPRED`. SZ3 does not checksum its data; `H5Pset_fletcher32` after `H5Pset_sz3` makes a damaged chunk fail to read instead of decoding to wrong values. `H5Z_SZ3_ALGO_BIOMDXTC` behaves like GROMACS's xtc: rounding the stored integer back to float can put a coordinate slightly past the bound.
+A C program sets the filter on a dataset creation property list with `H5Pset_sz3`, declared in `H5Z_SZ3.hpp`.
+- For molecular-dynamics coordinates use `H5Z_SZ3_ALGO_BIOMD` (better with several frames per chunk) or `H5Z_SZ3_ALGO_BIOMDXTC` (like GROMACS's xtc, it can round a coordinate slightly past the bound).
+- A chunk written again after it left the chunk cache is recompressed, and its error can then exceed the bound, except with `H5Z_SZ3_ALGO_BIOMDXTC` or `H5Z_SZ3_ALGO_NOPRED` and an absolute bound. `H5D_CHUNK_DONT_FILTER_PARTIAL_CHUNKS` avoids this when appending frames.
+- SZ3 has no checksum; add `H5Pset_fletcher32` after `H5Pset_sz3` to detect damaged chunks.
+
 See examples `sz3ToHDF5.cpp` and `dsz3FromHDF5.cpp` for how to use the H5Z-SZ3 filter in your C/C++ projects.
