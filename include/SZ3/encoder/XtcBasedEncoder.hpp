@@ -397,14 +397,8 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
 
         // The header lands at whatever byte the stages before this one reached, and that is an odd one for
         // every trajectory tried. Do not store these through an int*; a misaligned store is undefined.
-        for (int i = 0; i < 3; i++) {
-            memcpy(charOutputPtr, &minInt[i], sizeof(int));
-            charOutputPtr += sizeof(int);
-        }
-        for (int i = 0; i < 3; i++) {
-            memcpy(charOutputPtr, &maxInt[i], sizeof(int));
-            charOutputPtr += sizeof(int);
-        }
+        for (int i = 0; i < 3; i++) write(minInt[i], charOutputPtr);
+        for (int i = 0; i < 3; i++) write(maxInt[i], charOutputPtr);
 
         if (static_cast<float>(maxInt[0]) - static_cast<float>(minInt[0]) >= maxAbsoluteInt ||
             static_cast<float>(maxInt[1]) - static_cast<float>(minInt[1]) >= maxAbsoluteInt ||
@@ -450,8 +444,7 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         while (smallIdx < LASTIDX && magicInts[smallIdx] < minDiff) {
             smallIdx++;
         }
-        memcpy(charOutputPtr, &smallIdx, sizeof(int));
-        charOutputPtr += sizeof(int);
+        write(smallIdx, charOutputPtr);
 
         // LASTIDX is one past the last entry, and the loop above stops there when no entry reaches minDiff,
         // which is every input with fewer than two triplets. The decoder clamps the same way.
@@ -576,8 +569,7 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
 
         // Through a uint64_t so the field stays eight bytes wide where size_t is narrower.
         const uint64_t packedByteCount = buffer.index;
-        memcpy(charOutputPtr, &packedByteCount, sizeof(uint64_t));
-        charOutputPtr += sizeof(uint64_t);
+        write(packedByteCount, charOutputPtr);
 
         // Since this file is full of old code, and many signed-to-unsigned conversions, we
         // read data in batches if the smallest number that is a multiple of 4 that
@@ -638,14 +630,8 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             throw std::out_of_range("SZ3 Xtc: decode read past the end of the compressed buffer");
         }
         // The mirror of the encoder's header, on the same odd byte. Do not load these through an int*.
-        for (int i = 0; i < 3; i++) {
-            memcpy(&minInt[i], inputBytesPointer, sizeof(int));
-            inputBytesPointer += sizeof(int);
-        }
-        for (int i = 0; i < 3; i++) {
-            memcpy(&maxInt[i], inputBytesPointer, sizeof(int));
-            inputBytesPointer += sizeof(int);
-        }
+        for (int i = 0; i < 3; i++) read(minInt[i], inputBytesPointer);
+        for (int i = 0; i < 3; i++) read(maxInt[i], inputBytesPointer);
 
 #ifdef DEBUG_OUTPUT
         printf("    minInt %d %d %d, maxInt %d %d %d\n", minInt[0], minInt[1], minInt[2], maxInt[0], maxInt[1],
@@ -678,8 +664,7 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         }
 
         int smallIdx;
-        memcpy(&smallIdx, inputBytesPointer, sizeof(int));
-        inputBytesPointer += sizeof(int);
+        read(smallIdx, inputBytesPointer);
         // The encoder writes LASTIDX when no table entry reaches minDiff, and clamps its own lookups.
         if (smallIdx < FIRSTIDX || smallIdx > LASTIDX) throw std::out_of_range("SZ3 Xtc: small index out of range");
         const int smallLookup = std::min(smallIdx, LASTIDX - 1);
@@ -700,8 +685,7 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             throw std::runtime_error("SZ3 Xtc: can not allocate the decompression buffer");
         }
         uint64_t packedByteCount;
-        memcpy(&packedByteCount, inputBytesPointer, sizeof(uint64_t));
-        inputBytesPointer += sizeof(uint64_t);
+        read(packedByteCount, inputBytesPointer);
         buffer.index = packedByteCount;
 
         // buffer.index is the byte count the memcpy loop below copies into buffer.data.
