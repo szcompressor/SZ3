@@ -15,27 +15,27 @@ T interp_linear(T a, T b) {
 
 template <class T>
 T interp_linear1(T a, T b) {
-    return -0.5 * a + 1.5 * b;
+    return -0.5 * a + rounded(1.5 * b);
 }
 
 template <class T>
 T interp_quad_1(T a, T b, T c) {
-    return (3 * a + 6 * b - c) / 8;
+    return (rounded(3 * a) + rounded(6 * b) - c) / 8;
 }
 
 template <class T>
 T interp_quad_2(T a, T b, T c) {
-    return (-a + 6 * b + 3 * c) / 8;
+    return (-a + rounded(6 * b) + rounded(3 * c)) / 8;
 }
 
 template <class T>
 T interp_quad_3(T a, T b, T c) {
-    return (3 * a - 10 * b + 15 * c) / 8;
+    return (rounded(3 * a) - rounded(10 * b) + rounded(15 * c)) / 8;
 }
 
 template <class T>
 T interp_cubic(T a, T b, T c, T d) {
-    return (-a + 9 * b + 9 * c - d) / 16;
+    return (-a + rounded(9 * b) + rounded(9 * c) - d) / 16;
 }
 
 template <class T>

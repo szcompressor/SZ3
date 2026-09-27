@@ -17,4 +17,24 @@ typedef unsigned char uchar;
 #define ALWAYS_INLINE inline
 #endif
 
+#ifdef __has_builtin
+#if __has_builtin(__builtin_assoc_barrier)
+#define SZ3_HAS_ASSOC_BARRIER
+#endif
+#endif
+
+namespace SZ3 {
+// Builds differ in whether they fuse a * b + c into one fma, and a decoder must reproduce its encoder's
+// rounding bit for bit.
+template <class T>
+ALWAYS_INLINE T rounded(T x) {
+#ifdef SZ3_HAS_ASSOC_BARRIER
+    return __builtin_assoc_barrier(x);
+#else
+    volatile T r = x;
+    return r;
+#endif
+}
+}  // namespace SZ3
+
 #endif

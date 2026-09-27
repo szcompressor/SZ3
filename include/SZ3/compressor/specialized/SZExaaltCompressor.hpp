@@ -194,7 +194,7 @@ class SZExaaltCompressor : public SZ3::concepts::CompressorInterface<T> {
 
     inline int quantize_to_level(T data) { return round((data - level_start) / level_offset); }
 
-    inline T level(int l) { return level_start + l * level_offset; }
+    inline T level(int l) { return level_start + rounded(l * level_offset); }
 
    private:
     Quantizer quantizer;
