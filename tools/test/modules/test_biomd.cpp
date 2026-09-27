@@ -190,9 +190,9 @@ TEST(SZ3_BioMD, OneAndTwoDimensionalInput) {
 
 /// XtcBasedEncoder walks its magicInts table to the end whenever no entry fits, which every
 /// input shorter than two atoms does.
-TEST(SZ3_BioMD, InputsTooShortForOneTriplet) {
+TEST(SZ3_BioMD, InputsShorterThanTwoAtoms) {
     for (SZ3::ALGO algo : kAlgos) {
-        for (size_t n : {size_t{1}, size_t{2}, size_t{3}, size_t{5}, size_t{6}}) {
+        for (size_t n : {size_t{1}, size_t{2}, size_t{3}, size_t{5}}) {
             std::vector<float> input(n);
             for (size_t i = 0; i < n; i++) {
                 input[i] = 0.5f * static_cast<float>(i) - 1.0f;
