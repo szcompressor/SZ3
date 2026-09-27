@@ -26,10 +26,12 @@ class BlockwiseDecomposition : public concepts::DecompositionInterface<T, int, N
         : predictor(predictor_), quantizer(quantizer_), fallback_predictor(conf.absErrorBound) {
         static_assert(std::is_base_of<concepts::PredictorInterface<T, N>, Predictor>::value,
                       "must implement the Predictor interface");
+        // A block the predictor declines falls back to Lorenzo, which reads neighbours the predictor may not pad for.
+        padding = std::max(predictor.get_padding(), fallback_predictor.get_padding());
     }
 
     std::vector<int> compress(const Config &conf, T *data) override {
-        auto data_with_padding = std::make_shared<block_data<T, N>>(data, conf.dims, predictor.get_padding(), true);
+        auto data_with_padding = std::make_shared<block_data<T, N>>(data, conf.dims, padding, true);
         auto block = data_with_padding->block_iter(conf.blockSize);
         std::vector<int> quant_inds;
         quant_inds.reserve(conf.num);
@@ -54,8 +56,7 @@ class BlockwiseDecomposition : public concepts::DecompositionInterface<T, int, N
         }
         int *quant_inds_pos = &quant_inds[0];
 
-        auto data_with_padding =
-            std::make_shared<block_data<T, N>>(dec_data, conf.dims, predictor.get_padding(), false);
+        auto data_with_padding = std::make_shared<block_data<T, N>>(dec_data, conf.dims, padding, false);
         auto block = data_with_padding->block_iter(conf.blockSize);
         do {
             concepts::PredictorInterface<T, N> *predictor_withfallback = &predictor;
@@ -92,6 +93,7 @@ class BlockwiseDecomposition : public concepts::DecompositionInterface<T, int, N
     Predictor predictor;
     Quantizer quantizer;
     LorenzoPredictor<T, N, 1> fallback_predictor;
+    size_t padding;
 };
 
 template <class T, uint N, class Predictor, class Quantizer>
