@@ -395,8 +395,6 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
             oldLocalValue3 = localValue3;
         }
 
-        // The header lands at whatever byte the stages before this one reached, and that is an odd one for
-        // every trajectory tried. Do not store these through an int*; a misaligned store is undefined.
         for (int i = 0; i < 3; i++) write(minInt[i], charOutputPtr);
         for (int i = 0; i < 3; i++) write(maxInt[i], charOutputPtr);
 
@@ -629,7 +627,6 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         if (remaining_length < 7 * sizeof(int) + sizeof(uint64_t)) {
             throw std::out_of_range("SZ3 Xtc: decode read past the end of the compressed buffer");
         }
-        // The mirror of the encoder's header, on the same odd byte. Do not load these through an int*.
         for (int i = 0; i < 3; i++) read(minInt[i], inputBytesPointer);
         for (int i = 0; i < 3; i++) read(maxInt[i], inputBytesPointer);
 

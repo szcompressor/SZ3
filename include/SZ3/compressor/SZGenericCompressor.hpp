@@ -47,9 +47,8 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
             throw std::runtime_error("The output range of the decomposition must start from 0 for this compressor");
         }
         encoder.preprocess_encode(quant_inds, decomposition.get_out_range().second);
-        // The encoder writes int bins, which can take more bytes than a narrower T.
-        size_t bufferSize = std::max<size_t>(1000, 2 * (decomposition.size_est() + encoder.size_est() +
-                                                        std::max(sizeof(T), sizeof(int)) * quant_inds.size()));
+        size_t bufferSize = std::max<size_t>(
+            1000, 2 * (decomposition.size_est() + encoder.size_est() + sizeof(int) * quant_inds.size()));
 
         // Owned, because the encoder and the lossless layer below can throw.
         std::unique_ptr<uchar[]> buffer_owner(new uchar[bufferSize]);
