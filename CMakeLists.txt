@@ -12,7 +12,7 @@ string(COMPARE EQUAL "${CMAKE_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}" SZ3_IS_TOP_LE
 option(SZ3_INSTALL "install SZ3's headers, libraries, tools and CMake package" ${SZ3_IS_TOP_LEVEL})
 
 
-# A top-level project's defaults; as a subproject SZ3 leaves these to its parent.
+# Cache defaults, so only at top level: set from a subproject they would apply to the parent's whole build.
 if (SZ3_IS_TOP_LEVEL)
     option(BUILD_SHARED_LIBS "build shared libraries by default" ON)
     set(default_build_type "Release")
@@ -53,6 +53,7 @@ target_compile_features(SZ3core
 )
 
 add_library(${PROJECT_NAME} INTERFACE)
+add_library(SZ3::SZ3 ALIAS ${PROJECT_NAME})
 target_link_libraries(${PROJECT_NAME} INTERFACE SZ3core)
 find_package(OpenMP)
 if (OpenMP_FOUND)

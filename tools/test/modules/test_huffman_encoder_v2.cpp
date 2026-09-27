@@ -304,7 +304,7 @@ TEST(SZ3_HuffmanEncoderV2, TableMixesShortAndLongCodes) {
 
 TEST(SZ3_HuffmanEncoderV2, LargeAndSkewedAlphabets) {
     std::mt19937_64 rng(2);
-    // Every bin of the default quantizer (radius 32768), in the dense and the map representation.
+    // Every bin of the default quantizer (radius 32768).
     for (size_t n : {50000u, 140000u}) {
         std::vector<int> bins(n);
         for (auto& b : bins) b = static_cast<int>(rng() % 65536);

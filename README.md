@@ -1,6 +1,6 @@
 SZ3: A Modular Error-bounded Lossy Compression Framework for Scientific Datasets
 =====
-(C) 2016 by Mathematics and Computer Science (MCS), Argonne National Laboratory. See COPYRIGHT in the top-level directory.
+(C) 2016 by Mathematics and Computer Science (MCS), Argonne National Laboratory. See copyright-and-BSD-license.txt in the top-level directory.
 
 * Major developers: Kai Zhao, Robert Underwood, Jinyang Liu, Xin Liang, Sheng Di.
 * SZ project Lead: Franck Cappello

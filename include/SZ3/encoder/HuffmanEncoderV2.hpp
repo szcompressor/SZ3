@@ -224,7 +224,7 @@ public:
 
         T __minval, __maxval;
 
-        // The bins' own range, not stateNum: a quantizer's stateNum spans far more bins than one chunk uses.
+        // stateNum is ignored: it covers every bin the quantizer can emit, far more than one input uses.
         __minval = *bins;
         __maxval = *bins;
         for (size_t i = 1; i < num_bin; i++) {
