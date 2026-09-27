@@ -1,6 +1,7 @@
 #include "H5Z_SZ3.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <iterator>
 #include <memory>
@@ -130,6 +131,11 @@ herr_t H5Pset_sz3(hid_t propertyList, int cmprAlgo, int errorBoundMode, double a
     if (errorBoundMode < H5Z_SZ3_EB_ABS || errorBoundMode > H5Z_SZ3_EB_ABS_OR_REL) {
         H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1, "unknown SZ3 error-bound mode %d", errorBoundMode);
     }
+    for (double bound : {absErrorBound, relErrorBound, psnrErrorBound, l2normErrorBound}) {
+        if (!std::isfinite(bound) || bound < 0) {
+            H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1, "SZ3 error bounds must be finite and not negative");
+        }
+    }
     SZ3::Config conf;
     conf.cmprAlgo = static_cast<uint8_t>(cmprAlgo);
     conf.errorBoundMode = static_cast<uint8_t>(errorBoundMode);
@@ -202,6 +208,9 @@ static herr_t H5Z_sz3_set_local_impl(hid_t dcpl_id, hid_t type_id, hid_t chunk_s
     conf.dataType = host_type->second;
     // update conf with dims
     conf.setDims(std::begin(dims), std::end(dims));
+    if (conf.N > 4)
+        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1, "SZ3 compresses at most 4 dimensions longer than 1, not %d",
+                             static_cast<int>(conf.N));
     //  need to update magic number and data version,
     //  as the config may be from cd_values passed by users
     conf.sz3MagicNumber = SZ3_MAGIC_NUMBER;
@@ -254,30 +263,34 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
     bool is_decompress = flags & H5Z_FLAG_REVERSE;
     SZ3::Config conf;
 
-    // Ahead of get_sz3_conf_from_cdvalues: every chunk this filter writes carries an SZ3 header, and a file from
-    // another version wrote cd_values in a layout this build would misread.
     if (is_decompress) {
+        // The chunk carries its own Config, which gives the element count and type to decompress.
         uint32_t magic = 0, dataVer = 0;
-        if (nbytes >= 8) {
-            auto header = reinterpret_cast<const unsigned char*>(*buf);
-            SZ3::read(magic, header);
-            SZ3::read(dataVer, header);
+        uint64_t cmpDataSize = 0;
+        auto pos = static_cast<const unsigned char*>(*buf);
+        if (nbytes >= 16) {
+            SZ3::read(magic, pos);
+            SZ3::read(dataVer, pos);
+            SZ3::read(cmpDataSize, pos);
         }
         if (magic != SZ3_MAGIC_NUMBER) {
             {
-                // backward compatibility for v3.3.2; it stores chunks of fewer than 20 elements raw, with no header.
-                SZ3::Config legacy;
-                get_sz3_conf_from_cdvalues(cd_values, cd_nelmts, legacy);
-                if (legacy.num > 0 && legacy.num < 20) return nbytes;
+                // backward compatibility for v3.3.2; it stores chunks of fewer than 20 elements raw, with no header,
+                // so in fewer than 20 * 8 bytes.
+                if (nbytes < 20 * sizeof(double)) return nbytes;
             }
             throw std::invalid_argument("SZ3 HDF5 filter: chunk was not written by SZ3");
         }
         if (versionStr(dataVer) != SZ3_DATA_VER)
             throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(dataVer) +
                                         ", this build reads v" SZ3_DATA_VER);
+        if (cmpDataSize > nbytes - 16) throw std::invalid_argument("SZ3 HDF5 filter: chunk is truncated");
+        size_t remaining = nbytes - 16 - cmpDataSize;
+        pos += cmpDataSize;
+        conf.load(pos, remaining);
+    } else {
+        get_sz3_conf_from_cdvalues(cd_values, cd_nelmts, conf);
     }
-
-    get_sz3_conf_from_cdvalues(cd_values, cd_nelmts, conf);
 
     switch (conf.dataType) {
         case SZ_FLOAT:

@@ -48,7 +48,7 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         }
         encoder.preprocess_encode(quant_inds, decomposition.get_out_range().second);
         size_t bufferSize = std::max<size_t>(
-            1000, 2 * (decomposition.size_est() + encoder.size_est() + sizeof(T) * quant_inds.size()));
+            1000, 2 * (decomposition.size_est() + encoder.size_est() + sizeof(int) * quant_inds.size()));
 
         // Owned, because the encoder and the lossless layer below can throw.
         std::unique_ptr<uchar[]> buffer_owner(new uchar[bufferSize]);

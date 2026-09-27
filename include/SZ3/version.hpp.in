@@ -5,7 +5,9 @@
 
 #ifndef SZ3_VERSION_HPP
 #define SZ3_VERSION_HPP
+#include <cstdint>
 #include <sstream>
+#include <string>
 
 #define SZ3_MAGIC_NUMBER 0xF342F310
 

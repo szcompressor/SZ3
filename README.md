@@ -1,6 +1,6 @@
 SZ3: A Modular Error-bounded Lossy Compression Framework for Scientific Datasets
 =====
-(C) 2016 by Mathematics and Computer Science (MCS), Argonne National Laboratory. See COPYRIGHT in the top-level directory.
+(C) 2016 by Mathematics and Computer Science (MCS), Argonne National Laboratory. See copyright-and-BSD-license.txt in the top-level directory.
 
 * Major developers: Kai Zhao, Robert Underwood, Jinyang Liu, Xin Liang, Sheng Di.
 * SZ project Lead: Franck Cappello
@@ -20,23 +20,24 @@ Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [
 #### Build options
 Pass them to `cmake` as `-D<option>=ON` or `OFF`.
 
-| Option | Default | Builds |
+| Option | Default | Enables |
 |---|---|---|
-| `BUILD_SHARED_LIBS` | ON | shared libraries; OFF builds static ones |
-| `BUILD_SZ3_BINARY` | ON | the `sz3` executable and the C API library SZ3c |
+| `BUILD_SHARED_LIBS` | ON, the parent's when SZ3 is added with `add_subdirectory` or FetchContent | shared libraries; OFF builds static ones |
+| `BUILD_SZ3_BINARY` | ON, OFF when SZ3 is added with `add_subdirectory` or FetchContent | the `sz3` executable, the C API library SZ3c and the H5Z-SZ3 tools |
 | `BUILD_H5Z_FILTER` | OFF | the HDF5 filter H5Z-SZ3 (needs HDF5) |
 | `BUILD_PARAVIEW_PLUGIN` | OFF | the ParaView reader plugin (needs ParaView) |
-| `BUILD_TESTING` | OFF | the unit tests |
+| `BUILD_TESTING` | OFF, the parent's when SZ3 is added with `add_subdirectory` or FetchContent | the unit tests |
 | `SZ3_USE_BUNDLED_ZSTD` | OFF (ON with MSVC) | Zstd from `tools/zstd` instead of the system one |
 | `SZ3_DEBUG_TIMINGS` | OFF | debug timing output |
+| `SZ3_INSTALL` | ON, OFF when SZ3 is added with `add_subdirectory` or FetchContent | the install rules |
 
-`H5Z_SZ3_PLUGIN_INSTALL_DIR` (default `lib/plugin`) is where `make install` puts a copy of the filter for HDF5 to load; set it empty for no copy. SZ3 uses OpenMP when it finds it; `-DCMAKE_DISABLE_FIND_PACKAGE_OpenMP=ON` builds without it.
+SZ3 uses OpenMP when it finds it; `-DCMAKE_DISABLE_FIND_PACKAGE_OpenMP=ON` builds without it.
 
 #### Use SZ3 in a CMake project
 Add [INSTALL_DIR] to `CMAKE_PREFIX_PATH`, call `find_package(SZ3)`, and link one of:
 * `SZ3::SZ3core`: SZ3 with only the dependencies it cannot work without (Zstd).
-* `SZ3::SZ3`: `SZ3::SZ3core` plus the optional dependencies SZ3 was built with (OpenMP).
-* `SZ3::hdf5sz3`: the HDF5 filter, if SZ3 was built with `BUILD_H5Z_FILTER`.
+* `SZ3::SZ3`: `SZ3::SZ3core` plus the optional dependencies SZ3 was built with (OpenMP, when the consumer's compiler supports it).
+* `SZ3::hdf5sz3`: the HDF5 filter; see [tools/H5Z-SZ3/README.md](tools/H5Z-SZ3/README.md).
 
 Data compressed with `SZ3::SZ3core` or `SZ3::SZ3` can be decompressed with either.
 
@@ -103,7 +104,7 @@ Version New features
 * SZ 3.2.0 API reconstructed for FZ. H5Z-SZ3 rewrite. Compression version checking.
 * SZ 3.3.0 Add key QoZ v1 and v2 features to improve compression speed and data quality. The full QoZ is available from **a separate branch** (https://github.com/szcompressor/SZ3/tree/QoZ). 
 * SZ 3.3.2: SZ3 Windows support for both Visual Studio and MinGW toolchains. pySZ v1 released and available via `pip install pysz`. Bio algorithms added. Bugfix for compressed format.
-* SZ 3.3.3: `find_package(SZ3)` works against an installed SZ3, and the HDF5 filter no longer crashes on a freshly created property list. Fixes several defects reachable on valid data, one of which writes past the end of a buffer. Drops the vendored ska hash map, which makes compression faster. The compressed format is unchanged.
+* SZ 3.4.0: CMake package with `SZ3::SZ3core` and `SZ3::SZ3`, a reworked HDF5 filter, and fixes for defects on valid data; the compressed format is unchanged. Details in [#161](https://github.com/szcompressor/SZ3/pull/161).
 
 ## 3rd party libraries/tools
 * [Zstandard](https://facebook.github.io/zstd/) v1.5.6 is vendored in `tools/zstd` and built if libzstd can not be found by pkg-config, or if `-DSZ3_USE_BUNDLED_ZSTD=ON` is given. It is linked statically as `libsz3_zstd` and kept private to SZ3.
