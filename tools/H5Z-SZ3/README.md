@@ -17,6 +17,7 @@ Compile and install SZ3 with the H5Z-SZ3 filter enabled:
 ```bash
 Add -DBUILD_H5Z_FILTER=true to the CMake command to enable H5Z-SZ3 filter in SZ3
 ```
+A filter built against HDF5 1.14.5 or newer needs HDF5 1.14.5 or newer at run time.
 
 ### Step 2: Configure Environment
 Installing puts a copy of the filter in `<prefix>/lib/plugin` (`H5Z_SZ3_PLUGIN_INSTALL_DIR`), a

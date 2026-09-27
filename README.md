@@ -23,7 +23,7 @@ Pass them to `cmake` as `-D<option>=ON` or `OFF`.
 | Option | Default | Builds |
 |---|---|---|
 | `BUILD_SHARED_LIBS` | ON | shared libraries; OFF builds static ones |
-| `BUILD_SZ3_BINARY` | ON | the `sz3` executable and the C API library SZ3c |
+| `BUILD_SZ3_BINARY` | ON, OFF when SZ3 is added with `add_subdirectory` or FetchContent | the `sz3` executable and the C API library SZ3c |
 | `BUILD_H5Z_FILTER` | OFF | the HDF5 filter H5Z-SZ3 (needs HDF5) |
 | `BUILD_PARAVIEW_PLUGIN` | OFF | the ParaView reader plugin (needs ParaView) |
 | `BUILD_TESTING` | OFF | the unit tests |
