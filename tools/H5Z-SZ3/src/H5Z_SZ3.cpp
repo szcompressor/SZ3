@@ -223,10 +223,9 @@ static herr_t H5Z_sz3_set_local_impl(hid_t dcpl_id, hid_t type_id, hid_t chunk_s
 template <typename T>
 void process_data(SZ3::Config& conf, void** buf, size_t* buf_size, size_t nbytes, bool is_decompress) {
     if (is_decompress) {
-        // HDF5 frees what this returns, so it has to come from the C allocator. On null SZ_decompress would
-        // allocate with new[] instead, and that pairing is undefined. conf.num comes from the chunk, and calloc
-        // fails where conf.num * sizeof(T) would wrap.
-        std::unique_ptr<T, decltype(&free)> processedData(static_cast<T*>(calloc(conf.num, sizeof(T))), &free);
+        // HDF5 frees what this returns, so it has to come from malloc. On null SZ_decompress would
+        // allocate with new[] instead, and that pairing is undefined.
+        std::unique_ptr<T, decltype(&free)> processedData(static_cast<T*>(malloc(conf.num * sizeof(T))), &free);
         if (!processedData) throw std::bad_alloc();
         T* decData = processedData.get();
         SZ_decompress(conf, static_cast<char*>(*buf), nbytes, decData);
