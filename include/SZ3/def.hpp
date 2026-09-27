@@ -16,22 +16,17 @@ typedef unsigned char uchar;
 #define ALWAYS_INLINE inline
 #endif
 
-#ifdef __has_builtin
-#if __has_builtin(__builtin_assoc_barrier)
-#define SZ3_HAS_ASSOC_BARRIER
-#endif
-#endif
-
-// In rounded(a * b) + c the product is rounded before the add, so the compiler cannot merge them into one
+// In nofma(a * b) + c the product is rounded before the add, so the compiler cannot merge them into one
 // FMA instruction, which rounds only once; otherwise a build with FMA and one without decompress different values.
 template <class T>
-ALWAYS_INLINE T rounded(T x) {
-#ifdef SZ3_HAS_ASSOC_BARRIER
+ALWAYS_INLINE T nofma(T x) {
+#ifdef __has_builtin
+#if __has_builtin(__builtin_assoc_barrier)
     return __builtin_assoc_barrier(x);
-#else
+#endif
+#endif
     volatile T r = x;
     return r;
-#endif
 }
 }  // namespace SZ3
 

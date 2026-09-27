@@ -76,7 +76,7 @@ public:
     ALWAYS_INLINE T recover_pred(T pred, int quant_index) {
         // quant_index comes from the stream; in int, 2 * (quant_index - radius) overflows past INT_MAX/2.
         // Exact for every index a valid stream carries.
-        return pred + rounded(2 * (static_cast<int64_t>(quant_index) - this->radius) * this->error_bound);
+        return pred + nofma(2 * (static_cast<int64_t>(quant_index) - this->radius) * this->error_bound);
     }
 
     ALWAYS_INLINE T recover_unpred() {

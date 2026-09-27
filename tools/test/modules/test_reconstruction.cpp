@@ -1,5 +1,5 @@
 // The compressor predicts from its own reconstructed values, so the decompressor must reconstruct exactly the
-// same values. Built with FMA (-march=x86-64-v3), this fails if only one of the two is protected by rounded().
+// same values. Built with FMA (-march=x86-64-v3), this fails if only one of the two is protected by nofma().
 
 #include <cmath>
 #include <cstring>
