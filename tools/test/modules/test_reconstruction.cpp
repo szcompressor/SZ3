@@ -1,5 +1,5 @@
-// The compressor predicts from the values it has already reconstructed in place, so that reconstruction
-// must equal the decompressor's output bit for bit. It can only differ in a build that fuses multiply-adds.
+// The compressor predicts from its own reconstructed values, so the decompressor must reconstruct exactly the
+// same values. Built with FMA (-march=x86-64-v3), this fails if only one of the two is protected by rounded().
 
 #include <cmath>
 #include <cstring>

@@ -7,7 +7,6 @@ typedef unsigned int uint;
 typedef unsigned char uchar;
 #define SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH \
     "The buffer for compressed data is not large enough."
-}  // namespace SZ3
 
 #ifdef _MSC_VER
 #define ALWAYS_INLINE __forceinline
@@ -23,9 +22,8 @@ typedef unsigned char uchar;
 #endif
 #endif
 
-namespace SZ3 {
-// Builds differ in whether they fuse a * b + c into one fma, and a decoder must reproduce its encoder's
-// rounding bit for bit.
+// In rounded(a * b) + c the product is rounded before the add, so the compiler cannot merge them into one
+// FMA instruction, which rounds only once; otherwise a build with FMA and one without decompress different values.
 template <class T>
 ALWAYS_INLINE T rounded(T x) {
 #ifdef SZ3_HAS_ASSOC_BARRIER

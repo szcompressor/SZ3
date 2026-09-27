@@ -199,7 +199,7 @@ jobs:
                 -DCMAKE_C_FLAGS=-march=x86-64-v3 -DCMAKE_CXX_FLAGS=-march=x86-64-v3
           cmake --build build-fma --target sz3 test_reconstruction --parallel 4
 
-      # Otherwise both builds round alike and the two steps below pass without testing anything.
+      # Without FMA instructions in this build, the tests below would compare two identical builds.
       - name: The FMA build fuses multiply-adds
         shell: bash
         run: objdump -d build-fma/tools/sz3/sz3 | grep -q vfmadd

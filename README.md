@@ -32,9 +32,6 @@ Pass them to `cmake` as `-D<option>=ON` or `OFF`.
 
 `H5Z_SZ3_PLUGIN_INSTALL_DIR` (default `lib/plugin`) is where `make install` puts a copy of the filter for HDF5 to load; set it empty for no copy. SZ3 uses OpenMP when it finds it; `-DCMAKE_DISABLE_FIND_PACKAGE_OpenMP=ON` builds without it.
 
-#### Floating-point compiler flags
-Data decompresses to the same values whether or not the compiler fuses multiply-adds (FMA); data compressed by earlier releases with a build that fused them (aarch64, `-march=native`) should be decompressed by that build. `-ffast-math`, `-Ofast`, MSVC's `/fp:fast` and icx/icpx's default `-fp-model=fast` are not supported.
-
 #### Use SZ3 in a CMake project
 Add [INSTALL_DIR] to `CMAKE_PREFIX_PATH`, call `find_package(SZ3)`, and link one of:
 * `SZ3::SZ3core`: SZ3 with only the dependencies it cannot work without (Zstd).

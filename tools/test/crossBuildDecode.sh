@@ -1,6 +1,6 @@
 #!/bin/bash
-# Builds differ in whether they fuse a * b + c into one fma. Every stream either of two builds writes
-# must decode to the same bytes in both.
+# Data compressed by either of two builds (e.g. one with FMA, one without) must decompress to the same values
+# in both.
 #
 #   tools/test/crossBuildDecode.sh <build dir A> <build dir B> <float32 input> <dim args...>
 #   tools/test/crossBuildDecode.sh build build-fma tools/sz3/testfloat_8_8_128.dat -3 128 8 8
