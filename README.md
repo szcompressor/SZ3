@@ -20,10 +20,10 @@ Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [
 #### Build options
 Pass them to `cmake` as `-D<option>=ON` or `OFF`.
 
-| Option | Default | Builds |
+| Option | Default | Enables |
 |---|---|---|
 | `BUILD_SHARED_LIBS` | ON | shared libraries; OFF builds static ones |
-| `BUILD_SZ3_BINARY` | ON | the `sz3` executable and the C API library SZ3c |
+| `BUILD_SZ3_BINARY` | ON, OFF when SZ3 is added with `add_subdirectory` or FetchContent | the `sz3` executable, the C API library SZ3c and the H5Z-SZ3 tools |
 | `BUILD_H5Z_FILTER` | OFF | the HDF5 filter H5Z-SZ3 (needs HDF5) |
 | `BUILD_PARAVIEW_PLUGIN` | OFF | the ParaView reader plugin (needs ParaView) |
 | `BUILD_TESTING` | OFF | the unit tests |
@@ -37,7 +37,7 @@ Pass them to `cmake` as `-D<option>=ON` or `OFF`.
 Add [INSTALL_DIR] to `CMAKE_PREFIX_PATH`, call `find_package(SZ3)`, and link one of:
 * `SZ3::SZ3core`: SZ3 with only the dependencies it cannot work without (Zstd).
 * `SZ3::SZ3`: `SZ3::SZ3core` plus the optional dependencies SZ3 was built with (OpenMP, when the consumer's compiler supports it).
-* `SZ3::hdf5sz3`: the HDF5 filter, if SZ3 was built with `BUILD_H5Z_FILTER`. It uses no OpenMP.
+* `SZ3::hdf5sz3`: the HDF5 filter, if SZ3 was built with `BUILD_H5Z_FILTER`. It is built without OpenMP.
 
 Data compressed with `SZ3::SZ3core` or `SZ3::SZ3` can be decompressed with either.
 

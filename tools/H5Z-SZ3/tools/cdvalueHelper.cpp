@@ -91,7 +91,7 @@ int main(int argc, char* argv[]) {
         SZ3::Config conf;
         auto buffer = reinterpret_cast<const unsigned char*>(cd_values.data());
         size_t cd_bytes = cd_values.size() * sizeof(unsigned int);
-        // Skip the data version the filter stores first; cd_values written by v3.3.2 start with the Config.
+        // The data version's first byte is 0; a v3.3.2 Config starts with its length, never 0.
         if (cd_bytes > 0 && buffer[0] == 0) {
             buffer += sizeof(unsigned int);
             cd_bytes -= sizeof(unsigned int);

@@ -1,9 +1,5 @@
 cmake_minimum_required(VERSION 3.19)
 project(SZ3 VERSION 3.4.0)
-# So a parent project's normal variable wins over SZ3's cache variables from the first configure.
-if (POLICY CMP0126)
-    cmake_policy(SET CMP0126 NEW)
-endif ()
 
 #data version defines the version of the compressed data format
 #it is not always equal to the program version (e.g., SZ3 v3.1.0 and SZ3 v.3.1.1 may use the same data version of v.3.1.0)
@@ -90,7 +86,7 @@ if (BUILD_TESTING)
 endif ()
 
 
-option(BUILD_SZ3_BINARY "build SZ3 tools" ON)
+option(BUILD_SZ3_BINARY "build SZ3 tools" ${SZ3_IS_TOP_LEVEL})
 if (BUILD_SZ3_BINARY)
     add_subdirectory(tools/sz3)
     add_subdirectory(tools/sz3c)

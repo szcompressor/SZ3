@@ -133,6 +133,8 @@ jobs:
         run: |
           # SZ3Config.cmake adds OpenMP to SZ3::SZ3 only where the consumer finds it, and GROMACS links
           # SZ3::hdf5sz3, which needs none. A decline leaving targets behind is consumeInstalledSZ3.sh's.
+          grep -qxE 'if\((ON|TRUE|1)\)' "$PWD/_prefix/lib/cmake/SZ3/SZ3Config.cmake" \
+            || { echo "SZ3 was built without OpenMP, so this tests nothing"; exit 1; }
           tools/test/gromacsConsumerMatrix.sh gromacs _m/noomp "$PWD/_prefix" "$CONDA_PREFIX" \
               found ${{ matrix.gmx }} -DCMAKE_DISABLE_FIND_PACKAGE_OpenMP=ON
 

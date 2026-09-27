@@ -132,7 +132,7 @@ herr_t H5Pset_sz3(hid_t propertyList, int cmprAlgo, int errorBoundMode, double a
         H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1, "unknown SZ3 error-bound mode %d", errorBoundMode);
     }
     for (double bound : {absErrorBound, relErrorBound, psnrErrorBound, l2normErrorBound}) {
-        if (!(bound >= 0) || std::isinf(bound)) {
+        if (!std::isfinite(bound) || bound < 0) {
             H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1, "SZ3 error bounds must be finite and not negative");
         }
     }
@@ -274,8 +274,11 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
             SZ3::read(cmpDataSize, pos);
         }
         if (magic != SZ3_MAGIC_NUMBER) {
-            // backward compatibility for v3.3.2; it stores chunks of fewer than 20 elements raw, with no header.
-            if (nbytes < 20 * sizeof(double)) return nbytes;
+            {
+                // backward compatibility for v3.3.2; it stores chunks of fewer than 20 elements raw, with no header,
+                // so in fewer than 20 * 8 bytes.
+                if (nbytes < 20 * sizeof(double)) return nbytes;
+            }
             throw std::invalid_argument("SZ3 HDF5 filter: chunk was not written by SZ3");
         }
         if (versionStr(dataVer) != SZ3_DATA_VER)

@@ -45,8 +45,9 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
 #pragma omp parallel for num_threads(nThreads)
 #endif
         for (int i = 0; i < nThreads; i++) {
-            auto minmax = std::minmax_element(data + static_cast<size_t>(i) * conf.dims[0] / nThreads * num_t_base,
-                                              data + static_cast<size_t>(i + 1) * conf.dims[0] / nThreads * num_t_base);
+            size_t lo = static_cast<size_t>(i) * conf.dims[0] / nThreads;
+            size_t hi = static_cast<size_t>(i + 1) * conf.dims[0] / nThreads;
+            auto minmax = std::minmax_element(data + lo * num_t_base, data + hi * num_t_base);
             min_t[i] = *minmax.first;
             max_t[i] = *minmax.second;
         }
@@ -57,6 +58,10 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
     // An exception that leaves an OpenMP region does not unwind to the caller -- the runtime calls
     // std::terminate -- so each chunk stores its own and the first one is rethrown below.
     std::exception_ptr failure;
+    // num_threads(nThreads) applies to this region alone. omp_set_num_threads(nThreads) would write
+    // the process-wide nthreads-var instead, and that outlives the call: an application running 32
+    // threads that compresses one chunk here would go on running 8 afterwards. SZ3 is a library
+    // inside someone else's program and has no business changing that.
 #ifdef _OPENMP
 #pragma omp parallel for num_threads(nThreads)
 #endif

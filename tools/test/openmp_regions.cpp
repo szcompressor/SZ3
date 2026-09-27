@@ -36,15 +36,16 @@ int main(int argc, char** argv) {
         return 1;
     }
     if (mode == "nested") {
-        int failures = 0;
-#pragma omp parallel num_threads(4) reduction(+ : failures)
-        for (int round = 0; round < 250; round++) {
+        SZ3::Config base(32, 64, 64);
+        base.absErrorBound = 1e-3;
+        base.openmp = true;
+        std::vector<float> data(base.num);
+        for (size_t i = 0; i < base.num; i++) data[i] = static_cast<float>(10 * std::sin(0.001 * i));
+        int failures = 0, rounds = 0;
+#pragma omp parallel num_threads(4) reduction(+ : failures, rounds)
+        for (int round = 0; round < 250; round++, rounds++) {
             try {
-                SZ3::Config conf(32, 64, 64);
-                conf.absErrorBound = 1e-3;
-                conf.openmp = true;
-                std::vector<float> data(conf.num);
-                for (size_t i = 0; i < conf.num; i++) data[i] = static_cast<float>(10 * std::sin(0.001 * i));
+                SZ3::Config conf = base;
                 size_t cmpSize = 0;
                 std::unique_ptr<char[]> cmpData(SZ_compress(conf, data.data(), cmpSize));
                 SZ3::Config readConf;
@@ -55,7 +56,7 @@ int main(int argc, char** argv) {
                         break;
                     }
                 }
-            } catch (const std::exception& e) {
+            } catch (const std::exception&) {
                 failures++;
             }
         }
@@ -63,7 +64,7 @@ int main(int argc, char** argv) {
             fprintf(stderr, "FAIL  %d round trips threw or left the bound\n", failures);
             return 1;
         }
-        printf("PASS  1000 round trips inside the bound\n");
+        printf("PASS  %d round trips inside the bound\n", rounds);
         return 0;
     }
     fprintf(stderr, "usage: %s <throw|nested>\n", argv[0]);
