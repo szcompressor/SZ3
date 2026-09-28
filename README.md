@@ -35,6 +35,8 @@ Build options, all ON/OFF switches passed to `cmake` as `-D<option>=ON` or `-D<o
 | `SZ3_DEBUG_TIMINGS` | OFF | debug timing output |
 | `SZ3_INSTALL` | ON, OFF when SZ3 is added with `add_subdirectory` or FetchContent | the install rules |
 
+On Linux with glibc 2.35 or newer, `GLIBC_TUNABLES=glibc.malloc.hugetlb=1` in the environment backs SZ3's large buffers with huge pages, which makes compressing and decompressing large fields 10-20% faster.
+
 ## Interfaces
 
 | Interface | How to use / where | Maintained by |
