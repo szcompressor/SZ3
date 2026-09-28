@@ -14,14 +14,14 @@
 #include "SZ3/lossless/Lossless_zstd.hpp"
 
 namespace SZ3 {
-/// Integers are compressed as this floating-point type, which holds every value of T (8-byte ones within +-2^53).
 template <class T>
 using SZ_float_of = std::conditional_t<sizeof(T) <= 2, float, double>;
 
 template <class T, uint N>
 size_t SZ_compress_impl(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
+    // Integers are compressed as SZ_float_of<T>, which holds every value of T (8-byte ones within +-2^53), within
+    // floor(bound) + 0.49, so rounding each decompressed value lands within the bound.
     if constexpr (std::is_integral<T>::value) {
-        // Within floor(bound) + 0.49, rounding each decompressed value lands within the bound.
         std::vector<SZ_float_of<T>> values(data, data + conf.num);
         if (sizeof(T) == 8 &&
             std::any_of(values.begin(), values.end(), [](double v) { return std::fabs(v) >= 0x1p53; }))
@@ -30,6 +30,7 @@ size_t SZ_compress_impl(Config &conf, const T *data, uchar *cmpData, size_t cmpC
         conf.absErrorBound = std::floor(conf.absErrorBound) + 0.49;
         return SZ_compress_impl<SZ_float_of<T>, N>(conf, values.data(), cmpData, cmpCap);
     }
+    // Floating-point data is split into OpenMP chunks, or compressed as a whole by the dispatcher.
 #ifndef _OPENMP
     conf.openmp = false;
 #endif
@@ -42,6 +43,7 @@ size_t SZ_compress_impl(Config &conf, const T *data, uchar *cmpData, size_t cmpC
 
 template <class T, uint N>
 void SZ_decompress_impl(Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
+    // Integers are decompressed as SZ_float_of<T>, then rounded; floating-point data as SZ_compress_impl split it.
     if constexpr (std::is_integral<T>::value) {
         using F = SZ_float_of<T>;
         std::vector<F> values(conf.num);
