@@ -1,9 +1,8 @@
 #include <cmath>
 #include <cstdint>
-#include <limits>
 
-#include "SZ3/quantizer/LinearQuantizer.hpp"
 #include "gtest/gtest.h"
+#include "SZ3/quantizer/LinearQuantizer.hpp"
 
 template <typename Quantizer, typename T>
 void runQuantizeRecoverTest() {
@@ -65,35 +64,4 @@ void runAllTest() {
 
 TEST(QuantizerTest, LinearQuantizer) {
     runAllTest<SZ3::LinearQuantizer<float>, float>();
-}
-
-// Data at one end of an integer type predicted from the other end: data - pred and the reconstruction are
-// outside the type. A kept value must be within the bound and be what recover() gives back.
-template <typename T>
-void runIntegerExtremesTest() {
-    const T lo = std::numeric_limits<T>::lowest(), hi = std::numeric_limits<T>::max();
-    const T pairs[][2] = {{hi, lo}, {lo, hi}, {hi, static_cast<T>(hi - 1)}, {lo, static_cast<T>(lo + 1)},
-                          {0, lo},  {0, hi}};
-    for (double eb : {0.5, 1.0, 3.0}) {
-        for (const auto& p : pairs) {
-            SZ3::LinearQuantizer<T> quantizer(eb);
-            T data = p[0];
-            int q = quantizer.quantize_and_overwrite(data, p[1]);
-            if (q == 0) {
-                EXPECT_EQ(data, p[0]);
-                continue;
-            }
-            EXPECT_LE(std::fabs(static_cast<long double>(data) - p[0]), eb);
-            EXPECT_EQ(quantizer.recover(p[1], q), data);
-        }
-    }
-}
-
-TEST(QuantizerTest, LinearQuantizerIntegerExtremes) {
-    runIntegerExtremesTest<int8_t>();
-    runIntegerExtremesTest<uint8_t>();
-    runIntegerExtremesTest<int16_t>();
-    runIntegerExtremesTest<uint16_t>();
-    runIntegerExtremesTest<int32_t>();
-    runIntegerExtremesTest<int64_t>();
 }

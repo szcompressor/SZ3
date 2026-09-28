@@ -2,12 +2,9 @@
 #define SZ3_LINEAR_QUANTIZER_HPP
 
 #include <cassert>
-#include <cmath>
 #include <cstring>
 #include <iostream>
-#include <limits>
 #include <stdexcept>
-#include <type_traits>
 #include <vector>
 
 #include "SZ3/def.hpp"
@@ -42,9 +39,7 @@ public:
     std::pair<int, int> get_out_range() const override { return std::make_pair(0, radius * 2); }
 
     ALWAYS_INLINE int quantize_and_overwrite(T& data, T pred) override {
-        // Integers are differenced in double, where data - pred cannot overflow; this only picks the index.
-        using D = std::conditional_t<std::is_integral<T>::value, double, T>;
-        D diff = static_cast<D>(data) - static_cast<D>(pred);
+        T diff = data - pred;
         // NaN data makes this product NaN and infinities push it past the int64_t range; casting either is
         // undefined, so the range test is in floating point. What is not representable falls through to unpred.
         double scaled = fabs(diff) * this->error_bound_reciprocal;
@@ -58,25 +53,9 @@ public:
             } else {
                 quant_index_shifted = this->radius + half_index;
             }
-            const double reconstructed = recover_pred(pred, quant_index_shifted);
-            // Converting a double outside an integer T to T is undefined, and arm64 and x86 give different values.
-            if (std::is_integral<T>::value && !(reconstructed >= std::numeric_limits<T>::lowest() &&
-                                                reconstructed < std::numeric_limits<T>::max() + 1.0)) {
-                unpred.push_back(data);
-                return 0;
-            }
-            T decompressed_data = reconstructed;
-            double err;
-            if constexpr (std::is_integral<T>::value) {
-                // Exact: the distance between two values of T always fits its unsigned type.
-                using U = std::make_unsigned_t<T>;
-                err = decompressed_data > data
-                          ? static_cast<U>(static_cast<U>(decompressed_data) - static_cast<U>(data))
-                          : static_cast<U>(static_cast<U>(data) - static_cast<U>(decompressed_data));
-            } else {
-                err = fabs(decompressed_data - data);
-            }
-            if (err <= this->error_bound || (!strict_eb && err <= this->error_bound * 1.1)) {
+            T decompressed_data = recover_pred(pred, quant_index_shifted);
+            diff = fabs(decompressed_data - data);
+            if (diff <= this->error_bound || (!strict_eb && diff <= this->error_bound * 1.1)) {
                 data = decompressed_data;
                 return quant_index_shifted;
             }
@@ -94,7 +73,7 @@ public:
         }
     }
 
-    ALWAYS_INLINE double recover_pred(T pred, int quant_index) {
+    ALWAYS_INLINE T recover_pred(T pred, int quant_index) {
         // quant_index comes from the stream; in int, 2 * (quant_index - radius) overflows past INT_MAX/2.
         // Exact for every index a valid stream carries.
         return pred + nofma(2 * (static_cast<int64_t>(quant_index) - this->radius) * this->error_bound);
