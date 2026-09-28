@@ -12,8 +12,7 @@ namespace SZ3 {
 // N-dimension L-layer lorenzo predictor
 template <class T, uint N, uint L>
 class LorenzoPredictor : public concepts::PredictorInterface<T, N> {
-    static_assert(std::is_floating_point<T>::value,
-                  "LorenzoPredictor computes in T, so T must be floating point; SZ_compress converts integers");
+    static_assert(std::is_floating_point<T>::value, "LorenzoPredictor only takes a floating-point T");
 
    public:
     static const uint8_t predictor_id = 0b00000001;

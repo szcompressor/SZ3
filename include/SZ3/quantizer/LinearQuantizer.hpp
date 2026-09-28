@@ -15,8 +15,7 @@
 namespace SZ3 {
 template <class T>
 class LinearQuantizer : public concepts::QuantizerInterface<T, int> {
-    static_assert(std::is_floating_point<T>::value,
-                  "LinearQuantizer computes in T, so T must be floating point; SZ_compress converts integers");
+    static_assert(std::is_floating_point<T>::value, "LinearQuantizer only takes a floating-point T");
 
 public:
     LinearQuantizer()

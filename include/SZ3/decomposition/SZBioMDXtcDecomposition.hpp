@@ -19,8 +19,7 @@ static constexpr int XTC_radius = std::numeric_limits<int>::max() / 16;
 
 template <class T, uint N, class Quantizer>
 class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, N> {
-    static_assert(std::is_floating_point<T>::value,
-                  "SZBioMDXtcDecomposition computes in T, so T must be floating point; SZ_compress converts integers");
+    static_assert(std::is_floating_point<T>::value, "SZBioMDXtcDecomposition only takes a floating-point T");
 
 public:
     SZBioMDXtcDecomposition(const Config& conf_, Quantizer quantizer_)

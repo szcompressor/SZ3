@@ -20,9 +20,7 @@
 namespace SZ3 {
 template <class T, uint N, class Quantizer>
 class InterpolationDecomposition : public concepts::DecompositionInterface<T, int, N> {
-    static_assert(
-        std::is_floating_point<T>::value,
-        "InterpolationDecomposition computes in T, so T must be floating point; SZ_compress converts integers");
+    static_assert(std::is_floating_point<T>::value, "InterpolationDecomposition only takes a floating-point T");
 
    public:
     InterpolationDecomposition(const Config & /*conf*/, Quantizer quantizer_) : quantizer(quantizer_) {
