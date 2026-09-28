@@ -159,7 +159,7 @@ class LevelQuantizer : public concepts::QuantizerInterface<T, int> {
             const double span = 2 * error_bound * (radius - 1);
             for (int i = 1; i < radius; i++) {
                 const double r = static_cast<double>(i) * inv;
-                pos_levels[i] = error_bound + span * r * r;
+                pos_levels[i] = error_bound + nofma(span * r * r);
             }
         }
 

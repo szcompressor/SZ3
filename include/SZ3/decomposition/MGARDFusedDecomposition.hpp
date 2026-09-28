@@ -120,6 +120,9 @@ class MGARDFusedDecomposition : public concepts::DecompositionInterface<T, int, 
     }
 
     T* decompress(const Config& conf, std::vector<int>& bins, T* dec_data) override {
+        if (bins.size() < conf.num) {
+            throw std::out_of_range("SZ3 MGARD: fewer bins than the data has elements");
+        }
         const std::vector<size_t> dims = resolve_dims(conf);
         if (dims_ != dims) {
             // dims wasn't restored from save() (compute_target_level relies on

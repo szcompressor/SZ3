@@ -346,7 +346,7 @@ class PaSTRIDecomposition : public concepts::DecompositionInterface<T, int, N> {
      * @c compress() and @c decompress() go through this one function, so the two agree bit for bit.
      */
     static double predict(int64_t scale_q, int64_t pattern_q_i, double ps_bin_size) {
-        return static_cast<double>(scale_q) * static_cast<double>(pattern_q_i) * ps_bin_size;
+        return nofma(static_cast<double>(scale_q) * static_cast<double>(pattern_q_i) * ps_bin_size);
     }
 
     /**
@@ -355,7 +355,7 @@ class PaSTRIDecomposition : public concepts::DecompositionInterface<T, int, N> {
      * Keeping it in one place means the two directions cannot drift by an ULP through differing
      * floating-point contraction of @c pred - ecq*binSize into an FMA.
      */
-    double reconstruct(double pred, int64_t ecq) const { return pred - static_cast<double>(ecq) * bin_size; }
+    double reconstruct(double pred, int64_t ecq) const { return pred - nofma(static_cast<double>(ecq) * bin_size); }
 
     static void require(bool ok, const char *what) {
         if (!ok) {

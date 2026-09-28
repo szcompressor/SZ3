@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <vector>
 
+#include "SZ3/def.hpp"
+
 namespace SZ3 {
 namespace MGARD {
 
@@ -18,7 +20,7 @@ void precompute_w_and_b(T* w, T* b, size_t n_nodal) {
     w[0] = 0;
     for (size_t i = 1; i < n_nodal; i++) {
         w[i] = c / b[i - 1];
-        b[i] = b[i] - w[i] * c;
+        b[i] = b[i] - nofma(w[i] * c);
     }
 }
 
@@ -46,11 +48,12 @@ void compute_load_vector_coeff_row(T* load_v_buffer, size_t n_nodal, size_t n_co
     T ah = T(mgard_alpha);
     T bh = T(mgard_beta);
     T ch = T(mgard_gamma);
-    load_v_buffer[0] = nodal[0] * ch / 2 + coeff[0] * bh + nodal[1] * ah;
+    load_v_buffer[0] = nodal[0] * ch / 2 + coeff[0] * bh + nofma(nodal[1] * ah);
     for (size_t i = 1; i < n_coeff; i++) {
-        load_v_buffer[i] = (nodal[i - 1] + nodal[i + 1]) * ah + (coeff[i - 1] + coeff[i]) * bh + nodal[i] * ch;
+        load_v_buffer[i] =
+            nofma((nodal[i - 1] + nodal[i + 1]) * ah) + (coeff[i - 1] + coeff[i]) * bh + nofma(nodal[i] * ch);
     }
-    load_v_buffer[n_coeff] = nodal[n_coeff - 1] * ah + coeff[n_coeff - 1] * bh + nodal[n_coeff] * ch / 2;
+    load_v_buffer[n_coeff] = nofma(nodal[n_coeff - 1] * ah) + coeff[n_coeff - 1] * bh + nodal[n_coeff] * ch / 2;
     if (n_nodal == n_coeff + 2) load_v_buffer[n_coeff + 1] = 0;
 }
 
@@ -64,12 +67,12 @@ void compute_correction(T* correction_buffer, size_t n_nodal, T /*h*/, T* load_v
     T c = T(1) / 3;
     for (size_t i = 1; i < n; i++) {
         T w = c / b[i - 1];
-        b[i] = b[i] - w * c;
-        d[i] = d[i] - w * d[i - 1];
+        b[i] = b[i] - nofma(w * c);
+        d[i] = d[i] - nofma(w * d[i - 1]);
     }
     correction_buffer[n - 1] = d[n - 1] / b[n - 1];
     for (std::ptrdiff_t i = static_cast<std::ptrdiff_t>(n) - 2; i >= 0; i--) {
-        correction_buffer[i] = (d[i] - c * correction_buffer[i + 1]) / b[i];
+        correction_buffer[i] = (d[i] - nofma(c * correction_buffer[i + 1])) / b[i];
     }
 }
 
@@ -80,11 +83,11 @@ void compute_correction_precomputed(T* correction_buffer, size_t n_nodal, const 
     T* d = load_v_buffer;
     T c = T(1) / 3;
     for (size_t i = 1; i < n; i++) {
-        d[i] = d[i] - w[i] * d[i - 1];
+        d[i] = d[i] - nofma(w[i] * d[i - 1]);
     }
     correction_buffer[n - 1] = d[n - 1] / b[n - 1];
     for (std::ptrdiff_t i = static_cast<std::ptrdiff_t>(n) - 2; i >= 0; i--) {
-        correction_buffer[i] = (d[i] - c * correction_buffer[i + 1]) / b[i];
+        correction_buffer[i] = (d[i] - nofma(c * correction_buffer[i + 1])) / b[i];
     }
 }
 
@@ -98,22 +101,22 @@ void compute_load_vector_vertical(T* load_v_buffer, const T* nodal_buffer, const
     const T* coeff_pos = coeff_buffer;
     T* load_v_pos = load_v_buffer;
     for (int j = 0; j < batchsize; j++) {
-        load_v_pos[j] = nodal_pos[j] * ch / 2 + coeff_pos[j] * bh + nodal_pos[stride + j] * ah;
+        load_v_pos[j] = nodal_pos[j] * ch / 2 + coeff_pos[j] * bh + nofma(nodal_pos[stride + j] * ah);
     }
     load_v_pos += batchsize;
     nodal_pos += stride;
     coeff_pos += stride;
     for (size_t i = 1; i < n1_coeff; i++) {
         for (int j = 0; j < batchsize; j++) {
-            load_v_pos[j] = (nodal_pos[j - stride] + nodal_pos[j + stride]) * ah +
-                            (coeff_pos[j - stride] + coeff_pos[j]) * bh + nodal_pos[j] * ch;
+            load_v_pos[j] = nofma((nodal_pos[j - stride] + nodal_pos[j + stride]) * ah) +
+                            (coeff_pos[j - stride] + coeff_pos[j]) * bh + nofma(nodal_pos[j] * ch);
         }
         load_v_pos += batchsize;
         nodal_pos += stride;
         coeff_pos += stride;
     }
     for (int j = 0; j < batchsize; j++) {
-        load_v_pos[j] = nodal_pos[j - stride] * ah + coeff_pos[j - stride] * bh + nodal_pos[j] * ch / 2;
+        load_v_pos[j] = nofma(nodal_pos[j - stride] * ah) + coeff_pos[j - stride] * bh + nodal_pos[j] * ch / 2;
     }
     if (n1_nodal == n1_coeff + 2) {
         load_v_pos += batchsize;
@@ -131,7 +134,7 @@ void compute_correction_batched(T* correction_buffer, T /*h*/, const T* w, const
     T* load_v_pos = load_v_buffer + batchsize;
     for (size_t i = 1; i < n; i++) {
         for (int j = 0; j < batchsize; j++) {
-            load_v_pos[j] -= w[i] * load_v_pos[-batchsize + j];
+            load_v_pos[j] -= nofma(w[i] * load_v_pos[-batchsize + j]);
         }
         load_v_pos += batchsize;
     }
@@ -144,7 +147,7 @@ void compute_correction_batched(T* correction_buffer, T /*h*/, const T* w, const
     load_v_pos -= batchsize;
     for (std::ptrdiff_t i = static_cast<std::ptrdiff_t>(n) - 2; i >= 0; i--) {
         for (int j = 0; j < batchsize; j++) {
-            correction_pos[j] = (load_v_pos[j] - c * correction_pos[correction_stride + j]) / b[i];
+            correction_pos[j] = (load_v_pos[j] - nofma(c * correction_pos[correction_stride + j])) / b[i];
         }
         correction_pos -= correction_stride;
         load_v_pos -= batchsize;

@@ -101,7 +101,7 @@ class ScalarQuantizer : public concepts::QuantizerInterface<Ti, To> {
         const uint64_t magnitude = static_cast<uint64_t>(std::llabs(q));
         const double reconstructed_magnitude =
             (magnitude == 1) ? one_bin_reconstruct_ : (static_cast<double>(magnitude) + tail_offset_);
-        return sign * reconstructed_magnitude * step_;
+        return nofma(sign * reconstructed_magnitude * step_);
     }
 
     static uchar uid() { return 0b100; }

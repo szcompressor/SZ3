@@ -1295,6 +1295,8 @@ inline void SZ3::SPERR::Conditioner::m_adjust_strides(size_t len)
 #include <numeric>  // std::accumulate()
 #include <type_traits>
 
+#include "SZ3/def.hpp"
+
 #ifdef __AVX2__
 #include <immintrin.h>
 #endif
@@ -1930,27 +1932,27 @@ inline void SZ3::SPERR::CDF97::QccWAVCDF97SynthesisSymmetric(double* signal, siz
     odd[i] *= (-EPSILON);
 
   // Process even elements
-  even[0] = even[0] * INV_EPSILON - 2.0 * DELTA * odd[0];
+  even[0] = nofma(even[0] * INV_EPSILON) - nofma(2.0 * DELTA * odd[0]);
   for (size_t i = 1; i < even_len - 1; i++)
-    even[i] = even[i] * INV_EPSILON - DELTA * (odd[i - 1] + odd[i]);
+    even[i] = nofma(even[i] * INV_EPSILON) - nofma(DELTA * (odd[i - 1] + odd[i]));
   even[even_len - 1] =
-      even[even_len - 1] * INV_EPSILON - DELTA * (odd[even_len - 2] + odd[odd_len - 1]);
+      nofma(even[even_len - 1] * INV_EPSILON) - nofma(DELTA * (odd[even_len - 2] + odd[odd_len - 1]));
 
   // Process odd elements
   for (size_t i = 0; i < odd_len - 1; i++)
-    odd[i] -= GAMMA * (even[i] + even[i + 1]);
-  odd[odd_len - 1] -= GAMMA * (even[odd_len - 1] + even[even_len - 1]);
+    odd[i] -= nofma(GAMMA * (even[i] + even[i + 1]));
+  odd[odd_len - 1] -= nofma(GAMMA * (even[odd_len - 1] + even[even_len - 1]));
 
   // Process even elements
-  even[0] -= 2.0 * BETA * odd[0];
+  even[0] -= nofma(2.0 * BETA * odd[0]);
   for (size_t i = 1; i < even_len - 1; i++)
-    even[i] -= BETA * (odd[i - 1] + odd[i]);
-  even[even_len - 1] -= BETA * (odd[even_len - 2] + odd[odd_len - 1]);
+    even[i] -= nofma(BETA * (odd[i - 1] + odd[i]));
+  even[even_len - 1] -= nofma(BETA * (odd[even_len - 2] + odd[odd_len - 1]));
 
   // Process odd elements
   for (size_t i = 0; i < odd_len - 1; i++)
-    odd[i] -= ALPHA * (even[i] + even[i + 1]);
-  odd[odd_len - 1] -= ALPHA * (even[odd_len - 1] + even[even_len - 1]);
+    odd[i] -= nofma(ALPHA * (even[i] + even[i + 1]));
+  odd[odd_len - 1] -= nofma(ALPHA * (even[odd_len - 1] + even[even_len - 1]));
 }
 // ---- END CDF97.cpp ----
 
