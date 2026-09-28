@@ -103,10 +103,10 @@ template <class T>
 ALWAYS_INLINE T interp_pchip(T a, T b, T c, T d) {
     T pchip = (b + c) / 2;
     if ((b - a < 0) == (c - b < 0) && fabs(c - a) > 1e-9) {
-        pchip += 1 / 4 * (b - a) * (c - b) / (c - a);
+        pchip += 0.25 * (b - a) * (c - b) / (c - a);
     }
     if ((c - b < 0) == (d - c < 0) && fabs(d - b) > 1e-9) {
-        pchip -= 1 / 4 * (c - b) * (d - c) / (d - b);
+        pchip -= 0.25 * (c - b) * (d - c) / (d - b);
     }
     return pchip;
 }
