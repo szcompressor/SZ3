@@ -1,6 +1,6 @@
 # SZ3 version history
 
-Oldest version first. Each entry says whether the version has a git tag and a GitHub release, and which data formats it can decompress when that changed.
+Oldest version first. Each entry says whether the version has a git tag and a GitHub release, and which data formats it can decompress when that changed. A version that was current for less than two weeks has no entry of its own; its changes are listed under the next version that has one.
 
 ## 3.0.0 (2021-01-22)
 
@@ -34,58 +34,33 @@ Tag `v3.0.2`. The GitHub release has no notes.
 - The Zstd level can be set when constructing `Lossless_zstd`.
 - The truncation compressor can keep a chosen number of bytes per value.
 
-## 3.1.0 (2022-01-21)
+## 3.1.3 (2022-02-04)
 
-Tag `v3.1.0`. GitHub release: "The default algorithm is now interpolation+Lorenzo."
+Tag `v3.1.3`. The GitHub release is titled "V3.1.3". This entry also covers 3.1.0 (tag `v3.1.0`, 2022-01-21), 3.1.1 (tag `v3.1.1`, 2022-01-26) and 3.1.2 (tag `v3.1.2`, 2022-02-02). Each was current for less than two weeks, and each has a GitHub release.
 
 **New**
-- Interpolation-based compression (the ICDE'21 dynamic spline interpolation). The default algorithm, `METHOD_INTERP_LORENZO`, chooses between interpolation and Lorenzo prediction and tunes its settings automatically. `METHOD_INTERP` and `METHOD_LORENZO_REG` pick one predictor family.
-- A public API in `include/SZ3/api/sz.hpp`: `SZ_compress(conf, data, outSize)` and `SZ_decompress(conf, cmpData, cmpSize)`, configured with `SZ::Config`.
-- A command-line tool, `sz`, with `-z`/`-x` for compression and decompression, `-f`/`-d` for data type, `-M ABS|REL`, `-A`/`-R` for error bounds, `-1`…`-4` for dimensions and `-a` for error statistics.
-- Integer data, and data with more than four dimensions (folded into four).
+- Interpolation-based compression (the ICDE'21 dynamic spline interpolation). The default algorithm, `ALGO_INTERP_LORENZO`, chooses between interpolation and Lorenzo prediction and tunes its settings automatically. `ALGO_INTERP` and `ALGO_LORENZO_REG` pick one predictor family.
+- A public API in `include/SZ3/api/sz.hpp`: `SZ_compress(conf, data, outSize)` and `SZ_decompress(conf, cmpData, cmpSize)`, configured with `SZ::Config`. `SZ_decompress(conf, cmpData, cmpSize, decData)` decompresses into a buffer the caller allocated.
+- A command-line tool, `sz`: `-i` input, `-z` compressed file, `-o` decompressed file, `-f`/`-d` data type, `-1`…`-4` dimensions, `-M <mode> <bound>`, and `-a` for error statistics. Most SZ2 command-line arguments are still accepted. `-h2` lists them.
+- INI configuration files, passed with `-c`. The example is `test/sz.config`, now `tools/sz3/sz3.config`.
+- OpenMP compression and decompression for all algorithms. Set `conf.openmp = true`, or `OpenMP = YES` in a configuration file. The data is split along its slowest dimension, and only the ABS and REL modes are supported with OpenMP.
+- Error-bound modes ABS, REL, PSNR, NORM (L2 norm), ABS_AND_REL and ABS_OR_REL. On the command line the bounds can also be given with `-A`, `-R`, `-S` and `-N`.
+- Integer data. The command line takes 32-bit and 64-bit integers with `-I 32` or `-I 64`.
+- Text output of decompressed data, with `-t`.
+- Data with more than four dimensions (folded into four).
 - `make install` installs a CMake package. `find_package(SZ3)` provides the `SZ3::SZ3` target.
 - CMake options `SZ3_USE_BUNDLED_ZSTD` and `SZ3_DEBUG_TIMINGS` (debug timings on by default).
 - A polynomial regression predictor and a run-length encoder.
+- The README lists the SZ2 command-line options SZ3 does not support (`-c` in SZ2 format, `-p`, `-T`, `-P`).
 
 **Changes**
 - Headers moved from `include/` to `include/SZ3/`. Include them as `SZ3/...`.
 - The compression configuration is stored at the end of the compressed data, so decompression needs only the compressed bytes.
 - `sz` replaces `sz_demo`. `sz_pw` and `sz_truncate` became beta examples.
-
-## 3.1.1 (2022-01-26)
-
-Tag `v3.1.1`. GitHub release: "Add OpenMP support. Works for all algorithms."
-
-**New**
-- OpenMP compression and decompression for all algorithms. Set `conf.openmp = true`. The data is split along its slowest dimension, and only the ABS and REL modes are supported with OpenMP.
-- `SZ_decompress(conf, cmpData, cmpSize, decData)` decompresses into a buffer the caller allocated.
-
-**Changes**
-- The stored configuration changed (narrower field types and an `openmp` flag). Data compressed by 3.1.0 cannot be decompressed by 3.1.1 or later.
-
-## 3.1.2 (2022-02-02)
-
-Tag `v3.1.2`. GitHub release: "Support configuration file (INI format)."
-
-**New**
-- INI configuration files, passed with `-c`. The example is `test/sz.config`, now `tools/sz3/sz3.config`.
-- New command-line syntax: `-i` input, `-z` compressed file, `-o` decompressed file, `-M <mode> <bound>`.
-- Most SZ2 command-line arguments are still accepted. `-h2` lists them.
-
-**Changes**
-- `#define` constants became enums in `namespace SZ`. `METHOD_*` became `ALGO_*` (the field `cmprMethod` became `cmprAlgo`), and `ABS`/`REL` became `EB_ABS`/`EB_REL`.
-- Several `Config` fields were renamed, for example `enable_lorenzo` to `lorenzo`, `quant_state_num` to `quantbinCnt`, `block_size` to `blockSize`, and `interp_op` to `interpAlgo`.
-- The version macros moved to the generated header `SZ3/version.hpp`.
-
-## 3.1.3 (2022-02-04)
-
-Tag `v3.1.3`. The GitHub release is titled "V3.1.3".
-
-**New**
-- Error-bound modes PSNR, NORM (L2 norm), ABS_AND_REL and ABS_OR_REL, with `-S` and `-N` on the command line.
-- 32-bit and 64-bit integer data on the command line, with `-I 32` or `-I 64`.
-- Text output of decompressed data, with `-t`.
-- The README lists the SZ2 command-line options SZ3 does not support (`-c` in SZ2 format, `-p`, `-T`, `-P`).
+- The version macros are in the generated header `SZ3/version.hpp`.
+- 3.1.1 changed the stored configuration (narrower field types and an `openmp` flag). Data compressed by 3.1.0 cannot be decompressed by 3.1.1 or later.
+- 3.1.2 replaced the `#define` constants of 3.1.0 and 3.1.1 with enums in `namespace SZ`. `METHOD_*` became `ALGO_*` (the field `cmprMethod` became `cmprAlgo`), and `ABS`/`REL` became `EB_ABS`/`EB_REL`.
+- 3.1.2 also renamed several `Config` fields, for example `enable_lorenzo` to `lorenzo`, `quant_state_num` to `quantbinCnt`, `block_size` to `blockSize`, and `interp_op` to `interpAlgo`.
 
 ## 3.1.3.1 (2022-03-16)
 
@@ -106,9 +81,9 @@ No tag and no GitHub release. This is commit `75b2c7e`.
 **Fixes**
 - Fixes for OpenMP, the command line and the CMake build.
 
-## 3.1.5 and 3.1.5.1 (2022-04-28, 2022-04-29)
+## 3.1.5.1 (2022-04-29)
 
-3.1.5 is commit `be95b02`, with no tag. Tag `v3.1.5.1` followed one day later. Neither has a GitHub release.
+Tag `v3.1.5.1`, no GitHub release. This entry also covers 3.1.5 (commit `be95b02`, 2022-04-28, no tag and no GitHub release), which was current for one day.
 
 **New**
 - H5Z-SZ3, an HDF5 filter (ID 32024), built with `-DBUILD_H5Z_FILTER=ON`. `sz3ToHDF5` and `dsz3FromHDF5` are test tools. [#11](https://github.com/szcompressor/SZ3/pull/11)
@@ -121,45 +96,31 @@ No tag and no GitHub release. This is commit `75b2c7e`.
 **Fixes**
 - libpressio integration fixes. [#6](https://github.com/szcompressor/SZ3/pull/6)
 - Explicit type in `std::multiplies`, for compilers that required it. [#10](https://github.com/szcompressor/SZ3/pull/10)
-- A memory-allocation fix (3.1.5.1).
+- A memory-allocation fix.
 
-## 3.1.5.4 (2022-10-24)
+## 3.1.7 (2022-11-12)
 
-Tag `v3.1.5.4`, no GitHub release. Versions 3.1.5.2 and 3.1.5.3 exist only as commits.
+Tag `v3.1.7`, no GitHub release. This entry also covers 3.1.5.4 (tag `v3.1.5.4`, 2022-10-24) and 3.1.6 (tag `v3.1.6`, 2022-11-01). Each was current for less than two weeks, and neither has a GitHub release. Versions 3.1.5.2 and 3.1.5.3 exist only as commits.
+
+**New**
+- A C API in `tools/sz3c` (`SZ_compress_args`, `SZ_decompress`) with SZ2's signatures and constants.
+- A Python API, `tools/pysz/pysz.py`, that loads the SZ3 or SZ2 shared library through ctypes.
+- MDZ, a compressor for molecular-dynamics trajectories, in `tools/mdz`, built with `-DBUILD_MDZ=ON`.
+- `print_h5repack_args` builds the HDF5 filter's `cd_values` for `h5repack`.
+- A smoke test for `sz3`.
 
 **Changes**
 - The command-line tool was renamed from `sz` to `sz3`.
+- The tools and examples moved from `examples/` to `tools/sz3/`.
 - CMake 3.18 or newer is required.
-- The HDF5 filter's `cd_values` now use the same layout as H5Z-SZ, the SZ2 filter. `print_h5repack_args` builds them for `h5repack`.
+- The HDF5 filter's `cd_values` now use the same layout as H5Z-SZ, the SZ2 filter.
 - Data with more than four dimensions is rejected instead of being folded into four.
-- When GSL is found, SZ3 links it.
+- When GSL is found, SZ3 links it, and the installed CMake package looks for GSL. [#27](https://github.com/szcompressor/SZ3/pull/27)
 
 **Fixes**
 - Fixes to OpenMP (also faster), `SZFastFrontend::size_est()`, the polynomial regression predictor and quantization-bin handling.
 - Stride types are `size_t`. [#22](https://github.com/szcompressor/SZ3/pull/22)
 - The H5Z-SZ3 header compiles as C, and the filter builds without warnings. [#21](https://github.com/szcompressor/SZ3/pull/21), [#25](https://github.com/szcompressor/SZ3/pull/25)
-
-## 3.1.6 (2022-11-01)
-
-Tag `v3.1.6`, no GitHub release.
-
-**New**
-- A C API in `tools/sz3c` (`SZ_compress_args`, `SZ_decompress`) with SZ2's signatures and constants.
-- A Python API, `tools/pysz/pysz.py`, that loads the SZ3 or SZ2 shared library through ctypes.
-
-**Changes**
-- `examples/` moved to `tools/sz3/`.
-
-## 3.1.7 (2022-11-12)
-
-Tag `v3.1.7`, no GitHub release.
-
-**New**
-- MDZ, a compressor for molecular-dynamics trajectories, in `tools/mdz`, built with `-DBUILD_MDZ=ON`.
-- A smoke test for `sz3`.
-
-**Fixes**
-- The installed CMake package looks for GSL when SZ3 was built with it. [#27](https://github.com/szcompressor/SZ3/pull/27)
 
 ## 3.1.8 (2023-11-30)
 
