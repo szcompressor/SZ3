@@ -277,6 +277,7 @@ Tag `v3.3.2`. The GitHub release lists #104–#116, including the 3.3.1 changes.
 - OpenMP: compression no longer writes an undecodable stream or hangs when a region gets fewer threads than asked or a chunk fails. [#149](https://github.com/szcompressor/SZ3/pull/149), [#161](https://github.com/szcompressor/SZ3/pull/161)
 - `ALGO_LORENZO_REG` could write past its buffer with a small `BlockSize`, and with only regression enabled it read past its buffer on 3D and 4D data. [#151](https://github.com/szcompressor/SZ3/pull/151), [#161](https://github.com/szcompressor/SZ3/pull/161)
 - Integer data is compressed as floating point and rounded back, so values near the type's limits no longer come back past the bound, and REL and PSNR bounds work on data whose range the type cannot hold. [#165](https://github.com/szcompressor/SZ3/pull/165)
+- Float data could come back a fraction of an ulp past the bound: `LinearQuantizer` checked the error after rounding it to float. [#166](https://github.com/szcompressor/SZ3/pull/166)
 - The HDF5 filter refuses datatypes it cannot compress, instead of writing data that comes back wrong. [#158](https://github.com/szcompressor/SZ3/pull/158)
 - The HDF5 filter keeps `H5Z_FLAG_OPTIONAL` (as h5py sets it), and refuses a chunk whose size a filter before it changed. [#163](https://github.com/szcompressor/SZ3/pull/163)
 - SZ3 builds for wasm32 again. [#117](https://github.com/szcompressor/SZ3/pull/117)
