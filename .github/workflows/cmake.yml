@@ -352,6 +352,17 @@ jobs:
         working-directory: build
         run: ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }}
 
+      - name: Build static libraries
+        shell: pwsh
+        run: |
+          # Static is what GROMACS builds on Windows; the H5Z tools link the static hdf5sz3.
+          cmake -S . -B build-static `
+            -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake `
+            -DVCPKG_TARGET_TRIPLET=x64-windows `
+            -DBUILD_SHARED_LIBS=OFF `
+            -DBUILD_H5Z_FILTER=ON
+          cmake --build build-static --config ${{ env.BUILD_TYPE }} --parallel 4
+
       - name: Download test data
         shell: pwsh
         run: Invoke-WebRequest -UseBasicParsing -Uri ${{ env.TEST_URL }} -OutFile input.dat

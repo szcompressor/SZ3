@@ -1,4 +1,4 @@
-file(GLOB cpu_source_files "${CMAKE_SOURCE_DIR}/tools/sz3/*.cpp")
+file(GLOB cpu_source_files "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 
 foreach (SRCFILE IN LISTS cpu_source_files)
     get_filename_component(EXE ${SRCFILE} NAME_WLE)
@@ -7,9 +7,13 @@ foreach (SRCFILE IN LISTS cpu_source_files)
     target_link_libraries(${EXE} PRIVATE SZ3)
     # Ask for the binary rather than spelling out where it lands: a multi-config generator puts it
     # under a per-config subdirectory, and the install then cannot find it.
-    install(PROGRAMS $<TARGET_FILE:${EXE}> TYPE BIN)
+    if (SZ3_INSTALL)
+        install(PROGRAMS $<TARGET_FILE:${EXE}> TYPE BIN)
+    endif ()
 
 endforeach ()
-install(FILES testfloat_8_8_128.dat DESTINATION ${CMAKE_INSTALL_DATADIR}/SZ3)
+if (SZ3_INSTALL)
+    install(FILES testfloat_8_8_128.dat DESTINATION ${CMAKE_INSTALL_DATADIR}/SZ3)
+endif ()
 
 #add_subdirectory(demo)

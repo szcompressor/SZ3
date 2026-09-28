@@ -1,4 +1,6 @@
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/MDZ)
+if (SZ3_INSTALL)
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/MDZ)
+endif ()
 
 set(exes mdz
         mdz_smoke_test)
@@ -11,6 +13,8 @@ foreach (EXE IN LISTS exes)
             )
     target_link_libraries(${EXE} SZ3)
     # As in tools/sz3: the spelled-out path misses both the per-config subdirectory and the .exe.
-    install(PROGRAMS $<TARGET_FILE:${EXE}> TYPE BIN)
+    if (SZ3_INSTALL)
+        install(PROGRAMS $<TARGET_FILE:${EXE}> TYPE BIN)
+    endif ()
 endforeach ()
 

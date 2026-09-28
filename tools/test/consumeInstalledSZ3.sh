@@ -191,6 +191,10 @@ find_package(SZ3 QUIET)
 if (SZ3_FOUND)
     message(FATAL_ERROR "SZ3 reported itself found with no HDF5 to be had")
 endif ()
+# GROMACS builds its own copy of SZ3 next, which fails on any SZ3 target left behind.
+if (TARGET SZ3::SZ3 OR TARGET SZ3::SZ3core OR TARGET SZ3::hdf5sz3)
+    message(FATAL_ERROR "SZ3 declined but left its targets behind")
+endif ()
 EOF
 if cmake -S probe -B probe/b -DCMAKE_PREFIX_PATH="$CMPFX" \
         -DCMAKE_DISABLE_FIND_PACKAGE_HDF5=ON > probe/cfg.log 2>&1; then
@@ -219,6 +223,10 @@ project(probe CXX)
 find_package(SZ3 QUIET)
 if (SZ3_FOUND)
     message(FATAL_ERROR "SZ3 reported itself found with no Zstd to be had")
+endif ()
+# GROMACS builds its own copy of SZ3 next, which fails on any SZ3 target left behind.
+if (TARGET SZ3::SZ3 OR TARGET SZ3::SZ3core OR TARGET SZ3::hdf5sz3)
+    message(FATAL_ERROR "SZ3 declined but left its targets behind")
 endif ()
 EOF
     if cmake -S zprobe -B zprobe/b -DCMAKE_PREFIX_PATH="$CMPFX" \
@@ -303,7 +311,7 @@ else
 skip_all "this SZ3 was built without OpenMP" sz3-consumer-compiles-with-openmp
 fi
 
-# The GROMACS shape. A static filter still brings the OpenMP runtime to the link.
+# The GROMACS shape.
 mkdir -p ompoff
 cat > ompoff/CMakeLists.txt <<'EOF'
 cmake_minimum_required(VERSION 3.18)

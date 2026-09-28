@@ -2,6 +2,7 @@
 #define _SZ_HUFFMAN_ENCODER_V2_HPP
 
 #include <cassert>
+#include <limits>
 #include <map>
 #include <queue>
 #include <stack>
@@ -38,7 +39,7 @@ private:
         uchar _constructed = 0;
 
         uchar len = 0;
-        int vec = 0;
+        uint64_t vec = 0;
 
         class cmp {
         public:
@@ -62,9 +63,9 @@ private:
             dfs_mp(u->p[0]);
             --len;
 
-            vec ^= 1 << len++;
+            vec ^= 1ull << len++;
             dfs_mp(u->p[1]);
-            vec ^= 1 << --len;
+            vec ^= 1ull << --len;
         }
 
         void dfs_vec(Node* u) {
@@ -81,9 +82,9 @@ private:
             dfs_vec(u->p[0]);
             --len;
 
-            vec ^= 1 << len++;
+            vec ^= 1ull << len++;
             dfs_vec(u->p[1]);
-            vec ^= 1 << --len;
+            vec ^= 1ull << --len;
         }
 
         uchar usemp;
@@ -91,9 +92,9 @@ private:
         // 1 : mp
 
         std::vector<uchar> veclen;
-        std::vector<int> veccode;
+        std::vector<uint64_t> veccode;
         std::unordered_map<size_t, uchar> mplen;
-        std::unordered_map<size_t, int> mpcode;
+        std::unordered_map<size_t, uint64_t> mpcode;
 
         T offset;
         // minimum bits for T
@@ -214,31 +215,35 @@ private:
     HuffmanTree tree;
 
 public:
-    void preprocess_encode(const T* const bins, size_t num_bin, int stateNum, uchar flag = 0x00) {
+    void preprocess_encode(const T* const bins, size_t num_bin, int /*stateNum*/, uchar flag = 0x00) {
         // Timer timer(true);
 
         tree.init();
 
+        if (num_bin == 0) throw std::invalid_argument("HuffmanEncoderV2: bins should not be empty");
+
         T __minval, __maxval;
 
-        if (stateNum == 0) {
-            __minval = *bins;
-            __maxval = *bins;
-            for (size_t i = 1; i < num_bin; i++) {
-                __minval = std::min(__minval, *(bins + i));
-                __maxval = std::max(__maxval, *(bins + i));
-            }
-        } else {
-            __minval = 0;
-            __maxval = stateNum - 1;
+        // stateNum is ignored: it covers every bin the quantizer can emit, far more than one input uses.
+        __minval = *bins;
+        __maxval = *bins;
+        for (size_t i = 1; i < num_bin; i++) {
+            __minval = std::min(__minval, *(bins + i));
+            __maxval = std::max(__maxval, *(bins + i));
         }
+        // decode() marks an unfinished table entry with the value -1.
+        if (__minval < 0) throw std::invalid_argument("HuffmanEncoderV2: bins must not be negative");
 
+        if (static_cast<double>(__maxval) - static_cast<double>(__minval) >=
+            static_cast<double>(std::numeric_limits<T>::max())) {
+            throw std::invalid_argument("HuffmanEncoderV2: bin range too wide");
+        }
         tree.offset = __minval;
         tree.maxval = __maxval - __minval + 1;
 
         switch ((flag & 0xc0) >> 6) {
             case 0: {
-                if ((tree.maxval >= (1 << 12) && num_bin < 2 * static_cast<size_t>(__maxval)) ||
+                if ((tree.maxval >= (1 << 16) && num_bin < 2 * static_cast<size_t>(__maxval)) ||
                     tree.maxval >= (1 << 28)) {
                     tree.usemp = 1;
                 } else {
@@ -370,7 +375,7 @@ public:
                 for (size_t i = 0; i < num_bin; i++) {
                     const T& it = bins[i];
                     const uchar& len_i = tree.mplen[it];
-                    const int& code_i = tree.mpcode[it];
+                    const uint64_t& code_i = tree.mpcode[it];
                     len += len_i;
                     writeBytes(bytes, code_i, len_i, mask, index);
                 }
@@ -378,7 +383,7 @@ public:
                 for (size_t i = 0; i < num_bin; i++) {
                     const T& it = bins[i];
                     const uchar& len_i = tree.veclen[it];
-                    const int& code_i = tree.veccode[it];
+                    const uint64_t& code_i = tree.veccode[it];
                     len += len_i;
                     writeBytes(bytes, code_i, len_i, mask, index);
                 }
@@ -388,7 +393,7 @@ public:
                 for (size_t i = 0; i < num_bin; i++) {
                     const T& it = bins[i];
                     const uchar& len_i = tree.mplen[it - tree.offset];
-                    const int& code_i = tree.mpcode[it - tree.offset];
+                    const uint64_t& code_i = tree.mpcode[it - tree.offset];
                     len += len_i;
                     writeBytes(bytes, code_i, len_i, mask, index);
                 }
@@ -396,7 +401,7 @@ public:
                 for (size_t i = 0; i < num_bin; i++) {
                     const T& it = bins[i];
                     const uchar& len_i = tree.veclen[it - tree.offset];
-                    const int& code_i = tree.veccode[it - tree.offset];
+                    const uint64_t& code_i = tree.veccode[it - tree.offset];
                     len += len_i;
                     writeBytes(bytes, code_i, len_i, mask, index);
                 }
@@ -428,19 +433,14 @@ public:
     }
 
     std::vector<T> decode(const uchar*& bytes, size_t targetLength, size_t& remaining_length) override {
-        // The reads below are not individually bounded, so check what they consumed before charging it:
-        // subtracting more than is left would wrap remaining_length and unbound everything parsed after.
-        const uchar* decode_start = bytes;
+        if (remaining_length < 8) {
+            throw std::out_of_range("SZ3 HuffmanEncoderV2: decode read past the end of the compressed buffer");
+        }
         if (tree.maxval == 1) {
             size_t len = bytesToInt64_bigEndian(bytes) ^ 0x1234abcd;
             bytes += 8;
-            //                assert(len==targetLength);
-
-            const size_t consumed = static_cast<size_t>(bytes - decode_start);
-            if (consumed > remaining_length) {
-                throw std::out_of_range("SZ3 HuffmanEncoderV2: decode read past the end of the compressed buffer");
-            }
-            remaining_length -= consumed;
+            if (len != targetLength) throw std::out_of_range("SZ3 HuffmanEncoderV2: value count mismatch");
+            remaining_length -= 8;
             return std::vector<T>(len, tree.offset);
         }
 
@@ -452,6 +452,10 @@ public:
 
         size_t len = bytesToInt64_bigEndian(bytes) ^ 0x1234abcd;
         bytes += 8;
+        // The fixed-width tail reads bytes[0] even when len is 0, which no encoder writes.
+        if (len == 0 || len > (remaining_length - 8) * 8) {
+            throw std::out_of_range("SZ3 HuffmanEncoderV2: decode read past the end of the compressed buffer");
+        }
         // The cached-codebook walk below refills ahead of the code it is decoding, and past this it must
         // shift in zeros; a well-formed stream never consumes those bits.
         const size_t code_bytes = (len + 7) >> 3;
@@ -460,6 +464,7 @@ public:
 
         // For fixed length encoding
         if (tree.n == 0) {
+            if (len / tree.mbft > targetLength) throw std::out_of_range("SZ3 HuffmanEncoderV2: more codes than values");
             size_t byteIndex = 0;
             size_t i = 0;
             size_t b;
@@ -518,13 +523,8 @@ public:
                 if (j == tree.mbft) out[outLen++] = c + tree.offset, c = j = 0;
             }
 
-            bytes += (len + 7) >> 3;
-
-            const size_t consumed = static_cast<size_t>(bytes - decode_start);
-            if (consumed > remaining_length) {
-                throw std::out_of_range("SZ3 HuffmanEncoderV2: decode read past the end of the compressed buffer");
-            }
-            remaining_length -= consumed;
+            bytes += code_bytes;
+            remaining_length -= 8 + code_bytes;
             return out;
         }
 
@@ -619,7 +619,8 @@ public:
             Node* u = &tree.ht[tree.root];
             auto offset = tree.offset;
 
-            for (; i + 8 < len; i += 8, byteIndex++) {
+            // Each pass emits at most 8 values.
+            for (; i + 8 < len && outLen + 8 <= targetLength; i += 8, byteIndex++) {
                 b = bytes[byteIndex];
 
                 u = u->p[b & 1];
@@ -664,25 +665,20 @@ public:
                 }
             }
 
-            b = bytes[byteIndex];
-
-            for (size_t j = 0; j < len - i; j++) {
-                u = u->p[(b >> j) & 1];
+            for (; i < len; i++) {
+                u = u->p[(bytes[i >> 3] >> (i & 7)) & 1];
                 if (u->isLeaf()) {
+                    if (outLen == targetLength) throw std::out_of_range("SZ3 HuffmanEncoderV2: more codes than values");
                     out[outLen++] = u->c + tree.offset;
                     u = &tree.ht[tree.root];
                 }
             }
         }
-        bytes += (len + 7) >> 3;
+        bytes += code_bytes;
 
         // timer.stop("decode");
 
-        const size_t consumed = static_cast<size_t>(bytes - decode_start);
-        if (consumed > remaining_length) {
-            throw std::out_of_range("SZ3 HuffmanEncoderV2: decode read past the end of the compressed buffer");
-        }
-        remaining_length -= consumed;
+        remaining_length -= 8 + code_bytes;
         return out;
     }
 
@@ -693,7 +689,7 @@ public:
         // saveAsDFSOrder writes a fixed header, then one bit per tree node and tree.mbft bits per leaf.
         const size_t leaves = static_cast<size_t>(tree.n);
         const size_t nodes = leaves > 1 ? 2 * leaves - 1 : leaves;
-        return 1 + sizeof(T) + 2 * sizeof(size_t) + (nodes + leaves * tree.mbft + 7) / 8 + 2;
+        return 1 + sizeof(T) + 2 * sizeof(uint64_t) + (nodes + leaves * tree.mbft + 7) / 8 + 2;
     }
 
     void save(uchar*& c) override {
@@ -717,8 +713,8 @@ private:
         }
     }
 
-    static void writeBytes(uchar*& c, T val, uchar len, uchar& mask, uchar& index) {
-        assert(len >= 1 && len <= sizeof(T) * 8);
+    static void writeBytes(uchar*& c, uint64_t val, uchar len, uchar& mask, uchar& index) {
+        assert(len >= 1 && len <= 64);
 
         if (len + index >= 8) {
             mask |= (val & ((1 << (8 - index)) - 1)) << index;
@@ -870,10 +866,10 @@ private:
         writeBytesByte(c, (tree.usemp << 7) | ((tree.n == 1) << 6) | tree.mbft);
         writeBytes(c, tree.offset, sizeof(T) << 3, mask, index);
         int64ToBytes_bigEndian(c, tree.n);
-        c += sizeof(size_t);
+        c += sizeof(uint64_t);
         // if (tree.usemp == 0x00) {
         int64ToBytes_bigEndian(c, tree.maxval);
-        c += sizeof(size_t);
+        c += sizeof(uint64_t);
         // }
 
         if (tree.n == 0 || tree.n == 1) {
@@ -1061,7 +1057,7 @@ private:
         // The tree is a fixed-size header plus a DFS bitstream, all of it untrusted; every read below is
         // bounded and every allocation is sized from a checked field.
         const uchar* const tree_start = bytes;
-        const size_t header_size = 1 + sizeof(T) + 2 * sizeof(size_t);
+        const size_t header_size = 1 + sizeof(T) + 2 * sizeof(uint64_t);
         if (remaining_length < header_size) throw std::out_of_range("SZ3 HuffmanEncoderV2: truncated tree header");
 
         tree.usemp = (*bytes) >> 7;
@@ -1074,17 +1070,20 @@ private:
         }
 
         tree.n = bytesToInt64_bigEndian(bytes);
-        bytes += sizeof(size_t);
+        bytes += sizeof(uint64_t);
 
         tree.maxval = bytesToInt64_bigEndian(bytes);
-        bytes += sizeof(size_t);
+        bytes += sizeof(uint64_t);
 
-        // Each node costs at least one bit of the DFS stream, so the count can not exceed the bits available.
+        // Each leaf of a tree with two or more costs at least a bit of the DFS stream; a one-leaf tree writes none.
         // tree.n is an int holding a 64-bit read, so check the sign before comparing.
         const size_t dfs_bytes = remaining_length - header_size;
-        if (tree.n < 0 || static_cast<size_t>(tree.n) > dfs_bytes * 8)
+        if (tree.n < 0 || (tree.n > 1 && static_cast<size_t>(tree.n) > dfs_bytes * 8))
             throw std::out_of_range("SZ3 HuffmanEncoderV2: node count exceeds the compressed buffer");
         tree.ht.reserve(static_cast<size_t>(tree.n) << 1);
+        // A single value means maxval == 1, and decode() then never walks this tree, whose root has no p[1].
+        if (tree.n == 1 && tree.maxval != 1)
+            throw std::out_of_range("SZ3 HuffmanEncoderV2: one-leaf tree with maxval != 1");
 
         if (tree.usemp == 0x00) {
             // maxval sizes the dense tables below. preprocess_encode leaves usemp == 0 only under 1 << 28, so a
@@ -1098,6 +1097,11 @@ private:
                 tree.veclen.resize(tree.maxval);
             }
         }
+
+        // The encoder stores mbft in [1, bits of T) and a non-negative offset; decode() marks an unfinished
+        // table entry with the value -1.
+        if (tree.mbft == 0 || tree.mbft >= sizeof(T) * 8 || tree.offset < 0)
+            throw std::out_of_range("SZ3 HuffmanEncoderV2: tree header out of range");
 
         remaining_length -= header_size;
 
@@ -1131,6 +1135,12 @@ private:
         while (!stk.empty()) {
             Node* u = stk.top();
 
+            // u and the stack point into tree.ht, so push_back must not reallocate it.
+            if (tree.ht.size() == tree.ht.capacity())
+                throw std::out_of_range("SZ3 HuffmanEncoderV2: tree has more nodes than it declares");
+            // A leaf's depth is its code length, which dfs_mp and dfs_vec build in a veccode element.
+            if (stk.size() > sizeof(tree.veccode[0]) * 8)
+                throw std::out_of_range("SZ3 HuffmanEncoderV2: code longer than a code word");
             if (static_cast<size_t>(i >> 3) >= dfs_bytes)
                 throw std::out_of_range("SZ3 HuffmanEncoderV2: tree bitstream exceeds the compressed buffer");
             if (readBit(bytes, i++) == 0x00) {
@@ -1148,6 +1158,9 @@ private:
                         throw std::out_of_range("SZ3 HuffmanEncoderV2: tree bitstream exceeds the compressed buffer");
                     c |= static_cast<T>(readBit(bytes, i++)) << j;
                 }
+                // dfs_vec indexes veclen with c, and decode() adds offset to it.
+                if (c >= tree.maxval || c > std::numeric_limits<T>::max() - tree.offset)
+                    throw std::out_of_range("SZ3 HuffmanEncoderV2: tree leaf out of range");
                 tree.ht.push_back(Node(c));
                 if (u->p[0] == nullptr)
                     u->p[0] = &tree.ht[tree.ht.size() - 1];

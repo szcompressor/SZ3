@@ -77,6 +77,9 @@ private:
     }
 
     T* decompressSingleFrame(std::vector<int>& quantData, T* decData) {
+        if (quantData.size() < conf.num) {
+            throw std::out_of_range("SZ3 BioMD XTC: fewer bins than the data has elements");
+        }
         for (size_t i = 0; i < conf.num; i++) {
             decData[i] = quantizer.recover(0, quantData[i] + XTC_radius);
         }
@@ -156,6 +159,9 @@ private:
         std::vector<size_t> stride({dims[1] * dims[2], dims[2], 1});
 
         size_t lastFrame = std::min(dims[0], firstFillFrame_);
+        if (quantData.size() < lastFrame * stride[0]) {
+            throw std::out_of_range("SZ3 BioMD XTC: fewer bins than the frames before the fill");
+        }
 
         for (size_t i = 0; i < lastFrame; i++) {
             // time
