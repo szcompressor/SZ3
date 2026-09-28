@@ -23,7 +23,6 @@
 #include "SZ3/encoder/BitshuffleEncoder.hpp"
 #include "SZ3/encoder/BypassEncoder.hpp"
 #include "SZ3/encoder/HuffmanEncoder.hpp"
-#include "SZ3/encoder/HuffmanEncoderV2.hpp"
 #include "SZ3/encoder/RunlengthEncoder.hpp"
 #include "SZ3/lossless/Lossless_bypass.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
@@ -104,10 +103,6 @@ TEST(SZ3_ModuleContract, FixedPointQuantizer) {
 
 TEST(SZ3_ModuleContract, HuffmanEncoder) {
     SZ3_test::expectEncoderContract<int>("HuffmanEncoder", [] { return SZ3::HuffmanEncoder<int>(); });
-}
-
-TEST(SZ3_ModuleContract, HuffmanEncoderV2) {
-    SZ3_test::expectEncoderContract<int>("HuffmanEncoderV2", [] { return SZ3::HuffmanEncoderV2<int>(); });
 }
 
 TEST(SZ3_ModuleContract, BypassEncoder) {

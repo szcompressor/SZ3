@@ -8,7 +8,6 @@
 #include "SZ3/encoder/BitplaneRLEEncoder.hpp"
 #include "SZ3/encoder/BypassEncoder.hpp"
 #include "SZ3/encoder/HuffmanEncoder.hpp"
-#include "SZ3/encoder/HuffmanEncoderV2.hpp"
 #include "SZ3/encoder/RunlengthEncoder.hpp"
 #include "SZ3/encoder/BitshuffleEncoder.hpp"
 #include "SZ3/encoder/SPERREncoder.hpp"
@@ -123,10 +122,6 @@ TEST(SZ3_EncoderTest, BitplaneRLEEncoderEdgeCases) {
     for (int i = 0; i < 2048; i++) mixed[i] = (i < 16) ? 65535 : (i & 1);
     roundtripBins<SZ3::BitplaneRLEEncoder<int>>(mixed);
 }
-
-// HuffmanEncoderV2 mirrors HuffmanEncoder's interface (preprocess_encode takes
-// stateNum) but its preprocess_encode is non-virtual; default-construct + run.
-TEST(SZ3_EncoderTest, HuffmanEncoderV2) { runAllTest<SZ3::HuffmanEncoderV2<int>, int>(); }
 
 // SPERREncoder requires non-empty bins. 1D path uses SPECK1D_INT.
 // NOTE: SPERREncoder<int, 2> and <int, 3> currently fail to link --

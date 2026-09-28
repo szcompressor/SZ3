@@ -22,7 +22,7 @@ namespace SZ3 {
  * @tparam T Data type
  * @tparam N Dimension
  */
-template <class T, uint N>
+template <class T, uint N, class Encoder = HuffmanEncoder<int>>
 class ComposedPredictor : public concepts::PredictorInterface<T, N> {
    public:
     using block_iter = typename block_data<T, N>::block_iterator;
@@ -78,7 +78,7 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
             total += p->size_est();
         }
         if (!selection.empty()) {
-            total += HuffmanEncoder<int>::size_bound(selection.size(), predictors.size());
+            total += Encoder::size_bound(selection.size(), predictors.size());
         }
         return total;
     }
@@ -89,7 +89,7 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
         }
         write(selection.size(), c);
         if (selection.size() > 0) {
-            HuffmanEncoder<int> selection_encoder;
+            Encoder selection_encoder;
             selection_encoder.preprocess_encode(selection, predictors.size());
             selection_encoder.save(c);
             selection_encoder.encode(selection, c);
@@ -104,7 +104,7 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
         size_t selection_size = 0;
         read(selection_size, c, remaining_length);
         if (selection_size > 0) {
-            HuffmanEncoder<int> selection_encoder;
+            Encoder selection_encoder;
             selection_encoder.load(c, remaining_length);
             this->selection = selection_encoder.decode(c, selection_size, remaining_length);
             selection_encoder.postprocess_decode();

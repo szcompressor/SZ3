@@ -25,6 +25,7 @@
 #include "SZ3/api/impl/SZAlgoInterp.hpp"
 #include "SZ3/api/impl/SZAlgoLorenzoReg.hpp"
 #include "SZ3/api/impl/SZAlgoNopred.hpp"
+#include "SZ3/deprecated/HuffmanEncoderV1.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
 #include "SZ3/api/impl/SZAlgoZFP.hpp"
 #if !defined(__MINGW32__)
@@ -161,6 +162,20 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
  */
 template <class T, uint N>
 void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
+    {
+        // backward compatibility for v3.3.2; its Huffman streams are HuffmanEncoderV1's.
+        if (conf.sz3DataVer < versionInt("3.4.0")) {
+            if (conf.cmprAlgo == ALGO_LORENZO_REG)
+                return SZ_decompress_LorenzoReg<T, N, HuffmanEncoderV1<int>>(conf, cmpData, cmpSize, decData);
+            if (conf.cmprAlgo == ALGO_INTERP)
+                return SZ_decompress_Interp<T, N, HuffmanEncoderV1<int>>(conf, cmpData, cmpSize, decData);
+            if (conf.cmprAlgo != ALGO_LOSSLESS && conf.cmprAlgo != ALGO_BIOMDXTC)
+                throw std::invalid_argument("SZ3: " + enum_to_string(static_cast<ALGO>(conf.cmprAlgo), ALGO_MAP) +
+                                            " data of version " + versionStr(conf.sz3DataVer) +
+                                            " is not supported; use SZ3 v" + versionStr(conf.sz3DataVer) +
+                                            " to decompress it");
+        }
+    }
     if (conf.cmprAlgo == ALGO_LOSSLESS) {
         auto zstd = Lossless_zstd();
         auto decDataPos = reinterpret_cast<uchar *>(decData);

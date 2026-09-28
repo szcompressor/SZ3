@@ -434,10 +434,10 @@
       "pipeline": {
         "decomposition": "SZBioMDDecomposition",
         "quantizer": "LinearQuantizer",
-        "encoder": "HuffmanEncoderV2",
+        "encoder": "HuffmanEncoder",
         "lossless": "Lossless_zstd"
       },
-      "pipeline_notes": "HuffmanEncoderV2 is the MD-tuned Huffman variant used in place of the default HuffmanEncoder. SZBioMDDecomposition exploits inter-frame temporal locality and per-residue spatial structure.",
+      "pipeline_notes": "SZBioMDDecomposition exploits inter-frame temporal locality and per-residue spatial structure.",
       "supported_dims": [
         3
       ],
@@ -1335,7 +1335,7 @@
       "pipeline": {
         "decomposition": "SZBioMDDecomposition",
         "quantizer": "LinearQuantizer",
-        "encoder": "HuffmanEncoderV2",
+        "encoder": "HuffmanEncoder",
         "lossless": "Lossless_zstd"
       },
       "supported_dims": [
@@ -1769,7 +1769,8 @@
         "ALGO_INTERP_LORENZO",
         "ALGO_INTERP",
         "ALGO_NOPRED",
-        "ALGO_MGARD"
+        "ALGO_MGARD",
+        "ALGO_BIOMD"
       ],
       "references": [
         {
@@ -1787,52 +1788,7 @@
       ],
       "composition": {
         "requires_state_num": false,
-        "notes": "Ignores stateNum and scans the bins. Throws when the bin range exceeds a dense state table; use HuffmanEncoderV2 for sparse wide ranges."
-      }
-    },
-    {
-      "id": "HuffmanEncoderV2",
-      "name": "Huffman Encoder V2",
-      "category": "encoder",
-      "header": "include/SZ3/encoder/HuffmanEncoderV2.hpp",
-      "pipeline": {
-        "decomposition": "(consumes int bin sequence)",
-        "quantizer": "(separate)",
-        "encoder": "HuffmanEncoderV2",
-        "lossless": "(any)"
-      },
-      "supported_dims": [],
-      "supported_dtypes": [
-        "int",
-        "int32"
-      ],
-      "error_modes": [],
-      "keywords": [
-        "Huffman",
-        "Huffman V2",
-        "entropy coding",
-        "molecular dynamics",
-        "MDZ encoder"
-      ],
-      "best_for": "Second-generation Huffman encoder used by ALGO_BIOMD (MDZ). Tuned for the per-atom integer-bin distributions that arise in molecular-dynamics trajectories. Drop-in alternative to HuffmanEncoder when those distributions show up in your residual stream.",
-      "data_examples": [
-        "MDZ per-atom quantization-bin streams",
-        "Skewed bin distributions from MD trajectory residuals"
-      ],
-      "used_by": [
-        "ALGO_BIOMD"
-      ],
-      "references": [
-        {
-          "title": "MDZ: An Efficient Error-bounded Lossy Compressor for Molecular Dynamics",
-          "venue": "ICDE",
-          "year": 2022,
-          "evidence": "MDZ couples a tuned Huffman entropy coder (the basis of HuffmanEncoderV2) to its MD-specific decomposition; up to 233% higher CR than the second-best lossy compressor across 8 MD datasets."
-        }
-      ],
-      "composition": {
-        "requires_state_num": false,
-        "notes": "stateNum == 0 makes it derive the range from the bins; switches to a sparse map when the range is wide relative to the number of distinct bins."
+        "notes": "Ignores stateNum and scans the bins: counts in a dense table when the bin range is narrow, in a hash map otherwise."
       }
     },
     {

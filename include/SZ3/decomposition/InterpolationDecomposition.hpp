@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstring>
 #include <stdexcept>
+#include <type_traits>
 
 #include "Decomposition.hpp"
 #include "SZ3/def.hpp"
@@ -32,6 +33,8 @@ namespace SZ3 {
  */
 template <class T, uint N, class Quantizer>
 class InterpolationDecomposition : public concepts::DecompositionInterface<T, int, N> {
+    static_assert(std::is_floating_point<T>::value, "InterpolationDecomposition only takes a floating-point T");
+
    public:
     /**
      * @brief Construct a new Interpolation Decomposition object

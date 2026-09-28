@@ -14,6 +14,7 @@
 #include <cmath>
 #include <list>
 #include <map>
+#include <type_traits>
 
 #include "SZ3/utils/Config.hpp"
 
@@ -22,6 +23,8 @@ namespace SZ3 {
 
 template <class T, uint N, class Quantizer>
 class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> {
+    static_assert(std::is_floating_point<T>::value, "SZBioMDDecomposition only takes a floating-point T");
+
    public:
     SZBioMDDecomposition(const Config &conf_, Quantizer quantizer_) : quantizer(quantizer_), conf(conf_) {
         if (N != 1 && N != 2 && N != 3) {

@@ -46,7 +46,6 @@
 #include "SZ3/encoder/ArithmeticEncoder.hpp"
 #include "SZ3/encoder/BitshuffleEncoder.hpp"
 #include "SZ3/encoder/BypassEncoder.hpp"
-#include "SZ3/encoder/HuffmanEncoderV2.hpp"
 #include "SZ3/encoder/RunlengthEncoder.hpp"
 #include "SZ3/encoder/XtcBasedEncoder.hpp"
 #include "SZ3/encoder/ZFPEncoder.hpp"

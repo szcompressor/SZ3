@@ -510,15 +510,7 @@ TEST(SZ3_CompositionTest, FixedPointQuantizer1DFloat) {
     const size_t raw = conf.num * sizeof(float);
     EXPECT_LT(bypass.cmpSize, raw);
     EXPECT_LT(plane.cmpSize, raw);
-    // Honest negative result: HuffmanEncoder EXPANDS this pipeline past the raw
-    // input. `FixedPointQuantizer` is a scalar quantizer with no predictor, so
-    // its 12-bit bins are near-uniform over ~2500 distinct values; the
-    // serialised Huffman tree (~13 bytes per node, 2*distinct-1 nodes) then
-    // costs more than the whole payload. This is the general shape of the
-    // problem: Huffman is the wrong partner for wide, high-entropy bins.
-    EXPECT_GT(huff.cmpSize, raw)
-        << "FixedPoint(12b) + Huffman now compresses below the raw input; if HuffmanEncoder's tree "
-           "serialisation got cheaper, turn this into a plain EXPECT_LT";
+    EXPECT_LT(huff.cmpSize, raw);
 }
 
 // ===========================================================================

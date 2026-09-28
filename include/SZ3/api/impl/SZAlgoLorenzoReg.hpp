@@ -70,16 +70,18 @@ std::shared_ptr<concepts::CompressorInterface<T>> make_compressor_lorenzo_regres
     if (conf.regression) {
         if (use_single_predictor) {
             return make_compressor_sz_generic<T, N>(
-                make_decomposition_blockwise<T, N>(conf, RegressionPredictor<T, N>(conf.blockSize, conf.absErrorBound),
-                                                   quantizer),
+                make_decomposition_blockwise<T, N>(
+                    conf, RegressionPredictor<T, N, Encoder>(conf.blockSize, conf.absErrorBound), quantizer),
                 encoder, lossless);
         } else {
-            predictors.push_back(std::make_shared<RegressionPredictor<T, N>>(conf.blockSize, conf.absErrorBound));
+            predictors.push_back(
+                std::make_shared<RegressionPredictor<T, N, Encoder>>(conf.blockSize, conf.absErrorBound));
         }
     }
 
     return make_compressor_sz_generic<T, N>(
-        make_decomposition_blockwise<T, N>(conf, ComposedPredictor<T, N>(predictors), quantizer), encoder, lossless);
+        make_decomposition_blockwise<T, N>(conf, ComposedPredictor<T, N, Encoder>(predictors), quantizer), encoder,
+        lossless);
 }
 
 template <class T, uint N>
@@ -93,12 +95,12 @@ size_t SZ_compress_LorenzoReg(Config &conf, T *data, uchar *cmpData, size_t cmpC
     return sz->compress(conf, data, cmpData, cmpCap);
 }
 
-template <class T, uint N>
+template <class T, uint N, class Encoder = HuffmanEncoder<int>>
 void SZ_decompress_LorenzoReg(const Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
     assert(conf.cmprAlgo == ALGO_LORENZO_REG);
     auto cmpDataPos = cmpData;
     LinearQuantizer<T> quantizer;
-    auto sz = make_compressor_lorenzo_regression<T, N>(conf, quantizer, HuffmanEncoder<int>(), Lossless_zstd());
+    auto sz = make_compressor_lorenzo_regression<T, N>(conf, quantizer, Encoder(), Lossless_zstd());
     sz->decompress(conf, cmpDataPos, cmpSize, decData);
 }
 }  // namespace SZ3
