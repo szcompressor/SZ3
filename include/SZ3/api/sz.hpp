@@ -52,7 +52,7 @@ size_t SZ_compress(const SZ3::Config& config, const T* data, char* cmpData, size
 
     auto cmpDataPos = reinterpret_cast<uchar*>(cmpData);
 
-    // save 16 bytes header. The payload is in this build's format, whatever data version the Config was loaded with.
+    // save 16 bytes header
     write(static_cast<uint32_t>(SZ3_MAGIC_NUMBER), cmpDataPos);  // magic number (4 bytes)
     write(versionInt(SZ3_DATA_VER), cmpDataPos);                 // data version (4 bytes)
     auto sizeHeaderPos = cmpDataPos;
