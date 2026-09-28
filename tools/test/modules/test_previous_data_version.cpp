@@ -8,6 +8,7 @@
 #include <cstring>
 #include <fstream>
 #include <iterator>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -33,11 +34,9 @@ uint64_t fnv1a(const float *data, size_t n) {
 
 TEST(SZ3_PreviousDataVersion, DecodesAsItsReleaseDid) {
     const std::pair<const char *, uint64_t> streams[] = {
-        {"interp", 0xe49ee9e883e32415ull},
-        {"interp_omp", 0x1172c536c4c77855ull},
-        {"lorenzo_reg", 0x3f7750a23094223dull},
-        {"lorenzo_reg_omp", 0xe32514629ac5fd3dull},
-        {"lorenzo_reg_rel1e-5", 0xe0885e9322ea80ccull},
+        {"biomdxtc", 0xe686c4ff7e13dca5ull},        {"interp", 0xe49ee9e883e32415ull},
+        {"interp_omp", 0x1172c536c4c77855ull},      {"lorenzo_reg", 0x3f7750a23094223dull},
+        {"lorenzo_reg_omp", 0xe32514629ac5fd3dull}, {"lorenzo_reg_rel1e-5", 0xe0885e9322ea80ccull},
         {"lossless", 0x51c93bc7f98c12a5ull},
     };
     for (const auto &s : streams) {
@@ -82,6 +81,19 @@ TEST(SZ3_PreviousDataVersion, VersionsOutsideTheRangeAreRefused) {
             EXPECT_NE(std::string(e.what()).find(v.second), std::string::npos) << e.what();
         }
     }
+}
+
+// Compressing with a Config loaded from 3.3.2 data writes this build's data version, which is what the payload is.
+TEST(SZ3_PreviousDataVersion, RecompressingWritesThisVersion) {
+    const auto cmp = slurp("lorenzo_reg");
+    ASSERT_FALSE(cmp.empty());
+    SZ3::Config conf;
+    std::unique_ptr<float[]> dec(SZ_decompress<float>(conf, cmp.data(), cmp.size()));
+    size_t n = 0;
+    std::unique_ptr<char[]> again(SZ_compress(conf, dec.get(), n));
+    SZ3::Config back;
+    std::unique_ptr<float[]> out(SZ_decompress<float>(back, again.get(), n));
+    EXPECT_EQ(back.sz3DataVer, versionInt(SZ3_DATA_VER));
 }
 
 }  // namespace
