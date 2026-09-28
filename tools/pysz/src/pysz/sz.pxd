@@ -1,7 +1,7 @@
 """Cython declarations for SZ3 compression/decompression API."""
 
 from libcpp cimport bool
-from libc.stdint cimport uint8_t, uint32_t, int32_t, int64_t
+from libc.stdint cimport uint8_t, uint32_t, uint64_t, int32_t, int64_t
 from libcpp.vector cimport vector
 from libcpp.string cimport string
 from libc.stddef cimport size_t
@@ -13,11 +13,11 @@ cdef extern from "SZ3/utils/Config.hpp" namespace "SZ3":
         
         # Methods
         size_t setDims[Iter](Iter begin, Iter end)
-        void loadcfg(const string &cfgpath) 
-        void load_ini(const string &ini_content)
+        void loadcfg(const string &cfgpath) except +
+        void load_ini(const string &ini_content) except +
         string save_ini() const
         size_t save(unsigned char *&c) const
-        void load(const unsigned char *&c, size_t &remaining_length)
+        void load(const unsigned char *&c, size_t &remaining_length) except +
         void print()
         size_t size_est() const
 
@@ -38,8 +38,16 @@ cdef extern from "SZ3/utils/Config.hpp" namespace "SZ3":
         bool openmp
 
 
+cdef extern from "SZ3/utils/MemoryUtil.hpp" namespace "SZ3":
+    void read[T](T &var, const unsigned char *&pos)
+
+
 cdef class szConfig:
     cdef Config conf
+
+
+cdef extern from "SZ3/api/sz.hpp" namespace "SZ3":
+    size_t SZ_compress_size_bound[T](const Config &conf) except +
 
 
 cdef extern from "SZ3/api/sz.hpp":

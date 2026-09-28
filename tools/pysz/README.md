@@ -23,7 +23,7 @@ This is the easiest method - no build tools required! The binary wheels include 
 If pre-built wheels aren't available for your platform, or if you want to build from source:
 
 **You need to first install the following tools:**
-- **CMake ≥ 3.13**
+- **CMake ≥ 3.19**
 - **C++ compiler** (C++17-compatible: g++, clang++, MSVC)
 - **Git**
 - **Python development headers** (python3-dev or python3-devel)
@@ -106,7 +106,7 @@ Decompress data back to NumPy array.
 **Parameters:**
 - `compressed` (ndarray): Compressed uint8 array from `compress()`
 - `dtype` (type): NumPy dtype (np.float32, np.float64, np.int32, or np.int64)
-- `shape` (tuple): Shape of the original data
+- `shape` (tuple): Shape of the original data. It must hold as many values as the compressed data, or `ValueError` is raised.
 
 **Returns:**
 - `data` (ndarray): Decompressed data with the specified shape
@@ -229,6 +229,10 @@ compressed.tofile('data.sz')
 compressed = np.fromfile('data.sz', dtype=np.uint8)
 decompressed, _ = sz.decompress(compressed, np.float32, (8, 8, 128))
 ```
+
+## Compatibility
+
+pysz 1.1 is built on SZ3 3.4.0. It decompresses data compressed by pysz 1.0 (SZ3 3.3.2), except data compressed with `szAlgorithm.NOPRED` and integer (int32, int64) data; decompress those with pysz 1.0. See the SZ3 [CHANGELOG](https://github.com/szcompressor/SZ3/blob/master/CHANGELOG.md).
 
 ## Troubleshooting
 
