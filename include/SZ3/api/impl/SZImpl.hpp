@@ -8,8 +8,8 @@
 #include <type_traits>
 #include <vector>
 
-// Clang (icx too) and MSVC compile the code included below with precise floating point, even in their fast modes, so
-// that it does not reassociate floating-point operations and every build decompresses the same values.
+// Turns off fast floating-point math in the code included below under Clang (icx too) and MSVC, whatever their
+// options; otherwise builds decompress different values.
 #if defined(__clang__) || defined(_MSC_VER)
 #pragma float_control(precise, on, push)
 #endif

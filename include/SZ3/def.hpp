@@ -3,15 +3,6 @@
 
 #include <cfloat>
 
-// x87 extended precision and GCC's fast math make builds decompress different values, and cannot be turned off for
-// part of a program.
-#if FLT_EVAL_METHOD > 0
-#error "SZ3 does not support x87 floating point; on 32-bit x86 build with -msse2 -mfpmath=sse"
-#endif
-#if defined(__FAST_MATH__) && !defined(__clang__)
-#error "SZ3 does not support GCC's -ffast-math or -Ofast"
-#endif
-
 namespace SZ3 {
 
 typedef unsigned int uint;
@@ -35,6 +26,15 @@ ALWAYS_INLINE T nofma(T x) {
     volatile T r = x;
     return r;
 }
+
+// Refuses x87 extended precision and GCC's fast math, which cannot be turned off for part of a program; otherwise
+// builds decompress different values.
+#if FLT_EVAL_METHOD > 0
+#error "SZ3 does not support x87 floating point; on 32-bit x86 build with -msse2 -mfpmath=sse"
+#endif
+#if defined(__FAST_MATH__) && !defined(__clang__)
+#error "SZ3 does not support GCC's -ffast-math or -Ofast"
+#endif
 }  // namespace SZ3
 
 #endif
