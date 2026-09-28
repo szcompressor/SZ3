@@ -5,7 +5,6 @@
 #include <cmath>
 #include <cstring>
 #include <iostream>
-#include <limits>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
@@ -90,14 +89,7 @@ public:
     ALWAYS_INLINE T recover_pred(T pred, int quant_index) {
         // quant_index comes from the stream; in int, 2 * (quant_index - radius) overflows past INT_MAX/2.
         // Exact for every index a valid stream carries.
-        double r = pred + nofma(2 * (static_cast<int64_t>(quant_index) - this->radius) * this->error_bound);
-        if constexpr (std::is_integral<T>::value) {
-            // Converting a double outside T's range to T is undefined; pred is what both sides then reconstruct.
-            if (!(r >= std::numeric_limits<T>::lowest() && r < std::ldexp(1.0, std::numeric_limits<T>::digits))) {
-                return pred;
-            }
-        }
-        return r;
+        return pred + nofma(2 * (static_cast<int64_t>(quant_index) - this->radius) * this->error_bound);
     }
 
     ALWAYS_INLINE T recover_unpred() {
