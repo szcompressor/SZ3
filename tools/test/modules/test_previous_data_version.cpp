@@ -1,14 +1,16 @@
-// Streams SZ3 wrote in the previous data version, SZ3_DATA_VER_PREV, which this build still reads.
+// Streams SZ3 wrote in data version 3.3.2, which this build still reads.
 //
 // tools/test/streams/<version>/ holds tools/sz3/testfloat_8_8_128.dat compressed by that release's sz3 CLI
 // (-3 8 8 128, ABS 1e-3 unless the name says otherwise; the _omp ones with OpenMP on and 4 threads), and each
 // decode must match that release's decode bit for bit.
 
 #include <cstdint>
+#include <cstring>
 #include <fstream>
 #include <iterator>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "SZ3/api/sz.hpp"
@@ -17,7 +19,7 @@
 namespace {
 
 std::vector<char> slurp(const std::string &name) {
-    std::ifstream in(std::string(SZ3_TEST_STREAMS) + "/" SZ3_DATA_VER_PREV "/" + name + ".sz", std::ios::binary);
+    std::ifstream in(std::string(SZ3_TEST_STREAMS) + "/3.3.2/" + name + ".sz", std::ios::binary);
     return std::vector<char>(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
 }
 
@@ -46,7 +48,7 @@ TEST(SZ3_PreviousDataVersion, DecodesAsItsReleaseDid) {
         std::vector<float> dec(8 * 8 * 128);
         float *p = dec.data();
         SZ_decompress(conf, cmp.data(), cmp.size(), p);
-        EXPECT_EQ(conf.sz3DataVer, versionInt(SZ3_DATA_VER_PREV)) << s.first;
+        EXPECT_EQ(conf.sz3DataVer, versionInt("3.3.2")) << s.first;
         EXPECT_EQ(fnv1a(dec.data(), dec.size()), s.second) << s.first;
     }
 }
@@ -59,6 +61,25 @@ TEST(SZ3_PreviousDataVersion, BioMDIsRefused) {
     std::vector<float> dec(8 * 8 * 128);
     float *p = dec.data();
     EXPECT_THROW(SZ_decompress(conf, cmp.data(), cmp.size(), p), std::invalid_argument);
+}
+
+// Outside SZ3_DATA_VER_OLDEST to SZ3_DATA_VER, a stream is refused with the way to read it.
+TEST(SZ3_PreviousDataVersion, VersionsOutsideTheRangeAreRefused) {
+    auto cmp = slurp("lorenzo_reg");
+    ASSERT_FALSE(cmp.empty());
+    for (const auto &v : {std::make_pair("3.3.0", "Use SZ3 v3.3.0"), std::make_pair("3.4.1", "Upgrade SZ3")}) {
+        const uint32_t ver = versionInt(v.first);
+        memcpy(cmp.data() + 4, &ver, sizeof(ver));  // after the magic number
+        SZ3::Config conf;
+        std::vector<float> dec(8 * 8 * 128);
+        float *p = dec.data();
+        try {
+            SZ_decompress(conf, cmp.data(), cmp.size(), p);
+            ADD_FAILURE() << v.first << " was read";
+        } catch (const std::invalid_argument &e) {
+            EXPECT_NE(std::string(e.what()).find(v.second), std::string::npos) << e.what();
+        }
+    }
 }
 
 }  // namespace

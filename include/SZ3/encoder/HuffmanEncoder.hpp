@@ -12,10 +12,8 @@
 
 #include "SZ3/def.hpp"
 #include "SZ3/encoder/Encoder.hpp"
-#include "SZ3/encoder/HuffmanEncoderV1.hpp"
 #include "SZ3/utils/ByteUtil.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
-#include "SZ3/version.hpp"
 
 namespace SZ3 {
 
@@ -27,7 +25,7 @@ namespace SZ3 {
  * change of its code length. encode() writes the payload's bit count as a uint64, then the codes MSB-first.
  *
  * Code lengths are those of a Huffman tree built in (frequency, bin) order, so every platform writes the same bytes,
- * capped at 32 bits. Streams of data version SZ3_DATA_VER_PREV were written by HuffmanEncoderV1, which decodes them.
+ * capped at 32 bits.
  */
 template <class T>
 class HuffmanEncoder : public concepts::EncoderInterface<T> {
@@ -37,11 +35,6 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     static constexpr unsigned kTableBits = 12;
 
    public:
-    HuffmanEncoder() = default;
-
-    /// An encoder that decodes streams of data version data_version.
-    explicit HuffmanEncoder(uint32_t data_version) : use_v1_(data_version == versionInt(SZ3_DATA_VER_PREV)) {}
-
     /// stateNum is ignored: the range is taken from the bins.
     void preprocess_encode(const std::vector<T> &bins, int /*stateNum*/) override {
         *this = HuffmanEncoder();
@@ -144,7 +137,6 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     void preprocess_decode() override {}
 
     void load(const uchar *&c, size_t &remaining_length) override {
-        if (use_v1_) return v1_.load(c, remaining_length);
         *this = HuffmanEncoder();
         const uchar *p = c;
         size_t rem = remaining_length;
@@ -169,7 +161,6 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     }
 
     std::vector<T> decode(const uchar *&bytes, size_t n, size_t &remaining_length) override {
-        if (use_v1_) return v1_.decode(bytes, n, remaining_length);
         const uchar *p = bytes;
         size_t rem = remaining_length;
         uint64_t bits = 0;
@@ -197,9 +188,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         return out;
     }
 
-    void postprocess_decode() override {
-        if (use_v1_) v1_.postprocess_decode();
-    }
+    void postprocess_decode() override {}
 
    private:
     class BitWriter {
@@ -606,8 +595,6 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     uint64_t first_[kMaxLen + 1] = {0}, base_[kMaxLen + 1] = {0}, limit_[kMaxLen + 1] = {0};
     std::vector<T> sorted_;  // bins in code order
     std::vector<Entry> table_;
-    bool use_v1_ = false;
-    HuffmanEncoderV1<T> v1_;
 };
 
 }  // namespace SZ3

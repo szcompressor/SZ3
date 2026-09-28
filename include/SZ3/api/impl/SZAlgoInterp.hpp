@@ -31,13 +31,13 @@ size_t SZ_compress_Interp(Config &conf, T *data, uchar *cmpData, size_t cmpCap) 
     return sz->compress(conf, data, cmpData, cmpCap);
 }
 
-template <class T, uint N>
+template <class T, uint N, class Encoder = HuffmanEncoder<int>>
 void SZ_decompress_Interp(const Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
     assert(conf.cmprAlgo == ALGO_INTERP);
     auto cmpDataPos = cmpData;
     auto sz = make_compressor_sz_generic<T, N>(
         make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
-        HuffmanEncoder<int>(conf.sz3DataVer), Lossless_zstd());
+        Encoder(), Lossless_zstd());
     sz->decompress(conf, cmpDataPos, cmpSize, decData);
 }
 

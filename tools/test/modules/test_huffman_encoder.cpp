@@ -333,34 +333,6 @@ TEST(SZ3_HuffmanEncoder, RefusesBinsItWasNotBuiltFor) {
     EXPECT_THROW(enc.encode(std::vector<int>{0, 1000000, 7}, p), std::invalid_argument);  // hashed
 }
 
-// Streams of the previous data version are HuffmanEncoderV1's, and go to it.
-TEST(SZ3_HuffmanEncoder, PreviousDataVersionDecodesThroughV1) {
-    auto bins = laplace(20000, 30, 32768, 17);
-    SZ3::HuffmanEncoderV1<int> v1;
-    v1.preprocess_encode(bins, 0);
-    std::vector<uchar> buf(v1.size_est() + 16 + bins.size() * 8);
-    uchar *p = buf.data();
-    v1.save(p);
-    v1.encode(bins, p);
-    v1.postprocess_encode();
-    std::vector<uchar> stream(buf.data(), p);
-    SZ3::HuffmanEncoder<int> dec(versionInt(SZ3_DATA_VER_PREV));
-    const uchar *c = stream.data();
-    size_t rem = stream.size();
-    dec.load(c, rem);
-    EXPECT_EQ(dec.decode(c, bins.size(), rem), bins);
-    dec.postprocess_decode();
-    EXPECT_EQ(rem, 0u);
-    // The current version's decoder does not read it.
-    SZ3::HuffmanEncoder<int> cur(versionInt(SZ3_DATA_VER));
-    c = stream.data();
-    rem = stream.size();
-    EXPECT_ANY_THROW({
-        cur.load(c, rem);
-        cur.decode(c, bins.size(), rem);
-    });
-}
-
 TEST(SZ3_HuffmanEncoder, WrongValueCountThrows) {
     auto bins = laplace(5000, 6, 0, 9);
     auto e = encode(bins);

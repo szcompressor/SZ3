@@ -30,9 +30,6 @@ size_t SZ_compress_bioMD(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
 template <class T, uint N>
 void SZ_decompress_bioMD(const Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
     assert(conf.cmprAlgo == ALGO_BIOMD);
-    if (conf.sz3DataVer == versionInt(SZ3_DATA_VER_PREV))
-        throw std::invalid_argument("SZ3: ALGO_BIOMD data of version " SZ3_DATA_VER_PREV
-                                    " is not readable by this build");
 
     LinearQuantizer<T> quantizer;
     auto sz = make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf, quantizer), HuffmanEncoder<int>(),
