@@ -151,8 +151,8 @@ Set the error-bound mode with `Config::errorBoundMode`, or `-M` on the command l
 ## Data format and compatibility
 
 Compressed data starts with a magic number and its data-format version, and is little-endian on every host. SZ3 3.4.0
-writes data format 3.4.0. It reads 3.4.0 data and 3.3.2 data, except 3.3.2 data compressed with `ALGO_BIOMD`. Data from
-earlier versions has to be decompressed by the version that wrote it; SZ3 refuses it and, for data from 3.2.0 on,
+writes data format 3.4.0. It reads 3.4.0 data and 3.3.2 data, except 3.3.2 data compressed with `ALGO_NOPRED` or `ALGO_BIOMD`.
+Data from earlier versions has to be decompressed by the version that wrote it; SZ3 refuses it and, for data from 3.2.0 on,
 names that version. `sz3 -v` prints the data-format version a build writes.
 
 From 3.4.0 on, builds with and without fused multiply-add (FMA) instructions decode the same data to the same values.
