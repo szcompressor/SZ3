@@ -40,7 +40,7 @@ T interp_cubic(T a, T b, T c, T d) {
 
 template <class T>
 T interp_cubic_natural(T a, T b, T c, T d) {
-   return 0.575 * (b + c) - 0.075 * (a + d);
+   return nofma(0.575 * (b + c)) - nofma(0.075 * (a + d));
 }
 
 template<class T>
@@ -63,27 +63,27 @@ T lorenzo_3d(T a, T b, T c, T d, T e,T f,T g) {
 
 template <class T>
 T interp_cubic_front(T a, T b, T c, T d) {
-    return (5 * a + 15 * b - 5 * c + d) / 16;
+    return (nofma(5 * a) + nofma(15 * b) - nofma(5 * c) + d) / 16;
 }
 
 template <class T>
 T interp_cubic_front_2(T a, T b, T c, T d) {
-    return (a + 6 * b - 4 * c + d) / 4;
+    return (a + nofma(6 * b) - 4 * c + d) / 4;
 }
 
 template <class T>
 T interp_cubic_back_1(T a, T b, T c, T d) {
-    return (a - 5 * b + 15 * c + 5 * d) / 16;
+    return (a - nofma(5 * b) + nofma(15 * c) + nofma(5 * d)) / 16;
 }
 
 template <class T>
 T interp_cubic_back_2(T a, T b, T c, T d) {
-    return (-5 * a + 21 * b - 35 * c + 35 * d) / 16;
+    return (nofma(-5 * a) + nofma(21 * b) - nofma(35 * c) + nofma(35 * d)) / 16;
 }
 
 template <class T>
 T interp_cubic2(T a, T b, T c, T d) {
-    return (-3 * a + 23 * b + 23 * c - 3 * d) / 40;
+    return (nofma(-3 * a) + nofma(23 * b) + nofma(23 * c) - nofma(3 * d)) / 40;
 }
 
 template <class T>
@@ -93,7 +93,7 @@ ALWAYS_INLINE T interp_akima(T a, T b, T c, T d) {
     T abt0 = fabs(t0);
     T abt1 = fabs(t1);
     if (fabs(abt0 + abt1) > 1e-9) {
-        return (b + c) / 2 + (t0 * abt1 + t1 * abt0) / 8 / (abt0 + abt1);
+        return (b + c) / 2 + (nofma(t0 * abt1) + nofma(t1 * abt0)) / 8 / (abt0 + abt1);
     } else {
         return (b + c) / 2;
     }
