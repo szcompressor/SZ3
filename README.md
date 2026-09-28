@@ -131,8 +131,7 @@ Set the error-bound mode with `Config::errorBoundMode`, or `-M` on the command l
 ## Data format and compatibility
 
 * SZ3 can decompress data compressed by some earlier versions; see [CHANGELOG.md](CHANGELOG.md) for which versions.
-* Data compressed by an earlier version built with FMA (Apple Silicon, aarch64, or `-march=native`) should be decompressed by that build; see [#162](https://github.com/szcompressor/SZ3/pull/162).
-* Builds with different floating-point options decompress the same values. SZ3 compiles its code with precise floating point under Clang, icx and MSVC, also with `-ffast-math`, icx's default `-fp-model=fast` or `/fp:fast`, and refuses to compile with GCC's `-ffast-math` or `-Ofast` and with x87 floating point (32-bit x86 without `-msse2 -mfpmath=sse`). GCC's `-fassociative-math` or `-funsafe-math-optimizations` alone is not detected and not supported.
+* Builds with different floating-point options (FMA, fast math) decompress the same values, except data compressed by earlier versions built with FMA; see [#162](https://github.com/szcompressor/SZ3/pull/162) and [#166](https://github.com/szcompressor/SZ3/pull/166).
 
 ## Citing SZ3
 
