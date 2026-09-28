@@ -210,7 +210,7 @@ class MultiLevelDecomposition : public concepts::DecompositionInterface<T, To, N
         for (auto &q : quantizers_) {
             bytes += q.size_est();
         }
-        return bytes;
+        return bytes + outliers_.size_est();
     }
 
     void print() override {

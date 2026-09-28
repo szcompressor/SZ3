@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -86,6 +87,9 @@ public:
     }
 
     T* decompress(const Config& conf, std::vector<int>& quant_inds, T* dec_data) override {
+        if (quant_inds.size() < conf.num) {
+            throw std::out_of_range("SZ3 SVD: fewer bins than the data has elements");
+        }
         // 1. Dequantize residual
         std::vector<T> residual(conf.num);
         for(size_t i=0; i<conf.num; ++i){
@@ -287,9 +291,30 @@ private:
             }
         }
 
+        // Eigen's contraction rounds differently in builds with and without FMA or wider SIMD, and the decompressor
+        // must reproduce the compressor's reconstruction bit for bit.
         Eigen::Tensor<T, N> reconstructed_tensor = core_tensor;
         for (int mode = N - 1; mode >= 0; --mode) {
-            reconstructed_tensor = contract_and_shuffle(reconstructed_tensor, factor_matrices[mode], mode, false);
+            const auto& U = factor_matrices[mode];
+            Eigen::array<Eigen::Index, N> dims = reconstructed_tensor.dimensions();
+            Eigen::Index inner = 1;
+            for (int i = 0; i < mode; i++) inner *= dims[i];
+            const Eigen::Index outer = reconstructed_tensor.size() / (inner * dims[mode]);
+            const Eigen::Index r = dims[mode];
+            dims[mode] = U.rows();
+            Eigen::Tensor<T, N> next(dims);
+            next.setZero();
+            for (Eigen::Index o = 0; o < outer; o++) {
+                for (Eigen::Index j = 0; j < U.rows(); j++) {
+                    T* y = next.data() + (o * U.rows() + j) * inner;
+                    for (Eigen::Index k = 0; k < r; k++) {
+                        const T* x = reconstructed_tensor.data() + (o * r + k) * inner;
+                        const T u = U(j, k);
+                        for (Eigen::Index a = 0; a < inner; a++) y[a] += nofma(x[a] * u);
+                    }
+                }
+            }
+            reconstructed_tensor = std::move(next);
         }
         return reconstructed_tensor;
     }
