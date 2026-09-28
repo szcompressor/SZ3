@@ -9,6 +9,7 @@
 #include <limits>
 #include <list>
 #include <stdexcept>
+#include <type_traits>
 
 #include "Decomposition.hpp"
 #include "SZ3/utils/Config.hpp"
@@ -18,6 +19,9 @@ static constexpr int XTC_radius = std::numeric_limits<int>::max() / 16;
 
 template <class T, uint N, class Quantizer>
 class SZBioMDXtcDecomposition : public concepts::DecompositionInterface<T, int, N> {
+    static_assert(std::is_floating_point<T>::value,
+                  "SZBioMDXtcDecomposition computes in T, so T must be floating point; SZ_compress converts integers");
+
 public:
     SZBioMDXtcDecomposition(const Config& conf_, Quantizer quantizer_)
         : conf(conf_),

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>
+#include <type_traits>
 
 #include "SZ3/encoder/HuffmanEncoder.hpp"
 #include "SZ3/predictor/Predictor.hpp"
@@ -14,6 +15,9 @@ namespace SZ3 {
 // N-d regression predictor
 template <class T, uint N>
 class RegressionPredictor : public concepts::PredictorInterface<T, N> {
+    static_assert(std::is_floating_point<T>::value,
+                  "RegressionPredictor computes in T, so T must be floating point; SZ_compress converts integers");
+
    public:
     using block_iter = typename block_data<T, N>::block_iterator;
 

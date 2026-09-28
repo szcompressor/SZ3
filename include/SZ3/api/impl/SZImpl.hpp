@@ -29,15 +29,16 @@ size_t SZ_compress_impl(Config &conf, const T *data, uchar *cmpData, size_t cmpC
         calAbsErrorBound(conf, values.data());
         conf.absErrorBound = std::floor(conf.absErrorBound) + 0.49;
         return SZ_compress_impl<SZ_float_of<T>, N>(conf, values.data(), cmpData, cmpCap);
-    }
-    // Floating-point data is split into OpenMP chunks, or compressed as a whole by the dispatcher.
-#ifndef _OPENMP
-    conf.openmp = false;
-#endif
-    if (conf.openmp) {
-        return SZ_compress_OMP<T, N>(conf, data, cmpData, cmpCap);
     } else {
-        return SZ_compress_dispatcher<T, N>(conf, data, cmpData, cmpCap);
+        // Floating-point data is split into OpenMP chunks, or compressed as a whole by the dispatcher.
+#ifndef _OPENMP
+        conf.openmp = false;
+#endif
+        if (conf.openmp) {
+            return SZ_compress_OMP<T, N>(conf, data, cmpData, cmpCap);
+        } else {
+            return SZ_compress_dispatcher<T, N>(conf, data, cmpData, cmpCap);
+        }
     }
 }
 
@@ -65,15 +66,16 @@ template <class T>
 size_t SZ_compress_size_bound(const Config &conf) {
     if constexpr (std::is_integral<T>::value) {
         return SZ_compress_size_bound<SZ_float_of<T>>(conf);
-    }
-    bool omp = conf.openmp;
-#ifndef _OPENMP
-    omp = false;
-#endif
-    if (omp) {
-        return 4096 + SZ_compress_size_bound_omp<T>(conf);
     } else {
-        return 4096 + conf.size_est() + Lossless_zstd::compress_bound(conf.num * sizeof(T));
+        bool omp = conf.openmp;
+#ifndef _OPENMP
+        omp = false;
+#endif
+        if (omp) {
+            return 4096 + SZ_compress_size_bound_omp<T>(conf);
+        } else {
+            return 4096 + conf.size_est() + Lossless_zstd::compress_bound(conf.num * sizeof(T));
+        }
     }
 }
 
