@@ -98,7 +98,11 @@ herr_t set_SZ3_conf_to_H5(hid_t propertyList, SZ3::Config& conf) {
     size_t cd_nelmts = cd_values.size();
 
     if (sz3_filter_on_plist(propertyList)) {
-        if (0 > H5Pmodify_filter(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, cd_nelmts, cd_values.data())) {
+        // Keep the flags the filter was set with: H5Z_FLAG_OPTIONAL lets HDF5 store a chunk raw when SZ3 fails.
+        unsigned int flags = H5Z_FLAG_MANDATORY;
+        size_t no_values = 0;
+        if (0 > H5Pget_filter_by_id2(propertyList, H5Z_FILTER_SZ3, &flags, &no_values, NULL, 0, NULL, NULL) ||
+            0 > H5Pmodify_filter(propertyList, H5Z_FILTER_SZ3, flags, cd_nelmts, cd_values.data())) {
             H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, 0, "failed to modify cd_values");
         }
     } else {
@@ -157,13 +161,12 @@ herr_t get_SZ3_conf_from_H5(hid_t propertyList, SZ3::Config& conf) {
     // length is not the caller's to guess, and HDF5 reports the real count even when it filled less.
     size_t cd_nelmts = 0;
     unsigned int probe[1] = {0};
-    if (0 > H5Pget_filter_by_id(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, &cd_nelmts, probe, 0, NULL, NULL)) {
+    if (0 > H5Pget_filter_by_id2(propertyList, H5Z_FILTER_SZ3, NULL, &cd_nelmts, probe, 0, NULL, NULL)) {
         return -1;
     }
     if (cd_nelmts > 0) {
         std::vector<unsigned int> cd_values(cd_nelmts, 0);
-        if (0 > H5Pget_filter_by_id(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, &cd_nelmts, cd_values.data(), 0,
-                                    NULL, NULL)) {
+        if (0 > H5Pget_filter_by_id2(propertyList, H5Z_FILTER_SZ3, NULL, &cd_nelmts, cd_values.data(), 0, NULL, NULL)) {
             return -1;
         }
         try {
@@ -233,6 +236,9 @@ void process_data(SZ3::Config& conf, void** buf, size_t* buf_size, size_t nbytes
         *buf = processedData.release();
         *buf_size = conf.num * sizeof(T);
     } else {
+        // A filter before SZ3 that changed the chunk's size left bytes that are not the chunk's values.
+        if (nbytes != conf.num * sizeof(T))
+            throw std::invalid_argument("SZ3 HDF5 filter: chunk size is not its values' size");
         // The bound assumes the payload fits in the raw size, so leave headroom on top of it for
         // algorithms whose output can reach or exceed that.
         size_t cmpCap = std::max(SZ3::SZ_compress_size_bound<T>(conf), sizeof(T) * conf.num * 2);
@@ -279,7 +285,7 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
                 // so in fewer than 20 * 8 bytes.
                 if (nbytes < 20 * sizeof(double)) return nbytes;
             }
-            throw std::invalid_argument("SZ3 HDF5 filter: chunk was not written by SZ3");
+            throw std::invalid_argument("SZ3 HDF5 filter: chunk is not in a data format this SZ3 reads, or is damaged");
         }
         if (dataVer < versionInt(SZ3_DATA_VER_OLDEST) || dataVer > versionInt(SZ3_DATA_VER))
             throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(dataVer) +
