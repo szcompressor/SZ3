@@ -18,7 +18,6 @@ typedef unsigned char uchar;
  */
 #define SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH \
     "The buffer for compressed data is not large enough."
-}  // namespace SZ3
 
 #ifdef _MSC_VER
 #define ALWAYS_INLINE __forceinline
@@ -27,5 +26,19 @@ typedef unsigned char uchar;
 #else
 #define ALWAYS_INLINE inline
 #endif
+
+// In nofma(a * b) + c the product is rounded before the add, so the compiler cannot merge them into one
+// FMA instruction, which rounds only once; otherwise a build with FMA and one without decompress different values.
+template <class T>
+ALWAYS_INLINE T nofma(T x) {
+#ifdef __has_builtin
+#if __has_builtin(__builtin_assoc_barrier)
+    return __builtin_assoc_barrier(x);
+#endif
+#endif
+    volatile T r = x;
+    return r;
+}
+}  // namespace SZ3
 
 #endif

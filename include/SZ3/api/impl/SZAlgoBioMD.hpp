@@ -44,6 +44,8 @@ size_t SZ_compress_bioMDXtcBased(Config &conf, T *data, uchar *cmpData, size_t c
     assert(conf.cmprAlgo == ALGO_BIOMDXTC);
     calAbsErrorBound(conf, data);
 
+    // Not strict, the same behavior as GROMACS's xtc: rounding the stored integer back to float can put a coordinate
+    // slightly past the bound.
     auto quantizer = LinearQuantizer<T>(conf.absErrorBound, XTC_radius, false);
     auto sz = make_compressor_sz_generic<T, N>(make_decomposition_biomdxtc<T, N>(conf, quantizer),
                                                XtcBasedEncoder<int>(), Lossless_bypass());

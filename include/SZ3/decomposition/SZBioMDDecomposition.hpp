@@ -40,6 +40,9 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     }
 
     T *decompress(const Config & /*conf*/, std::vector<int> &quant_inds, T *dec_data) override {
+        if (quant_inds.size() < conf.num) {
+            throw std::out_of_range("SZ3 BioMD: fewer bins than the data has elements");
+        }
         if (N == 1) {
             return decompress_1d(quant_inds, dec_data);
         } else if (N == 2) {
@@ -238,7 +241,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         std::vector<int> quant_bins(conf.num);
         auto dims = conf.dims;
         std::vector<size_t> stride({dims[1] * dims[2], dims[2], 1});
-        site = cal_site(data + stride[0], conf.dims);
+        site = cal_site(data, conf.dims);
         // printf("# of site in the MD simulation guessed by SZ3 = %d\n", site);
 
         /* Find out if the last frames are all filled with the same value. */

@@ -8,6 +8,7 @@
 // a buffer filled with two different patterns, and the two headers compared. Compressing twice
 // on the heap instead would only catch it when the allocator happens to hand back dirty memory.
 
+#include <cmath>
 #include <cstring>
 #include <memory>
 #include <new>
@@ -209,6 +210,40 @@ TEST(SZ3_DecompositionSaveLoad, BlockwiseSizeEstBoundsSaveAtSmallBlockSizes) {
             expect_save_stays_within_size_est(decomposition, conf, ramp(conf.num), "BlockwiseDecomposition");
         }
     }
+}
+
+// A block RegressionPredictor declines falls back to Lorenzo, which reads a neighbour outside the block: with only
+// the regression predictor's padding it read past the data in 3D and 4D.
+template <SZ3::uint N>
+void expect_regression_only_round_trip(const std::vector<size_t> &dims) {
+    SZ3::Config conf;
+    conf.setDims(dims.begin(), dims.end());
+    const double eb = 1e-3;
+    auto make = [&] {
+        return SZ3::make_decomposition_blockwise<float, N>(conf, SZ3::RegressionPredictor<float, N>(conf.blockSize, eb),
+                                                           SZ3::LinearQuantizer<float>(eb, conf.quantbinCnt / 2));
+    };
+    const auto input = noise(conf.num);
+    auto data = input;
+    auto writer = make();
+    auto bins = writer.compress(conf, data.data());
+    std::vector<SZ3::uchar> stream(writer.size_est());
+    SZ3::uchar *write_cursor = stream.data();
+    writer.save(write_cursor);
+    auto reader = make();
+    const SZ3::uchar *read_cursor = stream.data();
+    size_t remaining = write_cursor - stream.data();
+    reader.load(read_cursor, remaining);
+    std::vector<float> output(conf.num);
+    reader.decompress(conf, bins, output.data());
+    for (size_t i = 0; i < conf.num; i++) {
+        ASSERT_LE(std::fabs(output[i] - input[i]), eb) << dims.size() << "D, value " << i;
+    }
+}
+
+TEST(SZ3_DecompositionSaveLoad, BlockwiseRegressionOnlyFallback) {
+    expect_regression_only_round_trip<3>({40, 41, 43});
+    expect_regression_only_round_trip<4>({12, 13, 14, 15});
 }
 
 TEST(SZ3_DecompositionSaveLoad, BioMDSizeEstBoundsSave) {

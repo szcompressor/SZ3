@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.18)
-project(SZ3 VERSION 3.3.3)
+cmake_minimum_required(VERSION 3.19)
+project(SZ3 VERSION 3.4.0)
 
 #data version defines the version of the compressed data format
 #it is not always equal to the program version (e.g., SZ3 v3.1.0 and SZ3 v.3.1.1 may use the same data version of v.3.1.0)
@@ -7,22 +7,29 @@ project(SZ3 VERSION 3.3.3)
 set(SZ3_DATA_VERSION 3.3.2)
 
 include(GNUInstallDirs)
+# Off when SZ3 is added with add_subdirectory or FetchContent: the parent installs what it needs of SZ3.
+string(COMPARE EQUAL "${CMAKE_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}" SZ3_IS_TOP_LEVEL)
+option(SZ3_INSTALL "install SZ3's headers, libraries, tools and CMake package" ${SZ3_IS_TOP_LEVEL})
 
 
-option(BUILD_SHARED_LIBS "build shared libraries by default" ON)
+# Cache defaults, so only at top level: set from a subproject they would apply to the parent's whole build.
+if (SZ3_IS_TOP_LEVEL)
+    option(BUILD_SHARED_LIBS "build shared libraries by default" ON)
+    set(default_build_type "Release")
+    if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+        message(STATUS "No build type was set. Setting build type to ${default_build_type}.")
+        set(CMAKE_BUILD_TYPE ${default_build_type} CACHE
+                STRING "Choose the type to build" FORCE)
+        set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"
+                "MinSizeRel" "RelWithDebInfo")
+    endif ()
+    option(BUILD_TESTING "Build tests" OFF)
+endif ()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
 else () #-Wunused-parameter
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wreorder -Wsign-compare -Wsuggest-override -Wold-style-cast -Wcast-qual -Wextra-semi -Wnon-virtual-dtor -Wcast-align -Wunused-variable")
-endif ()
-set(default_build_type "Release")
-if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    message(STATUS "No build type was set. Setting build type to ${default_build_type}.")
-    set(CMAKE_BUILD_TYPE ${default_build_type} CACHE
-            STRING "Choose the type to build" FORCE)
-    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"
-            "MinSizeRel" "RelWithDebInfo")
 endif ()
 
 find_package(PkgConfig)
@@ -47,6 +54,7 @@ target_compile_features(SZ3core
 )
 
 add_library(${PROJECT_NAME} INTERFACE)
+add_library(SZ3::SZ3 ALIAS ${PROJECT_NAME})
 target_link_libraries(${PROJECT_NAME} INTERFACE SZ3core)
 # Guarded by language: stdafx.hpp includes Eigen, and a C consumer gets this too.
 # $<ANGLE-R> is the closing bracket of the include; a bare > would end the generator expression.
@@ -87,18 +95,19 @@ if (ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
     # BUILD_INTERFACE, and no include directory: both are paths on this machine only.
     target_link_libraries(SZ3core INTERFACE $<BUILD_INTERFACE:${ZSTD_LINK_LIBRARIES}>)
 else ()
+    # What this build uses, for SZ3Config.cmake: the option only states a preference.
+    set(SZ3_USE_BUNDLED_ZSTD ON)
     add_subdirectory(tools/zstd)
-    target_link_libraries(SZ3core INTERFACE zstd)
+    target_link_libraries(SZ3core INTERFACE sz3_zstd)
 endif ()
 
-option(BUILD_TESTING "Build tests" OFF)
 if (BUILD_TESTING)
     enable_testing()
     add_subdirectory(tools/test)
 endif ()
 
 
-option(BUILD_SZ3_BINARY "build SZ3 tools" ON)
+option(BUILD_SZ3_BINARY "build SZ3 tools" ${SZ3_IS_TOP_LEVEL})
 if (BUILD_SZ3_BINARY)
     add_subdirectory(tools/sz3)
     add_subdirectory(tools/sz3c)
@@ -119,31 +128,33 @@ if (BUILD_PARAVIEW_PLUGIN)
     add_subdirectory(tools/paraview)
 endif ()
 
-install(TARGETS ${PROJECT_NAME} SZ3core
-        EXPORT SZ3Targets
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-)
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-install(FILES
-        "${CMAKE_CURRENT_BINARY_DIR}/include/SZ3/version.hpp"
-        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/SZ3/"
-)
-install(EXPORT SZ3Targets NAMESPACE SZ3:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3)
-include(CMakePackageConfigHelpers)
-configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/SZ3Config.cmake.in
-        "${CMAKE_CURRENT_BINARY_DIR}/SZ3Config.cmake"
-        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3
-)
-write_basic_package_version_file(
-        "${CMAKE_CURRENT_BINARY_DIR}/SZ3ConfigVersion.cmake"
-        VERSION ${PROJECT_VERSION}
-        COMPATIBILITY AnyNewerVersion
-)
-install(FILES
-        ${CMAKE_CURRENT_BINARY_DIR}/SZ3Config.cmake
-        ${CMAKE_CURRENT_BINARY_DIR}/SZ3ConfigVersion.cmake
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3
-)
+if (SZ3_INSTALL)
+    install(TARGETS ${PROJECT_NAME} SZ3core
+            EXPORT SZ3Targets
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(FILES
+            "${CMAKE_CURRENT_BINARY_DIR}/include/SZ3/version.hpp"
+            DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/SZ3/"
+    )
+    install(EXPORT SZ3Targets NAMESPACE SZ3:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3)
+    include(CMakePackageConfigHelpers)
+    configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/SZ3Config.cmake.in
+            "${CMAKE_CURRENT_BINARY_DIR}/SZ3Config.cmake"
+            INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3
+    )
+    write_basic_package_version_file(
+            "${CMAKE_CURRENT_BINARY_DIR}/SZ3ConfigVersion.cmake"
+            VERSION ${PROJECT_VERSION}
+            COMPATIBILITY SameMajorVersion
+    )
+    install(FILES
+            ${CMAKE_CURRENT_BINARY_DIR}/SZ3Config.cmake
+            ${CMAKE_CURRENT_BINARY_DIR}/SZ3ConfigVersion.cmake
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3
+    )
+endif ()
 #export sz3 target for external use
 export(TARGETS SZ3 SZ3core FILE SZ3.cmake)

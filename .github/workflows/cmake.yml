@@ -189,6 +189,39 @@ jobs:
             done
           done
 
+  fma:
+    name: Build & Test (Linux, with and without FMA)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Zstd
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libzstd-dev
+
+      - name: Build
+        shell: bash
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          cmake --build build --target sz3 --parallel 4
+          cmake -S . -B build-fma -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DBUILD_TESTING=ON \
+                -DCMAKE_C_FLAGS=-march=x86-64-v3 -DCMAKE_CXX_FLAGS=-march=x86-64-v3
+          cmake --build build-fma --target sz3 test_reconstruction --parallel 4
+
+      # Without FMA instructions in this build, the tests below would compare two identical builds.
+      - name: The FMA build fuses multiply-adds
+        shell: bash
+        run: objdump -d build-fma/tools/sz3/sz3 | grep -q vfmadd
+
+      - name: Both builds decode every stream either writes to the same bytes
+        shell: bash
+        run: tools/test/crossBuildDecode.sh build build-fma tools/sz3/testfloat_8_8_128.dat -3 ${{ env.DIMS }}
+
+      - name: The compressor's reconstruction equals the decompressor's output
+        shell: bash
+        run: build-fma/tools/test/test_reconstruction
+
   toolchains:
     name: ${{ matrix.cc }} shared=${{ matrix.shared }}
     runs-on: ubuntu-latest
@@ -332,6 +365,17 @@ jobs:
         shell: pwsh
         working-directory: build
         run: ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }} -R "^SZ3_"
+
+      - name: Build static libraries
+        shell: pwsh
+        run: |
+          # Static is what GROMACS builds on Windows; the H5Z tools link the static hdf5sz3.
+          cmake -S . -B build-static `
+            -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake `
+            -DVCPKG_TARGET_TRIPLET=x64-windows `
+            -DBUILD_SHARED_LIBS=OFF `
+            -DBUILD_H5Z_FILTER=ON
+          cmake --build build-static --config ${{ env.BUILD_TYPE }} --parallel 4
 
       - name: Download test data
         shell: pwsh

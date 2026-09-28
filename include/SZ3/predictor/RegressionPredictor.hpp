@@ -100,15 +100,15 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
 
     T predict(const block_iter & /*block*/, T * /*d*/, const std::array<size_t, N> &index) override {
         if constexpr (N == 1) {
-            return current_coeffs[0] * index[0] + current_coeffs[1];
+            return nofma(current_coeffs[0] * index[0]) + current_coeffs[1];
         } else if constexpr (N == 2) {
-            return current_coeffs[0] * index[0] + current_coeffs[1] * index[1] + current_coeffs[2];
+            return nofma(current_coeffs[0] * index[0]) + nofma(current_coeffs[1] * index[1]) + current_coeffs[2];
         } else if constexpr (N == 3) {
-            return current_coeffs[0] * index[0] + current_coeffs[1] * index[1] + current_coeffs[2] * index[2] +
-                   current_coeffs[3];
+            return nofma(current_coeffs[0] * index[0]) + nofma(current_coeffs[1] * index[1]) +
+                   nofma(current_coeffs[2] * index[2]) + current_coeffs[3];
         } else if constexpr (N == 4) {
-            return current_coeffs[0] * index[0] + current_coeffs[1] * index[1] + current_coeffs[2] * index[2] +
-                   current_coeffs[3] * index[3] + current_coeffs[4];
+            return nofma(current_coeffs[0] * index[0]) + nofma(current_coeffs[1] * index[1]) +
+                   nofma(current_coeffs[2] * index[2]) + nofma(current_coeffs[3] * index[3]) + current_coeffs[4];
         } else {
             static_assert(N <= 4, "Unsupported dimension or layer configuration");
             return T(0);

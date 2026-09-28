@@ -181,8 +181,7 @@ struct PipeResult {
 
 template <class T, class Factory>
 PipeResult<T> runPipe(const SZ3::Config &conf, const std::vector<T> &orig, Factory make) {
-    // Generous capacity: some of these encoders expand rather than compress,
-    // and Lossless_zstd refuses any buffer below ZSTD_compressBound().
+    // Generous capacity: some of these encoders expand rather than compress.
     const size_t cap = 32 * orig.size() * sizeof(T) + (1u << 16);
     std::vector<SZ3::uchar> cmp(cap, 0);
 

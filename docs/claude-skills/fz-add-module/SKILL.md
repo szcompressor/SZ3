@@ -198,8 +198,9 @@ sizes its frequency model from it and produces garbage when given 0.
 **Lossless** — `expectLosslessContract(name, factory)`
 
 - Round-trip through a generously sized destination reproduces the payload exactly.
-- A destination smaller than the payload is refused, and nothing is written past it, verified with
-  guard bytes.
+- Output that does not fit the destination is refused, and nothing is written past it, verified with
+  guard bytes. Output that fits a destination smaller than the payload may be accepted, and must
+  round-trip.
 
 **Preprocessor** — no contract yet: `concepts::PreprocessorInterface` declares no members (its only
 method is commented out), so there is nothing to check against. Defining it is a prerequisite.

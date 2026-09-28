@@ -29,6 +29,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <exception>
 #include <limits>
 #include <string>
 #include <vector>
@@ -421,18 +422,34 @@ void expectLosslessContract(const std::string &name, Factory make) {
         }
         free(out);
 
-        // 2. A destination too small must be refused, not written past. Lossless_bypass silently
-        //    memcpy'd srcLen bytes regardless of dstCap, which is an unconditional heap overflow.
+        // 2. Output that does not fit a destination half the payload's size must be refused, not written
+        //    past. Lossless_bypass silently memcpy'd srcLen bytes regardless of dstCap, which is an
+        //    unconditional heap overflow. Output that fits may be accepted, and must round-trip.
         if (src.size() > 1) {
             const size_t guard = 64;
             std::vector<SZ3::uchar> tiny(src.size() / 2 + guard);
             std::vector<SZ3::uchar> canary(guard, 0x5C);
             std::memcpy(tiny.data() + tiny.size() - guard, canary.data(), guard);
             auto small = make();
-            EXPECT_ANY_THROW(small.compress(src.data(), src.size(), tiny.data(), tiny.size() - guard))
-                << name << ": compress() accepted a destination smaller than the payload";
+            size_t m = 0;
+            try {
+                m = small.compress(src.data(), src.size(), tiny.data(), tiny.size() - guard);
+            } catch (const std::exception &) {
+            }
             EXPECT_EQ(std::memcmp(tiny.data() + tiny.size() - guard, canary.data(), guard), 0)
                 << name << ": compress() wrote past the destination it was given";
+            if (m > 0) {
+                ASSERT_LE(m, tiny.size() - guard) << name << ": compress() reported more than the destination holds";
+                auto check = make();
+                SZ3::uchar *back = nullptr;
+                const size_t backLen = check.decompress(tiny.data(), m, back, 0);
+                EXPECT_EQ(backLen, src.size()) << name << ": output accepted in a small destination is truncated";
+                if (backLen == src.size()) {
+                    EXPECT_EQ(std::memcmp(back, src.data(), backLen), 0)
+                        << name << ": output accepted in a small destination differs after round-trip";
+                }
+                free(back);
+            }
         }
     }
 }
