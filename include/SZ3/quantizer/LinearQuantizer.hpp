@@ -5,6 +5,7 @@
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
+#include <type_traits>
 #include <vector>
 
 #include "SZ3/def.hpp"
@@ -14,6 +15,8 @@
 namespace SZ3 {
 template <class T>
 class LinearQuantizer : public concepts::QuantizerInterface<T, int> {
+    static_assert(std::is_floating_point<T>::value, "LinearQuantizer only takes a floating-point T");
+
 public:
     LinearQuantizer()
         : error_bound(1),
