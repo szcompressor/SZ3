@@ -39,7 +39,7 @@ record either, so `<prefix>/bin` has to be on `PATH` before the application runs
 
 ## H5Z-SZ3 cd_values
 * HDF5 restricts the parameters that can be passed to filters through an integers array called `cd_values`.
-* H5Z-SZ3 uses `cd_values` to pass the desired compression settings (e.g., algorithm, error bounds) to the compression process. `cd_values[0]` is the SZ3 data version, `(major << 24) | (minor << 16) | (patch << 8)` (`0x03030200` for 3.3.2), followed by the `Config` object serialized with `save()`.
+* H5Z-SZ3 uses `cd_values` to pass the desired compression settings (e.g., algorithm, error bounds) to the compression process. `cd_values[0]` is the SZ3 data version, `(major << 24) | (minor << 16) | (patch << 8)` (`0x03040000` for 3.4.0), followed by the `Config` object serialized with `save()`.
 * `cd_values` are read only when compressing, including appends; decompression reads the configuration from the compressed data.
 
 ## Usage
@@ -99,7 +99,8 @@ with h5py.File('data.h5', 'w') as f:
 ### C/C++
 A C program sets the filter on a dataset creation property list with `H5Pset_sz3`, declared in `H5Z_SZ3.hpp`. A CMake project links `SZ3::hdf5sz3` and requires it with `find_package(SZ3 COMPONENTS hdf5sz3)`.
 - For molecular-dynamics coordinates use `H5Z_SZ3_ALGO_BIOMD` (better with several frames per chunk) or `H5Z_SZ3_ALGO_BIOMDXTC` (like GROMACS's xtc, it can round a coordinate slightly past the bound).
-- A chunk written again after it left the chunk cache is recompressed, and its error can then exceed the bound, except with `H5Z_SZ3_ALGO_BIOMDXTC` or `H5Z_SZ3_ALGO_NOPRED` and an absolute bound. `H5D_CHUNK_DONT_FILTER_PARTIAL_CHUNKS` avoids this when appending frames.
+- A chunk written again after it left the chunk cache is recompressed, and its error can then exceed the bound, except with `H5Z_SZ3_ALGO_BIOMDXTC` or `H5Z_SZ3_ALGO_NOPRED` and an absolute bound. `H5D_CHUNK_DONT_FILTER_PARTIAL_CHUNKS` avoids this when the dataset is extended one frame at a time; the last, partial chunk is then stored uncompressed at full chunk size.
 - SZ3 has no checksum; add `H5Pset_fletcher32` after `H5Pset_sz3` to detect damaged chunks.
+- Do not put a filter that rearranges bytes, such as shuffle, before SZ3: SZ3 then compresses the rearranged bytes as values.
 
 See examples `sz3ToHDF5.cpp` and `dsz3FromHDF5.cpp` for how to use the H5Z-SZ3 filter in your C/C++ projects.

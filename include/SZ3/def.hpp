@@ -20,11 +20,7 @@ typedef unsigned char uchar;
 // FMA instruction, which rounds only once; otherwise a build with FMA and one without decompress different values.
 template <class T>
 ALWAYS_INLINE T nofma(T x) {
-#ifdef __has_builtin
-#if __has_builtin(__builtin_assoc_barrier)
-    return __builtin_assoc_barrier(x);
-#endif
-#endif
+    // Not __builtin_assoc_barrier: GCC 13 and 14 drop it when they vectorize the loop, and fuse the product anyway.
     volatile T r = x;
     return r;
 }

@@ -13,7 +13,7 @@
 namespace SZ3 {
 
 // N-d regression predictor
-template <class T, uint N>
+template <class T, uint N, class Encoder = HuffmanEncoder<int>>
 class RegressionPredictor : public concepts::PredictorInterface<T, N> {
     static_assert(std::is_floating_point<T>::value, "RegressionPredictor only takes a floating-point T");
 
@@ -105,7 +105,7 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
                                                      quantizer_liner.get_out_range().second)) +
                         1;
         return sizeof(size_t) + quantizer_independent.size_est() + quantizer_liner.size_est() +
-               HuffmanEncoder<int>::size_bound(regression_coeff_quant_inds.size(), states);
+               Encoder::size_bound(regression_coeff_quant_inds.size(), states);
     }
 
     void save(uchar *&c) override {
@@ -113,7 +113,7 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
         if (!regression_coeff_quant_inds.empty()) {
             quantizer_independent.save(c);
             quantizer_liner.save(c);
-            HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
+            Encoder encoder = Encoder();
             encoder.preprocess_encode(
                 regression_coeff_quant_inds,
                 std::max(quantizer_independent.get_out_range().second, quantizer_liner.get_out_range().second));
@@ -129,7 +129,7 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
         if (coeff_size > 0) {
             quantizer_independent.load(c, remaining_length);
             quantizer_liner.load(c, remaining_length);
-            HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
+            Encoder encoder = Encoder();
             encoder.load(c, remaining_length);
             regression_coeff_quant_inds = encoder.decode(c, coeff_size, remaining_length);
             encoder.postprocess_decode();

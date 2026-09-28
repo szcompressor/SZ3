@@ -600,6 +600,10 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
 #ifdef DEBUG_OUTPUT
         printf("\nDecoding, targetLength: %ld\n", targetLength);
 #endif
+        // Every triplet costs at least one bit (its run flag), so this bounds the allocations below by the stream.
+        if (targetLength / 3 > 8 * remaining_length) {
+            throw std::out_of_range("SZ3 Xtc: more triplets than the compressed data can hold");
+        }
         std::vector<T> quantData(targetLength, 0);
 
         const unsigned char *inputBytesPointer = bytes;

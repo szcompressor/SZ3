@@ -6,6 +6,7 @@
 # CMAKE_PREFIX_PATH is passed through. Assert which path was taken, never just that the exit was 0.
 set -u
 PREFIX=$(cd "$1" && pwd)
+HERE=$(cd "$(dirname "$0")" && pwd)
 H5BIN=${2:-}
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
@@ -275,6 +276,9 @@ want "h5repack-records-version"    "H5Z-SZ3-" rp.head
 want "stored-cdvalues-carry-data-version" "PARAMS { $CD_VER " rp.head
 ./b/read rp.h5 > rp.read 2>&1
 want "h5repack-output-reads-back"  "READ OK" rp.read
+# The fixture's ds as the 3.3.2 filter stored it with CD_ABS.
+./b/read "$(native "$HERE/sz3_data_3.3.2.h5")" > prev.read 2>&1
+want "previous-data-version-reads-back" "READ OK" prev.read
 
 # A chunk with a side past 4096 stores a Config longer than a default-constructed one measures. Read
 # that back into a buffer sized from the default and the tail comes out as zeros -- quantbinCnt among
@@ -345,7 +349,7 @@ want "h5dump-data-with-plugin"         "DATA {" d_ok.out
 notwant "h5dump-data-with-plugin-clean" "unable to print data" d_ok.err
 else
 skip_all "hdf5sz3 was installed as an archive, so there is no plugin to load" \
-    h5repack-applies-sz3 h5repack-records-version h5repack-output-reads-back \
+    h5repack-applies-sz3 h5repack-records-version h5repack-output-reads-back previous-data-version-reads-back \
     h5repack-none-strips-sz3 h5repack-none-keeps-dataset \
     h5repack-noplugin-drops-filter-silently h5repack-noplugin-warns-on-read \
     h5repack-noplugin-loses-dataset \
@@ -420,7 +424,7 @@ echo "  $pass passed, $fail failed, $skip skipped"
 
 # Raise this with the check it comes with. A guard that skips the wrong list, or a section that
 # stops early, otherwise shows only as a smaller number at the bottom that nobody compares.
-EXPECTED=42
+EXPECTED=43
 ran=$((pass + fail + skip))
 if [ "$ran" -ne "$EXPECTED" ]; then
     echo "  the suite accounted for $ran checks, not $EXPECTED"

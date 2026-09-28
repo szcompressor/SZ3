@@ -4,7 +4,7 @@ project(SZ3 VERSION 3.4.0)
 #data version defines the version of the compressed data format
 #it is not always equal to the program version (e.g., SZ3 v3.1.0 and SZ3 v.3.1.1 may use the same data version of v.3.1.0)
 #only update data version if the new version of the program changes compressed data format
-set(SZ3_DATA_VERSION 3.3.2)
+set(SZ3_DATA_VERSION 3.4.0)
 
 include(GNUInstallDirs)
 # Off when SZ3 is added with add_subdirectory or FetchContent: the parent installs what it needs of SZ3.
@@ -117,7 +117,8 @@ if (SZ3_INSTALL)
             LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
             INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
-    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+            PATTERN "version.hpp.in" EXCLUDE)
     install(FILES
             "${CMAKE_CURRENT_BINARY_DIR}/include/SZ3/version.hpp"
             DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/SZ3/"
