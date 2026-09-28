@@ -5,32 +5,6 @@ SZ3 compresses floating-point and integer arrays from simulations and instrument
 decompressed value differs from the original by no more than the error bound you set. It is a header-only C++17
 library. It can also be used from C, Python, the `sz3` command line, and HDF5 through a filter.
 
-## Quick start
-
-Python:
-```bash
-pip install pysz
-```
-```python
-import numpy as np
-from pysz import sz, szConfig
-
-data = np.random.rand(100, 200).astype(np.float32)
-compressed, ratio = sz.compress(data, szConfig())  # default: absolute error bound 1e-3
-decompressed, _ = sz.decompress(compressed, np.float32, data.shape)
-```
-For other error bounds, see [tools/pysz/README.md](tools/pysz/README.md).
-
-Command line, on the 8×8×128 float sample shipped with SZ3:
-```bash
-git clone https://github.com/szcompressor/SZ3.git && cd SZ3
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j
-build/tools/sz3/sz3 -f -i tools/sz3/testfloat_8_8_128.dat -z test.sz -3 8 8 128 -M REL 1e-3
-build/tools/sz3/sz3 -f -z test.sz -o test.out -i tools/sz3/testfloat_8_8_128.dat -a
-```
-The first `sz3` command compresses with a bound of 1e-3 × the data's value range. The second decompresses to
-`test.out`, and `-a` prints the maximum error, PSNR and compression ratio.
-
 ## Installation
 
 Requirements:
@@ -47,7 +21,7 @@ cmake --install build
 ```
 The tools go to `<INSTALL_DIR>/bin` and the headers to `<INSTALL_DIR>/include`.
 
-Build options. Pass them to `cmake` as `-D<option>=ON` or `OFF`.
+Build options, all ON/OFF switches passed to `cmake` as `-D<option>=ON` or `-D<option>=OFF`:
 
 | Option | Default | Enables |
 |---|---|---|
@@ -76,9 +50,13 @@ Build options. Pass them to `cmake` as `-D<option>=ON` or `OFF`.
 
 ### Command line
 
-`sz3` compresses when it is given `-i`, `-z`, dimensions and an error bound (`-M` or `-c`). It decompresses when it is
-given `-z` and `-o`. With `-i` and `-o` and no `-z`, it does both. The data type defaults to float. Run `sz3 -h` for
-every option.
+```bash
+# Compress 8x8x128 float data (dimensions fastest-varying first) with a relative error bound of 1e-3
+sz3 -f -i tools/sz3/testfloat_8_8_128.dat -z test.sz -3 8 8 128 -M REL 1e-3
+# Decompress to test.out; -a compares with the original (-i) and prints the maximum error and compression ratio
+sz3 -f -z test.sz -o test.out -i tools/sz3/testfloat_8_8_128.dat -a
+```
+Run `sz3 -h` for every option; the common ones:
 
 | Option | Meaning |
 |---|---|
@@ -123,8 +101,7 @@ To use SZ3 in a CMake project, add `<INSTALL_DIR>` to `CMAKE_PREFIX_PATH`, call 
 
 Data compressed with `SZ3::SZ3core` or `SZ3::SZ3` can be decompressed with either.
 
-`include/SZ3/api/sz.hpp` documents the rest of the API: compressing into your own buffer, `SZ_compress_size_bound`,
-and decompressing into a buffer you allocated.
+`include/SZ3/api/sz.hpp` documents the rest of the API.
 
 ## Algorithms and error-bound modes
 
@@ -133,7 +110,7 @@ Set the algorithm with `Config::cmprAlgo`, or `CmprAlgo` in a configuration file
 | Algorithm | Use it for |
 |---|---|
 | `ALGO_INTERP_LORENZO` (default) | Most data. It tunes interpolation and Lorenzo prediction on a sample of the data and keeps whichever is better. |
-| `ALGO_INTERP` | Smooth data, when you want interpolation without the tuning step. |
+| `ALGO_INTERP` | Interpolation with the parameters you set, without auto-tuning; for users who tune those parameters themselves. |
 | `ALGO_LORENZO_REG` | Blockwise Lorenzo and regression prediction, the SZ2 algorithm. |
 | `ALGO_NOPRED` | Quantization without prediction: a fast baseline. |
 | `ALGO_LOSSLESS` | Zstd only. SZ3 also switches to it by itself when the error bound is 0, or when Zstd alone gives a smaller result. |
@@ -150,17 +127,7 @@ Set the error-bound mode with `Config::errorBoundMode`, or `-M` on the command l
 
 ## Data format and compatibility
 
-Compressed data starts with a magic number and its data-format version, and is little-endian on every host. SZ3 3.4.0
-writes data format 3.4.0. It reads 3.4.0 data and 3.3.2 data, except 3.3.2 data compressed with `ALGO_NOPRED` or `ALGO_BIOMD`.
-Data from earlier versions has to be decompressed by the version that wrote it; SZ3 refuses it and, for data from 3.2.0 on,
-names that version. `sz3 -v` prints the data-format version a build writes.
-
-From 3.4.0 on, builds with and without fused multiply-add (FMA) instructions decode the same data to the same values.
-Data compressed by an earlier build that used FMA (Apple Silicon, aarch64, or x86 built for a specific CPU, such as
-with `-march=native`) should be decompressed by that build. Building SZ3 with `-ffast-math` is not supported, because
-it lets the compiler reorder arithmetic that compression and decompression must repeat exactly.
-
-[CHANGELOG.md](CHANGELOG.md) lists which version changed the format.
+SZ3 3.4.0 reads data compressed by 3.4.0 and most data from 3.3.2; see [CHANGELOG.md](CHANGELOG.md). Data compressed by an earlier version built with FMA (Apple Silicon, aarch64, or `-march=native`) should be decompressed by that build; see [#162](https://github.com/szcompressor/SZ3/pull/162).
 
 ## Citing SZ3
 
@@ -175,13 +142,12 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 ## License and contact
 
-(C) 2016 by Mathematics and Computer Science (MCS), Argonne National Laboratory. SZ3 is released under a BSD license;
-see [copyright-and-BSD-license.txt](copyright-and-BSD-license.txt).
+SZ3 is released under a BSD license; see [copyright-and-BSD-license.txt](copyright-and-BSD-license.txt).
 `include/SZ3/encoder/XtcBasedEncoder.hpp` is based on GROMACS and licensed under the LGPL, version 2.1 or later.
 The vendored Zstd in `tools/zstd` keeps its own license.
 
 * Lead developer and maintainer: Kai Zhao
-* Contributors: Arham Khan, Xin Liang, Robert Underwood, Jinyang Liu, and [everyone else on GitHub](https://github.com/szcompressor/SZ3/graphs/contributors)
+* Contributors: Robert Underwood, Xin Liang, Jinyang Liu, Sheng Di, and [everyone else on GitHub](https://github.com/szcompressor/SZ3/graphs/contributors)
 * SZ project lead: Franck Cappello
 
 Report bugs and ask questions in [GitHub issues](https://github.com/szcompressor/SZ3/issues).
