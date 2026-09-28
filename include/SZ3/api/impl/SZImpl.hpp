@@ -2,22 +2,14 @@
 #define SZ3_IMPL_SZ_HPP
 
 #include <algorithm>
-#include <cfloat>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
 
-// Every build decompresses the same values only if none reassociates floating-point operations or rounds them to
-// x87 extended precision. x87 and GCC's fast math cannot be turned off for part of a program, so they are refused;
-// Clang (icx too) and MSVC compile the code included below with precise floating point, even in their fast modes.
-#if FLT_EVAL_METHOD > 0
-#error "SZ3 does not support x87 floating point; on 32-bit x86 build with -msse2 -mfpmath=sse"
-#endif
-#if defined(__FAST_MATH__) && !defined(__clang__)
-#error "SZ3 does not support GCC's -ffast-math or -Ofast"
-#endif
+// Clang (icx too) and MSVC compile the code included below with precise floating point, even in their fast modes, so
+// that it does not reassociate floating-point operations and every build decompresses the same values.
 #if defined(__clang__) || defined(_MSC_VER)
 #pragma float_control(precise, on, push)
 #endif

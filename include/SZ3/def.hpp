@@ -1,6 +1,17 @@
 #ifndef SZ3_DEF_HPP
 #define SZ3_DEF_HPP
 
+#include <cfloat>
+
+// x87 extended precision and GCC's fast math make builds decompress different values, and cannot be turned off for
+// part of a program.
+#if FLT_EVAL_METHOD > 0
+#error "SZ3 does not support x87 floating point; on 32-bit x86 build with -msse2 -mfpmath=sse"
+#endif
+#if defined(__FAST_MATH__) && !defined(__clang__)
+#error "SZ3 does not support GCC's -ffast-math or -Ofast"
+#endif
+
 namespace SZ3 {
 
 typedef unsigned int uint;
