@@ -54,7 +54,7 @@ namespace SZ3 {
  * - EB_L2NORM: L2 norm error bound. Expected L2 norm error: sqrt((x1-x1')^2 + (x2-x2')^2 + ... + (xN-xN')^2)
  * - EB_ABS_AND_REL: Combined absolute and relative error bound. Both absolute and relative bounds must be satisfied.
  * - EB_ABS_OR_REL: Either absolute or relative error bound. Either the absolute or relative bound must be satisfied
- * (whichever is stricter).
+ * (whichever is looser).
  */
 enum EB { EB_ABS, EB_REL, EB_PSNR, EB_L2NORM, EB_ABS_AND_REL, EB_ABS_OR_REL };
 

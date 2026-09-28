@@ -1,12 +1,5 @@
 Copyright © 2016 , UChicago Argonne, LLC
 All Rights Reserved
-[SZ, Version 3.0]
-Sheng Di
-Kai Zhao
-Xin Liang
-Dingwen Tao
-Franck Cappello
-Argonne National Laboratory
 
 SZ licence is under the BSD license. Details are shown below.
 
