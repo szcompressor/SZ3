@@ -1,110 +1,155 @@
 SZ3: A Modular Error-bounded Lossy Compression Framework for Scientific Datasets
 =====
-(C) 2016 by Mathematics and Computer Science (MCS), Argonne National Laboratory. See copyright-and-BSD-license.txt in the top-level directory.
 
-* Major developers: Kai Zhao, Robert Underwood, Jinyang Liu, Xin Liang, Sheng Di.
-* SZ project Lead: Franck Cappello
-
+SZ3 compresses floating-point and integer arrays from simulations and instruments, and guarantees that every
+decompressed value differs from the original by no more than the error bound you set. It is a header-only C++17
+library. It can also be used from C, Python, the `sz3` command line, and HDF5 through a filter.
 
 ## Installation
 
-* mkdir build && cd build
-* cmake -DCMAKE_INSTALL_PREFIX:PATH=[INSTALL_DIR] ..
-* make
-* make install
+Requirements:
+* A C++17 compiler and CMake 3.19 or newer.
+* Zstd (optional). If pkg-config does not find libzstd, the vendored copy of Zstd 1.5.6 in `tools/zstd` is built and
+  linked statically as `libsz3_zstd`, private to SZ3.
+* OpenMP (optional). SZ3 uses it when CMake finds it; `-DCMAKE_DISABLE_FIND_PACKAGE_OpenMP=ON` builds without it.
+* HDF5 for the HDF5 filter, and ParaView for the ParaView plugin.
 
-Then, you'll find all the executables in [INSTALL_DIR]/bin and header files in [INSTALL_DIR]/include
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+cmake --build build -j
+cmake --install build
+```
+The tools go to `<INSTALL_DIR>/bin` and the headers to `<INSTALL_DIR>/include`.
 
-## CMake
-
-#### Build options
-Pass them to `cmake` as `-D<option>=ON` or `OFF`.
+Build options, all ON/OFF switches passed to `cmake` as `-D<option>=ON` or `-D<option>=OFF`:
 
 | Option | Default | Enables |
 |---|---|---|
 | `BUILD_SHARED_LIBS` | ON, the parent's when SZ3 is added with `add_subdirectory` or FetchContent | shared libraries; OFF builds static ones |
 | `BUILD_SZ3_BINARY` | ON, OFF when SZ3 is added with `add_subdirectory` or FetchContent | the `sz3` executable, the C API library SZ3c and the H5Z-SZ3 tools |
 | `BUILD_H5Z_FILTER` | OFF | the HDF5 filter H5Z-SZ3 (needs HDF5) |
+| `BUILD_MDZ` | OFF | the compressor from the [MDZ paper](https://ieeexplore.ieee.org/document/9835212) (`tools/mdz`), for molecular dynamics of solid materials; for biomolecular trajectories use `ALGO_BIOMD` or `ALGO_BIOMDXTC` |
 | `BUILD_PARAVIEW_PLUGIN` | OFF | the ParaView reader plugin (needs ParaView) |
 | `BUILD_TESTING` | OFF, the parent's when SZ3 is added with `add_subdirectory` or FetchContent | the unit tests |
 | `SZ3_USE_BUNDLED_ZSTD` | OFF (ON with MSVC) | Zstd from `tools/zstd` instead of the system one |
 | `SZ3_DEBUG_TIMINGS` | OFF | debug timing output |
 | `SZ3_INSTALL` | ON, OFF when SZ3 is added with `add_subdirectory` or FetchContent | the install rules |
 
-SZ3 uses OpenMP when it finds it; `-DCMAKE_DISABLE_FIND_PACKAGE_OpenMP=ON` builds without it.
+## Interfaces
 
-#### Use SZ3 in a CMake project
-Add [INSTALL_DIR] to `CMAKE_PREFIX_PATH`, call `find_package(SZ3)`, and link one of:
+| Interface | How to use / where | Maintained by |
+|---|---|---|
+| C++ | `#include <SZ3/api/sz.hpp>`; see [below](#c) | SZ3 |
+| C | [tools/sz3c/include/sz3c.h](tools/sz3c/include/sz3c.h), library `SZ3c`; SZ2-compatible functions | SZ3 |
+| Python | `pip install pysz`; [tools/pysz](tools/pysz/README.md) | SZ3 |
+| Command line | `sz3`; see [below](#command-line) | SZ3 |
+| HDF5 filter | H5Z-SZ3, filter ID 32024; [tools/H5Z-SZ3](tools/H5Z-SZ3/README.md) | SZ3 |
+| ParaView | SZ3Reader plugin; [tools/paraview](tools/paraview/README.md) | SZ3 |
+| Fortran | [ofmla/sz3_simple_example](https://github.com/ofmla/sz3_simple_example) | [Oscar Mojica](https://github.com/ofmla) |
+| Rust | [sz3-rs](https://github.com/apertus-open-source-cinema/sz3-rs) | [Juniper Tyree](https://github.com/juntyr) and [Robin Heinemann](https://github.com/rroohhh) |
+| Python numcodecs | [numcodecs-rs codecs/sz3](https://github.com/juntyr/numcodecs-rs/blob/main/codecs/sz3/) | [Juniper Tyree](https://github.com/juntyr) |
+
+### Command line
+
+```bash
+# Compress 8x8x128 float data (dimensions fastest-varying first) with a relative error bound of 1e-3
+sz3 -f -i tools/sz3/testfloat_8_8_128.dat -z test.sz -3 8 8 128 -M REL 1e-3
+# Decompress to test.out; -a compares with the original (-i) and prints the maximum error and compression ratio
+sz3 -f -z test.sz -o test.out -i tools/sz3/testfloat_8_8_128.dat -a
+```
+Run `sz3 -h` for every option; the common ones:
+
+| Option | Meaning |
+|---|---|
+| `-f`, `-d`, `-I 32`, `-I 64` | data type: float, double, int32, int64 |
+| `-i <file>` | original data, raw binary |
+| `-z <file>` | compressed file: written when compressing, read when decompressing |
+| `-o <file>` | decompressed data, raw binary (`-t` writes text) |
+| `-1 nx`, `-2 nx ny`, `-3 nx ny nz`, `-4 nx ny nz np` | dimensions, fastest-varying first: `-3 nx ny nz` is `data[nz][ny][nx]` |
+| `-M <mode> <bound>` | error-bound mode and bound: `ABS`, `REL`, `PSNR`, `NORM`; `ABS_AND_REL` and `ABS_OR_REL` take `-A <abs> -R <rel>` |
+| `-c <file>` | configuration file, such as [tools/sz3/sz3.config](tools/sz3/sz3.config); choose the algorithm here |
+| `-a` | after decompression, print error statistics (needs `-i`) |
+| `-p` | print the configuration of the compressed data |
+| `-v` | print the SZ3 version and the data-format version |
+
+### C++
+
+```cpp
+#include <SZ3/api/sz.hpp>
+#include <vector>
+
+int main() {
+    std::vector<float> data(100 * 200 * 300, 1.0f);
+    SZ3::Config conf(100, 200, 300);  // 300 is the fastest-varying dimension
+    conf.errorBoundMode = SZ3::EB_ABS;
+    conf.absErrorBound = 1e-3;
+
+    size_t cmpSize;
+    char *cmpData = SZ_compress(conf, data.data(), cmpSize);
+
+    SZ3::Config decConf;  // filled from the compressed data
+    float *decData = SZ_decompress<float>(decConf, cmpData, cmpSize);
+
+    delete[] cmpData;
+    delete[] decData;
+}
+```
+
+To use SZ3 in a CMake project, add `<INSTALL_DIR>` to `CMAKE_PREFIX_PATH`, call `find_package(SZ3)`, and link one of:
 * `SZ3::SZ3core`: SZ3 with only the dependencies it cannot work without (Zstd).
 * `SZ3::SZ3`: `SZ3::SZ3core` plus the optional dependencies SZ3 was built with (OpenMP, when the consumer's compiler supports it).
 * `SZ3::hdf5sz3`: the HDF5 filter; see [tools/H5Z-SZ3/README.md](tools/H5Z-SZ3/README.md).
 
 Data compressed with `SZ3::SZ3core` or `SZ3::SZ3` can be decompressed with either.
 
+`include/SZ3/api/sz.hpp` documents the rest of the API.
 
-## How to run
+## Algorithms and error-bound modes
 
-#### SZ3 Executable
-* You can use the executable 'tools/sz3/sz3' to do the compression/decompression.
+Set the algorithm with `Config::cmprAlgo`, or `CmprAlgo` in a configuration file.
 
-#### SZ3 C++ API
-* Located in 'include/SZ3/api/sz.hpp'. 
-* Requiring a modern C++ compiler.  
-* Different with SZ2 API.
+| Algorithm | Use it for |
+|---|---|
+| `ALGO_INTERP_LORENZO` (default) | Most data. It tunes interpolation and Lorenzo prediction on a sample of the data and keeps whichever is better. |
+| `ALGO_INTERP` | Interpolation with the parameters you set, without auto-tuning; for users who tune those parameters themselves. |
+| `ALGO_LORENZO_REG` | Blockwise Lorenzo and regression prediction, the SZ2 algorithm. |
+| `ALGO_NOPRED` | Quantization without prediction: a fast baseline. |
+| `ALGO_LOSSLESS` | Zstd only. SZ3 also switches to it by itself when the error bound is 0, or when Zstd alone gives a smaller result. |
+| `ALGO_BIOMD`, `ALGO_BIOMDXTC` | Molecular-dynamics coordinates. `ALGO_BIOMDXTC` follows GROMACS's xtc and can, like xtc, round a coordinate slightly past the bound. |
 
-#### SZ3 C API
-* Located in 'tools/sz3c/include/sz3c.h'
-* Compatible with SZ2 API
+Set the error-bound mode with `Config::errorBoundMode`, or `-M` on the command line.
 
-#### SZ3 Python API
-* available via `pip install pysz`
-* [Source code in 'tools/pysz'](https://github.com/szcompressor/SZ3/tree/master/tools/pysz)
+| Mode | Bound |
+|---|---|
+| `EB_ABS` (`ABS`) | Every value is within `absErrorBound` of the original. |
+| `EB_REL` (`REL`) | Within `relErrorBound` × (max − min) of the data. |
+| `EB_ABS_AND_REL` / `EB_ABS_OR_REL` | The smaller / the larger of the two bounds above. |
+| `EB_PSNR` (`PSNR`), `EB_L2NORM` (`NORM`) | A target PSNR or L2-norm error. SZ3 converts it to an absolute bound, which is the pointwise guarantee. |
 
-#### H5Z-SZ3
-* Located in 'tools/H5Z-SZ3'
-* Please add "-DBUILD_H5Z_FILTER=ON" to enable this function for CMake.
-* sz3ToHDF5 and HDF5ToSz3 are provided for testing.
+## Data format and compatibility
 
-#### ParaView SZ3 Reader
-* Located in 'tools/paraview'
-* Please add "-DBUILD_PARAVIEW_PLUGIN=ON" to enable this function for CMake.
-* Developed using SZ3 C++ API.
-* More instructions can be viewed [here](tools/paraview/README.md).
+* SZ3 can decompress data compressed by some earlier versions; see [CHANGELOG.md](CHANGELOG.md) for which versions.
+* Data compressed by an earlier version built with FMA (Apple Silicon, aarch64, or `-march=native`) should be decompressed by that build; see [#162](https://github.com/szcompressor/SZ3/pull/162).
 
+## Citing SZ3
 
-#### Third-Party APIs
-
-* [SZ3 Fortran API](https://github.com/ofmla/sz3_simple_example) (by [Oscar Mojica](https://github.com/ofmla))
-* [SZ3 Rust API](https://github.com/apertus-open-source-cinema/sz3-rs) (by [Juniper Tyree](https://github.com/juntyr) and [Robin Heinemann](https://github.com/rroohhh))
-* [SZ3 Numcodecs API](https://github.com/juntyr/numcodecs-rs/blob/main/codecs/sz3/) (by [Juniper Tyree](https://github.com/juntyr))
-
-
-## Citations
 [//]: # (**Kindly note**: If you mention SZ3 in your paper, the most appropriate citation is to include these three references &#40;**TBD22, ICDE21, Bigdata18**&#41; because they cover the design and implementation of the latest version of SZ.)
 * QOZv2 (the enhanced interpolation-based algorithm): [High-performance Effective Scientific Error-bounded Lossy Compression with Auto-tuned Multi-component Interpolation](https://dl.acm.org/doi/10.1145/3639259).
 * SZ3's interpolation-based algorithm: [Optimizing Error-Bounded Lossy Compression for Scientiﬁc Data by Dynamic Spline Interpolation](https://ieeexplore.ieee.org/document/9458791).
 * The software engineering design of SZ3: [SZ3: A modular framework for composing prediction-based error-bounded lossy compressors](https://ieeexplore.ieee.org/abstract/document/9866018).
 
-
 ## Version history
 
-Version New features
+See [CHANGELOG.md](CHANGELOG.md).
 
-* SZ 3.0.0 SZ3 is the C++ version of SZ with a modular and composable design.
-* SZ 3.0.1 Improve the build process.
-* SZ 3.1.0 The default algorithm is now interpolation+Lorenzo.
-* SZ 3.1.1 Add OpenMP support. Works for all algorithms. Please enable it using the config file. 
-* SZ 3.1.2 Support configuration file (INI format). An example can be found in 'tools/sz3/sz3.config'.
-* SZ 3.1.3 Support more error control mode: PSNR, L2Norm, ABS_AND_REL, ABS_OR_REL. Support INT32 and INT64 datatype.
-* SZ 3.1.4 Support running on Windows natively with Visual Studio. Please use CMake to generate Visual Studio solution files.
-* SZ 3.1.5 Support HDF5 by H5Z-SZ3. Please add "-DBUILD_H5Z_FILTER=ON" to enable this function for CMake.
-* SZ 3.1.6 Support C API and Python API.
-* SZ 3.1.7 Initial MDZ(https://github.com/szcompressor/SZ3/tree/master/tools/mdz) support.
-* SZ 3.1.8 namespace changed from SZ to SZ3. H5Z-SZ3 supports configuration files now.
-* SZ 3.2.0 API reconstructed for FZ. H5Z-SZ3 rewrite. Compression version checking.
-* SZ 3.3.0 Add key QoZ v1 and v2 features to improve compression speed and data quality. The full QoZ is available from **a separate branch** (https://github.com/szcompressor/SZ3/tree/QoZ). 
-* SZ 3.3.2: SZ3 Windows support for both Visual Studio and MinGW toolchains. pySZ v1 released and available via `pip install pysz`. Bio algorithms added. Bugfix for compressed format.
-* SZ 3.4.0: CMake package with `SZ3::SZ3core` and `SZ3::SZ3`, a reworked HDF5 filter, and fixes for defects on valid data; the compressed format is unchanged. Details in [#161](https://github.com/szcompressor/SZ3/pull/161). Data compressed by an earlier version built with FMA (Apple Silicon, aarch64, or x86 built for a specific CPU, such as `-march=native` or Spack's default) may exceed the error bound when decompressed by 3.4.0; decompress it with the build that compressed it ([#162](https://github.com/szcompressor/SZ3/pull/162)).
+## License and contact
 
-## 3rd party libraries/tools
-* [Zstandard](https://facebook.github.io/zstd/) v1.5.6 is vendored in `tools/zstd` and built if libzstd can not be found by pkg-config, or if `-DSZ3_USE_BUNDLED_ZSTD=ON` is given. It is linked statically as `libsz3_zstd` and kept private to SZ3.
+SZ3 is released under a BSD license; see [copyright-and-BSD-license.txt](copyright-and-BSD-license.txt).
+`include/SZ3/encoder/XtcBasedEncoder.hpp` is based on GROMACS and licensed under the LGPL, version 2.1 or later.
+The vendored Zstd in `tools/zstd` keeps its own license.
+
+* Lead developer and maintainer: Kai Zhao
+* Contributors: Robert Underwood, Xin Liang, Jinyang Liu, Sheng Di, and [everyone else on GitHub](https://github.com/szcompressor/SZ3/graphs/contributors)
+* SZ project lead: Franck Cappello
+
+Report bugs and ask questions in [GitHub issues](https://github.com/szcompressor/SZ3/issues).
