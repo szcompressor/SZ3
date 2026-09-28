@@ -128,7 +128,8 @@ Set the error-bound mode with `Config::errorBoundMode`, or `-M` on the command l
 
 ## Data format and compatibility
 
-SZ3 can decompress data compressed by some earlier versions; see [CHANGELOG.md](CHANGELOG.md) for which versions. Data compressed by an earlier version built with FMA (Apple Silicon, aarch64, or `-march=native`) should be decompressed by that build; see [#162](https://github.com/szcompressor/SZ3/pull/162).
+* SZ3 can decompress data compressed by some earlier versions; see [CHANGELOG.md](CHANGELOG.md) for which versions.
+* Data compressed by an earlier version built with FMA (Apple Silicon, aarch64, or `-march=native`) should be decompressed by that build; see [#162](https://github.com/szcompressor/SZ3/pull/162).
 
 ## Citing SZ3
 
