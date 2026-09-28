@@ -88,11 +88,9 @@ void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize
                 return SZ_decompress_LorenzoReg<T, N, HuffmanEncoderV1<int>>(conf, cmpData, cmpSize, decData);
             if (conf.cmprAlgo == ALGO_INTERP)
                 return SZ_decompress_Interp<T, N, HuffmanEncoderV1<int>>(conf, cmpData, cmpSize, decData);
-            if (conf.cmprAlgo == ALGO_NOPRED)
-                return SZ_decompress_nopred<T, N, HuffmanEncoderV1<int>>(conf, cmpData, cmpSize, decData);
-            if (conf.cmprAlgo == ALGO_BIOMD)
-                throw std::invalid_argument("SZ3: this build does not read ALGO_BIOMD data of version " +
-                                            versionStr(conf.sz3DataVer));
+            if (conf.cmprAlgo != ALGO_LOSSLESS && conf.cmprAlgo != ALGO_BIOMDXTC)
+                throw std::invalid_argument("SZ3: data of version " + versionStr(conf.sz3DataVer) +
+                                            " compressed with this algorithm is not supported");
         }
     }
     if (conf.cmprAlgo == ALGO_LOSSLESS) {

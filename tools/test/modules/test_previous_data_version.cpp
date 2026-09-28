@@ -39,7 +39,6 @@ TEST(SZ3_PreviousDataVersion, DecodesAsItsReleaseDid) {
         {"lorenzo_reg_omp", 0xe32514629ac5fd3dull},
         {"lorenzo_reg_rel1e-5", 0xe0885e9322ea80ccull},
         {"lossless", 0x51c93bc7f98c12a5ull},
-        {"nopred", 0xe686c4ff7e13dca5ull},
     };
     for (const auto &s : streams) {
         const auto cmp = slurp(s.first);
@@ -53,14 +52,16 @@ TEST(SZ3_PreviousDataVersion, DecodesAsItsReleaseDid) {
     }
 }
 
-// That version's ALGO_BIOMD streams used a Huffman format this build no longer has.
-TEST(SZ3_PreviousDataVersion, BioMDIsRefused) {
-    const auto cmp = slurp("biomd");
-    ASSERT_FALSE(cmp.empty());
-    SZ3::Config conf;
-    std::vector<float> dec(8 * 8 * 128);
-    float *p = dec.data();
-    EXPECT_THROW(SZ_decompress(conf, cmp.data(), cmp.size(), p), std::invalid_argument);
+// That version's ALGO_NOPRED and ALGO_BIOMD streams are not supported.
+TEST(SZ3_PreviousDataVersion, NopredAndBioMDAreRefused) {
+    for (const char *name : {"nopred", "biomd"}) {
+        const auto cmp = slurp(name);
+        ASSERT_FALSE(cmp.empty()) << name;
+        SZ3::Config conf;
+        std::vector<float> dec(8 * 8 * 128);
+        float *p = dec.data();
+        EXPECT_THROW(SZ_decompress(conf, cmp.data(), cmp.size(), p), std::invalid_argument) << name;
+    }
 }
 
 // Outside SZ3_DATA_VER_OLDEST to SZ3_DATA_VER, a stream is refused with the way to read it.

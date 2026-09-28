@@ -22,13 +22,13 @@ size_t SZ_compress_nopred(Config &conf, T *data, uchar *cmpData, size_t cmpCap) 
     //        return cmpData;
 }
 
-template <class T, uint N, class Encoder = HuffmanEncoder<int>>
+template <class T, uint N>
 void SZ_decompress_nopred(const Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
     assert(conf.cmprAlgo == ALGO_NOPRED);
     auto cmpDataPos = cmpData;
     auto sz = make_compressor_sz_generic<T, N>(
         make_decomposition_noprediction<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
-        Encoder(), Lossless_zstd());
+        HuffmanEncoder<int>(), Lossless_zstd());
     sz->decompress(conf, cmpDataPos, cmpSize, decData);
 }
 
