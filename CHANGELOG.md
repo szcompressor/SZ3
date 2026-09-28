@@ -263,7 +263,8 @@ Tag `v3.3.2`. The GitHub release lists #104–#116, including the 3.3.1 changes.
 
 **Compatibility**
 - Data format 3.4.0. Data from 3.3.2 decompresses, except data compressed with `ALGO_NOPRED` or `ALGO_BIOMD`, which is refused. Data from 3.3.1 and earlier cannot be decompressed. [#163](https://github.com/szcompressor/SZ3/pull/163)
-- Data compressed by an earlier version built with FMA (see above) may exceed the error bound when decompressed by 3.4.0; decompress it with the build that compressed it. Building SZ3 with `-ffast-math`, `-Ofast`, MSVC `/fp:fast` or icx's default `-fp-model=fast` is not supported. [#162](https://github.com/szcompressor/SZ3/pull/162)
+- Data compressed by an earlier version built with FMA (see above) may exceed the error bound when decompressed by 3.4.0; decompress it with the build that compressed it. [#162](https://github.com/szcompressor/SZ3/pull/162)
+- SZ3's code is compiled with precise floating point under Clang, icx and MSVC, also in their fast modes (`-ffast-math`, icx's default `-fp-model=fast`, `/fp:fast`); GCC's `-ffast-math` and `-Ofast`, and x87 floating point, are refused at compile time. Before, such builds wrote data that other builds decompressed past the bound. [#166](https://github.com/szcompressor/SZ3/pull/166)
 - CMake 3.19 or newer is required. `find_package(SZ3 <version>)` accepts only SZ3 versions with the same major version. [#161](https://github.com/szcompressor/SZ3/pull/161)
 - Removed: `ArithmeticEncoder`, `RunlengthEncoder`, `SZTruncateCompressor` and the preprocessors, which no build target used, the bundled ska hash map, and `HuffmanEncoderV2`. [#150](https://github.com/szcompressor/SZ3/pull/150), [#157](https://github.com/szcompressor/SZ3/pull/157), [#163](https://github.com/szcompressor/SZ3/pull/163)
 - `Config::load` and the lossless stages take the length of the buffer they read. [#145](https://github.com/szcompressor/SZ3/pull/145)
