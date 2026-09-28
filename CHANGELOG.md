@@ -253,4 +253,5 @@ Tag `v3.3.2`. The GitHub release lists #104–#116, including the 3.3.1 changes.
 
 ## 3.4.0
 
-<!-- Entry to be added when #163 (new Huffman encoder, data format 3.4.0) is merged. -->
+- CMake package with `SZ3::SZ3core` and `SZ3::SZ3`, a reworked HDF5 filter, and fixes for defects on valid data. [#161](https://github.com/szcompressor/SZ3/pull/161)
+- Every build decompresses to the same values, whether or not the compiler fuses multiply-adds. Data compressed by an earlier version built with FMA (Apple Silicon, aarch64, or x86 built for a specific CPU, such as `-march=native` or Spack's default) may exceed the error bound when decompressed by 3.4.0; decompress it with the build that compressed it. [#162](https://github.com/szcompressor/SZ3/pull/162)
