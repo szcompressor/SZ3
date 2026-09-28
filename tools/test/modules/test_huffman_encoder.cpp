@@ -349,8 +349,6 @@ TEST(SZ3_HuffmanEncoder, WrongValueCountThrows) {
 
 // Decode a possibly corrupted stream from exactly sized buffers; true if it decoded.
 bool try_decode(const std::vector<uchar> &tree, const std::vector<uchar> &data, size_t n) {
-    std::unique_ptr<uchar[]> t(new uchar[tree.size() + 1]);  // +1: new[0] is not a valid range to ASan anyway
-    std::unique_ptr<uchar[]> d(new uchar[data.size() + 1]);
     std::unique_ptr<uchar[]> te(new uchar[tree.size()]);
     std::unique_ptr<uchar[]> de(new uchar[data.size()]);
     if (!tree.empty()) memcpy(te.get(), tree.data(), tree.size());

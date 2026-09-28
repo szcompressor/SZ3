@@ -89,9 +89,10 @@ void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize
             if (conf.cmprAlgo == ALGO_INTERP)
                 return SZ_decompress_Interp<T, N, HuffmanEncoderV1<int>>(conf, cmpData, cmpSize, decData);
             if (conf.cmprAlgo != ALGO_LOSSLESS && conf.cmprAlgo != ALGO_BIOMDXTC)
-                throw std::invalid_argument("SZ3: data of version " + versionStr(conf.sz3DataVer) +
-                                            " compressed with this algorithm is not supported; use SZ3 v" +
-                                            versionStr(conf.sz3DataVer) + " to read it");
+                throw std::invalid_argument("SZ3: " + enum_to_string(static_cast<ALGO>(conf.cmprAlgo), ALGO_MAP) +
+                                            " data of version " + versionStr(conf.sz3DataVer) +
+                                            " is not supported; use SZ3 v" + versionStr(conf.sz3DataVer) +
+                                            " to decompress it");
         }
     }
     if (conf.cmprAlgo == ALGO_LOSSLESS) {

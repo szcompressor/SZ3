@@ -265,7 +265,7 @@ Tag `v3.3.2`. The GitHub release lists #104–#116, including the 3.3.1 changes.
 - Data format 3.4.0. Data from 3.3.2 decompresses, except data compressed with `ALGO_NOPRED` or `ALGO_BIOMD`, which is refused. Data from 3.3.1 and earlier cannot be decompressed. [#163](https://github.com/szcompressor/SZ3/pull/163)
 - Data compressed by an earlier version built with FMA (see above) may exceed the error bound when decompressed by 3.4.0; decompress it with the build that compressed it. Building SZ3 with `-ffast-math`, `-Ofast`, MSVC `/fp:fast` or icx's default `-fp-model=fast` is not supported. [#162](https://github.com/szcompressor/SZ3/pull/162)
 - CMake 3.19 or newer is required. `find_package(SZ3 <version>)` accepts only SZ3 versions with the same major version. [#161](https://github.com/szcompressor/SZ3/pull/161)
-- Removed: `ArithmeticEncoder`, `RunlengthEncoder`, `SZTruncateCompressor` and the preprocessors, which no build target used, and the bundled ska hash map. [#150](https://github.com/szcompressor/SZ3/pull/150), [#157](https://github.com/szcompressor/SZ3/pull/157)
+- Removed: `ArithmeticEncoder`, `RunlengthEncoder`, `SZTruncateCompressor` and the preprocessors, which no build target used, the bundled ska hash map, and `HuffmanEncoderV2`. [#150](https://github.com/szcompressor/SZ3/pull/150), [#157](https://github.com/szcompressor/SZ3/pull/157), [#163](https://github.com/szcompressor/SZ3/pull/163)
 - `Config::load` and the lossless stages take the length of the buffer they read. [#145](https://github.com/szcompressor/SZ3/pull/145)
 - `libhdf5sz3` and `libSZ3c` export only their public functions, and carry an SOVERSION. [#158](https://github.com/szcompressor/SZ3/pull/158), [#159](https://github.com/szcompressor/SZ3/pull/159)
 
@@ -276,4 +276,5 @@ Tag `v3.3.2`. The GitHub release lists #104–#116, including the 3.3.1 changes.
 - `ALGO_LORENZO_REG` could write past its buffer with a small `BlockSize`, and with only regression enabled it read past its buffer on 3D and 4D data. [#151](https://github.com/szcompressor/SZ3/pull/151), [#161](https://github.com/szcompressor/SZ3/pull/161)
 - Integer data (such as int8 and int16 through the HDF5 filter) could come back past the error bound where values span most of the type's range. [#163](https://github.com/szcompressor/SZ3/pull/163)
 - The HDF5 filter refuses datatypes it cannot compress, instead of writing data that comes back wrong. [#158](https://github.com/szcompressor/SZ3/pull/158)
+- The HDF5 filter keeps `H5Z_FLAG_OPTIONAL` (as h5py sets it), and refuses a chunk whose size a filter before it changed. [#163](https://github.com/szcompressor/SZ3/pull/163)
 - SZ3 builds for wasm32 again. [#117](https://github.com/szcompressor/SZ3/pull/117)

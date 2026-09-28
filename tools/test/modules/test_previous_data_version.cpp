@@ -68,15 +68,16 @@ TEST(SZ3_PreviousDataVersion, NopredAndBioMDAreRefused) {
 TEST(SZ3_PreviousDataVersion, VersionsOutsideTheRangeAreRefused) {
     auto cmp = slurp("lorenzo_reg");
     ASSERT_FALSE(cmp.empty());
-    for (const auto &v : {std::make_pair("3.3.0", "Use SZ3 v3.3.0"), std::make_pair("3.4.1", "Upgrade SZ3")}) {
-        const uint32_t ver = versionInt(v.first);
-        memcpy(cmp.data() + 4, &ver, sizeof(ver));  // after the magic number
+    for (const auto &v : {std::make_pair(versionInt("3.3.0"), "Use SZ3 v3.3.0"),
+                          std::make_pair(versionInt(SZ3_DATA_VER) + (1u << 8), "Upgrade SZ3")}) {
+        auto pos = reinterpret_cast<SZ3::uchar *>(cmp.data() + 4);  // after the magic number
+        SZ3::write(v.first, pos);
         SZ3::Config conf;
         std::vector<float> dec(8 * 8 * 128);
         float *p = dec.data();
         try {
             SZ_decompress(conf, cmp.data(), cmp.size(), p);
-            ADD_FAILURE() << v.first << " was read";
+            ADD_FAILURE() << versionStr(v.first) << " was read";
         } catch (const std::invalid_argument &e) {
             EXPECT_NE(std::string(e.what()).find(v.second), std::string::npos) << e.what();
         }

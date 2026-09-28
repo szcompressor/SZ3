@@ -135,7 +135,7 @@ class HuffmanEncoderV1 : public concepts::EncoderInterface<T> {
     }
 
    private:
-    static constexpr const char *kDecodeOnly = "SZ3: HuffmanEncoderV1 only decodes data version 3.3.2";
+    static constexpr const char *kDecodeOnly = "SZ3 Huffman: HuffmanEncoderV1 only decodes data version 3.3.2";
     HuffmanTree *huffmanTree = nullptr;
     node treeRoot;
     unsigned int nodeCount = 0;

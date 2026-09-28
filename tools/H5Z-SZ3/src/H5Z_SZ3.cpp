@@ -236,9 +236,8 @@ void process_data(SZ3::Config& conf, void** buf, size_t* buf_size, size_t nbytes
         *buf = processedData.release();
         *buf_size = conf.num * sizeof(T);
     } else {
-        // A filter before SZ3 that changed the chunk's size left bytes that are not the chunk's values.
         if (nbytes != conf.num * sizeof(T))
-            throw std::invalid_argument("SZ3 HDF5 filter: chunk size is not its values' size");
+            throw std::invalid_argument("SZ3 HDF5 filter: a filter before SZ3 changed the chunk's size");
         // The bound assumes the payload fits in the raw size, so leave headroom on top of it for
         // algorithms whose output can reach or exceed that.
         size_t cmpCap = std::max(SZ3::SZ_compress_size_bound<T>(conf), sizeof(T) * conf.num * 2);
