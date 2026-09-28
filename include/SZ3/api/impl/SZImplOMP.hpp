@@ -146,13 +146,8 @@ void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* de
     if (conf_t[0].sz3MagicNumber != SZ3_MAGIC_NUMBER) {
         throw std::invalid_argument("magic number mismatch, the input data is not compressed by SZ3");
     }
-    if (versionStr(conf_t[0].sz3DataVer) != SZ3_DATA_VER) {
-        std::stringstream ss;
-        ss << "SZ3 " << SZ3_VER << " reads data version " << SZ3_DATA_VER << ", but this data is version "
-           << versionStr(conf_t[0].sz3DataVer) << ". Use SZ3 v" << versionStr(conf_t[0].sz3DataVer)
-           << " to decompress it.";
-        throw std::invalid_argument(ss.str());
-    }
+    // Config::load() does not read the data version, which the stream header gave conf.
+    for (auto& c : conf_t) c.sz3DataVer = conf.sz3DataVer;
 
     std::vector<size_t> cmp_start_t, cmp_size_t;
     cmp_size_t.resize(nThreads);

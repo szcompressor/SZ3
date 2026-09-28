@@ -34,6 +34,7 @@ foreach (TEST_SRC IN LISTS TEST_SOURCES)
     # Use PRE_TEST mode to avoid running executable at build time (important for Windows DLL path issues)
     gtest_discover_tests(${TEST_NAME} DISCOVERY_MODE PRE_TEST)
 endforeach()
+target_compile_definitions(test_previous_data_version PRIVATE SZ3_TEST_STREAMS="${CMAKE_CURRENT_SOURCE_DIR}/streams")
 
 # A program built without OpenMP reads back what one built with it wrote with conf.openmp = true.
 if (OpenMP_FOUND)

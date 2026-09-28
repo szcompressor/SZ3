@@ -19,6 +19,8 @@
 #define SZ3_VER_TWEAK @PROJECT_VERSION_TWEAK@
 
 #define SZ3_DATA_VER "@SZ3_DATA_VERSION@"
+// The data version before SZ3_DATA_VER, which this build also reads; HuffmanEncoderV1 wrote its Huffman streams.
+#define SZ3_DATA_VER_PREV "3.3.2"
 
 inline uint32_t versionInt(const std::string& version) {
     uint32_t major = 0, minor = 0, patch = 0;

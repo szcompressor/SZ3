@@ -28,7 +28,7 @@ void SZ_decompress_nopred(const Config &conf, const uchar *cmpData, size_t cmpSi
     auto cmpDataPos = cmpData;
     auto sz = make_compressor_sz_generic<T, N>(
         make_decomposition_noprediction<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
-        HuffmanEncoder<int>(), Lossless_zstd());
+        HuffmanEncoder<int>(conf.sz3DataVer), Lossless_zstd());
     sz->decompress(conf, cmpDataPos, cmpSize, decData);
 }
 

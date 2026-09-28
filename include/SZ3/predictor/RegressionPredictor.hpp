@@ -21,11 +21,13 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
 
     RegressionPredictor() : quantizer_independent(0), quantizer_liner(0), prev_coeffs{0}, current_coeffs{0} {}
 
-    RegressionPredictor(uint block_size, double eb)
+    /// data_version is that of the stream load() will read.
+    RegressionPredictor(uint block_size, double eb, uint32_t data_version_ = versionInt(SZ3_DATA_VER))
         : quantizer_independent(eb / (N + 1)),
           quantizer_liner(eb / (N + 1) / block_size),
           prev_coeffs{0},
-          current_coeffs{0} {}
+          current_coeffs{0},
+          data_version(data_version_) {}
 
     bool precompress(const block_iter &block) override {
         auto range = block.get_block_range();
@@ -126,7 +128,7 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
         if (coeff_size > 0) {
             quantizer_independent.load(c, remaining_length);
             quantizer_liner.load(c, remaining_length);
-            HuffmanEncoder<int> encoder = HuffmanEncoder<int>();
+            HuffmanEncoder<int> encoder(data_version);
             encoder.load(c, remaining_length);
             regression_coeff_quant_inds = encoder.decode(c, coeff_size, remaining_length);
             encoder.postprocess_decode();
@@ -157,6 +159,7 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
     size_t regression_coeff_index = 0;
     std::array<T, N + 1> prev_coeffs;
     std::array<T, N + 1> current_coeffs;
+    uint32_t data_version = versionInt(SZ3_DATA_VER);
 
     void pred_and_quantize_coefficients() {
         for (int i = 0; i < static_cast<int>(N); i++) {

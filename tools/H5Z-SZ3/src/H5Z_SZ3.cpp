@@ -51,7 +51,7 @@ static void get_sz3_conf_from_cdvalues(const unsigned int* cd, size_t cd_nelmts,
         // backward compatibility for v3.2.0 to v3.3.0; they store the magic number and the data version first.
         if (cd_nelmts > 1 && cd[0] == SZ3_MAGIC_NUMBER) {
             throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(cd[1]) +
-                                        ", this build reads v" SZ3_DATA_VER);
+                                        ", this build reads v" SZ3_DATA_VER " and v" SZ3_DATA_VER_PREV);
         }
     }
     {
@@ -62,9 +62,9 @@ static void get_sz3_conf_from_cdvalues(const unsigned int* cd, size_t cd_nelmts,
         }
     }
     // Another data version may lay out the Config differently.
-    if (versionStr(cd[0]) != SZ3_DATA_VER)
+    if (versionStr(cd[0]) != SZ3_DATA_VER && versionStr(cd[0]) != SZ3_DATA_VER_PREV)
         throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(cd[0]) +
-                                    ", this build reads v" SZ3_DATA_VER);
+                                    ", this build reads v" SZ3_DATA_VER " and v" SZ3_DATA_VER_PREV);
     bytes += sizeof(unsigned int);
     len -= sizeof(unsigned int);
     conf.load(bytes, len);
@@ -281,9 +281,9 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
             }
             throw std::invalid_argument("SZ3 HDF5 filter: chunk was not written by SZ3");
         }
-        if (versionStr(dataVer) != SZ3_DATA_VER)
+        if (versionStr(dataVer) != SZ3_DATA_VER && versionStr(dataVer) != SZ3_DATA_VER_PREV)
             throw std::invalid_argument("SZ3 HDF5 filter: data is in SZ3 data format v" + versionStr(dataVer) +
-                                        ", this build reads v" SZ3_DATA_VER);
+                                        ", this build reads v" SZ3_DATA_VER " and v" SZ3_DATA_VER_PREV);
         if (cmpDataSize > nbytes - 16) throw std::invalid_argument("SZ3 HDF5 filter: chunk is truncated");
         size_t remaining = nbytes - 16 - cmpDataSize;
         pos += cmpDataSize;

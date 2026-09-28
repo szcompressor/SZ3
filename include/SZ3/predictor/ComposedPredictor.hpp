@@ -16,8 +16,10 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
    public:
     using block_iter = typename block_data<T, N>::block_iterator;
 
-    ComposedPredictor(std::vector<std::shared_ptr<concepts::PredictorInterface<T, N>>> predictors_)
-        : predictors(predictors_) {
+    /// data_version is that of the stream load() will read.
+    ComposedPredictor(std::vector<std::shared_ptr<concepts::PredictorInterface<T, N>>> predictors_,
+                      uint32_t data_version_ = versionInt(SZ3_DATA_VER))
+        : predictors(predictors_), data_version(data_version_) {
         if (predictors.empty()) {
             throw std::invalid_argument("Empty predictor list for ComposedPredictor.");
         }
@@ -87,7 +89,7 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
         size_t selection_size = 0;
         read(selection_size, c, remaining_length);
         if (selection_size > 0) {
-            HuffmanEncoder<int> selection_encoder;
+            HuffmanEncoder<int> selection_encoder(data_version);
             selection_encoder.load(c, remaining_length);
             this->selection = selection_encoder.decode(c, selection_size, remaining_length);
             selection_encoder.postprocess_decode();
@@ -126,6 +128,7 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
    private:
     std::vector<std::shared_ptr<concepts::PredictorInterface<T, N>>> predictors;
     std::vector<int> selection;
+    uint32_t data_version;
     int sid = 0;               // selected index
     size_t current_index = 0;  // for decompression only
 };

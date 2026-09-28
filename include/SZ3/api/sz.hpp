@@ -132,12 +132,12 @@ void SZ_decompress(SZ3::Config& config, const char* cmpData, size_t cmpSize, T*&
     }
 
     read(config.sz3DataVer, cmpDataPos);
-    if (versionStr(config.sz3DataVer) != SZ3_DATA_VER) {
+    if (versionStr(config.sz3DataVer) != SZ3_DATA_VER && versionStr(config.sz3DataVer) != SZ3_DATA_VER_PREV) {
         // Do not print here. In the HDF5 filter stdout is the user's output file.
         std::stringstream ss;
-        ss << "SZ3 " << SZ3_VER << " reads data version " << SZ3_DATA_VER << ", but this data is version "
-           << versionStr(config.sz3DataVer) << ". Use SZ3 v" << versionStr(config.sz3DataVer)
-           << " to decompress it.";
+        ss << "SZ3 " << SZ3_VER << " reads data versions " << SZ3_DATA_VER << " and " << SZ3_DATA_VER_PREV
+           << ", but this data is version " << versionStr(config.sz3DataVer) << ". Use SZ3 v"
+           << versionStr(config.sz3DataVer) << " to decompress it.";
         throw std::invalid_argument(ss.str());
     }
 

@@ -6,7 +6,6 @@
 #include "SZ3/decomposition/SZBioMDXtcDecomposition.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/encoder/HuffmanEncoder.hpp"
-#include "SZ3/encoder/HuffmanEncoderV2.hpp"
 #include "SZ3/encoder/XtcBasedEncoder.hpp"
 #include "SZ3/lossless/Lossless_bypass.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
@@ -23,7 +22,7 @@ size_t SZ_compress_bioMD(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
     calAbsErrorBound(conf, data);
 
     auto quantizer = LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2);
-    auto sz = make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf, quantizer), HuffmanEncoderV2<int>(),
+    auto sz = make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf, quantizer), HuffmanEncoder<int>(),
                                                Lossless_zstd());
     return sz->compress(conf, data, cmpData, cmpCap);
 }
@@ -31,9 +30,12 @@ size_t SZ_compress_bioMD(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
 template <class T, uint N>
 void SZ_decompress_bioMD(const Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
     assert(conf.cmprAlgo == ALGO_BIOMD);
+    if (conf.sz3DataVer == versionInt(SZ3_DATA_VER_PREV))
+        throw std::invalid_argument("SZ3: ALGO_BIOMD data of version " SZ3_DATA_VER_PREV
+                                    " is not readable by this build");
 
     LinearQuantizer<T> quantizer;
-    auto sz = make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf, quantizer), HuffmanEncoderV2<int>(),
+    auto sz = make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf, quantizer), HuffmanEncoder<int>(),
                                                Lossless_zstd());
     sz->decompress(conf, cmpData, cmpSize, decData);
 }
