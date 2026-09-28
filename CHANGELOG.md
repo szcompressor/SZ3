@@ -253,5 +253,27 @@ Tag `v3.3.2`. The GitHub release lists #104–#116, including the 3.3.1 changes.
 
 ## 3.4.0
 
-- CMake package with `SZ3::SZ3core` and `SZ3::SZ3`, a reworked HDF5 filter, and fixes for defects on valid data. [#161](https://github.com/szcompressor/SZ3/pull/161)
-- Every build decompresses to the same values, whether or not the compiler fuses multiply-adds. Data compressed by an earlier version built with FMA (Apple Silicon, aarch64, or x86 built for a specific CPU, such as `-march=native` or Spack's default) may exceed the error bound when decompressed by 3.4.0; decompress it with the build that compressed it. [#162](https://github.com/szcompressor/SZ3/pull/162)
+**New**
+- One Huffman encoder for every algorithm, replacing the two earlier ones. Its code table takes about 0.3–0.7 bytes per symbol, where the one most algorithms used took 9–26. On 81 real fields from 32 datasets, the compression ratio is 1.5% higher and decompression 1.8 times faster (geometric means). [#163](https://github.com/szcompressor/SZ3/pull/163)
+- Every build decompresses to the same values, whether or not the compiler fuses multiply-adds (Apple Silicon, aarch64, or x86 built for a specific CPU, such as `-march=native` or Spack's default). [#162](https://github.com/szcompressor/SZ3/pull/162)
+- An installed SZ3 works through `find_package(SZ3)`. It provides `SZ3::SZ3core` (SZ3 and Zstd) and `SZ3::SZ3` (plus OpenMP when SZ3 was built with it), and `find_package(SZ3 COMPONENTS hdf5sz3)` requires the HDF5 filter's `SZ3::hdf5sz3`. Added with `add_subdirectory` or FetchContent, SZ3 leaves the parent's build settings alone and installs nothing. [#125](https://github.com/szcompressor/SZ3/pull/125), [#126](https://github.com/szcompressor/SZ3/pull/126), [#127](https://github.com/szcompressor/SZ3/pull/127), [#128](https://github.com/szcompressor/SZ3/pull/128), [#150](https://github.com/szcompressor/SZ3/pull/150), [#160](https://github.com/szcompressor/SZ3/pull/160), [#161](https://github.com/szcompressor/SZ3/pull/161)
+- HDF5 filter: `H5Pset_sz3()` sets the filter from C. The filter's `cd_values` carry the data version, each chunk is decompressed with the configuration stored in it, and the filter does not use OpenMP. See [tools/H5Z-SZ3/README.md](tools/H5Z-SZ3/README.md). [#155](https://github.com/szcompressor/SZ3/pull/155), [#161](https://github.com/szcompressor/SZ3/pull/161)
+- A build without OpenMP decompresses data compressed with OpenMP. [#160](https://github.com/szcompressor/SZ3/pull/160)
+- A Nix expression for NixOS. [#129](https://github.com/szcompressor/SZ3/pull/129)
+
+**Compatibility**
+- Data format 3.4.0. Data from 3.3.2 decompresses, except data compressed with `ALGO_NOPRED` or `ALGO_BIOMD`, which is refused. Data from 3.3.1 and earlier cannot be decompressed. [#163](https://github.com/szcompressor/SZ3/pull/163)
+- Data compressed by an earlier version built with FMA (see above) may exceed the error bound when decompressed by 3.4.0; decompress it with the build that compressed it. Building SZ3 with `-ffast-math`, `-Ofast`, MSVC `/fp:fast` or icx's default `-fp-model=fast` is not supported. [#162](https://github.com/szcompressor/SZ3/pull/162)
+- CMake 3.19 or newer is required. `find_package(SZ3 <version>)` accepts only SZ3 versions with the same major version. [#161](https://github.com/szcompressor/SZ3/pull/161)
+- Removed: `ArithmeticEncoder`, `RunlengthEncoder`, `SZTruncateCompressor` and the preprocessors, which no build target used, and the bundled ska hash map. [#150](https://github.com/szcompressor/SZ3/pull/150), [#157](https://github.com/szcompressor/SZ3/pull/157)
+- `Config::load` and the lossless stages take the length of the buffer they read. [#145](https://github.com/szcompressor/SZ3/pull/145)
+- `libhdf5sz3` and `libSZ3c` export only their public functions, and carry an SOVERSION. [#158](https://github.com/szcompressor/SZ3/pull/158), [#159](https://github.com/szcompressor/SZ3/pull/159)
+
+**Fixes**
+- Damaged or truncated compressed data makes decompression throw instead of reading past the buffer, and the HDF5 filter reports the error instead of ending the program. [#121](https://github.com/szcompressor/SZ3/pull/121), [#145](https://github.com/szcompressor/SZ3/pull/145), [#149](https://github.com/szcompressor/SZ3/pull/149)
+- `ALGO_BIOMD` and `ALGO_BIOMDXTC`: the same input now always compresses to the same bytes, and defects on valid data are fixed. [#147](https://github.com/szcompressor/SZ3/pull/147), [#161](https://github.com/szcompressor/SZ3/pull/161)
+- OpenMP: compression no longer writes an undecodable stream or hangs when a region gets fewer threads than asked or a chunk fails. [#149](https://github.com/szcompressor/SZ3/pull/149), [#161](https://github.com/szcompressor/SZ3/pull/161)
+- `ALGO_LORENZO_REG` could write past its buffer with a small `BlockSize`, and with only regression enabled it read past its buffer on 3D and 4D data. [#151](https://github.com/szcompressor/SZ3/pull/151), [#161](https://github.com/szcompressor/SZ3/pull/161)
+- Integer data (such as int8 and int16 through the HDF5 filter) could come back past the error bound where values span most of the type's range. [#163](https://github.com/szcompressor/SZ3/pull/163)
+- The HDF5 filter refuses datatypes it cannot compress, instead of writing data that comes back wrong. [#158](https://github.com/szcompressor/SZ3/pull/158)
+- SZ3 builds for wasm32 again. [#117](https://github.com/szcompressor/SZ3/pull/117)
