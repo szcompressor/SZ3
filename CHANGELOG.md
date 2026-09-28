@@ -274,7 +274,6 @@ Tag `v3.3.2`. The GitHub release lists #104–#116, including the 3.3.1 changes.
 - `ALGO_BIOMD` and `ALGO_BIOMDXTC`: the same input now always compresses to the same bytes, and defects on valid data are fixed. [#147](https://github.com/szcompressor/SZ3/pull/147), [#161](https://github.com/szcompressor/SZ3/pull/161)
 - OpenMP: compression no longer writes an undecodable stream or hangs when a region gets fewer threads than asked or a chunk fails. [#149](https://github.com/szcompressor/SZ3/pull/149), [#161](https://github.com/szcompressor/SZ3/pull/161)
 - `ALGO_LORENZO_REG` could write past its buffer with a small `BlockSize`, and with only regression enabled it read past its buffer on 3D and 4D data. [#151](https://github.com/szcompressor/SZ3/pull/151), [#161](https://github.com/szcompressor/SZ3/pull/161)
-- Integer data (such as int8 and int16 through the HDF5 filter) could come back past the error bound where values span most of the type's range. [#163](https://github.com/szcompressor/SZ3/pull/163)
 - The HDF5 filter refuses datatypes it cannot compress, instead of writing data that comes back wrong. [#158](https://github.com/szcompressor/SZ3/pull/158)
 - The HDF5 filter keeps `H5Z_FLAG_OPTIONAL` (as h5py sets it), and refuses a chunk whose size a filter before it changed. [#163](https://github.com/szcompressor/SZ3/pull/163)
 - SZ3 builds for wasm32 again. [#117](https://github.com/szcompressor/SZ3/pull/117)

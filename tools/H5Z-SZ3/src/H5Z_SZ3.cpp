@@ -101,7 +101,7 @@ herr_t set_SZ3_conf_to_H5(hid_t propertyList, SZ3::Config& conf) {
         // Keep the flags the filter was set with: H5Z_FLAG_OPTIONAL lets HDF5 store a chunk raw when SZ3 fails.
         unsigned int flags = H5Z_FLAG_MANDATORY;
         size_t no_values = 0;
-        if (0 > H5Pget_filter_by_id2(propertyList, H5Z_FILTER_SZ3, &flags, &no_values, NULL, 0, NULL, NULL) ||
+        if (0 > H5Pget_filter_by_id(propertyList, H5Z_FILTER_SZ3, &flags, &no_values, NULL, 0, NULL, NULL) ||
             0 > H5Pmodify_filter(propertyList, H5Z_FILTER_SZ3, flags, cd_nelmts, cd_values.data())) {
             H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, 0, "failed to modify cd_values");
         }
@@ -161,12 +161,13 @@ herr_t get_SZ3_conf_from_H5(hid_t propertyList, SZ3::Config& conf) {
     // length is not the caller's to guess, and HDF5 reports the real count even when it filled less.
     size_t cd_nelmts = 0;
     unsigned int probe[1] = {0};
-    if (0 > H5Pget_filter_by_id2(propertyList, H5Z_FILTER_SZ3, NULL, &cd_nelmts, probe, 0, NULL, NULL)) {
+    if (0 > H5Pget_filter_by_id(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, &cd_nelmts, probe, 0, NULL, NULL)) {
         return -1;
     }
     if (cd_nelmts > 0) {
         std::vector<unsigned int> cd_values(cd_nelmts, 0);
-        if (0 > H5Pget_filter_by_id2(propertyList, H5Z_FILTER_SZ3, NULL, &cd_nelmts, cd_values.data(), 0, NULL, NULL)) {
+        if (0 > H5Pget_filter_by_id(propertyList, H5Z_FILTER_SZ3, H5Z_FLAG_MANDATORY, &cd_nelmts, cd_values.data(), 0,
+                                    NULL, NULL)) {
             return -1;
         }
         try {
