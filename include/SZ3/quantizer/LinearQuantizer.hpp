@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstring>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
@@ -57,7 +58,14 @@ public:
             } else {
                 quant_index_shifted = this->radius + half_index;
             }
-            T decompressed_data = recover_pred(pred, quant_index_shifted);
+            const double reconstructed = recover_pred(pred, quant_index_shifted);
+            // Converting a double outside an integer T to T is undefined, and arm64 and x86 give different values.
+            if (std::is_integral<T>::value && !(reconstructed >= std::numeric_limits<T>::lowest() &&
+                                                reconstructed < std::numeric_limits<T>::max() + 1.0)) {
+                unpred.push_back(data);
+                return 0;
+            }
+            T decompressed_data = reconstructed;
             double err;
             if constexpr (std::is_integral<T>::value) {
                 // Exact: the distance between two values of T always fits its unsigned type.
@@ -86,7 +94,7 @@ public:
         }
     }
 
-    ALWAYS_INLINE T recover_pred(T pred, int quant_index) {
+    ALWAYS_INLINE double recover_pred(T pred, int quant_index) {
         // quant_index comes from the stream; in int, 2 * (quant_index - radius) overflows past INT_MAX/2.
         // Exact for every index a valid stream carries.
         return pred + nofma(2 * (static_cast<int64_t>(quant_index) - this->radius) * this->error_bound);
