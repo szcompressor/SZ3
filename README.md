@@ -28,7 +28,7 @@ Build options, all ON/OFF switches passed to `cmake` as `-D<option>=ON` or `-D<o
 | `BUILD_SHARED_LIBS` | ON, the parent's when SZ3 is added with `add_subdirectory` or FetchContent | shared libraries; OFF builds static ones |
 | `BUILD_SZ3_BINARY` | ON, OFF when SZ3 is added with `add_subdirectory` or FetchContent | the `sz3` executable, the C API library SZ3c and the H5Z-SZ3 tools |
 | `BUILD_H5Z_FILTER` | OFF | the HDF5 filter H5Z-SZ3 (needs HDF5) |
-| `BUILD_MDZ` | OFF | MDZ, the molecular-dynamics compressor in `tools/mdz` |
+| `BUILD_MDZ` | OFF | the compressor from the [MDZ paper](https://ieeexplore.ieee.org/document/9835212) (`tools/mdz`), for molecular dynamics of solid materials; for biomolecular trajectories use `ALGO_BIOMD` or `ALGO_BIOMDXTC` |
 | `BUILD_PARAVIEW_PLUGIN` | OFF | the ParaView reader plugin (needs ParaView) |
 | `BUILD_TESTING` | OFF, the parent's when SZ3 is added with `add_subdirectory` or FetchContent | the unit tests |
 | `SZ3_USE_BUNDLED_ZSTD` | OFF (ON with MSVC) | Zstd from `tools/zstd` instead of the system one |
@@ -128,7 +128,7 @@ Set the error-bound mode with `Config::errorBoundMode`, or `-M` on the command l
 
 ## Data format and compatibility
 
-SZ3 can decompress data from some earlier versions; [CHANGELOG.md](CHANGELOG.md) says which. Data compressed by an earlier version built with FMA (Apple Silicon, aarch64, or `-march=native`) should be decompressed by that build; see [#162](https://github.com/szcompressor/SZ3/pull/162).
+SZ3 can decompress data compressed by some earlier versions; see [CHANGELOG.md](CHANGELOG.md) for which versions. Data compressed by an earlier version built with FMA (Apple Silicon, aarch64, or `-march=native`) should be decompressed by that build; see [#162](https://github.com/szcompressor/SZ3/pull/162).
 
 ## Citing SZ3
 
