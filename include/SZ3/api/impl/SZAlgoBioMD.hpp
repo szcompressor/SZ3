@@ -54,7 +54,7 @@ void SZ_decompress_bioMD(const Config &conf, const uchar *cmpData, size_t cmpSiz
 }
 
 template <class T, uint N>
-size_t SZ_compress_bioMDXtcBased(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
+size_t SZ_compress_bioMDXtcBased(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
     assert(N == conf.N);
     assert(conf.cmprAlgo == ALGO_BIOMDXTC);
     calAbsErrorBound(conf, data);
@@ -64,8 +64,7 @@ size_t SZ_compress_bioMDXtcBased(Config &conf, const T *data, uchar *cmpData, si
     auto quantizer = LinearQuantizer<T>(conf.absErrorBound, XTC_radius, false);
     auto sz = make_compressor_sz_generic<T, N>(make_decomposition_biomdxtc<T, N>(conf, quantizer),
                                                XtcBasedEncoder<int>(), Lossless_bypass());
-    // SZBioMDXtcDecomposition reads the data without writing it
-    return sz->compress(conf, const_cast<T *>(data), cmpData, cmpCap);
+    return sz->compress(conf, data, cmpData, cmpCap);
 }
 
 template <class T, uint N>

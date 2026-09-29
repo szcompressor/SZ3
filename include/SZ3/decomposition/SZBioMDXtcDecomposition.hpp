@@ -70,18 +70,11 @@ public:
     }
 
 private:
-    // The prediction is always 0, so the reconstructed value is not needed: the quantizer overwrites a copy, and the
-    // input stays as it is (the caller need not copy it).
-    void quantize(const T* data, std::vector<int>& quantData) {
-        for (size_t i = 0; i < quantData.size(); i++) {
-            T value = data[i];
-            quantData[i] = quantizer.quantize_and_overwrite(value, 0) - XTC_radius;
-        }
-    }
-
     std::vector<int> compressSingleFrame(T* data) {
         std::vector<int> quantData(conf.num);
-        quantize(data, quantData);
+        for (size_t i = 0; i < conf.num; i++) {
+            quantData[i] = quantizer.quantize_and_overwrite(data[i], 0) - XTC_radius;
+        }
         quantizer.postcompress_data();
         return quantData;
     }
@@ -137,6 +130,7 @@ private:
     /* This just converts float to integer based on the absolute error. */
     std::vector<int> compressMultiFrame(T* data) {
         auto dims = conf.dims;
+        std::vector<size_t> stride({dims[1] * dims[2], dims[2], 1});
 
         /* Find out if the last frames are all filled with the same value. */
         std::tuple<size_t, T> fillValueSettings = findFillValueAndFirstFilledFrame(data, dims);
@@ -144,7 +138,18 @@ private:
         fillValue_ = std::get<1>(fillValueSettings);
         size_t lastFrame = std::min(dims[0], firstFillFrame_);
         std::vector<int> quantData(lastFrame * dims[1] * dims[2]);
-        quantize(data, quantData);
+
+        for (size_t i = 0; i < lastFrame; i++) {
+            // time
+            for (size_t j = 0; j < dims[1]; j++) {
+                // atoms
+                for (size_t k = 0; k < dims[2]; k++) {
+                    // xyz
+                    size_t idx = i * stride[0] + j * stride[1] + k;
+                    quantData[idx] = quantizer.quantize_and_overwrite(data[idx], 0) - XTC_radius;
+                }
+            }
+        }
         quantizer.postcompress_data();
 
         return quantData;
