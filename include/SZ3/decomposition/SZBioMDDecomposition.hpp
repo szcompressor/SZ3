@@ -26,8 +26,8 @@
 namespace SZ3 {
 namespace biomd {
 
-constexpr int MAXOFF = 4;   // a bond partner is one of the previous MAXOFF atoms
-constexpr int MAXCLS = 15;  // bond-length classes
+constexpr int MAXOFF = 4;                     // a bond partner is one of the previous MAXOFF atoms
+constexpr int MAXCLS = 15;                    // bond-length classes
 constexpr int64_t RMAXB2 = int64_t(1) << 28;  // bonds of 16384 lattice units or more are not coded as spheres
 enum { G_O, G_WH, G_NB, G_NU, NGROUP };
 enum { S_W, S_REF, S_O, S_OH, S_OL, S_FE, S_KEPT, S_E, S_BFE, S_BK, S_BE, S_U, NS };
@@ -55,9 +55,10 @@ ALWAYS_INLINE void axes(const int64_t p[3], int &f, int &i, int &j) {
 // ------------------------------------------------------------------------------------------------ layout
 struct Layout {
     std::vector<uint8_t> kind;  // per atom: 0 = water O (then its H at i + 1, i + 2), 1 = water H, 2 = other
-    std::vector<uint16_t> ref;  // other atoms: 0 = no bond, else off * 16 + cls + 1 (the sphere of class cls around i - off)
-    double r = 0;               // water O-H (nm)
-    std::vector<double> blen;   // bond-length classes (nm)
+    std::vector<uint16_t>
+        ref;       // other atoms: 0 = no bond, else off * 16 + cls + 1 (the sphere of class cls around i - off)
+    double r = 0;  // water O-H (nm)
+    std::vector<double> blen;  // bond-length classes (nm)
 };
 
 // Rigid water on frame x: kind and r. The tolerances grow with the lattice step, so rounded input (xtc files,
@@ -188,7 +189,8 @@ void detect_bonds(const T *x, size_t N, Layout &L) {
         for (size_t w = best >= 30 ? best - 30 : 0; w < std::min(NB, best + 31); w++) hs[w] = 0;
         const long centre = long((L.blen.back() - 0.01) * 1e4);
         for (long k = std::max(0L, centre - 40); k <= std::min(long(NB) - 1, centre + 40); k++)
-            if (uint8_t(std::labs(k - centre)) < bdist[k]) bdist[k] = uint8_t(std::labs(k - centre)), bincls[k] = int8_t(c);
+            if (uint8_t(std::labs(k - centre)) < bdist[k])
+                bdist[k] = uint8_t(std::labs(k - centre)), bincls[k] = int8_t(c);
     }
     for (size_t i = 0; i < N; i++)
         if (bincls[bin[i]] >= 0) L.ref[i] = uint16_t(dof[i] * 16 + bincls[bin[i]] + 1);
@@ -472,7 +474,8 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         const int *cur[NS * 4], *end[NS * 4];
         for (size_t k = 0, s = 0; s < NS * 4; s++) {
             const size_t n = k < quant_inds.size() ? size_t(quant_inds[k]) : 0;
-            if (k >= quant_inds.size() || n > quant_inds.size() - k - 1) throw std::runtime_error("SZ3 BioMD: corrupt stream");
+            if (k >= quant_inds.size() || n > quant_inds.size() - k - 1)
+                throw std::runtime_error("SZ3 BioMD: corrupt stream");
             cur[s] = quant_inds.data() + k + 1;
             end[s] = cur[s] + n;
             k += n + 1;
