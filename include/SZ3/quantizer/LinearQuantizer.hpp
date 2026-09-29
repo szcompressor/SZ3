@@ -81,8 +81,8 @@ public:
                 quant_index_shifted = this->radius + half_index;
             }
             T decompressed_data = recover_pred(pred, quant_index_shifted);
-            diff = fabs(decompressed_data - data);
-            if (diff <= this->error_bound || (!strict_eb && diff <= this->error_bound * 1.1)) {
+            double err = fabs(static_cast<double>(decompressed_data) - data);
+            if (err <= this->error_bound || (!strict_eb && err <= this->error_bound * 1.1)) {
                 data = decompressed_data;
                 return quant_index_shifted;
             }

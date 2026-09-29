@@ -17,6 +17,12 @@
 #include <type_traits>
 #include <vector>
 
+// Turns off fast floating-point math in the code included below under Clang (icx too) and MSVC, whatever their
+// options; otherwise builds decompress different values.
+#if defined(__clang__) || defined(_MSC_VER)
+#pragma float_control(precise, on, push)
+#endif
+
 #include "SZ3/api/impl/SZDispatcher.hpp"
 #include "SZ3/api/impl/SZImplOMP.hpp"
 #include "SZ3/def.hpp"
@@ -127,4 +133,8 @@ size_t SZ_compress_size_bound(const Config &conf) {
 }
 
 }  // namespace SZ3
+
+#if defined(__clang__) || defined(_MSC_VER)
+#pragma float_control(pop)
+#endif
 #endif

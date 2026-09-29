@@ -417,7 +417,7 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         sizeInt[0] = static_cast<unsigned int>(maxInt[0]) - static_cast<unsigned int>(minInt[0]) + 1;
         sizeInt[1] = static_cast<unsigned int>(maxInt[1]) - static_cast<unsigned int>(minInt[1]) + 1;
         sizeInt[2] = static_cast<unsigned int>(maxInt[2]) - static_cast<unsigned int>(minInt[2]) + 1;
-        unsigned int bitSizeInt[3];
+        unsigned int bitSizeInt[3] = {0, 0, 0};
         int bitSize;
 
 #ifdef DEBUG_OUTPUT
@@ -648,7 +648,7 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
         sizeInt[0] = static_cast<unsigned int>(maxInt[0]) - static_cast<unsigned int>(minInt[0]) + 1;
         sizeInt[1] = static_cast<unsigned int>(maxInt[1]) - static_cast<unsigned int>(minInt[1]) + 1;
         sizeInt[2] = static_cast<unsigned int>(maxInt[2]) - static_cast<unsigned int>(minInt[2]) + 1;
-        unsigned int bitSizeInt[3];
+        unsigned int bitSizeInt[3] = {0, 0, 0};
         int bitSize;
         /* check if one of the sizes is too big to be multiplied */
         if ((sizeInt[0] | sizeInt[1] | sizeInt[2]) > 0xffffff) {

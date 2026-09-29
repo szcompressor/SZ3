@@ -7,7 +7,7 @@ foreach (SRCFILE IN LISTS cpu_source_files)
     target_link_libraries(${EXE} PRIVATE SZ3)
     # Ask for the binary rather than spelling out where it lands: a multi-config generator puts it
     # under a per-config subdirectory, and the install then cannot find it.
-    if (SZ3_INSTALL)
+    if (SZ3_INSTALL AND EXE STREQUAL "sz3")
         install(PROGRAMS $<TARGET_FILE:${EXE}> TYPE BIN)
     endif ()
 

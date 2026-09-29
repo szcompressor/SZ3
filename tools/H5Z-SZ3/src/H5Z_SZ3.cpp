@@ -305,7 +305,6 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
         case SZ_FLOAT:
             process_data<float>(conf, buf, buf_size, nbytes, is_decompress);
             break;
-#if (!SZ3_DEBUG_TIMINGS)
         case SZ_DOUBLE:
             process_data<double>(conf, buf, buf_size, nbytes, is_decompress);
             break;
@@ -333,7 +332,6 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
         case SZ_UINT64:
             process_data<uint64_t>(conf, buf, buf_size, nbytes, is_decompress);
             break;
-#endif
         default:
             throw std::invalid_argument("SZ3 HDF5 filter: unknown datatype in cd_values");
     }

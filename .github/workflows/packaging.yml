@@ -74,6 +74,16 @@ jobs:
         shell: bash
         run: tools/H5Z-SZ3/test/filterSuite.sh "$PWD/_prefix"
 
+      # BUILD_H5Z_FILTER is off by default, so a packaged SZ3 is likely to come without the filter;
+      # find_package(SZ3 COMPONENTS hdf5sz3) must then decline and leave no targets behind.
+      - name: An SZ3 installed without the filter
+        shell: bash
+        run: |
+          cmake -S . -B build-nofilter -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          cmake --build build-nofilter --config ${{ env.BUILD_TYPE }} --parallel 4
+          cmake --install build-nofilter --prefix "$PWD/_prefix_nofilter"
+          tools/test/consumeInstalledSZ3.sh "$PWD/_prefix_nofilter"
+
       - name: The installed filter resolves every library it needs
         shell: bash
         run: |
@@ -266,7 +276,7 @@ jobs:
         run: |
           # An install rule that points one directory too high, or drops the .exe, is how this got
           # here: `cmake --install` failed outright and nothing after it reached the prefix.
-          for exe in sz3 sz3_smoke_test sz3_customized_demo mdz mdz_smoke_test; do
+          for exe in sz3 mdz mdz_smoke_test; do
             [ -f "_prefix/bin/$exe.exe" ] || { echo "no $exe.exe in the install prefix"; exit 1; }
           done
           ./_prefix/bin/mdz_smoke_test.exe
