@@ -98,8 +98,8 @@ with h5py.File('data.h5', 'w') as f:
 
 ### C/C++
 A C program sets the filter on a dataset creation property list with `H5Pset_sz3`, declared in `H5Z_SZ3.hpp`. A CMake project links `SZ3::hdf5sz3` and requires it with `find_package(SZ3 COMPONENTS hdf5sz3)`.
-- For molecular-dynamics coordinates use `H5Z_SZ3_ALGO_BIOMD` (better with several frames per chunk) or `H5Z_SZ3_ALGO_BIOMDXTC` (like GROMACS's xtc, it can round a coordinate slightly past the bound).
-- A chunk written again after it left the chunk cache is recompressed, and its error can then exceed the bound, except with `H5Z_SZ3_ALGO_BIOMDXTC` or `H5Z_SZ3_ALGO_NOPRED` and an absolute bound. `H5D_CHUNK_DONT_FILTER_PARTIAL_CHUNKS` avoids this when the dataset is extended one frame at a time; the last, partial chunk is then stored uncompressed at full chunk size.
+- For molecular-dynamics coordinates use `H5Z_SZ3_ALGO_BIOMD` (better with several frames per chunk) or `H5Z_SZ3_ALGO_BIOMDXTC` (like GROMACS's xtc, it can round a coordinate past the bound, by at most 10%).
+- A chunk that is filtered and then written again is decompressed and compressed once more, and its error can then exceed the bound, except with `H5Z_SZ3_ALGO_BIOMD`, `H5Z_SZ3_ALGO_BIOMDXTC`, or `H5Z_SZ3_ALGO_NOPRED` with an absolute bound. When appending frames, avoid it with `H5D_CHUNK_DONT_FILTER_PARTIAL_CHUNKS` and a chunk cache that holds a whole chunk (`H5Pset_chunk_cache`), also when the file is reopened; the last, partial chunk is then stored uncompressed at full chunk size.
 - SZ3 has no checksum; add `H5Pset_fletcher32` after `H5Pset_sz3` to detect damaged chunks.
 - Do not put a filter that rearranges bytes, such as shuffle, before SZ3: SZ3 then compresses the rearranged bytes as values.
 

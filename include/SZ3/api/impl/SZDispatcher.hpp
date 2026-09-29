@@ -66,14 +66,17 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
     // if lossy compression ratio < 3, test if lossless only mode has a better ratio than lossy
     if (conf.num * sizeof(T) / 1.0 / cmpSize < 3) {
         auto zstd = Lossless_zstd();
-        auto zstdCmpCap = Lossless_zstd::compress_bound(conf.num * sizeof(T)) + sizeof(size_t);
-        std::unique_ptr<uchar[]> zstdCmpData(new uchar[zstdCmpCap]);
-        size_t zstdCmpSize = zstd.compress(reinterpret_cast<const uchar *>(data), conf.num * sizeof(T),
-                                           zstdCmpData.get(), zstdCmpCap);
-        if (zstdCmpSize < cmpSize && zstdCmpSize <= cmpCap) {
-            conf.cmprAlgo = ALGO_LOSSLESS;
-            memcpy(cmpData, zstdCmpData.get(), zstdCmpSize);
-            cmpSize = zstdCmpSize;
+        // No bigger than the lossy stream: zstd gives up as soon as its output could not be smaller.
+        std::unique_ptr<uchar[]> zstdCmpData(new uchar[cmpSize]);
+        try {
+            size_t zstdCmpSize =
+                zstd.compress(reinterpret_cast<const uchar *>(data), conf.num * sizeof(T), zstdCmpData.get(), cmpSize);
+            if (zstdCmpSize < cmpSize) {
+                conf.cmprAlgo = ALGO_LOSSLESS;
+                memcpy(cmpData, zstdCmpData.get(), zstdCmpSize);
+                cmpSize = zstdCmpSize;
+            }
+        } catch (const std::length_error &) {
         }
     }
     return cmpSize;

@@ -35,6 +35,8 @@ Build options, all ON/OFF switches passed to `cmake` as `-D<option>=ON` or `-D<o
 | `SZ3_DEBUG_TIMINGS` | OFF | debug timing output |
 | `SZ3_INSTALL` | ON, OFF when SZ3 is added with `add_subdirectory` or FetchContent | the install rules |
 
+On Linux with glibc 2.35 or newer, `GLIBC_TUNABLES=glibc.malloc.hugetlb=1` in the environment backs SZ3's large buffers with huge pages, which makes compressing and decompressing large fields 10-20% faster.
+
 ## Interfaces
 
 | Interface | How to use / where | Maintained by |
@@ -129,7 +131,7 @@ Set the error-bound mode with `Config::errorBoundMode`, or `-M` on the command l
 ## Data format and compatibility
 
 * SZ3 can decompress data compressed by some earlier versions; see [CHANGELOG.md](CHANGELOG.md) for which versions.
-* Data compressed by an earlier version built with FMA (Apple Silicon, aarch64, or `-march=native`) should be decompressed by that build; see [#162](https://github.com/szcompressor/SZ3/pull/162).
+* Builds with different floating-point options (FMA, fast math) decompress the same values, except data compressed by earlier versions built with FMA; see [#162](https://github.com/szcompressor/SZ3/pull/162) and [#166](https://github.com/szcompressor/SZ3/pull/166).
 
 ## Citing SZ3
 
