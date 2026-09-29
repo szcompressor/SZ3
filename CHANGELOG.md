@@ -281,3 +281,37 @@ Tag `v3.3.2`. The GitHub release lists #104–#116, including the 3.3.1 changes.
 - The HDF5 filter refuses datatypes it cannot compress, instead of writing data that comes back wrong. [#158](https://github.com/szcompressor/SZ3/pull/158)
 - The HDF5 filter keeps `H5Z_FLAG_OPTIONAL` (as h5py sets it), and refuses a chunk whose size a filter before it changed. [#163](https://github.com/szcompressor/SZ3/pull/163)
 - SZ3 builds for wasm32 again. [#117](https://github.com/szcompressor/SZ3/pull/117)
+
+**Compared with other compressors**
+
+Single-threaded on an Intel i9-13900K (GCC 13, `-O3`). SZ3 uses its default `ALGO_INTERP_LORENZO`; every compressor runs in its pointwise error mode with the bound REL × (max − min). Geometric means over five float fields: Hurricane P, Miranda density, NYX temperature, SCALE QV and CESM U. Speeds are in original bytes per second, with 1 MB = 10^6 bytes. Versions: ZFP develop `c0c2c40`, SPERR 0.8.4 `4061a44`, MGARD 1.7.0 `6b43196` (MGARD is `mgard::compress`, MGARD-X its serial device), SZx `3a0f875`, SZp `5d15dc3`. ZFP and MGARD stay at 2–70% of the bound, which lowers their ratios.
+
+| Compression ratio | REL 1e-2 | REL 1e-3 | REL 1e-4 |
+|---|---|---|---|
+| SZ3 3.4.0 | 1295.5 | 150.5 | 32.2 |
+| SPERR | 1026.6 | 179.3 | 46.2 |
+| ZFP | 26.6 | 13.0 | 6.9 |
+| MGARD | 12.2 | 6.0 | 4.0 |
+| MGARD-X | 20.3 | 12.0 | 6.6 |
+| SZx | 21.4 | 6.5 | 4.0 |
+| SZp | 36.4 | 14.0 | 8.5 |
+
+| Compression speed (MB/s) | REL 1e-2 | REL 1e-3 | REL 1e-4 |
+|---|---|---|---|
+| SZ3 3.4.0 | 507 | 474 | 434 |
+| SPERR | 153 | 137 | 108 |
+| ZFP | 493 | 377 | 300 |
+| MGARD | 56 | 57 | 54 |
+| MGARD-X | 93 | 93 | 92 |
+| SZx | 1706 | 1179 | 1124 |
+| SZp | 3246 | 1630 | 1261 |
+
+| Decompression speed (MB/s) | REL 1e-2 | REL 1e-3 | REL 1e-4 |
+|---|---|---|---|
+| SZ3 3.4.0 | 1495 | 1197 | 980 |
+| SPERR | 299 | 268 | 214 |
+| ZFP | 1667 | 1109 | 749 |
+| MGARD | 49 | 44 | 38 |
+| MGARD-X | 92 | 89 | 84 |
+| SZx | 2873 | 1716 | 1584 |
+| SZp | 7161 | 3583 | 2601 |
