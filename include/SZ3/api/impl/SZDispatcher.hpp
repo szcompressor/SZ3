@@ -7,6 +7,7 @@
 #include "SZ3/api/impl/SZAlgoBioMD.hpp"
 #include "SZ3/api/impl/SZAlgoInterp.hpp"
 #include "SZ3/api/impl/SZAlgoLorenzoReg.hpp"
+#include "SZ3/api/impl/SZAlgoMDC.hpp"
 #include "SZ3/api/impl/SZAlgoNopred.hpp"
 #include "SZ3/deprecated/HuffmanEncoderV1.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
@@ -29,6 +30,8 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
     bool isCmpCapSufficient = true;
     if (conf.cmprAlgo != ALGO_LOSSLESS) {
         try {
+            // reads the input without modifying it, so it needs no copy (its fallback makes one)
+            if (conf.cmprAlgo == ALGO_MDC) return SZ_compress_MDC<T, N>(conf, data, cmpData, cmpCap);
             std::vector<T> dataCopy(data, data + conf.num);
             if (conf.cmprAlgo == ALGO_LORENZO_REG) {
                 cmpSize = SZ_compress_LorenzoReg<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
@@ -115,6 +118,8 @@ void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize
         SZ_decompress_bioMD<T, N>(conf, cmpData, cmpSize, decData);
     } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
         SZ_decompress_bioMDXtcBased<T, N>(conf, cmpData, cmpSize, decData);
+    } else if (conf.cmprAlgo == ALGO_MDC) {
+        SZ_decompress_MDC<T, N>(conf, cmpData, cmpSize, decData);
     } else {
         throw std::invalid_argument("Unknown compression algorithm");
     }

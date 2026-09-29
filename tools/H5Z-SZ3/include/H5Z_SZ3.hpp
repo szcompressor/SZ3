@@ -38,6 +38,7 @@
 #define H5Z_SZ3_ALGO_LOSSLESS 4
 #define H5Z_SZ3_ALGO_BIOMD 5
 #define H5Z_SZ3_ALGO_BIOMDXTC 6
+#define H5Z_SZ3_ALGO_MDC 7
 
 #ifdef __cplusplus
 extern "C" {

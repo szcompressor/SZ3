@@ -28,7 +28,7 @@ Build options, all ON/OFF switches passed to `cmake` as `-D<option>=ON` or `-D<o
 | `BUILD_SHARED_LIBS` | ON, the parent's when SZ3 is added with `add_subdirectory` or FetchContent | shared libraries; OFF builds static ones |
 | `BUILD_SZ3_BINARY` | ON, OFF when SZ3 is added with `add_subdirectory` or FetchContent | the `sz3` executable, the C API library SZ3c and the H5Z-SZ3 tools |
 | `BUILD_H5Z_FILTER` | OFF | the HDF5 filter H5Z-SZ3 (needs HDF5) |
-| `BUILD_MDZ` | OFF | the compressor from the [MDZ paper](https://ieeexplore.ieee.org/document/9835212) (`tools/mdz`), for molecular dynamics of solid materials; for biomolecular trajectories use `ALGO_BIOMD` or `ALGO_BIOMDXTC` |
+| `BUILD_MDZ` | OFF | the compressor from the [MDZ paper](https://ieeexplore.ieee.org/document/9835212) (`tools/mdz`), for molecular dynamics of solid materials; for biomolecular trajectories use `ALGO_MDC`, `ALGO_BIOMD` or `ALGO_BIOMDXTC` |
 | `BUILD_PARAVIEW_PLUGIN` | OFF | the ParaView reader plugin (needs ParaView) |
 | `BUILD_TESTING` | OFF, the parent's when SZ3 is added with `add_subdirectory` or FetchContent | the unit tests |
 | `SZ3_USE_BUNDLED_ZSTD` | OFF (ON with MSVC) | Zstd from `tools/zstd` instead of the system one |
@@ -118,6 +118,7 @@ Set the algorithm with `Config::cmprAlgo`, or `CmprAlgo` in a configuration file
 | `ALGO_NOPRED` | Quantization without prediction: a fast baseline. |
 | `ALGO_LOSSLESS` | Zstd only. SZ3 also switches to it by itself when the error bound is 0, or when Zstd alone gives a smaller result. |
 | `ALGO_BIOMD`, `ALGO_BIOMDXTC` | Molecular-dynamics coordinates. `ALGO_BIOMDXTC` follows GROMACS's xtc and can, like xtc, round a coordinate slightly past the bound. |
+| `ALGO_MDC` | Molecular-dynamics coordinates `{frames, atoms, 3}` (or `{atoms, 3}` for one frame) in nm with an absolute bound, as a GROMACS H5MD writer produces them one frame or a few frames per chunk. It codes rigid water and bonded atoms by their geometry and, from the second frame of a chunk on, picks a temporal predictor per group of atoms. Input it cannot code (another shape, non-finite values, a bound too small for the coordinate range) goes to `ALGO_BIOMD`. |
 
 Set the error-bound mode with `Config::errorBoundMode`, or `-M` on the command line.
 

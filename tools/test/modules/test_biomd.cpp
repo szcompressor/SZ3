@@ -1,4 +1,4 @@
-// The two molecular-dynamics algorithms, through the public API a caller reaches them by.
+// The molecular-dynamics algorithms, through the public API a caller reaches them by.
 //
 // The integration suite runs these on the SDRBench fields, all of which are 1D or 2D, so the
 // trajectory layout SZBioMDXtcDecomposition was written for -- dims {frames, atoms, xyz} -- is
@@ -19,12 +19,14 @@
 
 namespace {
 
-constexpr SZ3::ALGO kAlgos[] = {SZ3::ALGO_BIOMD, SZ3::ALGO_BIOMDXTC};
+constexpr SZ3::ALGO kAlgos[] = {SZ3::ALGO_BIOMD, SZ3::ALGO_BIOMDXTC, SZ3::ALGO_MDC};
 
 // ALGO_BIOMDXTC's LinearQuantizer(eb, XTC_radius, false) accepts a difference up to eb * 1.1; ALGO_BIOMD is strict.
 double bound_slack(SZ3::ALGO algo) { return algo == SZ3::ALGO_BIOMDXTC ? 1.1 : 1.0; }
 
-const char *algo_name(SZ3::ALGO algo) { return algo == SZ3::ALGO_BIOMD ? "ALGO_BIOMD" : "ALGO_BIOMDXTC"; }
+const char *algo_name(SZ3::ALGO algo) {
+    return algo == SZ3::ALGO_BIOMD ? "ALGO_BIOMD" : algo == SZ3::ALGO_BIOMDXTC ? "ALGO_BIOMDXTC" : "ALGO_MDC";
+}
 
 /// A water-box trajectory: atoms placed on a jittered lattice, then walking a little each frame.
 std::vector<float> make_trajectory(size_t frames, size_t atoms, uint32_t seed = 7) {
