@@ -47,7 +47,7 @@ std::vector<float> make_system(const SystemSpec &s, size_t *atoms) {
     const size_t n = s.chains * s.chain_len * 2 + s.waters * per_water + s.ions;
     *atoms = n;
     const double box = std::cbrt(double(n) * 0.01);
-    const double r = 0.09572, theta = 104.52 * M_PI / 180, a_vs = 0.128;  // TIP4P geometry
+    const double r = 0.09572, theta = 104.52 * 3.14159265358979323846 / 180, a_vs = 0.128;  // TIP4P geometry
     const double bonds[3] = {0.1529, 0.1335, 0.1471}, bh = 0.109;
     std::vector<Vec> O(s.waters), u(s.waters), v(s.waters), chain_dir(s.chains * s.chain_len), ion(s.ions);
     std::vector<Vec> chain0(s.chains);

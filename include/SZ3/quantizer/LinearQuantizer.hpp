@@ -67,6 +67,27 @@ public:
         return 0;
     }
 
+    // quantize_and_overwrite(data[i], 0) for all n values into out[i] + offset, without overwriting: true unless a
+    // value would go to unpred, in which case the caller quantizes again one by one. With a prediction of 0 no add
+    // follows the product, so the reconstruction needs no nofma(), and the loop has no branch.
+    bool quantize_zero_pred(const T* data, size_t n, int* out, int offset) const {
+        // the bound quantize_and_overwrite accepts (1.1 eb unless strict), and the largest scaled difference it takes
+        const double eb = this->error_bound, bound = strict_eb ? eb : eb * 1.1, limit = double(this->radius) * 2 - 1;
+        int bad = 0;
+        for (size_t i = 0; i < n; i++) {
+            const T diff = data[i];
+            const double scaled = fabs(diff) * this->error_bound_reciprocal;
+            const bool in_range = scaled < limit;  // false for NaN
+            const int half_index = (static_cast<int>(in_range ? scaled : 0.0) + 1) >> 1;
+            const int q = diff < 0 ? this->radius - half_index : this->radius + half_index;
+            const T decompressed = static_cast<T>(2.0 * (q - this->radius) * eb);
+            const double err = fabs(static_cast<double>(decompressed) - diff);
+            bad |= int(!in_range) | int(!(err <= bound));  // bitwise, so the loop has no branch
+            out[i] = q + offset;
+        }
+        return bad == 0;
+    }
+
     // recover the data using the quantization index
     ALWAYS_INLINE T recover(T pred, int quant_index) override {
         if (quant_index) {

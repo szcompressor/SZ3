@@ -29,8 +29,9 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
     bool isCmpCapSufficient = true;
     if (conf.cmprAlgo != ALGO_LOSSLESS) {
         try {
-            // reads the input without modifying it, so it needs no copy
+            // these read the input without modifying it, so they need no copy
             if (conf.cmprAlgo == ALGO_BIOMD) return SZ_compress_bioMD<T, N>(conf, data, cmpData, cmpCap);
+            if (conf.cmprAlgo == ALGO_BIOMDXTC) return SZ_compress_bioMDXtcBased<T, N>(conf, data, cmpData, cmpCap);
             std::vector<T> dataCopy(data, data + conf.num);
             if (conf.cmprAlgo == ALGO_LORENZO_REG) {
                 cmpSize = SZ_compress_LorenzoReg<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
@@ -40,8 +41,6 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
                 cmpSize = SZ_compress_Interp_lorenzo<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
             } else if (conf.cmprAlgo == ALGO_NOPRED) {
                 cmpSize = SZ_compress_nopred<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
-            } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
-                return SZ_compress_bioMDXtcBased<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
             } else {
                 throw std::invalid_argument("Unknown compression algorithm");
             }

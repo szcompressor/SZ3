@@ -18,13 +18,12 @@ def create_sz3_config(algo, path):
 
 def run_sz3_compress(sz3_executable, input_file, output_file, bound, dims, cwd, dtype_flag):
     """
-    Runs the sz3 executable for compression. dims are slowest first, as the HDF5 test and numpy take them; the
-    command line takes the fastest first.
+    Runs the sz3 executable for compression.
     """
     try:
         cmd = [sz3_executable, dtype_flag, '-i', input_file, '-z', os.path.basename(output_file), '-c', 'sz3.config',
                '-M',
-               'ABS', str(bound), f'-{len(dims)}'] + dims[::-1]
+               'ABS', str(bound), f'-{len(dims)}'] + dims
         print(f"Running sz3 compression with command: {' '.join(cmd)}")
         started = time.monotonic()
         subprocess.run(cmd, check=True, cwd=cwd)
@@ -43,7 +42,7 @@ def run_sz3_decompress(sz3_executable, compressed_file, decompressed_file, dims,
     """
     try:
         cmd = [sz3_executable, dtype_flag, '-s', os.path.basename(compressed_file), '-o',
-               os.path.basename(decompressed_file), f'-{len(dims)}'] + dims[::-1]
+               os.path.basename(decompressed_file), f'-{len(dims)}'] + dims
         print(f"Running sz3 decompression with command: {' '.join(cmd)}")
         started = time.monotonic()
         subprocess.run(cmd, check=True, cwd=cwd)

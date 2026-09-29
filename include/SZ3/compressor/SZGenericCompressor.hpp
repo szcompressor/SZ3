@@ -12,6 +12,7 @@
 #include "SZ3/def.hpp"
 #include "SZ3/encoder/Encoder.hpp"
 #include "SZ3/lossless/Lossless.hpp"
+#include "SZ3/lossless/Lossless_bypass.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/FileUtil.hpp"
 #include "SZ3/utils/Timer.hpp"
@@ -70,12 +71,15 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
 
     T *decompress(const Config &conf, uchar const *cmpData, size_t cmpSize, T *decData) override {
         uchar *buffer = nullptr;
-        size_t bufferSize = lossless.decompress(cmpData, cmpSize, buffer, 0);
+        size_t bufferSize = cmpSize;
+        // Lossless_bypass would copy the data as it is: read it in place
+        if constexpr (!std::is_same<Lossless, Lossless_bypass>::value)
+            bufferSize = lossless.decompress(cmpData, cmpSize, buffer, 0);
 
         // malloc'd by the lossless layer, hence free(). Owned, because the parsing below can throw.
         std::unique_ptr<uchar, void (*)(void *)> buffer_owner(buffer, &free);
 
-        uchar const *bufferPos = buffer;
+        uchar const *bufferPos = std::is_same<Lossless, Lossless_bypass>::value ? cmpData : buffer;
 
         decomposition.load(bufferPos, bufferSize);
         encoder.load(bufferPos, bufferSize);
