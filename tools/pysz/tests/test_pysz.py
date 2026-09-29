@@ -76,9 +76,39 @@ def test_compression():
     print("=" * 70)
 
 
+def test_small_and_integer():
+    """Small arrays and integer data fit the compression buffer"""
+    config = szConfig()
+    config.errorBoundMode = szErrorBoundMode.ABS
+    config.absErrorBound = 2
+    for data in (np.arange(5, dtype=np.float32),
+                 np.random.randint(-1000, 1000, size=(64, 64)).astype(np.int32),
+                 np.random.randint(-2**40, 2**40, size=1000).astype(np.int64)):
+        compressed, _ = sz.compress(data, config)
+        decompressed, _ = sz.decompress(compressed, data.dtype, data.shape)
+        max_error, _, _ = sz.verify(data, decompressed)
+        assert max_error <= 2, f"{data.dtype}: error {max_error} exceeds bound 2"
+
+
+def test_wrong_shape():
+    """A shape that does not match the compressed data is refused"""
+    data = np.random.rand(64, 64).astype(np.float32)
+    config = szConfig()
+    config.errorBoundMode = szErrorBoundMode.ABS
+    config.absErrorBound = 1e-3
+    compressed, _ = sz.compress(data, config)
+    try:
+        sz.decompress(compressed, data.dtype, (8, 8))
+    except ValueError:
+        return
+    raise AssertionError("decompress accepted a shape of 64 values for 4096")
+
+
 if __name__ == '__main__':
     try:
         test_compression()
+        test_small_and_integer()
+        test_wrong_shape()
         sys.exit(0)
     except Exception as e:
         print(f"\n✗ Test failed: {e}")

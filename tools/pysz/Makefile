@@ -31,4 +31,4 @@ clean:
 	@echo "✓ Cleaned!"
 
 test:
-	python tests/test_basic.py
+	python tests/test_pysz.py

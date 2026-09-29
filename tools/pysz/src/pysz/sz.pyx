@@ -6,7 +6,7 @@ cimport cython
 from cython.operator cimport dereference
 import numpy as np
 cimport numpy as cnp
-from libc.stdint cimport int8_t, int32_t, int64_t
+from libc.stdint cimport int8_t, int32_t, int64_t, uint64_t
 from libc.stddef cimport size_t
 from libc.string cimport memcpy
 from typing import Tuple
@@ -226,8 +226,15 @@ cdef class sz:
         cdef void* data_ptr = <void*> cnp.PyArray_DATA(data)
         cdef size_t original_size = data.nbytes
         
-        # Allocate buffer for compressed data (2x original size to be safe)
-        cdef size_t buffer_size = <size_t>(original_size * 2)
+        cdef size_t buffer_size = 0
+        if data.dtype == np.float32:
+            buffer_size = c_sz.SZ_compress_size_bound[float](conf.conf)
+        elif data.dtype == np.float64:
+            buffer_size = c_sz.SZ_compress_size_bound[double](conf.conf)
+        elif data.dtype == np.int32:
+            buffer_size = c_sz.SZ_compress_size_bound[int32_t](conf.conf)
+        elif data.dtype == np.int64:
+            buffer_size = c_sz.SZ_compress_size_bound[int64_t](conf.conf)
         cdef cnp.ndarray[cnp.uint8_t, ndim=1] compressed = np.empty(buffer_size, dtype=np.uint8)
         cdef char* compressed_ptr = <char*> cnp.PyArray_DATA(compressed)
         cdef size_t compressed_size = 0
@@ -316,6 +323,22 @@ cdef class sz:
         cdef char* compressed_ptr = <char*> cnp.PyArray_DATA(compressed)
         cdef size_t compressed_size = compressed.size
         cdef size_t num_elements = conf.num_elements
+
+        # SZ_decompress writes as many values as the stream holds, so check them against shape. The 16-byte header
+        # ends with the payload size, and the Config follows the payload.
+        if compressed_size < 16:
+            raise ValueError("Compressed data is smaller than the SZ3 header")
+        cdef const unsigned char* pos = <const unsigned char*> compressed_ptr + 8
+        cdef uint64_t payload_size = 0
+        c_sz.read[uint64_t](payload_size, pos)
+        if payload_size > compressed_size - 16:
+            raise ValueError("Compressed data is truncated")
+        pos += payload_size
+        cdef size_t remaining = compressed_size - 16 - payload_size
+        cdef c_sz.Config stored
+        stored.load(pos, remaining)
+        if stored.num != num_elements:
+            raise ValueError(f"shape {tuple(shape)} holds {num_elements} values, the compressed data {stored.num}")
         
         # Pre-allocate NumPy array for decompressed data
         cdef cnp.ndarray result = np.empty(num_elements, dtype=dtype)
@@ -391,6 +414,11 @@ cdef class sz:
         
         if src_data.dtype != dec_data.dtype:
             raise ValueError("Dtype mismatch between src_data and dec_data")
+
+        # Integer differences and ranges can overflow the integer type.
+        if np.issubdtype(src_data.dtype, np.integer):
+            src_data = src_data.astype(np.float64)
+            dec_data = dec_data.astype(np.float64)
         
         # Calculate data range and difference
         cdef double data_range = np.max(src_data) - np.min(src_data)
