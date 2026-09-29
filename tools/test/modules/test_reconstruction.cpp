@@ -24,13 +24,8 @@ size_t differing_values(SZ3::ALGO algo, SZ3::INTERP_ALGO interp, double eb) {
     }
 
     std::vector<SZ3::uchar> cmp(SZ3::SZ_compress_size_bound<T>(conf));
-    if (algo == SZ3::ALGO_INTERP) {
-        size_t size = SZ3::SZ_compress_Interp<T, 3>(conf, data.data(), cmp.data(), cmp.size());
-        SZ3::SZ_decompress_Interp<T, 3>(conf, cmp.data(), size, out.data());
-    } else {
-        size_t size = SZ3::SZ_compress_bioMD<T, 3>(conf, data.data(), cmp.data(), cmp.size());
-        SZ3::SZ_decompress_bioMD<T, 3>(conf, cmp.data(), size, out.data());
-    }
+    size_t size = SZ3::SZ_compress_Interp<T, 3>(conf, data.data(), cmp.data(), cmp.size());
+    SZ3::SZ_decompress_Interp<T, 3>(conf, cmp.data(), size, out.data());
     size_t differ = 0;
     for (size_t i = 0; i < conf.num; i++) {
         differ += std::memcmp(&data[i], &out[i], sizeof(T)) != 0;
@@ -55,9 +50,4 @@ TEST(SZ3_Reconstruction, InterpLinear) {
 TEST(SZ3_Reconstruction, InterpCubic) {
     expect_identical<float>(SZ3::ALGO_INTERP, SZ3::INTERP_ALGO_CUBIC);
     expect_identical<double>(SZ3::ALGO_INTERP, SZ3::INTERP_ALGO_CUBIC);
-}
-
-TEST(SZ3_Reconstruction, BioMD) {
-    expect_identical<float>(SZ3::ALGO_BIOMD, SZ3::INTERP_ALGO_CUBIC);
-    expect_identical<double>(SZ3::ALGO_BIOMD, SZ3::INTERP_ALGO_CUBIC);
 }

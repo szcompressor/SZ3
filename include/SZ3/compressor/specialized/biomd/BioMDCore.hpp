@@ -1,7 +1,7 @@
-#ifndef SZ3_MDC_CORE_HPP
-#define SZ3_MDC_CORE_HPP
+#ifndef SZ3_BIOMD_CORE_HPP
+#define SZ3_BIOMD_CORE_HPP
 
-// ALGO_MDC, part 1: lattice, bit I/O, Huffman coding, sphere / circle geometry and the detection of rigid water and
+// ALGO_BIOMD, part 1: lattice, bit I/O, Huffman coding, sphere / circle geometry and the detection of rigid water and
 // bonds.
 //
 // Every coordinate is put on the lattice q = round(x / step), |x - q step| <= eb. All prediction runs on that lattice
@@ -23,37 +23,37 @@
 #include <vector>
 #if defined(__x86_64__) || defined(_M_X64) || defined(__SSE2__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
 #include <emmintrin.h>
-#define SZ3_MDC_SSE2_ROUND 1
+#define SZ3_BIOMD_SSE2_ROUND 1
 #elif defined(__aarch64__) || defined(_M_ARM64)
 #include <arm_neon.h>
-#define SZ3_MDC_NEON_ROUND 1
+#define SZ3_BIOMD_NEON_ROUND 1
 #endif
 #if defined(_MSC_VER) && !defined(__clang__)
 #include <intrin.h>
 #endif
 
 #if defined(__GNUC__) || defined(__clang__)
-#define SZ3_MDC_INLINE inline __attribute__((always_inline))
+#define SZ3_BIOMD_INLINE inline __attribute__((always_inline))
 #elif defined(_MSC_VER)
-#define SZ3_MDC_INLINE __forceinline
+#define SZ3_BIOMD_INLINE __forceinline
 #else
-#define SZ3_MDC_INLINE inline
+#define SZ3_BIOMD_INLINE inline
 #endif
 // GCC 13 at -O3 miscompiled Huffman table construction through ipa-modref when it was inlined (correct at -O2, with
 // -fno-ipa-modref, or under sanitizers); the functions it hit carry this.
 #if defined(__GNUC__) && !defined(__clang__)
-#define SZ3_MDC_NOIPA __attribute__((noipa))
+#define SZ3_BIOMD_NOIPA __attribute__((noipa))
 #else
-#define SZ3_MDC_NOIPA
+#define SZ3_BIOMD_NOIPA
 #endif
-// Kernels for wider x86 instruction sets are compiled with target attributes and picked at run time. Not with MinGW:
-// its GCC does not align the stack for 32-byte AVX spills.
+// The frame-wide loops and the kernels of BioMDSimd.hpp are also compiled for AVX2 and picked at run time on x86. Not
+// with MinGW: its GCC does not align the stack for 32-byte AVX spills.
 #if (defined(__x86_64__) || defined(_M_X64)) && (defined(__GNUC__) || defined(__clang__)) && !defined(__MINGW32__)
-#define SZ3_MDC_X86_DISPATCH 1
+#define SZ3_BIOMD_X86_DISPATCH 1
 #endif
 
 namespace SZ3 {
-namespace mdc {
+namespace biomd {
 
 // ------------------------------------------------------------------------------------------------ bit I/O
 struct BitWriter {
@@ -141,7 +141,7 @@ struct BitReader {
         p -= n / 8;
         n = 0;
         acc = 0;
-        if (p > end) throw std::runtime_error("mdc: truncated stream");
+        if (p > end) throw std::runtime_error("SZ3 BioMD: truncated stream");
         return p;
     }
 };
@@ -153,9 +153,9 @@ static inline int64_t rnd(double y) { return int64_t(y + std::copysign(0.5, y));
 // one instruction, with no add a compiler could fuse with the multiply into an FMA: builds with and without FMA, and
 // x86 and ARM, predict the same integers. Arguments stay well inside int32.
 static inline int64_t rnd_pred(double y) {
-#if defined(SZ3_MDC_SSE2_ROUND)
+#if defined(SZ3_BIOMD_SSE2_ROUND)
     return _mm_cvtsd_si32(_mm_set_sd(y));
-#elif defined(SZ3_MDC_NEON_ROUND)
+#elif defined(SZ3_BIOMD_NEON_ROUND)
     return int64_t(vcvtnd_s64_f64(y));
 #else
     volatile double v = y;  // the store rounds the product before nearbyint sees it
@@ -180,7 +180,7 @@ static inline void put_raw(uint8_t *&p, const T &v) {
 }
 template <class T>
 static inline void get_raw(const uint8_t *&p, const uint8_t *end, T &v) {
-    if (size_t(end - p) < sizeof(T)) throw std::runtime_error("mdc: truncated stream");
+    if (size_t(end - p) < sizeof(T)) throw std::runtime_error("SZ3 BioMD: truncated stream");
     memcpy(&v, p, sizeof(T));
     p += sizeof(T);
 }
@@ -194,7 +194,7 @@ static inline void put_varint(uint8_t *&p, uint64_t v) {
 static inline uint64_t get_varint(const uint8_t *&p, const uint8_t *end) {
     uint64_t v = 0;
     for (int s = 0;; s += 7) {
-        if (p >= end || s > 63) throw std::runtime_error("mdc: truncated stream");
+        if (p >= end || s > 63) throw std::runtime_error("SZ3 BioMD: truncated stream");
         const uint8_t b = *p++;
         v |= uint64_t(b & 0x7f) << s;
         if (!(b & 0x80)) return v;
@@ -215,7 +215,7 @@ static inline int rawbits(uint32_t s) { return s < DIRECT ? 0 : int((s - DIRECT)
 
 // Length-limited Huffman code lengths for m >= 2 weights: sort packed (weight, index) keys, then the in-place
 // Moffat-Katajainen algorithm; if the longest code exceeds HMAXLEN, flatten the weights and retry.
-SZ3_MDC_NOIPA static void huff_lengths(uint64_t *f, uint32_t m, uint8_t *out) {
+SZ3_BIOMD_NOIPA static void huff_lengths(uint64_t *f, uint32_t m, uint8_t *out) {
     std::vector<uint64_t> key(m);
     std::vector<uint32_t> A(m);
     for (;;) {
@@ -300,7 +300,7 @@ struct Huff {
         for (uint32_t i = 0; i < m; i++) len[syms[i]] = l[i];
         make_codes();
     }
-    SZ3_MDC_NOIPA void make_codes() {
+    SZ3_BIOMD_NOIPA void make_codes() {
         uint32_t blcount[HMAXLEN + 2] = {0}, next[HMAXLEN + 2] = {0};
         for (uint32_t s = 0; s <= maxsym; s++) blcount[len[s]]++;
         blcount[0] = 0;
@@ -363,40 +363,6 @@ struct Huff {
             }
         }
     }
-    struct BitCounter {
-        uint64_t n = 0;
-        inline void put(uint64_t, int b) { n += uint64_t(b); }
-    };
-    uint64_t table_bits() const {
-        BitCounter c;
-        write_table(c);
-        return c.n;
-    }
-    // bits of this histogram under the code of t (without the raw low bits, the same for any code), or ~0 if t cannot
-    // code one of its symbols
-    uint64_t coded_bits_with(const Huff &t) const {
-        uint64_t b = 0;
-        for (uint32_t k = 0; k < ALPHA; k++) {
-            if (!hist[k]) continue;
-            if (!t.used) return ~uint64_t(0);
-            if (t.single >= 0) {
-                if (int32_t(k) != t.single) return ~uint64_t(0);
-                continue;
-            }
-            if (k > t.maxsym || !t.len[k]) return ~uint64_t(0);
-            b += uint64_t(hist[k]) * t.len[k];
-        }
-        return b;
-    }
-    // adopt the code of t (the histogram stays)
-    void use_code_of(const Huff &t) {
-        used = t.used;
-        single = t.single;
-        maxsym = t.maxsym;
-        memcpy(len, t.len, sizeof(len));
-        memcpy(enc, t.enc, sizeof(enc));
-    }
-
     // full = false: dtab holds one period of 2^(longest code) entries only, for a caller that masks the bits itself
     void read_table(BitReader &br, bool full = true) {
         static const uint16_t zeros[1u << HMAXLEN] = {0};
@@ -406,13 +372,13 @@ struct Huff {
         if (!used) return;
         if (br.get(1)) {
             single = int32_t(br.get(11));
-            if (single >= int32_t(ALPHA)) throw std::runtime_error("mdc: corrupt table");
+            if (single >= int32_t(ALPHA)) throw std::runtime_error("SZ3 BioMD: corrupt table");
             dtab.assign(1u << HMAXLEN, uint16_t(single << 4));
             dt = dtab.data();
             return;
         }
         maxsym = br.get(11);
-        if (maxsym >= ALPHA) throw std::runtime_error("mdc: corrupt table");
+        if (maxsym >= ALPHA) throw std::runtime_error("SZ3 BioMD: corrupt table");
         memset(len, 0, maxsym + 1);
         int prev = 6;
         for (uint32_t s = 0; s <= maxsym;) {
@@ -427,17 +393,17 @@ struct Huff {
             } else {  // '111' + gamma(run)
                 int z = 0;
                 while (br.get(1) == 0)
-                    if (++z > 12) throw std::runtime_error("mdc: corrupt table");
+                    if (++z > 12) throw std::runtime_error("SZ3 BioMD: corrupt table");
                 s += (1u << z) | (z ? br.get(z) : 0);
                 continue;
             }
-            if (prev < 1 || prev > HMAXLEN) throw std::runtime_error("mdc: corrupt table");
+            if (prev < 1 || prev > HMAXLEN) throw std::runtime_error("SZ3 BioMD: corrupt table");
             len[s++] = uint8_t(prev);
         }
         uint64_t kraft = 0;  // a decodable prefix code has sum 2^-len <= 1
         for (uint32_t k = 0; k <= maxsym; k++)
             if (len[k]) kraft += uint64_t(1) << (HMAXLEN - len[k]);
-        if (kraft > (uint64_t(1) << HMAXLEN)) throw std::runtime_error("mdc: corrupt table");
+        if (kraft > (uint64_t(1) << HMAXLEN)) throw std::runtime_error("SZ3 BioMD: corrupt table");
         make_codes();
         // entries repeat with period 2^(longest code): fill one period, then copy it
         int dbits = 1;
@@ -569,7 +535,7 @@ static inline void circle_solve(const int64_t u[3], int64_t R2, const Circle &c,
 // ------------------------------------------------------------------------------------------------ frame-wide loops
 // Written once, compiled for the baseline and (on x86) for AVX2, picked at run time. All give the same results.
 static inline bool cpu_avx2() {
-#if defined(SZ3_MDC_X86_DISPATCH)
+#if defined(SZ3_BIOMD_X86_DISPATCH)
     static const bool ok = __builtin_cpu_supports("avx2");
     return ok;
 #else
@@ -582,7 +548,7 @@ using bits_of = typename std::conditional<sizeof(T) == 4, uint32_t, uint64_t>::t
 
 // the largest |x| as bits (NaN and inf above every finite value)
 template <class T>
-SZ3_MDC_INLINE bits_of<T> max_abs_bits_body(const T *x, size_t n) {
+SZ3_BIOMD_INLINE bits_of<T> max_abs_bits_body(const T *x, size_t n) {
     using U = bits_of<T>;
     const U absmask = U(~U(0)) >> 1;
     U m = 0;
@@ -596,7 +562,7 @@ SZ3_MDC_INLINE bits_of<T> max_abs_bits_body(const T *x, size_t n) {
 }
 // q = round(x / step)
 template <class T>
-SZ3_MDC_INLINE void quantize_body(const T *x, size_t n, double inv, int32_t *q) {
+SZ3_BIOMD_INLINE void quantize_body(const T *x, size_t n, double inv, int32_t *q) {
     for (size_t i = 0; i < n; i++) {
         const double y = double(x[i]) * inv;
         q[i] = int32_t(y + std::copysign(0.5, y));
@@ -604,7 +570,7 @@ SZ3_MDC_INLINE void quantize_body(const T *x, size_t n, double inv, int32_t *q) 
 }
 // the same, and true if a value is more than slack from the lattice
 template <class T>
-SZ3_MDC_INLINE bool quantize_checked_body(const T *x, size_t n, double inv, double slack, int32_t *q) {
+SZ3_BIOMD_INLINE bool quantize_checked_body(const T *x, size_t n, double inv, double slack, int32_t *q) {
     int bad = 0;
     for (size_t i = 0; i < n; i++) {
         const double y = double(x[i]) * inv;
@@ -616,24 +582,7 @@ SZ3_MDC_INLINE bool quantize_checked_body(const T *x, size_t n, double inv, doub
 }
 constexpr int MAXOFF = 4;   // a bond partner is one of the previous MAXOFF atoms
 constexpr int MAXCLS = 15;  // bond-length classes
-// nearest of the previous MAXOFF atoms of each atom i >= MAXOFF (squared distance, offset), SoA input; branchless
-template <class T>
-SZ3_MDC_INLINE void nearest_prev_body(const T *sx, const T *sy, const T *sz, size_t N, float *best, uint8_t *off) {
-    for (size_t i = MAXOFF; i < N; i++) {
-        float bv = 1e30f;
-        uint8_t bo = 0;
-        for (int o = 1; o <= MAXOFF; o++) {
-            const float dx = float(sx[i] - sx[i - o]), dy = float(sy[i] - sy[i - o]), dz = float(sz[i] - sz[i - o]);
-            const float v = dx * dx + dy * dy + dz * dz;
-            const bool lt = v < bv;
-            bv = lt ? v : bv;
-            bo = lt ? uint8_t(o) : bo;
-        }
-        best[i] = bv;
-        off[i] = bo;
-    }
-}
-#if defined(SZ3_MDC_X86_DISPATCH)
+#if defined(SZ3_BIOMD_X86_DISPATCH)
 template <class T>
 __attribute__((target("avx2"))) static bits_of<T> max_abs_bits_avx2(const T *x, size_t n) {
     return max_abs_bits_body(x, n);
@@ -647,39 +596,27 @@ __attribute__((target("avx2"))) static bool quantize_checked_avx2(const T *x, si
                                                                   int32_t *q) {
     return quantize_checked_body(x, n, inv, slack, q);
 }
-template <class T>
-__attribute__((target("avx2"))) static void nearest_prev_avx2(const T *sx, const T *sy, const T *sz, size_t N,
-                                                              float *best, uint8_t *off) {
-    nearest_prev_body(sx, sy, sz, N, best, off);
-}
 #endif
 template <class T>
 static bits_of<T> max_abs_bits(const T *x, size_t n) {
-#if defined(SZ3_MDC_X86_DISPATCH)
+#if defined(SZ3_BIOMD_X86_DISPATCH)
     if (cpu_avx2()) return max_abs_bits_avx2(x, n);
 #endif
     return max_abs_bits_body(x, n);
 }
 template <class T>
 static void quantize(const T *x, size_t n, double inv, int32_t *q) {
-#if defined(SZ3_MDC_X86_DISPATCH)
+#if defined(SZ3_BIOMD_X86_DISPATCH)
     if (cpu_avx2()) return quantize_avx2(x, n, inv, q);
 #endif
     quantize_body(x, n, inv, q);
 }
 template <class T>
 static bool quantize_checked(const T *x, size_t n, double inv, double slack, int32_t *q) {
-#if defined(SZ3_MDC_X86_DISPATCH)
+#if defined(SZ3_BIOMD_X86_DISPATCH)
     if (cpu_avx2()) return quantize_checked_avx2(x, n, inv, slack, q);
 #endif
     return quantize_checked_body(x, n, inv, slack, q);
-}
-template <class T>
-static void nearest_prev(const T *sx, const T *sy, const T *sz, size_t N, float *best, uint8_t *off) {
-#if defined(SZ3_MDC_X86_DISPATCH)
-    if (cpu_avx2()) return nearest_prev_avx2(sx, sy, sz, N, best, off);
-#endif
-    nearest_prev_body(sx, sy, sz, N, best, off);
 }
 
 // ------------------------------------------------------------------------------------------------ layout
@@ -798,8 +735,8 @@ static void detect_water(const T *x, size_t N, Layout &L, double step) {
     double sxy = 0, sxx = 0;
     std::vector<size_t> samp;
     for (size_t i = 0; i + 3 < N && samp.size() < 512 && (i < 30000 || !samp.empty()); i++)
-        if (L.kind[i] == 0 && L.kind[i + 3] == 2) {
-            samp.push_back(i);
+        if (L.kind[i] == 0) {
+            if (L.kind[i + 3] == 2) samp.push_back(i);
             i += 2;
         }
     for (size_t i : samp)
@@ -848,59 +785,37 @@ template <class T>
 static void detect_bonds(const T *x, size_t N, Layout &L) {
     L.ref.assign(N, 0);
     L.blen.clear();
-    // runs of other atoms; each is copied to SoA after its MAXOFF predecessors (far away before atom 0)
-    thread_local std::vector<size_t> runs;
-    runs.clear();
-    size_t nother = 0;
-    for (size_t i = 0; i < N;) {
+    // Each atom of a run of other atoms takes the nearest of its previous MAXOFF atoms (in or before the run):
+    // offset dof, and the 1e-4 nm bin of the distance over 0.05 .. 0.25 nm if it is in bond range, else NB.
+    const size_t NB = 2000;
+    thread_local std::vector<uint8_t> dof;
+    thread_local std::vector<uint16_t> bin;
+    dof.assign(N, 0);
+    bin.assign(N, uint16_t(NB));
+    for (size_t i = 1; i < N;) {
         if (L.kind[i] != 2) {
             i++;
             continue;
         }
-        const size_t s0 = i;
-        while (i < N && L.kind[i] == 2) i++;
-        runs.push_back(s0);
-        runs.push_back(i);
-        nother += i - s0;
-    }
-    if (nother < 2) return;
-    const size_t M = nother + MAXOFF * runs.size() / 2;
-    thread_local std::vector<T> sx, sy, sz;
-    thread_local std::vector<float> dmin;
-    thread_local std::vector<uint8_t> dof;
-    thread_local std::vector<uint16_t> bin;
-    sx.resize(M);
-    sy.resize(M);
-    sz.resize(M);
-    dmin.resize(M);
-    dof.resize(M);
-    bin.resize(M);
-    for (size_t r = 0, p = 0; r < runs.size(); r += 2) {
-        const size_t s0 = runs[r], e0 = runs[r + 1], np = std::min<size_t>(s0, MAXOFF);
-        for (size_t k = np; k < size_t(MAXOFF); k++, p++) sx[p] = sy[p] = sz[p] = T(1e18);
-        const T *X = x + 3 * (s0 - np);
-        for (size_t k = 0; k < e0 - s0 + np; k++, p++) {
-            sx[p] = X[3 * k];
-            sy[p] = X[3 * k + 1];
-            sz[p] = X[3 * k + 2];
+        for (; i < N && L.kind[i] == 2; i++) {
+            float best = 1e30f;
+            uint8_t bo = 0;
+            for (size_t o = 1; o <= size_t(MAXOFF) && o <= i; o++) {  // branchless: the minimum is unpredictable
+                const float dx = float(x[3 * i] - x[3 * (i - o)]), dy = float(x[3 * i + 1] - x[3 * (i - o) + 1]),
+                            dz = float(x[3 * i + 2] - x[3 * (i - o) + 2]);
+                const float v = dx * dx + dy * dy + dz * dz;
+                const bool lt = v < best;
+                best = lt ? v : best;
+                bo = lt ? uint8_t(o) : bo;
+            }
+            dof[i] = bo;
+            if (best > 0.0025f && best < 0.0625f)
+                bin[i] = uint16_t(std::min(NB - 1, size_t((std::sqrt(best) - 0.05f) * 1e4f)));
         }
     }
-    nearest_prev(sx.data(), sy.data(), sz.data(), M, dmin.data(), dof.data());
-    // bond lengths in range, 1e-4 nm bins over 0.05 .. 0.25 nm; bin NB: no bond (and the predecessor slots)
-    const size_t NB = 2000;
-    for (size_t r = 0, p = 0; r < runs.size(); r += 2) {
-        for (size_t k = 0; k < size_t(MAXOFF); k++) bin[p++] = uint16_t(NB);
-        for (size_t i = runs[r]; i < runs[r + 1]; i++, p++) {
-            const float best = dmin[p];
-            const bool ok = best > 0.0025f && best < 0.0625f;
-            const size_t b = std::min(NB - 1, size_t((std::sqrt(ok ? best : 0.01f) - 0.05f) * 1e4f));
-            bin[p] = uint16_t(ok ? b : NB);
-        }
-    }
-    // four interleaved counts: neighbouring atoms often fall in the same bin
-    std::vector<uint32_t> h4(4 * (NB + 1), 0), hist(NB, 0);
-    for (size_t p = 0; p < M; p++) h4[(p & 3) * (NB + 1) + bin[p]]++;
-    for (size_t k = 0; k < NB; k++) hist[k] = h4[k] + h4[NB + 1 + k] + h4[2 * (NB + 1) + k] + h4[3 * (NB + 1) + k];
+    std::vector<uint32_t> hist(NB, 0);
+    for (size_t i = 0; i < N; i++)
+        if (bin[i] < NB) hist[bin[i]]++;
     // peaks: take the heaviest +-10-bin window, suppress +-30 bins, up to MAXCLS classes; the window sums are
     // computed once and updated as bins are suppressed
     std::vector<uint32_t> hs = hist;
@@ -951,15 +866,12 @@ static void detect_bonds(const T *x, size_t N, Layout &L) {
             }
         }
     }
-    for (size_t r = 0, p = 0; r < runs.size(); r += 2) {
-        p += MAXOFF;
-        for (size_t i = runs[r]; i < runs[r + 1]; i++, p++) {
-            const int bc = bincls[bin[p]];
-            L.ref[i] = bc >= 0 ? uint16_t(dof[p] * 16 + bc + 1) : 0;
-        }
+    for (size_t i = 0; i < N; i++) {
+        const int bc = bincls[bin[i]];
+        L.ref[i] = bc >= 0 ? uint16_t(dof[i] * 16 + bc + 1) : 0;
     }
 }
 
-}  // namespace mdc
+}  // namespace biomd
 }  // namespace SZ3
 #endif

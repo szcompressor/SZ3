@@ -127,9 +127,9 @@ herr_t H5Pset_sz3(hid_t propertyList, int cmprAlgo, int errorBoundMode, double a
                       H5Z_SZ3_ALGO_INTERP_LORENZO == SZ3::ALGO_INTERP_LORENZO &&
                       H5Z_SZ3_ALGO_INTERP == SZ3::ALGO_INTERP && H5Z_SZ3_ALGO_NOPRED == SZ3::ALGO_NOPRED &&
                       H5Z_SZ3_ALGO_LOSSLESS == SZ3::ALGO_LOSSLESS && H5Z_SZ3_ALGO_BIOMD == SZ3::ALGO_BIOMD &&
-                      H5Z_SZ3_ALGO_BIOMDXTC == SZ3::ALGO_BIOMDXTC && H5Z_SZ3_ALGO_MDC == SZ3::ALGO_MDC,
+                      H5Z_SZ3_ALGO_BIOMDXTC == SZ3::ALGO_BIOMDXTC,
                   "H5Z_SZ3.hpp algorithms must match SZ3::ALGO");
-    if (cmprAlgo < H5Z_SZ3_ALGO_LORENZO_REG || cmprAlgo > H5Z_SZ3_ALGO_MDC) {
+    if (cmprAlgo < H5Z_SZ3_ALGO_LORENZO_REG || cmprAlgo > H5Z_SZ3_ALGO_BIOMDXTC) {
         H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1, "unknown SZ3 algorithm %d", cmprAlgo);
     }
     if (errorBoundMode < H5Z_SZ3_EB_ABS || errorBoundMode > H5Z_SZ3_EB_ABS_OR_REL) {

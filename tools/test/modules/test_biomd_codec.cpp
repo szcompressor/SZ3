@@ -1,7 +1,7 @@
-// ALGO_MDC on synthetic molecular-dynamics systems: rigid 3- and 4-site water, bonded chains and ions, as GROMACS
+// ALGO_BIOMD on synthetic molecular-dynamics systems: rigid 3- and 4-site water, bonded chains and ions, as GROMACS
 // lays them out (molecules in order, water in one block). Through the public API: the bound, the fallback to
-// ALGO_BIOMD, and recompression. Through the codec: every SIMD level gives the same bytes, and corrupt or truncated
-// streams are refused without reading or writing out of bounds.
+// ALGO_INTERP_LORENZO, and recompression. Through the codec: every SIMD level gives the same bytes, and corrupt or
+// truncated streams are refused without reading or writing out of bounds.
 
 #include <algorithm>
 #include <cmath>
@@ -14,7 +14,7 @@
 #include <vector>
 
 #include "SZ3/api/sz.hpp"
-#include "SZ3/compressor/specialized/mdc/MDCodec.hpp"
+#include "SZ3/compressor/specialized/biomd/BioMDCodec.hpp"
 #include "gtest/gtest.h"
 
 namespace {
@@ -113,7 +113,7 @@ RoundTrip<T> round_trip(const std::vector<T> &x, size_t frames, size_t atoms, do
         conf = SZ3::Config(atoms, 3);
     else
         conf = SZ3::Config(frames, atoms, 3);
-    conf.cmprAlgo = SZ3::ALGO_MDC;
+    conf.cmprAlgo = SZ3::ALGO_BIOMD;
     conf.errorBoundMode = SZ3::EB_ABS;
     conf.absErrorBound = eb;
     size_t size = 0;
@@ -131,7 +131,7 @@ RoundTrip<T> round_trip(const std::vector<T> &x, size_t frames, size_t atoms, do
     return r;
 }
 
-TEST(MDC, WithinBoundAndBeatsFourBytesPerValue) {
+TEST(BioMD, WithinBoundAndBeatsFourBytesPerValue) {
     for (bool four : {false, true})
         for (size_t frames : {size_t(1), size_t(5), size_t(20)})
             for (double eb : {5e-4, 1e-3, 1e-5, 0.1}) {
@@ -142,13 +142,13 @@ TEST(MDC, WithinBoundAndBeatsFourBytesPerValue) {
                 const auto x = make_system(s, &n);
                 const auto r = round_trip(x, frames, n, eb);
                 SCOPED_TRACE(testing::Message() << "four_site=" << four << " frames=" << frames << " eb=" << eb);
-                EXPECT_EQ(r.algo, SZ3::ALGO_MDC);
+                EXPECT_EQ(r.algo, SZ3::ALGO_BIOMD);
                 EXPECT_LE(r.max_err, eb);
                 if (eb == 5e-4) EXPECT_GT(double(x.size() * 4) / double(r.bytes.size()), 3.0);
             }
 }
 
-TEST(MDC, DoubleInput) {
+TEST(BioMD, DoubleInput) {
     SystemSpec s;
     s.frames = 4;
     size_t n;
@@ -160,7 +160,7 @@ TEST(MDC, DoubleInput) {
     }
 }
 
-TEST(MDC, EdgeCasesStayWithinBound) {
+TEST(BioMD, EdgeCasesStayWithinBound) {
     std::mt19937 rng(3);
     std::uniform_real_distribution<float> U(0.f, 5.f);
     std::vector<std::pair<std::string, std::vector<float>>> cases;
@@ -201,32 +201,33 @@ TEST(MDC, EdgeCasesStayWithinBound) {
     for (const auto &c : cases) {
         const size_t atoms = c.second.size() / 3;
         const auto r = round_trip(c.second, 1, atoms, 5e-4);
-        if (atoms > 1) EXPECT_EQ(r.algo, SZ3::ALGO_MDC) << c.first;  // {1, 3} collapses to 1D, which is ALGO_BIOMD's
+        if (atoms > 1)
+            EXPECT_EQ(r.algo, SZ3::ALGO_BIOMD) << c.first;  // {1, 3} collapses to 1D, which goes to ALGO_INTERP_LORENZO
         EXPECT_LE(r.max_err, 5e-4) << c.first;
     }
 }
 
-TEST(MDC, UnrepresentableInputFallsBackToBioMD) {
+TEST(BioMD, UnrepresentableInputFallsBackToInterp) {
     SystemSpec s;
     size_t n;
     auto x = make_system(s, &n);
-    std::vector<uint8_t> buf(SZ3::mdc::compress_bound(1, n));
+    std::vector<uint8_t> buf(SZ3::biomd::compress_bound(1, n));
     {
         auto y = x;
         for (auto &v : y) v += 1e6f;  // 2^28 lattice steps of 2 eb are not enough
-        EXPECT_THROW(SZ3::mdc::compress(y.data(), 1, n, 5e-4, buf.data()), std::runtime_error);
+        EXPECT_THROW(SZ3::biomd::compress(y.data(), 1, n, 5e-4, buf.data()), std::runtime_error);
         const auto r = round_trip(y, 1, n, 5e-4);
-        EXPECT_EQ(r.algo, SZ3::ALGO_BIOMD);
+        EXPECT_NE(r.algo, SZ3::ALGO_BIOMD);  // ALGO_INTERP_LORENZO, stored as the algorithm its tuning picked
         EXPECT_LE(r.max_err, 5e-4);
     }
     for (float bad : {std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity()}) {
         auto y = x;
         y[100] = bad;
-        EXPECT_THROW(SZ3::mdc::compress(y.data(), 1, n, 5e-4, buf.data()), std::runtime_error);
+        EXPECT_THROW(SZ3::biomd::compress(y.data(), 1, n, 5e-4, buf.data()), std::runtime_error);
     }
 }
 
-TEST(MDC, TrailingFillFramesComeBackExactly) {
+TEST(BioMD, TrailingFillFramesComeBackExactly) {
     SystemSpec s;
     s.frames = 8;
     size_t n;
@@ -238,7 +239,7 @@ TEST(MDC, TrailingFillFramesComeBackExactly) {
 }
 
 // GROMACS rewrites a chunk after restarting from a checkpoint: decompress, append, compress again.
-TEST(MDC, RecompressionChangesNothing) {
+TEST(BioMD, RecompressionChangesNothing) {
     for (size_t frames : {size_t(1), size_t(6)})
         for (double eb : {5e-4, 1e-3}) {
             SystemSpec s;
@@ -252,7 +253,7 @@ TEST(MDC, RecompressionChangesNothing) {
         }
 }
 
-TEST(MDC, EverySimdLevelGivesTheSameBytes) {
+TEST(BioMD, Avx2GivesTheSameBytesAsScalar) {
     for (bool four : {false, true})
         for (size_t frames : {size_t(1), size_t(3)}) {
             SystemSpec s;
@@ -262,35 +263,30 @@ TEST(MDC, EverySimdLevelGivesTheSameBytes) {
             size_t n;
             auto x = make_system(s, &n);
             for (size_t i = s.chains * s.chain_len * 2; i + 2 < n; i += 70) x[3 * (i + 2) + 1] -= 2.5f;  // broken
-            std::vector<uint8_t> ref(SZ3::mdc::compress_bound(frames, n)), out(ref.size());
-            SZ3::mdc::Options o;
-            o.simd = SZ3::mdc::SIMD_SCALAR;
-            const size_t n0 = SZ3::mdc::compress(x.data(), frames, n, 5e-4, ref.data(), o);
-            for (int lv = 1; lv <= SZ3::mdc::simd_level(); lv++) {
-                o.simd = lv;
-                const size_t n1 = SZ3::mdc::compress(x.data(), frames, n, 5e-4, out.data(), o);
-                ASSERT_EQ(n0, n1) << "level " << lv;
-                EXPECT_EQ(0, memcmp(ref.data(), out.data(), n0)) << "level " << lv;
-            }
+            std::vector<uint8_t> a(SZ3::biomd::compress_bound(frames, n)), b(a.size());
+            const size_t na = SZ3::biomd::compress(x.data(), frames, n, 5e-4, a.data(), false);
+            const size_t nb = SZ3::biomd::compress(x.data(), frames, n, 5e-4, b.data(), true);
+            ASSERT_EQ(na, nb);
+            EXPECT_EQ(0, memcmp(a.data(), b.data(), na));
         }
 }
 
-TEST(MDC, CorruptStreamsAreRefusedOrDecodeInBounds) {
+TEST(BioMD, CorruptStreamsAreRefusedOrDecodeInBounds) {
     SystemSpec s;
     s.frames = 3;
     s.four_site = true;
     size_t n;
     const auto x = make_system(s, &n);
-    std::vector<uint8_t> buf(SZ3::mdc::compress_bound(s.frames, n));
-    const size_t size = SZ3::mdc::compress(x.data(), s.frames, n, 5e-4, buf.data());
+    std::vector<uint8_t> buf(SZ3::biomd::compress_bound(s.frames, n));
+    const size_t size = SZ3::biomd::compress(x.data(), s.frames, n, 5e-4, buf.data());
     buf.resize(size);
     std::vector<float> out(x.size());
     std::mt19937 rng(9);
     auto attempt = [&](const std::vector<uint8_t> &b) {
         try {
-            if (SZ3::mdc::stored_values(b.data(), b.size()) == out.size())
-                SZ3::mdc::decompress(b.data(), b.size(), out.data());
-        } catch (std::runtime_error &) {
+            if (SZ3::biomd::stored_values(b.data(), b.size()) == out.size())
+                SZ3::biomd::decompress(b.data(), b.size(), out.data());
+        } catch (std::exception &) {
         }
     };
     for (size_t cut = 0; cut < size; cut += std::max<size_t>(1, size / 300)) {  // truncated
