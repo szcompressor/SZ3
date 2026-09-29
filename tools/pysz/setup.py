@@ -15,7 +15,7 @@ import numpy as np
 
 
 # A released tag: a published wheel has to be buildable from a published source.
-SZ3_VERSION = "3.3.2"
+SZ3_VERSION = "3.4.0"
 
 # Both layouts, because the bundled Zstd's name and location changed after v3.3.2.
 ZSTD_HEADER_DIRS = (("tools", "zstd", "lib"), ("build", "_deps", "zstdfetched-src", "lib"))
@@ -142,7 +142,7 @@ def create_extensions():
 if __name__ == "__main__":
     setup(
         name="pysz",
-        version="1.0.3",
+        version="1.1.0",
         packages=["pysz"],
         package_dir={"": "src"},
         ext_modules=create_extensions(),
