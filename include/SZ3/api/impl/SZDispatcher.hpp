@@ -29,7 +29,7 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
     bool isCmpCapSufficient = true;
     if (conf.cmprAlgo != ALGO_LOSSLESS) {
         try {
-            // reads the input without modifying it, so it needs no copy (its fallback makes one)
+            // reads the input without modifying it, so it needs no copy
             if (conf.cmprAlgo == ALGO_BIOMD) return SZ_compress_bioMD<T, N>(conf, data, cmpData, cmpCap);
             std::vector<T> dataCopy(data, data + conf.num);
             if (conf.cmprAlgo == ALGO_LORENZO_REG) {

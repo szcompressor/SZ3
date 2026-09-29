@@ -117,8 +117,7 @@ Set the algorithm with `Config::cmprAlgo`, or `CmprAlgo` in a configuration file
 | `ALGO_LORENZO_REG` | Blockwise Lorenzo and regression prediction, the SZ2 algorithm. |
 | `ALGO_NOPRED` | Quantization without prediction: a fast baseline. |
 | `ALGO_LOSSLESS` | Zstd only. SZ3 also switches to it by itself when the error bound is 0, or when Zstd alone gives a smaller result. |
-| `ALGO_BIOMD` | Molecular-dynamics coordinates `{frames, atoms, 3}` (or `{atoms, 3}` for one frame) in nm with an absolute bound, as a GROMACS H5MD writer produces them one frame or a few frames per chunk. It codes rigid water and bonded atoms by their geometry and, from the second frame of a chunk on, picks a temporal predictor per group of atoms. Other 1D to 3D data goes to `ALGO_INTERP_LORENZO`. |
-| `ALGO_BIOMDXTC` | Molecular-dynamics coordinates with GROMACS's xtc algorithm, which can, like xtc, round a coordinate slightly past the bound. |
+| `ALGO_BIOMD`, `ALGO_BIOMDXTC` | Molecular-dynamics coordinates. `ALGO_BIOMDXTC` follows GROMACS's xtc and can, like xtc, round a coordinate slightly past the bound. |
 
 Set the error-bound mode with `Config::errorBoundMode`, or `-M` on the command line.
 

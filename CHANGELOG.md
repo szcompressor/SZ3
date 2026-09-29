@@ -315,8 +315,3 @@ Single-threaded on an Intel i9-13900K (GCC 13, `-O3`). SZ3 uses its default `ALG
 | MGARD-X | 92 | 89 | 84 |
 | SZx | 2873 | 1716 | 1584 |
 | SZp | 7161 | 3583 | 2601 |
-
-## Unreleased
-
-**Changes**
-- `ALGO_BIOMD` is a new codec for molecular-dynamics coordinates `{frames, atoms, 3}`, aimed at GROMACS H5MD with one frame or a few frames per chunk. Water is coded on the geometry of rigid 3- and 4-site models, other atoms on spheres of detected bond lengths around a nearby atom, and each group of atoms picks its own temporal predictor from the second frame of a chunk on. At ABS 5e-4 nm over 16 trajectories, one frame per chunk gives ratios 24% above xtc and chunks of 20 frames 48% above; one-frame chunks of 12k-atom water compress at about xtc's speed. Decoding gives the same values on every platform and compiler, with or without FMA. Other 1D to 3D data goes to `ALGO_INTERP_LORENZO`. `ALGO_BIOMD` streams written by 3.4.0 cannot be read.

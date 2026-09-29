@@ -282,6 +282,9 @@ def run_datasets(datasets, data_dir, script_dir, sz3_executable_path, h5_plugin_
             dtype = field_info.get("dtype", "float32")
             
             for algo in algorithms:
+                # ALGO_BIOMD takes coordinates {frames, atoms, 3} only
+                if algo == "ALGO_BIOMD" and dims[-1] != 3:
+                    continue
                 for eb in error_bounds:
                     data_file = os.path.join(actual_data_dir, field)
                     if not os.path.isfile(data_file):

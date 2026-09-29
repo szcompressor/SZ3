@@ -1,6 +1,6 @@
 // ALGO_BIOMD on synthetic molecular-dynamics systems: rigid 3- and 4-site water, bonded chains and ions, as GROMACS
-// lays them out (molecules in order, water in one block). Through the public API: the bound, the fallback to
-// ALGO_INTERP_LORENZO, and recompression. Through the codec: every SIMD level gives the same bytes, and corrupt or
+// lays them out (molecules in order, water in one block). Through the public API: the bound, the input it refuses,
+// and recompression. Through the codec: every SIMD level gives the same bytes, and corrupt or
 // truncated streams are refused without reading or writing out of bounds.
 
 #include <algorithm>
@@ -154,7 +154,7 @@ TEST(BioMD, DoubleInput) {
     size_t n;
     const auto xf = make_system(s, &n);
     const std::vector<double> x(xf.begin(), xf.end());
-    for (double eb : {5e-4, 1e-9}) {
+    for (double eb : {5e-4, 1e-7}) {
         const auto r = round_trip(x, s.frames, n, eb);
         EXPECT_LE(r.max_err, eb) << "eb=" << eb;
     }
@@ -164,7 +164,7 @@ TEST(BioMD, EdgeCasesStayWithinBound) {
     std::mt19937 rng(3);
     std::uniform_real_distribution<float> U(0.f, 5.f);
     std::vector<std::pair<std::string, std::vector<float>>> cases;
-    for (size_t n : {1, 2, 3, 4, 5, 7}) {
+    for (size_t n : {2, 3, 4, 5, 7}) {  // {1, 3} collapses to 1D
         std::vector<float> x(3 * n);
         for (auto &v : x) v = U(rng);
         cases.push_back({"tiny N=" + std::to_string(n), x});
@@ -207,23 +207,31 @@ TEST(BioMD, EdgeCasesStayWithinBound) {
     }
 }
 
-TEST(BioMD, UnrepresentableInputFallsBackToInterp) {
+TEST(BioMD, RefusesWhatItCannotCode) {
+    auto compress = [](const std::vector<float> &x, const std::vector<size_t> &dims) {
+        SZ3::Config conf;
+        conf.setDims(dims.begin(), dims.end());
+        conf.cmprAlgo = SZ3::ALGO_BIOMD;
+        conf.errorBoundMode = SZ3::EB_ABS;
+        conf.absErrorBound = 5e-4;
+        size_t size = 0;
+        delete[] SZ_compress(conf, x.data(), size);
+    };
     SystemSpec s;
     size_t n;
-    auto x = make_system(s, &n);
-    std::vector<uint8_t> buf(SZ3::biomd::compress_bound(1, n));
+    const auto x = make_system(s, &n);
+    EXPECT_THROW(compress(x, {x.size()}), std::invalid_argument);
+    EXPECT_NO_THROW(compress(x, {n, 3}));
+    EXPECT_THROW(compress(x, {3, n}), std::invalid_argument);
     {
         auto y = x;
         for (auto &v : y) v += 1e6f;  // 2^28 lattice steps of 2 eb are not enough
-        EXPECT_THROW(SZ3::biomd::compress(y.data(), 1, n, 5e-4, buf.data()), std::runtime_error);
-        const auto r = round_trip(y, 1, n, 5e-4);
-        EXPECT_NE(r.algo, SZ3::ALGO_BIOMD);  // ALGO_INTERP_LORENZO, stored as the algorithm its tuning picked
-        EXPECT_LE(r.max_err, 5e-4);
+        EXPECT_THROW(compress(y, {n, 3}), std::runtime_error);
     }
     for (float bad : {std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity()}) {
         auto y = x;
         y[100] = bad;
-        EXPECT_THROW(SZ3::biomd::compress(y.data(), 1, n, 5e-4, buf.data()), std::runtime_error);
+        EXPECT_THROW(compress(y, {n, 3}), std::runtime_error);
     }
 }
 
