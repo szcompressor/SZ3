@@ -1,7 +1,6 @@
 // ALGO_BIOMD on synthetic molecular-dynamics systems: rigid 3- and 4-site water, bonded chains and ions, as GROMACS
-// lays them out (molecules in order, water in one block). Through the public API: the bound, the input it refuses,
-// and recompression. Through the codec: corrupt or truncated streams are refused without reading or writing out of
-// bounds.
+// lays them out (molecules in order, water in one block): the bound, the input it refuses, recompression, and corrupt
+// or truncated streams, which are refused without reading or writing out of bounds.
 
 #include <algorithm>
 #include <cmath>
@@ -14,7 +13,6 @@
 #include <vector>
 
 #include "SZ3/api/sz.hpp"
-#include "SZ3/compressor/specialized/biomd/BioMDCodec.hpp"
 #include "gtest/gtest.h"
 
 namespace {
@@ -288,25 +286,31 @@ TEST(BioMD, CorruptStreamsAreRefusedOrDecodeInBounds) {
     s.four_site = true;
     size_t n;
     const auto x = make_system(s, &n);
-    std::vector<uint8_t> buf(SZ3::biomd::compress_bound(s.frames, n));
-    const size_t size = SZ3::biomd::compress(x.data(), s.frames, n, 5e-4, buf.data());
-    buf.resize(size);
+    const auto r = round_trip(x, s.frames, n, 5e-4);
+    // SZ3's stream: 16-byte header (magic, version, payload size), the payload, then the config
+    uint64_t payload = 0;
+    memcpy(&payload, r.bytes.data() + 8, 8);
+    ASSERT_LT(16 + payload, r.bytes.size());
     std::vector<float> out(x.size());
     std::mt19937 rng(9);
-    auto attempt = [&](const std::vector<uint8_t> &b) {
+    auto attempt = [&](std::vector<char> b) {
         try {
-            if (SZ3::biomd::stored_values(b.data(), b.size()) == out.size())
-                SZ3::biomd::decompress(b.data(), b.size(), out.data());
+            SZ3::Config dconf;
+            float *o = out.data();
+            SZ_decompress(dconf, b.data(), b.size(), o);
         } catch (std::exception &) {
         }
     };
-    for (size_t cut = 0; cut < size; cut += std::max<size_t>(1, size / 300)) {  // truncated
-        std::vector<uint8_t> b(buf.begin(), buf.begin() + cut);
+    for (size_t cut = 16; cut < 16 + payload; cut += std::max<size_t>(1, payload / 300)) {  // payload truncated
+        std::vector<char> b(r.bytes.begin(), r.bytes.begin() + cut);
+        b.insert(b.end(), r.bytes.begin() + 16 + payload, r.bytes.end());
+        const uint64_t p = cut - 16;
+        memcpy(b.data() + 8, &p, 8);
         attempt(b);
     }
-    for (int k = 0; k < 300; k++) {  // bytes changed after the size fields
-        auto b = buf;
-        for (int m = 0; m < 4; m++) b[12 + rng() % (size - 12)] ^= uint8_t(1 + rng() % 255);
+    for (int k = 0; k < 300; k++) {  // payload bytes changed
+        auto b = r.bytes;
+        for (int m = 0; m < 4; m++) b[16 + rng() % payload] ^= char(1 + rng() % 255);
         attempt(b);
     }
     SUCCEED();
