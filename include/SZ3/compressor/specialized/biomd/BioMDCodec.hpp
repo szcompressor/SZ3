@@ -8,8 +8,8 @@
 // that group (frame 0 of a chunk, and so every one-frame chunk, is all intra):
 //
 //   water O      0 intra: box lattice, mixed radix    1 x[t-1]        2 2x[t-1] - x[t-2]
-//   water H/M    0 intra: sphere + circle geometry    1 O->H vectors of t-1, then the same sphere/circle constraints
-//                                                     2 O->H vectors extrapolated from t-1, t-2, then the constraints
+//   water H/M    0 intra: H on the sphere around O    1 O->H vectors of t-1, then the sphere constraint
+//                (M from H1 and H2)                  2 O->H vectors extrapolated from t-1, t-2, then the sphere
 //   bonded       0 intra: bond sphere around parent   1 parent->atom vector of t-1 + bond sphere   2 extrapolated
 //                3 x[t-1] (for 'bonds' that are not: molecules split over the periodic boundary)
 //   unbonded     0 x[i-1] of this frame   1 x[t-1]   2 2x[t-1] - x[t-2]   3 x[t-1] + (x[i-1] - x[i-1] at t-1)
@@ -21,15 +21,14 @@
 // the group modes, the water box, the Huffman tables and the symbols.
 
 #include "SZ3/compressor/specialized/biomd/BioMDCore.hpp"
-#include "SZ3/compressor/specialized/biomd/BioMDSimd.hpp"
 
 namespace SZ3 {
 namespace biomd {
 
 enum { G_O, G_WH, G_NB, G_NU, NGROUP };
-// S_FACE / S_BF: cube face and radial residual in one symbol; S_RS: the two circle residuals and the side bit;
-// S_MJ: the three virtual-site residuals. Values too large for a joint symbol escape to S_E / S_BE, S_R, S_M.
-enum { S_O, S_FACE, S_KEPT, S_E, S_V, S_R, S_M, S_BF, S_BK, S_BE, S_U, S_RS, S_MJ, NS };
+// S_FACE / S_BF: cube face and radial residual in one symbol; S_MJ: the three virtual-site residuals. Values too
+// large for a joint symbol escape to S_E / S_BE, S_M.
+enum { S_O, S_FACE, S_KEPT, S_E, S_M, S_BF, S_BK, S_BE, S_U, S_MJ, NS };
 constexpr int NMODE[NGROUP] = {3, 3, 4, 4};
 constexpr uint32_t MAGIC = 0x3144424d;  // "MBD1"
 constexpr int64_t PCLAMP = int64_t(1) << 29;
@@ -139,16 +138,6 @@ static inline void put_fe(Sink &k, int s, int se, uint32_t face, uint32_t ze) {
     }
 }
 template <class Sink>
-static inline void put_rs(Sink &k, uint32_t r1, uint32_t r2, uint32_t side) {
-    if (r1 < 7 && r2 < 7) {
-        k.sym(S_RS, ((r1 * 7 + r2) << 1) | side);
-    } else {
-        k.sym(S_RS, 98 + side);
-        k.sym(S_R, r1);
-        k.sym(S_R, r2);
-    }
-}
-template <class Sink>
 static inline void put_m3(Sink &k, const uint32_t z[3]) {
     if (z[0] < 5 && z[1] < 5 && z[2] < 5) {
         k.sym(S_MJ, (z[0] * 5 + z[1]) * 5 + z[2]);
@@ -187,8 +176,7 @@ static inline void box_bits(uint64_t Rx, uint64_t Ry, uint64_t Rz, int &obits, i
 struct FrameCtx {
     const int32_t *q, *qp, *qpp;
     const Layout *L;
-    int64_t R2;
-    double Rc2R, invR2;  // see circle_setup
+    int64_t R2;  // squared O-H distance of water (lattice units)
     const std::vector<int64_t> *BR2;
     // water O box
     int32_t omin[3];
@@ -223,54 +211,34 @@ static inline void enc_O(const FrameCtx &C, int m, size_t i, Sink &k) {
 template <class Sink>
 static inline void enc_WH(const FrameCtx &C, int m, size_t i, Sink &k) {
     const int32_t *O = &C.q[3 * i];
-    int64_t d[3], hv[3];
-    rel(C.q, i + 1, i, d);
-    rel(C.q, i + 2, i, hv);
-    Circle cc;
-    int64_t xs[2], ys[2];
-    if (m == 0) {
-        SphereCode sc = sphere_encode(d, C.R2);
-        put_fe(k, S_FACE, S_E, sc.face, zz(sc.e));
-        k.sym(S_KEPT, zz(sc.a));
-        k.sym(S_KEPT, zz(sc.b));
-        circle_setup(d, C.Rc2R, C.R2, C.invR2, cc);
-        int64_t hk = hv[cc.k];
-        circle_solve(d, C.R2, cc, hk, xs, ys);
-        int sg = std::llabs(hv[cc.i] - xs[1]) + std::llabs(hv[cc.j] - ys[1]) <
-                 std::llabs(hv[cc.i] - xs[0]) + std::llabs(hv[cc.j] - ys[0]);
-        k.sym(S_V, zz(hk - cc.ck));
-        put_rs(k, zz(hv[cc.i] - xs[sg]), zz(hv[cc.j] - ys[sg]), uint32_t(sg));
-    } else {
-        int64_t p[3], p2[3];
-        rel(C.qp, i + 1, i, p);
-        rel(C.qp, i + 2, i, p2);
-        if (m == 2) {
-            int64_t pp[3], pp2[3];
-            rel(C.qpp, i + 1, i, pp);
-            rel(C.qpp, i + 2, i, pp2);
-            for (int c = 0; c < 3; c++) {
-                p[c] = clampp(2 * p[c] - pp[c]);
-                p2[c] = clampp(2 * p2[c] - pp2[c]);
+    int64_t d[2][3];
+    rel(C.q, i + 1, i, d[0]);
+    rel(C.q, i + 2, i, d[1]);
+    for (int h = 0; h < 2; h++) {
+        if (m == 0) {
+            SphereCode sc = sphere_encode(d[h], C.R2);
+            put_fe(k, S_FACE, S_E, sc.face, zz(sc.e));
+            k.sym(S_KEPT, zz(sc.a));
+            k.sym(S_KEPT, zz(sc.b));
+        } else {
+            int64_t p[3];
+            rel(C.qp, i + 1 + h, i, p);
+            if (m == 2) {
+                int64_t pp[3];
+                rel(C.qpp, i + 1 + h, i, pp);
+                for (int c = 0; c < 3; c++) p[c] = clampp(2 * p[c] - pp[c]);
             }
+            int64_t ra, rb, e;
+            sph_pred_enc(d[h], p, C.R2, ra, rb, e);
+            k.sym(S_KEPT, zz(ra));
+            k.sym(S_KEPT, zz(rb));
+            k.sym(S_E, zz(e));
         }
-        int64_t ra, rb, e;
-        sph_pred_enc(d, p, C.R2, ra, rb, e);
-        k.sym(S_KEPT, zz(ra));
-        k.sym(S_KEPT, zz(rb));
-        k.sym(S_E, zz(e));
-        circle_setup(d, C.Rc2R, C.R2, C.invR2, cc);
-        int64_t hk = hv[cc.k];
-        circle_solve(d, C.R2, cc, hk, xs, ys);
-        int sg = std::llabs(hv[cc.i] - xs[1]) + std::llabs(hv[cc.j] - ys[1]) <
-                 std::llabs(hv[cc.i] - xs[0]) + std::llabs(hv[cc.j] - ys[0]);
-        int sp = std::llabs(p2[cc.i] - xs[1]) + std::llabs(p2[cc.j] - ys[1]) <
-                 std::llabs(p2[cc.i] - xs[0]) + std::llabs(p2[cc.j] - ys[0]);
-        k.sym(S_V, zz(hk - p2[cc.k]));
-        put_rs(k, zz(hv[cc.i] - xs[sg]), zz(hv[cc.j] - ys[sg]), uint32_t(sg ^ sp));
     }
     if (C.L->nsite == 4) {
         uint32_t z[3];
-        for (int c = 0; c < 3; c++) z[c] = zz(int64_t(O[9 + c]) - O[c] - rnd_pred(C.L->vs_a * double(d[c] + hv[c])));
+        for (int c = 0; c < 3; c++)
+            z[c] = zz(int64_t(O[9 + c]) - O[c] - rnd_pred(C.L->vs_a * double(d[0][c] + d[1][c])));
         put_m3(k, z);
     }
 }
@@ -350,22 +318,21 @@ static inline void encode_runs(const std::vector<uint32_t> &wo, int nsite, std::
 inline size_t compress_bound(size_t F, size_t N) { return 512 + N * 8 + F * (N * 3 * 9 + 12 * 4096); }
 
 template <class T>
-size_t compress_impl(const T *src, size_t F, size_t N, double eb, uint8_t *out, bool avx2, double forced_step);
+size_t compress_impl(const T *src, size_t F, size_t N, double eb, uint8_t *out, double forced_step);
 
 // Compresses F frames of N atoms (x, y, z per atom, nm) with absolute bound eb into out, which must hold
 // compress_bound(F, N) bytes. Throws std::runtime_error for input it cannot represent (non-finite values, a bound too
-// small for the coordinate range, too many atoms); the caller codes those some other way. avx2 = false runs the scalar
-// code only, which gives the same bytes.
+// small for the coordinate range, too many atoms); the caller codes those some other way.
 template <class T>
-size_t compress(const T *src, size_t F, size_t N, double eb, uint8_t *out, bool avx2 = true) {
+size_t compress(const T *src, size_t F, size_t N, double eb, uint8_t *out) {
     static_assert(std::is_floating_point<T>::value, "SZ3 BioMD: float or double coordinates");
     if (N > (size_t(1) << 30) || F > (size_t(1) << 30) || !(eb > 0))
         throw std::runtime_error("SZ3 BioMD: unsupported size or bound");
-    return compress_impl(src, F, N, eb, out, avx2, 0);
+    return compress_impl(src, F, N, eb, out, 0);
 }
 
 template <class T>
-size_t compress_impl(const T *src, size_t F, size_t N, double eb, uint8_t *out, bool avx2, double forced_step) {
+size_t compress_impl(const T *src, size_t F, size_t N, double eb, uint8_t *out, double forced_step) {
     uint8_t *p = out;
     // trailing frames that are all one value (the unwritten rest of a chunk) are stored as that value
     size_t nfill = 0;
@@ -436,11 +403,8 @@ size_t compress_impl(const T *src, size_t F, size_t N, double eb, uint8_t *out, 
     thread_local Layout LB;
     detect_water(src, N, LB, step);
     int64_t R2 = 0;
-    double Rc = 0;
     if (LB.r > 0 && LB.r / step < 16384) {
-        const double Ru = LB.r / step, cth = (2 * LB.r * LB.r - LB.rhh * LB.rhh) / (2 * LB.r * LB.r);
-        R2 = rnd(Ru * Ru);
-        Rc = Ru * cth;
+        R2 = rnd((LB.r / step) * (LB.r / step));
     } else {  // no water, or too many lattice steps across one for exact products
         std::fill(LB.kind.begin(), LB.kind.end(), 2);
         LB.nsite = 3;
@@ -463,7 +427,6 @@ size_t compress_impl(const T *src, size_t F, size_t N, double eb, uint8_t *out, 
     for (size_t i = 0; i < N; i++)
         if (LB.kind[i] == 2) ubuf[LB.ref[i] ? 0 : 1].push_back(uint32_t(i));
     const Layout &L = LB;
-    const double Rc2R = R2 > 0 ? Rc / (2.0 * std::sqrt(double(R2))) : 0.0, invR2 = R2 > 0 ? 1.0 / double(R2) : 0.0;
 
     // --- header
     put_raw(p, MAGIC);
@@ -473,7 +436,6 @@ size_t compress_impl(const T *src, size_t F, size_t N, double eb, uint8_t *out, 
     put_raw(p, fill);
     put_raw(p, step);
     put_raw(p, R2);
-    put_raw(p, Rc);
     *p++ = uint8_t(L.nsite);
     put_raw(p, L.vs_a);
     *p++ = uint8_t(L.blen.size());
@@ -538,8 +500,6 @@ size_t compress_impl(const T *src, size_t F, size_t N, double eb, uint8_t *out, 
         std::vector<int32_t> b[3];
         std::vector<Tok> seq;  // sized for the largest frame seen
         Huff H[NS];            // this frame's tables
-        WaterBatch wb;
-        SphereBatch sb;
         std::vector<uint32_t> hist[NS], touched[NS];
     };
     thread_local Work W;
@@ -551,17 +511,14 @@ size_t compress_impl(const T *src, size_t F, size_t N, double eb, uint8_t *out, 
     int32_t *q = W.b[0].data(), *qp = W.b[1].data(), *qpp = W.b[2].data();
     EstSink est{W.hist, W.touched};
 
-    const Kernels K = simd_kernels(avx2);
-    bool nb_small = true;  // the batch needs exact products: squared bond lengths below 2^22
-    for (int64_t b : BR2) nb_small &= b < (int64_t(1) << 22);
     int mode[NGROUP] = {0, 0, 0, 0};
     for (size_t t = 0; t < F; t++) {
         const T *X = src + t * N * 3;
         if (step_proven)
             quantize(X, N * 3, inv, q);
         else if (quantize_checked(X, N * 3, inv, grid_slack, q))
-            return compress_impl(src, Ftot, N, eb, out, avx2, proven_step);
-        FrameCtx C{q, qp, qpp, &L, R2, Rc2R, invR2, &BR2, {0, 0, 0}, 1, 1, 1, 0, {0, 0, 0}, true};
+            return compress_impl(src, Ftot, N, eb, out, proven_step);
+        FrameCtx C{q, qp, qpp, &L, R2, &BR2, {0, 0, 0}, 1, 1, 1, 0, {0, 0, 0}, true};
         if (!units[G_O]->empty()) {
             int32_t mn[3] = {INT32_MAX, INT32_MAX, INT32_MAX}, mx[3] = {INT32_MIN, INT32_MIN, INT32_MIN};
             for (uint32_t i : *units[G_O])
@@ -612,81 +569,20 @@ size_t compress_impl(const T *src, size_t F, size_t N, double eb, uint8_t *out, 
                 }
             }
         }
-        // --- intra water geometry of the whole frame in one SIMD batch (bit-identical to enc_WH, mode 0)
-        const bool batch = mode[G_WH] == 0 && K.water && R2 > 0 && R2 < (int64_t(1) << 22) && !units[G_O]->empty();
-        if (batch) {
-            const auto &u = *units[G_O];
-            WaterBatch &B = W.wb;
-            B.resize(u.size());
-            for (size_t w = 0; w < u.size(); w++) {
-                const int32_t *O = &q[3 * u[w]];
-                B.dx[w] = double(O[3] - O[0]);
-                B.dy[w] = double(O[4] - O[1]);
-                B.dz[w] = double(O[5] - O[2]);
-                B.hx[w] = double(O[6] - O[0]);
-                B.hy[w] = double(O[7] - O[1]);
-                B.hz[w] = double(O[8] - O[2]);
-                if (L.nsite == 4) {
-                    B.mx[w] = double(O[9] - O[0]);
-                    B.my[w] = double(O[10] - O[1]);
-                    B.mz[w] = double(O[11] - O[2]);
-                }
-            }
-            for (size_t w = u.size(); w < u.size() + SIMD_PAD; w++)
-                B.dx[w] = B.dy[w] = B.dz[w] = B.hx[w] = B.hy[w] = B.hz[w] = B.mx[w] = B.my[w] = B.mz[w] = 0;
-            K.water(B, u.size(), R2, Rc2R, invR2, L.nsite == 4, L.vs_a);
-        }
-        // --- intra sphere code of the bonded atoms in one batch (bit-identical to enc_NB, mode 0)
-        const bool nbatch = mode[G_NB] == 0 && K.sphere && nb_small && !units[G_NB]->empty();
-        if (nbatch) {
-            const auto &u = *units[G_NB];
-            SphereBatch &B = W.sb;
-            B.resize(u.size());
-            for (size_t w = 0; w < u.size(); w++) {
-                const size_t i = u[w], j = i - (L.ref[i] >> 4);
-                B.dx[w] = double(q[3 * i] - q[3 * j]);
-                B.dy[w] = double(q[3 * i + 1] - q[3 * j + 1]);
-                B.dz[w] = double(q[3 * i + 2] - q[3 * j + 2]);
-                B.r2[w] = double(BR2[(L.ref[i] & 15) - 1]);
-            }
-            for (size_t w = u.size(); w < u.size() + SIMD_PAD; w++) B.dx[w] = B.dy[w] = B.dz[w] = B.r2[w] = 0;
-            K.sphere(B, u.size());
-        }
         // --- symbols in atom order
         Huff *H = W.H;
         for (int s = 0; s < NS; s++) H[s].reset();
         StoreSink sink{W.seq.data(), H};
-        size_t iw = 0, ib = 0;
         for (size_t i = 0; i < N; i++) {
             const int k = L.kind[i];
-            if (k == 0 && batch) {
-                enc_O(C, mode[G_O], i, sink);
-                const WaterBatch &B = W.wb;
-                put_fe(sink, S_FACE, S_E, uint32_t(B.face[iw]), zz(B.e[iw]));
-                sink.sym(S_KEPT, zz(B.a[iw]));
-                sink.sym(S_KEPT, zz(B.b[iw]));
-                sink.sym(S_V, zz(B.v[iw]));
-                put_rs(sink, zz(B.r1[iw]), zz(B.r2[iw]), uint32_t(B.side[iw]));
-                if (L.nsite == 4) {
-                    const uint32_t z[3] = {zz(B.m0[iw]), zz(B.m1[iw]), zz(B.m2[iw])};
-                    put_m3(sink, z);
-                }
-                iw++;
-            } else if (k == 0) {
+            if (k == 0) {
                 enc_O(C, mode[G_O], i, sink);
                 enc_WH(C, mode[G_WH], i, sink);
             } else if (k == 2) {
-                if (!L.ref[i]) {
-                    enc_NU(C, mode[G_NU], i, sink);
-                } else if (nbatch) {
-                    const SphereBatch &B = W.sb;
-                    put_fe(sink, S_BF, S_BE, uint32_t(B.face[ib]), zz(B.e[ib]));
-                    sink.sym(S_BK, zz(B.a[ib]));
-                    sink.sym(S_BK, zz(B.b[ib]));
-                    ib++;
-                } else {
+                if (L.ref[i])
                     enc_NB(C, mode[G_NB], i, sink);
-                }
+                else
+                    enc_NU(C, mode[G_NU], i, sink);
             }
         }
         for (int s = 0; s < NS; s++) H[s].build();
@@ -734,19 +630,6 @@ struct Src {
         ze = v & 15;
         if (ze == 15) ze = sym(se);
     }
-    inline void rs(uint32_t &r1, uint32_t &r2, uint32_t &side) {
-        uint32_t v = sym(S_RS);
-        if (v < 98) {
-            side = v & 1;
-            v >>= 1;
-            r1 = v / 7;
-            r2 = v % 7;
-        } else {
-            side = (v - 98) & 1;
-            r1 = sym(S_R);
-            r2 = sym(S_R);
-        }
-    }
     inline void m3(uint32_t z[3]) {
         uint32_t v = sym(S_MJ);
         if (v < 125) {
@@ -777,7 +660,7 @@ void decompress(const uint8_t *in, size_t size, T *dst) {
     const uint8_t *p = in, *end = in + size;
     uint32_t magic, N32, F32, nfill32;
     T fill;
-    double step, Rc, vs_a;
+    double step, vs_a;
     int64_t R2;
     get_raw(p, end, magic);
     get_raw(p, end, N32);
@@ -786,7 +669,6 @@ void decompress(const uint8_t *in, size_t size, T *dst) {
     get_raw(p, end, fill);
     get_raw(p, end, step);
     get_raw(p, end, R2);
-    get_raw(p, end, Rc);
     if (nfill32 >= F32 && F32 > 0) throw std::runtime_error("SZ3 BioMD: corrupt fill count");
     for (size_t i = size_t(F32 - nfill32) * N32 * 3; i < size_t(F32) * N32 * 3; i++) dst[i] = fill;
     const size_t N = N32, F = F32 - nfill32;
@@ -804,7 +686,6 @@ void decompress(const uint8_t *in, size_t size, T *dst) {
         get_raw(p, end, b);  // classes of RMAXB2 or more are stored but no atom refers to them
         if (b < 0) throw std::runtime_error("SZ3 BioMD: bad bond length");
     }
-    const double Rc2R = R2 > 0 ? Rc / (2.0 * std::sqrt(double(R2))) : 0.0, invR2 = R2 > 0 ? 1.0 / double(R2) : 0.0;
     L.kind.assign(N, 2);
     {
         const uint64_t nr = get_varint(p, end);
@@ -873,15 +754,16 @@ void decompress(const uint8_t *in, size_t size, T *dst) {
         }
         p = br.align();
     }
-    std::vector<int32_t> B[3];
-    for (auto &b : B) b.assign(N * 3, 0);
-    std::vector<Huff> HD(NS);
+    // per thread, for their buffers; every value of a frame is written before it is read
+    thread_local std::vector<int32_t> B[3];
+    for (auto &b : B) b.resize(N * 3);
+    thread_local std::vector<Huff> HD(NS);
     int32_t *q = B[0].data(), *qp = B[1].data(), *qpp = B[2].data();
     for (size_t t = 0; t < F; t++) {
         BitReader br(p, end);
         int mode[NGROUP];
         for (int g = 0; g < NGROUP; g++) mode[g] = int(br.get(2));
-        FrameCtx C{q, qp, qpp, &L, R2, Rc2R, invR2, &BR2, {0, 0, 0}, 1, 1, 1, 0, {0, 0, 0}, true};
+        FrameCtx C{q, qp, qpp, &L, R2, &BR2, {0, 0, 0}, 1, 1, 1, 0, {0, 0, 0}, true};
         if (nwat && mode[G_O] == 0) {
             for (int c = 0; c < 3; c++) C.omin[c] = int32_t(br.get(32));
             C.Rx = uint64_t(br.get(32)) + 1;
@@ -915,58 +797,31 @@ void decompress(const uint8_t *in, size_t size, T *dst) {
                     }
                 }
                 const int mw = mode[G_WH];
-                int64_t d[3], hv[3];
-                Circle cc;
-                int64_t xs[2], ys[2];
-                if (mw == 0) {
-                    uint32_t face, ze, r1, r2, side;
-                    S.fe(S_FACE, S_E, face, ze);
-                    int64_t a = unzz(S.sym(S_KEPT)), b = unzz(S.sym(S_KEPT));
-                    sphere_decode(face, a, b, unzz(ze), R2, d);
-                    circle_setup(d, Rc2R, R2, invR2, cc);
-                    int64_t hk = cc.ck + unzz(S.sym(S_V));
-                    S.rs(r1, r2, side);
-                    const int sg = int(side);
-                    circle_solve(d, R2, cc, hk, xs, ys);
-                    hv[cc.k] = hk;
-                    hv[cc.i] = xs[sg] + unzz(r1);
-                    hv[cc.j] = ys[sg] + unzz(r2);
-                } else {
-                    int64_t pv[3], p2[3];
-                    rel(qp, i + 1, i, pv);
-                    rel(qp, i + 2, i, p2);
-                    if (mw == 2) {
-                        int64_t pp[3], pp2[3];
-                        rel(qpp, i + 1, i, pp);
-                        rel(qpp, i + 2, i, pp2);
-                        for (int c = 0; c < 3; c++) {
-                            pv[c] = clampp(2 * pv[c] - pp[c]);
-                            p2[c] = clampp(2 * p2[c] - pp2[c]);
+                int64_t d[2][3];
+                for (int h = 0; h < 2; h++) {
+                    if (mw == 0) {
+                        uint32_t face, ze;
+                        S.fe(S_FACE, S_E, face, ze);
+                        int64_t a = unzz(S.sym(S_KEPT)), b = unzz(S.sym(S_KEPT));
+                        sphere_decode(face, a, b, unzz(ze), R2, d[h]);
+                    } else {
+                        int64_t pv[3];
+                        rel(qp, i + 1 + h, i, pv);
+                        if (mw == 2) {
+                            int64_t pp[3];
+                            rel(qpp, i + 1 + h, i, pp);
+                            for (int c = 0; c < 3; c++) pv[c] = clampp(2 * pv[c] - pp[c]);
                         }
+                        int64_t ra = unzz(S.sym(S_KEPT)), rb = unzz(S.sym(S_KEPT)), e = unzz(S.sym(S_E));
+                        sph_pred_dec(pv, R2, ra, rb, e, d[h]);
                     }
-                    int64_t ra = unzz(S.sym(S_KEPT)), rb = unzz(S.sym(S_KEPT)), e = unzz(S.sym(S_E));
-                    sph_pred_dec(pv, R2, ra, rb, e, d);
-                    circle_setup(d, Rc2R, R2, invR2, cc);
-                    int64_t hk = p2[cc.k] + unzz(S.sym(S_V));
-                    uint32_t r1, r2, side;
-                    S.rs(r1, r2, side);
-                    circle_solve(d, R2, cc, hk, xs, ys);
-                    int sp = std::llabs(p2[cc.i] - xs[1]) + std::llabs(p2[cc.j] - ys[1]) <
-                             std::llabs(p2[cc.i] - xs[0]) + std::llabs(p2[cc.j] - ys[0]);
-                    int sg = int(side) ^ sp;
-                    hv[cc.k] = hk;
-                    hv[cc.i] = xs[sg] + unzz(r1);
-                    hv[cc.j] = ys[sg] + unzz(r2);
-                }
-                for (int c = 0; c < 3; c++) {
-                    O[3 + c] = int32_t(O[c] + d[c]);
-                    O[6 + c] = int32_t(O[c] + hv[c]);
+                    for (int c = 0; c < 3; c++) O[3 + 3 * h + c] = int32_t(O[c] + d[h][c]);
                 }
                 if (L.nsite == 4) {
                     uint32_t z[3];
                     S.m3(z);
                     for (int c = 0; c < 3; c++)
-                        O[9 + c] = int32_t(O[c] + rnd_pred(vs_a * double(d[c] + hv[c])) + unzz(z[c]));
+                        O[9 + c] = int32_t(O[c] + rnd_pred(vs_a * double(d[0][c] + d[1][c])) + unzz(z[c]));
                 }
             } else if (k == 2) {
                 int32_t *A = &q[3 * i];

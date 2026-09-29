@@ -1,16 +1,14 @@
 #ifndef SZ3_BIOMD_CORE_HPP
 #define SZ3_BIOMD_CORE_HPP
 
-// ALGO_BIOMD, part 1: lattice, bit I/O, Huffman coding, sphere / circle geometry and the detection of rigid water and
-// bonds.
+// ALGO_BIOMD, part 1: lattice, bit I/O, Huffman coding, sphere geometry and the detection of rigid water and bonds.
 //
 // Every coordinate is put on the lattice q = round(x / step), |x - q step| <= eb. All prediction runs on that lattice
 // in integer arithmetic plus correctly rounded IEEE operations, and every rounding the decoder does goes through
 // rnd_pred, so decoding gives the same integers on every IEEE machine and compiler, with or without FMA.
 //
-//  * rigid 3-site water (O, H, H): H1 on the sphere |H1 - O| = r (cube face, two kept coordinates, radial residual);
-//    H2 on the circle fixed by |H2 - O| = r and the H-O-H angle (one kept coordinate, side bit, two residuals); the
-//    virtual site of 4-site models from M = O + a (H1 + H2 - 2 O).
+//  * rigid 3-site water (O, H, H): each H on the sphere |H - O| = r (cube face, two kept coordinates, radial
+//    residual); the virtual site of 4-site models from M = O + a (H1 + H2 - 2 O).
 //  * other atoms: on the sphere of a bond-length class around one of the previous MAXOFF atoms, else as a delta.
 
 #include <algorithm>
@@ -46,8 +44,8 @@
 #else
 #define SZ3_BIOMD_NOIPA
 #endif
-// The frame-wide loops and the kernels of BioMDSimd.hpp are also compiled for AVX2 and picked at run time on x86. Not
-// with MinGW: its GCC does not align the stack for 32-byte AVX spills.
+// The frame-wide loops are also compiled for AVX2 and picked at run time on x86. Not with MinGW: its GCC does not align
+// the stack for 32-byte AVX spills.
 #if (defined(__x86_64__) || defined(_M_X64)) && (defined(__GNUC__) || defined(__clang__)) && !defined(__MINGW32__)
 #define SZ3_BIOMD_X86_DISPATCH 1
 #endif
@@ -476,62 +474,6 @@ static inline void sphere_decode(uint32_t face, int64_t a, int64_t b, int64_t e,
     d[f] = (face & 1) ? -m : m;
 }
 
-// H2 of rigid water, relative to O, given u = H1 - O. Keep coordinate k = argmin|u_k| (relative to the circle
-// centre's k coordinate); the other two follow from h.u = P and |h|^2 = R2 (two roots, side bit).
-struct Circle {
-    int k, i, j;
-    int64_t ck, P, al, be;
-    double invA;  // 1 / (al^2 + be^2), 0 for a molecule that is not intact
-};
-// |u| is within ~1 lattice unit of R, so |u| ~ (|u|^2 + R^2) / (2R) to ~1e-2 units: P = Rc |u| needs no sqrt.
-// Rc2R = Rc / (2R), invR2 = 1 / R^2.
-static inline void circle_setup(const int64_t u[3], double Rc2R, int64_t R2, double invR2, Circle &c) {
-    int64_t uu = u[0] * u[0] + u[1] * u[1] + u[2] * u[2];
-    if (uu > 4 * R2) {  // broken molecule: no prediction (circle_solve sees invA == 0)
-        c.k = 0;
-        c.i = 1;
-        c.j = 2;
-        c.P = 0;
-        c.ck = 0;
-        c.al = u[1];
-        c.be = u[2];
-        c.invA = 0;
-        return;
-    }
-    c.P = rnd_pred(Rc2R * double(uu + R2));
-    int k = 0;
-    int64_t a0 = std::llabs(u[0]), a1 = std::llabs(u[1]), a2 = std::llabs(u[2]);
-    if (a1 < a0) {
-        k = 1;
-        a0 = a1;
-    }
-    if (a2 < a0) k = 2;
-    c.k = k;
-    c.i = k == 2 ? 0 : k + 1;
-    c.j = k == 0 ? 2 : (k == 1 ? 0 : 1);
-    c.ck = rnd_pred(double(c.P * u[k]) * invR2);  // |u|^2 ~ R2; the <0.5 unit error only shifts the kept symbol
-    c.al = u[c.i];
-    c.be = u[c.j];
-    const int64_t A = c.al * c.al + c.be * c.be;
-    c.invA = A > 0 ? 1.0 / double(A) : 0.0;
-}
-static inline void circle_solve(const int64_t u[3], int64_t R2, const Circle &c, int64_t hk, int64_t x[2],
-                                int64_t y[2]) {
-    // a molecule that is not intact (|H1-O| or |h_k| beyond 2R, e.g. split over a periodic boundary): no prediction
-    if (c.invA == 0 || hk * hk > 4 * R2 || (c.al * c.al + c.be * c.be) > 4 * R2) {
-        x[0] = x[1] = y[0] = y[1] = 0;
-        return;
-    }
-    int64_t L = c.P - u[c.k] * hk;
-    int64_t S = R2 - hk * hk;
-    int64_t sq = isqrt_round(S * (c.al * c.al + c.be * c.be) - L * L);
-    int64_t la = L * c.al, lb = L * c.be, bs = c.be * sq, as = c.al * sq;
-    x[0] = rnd_pred(double(la + bs) * c.invA);
-    y[0] = rnd_pred(double(lb - as) * c.invA);
-    x[1] = rnd_pred(double(la - bs) * c.invA);
-    y[1] = rnd_pred(double(lb + as) * c.invA);
-}
-
 // ------------------------------------------------------------------------------------------------ frame-wide loops
 // Written once, compiled for the baseline and (on x86) for AVX2, picked at run time. All give the same results.
 static inline bool cpu_avx2() {
@@ -628,16 +570,16 @@ struct Layout {
     double vs_a = 0;
     // other atoms: 0 = no bond, else off * 16 + cls + 1: on the sphere of class cls around atom i - off
     std::vector<uint16_t> ref;
-    double r = 0, rhh = 0;     // water O-H and H-H (nm)
+    double r = 0;              // water O-H (nm)
     std::vector<double> blen;  // bond-length classes (nm)
 };
 
-// Rigid water on frame x: kind, nsite, vs_a, r, rhh. The tolerances grow with the lattice step, so rounded input (xtc
+// Rigid water on frame x: kind, nsite, vs_a, r. The tolerances grow with the lattice step, so rounded input (xtc
 // files, or data this codec decompressed) still fits.
 template <class T>
 static void detect_water(const T *x, size_t N, Layout &L, double step) {
     L.kind.assign(N, 2);
-    L.r = L.rhh = 0;
+    L.r = 0;
     L.nsite = 3;
     L.vs_a = 0;
     auto d2 = [x](size_t a, size_t b) {
@@ -766,17 +708,15 @@ static void detect_water(const T *x, size_t N, Layout &L, double step) {
             if (L.kind[i] == 0) L.kind[i + 3] = 1;
     }
     // geometry from the tight candidates (means are exact for rigid water, ~unbiased for rounded input)
-    double sr = 0, sh = 0;
+    double sr = 0;
     size_t ns = 0;
     for (size_t c = 0; c < cand_hh.size(); c++)
         if (std::fabs(cand_hh[c] - h0) < tol && std::fabs(cand_oh[2 * c] - r0) < tol &&
             std::fabs(cand_oh[2 * c + 1] - r0) < tol) {
             sr += double(cand_oh[2 * c]) + cand_oh[2 * c + 1];
-            sh += cand_hh[c];
             ns++;
         }
     L.r = sr / (2.0 * ns);
-    L.rhh = sh / ns;
 }
 
 // Bonds of the other atoms (kind 2) on frame x: each takes the nearest of its previous MAXOFF atoms if that is within

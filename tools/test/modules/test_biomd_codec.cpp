@@ -1,7 +1,7 @@
 // ALGO_BIOMD on synthetic molecular-dynamics systems: rigid 3- and 4-site water, bonded chains and ions, as GROMACS
 // lays them out (molecules in order, water in one block). Through the public API: the bound, the input it refuses,
-// and recompression. Through the codec: every SIMD level gives the same bytes, and corrupt or
-// truncated streams are refused without reading or writing out of bounds.
+// and recompression. Through the codec: corrupt or truncated streams are refused without reading or writing out of
+// bounds.
 
 #include <algorithm>
 #include <cmath>
@@ -279,24 +279,6 @@ TEST(BioMD, RecompressionChangesNothing) {
             const auto b = round_trip(a.out, frames, n, eb);
             EXPECT_EQ(0, memcmp(a.out.data(), b.out.data(), a.out.size() * sizeof(float))) << frames << " " << eb;
             EXPECT_LE(b.max_err, eb);
-        }
-}
-
-TEST(BioMD, Avx2GivesTheSameBytesAsScalar) {
-    for (bool four : {false, true})
-        for (size_t frames : {size_t(1), size_t(3)}) {
-            SystemSpec s;
-            s.four_site = four;
-            s.frames = frames;
-            s.waters = 1001;  // an odd count exercises the vector tails
-            size_t n;
-            auto x = make_system(s, &n);
-            for (size_t i = s.chains * s.chain_len * 2; i + 2 < n; i += 70) x[3 * (i + 2) + 1] -= 2.5f;  // broken
-            std::vector<uint8_t> a(SZ3::biomd::compress_bound(frames, n)), b(a.size());
-            const size_t na = SZ3::biomd::compress(x.data(), frames, n, 5e-4, a.data(), false);
-            const size_t nb = SZ3::biomd::compress(x.data(), frames, n, 5e-4, b.data(), true);
-            ASSERT_EQ(na, nb);
-            EXPECT_EQ(0, memcmp(a.data(), b.data(), na));
         }
 }
 
