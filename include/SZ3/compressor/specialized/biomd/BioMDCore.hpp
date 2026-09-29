@@ -59,24 +59,22 @@ struct BitWriter {
     uint64_t acc = 0;
     int n = 0;
     explicit BitWriter(uint8_t *out) : p(out) {}
-    inline void put(uint64_t v, int bits) {  // bits <= 32
+    // writes 8 bytes and keeps the partial byte: no branch on the fill level (the output needs 8 bytes of slack)
+    SZ3_BIOMD_INLINE void put(uint64_t v, int bits) {  // bits <= 56
         acc |= v << n;
         n += bits;
-        if (n >= 32) {
-            uint32_t w = uint32_t(acc);
-            memcpy(p, &w, 4);
-            p += 4;
-            acc >>= 32;
-            n -= 32;
-        }
+        memcpy(p, &acc, 8);
+        p += n >> 3;
+        acc >>= n & ~7;
+        n &= 7;
     }
-    inline void put64(uint64_t v, int bits) {
-        if (bits > 32) {
+    SZ3_BIOMD_INLINE void put64(uint64_t v, int bits) {
+        if (bits > 56) {
             put(v & 0xffffffffu, 32);
-            put(v >> 32, bits - 32);
-        } else {
-            put(v, bits);
+            v >>= 32;
+            bits -= 32;
         }
+        put(v, bits);
     }
     uint8_t *finish() {
         while (n > 0) {
@@ -446,7 +444,7 @@ struct SphereCode {
     uint32_t face;
     int64_t a, b, e;
 };
-static inline SphereCode sphere_encode(const int64_t d[3], int64_t R2) {
+static SZ3_BIOMD_INLINE SphereCode sphere_encode(const int64_t d[3], int64_t R2) {
     int f = 0;
     int64_t m = std::llabs(d[0]), m1 = std::llabs(d[1]), m2 = std::llabs(d[2]);
     if (m1 > m) {

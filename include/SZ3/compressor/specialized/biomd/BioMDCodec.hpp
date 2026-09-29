@@ -40,7 +40,7 @@ static inline int64_t clampp(int64_t v) { return v > PCLAMP ? PCLAMP : (v < -PCL
 
 // sphere point d predicted by p: p fixes the dropped axis and its sign; the two kept coordinates are residuals
 // against p, the dropped one is sphere-reconstructed and corrected by e.
-static inline void sph_axes(const int64_t p[3], int &f, int &i, int &j, int64_t &s) {
+static SZ3_BIOMD_INLINE void sph_axes(const int64_t p[3], int &f, int &i, int &j, int64_t &s) {
     f = 0;
     int64_t m = std::llabs(p[0]);
     if (std::llabs(p[1]) > m) {
@@ -52,7 +52,7 @@ static inline void sph_axes(const int64_t p[3], int &f, int &i, int &j, int64_t 
     j = f == 0 ? 2 : (f == 1 ? 0 : 1);
     s = p[f] < 0 ? -1 : 1;
 }
-static inline void sph_pred_enc(const int64_t d[3], const int64_t p[3], int64_t R2, int64_t &ra, int64_t &rb,
+static SZ3_BIOMD_INLINE void sph_pred_enc(const int64_t d[3], const int64_t p[3], int64_t R2, int64_t &ra, int64_t &rb,
                                 int64_t &e) {
     int f, i, j;
     int64_t s;
@@ -81,7 +81,7 @@ struct Tok {
 struct StoreSink {
     Tok *t;
     Huff *H;
-    inline void sym(int s, uint32_t v) {
+    SZ3_BIOMD_INLINE void sym(int s, uint32_t v) {
         const uint32_t k = symof(v);
         *t++ = {v, uint16_t(k), uint8_t(s), 0};
         H[s].hist[k]++;
@@ -315,6 +315,27 @@ static inline void encode_runs(const std::vector<uint32_t> &wo, int nsite, std::
 }
 
 // ------------------------------------------------------------------------------------------------ stream
+// Does frame x still fit the layout found on an earlier chunk? Three in four sampled waters and bonds must be within
+// the detection tolerances (loose bonds drift out of them); atoms that do not fit are coded all the same, at more bits.
+template <class T>
+static bool layout_fits(const T *x, const Layout &L, const std::vector<uint32_t> &wo, const std::vector<uint32_t> &nb,
+                        double step) {
+    auto d = [x](size_t a, size_t b) {
+        double s = 0;
+        for (int c = 0; c < 3; c++) s += (double(x[3 * a + c]) - x[3 * b + c]) * (double(x[3 * a + c]) - x[3 * b + c]);
+        return std::sqrt(s);
+    };
+    const double tol = std::max(0.002, 2.0 * step);
+    size_t n = 0, bad = 0;
+    for (size_t k = 0, st = std::max<size_t>(1, wo.size() / 256); k < wo.size(); k += st, n++)
+        bad += std::fabs(d(wo[k], wo[k] + 1) - L.r) > tol || std::fabs(d(wo[k], wo[k] + 2) - L.r) > tol;
+    for (size_t k = 0, st = std::max<size_t>(1, nb.size() / 256); k < nb.size(); k += st, n++) {
+        const size_t i = nb[k];
+        bad += std::fabs(d(i, i - (L.ref[i] >> 4)) - L.blen[(L.ref[i] & 15) - 1]) > 0.004;
+    }
+    return n > 0 && bad * 4 <= n;
+}
+
 inline size_t compress_bound(size_t F, size_t N) { return 512 + N * 8 + F * (N * 3 * 9 + 12 * 4096); }
 
 template <class T>
@@ -399,35 +420,6 @@ size_t compress_impl(const T *src, size_t F, size_t N, double eb, uint8_t *out, 
             throw std::runtime_error("SZ3 BioMD: error bound too small for the coordinate range");
     }
     const double inv = 1.0 / step;
-    // --- layout: rigid water, then the bonds of the other atoms, found on the first frame
-    thread_local Layout LB;
-    detect_water(src, N, LB, step);
-    int64_t R2 = 0;
-    if (LB.r > 0 && LB.r / step < 16384) {
-        R2 = rnd((LB.r / step) * (LB.r / step));
-    } else {  // no water, or too many lattice steps across one for exact products
-        std::fill(LB.kind.begin(), LB.kind.end(), 2);
-        LB.nsite = 3;
-    }
-    thread_local std::vector<uint32_t> wo;  // water O's
-    wo.clear();
-    for (size_t i = 0; i < N; i++)
-        if (LB.kind[i] == 0) wo.push_back(uint32_t(i));
-    thread_local std::vector<uint8_t> wruns;
-    encode_runs(wo, LB.nsite, wruns);
-    // bonds of the other atoms, for this chunk
-    detect_bonds(src, N, LB);
-    thread_local std::vector<int64_t> BR2;
-    BR2.assign(LB.blen.size(), 0);
-    for (size_t c = 0; c < LB.blen.size(); c++) BR2[c] = rnd((LB.blen[c] / step) * (LB.blen[c] / step));
-    for (size_t i = 0; i < N; i++)
-        if (LB.ref[i] && BR2[(LB.ref[i] & 15) - 1] >= RMAXB2) LB.ref[i] = 0;
-    thread_local std::vector<uint32_t> ubuf[2];  // bonded, unbonded
-    for (auto &u : ubuf) u.clear();
-    for (size_t i = 0; i < N; i++)
-        if (LB.kind[i] == 2) ubuf[LB.ref[i] ? 0 : 1].push_back(uint32_t(i));
-    const Layout &L = LB;
-
     // --- header
     put_raw(p, MAGIC);
     put_raw(p, uint32_t(N));
@@ -435,64 +427,105 @@ size_t compress_impl(const T *src, size_t F, size_t N, double eb, uint8_t *out, 
     put_raw(p, uint32_t(nfill));
     put_raw(p, fill);
     put_raw(p, step);
-    put_raw(p, R2);
-    *p++ = uint8_t(L.nsite);
-    put_raw(p, L.vs_a);
-    *p++ = uint8_t(L.blen.size());
-    for (auto b : BR2) put_raw(p, b);
-    memcpy(p, wruns.data(), wruns.size());
-    p += wruns.size();
-    {  // references of the other atoms, coded in the context of the previous one's: the previous values seen at
-       // least 16 times (up to MAXCTX, most frequent first) have their own tables, the rest share one
-        constexpr size_t REFV = 16 * (MAXOFF + 1);
-        uint32_t pc[REFV] = {0};
-        uint16_t prev = 0;
-        for (size_t i = 0; i < N; i++)
-            if (L.kind[i] == 2) {
-                pc[prev]++;
-                prev = L.ref[i];
-            }
-        uint16_t cval[MAXCTX];
-        size_t nc = 0;
-        {
-            // most frequent first, lowest value on ties (a sort with a by-reference comparator lambda here was
-            // miscompiled by GCC 13 -O3, ipa-modref)
-            uint32_t left[REFV];
-            memcpy(left, pc, sizeof(pc));
-            while (nc < MAXCTX) {
-                uint32_t b = 0;
-                for (uint32_t v = 1; v < REFV; v++)
-                    if (left[v] > left[b]) b = v;
-                if (left[b] < 16) break;
-                cval[nc++] = uint16_t(b);
-                left[b] = 0;
-            }
+    // --- layout: rigid water, then the bonds of the other atoms, found on the first frame. One-frame chunks of one
+    // system follow each other, so the previous chunk's layout (this thread's) is reused while a sample still fits.
+    thread_local Layout LB;
+    thread_local std::vector<uint32_t> wo, ubuf[2];  // water O's; bonded, unbonded other atoms
+    thread_local std::vector<int64_t> BR2;
+    thread_local std::vector<uint8_t> lay;  // the layout as the stream stores it
+    thread_local int64_t R2 = 0;
+    thread_local size_t lay_n = 0;
+    thread_local double lay_step = 0;
+    const Layout &L = LB;
+    if (lay_n == N && lay_step == step && layout_fits(src, LB, wo, ubuf[0], step)) {
+        memcpy(p, lay.data(), lay.size());
+        p += lay.size();
+    } else {
+        detect_water(src, N, LB, step);
+        R2 = 0;
+        if (LB.r > 0 && LB.r / step < 16384) {
+            R2 = rnd((LB.r / step) * (LB.r / step));
+        } else {  // no water, or too many lattice steps across one for exact products
+            std::fill(LB.kind.begin(), LB.kind.end(), 2);
+            LB.nsite = 3;
         }
-        uint8_t cid[REFV] = {0};
-        for (size_t c = 0; c < nc; c++) cid[cval[c]] = uint8_t(c + 1);
-        thread_local std::vector<Huff> hc;
-        if (hc.size() < MAXCTX + 1) hc.resize(MAXCTX + 1);
-        for (size_t c = 0; c <= nc; c++) hc[c].reset();
-        prev = 0;
+        wo.clear();
         for (size_t i = 0; i < N; i++)
-            if (L.kind[i] == 2) {
-                hc[cid[prev]].count(L.ref[i]);
-                prev = L.ref[i];
+            if (LB.kind[i] == 0) wo.push_back(uint32_t(i));
+        std::vector<uint8_t> wruns;
+        encode_runs(wo, LB.nsite, wruns);
+        // bonds of the other atoms, for this chunk
+        detect_bonds(src, N, LB);
+        BR2.assign(LB.blen.size(), 0);
+        for (size_t c = 0; c < LB.blen.size(); c++) BR2[c] = rnd((LB.blen[c] / step) * (LB.blen[c] / step));
+        for (size_t i = 0; i < N; i++)
+            if (LB.ref[i] && BR2[(LB.ref[i] & 15) - 1] >= RMAXB2) LB.ref[i] = 0;
+        for (auto &u : ubuf) u.clear();
+        for (size_t i = 0; i < N; i++)
+            if (LB.kind[i] == 2) ubuf[LB.ref[i] ? 0 : 1].push_back(uint32_t(i));
+        uint8_t *lay0 = p;
+        put_raw(p, R2);
+        *p++ = uint8_t(L.nsite);
+        put_raw(p, L.vs_a);
+        *p++ = uint8_t(L.blen.size());
+        for (auto b : BR2) put_raw(p, b);
+        memcpy(p, wruns.data(), wruns.size());
+        p += wruns.size();
+        {  // references of the other atoms, coded in the context of the previous one's: the previous values seen at
+           // least 16 times (up to MAXCTX, most frequent first) have their own tables, the rest share one
+            constexpr size_t REFV = 16 * (MAXOFF + 1);
+            uint32_t pc[REFV] = {0};
+            uint16_t prev = 0;
+            for (size_t i = 0; i < N; i++)
+                if (L.kind[i] == 2) {
+                    pc[prev]++;
+                    prev = L.ref[i];
+                }
+            uint16_t cval[MAXCTX];
+            size_t nc = 0;
+            {
+                // most frequent first, lowest value on ties (a sort with a by-reference comparator lambda here was
+                // miscompiled by GCC 13 -O3, ipa-modref)
+                uint32_t left[REFV];
+                memcpy(left, pc, sizeof(pc));
+                while (nc < MAXCTX) {
+                    uint32_t b = 0;
+                    for (uint32_t v = 1; v < REFV; v++)
+                        if (left[v] > left[b]) b = v;
+                    if (left[b] < 16) break;
+                    cval[nc++] = uint16_t(b);
+                    left[b] = 0;
+                }
             }
-        *p++ = uint8_t(nc);
-        for (size_t c = 0; c < nc; c++) *p++ = uint8_t(cval[c]);
-        BitWriter bw(p);
-        for (size_t c = 0; c <= nc; c++) {
-            hc[c].build();
-            hc[c].write_table(bw);
+            uint8_t cid[REFV] = {0};
+            for (size_t c = 0; c < nc; c++) cid[cval[c]] = uint8_t(c + 1);
+            thread_local std::vector<Huff> hc;
+            if (hc.size() < MAXCTX + 1) hc.resize(MAXCTX + 1);
+            for (size_t c = 0; c <= nc; c++) hc[c].reset();
+            prev = 0;
+            for (size_t i = 0; i < N; i++)
+                if (L.kind[i] == 2) {
+                    hc[cid[prev]].count(L.ref[i]);
+                    prev = L.ref[i];
+                }
+            *p++ = uint8_t(nc);
+            for (size_t c = 0; c < nc; c++) *p++ = uint8_t(cval[c]);
+            BitWriter bw(p);
+            for (size_t c = 0; c <= nc; c++) {
+                hc[c].build();
+                hc[c].write_table(bw);
+            }
+            prev = 0;
+            for (size_t i = 0; i < N; i++)
+                if (L.kind[i] == 2) {
+                    hc[cid[prev]].put(bw, L.ref[i]);
+                    prev = L.ref[i];
+                }
+            p = bw.finish();
         }
-        prev = 0;
-        for (size_t i = 0; i < N; i++)
-            if (L.kind[i] == 2) {
-                hc[cid[prev]].put(bw, L.ref[i]);
-                prev = L.ref[i];
-            }
-        p = bw.finish();
+        lay.assign(lay0, p);
+        lay_n = N;
+        lay_step = step;
     }
     const std::vector<uint32_t> *units[NGROUP] = {&wo, &wo, &ubuf[0], &ubuf[1]};
 
