@@ -66,6 +66,11 @@ jobs:
         shell: bash
         run: cmake --install build --prefix "$PWD/_prefix"
 
+      # Spack's sz3 package runs this installed binary as its install test.
+      - name: The installed sz3_smoke_test runs
+        shell: bash
+        run: ./_prefix/bin/sz3_smoke_test
+
       - name: Every shape a consumer builds in
         shell: bash
         run: tools/test/consumeInstalledSZ3.sh "$PWD/_prefix"
@@ -210,6 +215,11 @@ jobs:
         shell: bash
         run: cmake --install build --prefix "$PWD/_prefix"
 
+      # Spack's sz3 package runs this installed binary as its install test.
+      - name: The installed sz3_smoke_test runs
+        shell: bash
+        run: ./_prefix/bin/sz3_smoke_test
+
       - name: Every shape a consumer builds in
         shell: bash
         run: tools/test/consumeInstalledSZ3.sh "$PWD/_prefix"
@@ -276,9 +286,10 @@ jobs:
         run: |
           # An install rule that points one directory too high, or drops the .exe, is how this got
           # here: `cmake --install` failed outright and nothing after it reached the prefix.
-          for exe in sz3 mdz mdz_smoke_test; do
+          for exe in sz3 sz3_smoke_test mdz mdz_smoke_test; do
             [ -f "_prefix/bin/$exe.exe" ] || { echo "no $exe.exe in the install prefix"; exit 1; }
           done
+          ./_prefix/bin/sz3_smoke_test.exe
           ./_prefix/bin/mdz_smoke_test.exe
           # Named here as well as inside consumeInstalledSZ3.sh, because Linux asserts the filter
           # with ldd and macOS with a dlopen probe and this job had neither: a filter that failed to
