@@ -164,7 +164,7 @@ TEST(BioMD, EdgeCasesStayWithinBound) {
     std::mt19937 rng(3);
     std::uniform_real_distribution<float> U(0.f, 5.f);
     std::vector<std::pair<std::string, std::vector<float>>> cases;
-    for (size_t n : {2, 3, 4, 5, 7}) {  // {1, 3} collapses to 1D
+    for (size_t n : {1, 2, 3, 4, 5, 7}) {
         std::vector<float> x(3 * n);
         for (auto &v : x) v = U(rng);
         cases.push_back({"tiny N=" + std::to_string(n), x});
@@ -232,6 +232,27 @@ TEST(BioMD, RefusesWhatItCannotCode) {
         auto y = x;
         y[100] = bad;
         EXPECT_THROW(compress(y, {n, 3}), std::runtime_error);
+    }
+}
+
+// Config drops dimensions of 1: one atom arrives as {frames, 3}, one atom of one frame as {3}.
+TEST(BioMD, OneAtom) {
+    for (size_t frames : {size_t(1), size_t(5)}) {
+        std::vector<float> x(frames * 3);
+        for (size_t i = 0; i < x.size(); i++) x[i] = 1.0f + 0.01f * float(i);
+        SZ3::Config conf(frames, 1, 3);
+        conf.cmprAlgo = SZ3::ALGO_BIOMD;
+        conf.errorBoundMode = SZ3::EB_ABS;
+        conf.absErrorBound = 5e-4;
+        size_t size = 0;
+        char *c = SZ_compress(conf, x.data(), size);
+        std::vector<float> y(x.size());
+        float *o = y.data();
+        SZ3::Config dconf;
+        SZ_decompress(dconf, c, size, o);
+        delete[] c;
+        EXPECT_EQ(dconf.cmprAlgo, SZ3::ALGO_BIOMD);
+        for (size_t i = 0; i < x.size(); i++) EXPECT_LE(std::fabs(y[i] - x[i]), 5e-4) << frames << " frames";
     }
 }
 

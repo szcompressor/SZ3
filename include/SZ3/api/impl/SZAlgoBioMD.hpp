@@ -18,18 +18,18 @@
 
 namespace SZ3 {
 
-// ALGO_BIOMD takes molecular-dynamics coordinates {frames, atoms, 3} or {atoms, 3}, in nm, with an absolute bound.
+// ALGO_BIOMD takes molecular-dynamics coordinates {frames, atoms, 3}, in nm, with an absolute bound. Config drops
+// dimensions of 1, so one frame, or one atom, arrives as {atoms, 3} or {frames, 3}, and one atom of one frame as {3}.
 template <class T, uint N>
 size_t SZ_compress_bioMD(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
     assert(N == conf.N);
     assert(conf.cmprAlgo == ALGO_BIOMD);
-    if (!((N == 2 && conf.dims[1] == 3) || (N == 3 && conf.dims[2] == 3)))
-        throw std::invalid_argument("SZ3 BioMD: data must be {frames, atoms, 3} or {atoms, 3}");
+    if (N > 3 || conf.dims[N - 1] != 3) throw std::invalid_argument("SZ3 BioMD: data must be {frames, atoms, 3}");
     if constexpr (!std::is_floating_point<T>::value) {
         throw std::invalid_argument("SZ3 BioMD: data must be float or double");
     } else {
         calAbsErrorBound(conf, data);
-        const size_t frames = N == 3 ? conf.dims[0] : 1, atoms = conf.dims[N - 2];
+        const size_t frames = N == 3 ? conf.dims[0] : 1, atoms = N >= 2 ? conf.dims[N - 2] : 1;
         const size_t bound = biomd::compress_bound(frames, atoms);
         if (cmpCap >= bound) return biomd::compress(data, frames, atoms, conf.absErrorBound, cmpData);
         thread_local std::vector<uint8_t> scratch;
