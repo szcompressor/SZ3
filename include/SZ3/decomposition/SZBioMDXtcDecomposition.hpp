@@ -137,7 +137,6 @@ private:
     /* This just converts float to integer based on the absolute error. */
     std::vector<int> compressMultiFrame(T* data) {
         auto dims = conf.dims;
-        std::vector<size_t> stride({dims[1] * dims[2], dims[2], 1});
 
         /* Find out if the last frames are all filled with the same value. */
         std::tuple<size_t, T> fillValueSettings = findFillValueAndFirstFilledFrame(data, dims);
