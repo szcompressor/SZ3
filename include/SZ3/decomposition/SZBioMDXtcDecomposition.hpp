@@ -70,10 +70,9 @@ public:
     }
 
 private:
-    // The prediction is always 0, so the reconstructed value is not needed: the input stays as it is (the caller need
-    // not copy it). All values at once when none goes to unpred, else one by one.
+    // The prediction is always 0, so the reconstructed value is not needed: the quantizer overwrites a copy, and the
+    // input stays as it is (the caller need not copy it).
     void quantize(const T* data, std::vector<int>& quantData) {
-        if (quantizer.quantize_zero_pred(data, quantData.size(), quantData.data(), -XTC_radius)) return;
         for (size_t i = 0; i < quantData.size(); i++) {
             T value = data[i];
             quantData[i] = quantizer.quantize_and_overwrite(value, 0) - XTC_radius;
