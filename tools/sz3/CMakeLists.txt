@@ -7,14 +7,11 @@ foreach (SRCFILE IN LISTS cpu_source_files)
     target_link_libraries(${EXE} PRIVATE SZ3)
     # Ask for the binary rather than spelling out where it lands: a multi-config generator puts it
     # under a per-config subdirectory, and the install then cannot find it.
-    if (SZ3_INSTALL AND EXE STREQUAL "sz3")
+    if (SZ3_INSTALL AND (EXE STREQUAL "sz3" OR EXE STREQUAL "sz3_smoke_test"))
         install(PROGRAMS $<TARGET_FILE:${EXE}> TYPE BIN)
     endif ()
 
 endforeach ()
-if (SZ3_INSTALL)
-    install(FILES testfloat_8_8_128.dat DESTINATION ${CMAKE_INSTALL_DATADIR}/SZ3)
-endif ()
 
 # Demo executables
 file(GLOB demo_source_files "${CMAKE_SOURCE_DIR}/tools/sz3/demo/*.cpp")
