@@ -42,6 +42,9 @@ class SegmentedEncoder : public concepts::EncoderInterface<int> {
     void preprocess_decode() override {}
 
     std::vector<int> decode(const uchar *&bytes, size_t targetLength, size_t &remaining_length) override {
+        uint64_t total = enc_.size();
+        for (const uint64_t n : sizes_) total = n > targetLength - total ? targetLength + 1 : total + n;
+        if (total != targetLength) throw std::out_of_range("SZ3: segment sizes do not match the bin count");
         std::vector<int> out;
         out.reserve(targetLength);
         for (size_t s = 0; s < enc_.size(); s++) {
