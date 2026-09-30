@@ -322,15 +322,17 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
 
         size_t bufferSize = size3 * 1.2;
         struct DataBuffer buffer;
-        // Kept per thread, as xdrfile keeps its buffers per file: allocating them for every frame costs more than
-        // coding it. The bit buffer is zeroed: the bit packing below leaves untouched the bits it does not set, and
-        // buffer.index bytes of it go into the compressed output.
-        thread_local std::vector<int> index_buf;
-        thread_local std::vector<unsigned char> bit_buf;
-        index_buf.resize(size3);
-        bit_buf.assign(bufferSize * sizeof(int), 0);
-        int *intBufferPoiner = index_buf.data();
-        buffer.data = bit_buf.data();
+        std::unique_ptr<int, void (*)(void *)> index_owner(
+            static_cast<int *>(malloc(size3 * sizeof(int))), &free);
+        // Zeroed: the bit packing below leaves untouched the bits it does not set, and buffer.index bytes
+        // of this go into the compressed output.
+        std::unique_ptr<unsigned char, void (*)(void *)> buffer_owner(
+            static_cast<unsigned char *>(calloc(bufferSize, sizeof(int))), &free);
+        if (index_owner == nullptr || buffer_owner == nullptr) {
+            throw std::runtime_error("SZ3 Xtc: can not allocate the compression buffer");
+        }
+        int *intBufferPoiner = index_owner.get();
+        buffer.data = buffer_owner.get();
         buffer.index = 0;
         buffer.lastbits = 0;
         buffer.lastbyte = 0;
@@ -668,11 +670,13 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
 
         size_t size3 = targetLength;
         bufferSize = size3 * 1.2;
-        // Kept per thread (see encode). Zeroed: a damaged stream can make receivebits() read past the packed bytes
-        // copied in below.
-        thread_local std::vector<unsigned char> bit_buf;
-        bit_buf.assign(bufferSize * sizeof(int), 0);
-        buffer.data = bit_buf.data();
+        // Zeroed: a damaged stream can make receivebits() read past the packed bytes copied in below.
+        std::unique_ptr<unsigned char, void (*)(void *)> buffer_owner(
+            static_cast<unsigned char *>(calloc(bufferSize, sizeof(int))), &free);
+        buffer.data = buffer_owner.get();
+        if (buffer.data == nullptr) {
+            throw std::runtime_error("SZ3 Xtc: can not allocate the decompression buffer");
+        }
         uint64_t packedByteCount;
         read(packedByteCount, inputBytesPointer);
         buffer.index = packedByteCount;
@@ -700,9 +704,12 @@ class XtcBasedEncoder : public concepts::EncoderInterface<T> {
 
         int run = 0;
         size_t i = 0;
-        thread_local std::vector<int> index_buf;
-        index_buf.resize(size3);
-        int *intBufferPoiner = index_buf.data();
+        std::unique_ptr<int, void (*)(void *)> index_owner(
+            static_cast<int *>(malloc(size3 * sizeof(int))), &free);
+        if (index_owner == nullptr) {
+            throw std::runtime_error("SZ3 Xtc: can not allocate the index buffer");
+        }
+        int *intBufferPoiner = index_owner.get();
         int *localIntBufferPointer = intBufferPoiner;
         unsigned char *charOutputPtr = reinterpret_cast<unsigned char *>(quantData.data());
         int *intOutputPtr = reinterpret_cast<int *>(charOutputPtr);

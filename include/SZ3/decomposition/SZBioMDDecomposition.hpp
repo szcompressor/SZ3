@@ -442,7 +442,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         nwat_ = wo.size();
 
         // per (stream, mode) a buffer, kept long enough for the next frame's symbols
-        thread_local std::vector<int> buf_s[NS * 4];
+        std::vector<int> buf_s[NS * 4];
         size_t len[NS * 4] = {0};
         const size_t nunit[NGROUP + 1] = {wo.size(), wo.size(), ub[0].size(), ub[1].size() + ub[0].size(), A_};
         Out o;
@@ -466,8 +466,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         for (size_t i = 0; i < A_; i++)
             if (L.kind[i] == 2) o.sym(S_REF, L.ref[i]);
         close(mode0);
-        thread_local std::vector<int32_t> buf;
-        if (buf.size() < 6 * A_) buf.resize(6 * A_);
+        std::vector<int32_t> buf(6 * A_);
         Frame C{buf.data(), buf.data() + 3 * A_, &L, R2, D2_, BR2_.data(), {0, 0, 0}};
         const std::vector<uint32_t> *units[NGROUP] = {&wo, &wo, &ub[0], &ub[1]};
         int mode[NGROUP] = {0, 0, 0, 0};
@@ -568,8 +567,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
                 L.ref[i] = uint16_t(r);
             }
         close(mode0);
-        thread_local std::vector<int32_t> buf;
-        if (buf.size() < 6 * A_) buf.resize(6 * A_);
+        std::vector<int32_t> buf(6 * A_);
         Frame C{buf.data(), buf.data() + 3 * A_, &L, R2_, D2_, BR2_.data(), {0, 0, 0}};
         for (size_t t = 0; t < Fc_; t++) {
             int mode[NGROUP];
