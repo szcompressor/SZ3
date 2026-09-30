@@ -48,13 +48,14 @@ inline void rel(const int32_t *a, size_t i, size_t j, int64_t o[3]) {
 ALWAYS_INLINE void axes(const int64_t p[3], int &f, int &i, int &j) {
     f = std::llabs(p[1]) > std::llabs(p[0]) ? 1 : 0;
     if (std::llabs(p[2]) > std::llabs(p[f])) f = 2;
-    i = f == 2 ? 0 : f + 1;
-    j = f == 0 ? 2 : (f == 1 ? 0 : 1);
+    i = (f + 1) % 3;
+    j = (f + 2) % 3;
 }
 
 // ------------------------------------------------------------------------------------------------ layout
+enum : uint8_t { K_WO, K_WH, K_OTHER };
 struct Layout {
-    std::vector<uint8_t> kind;  // per atom: 0 = water O (then its H at i + 1, i + 2), 1 = water H, 2 = other
+    std::vector<uint8_t> kind;  // per atom: K_WO water O (then its H at i + 1, i + 2), K_WH water H, K_OTHER
     std::vector<uint16_t>
         ref;               // other atoms: 0 = no bond, else off * 16 + cls + 1 (the sphere of class cls around i - off)
     double r = 0, hh = 0;  // water O-H and H-H (nm)
@@ -65,7 +66,7 @@ struct Layout {
 // or data this codec decompressed) still fits.
 template <class T>
 void detect_water(const T *x, size_t N, Layout &L, double step) {
-    L.kind.assign(N, 2);
+    L.kind.assign(N, K_OTHER);
     L.r = 0;
     auto d2 = [x](size_t a, size_t b) {
         float dx = float(x[3 * a] - x[3 * b]), dy = float(x[3 * a + 1] - x[3 * b + 1]),
@@ -127,8 +128,8 @@ void detect_water(const T *x, size_t N, Layout &L, double step) {
     for (size_t i = 0; i + 2 < N;) {
         float a = d2(i, i + 1), b, c;
         if (a > alo && a < ahi && (b = d2(i, i + 2)) > alo && b < ahi && (c = d2(i + 1, i + 2)) > clo && c < chi) {
-            L.kind[i] = 0;
-            L.kind[i + 1] = L.kind[i + 2] = 1;
+            L.kind[i] = K_WO;
+            L.kind[i + 1] = L.kind[i + 2] = K_WH;
             nw++;
             i += 3;
         } else {
@@ -136,7 +137,7 @@ void detect_water(const T *x, size_t N, Layout &L, double step) {
         }
     }
     if (nw < 16) {
-        std::fill(L.kind.begin(), L.kind.end(), 2);
+        std::fill(L.kind.begin(), L.kind.end(), K_OTHER);
         return;
     }
     L.r = sr / (2.0 * ns);
@@ -155,7 +156,7 @@ void detect_bonds(const T *x, size_t N, Layout &L) {
     std::vector<uint16_t> bin(N, uint16_t(NB));
     std::vector<int64_t> hist(NB, 0);
     for (size_t i = 1; i < N; i++) {
-        if (L.kind[i] != 2) continue;
+        if (L.kind[i] != K_OTHER) continue;
         float best = 1e30f;
         unsigned off = 0;  // locals and no branch: a byte store may alias x, and which one is nearest is random
         for (unsigned o = 1; o <= unsigned(MAXOFF) && o <= i; o++) {
@@ -330,8 +331,8 @@ ALWAYS_INLINE void dec_sph(const Frame &C, int m, size_t i, size_t j, int64_t R2
     if (m == 0) {
         const uint32_t v = k.sym(sfe);
         f = int(v % 6 / 2);
-        x = f == 2 ? 0 : f + 1;
-        y = f == 0 ? 2 : (f == 1 ? 0 : 1);
+        x = (f + 1) % 3;
+        y = (f + 2) % 3;
         neg = v & 1;
         ze = v / 6;
         if (ze == 15) ze += k.sym(se);
@@ -359,11 +360,11 @@ ALWAYS_INLINE int circ_axis(const int64_t d1[3]) {
 }
 // the side of v: 1 when (-d1[j], d1[i]) . (v[i], v[j]) < 0
 ALWAYS_INLINE int circ_side(const int64_t d1[3], int k, const int64_t v[3]) {
-    const int i = k == 2 ? 0 : k + 1, j = k == 0 ? 2 : (k == 1 ? 0 : 1);
+    const int i = (k + 1) % 3, j = (k + 2) % 3;
     return d1[i] * v[j] - d1[j] * v[i] < 0;
 }
 ALWAYS_INLINE void circ_pt(const int64_t d1[3], int64_t R2, int64_t D2, int k, int64_t a, int r, int64_t P[3]) {
-    const int i = k == 2 ? 0 : k + 1, j = k == 0 ? 2 : (k == 1 ? 0 : 1);
+    const int i = (k + 1) % 3, j = (k + 2) % 3;
     const int64_t u = d1[i], w = d1[j], g2 = u * u + w * w, lim = 16384;
     const bool ok =
         g2 > 0 && std::llabs(u) < lim && std::llabs(w) < lim && std::llabs(d1[k]) < lim && std::llabs(a) < lim;
@@ -400,19 +401,19 @@ ALWAYS_INLINE void dec_circ(const Frame &C, int m, size_t o, In &k) {
         C.q[3 * (o + 2) + c] = int32_t(C.q[3 * o + c] + (c == ax ? P[c] : P[c] + unzz(k.sym(S_CE))));
 }
 
-// One atom: a water (O and the rest of its molecule), or another atom. kind 1 atoms come with their O.
+// One atom: a water (O and the rest of its molecule), or another atom. Water H come with their O.
 template <class S>
 ALWAYS_INLINE void enc_atom(const Frame &C, const int *mode, size_t i, S &k) {
     const Layout &L = *C.L;
     const int32_t *q = C.q;
-    if (L.kind[i] == 0) {
+    if (L.kind[i] == K_WO) {
         if (mode[G_O])
             for (int c = 0; c < 3; c++) k.sym(S_O, zz(q[3 * i + c] - C.qp[3 * i + c]));
         else
             enc_box(C, q + 3 * i, k);
         enc_sph(C, mode[G_WH], i + 1, i, C.R2, S_FE, S_KEPT, S_E, k);
         enc_circ(C, mode[G_WH], i, k);
-    } else if (L.kind[i] == 2) {
+    } else if (L.kind[i] == K_OTHER) {
         if (L.ref[i]) {
             enc_sph(C, mode[G_NB], i, i - (L.ref[i] >> 4), C.BR2[(L.ref[i] & 15) - 1], S_BFE, S_BK, S_BE, k);
         } else {
@@ -423,14 +424,14 @@ ALWAYS_INLINE void enc_atom(const Frame &C, const int *mode, size_t i, S &k) {
 ALWAYS_INLINE void dec_atom(const Frame &C, const int *mode, size_t i, In &k) {
     const Layout &L = *C.L;
     int32_t *q = C.q;
-    if (L.kind[i] == 0) {
+    if (L.kind[i] == K_WO) {
         if (mode[G_O])
             for (int c = 0; c < 3; c++) q[3 * i + c] = int32_t(C.qp[3 * i + c] + unzz(k.sym(S_O)));
         else
             dec_box(C, q + 3 * i, k);
         dec_sph(C, mode[G_WH], i + 1, i, C.R2, S_FE, S_KEPT, S_E, k);
         dec_circ(C, mode[G_WH], i, k);
-    } else if (L.kind[i] == 2) {
+    } else if (L.kind[i] == K_OTHER) {
         if (L.ref[i]) {
             dec_sph(C, mode[G_NB], i, i - (L.ref[i] >> 4), C.BR2[(L.ref[i] & 15) - 1], S_BFE, S_BK, S_BE, k);
         } else {
@@ -489,7 +490,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
             D2_ = rnd((L.hh / step_) * (L.hh / step_));
             D2_ = D2_ < (int64_t(1) << 30) ? D2_ : 0;
         } else {  // no water, or too many lattice steps across one for exact products
-            std::fill(L.kind.begin(), L.kind.end(), 2);
+            std::fill(L.kind.begin(), L.kind.end(), K_OTHER);
         }
         detect_bonds(data, A_, L);
         BR2_.clear();
@@ -497,8 +498,8 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         std::vector<uint32_t> wo, ub[2];  // water O's; bonded, unbonded other atoms
         for (size_t i = 0; i < A_; i++) {
             if (L.ref[i] && BR2_[(L.ref[i] & 15) - 1] >= RMAXB2) L.ref[i] = 0;
-            if (L.kind[i] == 0) wo.push_back(uint32_t(i));
-            if (L.kind[i] == 2) ub[L.ref[i] ? 0 : 1].push_back(uint32_t(i));
+            if (L.kind[i] == K_WO) wo.push_back(uint32_t(i));
+            if (L.kind[i] == K_OTHER) ub[L.ref[i] ? 0 : 1].push_back(uint32_t(i));
         }
         nwat_ = wo.size();
 
@@ -526,7 +527,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         open(mode0);
         for (size_t k = 0; k < wo.size(); k++) o.sym(S_W, wo[k] - (k ? wo[k - 1] : 0));  // the waters as gaps
         for (size_t i = 0; i < A_; i++)
-            if (L.kind[i] == 2) o.sym(S_REF, L.ref[i]);
+            if (L.kind[i] == K_OTHER) o.sym(S_REF, L.ref[i]);
         close(mode0);
         std::unique_ptr<int32_t[]> buf(new int32_t[6 * A_]);  // written before read
         Frame C{buf.get(), buf.get() + 3 * A_, &L, R2_, D2_, BR2_.data(), {0, 0, 0}, {1, 1, 1}, 0};
@@ -618,17 +619,17 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         };
         const int mode0[NGROUP] = {0, 0, 0, 0};
         open(mode0);
-        L.kind.assign(A_, 2);
+        L.kind.assign(A_, K_OTHER);
         for (size_t k = 0, o = 0; k < nwat_; k++) {
             const uint32_t g = in.sym(S_W);
             if ((k && g < 3) || g > A_ || o + g + 2 >= A_) throw std::runtime_error("SZ3 BioMD: corrupt stream");
             o += g;
-            L.kind[o] = 0;
-            L.kind[o + 1] = L.kind[o + 2] = 1;
+            L.kind[o] = K_WO;
+            L.kind[o + 1] = L.kind[o + 2] = K_WH;
         }
         L.ref.assign(A_, 0);
         for (size_t i = 0; i < A_; i++)
-            if (L.kind[i] == 2) {
+            if (L.kind[i] == K_OTHER) {
                 const uint32_t r = in.sym(S_REF);
                 if (r && ((r >> 4) > i || (r & 15) == 0 || (r & 15) > BR2_.size()))
                     throw std::runtime_error("SZ3 BioMD: corrupt stream");
