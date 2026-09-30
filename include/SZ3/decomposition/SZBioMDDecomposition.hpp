@@ -52,11 +52,10 @@ enum {
     S_UNBONDED,
     NUM_STREAMS
 };
-// each stream is split by the mode (0 intra, 1 previous frame) of its group, so each (stream, mode) gets its own code;
-// the layout streams (-1) are written once, in mode 0
+// the group whose atoms write the stream (-1: the layout streams, one symbol per atom at most), and the most symbols
+// one of them (water: one molecule) writes per frame; the two size the streams' buffers
 constexpr int STREAM_GROUP[NUM_STREAMS] = {-1,        -1,        G_WATER_O, G_WATER_H, G_WATER_H, G_WATER_H,
                                            G_WATER_H, G_WATER_H, G_BONDED,  G_BONDED,  G_BONDED,  G_UNBONDED};
-// the most symbols one atom (water: one molecule) of the stream's group puts in the stream per frame
 constexpr int MAX_SYMBOLS_PER_UNIT[NUM_STREAMS] = {1, 1, 3, 2, 4, 2, 1, 2, 1, 3, 1, 3};
 
 inline uint32_t zigzag(int64_t v) { return uint32_t((uint64_t(v) << 1) ^ uint64_t(v >> 63)); }
@@ -248,21 +247,7 @@ void detect_bonds(const T *x, size_t atoms, Layout &layout) {
 }
 
 // ------------------------------------------------------------------------------------------------ symbols
-// a buffer that grows by doubling and is never cleared (every value is written before it is read)
-struct GrowBuffer {
-    std::unique_ptr<int[]> data;
-    size_t capacity = 0;
-    int *reserve(size_t kept, size_t need) {  // room for need values, keeping the first kept
-        if (capacity < need) {
-            std::unique_ptr<int[]> bigger(new int[2 * need]);
-            if (kept) std::copy(data.get(), data.get() + kept, bigger.get());
-            data = std::move(bigger);
-            capacity = 2 * need;
-        }
-        return data.get();
-    }
-};
-// the current frame's position in each stream, and raw bits (LSB first)
+// the position in each stream, and raw bits (LSB first)
 struct SymbolWriter {
     int *cursor[NUM_STREAMS];
     std::vector<uchar> *raw;
@@ -550,9 +535,6 @@ inline void choose_modes(const FrameContext &frame, const std::vector<uint32_t> 
     }
 }
 
-// the buffer of stream s in the given modes of the groups
-inline size_t stream_slot(int s, const int *mode) { return s * 2 + (STREAM_GROUP[s] < 0 ? 0 : mode[STREAM_GROUP[s]]); }
-
 }  // namespace biomd
 
 template <class T, uint N>
@@ -573,70 +555,52 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         std::vector<uint32_t> waters, bonded, unbonded;  // water O's, other atoms
         detect_layout(data, layout, waters, bonded, unbonded);
 
-        // per (stream, mode) a buffer, kept long enough for the next frame's symbols
-        GrowBuffer buffers[NUM_STREAMS * 2];
-        size_t lengths[NUM_STREAMS * 2] = {0};
+        // a buffer per stream, as large as the symbols the chunk can put in it (every value is written before it is
+        // read)
         const std::vector<uint32_t> *group_atoms[NUM_GROUPS] = {&waters, &waters, &bonded, &unbonded};
-        // units whose symbols a frame can put in a stream of the group (the layout streams: one per atom)
-        const size_t group_units[NUM_GROUPS] = {waters.size(), waters.size(), bonded.size(),
-                                                unbonded.size() + bonded.size()};
+        std::unique_ptr<int[]> buffers[NUM_STREAMS];
         SymbolWriter writer;
+        for (int s = 0; s < NUM_STREAMS; s++) {
+            const size_t n = STREAM_GROUP[s] < 0 ? atoms_ : coded_frames_ * group_atoms[STREAM_GROUP[s]]->size();
+            buffers[s].reset(new int[MAX_SYMBOLS_PER_UNIT[s] * n + 1]);
+            writer.cursor[s] = buffers[s].get();
+        }
         writer.raw = &raw_bits_;
         raw_bits_.clear();
-        auto begin_frame = [&](const int *mode) {
-            for (int s = 0; s < NUM_STREAMS; s++) {
-                const size_t slot = stream_slot(s, mode);
-                const size_t units = STREAM_GROUP[s] < 0 ? atoms_ : group_units[STREAM_GROUP[s]];
-                const size_t need = lengths[slot] + MAX_SYMBOLS_PER_UNIT[s] * units + 16;
-                writer.cursor[s] = buffers[slot].reserve(lengths[slot], need) + lengths[slot];
-            }
-        };
-        auto end_frame = [&](const int *mode) {
-            for (int s = 0; s < NUM_STREAMS; s++) {
-                const size_t slot = stream_slot(s, mode);
-                lengths[slot] = size_t(writer.cursor[s] - buffers[slot].data.get());
-            }
-        };
-        const int intra[NUM_GROUPS] = {0, 0, 0, 0};
-        begin_frame(intra);
         for (size_t k = 0; k < waters.size(); k++) writer.put(S_WATER_GAP, waters[k] - (k ? waters[k - 1] : 0));
         for (size_t i = 0; i < atoms_; i++)
             if (layout.kind[i] == K_OTHER) writer.put(S_BOND_REF, layout.bond[i]);
-        end_frame(intra);
 
         std::unique_ptr<int32_t[]> lattice(new int32_t[2 * frame_values]);  // written before read
         FrameContext frame = frame_context(lattice.get(), layout);
-        int mode[NUM_GROUPS] = {0, 0, 0, 0};
-        modes_.clear();
+        const int intra[NUM_GROUPS] = {0, 0, 0, 0};
+        std::fill(modes_, modes_ + NUM_GROUPS, 0);
         box_min_.clear();
         box_size_.clear();
         for (size_t t = 0; t < coded_frames_; t++) {
             quantize(data + t * frame_values, frame_values, 1.0 / step_, frame.cur);
             int32_t box_max[3];
             water_box(frame.cur, waters, frame.box_min, box_max);
-            // per group, the predictor that is cheapest on a sample: at frames 1 and 2, then every 8th frame
-            if (t > 0 && (t <= 2 || t % 8 == 0)) choose_modes(frame, group_atoms, box_max, mode);
-            for (int g = 0; g < NUM_GROUPS; g++) modes_.push_back(uint8_t(mode[g]));
+            // per group, the predictor that is cheapest on a sample of frame 1, for every frame after the first
+            if (t == 1) choose_modes(frame, group_atoms, box_max, modes_);
             for (int c = 0; c < 3; c++) {
                 box_min_.push_back(frame.box_min[c]);
                 box_size_.push_back(uint32_t(box_max[c] - frame.box_min[c]) + 1);
             }
             set_water_box(frame, &box_size_[t * 3]);
-            begin_frame(mode);
-            for (size_t i = 0; i < atoms_; i++) put_atom(frame, mode, i, writer);
-            end_frame(mode);
+            for (size_t i = 0; i < atoms_; i++) put_atom(frame, t ? modes_ : intra, i, writer);
             std::swap(frame.cur, frame.prev);
         }
         writer.flush_bits();
 
         // the streams one after the other, each as [count, symbols], for SegmentedEncoder
         std::vector<int> bins;
-        size_t n = NUM_STREAMS * 2;
-        for (size_t slot = 0; slot < NUM_STREAMS * 2; slot++) n += lengths[slot];
+        size_t n = NUM_STREAMS;
+        for (int s = 0; s < NUM_STREAMS; s++) n += size_t(writer.cursor[s] - buffers[s].get());
         bins.reserve(n);
-        for (size_t slot = 0; slot < NUM_STREAMS * 2; slot++) {
-            bins.push_back(int(lengths[slot]));
-            bins.insert(bins.end(), buffers[slot].data.get(), buffers[slot].data.get() + lengths[slot]);
+        for (int s = 0; s < NUM_STREAMS; s++) {
+            bins.push_back(int(writer.cursor[s] - buffers[s].get()));
+            bins.insert(bins.end(), buffers[s].get(), writer.cursor[s]);
         }
         return bins;
     }
@@ -645,42 +609,26 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         using namespace biomd;
         const size_t frame_values = atoms_ * 3;
         // the streams, each as [count, symbols]
-        const int *position[NUM_STREAMS * 2], *end[NUM_STREAMS * 2];
-        for (size_t k = 0, slot = 0; slot < NUM_STREAMS * 2; slot++) {
+        SymbolReader reader;
+        for (size_t k = 0, s = 0; s < NUM_STREAMS; s++) {
             const size_t n = k < quant_inds.size() ? size_t(quant_inds[k]) : 0;
             if (k >= quant_inds.size() || n > quant_inds.size() - k - 1)
                 throw std::runtime_error("SZ3 BioMD: corrupt stream");
-            position[slot] = quant_inds.data() + k + 1;
-            end[slot] = position[slot] + n;
+            reader.cursor[s] = quant_inds.data() + k + 1;
+            reader.end[s] = reader.cursor[s] + n;
             k += n + 1;
         }
-        SymbolReader reader;
-        auto begin_frame = [&](const int *mode) {
-            for (int s = 0; s < NUM_STREAMS; s++) {
-                reader.cursor[s] = position[stream_slot(s, mode)];
-                reader.end[s] = end[stream_slot(s, mode)];
-            }
-        };
-        auto end_frame = [&](const int *mode) {
-            for (int s = 0; s < NUM_STREAMS; s++) position[stream_slot(s, mode)] = reader.cursor[s];
-        };
-        const int intra[NUM_GROUPS] = {0, 0, 0, 0};
-        begin_frame(intra);
-        Layout layout;
-        read_layout(reader, layout);
-        end_frame(intra);
-        std::unique_ptr<int32_t[]> lattice(new int32_t[2 * frame_values]);  // written before read
-        FrameContext frame = frame_context(lattice.get(), layout);
         reader.raw = raw_bits_.data();
         reader.raw_end = raw_bits_.data() + raw_bits_.size();
+        Layout layout;
+        read_layout(reader, layout);
+        std::unique_ptr<int32_t[]> lattice(new int32_t[2 * frame_values]);  // written before read
+        FrameContext frame = frame_context(lattice.get(), layout);
+        const int intra[NUM_GROUPS] = {0, 0, 0, 0};
         for (size_t t = 0; t < coded_frames_; t++) {
-            int mode[NUM_GROUPS];
-            for (int g = 0; g < NUM_GROUPS; g++) mode[g] = modes_[t * NUM_GROUPS + g] & 1;
             for (int c = 0; c < 3; c++) frame.box_min[c] = box_min_[t * 3 + c];
             set_water_box(frame, &box_size_[t * 3]);
-            begin_frame(mode);
-            for (size_t i = 0; i < atoms_; i++) get_atom(frame, mode, i, reader);
-            end_frame(mode);
+            for (size_t i = 0; i < atoms_; i++) get_atom(frame, t ? modes_ : intra, i, reader);
             T *x = dec_data + t * frame_values;
             for (size_t i = 0; i < frame_values; i++) x[i] = T(double(frame.cur[i]) * step_);
             std::swap(frame.cur, frame.prev);
@@ -698,7 +646,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         write(uint64_t(num_waters_), c);
         write(uint8_t(bond_r2_.size()), c);
         if (!bond_r2_.empty()) write(bond_r2_.data(), bond_r2_.size(), c);
-        write(modes_.data(), modes_.size(), c);
+        for (int m : modes_) write(uint8_t(m), c);
         write(box_min_.data(), box_min_.size(), c);
         write(box_size_.data(), box_size_.size(), c);
         write(uint64_t(raw_bits_.size()), c);
@@ -720,8 +668,11 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         read(classes, c, remaining_length);
         bond_r2_.resize(classes);
         if (classes) read(bond_r2_.data(), classes, c, remaining_length);
-        modes_.resize(coded_frames_ * biomd::NUM_GROUPS);
-        read(modes_.data(), modes_.size(), c, remaining_length);
+        for (int &m : modes_) {
+            uint8_t v;
+            read(v, c, remaining_length);
+            m = v & 1;
+        }
         box_min_.resize(coded_frames_ * 3);
         read(box_min_.data(), box_min_.size(), c, remaining_length);
         box_size_.resize(coded_frames_ * 3);
@@ -834,11 +785,11 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     double error_bound_, step_ = 0;
     int64_t water_oh2_ = 0, water_hh2_ = 0;  // squared O-H and H-H distances of the water (lattice units)
     size_t num_waters_ = 0;
-    std::vector<int64_t> bond_r2_;    // squared bond lengths per class (lattice units)
-    std::vector<uint8_t> modes_;      // per frame and group
-    std::vector<int32_t> box_min_;    // per frame: the corner of the box of the water O's
-    std::vector<uint32_t> box_size_;  // per frame: its sides
-    std::vector<uchar> raw_bits_;     // intra water O's and the low bytes of escaped values
+    std::vector<int64_t> bond_r2_;                 // squared bond lengths per class (lattice units)
+    int modes_[biomd::NUM_GROUPS] = {0, 0, 0, 0};  // per group: the predictor of the frames after the first
+    std::vector<int32_t> box_min_;                 // per frame: the corner of the box of the water O's
+    std::vector<uint32_t> box_size_;               // per frame: its sides
+    std::vector<uchar> raw_bits_;                  // intra water O's and the low bytes of escaped values
 };
 
 template <class T, uint N>
