@@ -271,59 +271,55 @@ ALWAYS_INLINE void dec_sph(const Frame &C, int m, size_t i, size_t j, int64_t R2
 }
 
 // H2 - O = d on the circle |d|^2 = R2, 2 d.d1 = R2 + |d1|^2 - D2, d1 = H1 - O. The coordinate a of d on the axis k
-// where d1 is smallest fixes two points P of the circle (integer arithmetic and one square root, so the decoder finds
-// the same); the one meant (intra: a bit, else the one nearer the prediction p) is corrected by two residuals.
-// Beyond the lattice sizes of a water (a molecule split by the boundary) both points are {a on k, 0, 0}.
-ALWAYS_INLINE int64_t rdiv(int64_t n, int64_t d) { return (n >= 0 ? n + d / 2 : n - d / 2) / d; }  // d > 0
-ALWAYS_INLINE void circ_pts(const int64_t d1[3], int64_t R2, int64_t D2, int k, int64_t a, int64_t P[2][3]) {
+// where d1 is smallest leaves two points of the circle, one on each side of the plane through d1 and axis k; the side
+// of d (intra: sent, else as a change from the side of the prediction p) picks one, and two residuals correct it.
+// Integer products and a square root and a division of exact doubles, so the decoder finds the same point. Beyond the
+// lattice sizes of a water (a molecule split by the boundary) the point is {a on k, 0, 0}.
+ALWAYS_INLINE int circ_axis(const int64_t d1[3]) {
+    int k = std::llabs(d1[1]) < std::llabs(d1[0]) ? 1 : 0;
+    return std::llabs(d1[2]) < std::llabs(d1[k]) ? 2 : k;
+}
+// the side of v: 1 when (-d1[j], d1[i]) . (v[i], v[j]) < 0
+ALWAYS_INLINE int circ_side(const int64_t d1[3], int k, const int64_t v[3]) {
+    const int i = k == 2 ? 0 : k + 1, j = k == 0 ? 2 : (k == 1 ? 0 : 1);
+    return d1[i] * v[j] - d1[j] * v[i] < 0;
+}
+ALWAYS_INLINE void circ_pt(const int64_t d1[3], int64_t R2, int64_t D2, int k, int64_t a, int r, int64_t P[3]) {
     const int i = k == 2 ? 0 : k + 1, j = k == 0 ? 2 : (k == 1 ? 0 : 1);
     const int64_t u = d1[i], w = d1[j], g2 = u * u + w * w, lim = 16384;
     const bool ok =
         g2 > 0 && std::llabs(u) < lim && std::llabs(w) < lim && std::llabs(d1[k]) < lim && std::llabs(a) < lim;
     const int64_t M = ok ? R2 + g2 + d1[k] * d1[k] - D2 - 2 * d1[k] * a : 0;  // 2 (u P_i + w P_j)
-    const int64_t s = ok ? isqrt_round(4 * g2 * (R2 - a * a) - M * M) : 0;
-    for (int r = 0; r < 2; r++) {
-        P[r][k] = a;
-        P[r][i] = ok ? rdiv(M * u - (r ? -s : s) * w, 2 * g2) : 0;
-        P[r][j] = ok ? rdiv(M * w + (r ? -s : s) * u, 2 * g2) : 0;
-    }
-}
-ALWAYS_INLINE int circ_axis(const int64_t d1[3]) {
-    int k = std::llabs(d1[1]) < std::llabs(d1[0]) ? 1 : 0;
-    return std::llabs(d1[2]) < std::llabs(d1[k]) ? 2 : k;
-}
-ALWAYS_INLINE int64_t l1(const int64_t a[3], const int64_t b[3]) {
-    return std::llabs(a[0] - b[0]) + std::llabs(a[1] - b[1]) + std::llabs(a[2] - b[2]);
+    const int64_t s = ok ? (r ? -1 : 1) * isqrt_round(4 * g2 * (R2 - a * a) - M * M) : 0;
+    P[k] = a;
+    P[i] = ok ? rnd(double(M * u - s * w) / double(2 * g2)) : 0;
+    P[j] = ok ? rnd(double(M * w + s * u) / double(2 * g2)) : 0;
 }
 template <class S>
 ALWAYS_INLINE void enc_circ(const Frame &C, int m, size_t o, S &k) {
-    int64_t d1[3], d[3], p[3], P[2][3];
+    int64_t d1[3], d[3], p[3], P[3];
     rel(C.q, o + 1, o, d1);
     rel(C.q, o + 2, o, d);
-    const int ax = circ_axis(d1);
-    circ_pts(d1, C.R2, C.D2, ax, d[ax], P);
-    int r = l1(P[1], d) < l1(P[0], d);
+    const int ax = circ_axis(d1), r = circ_side(d1, ax, d);
     if (m) {
         rel(C.qp, o + 2, o, p);
-        const int rp = l1(P[1], p) < l1(P[0], p);
-        k.sym(S_CA, zz(d[ax] - p[ax]) * 2 + uint32_t(r != rp));
+        k.sym(S_CA, zz(d[ax] - p[ax]) * 2 + uint32_t(r != circ_side(d1, ax, p)));
     } else {
         k.sym(S_CA, zz(d[ax]) * 2 + uint32_t(r));
     }
+    circ_pt(d1, C.R2, C.D2, ax, d[ax], r, P);
     for (int c = 0; c < 3; c++)
-        if (c != ax) k.sym(S_CE, zz(d[c] - P[r][c]));
+        if (c != ax) k.sym(S_CE, zz(d[c] - P[c]));
 }
 ALWAYS_INLINE void dec_circ(const Frame &C, int m, size_t o, In &k) {
-    int64_t d1[3], p[3] = {0, 0, 0}, P[2][3];
+    int64_t d1[3], p[3] = {0, 0, 0}, P[3];
     rel(C.q, o + 1, o, d1);
     const int ax = circ_axis(d1);
     if (m) rel(C.qp, o + 2, o, p);
     const uint32_t v = k.sym(S_CA);
-    circ_pts(d1, C.R2, C.D2, ax, p[ax] + unzz(v >> 1), P);
-    int r = int(v & 1);
-    if (m) r ^= l1(P[1], p) < l1(P[0], p);
+    circ_pt(d1, C.R2, C.D2, ax, p[ax] + unzz(v >> 1), int(v & 1) ^ (m ? circ_side(d1, ax, p) : 0), P);
     for (int c = 0; c < 3; c++)
-        C.q[3 * (o + 2) + c] = int32_t(C.q[3 * o + c] + (c == ax ? P[r][c] : P[r][c] + unzz(k.sym(S_CE))));
+        C.q[3 * (o + 2) + c] = int32_t(C.q[3 * o + c] + (c == ax ? P[c] : P[c] + unzz(k.sym(S_CE))));
 }
 
 // One atom: a water (O and the rest of its molecule), or another atom. kind 1 atoms come with their O.
