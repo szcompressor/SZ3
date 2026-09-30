@@ -493,6 +493,51 @@ ALWAYS_INLINE void get_atom(const FrameContext &frame, const int *mode, size_t i
     }
 }
 
+// q = round(x / step)
+template <class T>
+inline void quantize(const T *x, size_t n, double inv_step, int32_t *q) {
+    for (size_t i = 0; i < n; i++) {
+        const double y = double(x[i]) * inv_step;
+        q[i] = int32_t(y + std::copysign(0.5, y));
+    }
+}
+
+// the box of the water O's of frame q
+inline void water_box(const int32_t *q, const std::vector<uint32_t> &waters, int32_t lo[3], int32_t hi[3]) {
+    for (int c = 0; c < 3; c++) lo[c] = hi[c] = waters.empty() ? 0 : q[3 * waters[0] + c];
+    for (uint32_t i : waters)
+        for (int c = 0; c < 3; c++) {
+            lo[c] = std::min(lo[c], q[3 * i + c]);
+            hi[c] = std::max(hi[c], q[3 * i + c]);
+        }
+}
+
+// Per group, the mode (0 intra, 1 previous frame) that costs fewer bits on a sample of up to 256 of its atoms.
+inline void choose_modes(const FrameContext &frame, const std::vector<uint32_t> *const group_atoms[NUM_GROUPS],
+                         const int32_t box_max[3], int mode[NUM_GROUPS]) {
+    for (int g = 0; g < NUM_GROUPS; g++) {
+        const auto &sample = *group_atoms[g];
+        double best = 1e300;
+        for (int m = 0; m < 2 && !sample.empty(); m++) {
+            CostEstimate cost;
+            int trial[NUM_GROUPS] = {mode[0], mode[1], mode[2], mode[3]};
+            trial[g] = m;
+            const size_t stride = std::max<size_t>(1, sample.size() / 256);
+            for (size_t k = 0; k < sample.size(); k += stride) {
+                const uint32_t i = sample[k];
+                if (g != G_WATER_O)
+                    put_atom(frame, trial, i, cost);
+                else if (m == 0)  // the point in the box
+                    for (int c = 0; c < 3; c++) cost.bits += std::log2(double(box_max[c] - frame.box_min[c]) + 1.0);
+                else
+                    for (int c = 0; c < 3; c++)
+                        cost.put(S_WATER_O, zigzag(frame.cur[3 * i + c] - frame.prev[3 * i + c]));
+            }
+            if (cost.bits < best) best = cost.bits, mode[g] = m;
+        }
+    }
+}
+
 // the buffer of stream s in the given modes of the groups
 inline size_t stream_slot(int s, const int *mode) { return s * 2 + (STREAM_GROUP[s] < 0 ? 0 : mode[STREAM_GROUP[s]]); }
 
@@ -510,56 +555,11 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     std::vector<int> compress(const Config & /*conf*/, T *data) override {
         using namespace biomd;
         const size_t frame_values = atoms_ * 3;
-        // trailing frames all of one value (the unwritten rest of a chunk) are stored as that value
-        fill_value_ = data[(frames_ - 1) * frame_values];
-        auto is_fill = [this, data, frame_values](size_t t) {
-            for (size_t i = t * frame_values; i < (t + 1) * frame_values; i++)
-                if (memcmp(&data[i], &fill_value_, sizeof(T)) != 0) return false;
-            return true;
-        };
-        for (coded_frames_ = frames_; coded_frames_ > 1 && is_fill(coded_frames_ - 1);) coded_frames_--;
-        // lattice step: 2 (eb - ulp) for the binade of max|x|, so that q step rounded to T stays within eb
-        using Bits = typename std::conditional<sizeof(T) == 4, uint32_t, uint64_t>::type;
-        Bits max_bits = 0;  // the largest |x| as bits: NaN and inf are above every finite value
-        for (size_t i = 0; i < coded_frames_ * frame_values; i++) {
-            Bits b;
-            memcpy(&b, &data[i], sizeof(T));
-            b &= Bits(~Bits(0)) >> 1;
-            max_bits = b > max_bits ? b : max_bits;
-        }
-        T max_abs;
-        memcpy(&max_abs, &max_bits, sizeof(T));
-        if (!(max_abs <= std::numeric_limits<T>::max())) throw std::runtime_error("SZ3 BioMD: non-finite input");
-        int exponent;
-        std::frexp(double(max_abs), &exponent);
-        const double ulp = std::ldexp(1.0, exponent - std::numeric_limits<T>::digits);
-        step_ = ulp < 0.5 * error_bound_ ? 2.0 * (error_bound_ - ulp) : error_bound_;
-        if (!(step_ > 0) || max_abs / step_ > double(1 << 28))
-            throw std::runtime_error("SZ3 BioMD: error bound too small for the coordinate range");
-        const double inv_step = 1.0 / step_;
-
-        // the layout, from the first frame
+        find_fill_frames(data);
+        choose_step(data);
         Layout layout;
-        detect_water(data, atoms_, layout, step_);
-        water_oh2_ = water_hh2_ = 0;
-        if (layout.water_oh > 0 && layout.water_oh / step_ < 16384) {
-            water_oh2_ = round_half_away((layout.water_oh / step_) * (layout.water_oh / step_));
-            water_hh2_ = round_half_away((layout.water_hh / step_) * (layout.water_hh / step_));
-            water_hh2_ = water_hh2_ < (int64_t(1) << 30) ? water_hh2_ : 0;
-        } else {  // no water, or too many lattice steps across one for exact products
-            std::fill(layout.kind.begin(), layout.kind.end(), K_OTHER);
-        }
-        detect_bonds(data, atoms_, layout);
-        bond_r2_.clear();
-        for (double b : layout.bond_lengths) bond_r2_.push_back(round_half_away((b / step_) * (b / step_)));
         std::vector<uint32_t> waters, bonded, unbonded;  // water O's, other atoms
-        for (size_t i = 0; i < atoms_; i++) {
-            uint16_t &bond = layout.bond[i];
-            if (bond && bond_r2_[bond_class(bond)] >= MAX_BOND_R2) bond = 0;
-            if (layout.kind[i] == K_WATER_O) waters.push_back(uint32_t(i));
-            if (layout.kind[i] == K_OTHER) (bond ? bonded : unbonded).push_back(uint32_t(i));
-        }
-        num_waters_ = waters.size();
+        detect_layout(data, layout, waters, bonded, unbonded);
 
         // per (stream, mode) a buffer, kept long enough for the next frame's symbols
         GrowBuffer buffers[NUM_STREAMS * 2];
@@ -591,59 +591,19 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         for (size_t i = 0; i < atoms_; i++)
             if (layout.kind[i] == K_OTHER) writer.put(S_BOND_REF, layout.bond[i]);
         end_frame(intra);
+
         std::unique_ptr<int32_t[]> lattice(new int32_t[2 * frame_values]);  // written before read
-        FrameContext frame{lattice.get(),
-                           lattice.get() + frame_values,
-                           &layout,
-                           water_oh2_,
-                           water_hh2_,
-                           bond_r2_.data(),
-                           {0, 0, 0},
-                           {1, 1, 1},
-                           0};
+        FrameContext frame = frame_context(lattice.get(), layout);
         int mode[NUM_GROUPS] = {0, 0, 0, 0};
         modes_.clear();
         box_min_.clear();
         box_size_.clear();
         for (size_t t = 0; t < coded_frames_; t++) {
-            const T *x = data + t * frame_values;
-            for (size_t i = 0; i < frame_values; i++) {
-                const double y = double(x[i]) * inv_step;
-                frame.cur[i] = int32_t(y + std::copysign(0.5, y));
-            }
-            int32_t box_max[3] = {0, 0, 0};
-            for (int c = 0; c < 3; c++)
-                frame.box_min[c] = box_max[c] = waters.empty() ? 0 : frame.cur[3 * waters[0] + c];
-            for (uint32_t i : waters)
-                for (int c = 0; c < 3; c++) {
-                    frame.box_min[c] = std::min(frame.box_min[c], frame.cur[3 * i + c]);
-                    box_max[c] = std::max(box_max[c], frame.cur[3 * i + c]);
-                }
+            quantize(data + t * frame_values, frame_values, 1.0 / step_, frame.cur);
+            int32_t box_max[3];
+            water_box(frame.cur, waters, frame.box_min, box_max);
             // per group, the predictor that is cheapest on a sample: at frames 1 and 2, then every 8th frame
-            if (t > 0 && (t <= 2 || t % 8 == 0))
-                for (int g = 0; g < NUM_GROUPS; g++) {
-                    const auto &sample = *group_atoms[g];
-                    double best = 1e300;
-                    for (int m = 0; m < 2 && !sample.empty(); m++) {
-                        CostEstimate cost;
-                        int trial[NUM_GROUPS] = {mode[0], mode[1], mode[2], mode[3]};
-                        trial[g] = m;
-                        const size_t stride = std::max<size_t>(1, sample.size() / 256);
-                        for (size_t k = 0; k < sample.size(); k += stride) {
-                            const uint32_t i = sample[k];
-                            if (g != G_WATER_O)
-                                put_atom(frame, trial, i, cost);
-                            else if (m == 0)  // the point in the box
-                                for (int c = 0; c < 3; c++)
-                                    cost.bits += std::log2(double(box_max[c] - frame.box_min[c]) + 1.0);
-                            else
-                                for (int c = 0; c < 3; c++)
-                                    cost.put(S_WATER_O, zigzag(frame.cur[3 * i + c] - frame.prev[3 * i + c]));
-                        }
-                        if (cost.bits < best) best = cost.bits, mode[g] = m;
-                    }
-                }
-            if (t == 0) std::fill(mode, mode + NUM_GROUPS, 0);
+            if (t > 0 && (t <= 2 || t % 8 == 0)) choose_modes(frame, group_atoms, box_max, mode);
             for (int g = 0; g < NUM_GROUPS; g++) modes_.push_back(uint8_t(mode[g]));
             for (int c = 0; c < 3; c++) {
                 box_min_.push_back(frame.box_min[c]);
@@ -656,6 +616,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
             std::swap(frame.cur, frame.prev);
         }
         writer.flush_bits();
+
         // the streams one after the other, each as [count, symbols], for SegmentedEncoder
         std::vector<int> bins;
         size_t n = NUM_STREAMS * 2;
@@ -694,34 +655,10 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         const int intra[NUM_GROUPS] = {0, 0, 0, 0};
         begin_frame(intra);
         Layout layout;
-        layout.kind.assign(atoms_, K_OTHER);
-        for (size_t k = 0, o = 0; k < num_waters_; k++) {
-            const uint32_t gap = reader.get(S_WATER_GAP);
-            if ((k && gap < 3) || gap > atoms_ || o + gap + 2 >= atoms_)
-                throw std::runtime_error("SZ3 BioMD: corrupt stream");
-            o += gap;
-            layout.kind[o] = K_WATER_O;
-            layout.kind[o + 1] = layout.kind[o + 2] = K_WATER_H;
-        }
-        layout.bond.assign(atoms_, 0);
-        for (size_t i = 0; i < atoms_; i++)
-            if (layout.kind[i] == K_OTHER) {
-                const uint32_t bond = reader.get(S_BOND_REF);
-                if (bond && ((bond >> 4) > i || (bond & 15) == 0 || (bond & 15) > bond_r2_.size()))
-                    throw std::runtime_error("SZ3 BioMD: corrupt stream");
-                layout.bond[i] = uint16_t(bond);
-            }
+        read_layout(reader, layout);
         end_frame(intra);
         std::unique_ptr<int32_t[]> lattice(new int32_t[2 * frame_values]);  // written before read
-        FrameContext frame{lattice.get(),
-                           lattice.get() + frame_values,
-                           &layout,
-                           water_oh2_,
-                           water_hh2_,
-                           bond_r2_.data(),
-                           {0, 0, 0},
-                           {1, 1, 1},
-                           0};
+        FrameContext frame = frame_context(lattice.get(), layout);
         reader.raw = raw_bits_.data();
         reader.raw_end = raw_bits_.data() + raw_bits_.size();
         for (size_t t = 0; t < coded_frames_; t++) {
@@ -794,6 +731,92 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     std::pair<int, int> get_out_range() override { return {0, 0}; }  // SegmentedEncoder takes any int
 
    private:
+    // Trailing frames all of one value (the unwritten rest of a chunk) are stored as that value.
+    void find_fill_frames(const T *data) {
+        const size_t frame_values = atoms_ * 3;
+        fill_value_ = data[(frames_ - 1) * frame_values];
+        auto is_fill = [&](size_t t) {
+            for (size_t i = t * frame_values; i < (t + 1) * frame_values; i++)
+                if (memcmp(&data[i], &fill_value_, sizeof(T)) != 0) return false;
+            return true;
+        };
+        for (coded_frames_ = frames_; coded_frames_ > 1 && is_fill(coded_frames_ - 1);) coded_frames_--;
+    }
+
+    // Lattice step: 2 (eb - ulp) for the binade of max|x|, so that q step rounded to T stays within eb.
+    void choose_step(const T *data) {
+        using Bits = typename std::conditional<sizeof(T) == 4, uint32_t, uint64_t>::type;
+        Bits max_bits = 0;  // the largest |x| as bits: NaN and inf are above every finite value
+        for (size_t i = 0; i < coded_frames_ * atoms_ * 3; i++) {
+            Bits b;
+            memcpy(&b, &data[i], sizeof(T));
+            b &= Bits(~Bits(0)) >> 1;
+            max_bits = b > max_bits ? b : max_bits;
+        }
+        T max_abs;
+        memcpy(&max_abs, &max_bits, sizeof(T));
+        if (!(max_abs <= std::numeric_limits<T>::max())) throw std::runtime_error("SZ3 BioMD: non-finite input");
+        int exponent;
+        std::frexp(double(max_abs), &exponent);
+        const double ulp = std::ldexp(1.0, exponent - std::numeric_limits<T>::digits);
+        step_ = ulp < 0.5 * error_bound_ ? 2.0 * (error_bound_ - ulp) : error_bound_;
+        if (!(step_ > 0) || max_abs / step_ > double(1 << 28))
+            throw std::runtime_error("SZ3 BioMD: error bound too small for the coordinate range");
+    }
+
+    // The layout of the first frame, its geometry on the lattice, and the atoms of each group.
+    void detect_layout(const T *data, biomd::Layout &layout, std::vector<uint32_t> &waters,
+                       std::vector<uint32_t> &bonded, std::vector<uint32_t> &unbonded) {
+        using namespace biomd;
+        detect_water(data, atoms_, layout, step_);
+        water_oh2_ = water_hh2_ = 0;
+        if (layout.water_oh > 0 && layout.water_oh / step_ < 16384) {
+            water_oh2_ = round_half_away((layout.water_oh / step_) * (layout.water_oh / step_));
+            water_hh2_ = round_half_away((layout.water_hh / step_) * (layout.water_hh / step_));
+            water_hh2_ = water_hh2_ < (int64_t(1) << 30) ? water_hh2_ : 0;
+        } else {  // no water, or too many lattice steps across one for exact products
+            std::fill(layout.kind.begin(), layout.kind.end(), K_OTHER);
+        }
+        detect_bonds(data, atoms_, layout);
+        bond_r2_.clear();
+        for (double b : layout.bond_lengths) bond_r2_.push_back(round_half_away((b / step_) * (b / step_)));
+        for (size_t i = 0; i < atoms_; i++) {
+            uint16_t &bond = layout.bond[i];
+            if (bond && bond_r2_[bond_class(bond)] >= MAX_BOND_R2) bond = 0;
+            if (layout.kind[i] == K_WATER_O) waters.push_back(uint32_t(i));
+            if (layout.kind[i] == K_OTHER) (bond ? bonded : unbonded).push_back(uint32_t(i));
+        }
+        num_waters_ = waters.size();
+    }
+
+    // The layout from its streams: the water O's by their gaps, then the bond of each other atom.
+    void read_layout(biomd::SymbolReader &reader, biomd::Layout &layout) const {
+        using namespace biomd;
+        layout.kind.assign(atoms_, K_OTHER);
+        for (size_t k = 0, o = 0; k < num_waters_; k++) {
+            const uint32_t gap = reader.get(S_WATER_GAP);
+            if ((k && gap < 3) || gap > atoms_ || o + gap + 2 >= atoms_)
+                throw std::runtime_error("SZ3 BioMD: corrupt stream");
+            o += gap;
+            layout.kind[o] = K_WATER_O;
+            layout.kind[o + 1] = layout.kind[o + 2] = K_WATER_H;
+        }
+        layout.bond.assign(atoms_, 0);
+        for (size_t i = 0; i < atoms_; i++)
+            if (layout.kind[i] == K_OTHER) {
+                const uint32_t bond = reader.get(S_BOND_REF);
+                if (bond && (bond_offset(bond) > i || bond_class(bond) >= bond_r2_.size()))  // class 0: SIZE_MAX
+                    throw std::runtime_error("SZ3 BioMD: corrupt stream");
+                layout.bond[i] = uint16_t(bond);
+            }
+    }
+
+    // the lattice holds this frame and the one before
+    biomd::FrameContext frame_context(int32_t *lattice, const biomd::Layout &layout) const {
+        return {lattice, lattice + atoms_ * 3, &layout, water_oh2_, water_hh2_, bond_r2_.data(), {0, 0, 0}, {1, 1, 1},
+                0};
+    }
+
     size_t frames_, atoms_, coded_frames_ = 1;  // coded: the frames before the fill
     T fill_value_ = 0;
     double error_bound_, step_ = 0;
