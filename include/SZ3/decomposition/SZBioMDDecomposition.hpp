@@ -4,8 +4,8 @@
 // ALGO_BIOMD: molecular-dynamics coordinates {frames, atoms, 3} (nm, absolute bound) as integer symbols for the
 // Huffman encoder. Every coordinate goes on the lattice q = round(x / step), |x - q step| <= eb, and all prediction is
 // integer arithmetic on that lattice, which the decoder repeats exactly.
-//  * rigid water (O, H, H): each H on the sphere |H - O| = r (the virtual site of 4-site models is a bonded atom)
-//  * other atoms: on the sphere of a bond-length class around one of the previous MAXOFF atoms, else a delta
+//  * rigid water (O, H1, H2): H1 on the sphere |H1 - O| = r, H2 on the circle that r and the H-H distance leave
+//  * other atoms: on the sphere of a bond-length class around one of the previous MAX_BOND_OFFSET atoms, else a delta
 //  * per frame and atom group, intra or from the previous frame, whichever is cheaper on a sample (frame 0 is intra)
 // The layout (which atoms are water, the bond of each other atom) is found on a chunk's first frame and stored with it.
 
@@ -27,48 +27,79 @@
 namespace SZ3 {
 namespace biomd {
 
-constexpr int MAXOFF = 4;                     // a bond partner is one of the previous MAXOFF atoms
-constexpr int MAXCLS = 15;                    // bond-length classes
-constexpr int64_t RMAXB2 = int64_t(1) << 28;  // bonds of 16384 lattice units or more are not coded as spheres
-enum { G_O, G_WH, G_NB, G_NU, NGROUP };
-enum { S_W, S_REF, S_O, S_FE, S_KEPT, S_E, S_CA, S_CE, S_BFE, S_BK, S_BE, S_U, NS };
-// each stream is split by the mode (0 intra, 1 previous frame) of its group, so each (stream, mode) gets its own code
-constexpr int SGROUP[NS] = {-1, -1, G_O, G_WH, G_WH, G_WH, G_WH, G_WH, G_NB, G_NB, G_NB, G_NU};
-constexpr int PER_UNIT[NS] = {1, 1, 3, 2, 4, 2, 1, 2, 1, 3, 1, 3};  // most symbols per unit of the group, per frame
+constexpr int MAX_BOND_OFFSET = 4;                 // a bond partner is one of the previous MAX_BOND_OFFSET atoms
+constexpr int MAX_BOND_CLASSES = 15;               // bond-length classes
+constexpr int64_t MAX_BOND_R2 = int64_t(1) << 28;  // bonds of 16384 lattice units or more are not coded as spheres
+constexpr uint32_t ESCAPE = 4096;                  // unbonded values from here on: an escape symbol and a raw byte
 
-inline uint32_t zz(int64_t v) { return uint32_t((uint64_t(v) << 1) ^ uint64_t(v >> 63)); }
-inline int64_t unzz(uint32_t u) { return int64_t(u >> 1) ^ -int64_t(u & 1); }
-inline int64_t rnd(double y) { return int64_t(y + std::copysign(0.5, y)); }
+// atom groups, each with its own predictor mode per frame
+enum { G_WATER_O, G_WATER_H, G_BONDED, G_UNBONDED, NUM_GROUPS };
+// symbol streams: the layout (gaps between water O's, the bond of each other atom); water O from the previous frame;
+// water H1 on the sphere around O and bonded atoms on the sphere around their partner (face, kept coordinates, radial
+// residual); water H2 on the circle (coordinate and side, residuals); unbonded atoms as deltas
+enum {
+    S_WATER_GAP,
+    S_BOND_REF,
+    S_WATER_O,
+    S_WATER_H1_FACE,
+    S_WATER_H1_KEPT,
+    S_WATER_H1_RADIAL,
+    S_WATER_H2_AXIS,
+    S_WATER_H2_RESIDUAL,
+    S_BOND_FACE,
+    S_BOND_KEPT,
+    S_BOND_RADIAL,
+    S_UNBONDED,
+    NUM_STREAMS
+};
+// each stream is split by the mode (0 intra, 1 previous frame) of its group, so each (stream, mode) gets its own code;
+// the layout streams (-1) are written once, in mode 0
+constexpr int STREAM_GROUP[NUM_STREAMS] = {-1,        -1,        G_WATER_O, G_WATER_H, G_WATER_H, G_WATER_H,
+                                           G_WATER_H, G_WATER_H, G_BONDED,  G_BONDED,  G_BONDED,  G_UNBONDED};
+// the most symbols one atom (water: one molecule) of the stream's group puts in the stream per frame
+constexpr int MAX_SYMBOLS_PER_UNIT[NUM_STREAMS] = {1, 1, 3, 2, 4, 2, 1, 2, 1, 3, 1, 3};
+
+inline uint32_t zigzag(int64_t v) { return uint32_t((uint64_t(v) << 1) ^ uint64_t(v >> 63)); }
+inline int64_t unzigzag(uint32_t u) { return int64_t(u >> 1) ^ -int64_t(u & 1); }
+inline int64_t round_half_away(double y) { return int64_t(y + std::copysign(0.5, y)); }
 inline int64_t isqrt_round(int64_t n) { return n <= 0 ? 0 : int64_t(std::sqrt(double(n)) + 0.5); }
-inline void rel(const int32_t *a, size_t i, size_t j, int64_t o[3]) {
-    for (int c = 0; c < 3; c++) o[c] = int64_t(a[3 * i + c]) - a[3 * j + c];
+// d = atom i - atom j
+inline void displacement(const int32_t *q, size_t i, size_t j, int64_t d[3]) {
+    for (int c = 0; c < 3; c++) d[c] = int64_t(q[3 * i + c]) - q[3 * j + c];
+}
+inline int bit_width(uint64_t v) {  // v < 2^63
+    int b = 0;
+    while (v >> b) b++;
+    return b;
 }
 
-// The largest axis f of p, and the other two.
-ALWAYS_INLINE void axes(const int64_t p[3], int &f, int &i, int &j) {
-    f = std::llabs(p[1]) > std::llabs(p[0]) ? 1 : 0;
-    if (std::llabs(p[2]) > std::llabs(p[f])) f = 2;
-    i = (f + 1) % 3;
-    j = (f + 2) % 3;
+// The largest axis of p, dropped by the sphere code, and the other two, kept.
+ALWAYS_INLINE void split_axes(const int64_t p[3], int &drop, int &keep0, int &keep1) {
+    drop = std::llabs(p[1]) > std::llabs(p[0]) ? 1 : 0;
+    if (std::llabs(p[2]) > std::llabs(p[drop])) drop = 2;
+    keep0 = (drop + 1) % 3;
+    keep1 = (drop + 2) % 3;
 }
 
 // ------------------------------------------------------------------------------------------------ layout
-enum : uint8_t { K_WO, K_WH, K_OTHER };
+enum : uint8_t { K_WATER_O, K_WATER_H, K_OTHER };
 struct Layout {
-    std::vector<uint8_t> kind;  // per atom: K_WO water O (then its H at i + 1, i + 2), K_WH water H, K_OTHER
+    std::vector<uint8_t> kind;  // per atom: K_WATER_O (then its H at i + 1, i + 2), K_WATER_H, K_OTHER
     std::vector<uint16_t>
-        ref;               // other atoms: 0 = no bond, else off * 16 + cls + 1 (the sphere of class cls around i - off)
-    double r = 0, hh = 0;  // water O-H and H-H (nm)
-    std::vector<double> blen;  // bond-length classes (nm)
+        bond;  // other atoms: 0 = none, else offset * 16 + class + 1: the class sphere around i - offset
+    double water_oh = 0, water_hh = 0;  // O-H and H-H distances of the water (nm)
+    std::vector<double> bond_lengths;   // bond-length classes (nm)
 };
+inline size_t bond_offset(uint16_t bond) { return bond >> 4; }
+inline size_t bond_class(uint16_t bond) { return (bond & 15) - 1; }
 
-// Rigid water on frame x: kind and r. The tolerances grow with the lattice step, so rounded input (xtc files,
-// or data this codec decompressed) still fits.
+// Rigid water on frame x: kind, water_oh, water_hh. The tolerances grow with the lattice step, so rounded input (xtc
+// files, or data this codec decompressed) still fits.
 template <class T>
-void detect_water(const T *x, size_t N, Layout &L, double step) {
-    L.kind.assign(N, K_OTHER);
-    L.r = 0;
-    auto d2 = [x](size_t a, size_t b) {
+void detect_water(const T *x, size_t atoms, Layout &layout, double step) {
+    layout.kind.assign(atoms, K_OTHER);
+    layout.water_oh = 0;
+    auto dist2 = [x](size_t a, size_t b) {
         float dx = float(x[3 * a] - x[3 * b]), dy = float(x[3 * a + 1] - x[3 * b + 1]),
               dz = float(x[3 * a + 2] - x[3 * b + 2]);
         return dx * dx + dy * dy + dz * dz;
@@ -76,11 +107,11 @@ void detect_water(const T *x, size_t N, Layout &L, double step) {
     // Candidates: O-H in [0.08, 0.125] nm, H-H in [0.13, 0.2] nm, probed across the frame. Rigid water gives sharp
     // O-H / H-H peaks, flexible CH2/NH2 groups broad ones.
     std::vector<float> cand_oh, cand_hh;
-    const size_t probe = std::max<size_t>(1, N / 300);
-    for (size_t i = 0; i + 2 < N; i += probe)
-        for (size_t o = 0; o < 3 && i + o + 2 < N; o++) {
+    const size_t probe = std::max<size_t>(1, atoms / 300);
+    for (size_t i = 0; i + 2 < atoms; i += probe)
+        for (size_t o = 0; o < 3 && i + o + 2 < atoms; o++) {
             const size_t k = i + o;
-            const float a = d2(k, k + 1), b = d2(k, k + 2), c = d2(k + 1, k + 2);
+            const float a = dist2(k, k + 1), b = dist2(k, k + 2), c = dist2(k + 1, k + 2);
             if (a > 0.0064f && a < 0.015625f && b > 0.0064f && b < 0.015625f && c > 0.0169f && c < 0.04f) {
                 cand_hh.push_back(std::sqrt(c));
                 cand_oh.push_back(std::sqrt(a));
@@ -91,7 +122,7 @@ void detect_water(const T *x, size_t N, Layout &L, double step) {
     if (cand_hh.size() < 16) return;
     // tolerances stay well below the O-H / C-H difference (> 0.01 nm) that separates water from CH2/NH2
     const double tight = std::max(0.001, step), tol = std::max(0.002, 2.0 * step), loose = std::max(0.01, 3.0 * tight);
-    auto mode = [](std::vector<float> v) {  // median of the values within 0.003 nm of the heaviest 0.004 nm window
+    auto peak = [](std::vector<float> v) {  // median of the values within 0.003 nm of the heaviest 0.004 nm window
         std::sort(v.begin(), v.end());
         size_t best = 0, n = 0;
         for (size_t lo = 0, hi = 0; hi < v.size(); hi++) {
@@ -103,342 +134,367 @@ void detect_water(const T *x, size_t N, Layout &L, double step) {
             if (std::fabs(y - v[best]) < 0.003f) w.push_back(y);
         return double(w[w.size() / 2]);
     };
-    const double h0 = mode(cand_hh);
-    std::vector<float> ohs;
+    const double hh = peak(cand_hh);
+    std::vector<float> oh_of_hh;
     for (size_t c = 0; c < cand_hh.size(); c++)
-        if (std::fabs(cand_hh[c] - h0) < tol) ohs.push_back(cand_oh[2 * c]), ohs.push_back(cand_oh[2 * c + 1]);
-    if (ohs.empty()) return;
-    const double r0 = mode(ohs);
-    // rigidity test: rigid water puts nearly all nearby candidates within `tight` of both modes
-    size_t ntight = 0, nloose = 0, ns = 0;
-    double sr = 0, sh = 0;
+        if (std::fabs(cand_hh[c] - hh) < tol)
+            oh_of_hh.push_back(cand_oh[2 * c]), oh_of_hh.push_back(cand_oh[2 * c + 1]);
+    if (oh_of_hh.empty()) return;
+    const double oh = peak(oh_of_hh);
+    // rigidity test: rigid water puts nearly all nearby candidates within `tight` of both peaks
+    size_t n_tight = 0, n_loose = 0, n_rigid = 0;
+    double sum_oh = 0, sum_hh = 0;
     for (size_t c = 0; c < cand_hh.size(); c++) {
-        const double dh = std::fabs(cand_hh[c] - h0), da = std::fabs(cand_oh[2 * c] - r0),
-                     db = std::fabs(cand_oh[2 * c + 1] - r0);
+        const double dh = std::fabs(cand_hh[c] - hh), da = std::fabs(cand_oh[2 * c] - oh),
+                     db = std::fabs(cand_oh[2 * c + 1] - oh);
         if (dh < loose && da < loose && db < loose) {
-            nloose++;
-            ntight += dh < tight && da < tight && db < tight;
+            n_loose++;
+            n_tight += dh < tight && da < tight && db < tight;
         }
-        if (dh < tol && da < tol && db < tol) sr += double(cand_oh[2 * c]) + cand_oh[2 * c + 1], sh += cand_hh[c], ns++;
+        if (dh < tol && da < tol && db < tol)
+            sum_oh += double(cand_oh[2 * c]) + cand_oh[2 * c + 1], sum_hh += cand_hh[c], n_rigid++;
     }
-    if (nloose < 16 || ntight * 10 < nloose * 6) return;
-    const float alo = float((r0 - tol) * (r0 - tol)), ahi = float((r0 + tol) * (r0 + tol));
-    const float clo = float((h0 - tol) * (h0 - tol)), chi = float((h0 + tol) * (h0 + tol));
-    size_t nw = 0;
-    for (size_t i = 0; i + 2 < N;) {
-        float a = d2(i, i + 1), b, c;
-        if (a > alo && a < ahi && (b = d2(i, i + 2)) > alo && b < ahi && (c = d2(i + 1, i + 2)) > clo && c < chi) {
-            L.kind[i] = K_WO;
-            L.kind[i + 1] = L.kind[i + 2] = K_WH;
-            nw++;
+    if (n_loose < 16 || n_tight * 10 < n_loose * 6) return;
+    const float oh2_lo = float((oh - tol) * (oh - tol)), oh2_hi = float((oh + tol) * (oh + tol));
+    const float hh2_lo = float((hh - tol) * (hh - tol)), hh2_hi = float((hh + tol) * (hh + tol));
+    size_t waters = 0;
+    for (size_t i = 0; i + 2 < atoms;) {
+        float a = dist2(i, i + 1), b, c;
+        if (a > oh2_lo && a < oh2_hi && (b = dist2(i, i + 2)) > oh2_lo && b < oh2_hi &&
+            (c = dist2(i + 1, i + 2)) > hh2_lo && c < hh2_hi) {
+            layout.kind[i] = K_WATER_O;
+            layout.kind[i + 1] = layout.kind[i + 2] = K_WATER_H;
+            waters++;
             i += 3;
         } else {
             i++;
         }
     }
-    if (nw < 16) {
-        std::fill(L.kind.begin(), L.kind.end(), K_OTHER);
+    if (waters < 16) {
+        std::fill(layout.kind.begin(), layout.kind.end(), K_OTHER);
         return;
     }
-    L.r = sr / (2.0 * ns);
-    L.hh = sh / double(ns);
+    layout.water_oh = sum_oh / (2.0 * n_rigid);
+    layout.water_hh = sum_hh / double(n_rigid);
 }
 
-// Bonds of the other atoms on frame x: each takes the nearest of its previous MAXOFF atoms if that is within bond
-// range, and the bond-length classes are the peaks of those distances (1e-4 nm bins over 0.01 .. 0.25 nm; the virtual
-// site of 4-site water is a 0.015 nm bond to its O).
+// Bonds of the other atoms on frame x: each takes the nearest of its previous MAX_BOND_OFFSET atoms if that is within
+// bond range, and the bond-length classes are the peaks of those distances (1e-4 nm bins over 0.01 .. 0.25 nm; the
+// virtual site of 4-site water is a 0.015 nm bond to its O).
 template <class T>
-void detect_bonds(const T *x, size_t N, Layout &L) {
-    constexpr size_t NB = 2400;
-    L.ref.assign(N, 0);
-    L.blen.clear();
-    std::vector<uint8_t> dof(N, 0);
-    std::vector<uint16_t> bin(N, uint16_t(NB));
-    std::vector<int64_t> hist(NB, 0);
-    for (size_t i = 1; i < N; i++) {
-        if (L.kind[i] != K_OTHER) continue;
+void detect_bonds(const T *x, size_t atoms, Layout &layout) {
+    constexpr size_t NUM_BINS = 2400;
+    layout.bond.assign(atoms, 0);
+    layout.bond_lengths.clear();
+    std::vector<uint8_t> partner(atoms, 0);  // offset of the nearest previous atom
+    std::vector<uint16_t> bin(atoms, uint16_t(NUM_BINS));
+    std::vector<int64_t> hist(NUM_BINS, 0);
+    for (size_t i = 1; i < atoms; i++) {
+        if (layout.kind[i] != K_OTHER) continue;
         float best = 1e30f;
-        unsigned off = 0;  // locals and no branch: a byte store may alias x, and which one is nearest is random
-        for (unsigned o = 1; o <= unsigned(MAXOFF) && o <= i; o++) {
+        unsigned offset = 0;  // locals and no branch: a byte store may alias x, and which one is nearest is random
+        for (unsigned o = 1; o <= unsigned(MAX_BOND_OFFSET) && o <= i; o++) {
             const float dx = float(x[3 * i] - x[3 * (i - o)]), dy = float(x[3 * i + 1] - x[3 * (i - o) + 1]),
                         dz = float(x[3 * i + 2] - x[3 * (i - o) + 2]), v = dx * dx + dy * dy + dz * dz;
-            off = v < best ? o : off;
+            offset = v < best ? o : offset;
             best = std::min(best, v);
         }
-        dof[i] = uint8_t(off);
+        partner[i] = uint8_t(offset);
         if (best > 0.0001f && best < 0.0625f) {
-            bin[i] = uint16_t(std::min(NB - 1, size_t((std::sqrt(best) - 0.01f) * 1e4f)));
+            bin[i] = uint16_t(std::min(NUM_BINS - 1, size_t((std::sqrt(best) - 0.01f) * 1e4f)));
             hist[bin[i]]++;
         }
     }
     // peaks: the heaviest +-10-bin window, then suppress +-30 bins; classes under 0.5% of the bonded atoms are ignored.
     // Bins within 0.004 nm (40 bins) of a class go to the nearest one.
-    std::vector<int8_t> bincls(NB + 1, -1);
-    std::vector<uint8_t> bdist(NB, 255);
-    std::vector<int64_t> hs = hist, pre(NB + 1);
+    std::vector<int8_t> bin_class(NUM_BINS + 1, -1);
+    std::vector<uint8_t> bin_distance(NUM_BINS, 255);
+    std::vector<int64_t> left = hist, prefix(NUM_BINS + 1);
     int64_t total = 0;
     for (int64_t h : hist) total += h;
-    for (int c = 0; c < MAXCLS; c++) {
-        for (size_t k = 0; k < NB; k++) pre[k + 1] = pre[k] + hs[k];
-        size_t best = 0;
-        int64_t bv = 0;
-        for (size_t k = 0; k < NB; k++) {
-            const int64_t w = pre[std::min(NB, k + 11)] - pre[k >= 10 ? k - 10 : 0];
-            if (w > bv) bv = w, best = k;
+    for (int cls = 0; cls < MAX_BOND_CLASSES; cls++) {
+        for (size_t k = 0; k < NUM_BINS; k++) prefix[k + 1] = prefix[k] + left[k];
+        size_t peak = 0;
+        int64_t peak_weight = 0;
+        for (size_t k = 0; k < NUM_BINS; k++) {
+            const int64_t w = prefix[std::min(NUM_BINS, k + 11)] - prefix[k >= 10 ? k - 10 : 0];
+            if (w > peak_weight) peak_weight = w, peak = k;
         }
-        if (bv < 8 || bv * 200 < total) break;
-        double sw = 0, sm = 0;
-        for (size_t w = best >= 10 ? best - 10 : 0; w < std::min(NB, best + 11); w++)
-            sw += hist[w], sm += hist[w] * (0.01 + (w + 0.5) * 1e-4);
-        L.blen.push_back(sm / sw);
-        for (size_t w = best >= 30 ? best - 30 : 0; w < std::min(NB, best + 31); w++) hs[w] = 0;
-        const long centre = long((L.blen.back() - 0.01) * 1e4);
-        for (long k = std::max(0L, centre - 40); k <= std::min(long(NB) - 1, centre + 40); k++)
-            if (uint8_t(std::labs(k - centre)) < bdist[k])
-                bdist[k] = uint8_t(std::labs(k - centre)), bincls[k] = int8_t(c);
+        if (peak_weight < 8 || peak_weight * 200 < total) break;
+        double weight = 0, length = 0;
+        for (size_t w = peak >= 10 ? peak - 10 : 0; w < std::min(NUM_BINS, peak + 11); w++)
+            weight += hist[w], length += hist[w] * (0.01 + (w + 0.5) * 1e-4);
+        layout.bond_lengths.push_back(length / weight);
+        for (size_t w = peak >= 30 ? peak - 30 : 0; w < std::min(NUM_BINS, peak + 31); w++) left[w] = 0;
+        const long centre = long((layout.bond_lengths.back() - 0.01) * 1e4);
+        for (long k = std::max(0L, centre - 40); k <= std::min(long(NUM_BINS) - 1, centre + 40); k++)
+            if (uint8_t(std::labs(k - centre)) < bin_distance[k])
+                bin_distance[k] = uint8_t(std::labs(k - centre)), bin_class[k] = int8_t(cls);
     }
-    for (size_t i = 0; i < N; i++)
-        if (bincls[bin[i]] >= 0) L.ref[i] = uint16_t(dof[i] * 16 + bincls[bin[i]] + 1);
+    for (size_t i = 0; i < atoms; i++)
+        if (bin_class[bin[i]] >= 0) layout.bond[i] = uint16_t(partner[i] * 16 + bin_class[bin[i]] + 1);
 }
 
 // ------------------------------------------------------------------------------------------------ symbols
 // a buffer that grows by doubling and is never cleared (every value is written before it is read)
-struct Grow {
-    std::unique_ptr<int[]> p;
-    size_t cap = 0;
-    int *fit(size_t len, size_t need) {  // room for need values, keeping the first len
-        if (cap < need) {
-            std::unique_ptr<int[]> q(new int[2 * need]);
-            if (len) std::copy(p.get(), p.get() + len, q.get());
-            p = std::move(q);
-            cap = 2 * need;
+struct GrowBuffer {
+    std::unique_ptr<int[]> data;
+    size_t capacity = 0;
+    int *reserve(size_t kept, size_t need) {  // room for need values, keeping the first kept
+        if (capacity < need) {
+            std::unique_ptr<int[]> bigger(new int[2 * need]);
+            if (kept) std::copy(data.get(), data.get() + kept, bigger.get());
+            data = std::move(bigger);
+            capacity = 2 * need;
         }
-        return p.get();
+        return data.get();
     }
 };
-struct Out {  // the frame's buffer of each stream, and raw bits (LSB first)
-    int *p[NS];
-    std::vector<uchar> *r;
-    uint64_t acc = 0;
-    int n = 0;
-    ALWAYS_INLINE void sym(int s, uint32_t x) { *p[s]++ = int(x); }
-    ALWAYS_INLINE void raw(uint64_t v, int b) {  // b <= 56
-        acc |= uint64_t(v) << n;
-        for (n += b; n >= 8; n -= 8, acc >>= 8) r->push_back(uchar(acc));
+// the current frame's position in each stream, and raw bits (LSB first)
+struct SymbolWriter {
+    int *cursor[NUM_STREAMS];
+    std::vector<uchar> *raw;
+    uint64_t pending = 0;
+    int pending_bits = 0;
+    ALWAYS_INLINE void put(int s, uint32_t v) { *cursor[s]++ = int(v); }
+    ALWAYS_INLINE void put_bits(uint64_t v, int bits) {  // bits <= 56
+        pending |= v << pending_bits;
+        for (pending_bits += bits; pending_bits >= 8; pending_bits -= 8, pending >>= 8) raw->push_back(uchar(pending));
+    }
+    void flush_bits() {
+        if (pending_bits > 0) raw->push_back(uchar(pending));
     }
 };
-struct Est {  // bits on a sample, for the predictor choice
+// bits of a sample, for the predictor choice
+struct CostEstimate {
     double bits = 0;
-    inline void sym(int, uint32_t v) { bits += std::log2(double(v) + 1.0) + 1; }
-    inline void raw(uint64_t, int b) { bits += b; }
+    inline void put(int, uint32_t v) { bits += std::log2(double(v) + 1.0) + 1; }
+    inline void put_bits(uint64_t, int n) { bits += n; }
 };
-struct In {  // a cursor per stream, and one on the raw bits
-    const int *p[NS], *end[NS];
-    const uchar *r, *rend;
-    uint64_t acc = 0;
-    int n = 0;
-    ALWAYS_INLINE uint32_t sym(int s) {
-        if (p[s] == end[s]) throw std::runtime_error("SZ3 BioMD: corrupt stream");
-        return uint32_t(*p[s]++);
+// a cursor per stream, and one on the raw bits
+struct SymbolReader {
+    const int *cursor[NUM_STREAMS], *end[NUM_STREAMS];
+    const uchar *raw, *raw_end;
+    uint64_t pending = 0;
+    int pending_bits = 0;
+    ALWAYS_INLINE uint32_t get(int s) {
+        if (cursor[s] == end[s]) throw std::runtime_error("SZ3 BioMD: corrupt stream");
+        return uint32_t(*cursor[s]++);
     }
-    ALWAYS_INLINE uint64_t raw(int b) {  // b <= 56
-        for (; n < b; n += 8) {
-            if (r == rend) throw std::runtime_error("SZ3 BioMD: corrupt stream");
-            acc |= uint64_t(*r++) << n;
+    ALWAYS_INLINE uint64_t get_bits(int bits) {  // bits <= 56
+        for (; pending_bits < bits; pending_bits += 8) {
+            if (raw == raw_end) throw std::runtime_error("SZ3 BioMD: corrupt stream");
+            pending |= uint64_t(*raw++) << pending_bits;
         }
-        const uint64_t v = acc & ((uint64_t(1) << b) - 1);
-        acc >>= b;
-        n -= b;
+        const uint64_t v = pending & ((uint64_t(1) << bits) - 1);
+        pending >>= bits;
+        pending_bits -= bits;
         return v;
     }
 };
 
-// v as one symbol below 4096, else as 4096 + v / 256 and its low byte as raw bits
-template <class S>
-ALWAYS_INLINE void sym_big(S &k, int s, uint32_t v) {
-    if (v < 4096) return k.sym(s, v);
-    k.sym(s, 4096 + (v >> 8));
-    k.raw(v & 255, 8);
+// v as one symbol below ESCAPE, else as ESCAPE + v / 256 and its low byte as raw bits
+template <class Sink>
+ALWAYS_INLINE void put_escaped(Sink &out, int s, uint32_t v) {
+    if (v < ESCAPE) return out.put(s, v);
+    out.put(s, ESCAPE + (v >> 8));
+    out.put_bits(v & 255, 8);
 }
-ALWAYS_INLINE uint32_t get_big(In &k, int s) {
-    const uint32_t v = k.sym(s);
-    return v < 4096 ? v : (v - 4096) << 8 | uint32_t(k.raw(8));
+ALWAYS_INLINE uint32_t get_escaped(SymbolReader &in, int s) {
+    const uint32_t v = in.get(s);
+    return v < ESCAPE ? v : (v - ESCAPE) << 8 | uint32_t(in.get_bits(8));
 }
 
-struct Frame {
-    int32_t *q, *qp;  // this frame and the one before, on the lattice
-    const Layout *L;
-    int64_t R2, D2;  // squared O-H and H-H distances of water (lattice units)
-    const int64_t *BR2;
-    int32_t omin[3];  // the box of the water O's: corner, sides, and the bits of a point in it (x + Rx (y + Ry z))
-    uint64_t R[3];
-    int ob;  // or, if that takes more than 56, -1: then each coordinate in its own bits
+struct FrameContext {
+    int32_t *cur, *prev;  // this frame and the one before, on the lattice
+    const Layout *layout;
+    int64_t water_oh2, water_hh2;  // squared O-H and H-H distances of the water (lattice units)
+    const int64_t *bond_r2;        // squared bond lengths per class (lattice units)
+    // the box of the water O's: corner, sides, and the bits of a point in it (x + Rx (y + Ry z)), or -1 if that
+    // takes more than 56: then each coordinate in its own bits
+    int32_t box_min[3];
+    uint64_t box_size[3];
+    int box_bits;
 };
-
-inline int bits_of(uint64_t v) {  // v < 2^63
-    int b = 0;
-    while (v >> b) b++;
-    return b;
-}
-inline void box(Frame &C, const uint32_t *side) {  // sides of at most 2^30
-    for (int c = 0; c < 3; c++) C.R[c] = side[c];
-    C.ob = C.R[0] * C.R[1] < (uint64_t(1) << 56) / C.R[2] ? bits_of(C.R[0] * C.R[1] * C.R[2] - 1) : -1;
+inline void set_water_box(FrameContext &frame, const uint32_t *size) {  // sides of at most 2^30
+    uint64_t *R = frame.box_size;
+    for (int c = 0; c < 3; c++) R[c] = size[c];
+    frame.box_bits = R[0] * R[1] < (uint64_t(1) << 56) / R[2] ? bit_width(R[0] * R[1] * R[2] - 1) : -1;
 }
 
 // a water O of an intra frame: its point in the box
-template <class S>
-inline void enc_box(const Frame &C, const int32_t *p, S &k) {
+template <class Sink>
+inline void put_box_point(const FrameContext &frame, const int32_t *p, Sink &out) {
+    const uint64_t *R = frame.box_size;
     uint64_t u[3];
-    for (int c = 0; c < 3; c++) u[c] = uint64_t(int64_t(p[c]) - C.omin[c]);
-    if (C.ob >= 0) return k.raw(u[0] + C.R[0] * (u[1] + C.R[1] * u[2]), C.ob);
-    for (int c = 0; c < 3; c++) k.raw(u[c], bits_of(C.R[c] - 1));
+    for (int c = 0; c < 3; c++) u[c] = uint64_t(int64_t(p[c]) - frame.box_min[c]);
+    if (frame.box_bits >= 0) return out.put_bits(u[0] + R[0] * (u[1] + R[1] * u[2]), frame.box_bits);
+    for (int c = 0; c < 3; c++) out.put_bits(u[c], bit_width(R[c] - 1));
 }
-inline void dec_box(const Frame &C, int32_t *p, In &k) {
-    uint64_t v = C.ob >= 0 ? k.raw(C.ob) : 0;
+inline void get_box_point(const FrameContext &frame, int32_t *p, SymbolReader &in) {
+    const uint64_t *R = frame.box_size;
+    uint64_t v = frame.box_bits >= 0 ? in.get_bits(frame.box_bits) : 0;
     for (int c = 0; c < 3; c++) {
-        const uint64_t u = C.ob >= 0 ? v % C.R[c] : k.raw(bits_of(C.R[c] - 1));
-        v /= C.R[c];
-        p[c] = int32_t(C.omin[c] + int64_t(u));
+        const uint64_t u = frame.box_bits >= 0 ? v % R[c] : in.get_bits(bit_width(R[c] - 1));
+        v /= R[c];
+        p[c] = int32_t(frame.box_min[c] + int64_t(u));
     }
 }
 
-ALWAYS_INLINE int64_t pred_NU(const Frame &C, int m, size_t i, int c) {
-    return m ? C.qp[3 * i + c] : (i ? C.q[3 * (i - 1) + c] : 0);
+// coordinate c of unbonded atom i: from the atom before (intra) or from the previous frame
+ALWAYS_INLINE int64_t predict_unbonded(const FrameContext &frame, int mode, size_t i, int c) {
+    return mode ? frame.prev[3 * i + c] : (i ? frame.cur[3 * (i - 1) + c] : 0);
 }
 
-// Atom i on the sphere |d|^2 = R2 around atom j: the largest axis f of d is dropped and rebuilt from the other two,
-// with a residual e. Intra (m == 0) the face (2 f + sign) is sent with e and the two kept coordinates as they are;
-// else the vector p predicted by mode m fixes the axis and the sign, and the kept coordinates are residuals against p.
-template <class S>
-ALWAYS_INLINE void enc_sph(const Frame &C, int m, size_t i, size_t j, int64_t R2, int sfe, int sk, int se, S &k) {
+// Atom i on the sphere |d|^2 = r2 around atom j: the largest axis of d is dropped and rebuilt from the other two, with
+// a radial residual. Intra (mode 0) the face (2 axis + sign) is sent with the residual and the two kept coordinates as
+// they are; else the vector p of the previous frame fixes the axis and the sign, and the kept coordinates are residuals
+// against p.
+template <class Sink>
+ALWAYS_INLINE void put_sphere(const FrameContext &frame, int mode, size_t i, size_t j, int64_t r2, int s_face,
+                              int s_kept, int s_radial, Sink &out) {
     int64_t d[3], p[3] = {0, 0, 0};
-    int f, x, y;
-    rel(C.q, i, j, d);
-    if (m) rel(C.qp, i, j, p);  // the vector of the previous frame
-    axes(m ? p : d, f, x, y);
-    const bool neg = (m ? p[f] : d[f]) < 0;
-    const uint32_t ze = zz((neg ? -d[f] : d[f]) - isqrt_round(R2 - d[x] * d[x] - d[y] * d[y]));
-    if (m == 0) k.sym(sfe, uint32_t(2 * f + neg) + 6 * std::min(ze, 15u));
-    if (m != 0 || ze >= 15) k.sym(se, m == 0 ? ze - 15 : ze);
-    k.sym(sk, zz(d[x] - p[x]));
-    k.sym(sk, zz(d[y] - p[y]));
+    int drop, k0, k1;
+    displacement(frame.cur, i, j, d);
+    if (mode) displacement(frame.prev, i, j, p);
+    split_axes(mode ? p : d, drop, k0, k1);
+    const bool neg = (mode ? p[drop] : d[drop]) < 0;
+    const uint32_t radial = zigzag((neg ? -d[drop] : d[drop]) - isqrt_round(r2 - d[k0] * d[k0] - d[k1] * d[k1]));
+    if (mode == 0) out.put(s_face, uint32_t(2 * drop + neg) + 6 * std::min(radial, 15u));
+    if (mode != 0 || radial >= 15) out.put(s_radial, mode == 0 ? radial - 15 : radial);
+    out.put(s_kept, zigzag(d[k0] - p[k0]));
+    out.put(s_kept, zigzag(d[k1] - p[k1]));
 }
-ALWAYS_INLINE void dec_sph(const Frame &C, int m, size_t i, size_t j, int64_t R2, int sfe, int sk, int se, In &k) {
+ALWAYS_INLINE void get_sphere(const FrameContext &frame, int mode, size_t i, size_t j, int64_t r2, int s_face,
+                              int s_kept, int s_radial, SymbolReader &in) {
     int64_t d[3], p[3] = {0, 0, 0};
-    int f, x, y;
+    int drop, k0, k1;
     bool neg;
-    uint32_t ze;
-    if (m == 0) {
-        const uint32_t v = k.sym(sfe);
-        f = int(v % 6 / 2);
-        x = (f + 1) % 3;
-        y = (f + 2) % 3;
+    uint32_t radial;
+    if (mode == 0) {
+        const uint32_t v = in.get(s_face);
+        drop = int(v % 6 / 2);
+        k0 = (drop + 1) % 3;
+        k1 = (drop + 2) % 3;
         neg = v & 1;
-        ze = v / 6;
-        if (ze == 15) ze += k.sym(se);
+        radial = v / 6;
+        if (radial == 15) radial += in.get(s_radial);
     } else {
-        rel(C.qp, i, j, p);  // the vector of the previous frame
-        axes(p, f, x, y);
-        neg = p[f] < 0;
-        ze = k.sym(se);
+        displacement(frame.prev, i, j, p);
+        split_axes(p, drop, k0, k1);
+        neg = p[drop] < 0;
+        radial = in.get(s_radial);
     }
-    d[x] = p[x] + unzz(k.sym(sk));
-    d[y] = p[y] + unzz(k.sym(sk));
-    const int64_t r = isqrt_round(R2 - d[x] * d[x] - d[y] * d[y]) + unzz(ze);
-    d[f] = neg ? -r : r;
-    for (int c = 0; c < 3; c++) C.q[3 * i + c] = int32_t(C.q[3 * j + c] + d[c]);
+    d[k0] = p[k0] + unzigzag(in.get(s_kept));
+    d[k1] = p[k1] + unzigzag(in.get(s_kept));
+    const int64_t r = isqrt_round(r2 - d[k0] * d[k0] - d[k1] * d[k1]) + unzigzag(radial);
+    d[drop] = neg ? -r : r;
+    for (int c = 0; c < 3; c++) frame.cur[3 * i + c] = int32_t(frame.cur[3 * j + c] + d[c]);
 }
 
-// H2 - O = d on the circle |d|^2 = R2, 2 d.d1 = R2 + |d1|^2 - D2, d1 = H1 - O. The coordinate a of d on the axis k
-// where d1 is smallest leaves two points of the circle, one on each side of the plane through d1 and axis k; the side
-// of d (intra: sent, else as a change from the side of the prediction p) picks one, and two residuals correct it.
+// H2 - O = d on the circle |d|^2 = oh2, 2 d.h1 = oh2 + |h1|^2 - hh2, h1 = H1 - O. The coordinate of d on the axis
+// where h1 is smallest leaves two points of the circle, one on each side of the plane through h1 and that axis; the
+// side of d (intra: sent, else as a change from the side of the prediction p) picks one, and two residuals correct it.
 // Integer products and a square root and a division of exact doubles, so the decoder finds the same point. Beyond the
-// lattice sizes of a water (a molecule split by the boundary) the point is {a on k, 0, 0}.
-ALWAYS_INLINE int circ_axis(const int64_t d1[3]) {
-    int k = std::llabs(d1[1]) < std::llabs(d1[0]) ? 1 : 0;
-    return std::llabs(d1[2]) < std::llabs(d1[k]) ? 2 : k;
+// lattice sizes of a water (a molecule split by the boundary) the point is {coord on the axis, 0, 0}.
+ALWAYS_INLINE int circle_axis(const int64_t h1[3]) {
+    int axis = std::llabs(h1[1]) < std::llabs(h1[0]) ? 1 : 0;
+    return std::llabs(h1[2]) < std::llabs(h1[axis]) ? 2 : axis;
 }
-// the side of v: 1 when (-d1[j], d1[i]) . (v[i], v[j]) < 0
-ALWAYS_INLINE int circ_side(const int64_t d1[3], int k, const int64_t v[3]) {
-    const int i = (k + 1) % 3, j = (k + 2) % 3;
-    return d1[i] * v[j] - d1[j] * v[i] < 0;
+// the side of v: 1 when (-h1[j], h1[i]) . (v[i], v[j]) < 0, for the other two axes i, j
+ALWAYS_INLINE int circle_side(const int64_t h1[3], int axis, const int64_t v[3]) {
+    const int i = (axis + 1) % 3, j = (axis + 2) % 3;
+    return h1[i] * v[j] - h1[j] * v[i] < 0;
 }
-ALWAYS_INLINE void circ_pt(const int64_t d1[3], int64_t R2, int64_t D2, int k, int64_t a, int r, int64_t P[3]) {
-    const int i = (k + 1) % 3, j = (k + 2) % 3;
-    const int64_t u = d1[i], w = d1[j], g2 = u * u + w * w, lim = 16384;
+ALWAYS_INLINE void circle_point(const int64_t h1[3], int64_t oh2, int64_t hh2, int axis, int64_t coord, int side,
+                                int64_t point[3]) {
+    const int i = (axis + 1) % 3, j = (axis + 2) % 3;
+    const int64_t u = h1[i], w = h1[j], g2 = u * u + w * w, lim = 16384;
     const bool ok =
-        g2 > 0 && std::llabs(u) < lim && std::llabs(w) < lim && std::llabs(d1[k]) < lim && std::llabs(a) < lim;
-    const int64_t M = ok ? R2 + g2 + d1[k] * d1[k] - D2 - 2 * d1[k] * a : 0;  // 2 (u P_i + w P_j)
-    const int64_t s = ok ? (r ? -1 : 1) * isqrt_round(4 * g2 * (R2 - a * a) - M * M) : 0;
-    P[k] = a;
-    P[i] = ok ? rnd(double(M * u - s * w) / double(2 * g2)) : 0;
-    P[j] = ok ? rnd(double(M * w + s * u) / double(2 * g2)) : 0;
+        g2 > 0 && std::llabs(u) < lim && std::llabs(w) < lim && std::llabs(h1[axis]) < lim && std::llabs(coord) < lim;
+    const int64_t M = ok ? oh2 + g2 + h1[axis] * h1[axis] - hh2 - 2 * h1[axis] * coord : 0;  // 2 (u P_i + w P_j)
+    const int64_t s = ok ? (side ? -1 : 1) * isqrt_round(4 * g2 * (oh2 - coord * coord) - M * M) : 0;
+    point[axis] = coord;
+    point[i] = ok ? round_half_away(double(M * u - s * w) / double(2 * g2)) : 0;
+    point[j] = ok ? round_half_away(double(M * w + s * u) / double(2 * g2)) : 0;
 }
-template <class S>
-ALWAYS_INLINE void enc_circ(const Frame &C, int m, size_t o, S &k) {
-    int64_t d1[3], d[3], p[3], P[3];
-    rel(C.q, o + 1, o, d1);
-    rel(C.q, o + 2, o, d);
-    const int ax = circ_axis(d1), r = circ_side(d1, ax, d);
-    if (m) {
-        rel(C.qp, o + 2, o, p);
-        k.sym(S_CA, zz(d[ax] - p[ax]) * 2 + uint32_t(r != circ_side(d1, ax, p)));
+template <class Sink>
+ALWAYS_INLINE void put_circle(const FrameContext &frame, int mode, size_t o, Sink &out) {
+    int64_t h1[3], d[3], p[3], point[3];
+    displacement(frame.cur, o + 1, o, h1);
+    displacement(frame.cur, o + 2, o, d);
+    const int axis = circle_axis(h1), side = circle_side(h1, axis, d);
+    if (mode) {
+        displacement(frame.prev, o + 2, o, p);
+        out.put(S_WATER_H2_AXIS, zigzag(d[axis] - p[axis]) * 2 + uint32_t(side != circle_side(h1, axis, p)));
     } else {
-        k.sym(S_CA, zz(d[ax]) * 2 + uint32_t(r));
+        out.put(S_WATER_H2_AXIS, zigzag(d[axis]) * 2 + uint32_t(side));
     }
-    circ_pt(d1, C.R2, C.D2, ax, d[ax], r, P);
+    circle_point(h1, frame.water_oh2, frame.water_hh2, axis, d[axis], side, point);
     for (int c = 0; c < 3; c++)
-        if (c != ax) k.sym(S_CE, zz(d[c] - P[c]));
+        if (c != axis) out.put(S_WATER_H2_RESIDUAL, zigzag(d[c] - point[c]));
 }
-ALWAYS_INLINE void dec_circ(const Frame &C, int m, size_t o, In &k) {
-    int64_t d1[3], p[3] = {0, 0, 0}, P[3];
-    rel(C.q, o + 1, o, d1);
-    const int ax = circ_axis(d1);
-    if (m) rel(C.qp, o + 2, o, p);
-    const uint32_t v = k.sym(S_CA);
-    circ_pt(d1, C.R2, C.D2, ax, p[ax] + unzz(v >> 1), int(v & 1) ^ (m ? circ_side(d1, ax, p) : 0), P);
+ALWAYS_INLINE void get_circle(const FrameContext &frame, int mode, size_t o, SymbolReader &in) {
+    int64_t h1[3], p[3] = {0, 0, 0}, point[3];
+    displacement(frame.cur, o + 1, o, h1);
+    const int axis = circle_axis(h1);
+    if (mode) displacement(frame.prev, o + 2, o, p);
+    const uint32_t v = in.get(S_WATER_H2_AXIS);
+    const int side = int(v & 1) ^ (mode ? circle_side(h1, axis, p) : 0);
+    circle_point(h1, frame.water_oh2, frame.water_hh2, axis, p[axis] + unzigzag(v >> 1), side, point);
     for (int c = 0; c < 3; c++)
-        C.q[3 * (o + 2) + c] = int32_t(C.q[3 * o + c] + (c == ax ? P[c] : P[c] + unzz(k.sym(S_CE))));
+        frame.cur[3 * (o + 2) + c] =
+            int32_t(frame.cur[3 * o + c] + (c == axis ? point[c] : point[c] + unzigzag(in.get(S_WATER_H2_RESIDUAL))));
 }
 
 // One atom: a water (O and the rest of its molecule), or another atom. Water H come with their O.
-template <class S>
-ALWAYS_INLINE void enc_atom(const Frame &C, const int *mode, size_t i, S &k) {
-    const Layout &L = *C.L;
-    const int32_t *q = C.q;
-    if (L.kind[i] == K_WO) {
-        if (mode[G_O])
-            for (int c = 0; c < 3; c++) k.sym(S_O, zz(q[3 * i + c] - C.qp[3 * i + c]));
+template <class Sink>
+ALWAYS_INLINE void put_atom(const FrameContext &frame, const int *mode, size_t i, Sink &out) {
+    const Layout &layout = *frame.layout;
+    const int32_t *q = frame.cur;
+    if (layout.kind[i] == K_WATER_O) {
+        if (mode[G_WATER_O])
+            for (int c = 0; c < 3; c++) out.put(S_WATER_O, zigzag(q[3 * i + c] - frame.prev[3 * i + c]));
         else
-            enc_box(C, q + 3 * i, k);
-        enc_sph(C, mode[G_WH], i + 1, i, C.R2, S_FE, S_KEPT, S_E, k);
-        enc_circ(C, mode[G_WH], i, k);
-    } else if (L.kind[i] == K_OTHER) {
-        if (L.ref[i]) {
-            enc_sph(C, mode[G_NB], i, i - (L.ref[i] >> 4), C.BR2[(L.ref[i] & 15) - 1], S_BFE, S_BK, S_BE, k);
-        } else {
-            for (int c = 0; c < 3; c++) sym_big(k, S_U, zz(q[3 * i + c] - pred_NU(C, mode[G_NU], i, c)));
-        }
+            put_box_point(frame, q + 3 * i, out);
+        put_sphere(frame, mode[G_WATER_H], i + 1, i, frame.water_oh2, S_WATER_H1_FACE, S_WATER_H1_KEPT,
+                   S_WATER_H1_RADIAL, out);
+        put_circle(frame, mode[G_WATER_H], i, out);
+    } else if (layout.kind[i] == K_OTHER) {
+        const uint16_t bond = layout.bond[i];
+        if (bond)
+            put_sphere(frame, mode[G_BONDED], i, i - bond_offset(bond), frame.bond_r2[bond_class(bond)], S_BOND_FACE,
+                       S_BOND_KEPT, S_BOND_RADIAL, out);
+        else
+            for (int c = 0; c < 3; c++)
+                put_escaped(out, S_UNBONDED, zigzag(q[3 * i + c] - predict_unbonded(frame, mode[G_UNBONDED], i, c)));
     }
 }
-ALWAYS_INLINE void dec_atom(const Frame &C, const int *mode, size_t i, In &k) {
-    const Layout &L = *C.L;
-    int32_t *q = C.q;
-    if (L.kind[i] == K_WO) {
-        if (mode[G_O])
-            for (int c = 0; c < 3; c++) q[3 * i + c] = int32_t(C.qp[3 * i + c] + unzz(k.sym(S_O)));
+ALWAYS_INLINE void get_atom(const FrameContext &frame, const int *mode, size_t i, SymbolReader &in) {
+    const Layout &layout = *frame.layout;
+    int32_t *q = frame.cur;
+    if (layout.kind[i] == K_WATER_O) {
+        if (mode[G_WATER_O])
+            for (int c = 0; c < 3; c++) q[3 * i + c] = int32_t(frame.prev[3 * i + c] + unzigzag(in.get(S_WATER_O)));
         else
-            dec_box(C, q + 3 * i, k);
-        dec_sph(C, mode[G_WH], i + 1, i, C.R2, S_FE, S_KEPT, S_E, k);
-        dec_circ(C, mode[G_WH], i, k);
-    } else if (L.kind[i] == K_OTHER) {
-        if (L.ref[i]) {
-            dec_sph(C, mode[G_NB], i, i - (L.ref[i] >> 4), C.BR2[(L.ref[i] & 15) - 1], S_BFE, S_BK, S_BE, k);
-        } else {
-            for (int c = 0; c < 3; c++) q[3 * i + c] = int32_t(pred_NU(C, mode[G_NU], i, c) + unzz(get_big(k, S_U)));
-        }
+            get_box_point(frame, q + 3 * i, in);
+        get_sphere(frame, mode[G_WATER_H], i + 1, i, frame.water_oh2, S_WATER_H1_FACE, S_WATER_H1_KEPT,
+                   S_WATER_H1_RADIAL, in);
+        get_circle(frame, mode[G_WATER_H], i, in);
+    } else if (layout.kind[i] == K_OTHER) {
+        const uint16_t bond = layout.bond[i];
+        if (bond)
+            get_sphere(frame, mode[G_BONDED], i, i - bond_offset(bond), frame.bond_r2[bond_class(bond)], S_BOND_FACE,
+                       S_BOND_KEPT, S_BOND_RADIAL, in);
+        else
+            for (int c = 0; c < 3; c++)
+                q[3 * i + c] =
+                    int32_t(predict_unbonded(frame, mode[G_UNBONDED], i, c) + unzigzag(get_escaped(in, S_UNBONDED)));
     }
 }
+
+// the buffer of stream s in the given modes of the groups
+inline size_t stream_slot(int s, const int *mode) { return s * 2 + (STREAM_GROUP[s] < 0 ? 0 : mode[STREAM_GROUP[s]]); }
 
 }  // namespace biomd
 
@@ -446,280 +502,308 @@ template <class T, uint N>
 class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> {
    public:
     explicit SZBioMDDecomposition(const Config &conf)
-        : F_(N == 3 ? conf.dims[0] : 1), A_(N >= 2 ? conf.dims[N - 2] : 1), eb_(conf.absErrorBound) {
+        : frames_(N == 3 ? conf.dims[0] : 1), atoms_(N >= 2 ? conf.dims[N - 2] : 1), error_bound_(conf.absErrorBound) {
         if (N > 3 || conf.dims[N - 1] != 3) throw std::invalid_argument("SZ3 BioMD: data must be {frames, atoms, 3}");
         if (!std::is_floating_point<T>::value) throw std::invalid_argument("SZ3 BioMD: data must be float or double");
     }
 
     std::vector<int> compress(const Config & /*conf*/, T *data) override {
         using namespace biomd;
+        const size_t frame_values = atoms_ * 3;
         // trailing frames all of one value (the unwritten rest of a chunk) are stored as that value
-        fill_ = data[(F_ - 1) * A_ * 3];
-        auto is_fill = [this, data](size_t t) {
-            for (size_t i = t * A_ * 3; i < (t + 1) * A_ * 3; i++)
-                if (memcmp(&data[i], &fill_, sizeof(T)) != 0) return false;
+        fill_value_ = data[(frames_ - 1) * frame_values];
+        auto is_fill = [this, data, frame_values](size_t t) {
+            for (size_t i = t * frame_values; i < (t + 1) * frame_values; i++)
+                if (memcmp(&data[i], &fill_value_, sizeof(T)) != 0) return false;
             return true;
         };
-        for (Fc_ = F_; Fc_ > 1 && is_fill(Fc_ - 1);) Fc_--;
+        for (coded_frames_ = frames_; coded_frames_ > 1 && is_fill(coded_frames_ - 1);) coded_frames_--;
         // lattice step: 2 (eb - ulp) for the binade of max|x|, so that q step rounded to T stays within eb
-        using U = typename std::conditional<sizeof(T) == 4, uint32_t, uint64_t>::type;
-        U bmax = 0;  // the largest |x| as bits: NaN and inf are above every finite value
-        for (size_t i = 0; i < Fc_ * A_ * 3; i++) {
-            U b;
+        using Bits = typename std::conditional<sizeof(T) == 4, uint32_t, uint64_t>::type;
+        Bits max_bits = 0;  // the largest |x| as bits: NaN and inf are above every finite value
+        for (size_t i = 0; i < coded_frames_ * frame_values; i++) {
+            Bits b;
             memcpy(&b, &data[i], sizeof(T));
-            b &= U(~U(0)) >> 1;
-            bmax = b > bmax ? b : bmax;
+            b &= Bits(~Bits(0)) >> 1;
+            max_bits = b > max_bits ? b : max_bits;
         }
-        T amax;
-        memcpy(&amax, &bmax, sizeof(T));
-        if (!(amax <= std::numeric_limits<T>::max())) throw std::runtime_error("SZ3 BioMD: non-finite input");
-        int e2;
-        std::frexp(double(amax), &e2);
-        const double ulp = std::ldexp(1.0, e2 - std::numeric_limits<T>::digits);
-        step_ = ulp < 0.5 * eb_ ? 2.0 * (eb_ - ulp) : eb_;
-        if (!(step_ > 0) || amax / step_ > double(1 << 28))
+        T max_abs;
+        memcpy(&max_abs, &max_bits, sizeof(T));
+        if (!(max_abs <= std::numeric_limits<T>::max())) throw std::runtime_error("SZ3 BioMD: non-finite input");
+        int exponent;
+        std::frexp(double(max_abs), &exponent);
+        const double ulp = std::ldexp(1.0, exponent - std::numeric_limits<T>::digits);
+        step_ = ulp < 0.5 * error_bound_ ? 2.0 * (error_bound_ - ulp) : error_bound_;
+        if (!(step_ > 0) || max_abs / step_ > double(1 << 28))
             throw std::runtime_error("SZ3 BioMD: error bound too small for the coordinate range");
-        const double inv = 1.0 / step_;
+        const double inv_step = 1.0 / step_;
 
         // the layout, from the first frame
-        Layout L;
-        detect_water(data, A_, L, step_);
-        R2_ = D2_ = 0;
-        if (L.r > 0 && L.r / step_ < 16384) {
-            R2_ = rnd((L.r / step_) * (L.r / step_));
-            D2_ = rnd((L.hh / step_) * (L.hh / step_));
-            D2_ = D2_ < (int64_t(1) << 30) ? D2_ : 0;
+        Layout layout;
+        detect_water(data, atoms_, layout, step_);
+        water_oh2_ = water_hh2_ = 0;
+        if (layout.water_oh > 0 && layout.water_oh / step_ < 16384) {
+            water_oh2_ = round_half_away((layout.water_oh / step_) * (layout.water_oh / step_));
+            water_hh2_ = round_half_away((layout.water_hh / step_) * (layout.water_hh / step_));
+            water_hh2_ = water_hh2_ < (int64_t(1) << 30) ? water_hh2_ : 0;
         } else {  // no water, or too many lattice steps across one for exact products
-            std::fill(L.kind.begin(), L.kind.end(), K_OTHER);
+            std::fill(layout.kind.begin(), layout.kind.end(), K_OTHER);
         }
-        detect_bonds(data, A_, L);
-        BR2_.clear();
-        for (double b : L.blen) BR2_.push_back(rnd((b / step_) * (b / step_)));
-        std::vector<uint32_t> wo, ub[2];  // water O's; bonded, unbonded other atoms
-        for (size_t i = 0; i < A_; i++) {
-            if (L.ref[i] && BR2_[(L.ref[i] & 15) - 1] >= RMAXB2) L.ref[i] = 0;
-            if (L.kind[i] == K_WO) wo.push_back(uint32_t(i));
-            if (L.kind[i] == K_OTHER) ub[L.ref[i] ? 0 : 1].push_back(uint32_t(i));
+        detect_bonds(data, atoms_, layout);
+        bond_r2_.clear();
+        for (double b : layout.bond_lengths) bond_r2_.push_back(round_half_away((b / step_) * (b / step_)));
+        std::vector<uint32_t> waters, bonded, unbonded;  // water O's, other atoms
+        for (size_t i = 0; i < atoms_; i++) {
+            uint16_t &bond = layout.bond[i];
+            if (bond && bond_r2_[bond_class(bond)] >= MAX_BOND_R2) bond = 0;
+            if (layout.kind[i] == K_WATER_O) waters.push_back(uint32_t(i));
+            if (layout.kind[i] == K_OTHER) (bond ? bonded : unbonded).push_back(uint32_t(i));
         }
-        nwat_ = wo.size();
+        num_waters_ = waters.size();
 
         // per (stream, mode) a buffer, kept long enough for the next frame's symbols
-        biomd::Grow buf_s[NS * 2];
-        size_t len[NS * 2] = {0};
-        const size_t nunit[NGROUP + 1] = {wo.size(), wo.size(), ub[0].size(), ub[1].size() + ub[0].size(), A_};
-        Out o;
-        o.r = &raw_;
-        raw_.clear();
-        auto open = [&](const int *mode) {
-            for (int s = 0; s < NS; s++) {
-                const size_t k = s * 2 + (SGROUP[s] < 0 ? 0 : mode[SGROUP[s]]);
-                const size_t need = len[k] + PER_UNIT[s] * nunit[SGROUP[s] < 0 ? NGROUP : SGROUP[s]] + 16;
-                o.p[s] = buf_s[k].fit(len[k], need) + len[k];
+        GrowBuffer buffers[NUM_STREAMS * 2];
+        size_t lengths[NUM_STREAMS * 2] = {0};
+        const std::vector<uint32_t> *group_atoms[NUM_GROUPS] = {&waters, &waters, &bonded, &unbonded};
+        // units whose symbols a frame can put in a stream of the group (the layout streams: one per atom)
+        const size_t group_units[NUM_GROUPS] = {waters.size(), waters.size(), bonded.size(),
+                                                unbonded.size() + bonded.size()};
+        SymbolWriter writer;
+        writer.raw = &raw_bits_;
+        raw_bits_.clear();
+        auto begin_frame = [&](const int *mode) {
+            for (int s = 0; s < NUM_STREAMS; s++) {
+                const size_t slot = stream_slot(s, mode);
+                const size_t units = STREAM_GROUP[s] < 0 ? atoms_ : group_units[STREAM_GROUP[s]];
+                const size_t need = lengths[slot] + MAX_SYMBOLS_PER_UNIT[s] * units + 16;
+                writer.cursor[s] = buffers[slot].reserve(lengths[slot], need) + lengths[slot];
             }
         };
-        auto close = [&](const int *mode) {
-            for (int s = 0; s < NS; s++) {
-                const size_t k = s * 2 + (SGROUP[s] < 0 ? 0 : mode[SGROUP[s]]);
-                len[k] = size_t(o.p[s] - buf_s[k].p.get());
+        auto end_frame = [&](const int *mode) {
+            for (int s = 0; s < NUM_STREAMS; s++) {
+                const size_t slot = stream_slot(s, mode);
+                lengths[slot] = size_t(writer.cursor[s] - buffers[slot].data.get());
             }
         };
-        const int mode0[NGROUP] = {0, 0, 0, 0};
-        open(mode0);
-        for (size_t k = 0; k < wo.size(); k++) o.sym(S_W, wo[k] - (k ? wo[k - 1] : 0));  // the waters as gaps
-        for (size_t i = 0; i < A_; i++)
-            if (L.kind[i] == K_OTHER) o.sym(S_REF, L.ref[i]);
-        close(mode0);
-        std::unique_ptr<int32_t[]> buf(new int32_t[6 * A_]);  // written before read
-        Frame C{buf.get(), buf.get() + 3 * A_, &L, R2_, D2_, BR2_.data(), {0, 0, 0}, {1, 1, 1}, 0};
-        const std::vector<uint32_t> *units[NGROUP] = {&wo, &wo, &ub[0], &ub[1]};
-        int mode[NGROUP] = {0, 0, 0, 0};
+        const int intra[NUM_GROUPS] = {0, 0, 0, 0};
+        begin_frame(intra);
+        for (size_t k = 0; k < waters.size(); k++) writer.put(S_WATER_GAP, waters[k] - (k ? waters[k - 1] : 0));
+        for (size_t i = 0; i < atoms_; i++)
+            if (layout.kind[i] == K_OTHER) writer.put(S_BOND_REF, layout.bond[i]);
+        end_frame(intra);
+        std::unique_ptr<int32_t[]> lattice(new int32_t[2 * frame_values]);  // written before read
+        FrameContext frame{lattice.get(),
+                           lattice.get() + frame_values,
+                           &layout,
+                           water_oh2_,
+                           water_hh2_,
+                           bond_r2_.data(),
+                           {0, 0, 0},
+                           {1, 1, 1},
+                           0};
+        int mode[NUM_GROUPS] = {0, 0, 0, 0};
         modes_.clear();
-        omin_.clear();
-        oside_.clear();
-        for (size_t t = 0; t < Fc_; t++) {
-            const T *X = data + t * A_ * 3;
-            for (size_t i = 0; i < A_ * 3; i++) {
-                const double y = double(X[i]) * inv;
-                C.q[i] = int32_t(y + std::copysign(0.5, y));
+        box_min_.clear();
+        box_size_.clear();
+        for (size_t t = 0; t < coded_frames_; t++) {
+            const T *x = data + t * frame_values;
+            for (size_t i = 0; i < frame_values; i++) {
+                const double y = double(x[i]) * inv_step;
+                frame.cur[i] = int32_t(y + std::copysign(0.5, y));
             }
-            int32_t mx[3] = {0, 0, 0};
-            for (int c = 0; c < 3; c++) C.omin[c] = mx[c] = wo.empty() ? 0 : C.q[3 * wo[0] + c];
-            for (uint32_t i : wo)
+            int32_t box_max[3] = {0, 0, 0};
+            for (int c = 0; c < 3; c++)
+                frame.box_min[c] = box_max[c] = waters.empty() ? 0 : frame.cur[3 * waters[0] + c];
+            for (uint32_t i : waters)
                 for (int c = 0; c < 3; c++) {
-                    C.omin[c] = std::min(C.omin[c], C.q[3 * i + c]);
-                    mx[c] = std::max(mx[c], C.q[3 * i + c]);
+                    frame.box_min[c] = std::min(frame.box_min[c], frame.cur[3 * i + c]);
+                    box_max[c] = std::max(box_max[c], frame.cur[3 * i + c]);
                 }
             // per group, the predictor that is cheapest on a sample: at frames 1 and 2, then every 8th frame
             if (t > 0 && (t <= 2 || t % 8 == 0))
-                for (int g = 0; g < NGROUP; g++) {
-                    const auto &u = *units[g];
+                for (int g = 0; g < NUM_GROUPS; g++) {
+                    const auto &sample = *group_atoms[g];
                     double best = 1e300;
-                    for (int m = 0; m < 2 && !u.empty(); m++) {
-                        Est est;
-                        int md[NGROUP] = {mode[0], mode[1], mode[2], mode[3]};
-                        md[g] = m;
-                        const size_t st = std::max<size_t>(1, u.size() / 256);
-                        for (size_t k = 0; k < u.size(); k += st)
-                            if (g != G_O)
-                                enc_atom(C, md, u[k], est);
-                            else if (m == 0)  // the box index
-                                for (int c = 0; c < 3; c++) est.bits += std::log2(double(mx[c] - C.omin[c]) + 1.0);
+                    for (int m = 0; m < 2 && !sample.empty(); m++) {
+                        CostEstimate cost;
+                        int trial[NUM_GROUPS] = {mode[0], mode[1], mode[2], mode[3]};
+                        trial[g] = m;
+                        const size_t stride = std::max<size_t>(1, sample.size() / 256);
+                        for (size_t k = 0; k < sample.size(); k += stride) {
+                            const uint32_t i = sample[k];
+                            if (g != G_WATER_O)
+                                put_atom(frame, trial, i, cost);
+                            else if (m == 0)  // the point in the box
+                                for (int c = 0; c < 3; c++)
+                                    cost.bits += std::log2(double(box_max[c] - frame.box_min[c]) + 1.0);
                             else
-                                for (int c = 0; c < 3; c++) est.sym(S_O, zz(C.q[3 * u[k] + c] - C.qp[3 * u[k] + c]));
-                        if (est.bits < best) best = est.bits, mode[g] = m;
+                                for (int c = 0; c < 3; c++)
+                                    cost.put(S_WATER_O, zigzag(frame.cur[3 * i + c] - frame.prev[3 * i + c]));
+                        }
+                        if (cost.bits < best) best = cost.bits, mode[g] = m;
                     }
                 }
-            if (t == 0) std::fill(mode, mode + NGROUP, 0);
-            for (int g = 0; g < NGROUP; g++) modes_.push_back(uint8_t(mode[g]));
+            if (t == 0) std::fill(mode, mode + NUM_GROUPS, 0);
+            for (int g = 0; g < NUM_GROUPS; g++) modes_.push_back(uint8_t(mode[g]));
             for (int c = 0; c < 3; c++) {
-                omin_.push_back(C.omin[c]);
-                oside_.push_back(uint32_t(mx[c] - C.omin[c]) + 1);
+                box_min_.push_back(frame.box_min[c]);
+                box_size_.push_back(uint32_t(box_max[c] - frame.box_min[c]) + 1);
             }
-            box(C, &oside_[t * 3]);
-            open(mode);
-            for (size_t i = 0; i < A_; i++) enc_atom(C, mode, i, o);
-            close(mode);
-            std::swap(C.q, C.qp);
+            set_water_box(frame, &box_size_[t * 3]);
+            begin_frame(mode);
+            for (size_t i = 0; i < atoms_; i++) put_atom(frame, mode, i, writer);
+            end_frame(mode);
+            std::swap(frame.cur, frame.prev);
         }
-        if (o.n > 0) raw_.push_back(uchar(o.acc));
+        writer.flush_bits();
         // the streams one after the other, each as [count, symbols], for SegmentedEncoder
-        std::vector<int> seg;
-        size_t n = NS * 2;
-        for (size_t k = 0; k < NS * 2; k++) n += len[k];
-        seg.reserve(n);
-        for (size_t k = 0; k < NS * 2; k++) {
-            seg.push_back(int(len[k]));
-            seg.insert(seg.end(), buf_s[k].p.get(), buf_s[k].p.get() + len[k]);
+        std::vector<int> bins;
+        size_t n = NUM_STREAMS * 2;
+        for (size_t slot = 0; slot < NUM_STREAMS * 2; slot++) n += lengths[slot];
+        bins.reserve(n);
+        for (size_t slot = 0; slot < NUM_STREAMS * 2; slot++) {
+            bins.push_back(int(lengths[slot]));
+            bins.insert(bins.end(), buffers[slot].data.get(), buffers[slot].data.get() + lengths[slot]);
         }
-        return seg;
+        return bins;
     }
 
     T *decompress(const Config & /*conf*/, std::vector<int> &quant_inds, T *dec_data) override {
         using namespace biomd;
-        Layout L;
-        const int *cur[NS * 2], *end[NS * 2];
-        for (size_t k = 0, s = 0; s < NS * 2; s++) {
+        const size_t frame_values = atoms_ * 3;
+        // the streams, each as [count, symbols]
+        const int *position[NUM_STREAMS * 2], *end[NUM_STREAMS * 2];
+        for (size_t k = 0, slot = 0; slot < NUM_STREAMS * 2; slot++) {
             const size_t n = k < quant_inds.size() ? size_t(quant_inds[k]) : 0;
             if (k >= quant_inds.size() || n > quant_inds.size() - k - 1)
                 throw std::runtime_error("SZ3 BioMD: corrupt stream");
-            cur[s] = quant_inds.data() + k + 1;
-            end[s] = cur[s] + n;
+            position[slot] = quant_inds.data() + k + 1;
+            end[slot] = position[slot] + n;
             k += n + 1;
         }
-        In in;
-        auto open = [&](const int *mode) {
-            for (int s = 0; s < NS; s++) {
-                const size_t k = s * 2 + (SGROUP[s] < 0 ? 0 : mode[SGROUP[s]]);
-                in.p[s] = cur[k];
-                in.end[s] = end[k];
+        SymbolReader reader;
+        auto begin_frame = [&](const int *mode) {
+            for (int s = 0; s < NUM_STREAMS; s++) {
+                reader.cursor[s] = position[stream_slot(s, mode)];
+                reader.end[s] = end[stream_slot(s, mode)];
             }
         };
-        auto close = [&](const int *mode) {
-            for (int s = 0; s < NS; s++) cur[s * 2 + (SGROUP[s] < 0 ? 0 : mode[SGROUP[s]])] = in.p[s];
+        auto end_frame = [&](const int *mode) {
+            for (int s = 0; s < NUM_STREAMS; s++) position[stream_slot(s, mode)] = reader.cursor[s];
         };
-        const int mode0[NGROUP] = {0, 0, 0, 0};
-        open(mode0);
-        L.kind.assign(A_, K_OTHER);
-        for (size_t k = 0, o = 0; k < nwat_; k++) {
-            const uint32_t g = in.sym(S_W);
-            if ((k && g < 3) || g > A_ || o + g + 2 >= A_) throw std::runtime_error("SZ3 BioMD: corrupt stream");
-            o += g;
-            L.kind[o] = K_WO;
-            L.kind[o + 1] = L.kind[o + 2] = K_WH;
+        const int intra[NUM_GROUPS] = {0, 0, 0, 0};
+        begin_frame(intra);
+        Layout layout;
+        layout.kind.assign(atoms_, K_OTHER);
+        for (size_t k = 0, o = 0; k < num_waters_; k++) {
+            const uint32_t gap = reader.get(S_WATER_GAP);
+            if ((k && gap < 3) || gap > atoms_ || o + gap + 2 >= atoms_)
+                throw std::runtime_error("SZ3 BioMD: corrupt stream");
+            o += gap;
+            layout.kind[o] = K_WATER_O;
+            layout.kind[o + 1] = layout.kind[o + 2] = K_WATER_H;
         }
-        L.ref.assign(A_, 0);
-        for (size_t i = 0; i < A_; i++)
-            if (L.kind[i] == K_OTHER) {
-                const uint32_t r = in.sym(S_REF);
-                if (r && ((r >> 4) > i || (r & 15) == 0 || (r & 15) > BR2_.size()))
+        layout.bond.assign(atoms_, 0);
+        for (size_t i = 0; i < atoms_; i++)
+            if (layout.kind[i] == K_OTHER) {
+                const uint32_t bond = reader.get(S_BOND_REF);
+                if (bond && ((bond >> 4) > i || (bond & 15) == 0 || (bond & 15) > bond_r2_.size()))
                     throw std::runtime_error("SZ3 BioMD: corrupt stream");
-                L.ref[i] = uint16_t(r);
+                layout.bond[i] = uint16_t(bond);
             }
-        close(mode0);
-        std::unique_ptr<int32_t[]> buf(new int32_t[6 * A_]);  // written before read
-        Frame C{buf.get(), buf.get() + 3 * A_, &L, R2_, D2_, BR2_.data(), {0, 0, 0}, {1, 1, 1}, 0};
-        in.r = raw_.data();
-        in.rend = raw_.data() + raw_.size();
-        for (size_t t = 0; t < Fc_; t++) {
-            int mode[NGROUP];
-            for (int g = 0; g < NGROUP; g++) mode[g] = modes_[t * NGROUP + g] & 1;
-            for (int c = 0; c < 3; c++) C.omin[c] = omin_[t * 3 + c];
-            box(C, &oside_[t * 3]);
-            open(mode);
-            for (size_t i = 0; i < A_; i++) dec_atom(C, mode, i, in);
-            close(mode);
-            T *D = dec_data + t * A_ * 3;
-            for (size_t i = 0; i < A_ * 3; i++) D[i] = T(double(C.q[i]) * step_);
-            std::swap(C.q, C.qp);
+        end_frame(intra);
+        std::unique_ptr<int32_t[]> lattice(new int32_t[2 * frame_values]);  // written before read
+        FrameContext frame{lattice.get(),
+                           lattice.get() + frame_values,
+                           &layout,
+                           water_oh2_,
+                           water_hh2_,
+                           bond_r2_.data(),
+                           {0, 0, 0},
+                           {1, 1, 1},
+                           0};
+        reader.raw = raw_bits_.data();
+        reader.raw_end = raw_bits_.data() + raw_bits_.size();
+        for (size_t t = 0; t < coded_frames_; t++) {
+            int mode[NUM_GROUPS];
+            for (int g = 0; g < NUM_GROUPS; g++) mode[g] = modes_[t * NUM_GROUPS + g] & 1;
+            for (int c = 0; c < 3; c++) frame.box_min[c] = box_min_[t * 3 + c];
+            set_water_box(frame, &box_size_[t * 3]);
+            begin_frame(mode);
+            for (size_t i = 0; i < atoms_; i++) get_atom(frame, mode, i, reader);
+            end_frame(mode);
+            T *x = dec_data + t * frame_values;
+            for (size_t i = 0; i < frame_values; i++) x[i] = T(double(frame.cur[i]) * step_);
+            std::swap(frame.cur, frame.prev);
         }
-        std::fill(dec_data + Fc_ * A_ * 3, dec_data + F_ * A_ * 3, fill_);
+        std::fill(dec_data + coded_frames_ * frame_values, dec_data + frames_ * frame_values, fill_value_);
         return dec_data;
     }
 
     void save(uchar *&c) override {
-        write(uint64_t(Fc_), c);
-        write(fill_, c);
+        write(uint64_t(coded_frames_), c);
+        write(fill_value_, c);
         write(step_, c);
-        write(R2_, c);
-        write(D2_, c);
-        write(uint64_t(nwat_), c);
-        write(uint8_t(BR2_.size()), c);
-        if (!BR2_.empty()) write(BR2_.data(), BR2_.size(), c);
+        write(water_oh2_, c);
+        write(water_hh2_, c);
+        write(uint64_t(num_waters_), c);
+        write(uint8_t(bond_r2_.size()), c);
+        if (!bond_r2_.empty()) write(bond_r2_.data(), bond_r2_.size(), c);
         write(modes_.data(), modes_.size(), c);
-        write(omin_.data(), omin_.size(), c);
-        write(oside_.data(), oside_.size(), c);
-        write(uint64_t(raw_.size()), c);
-        if (!raw_.empty()) write(raw_.data(), raw_.size(), c);
+        write(box_min_.data(), box_min_.size(), c);
+        write(box_size_.data(), box_size_.size(), c);
+        write(uint64_t(raw_bits_.size()), c);
+        if (!raw_bits_.empty()) write(raw_bits_.data(), raw_bits_.size(), c);
     }
 
     void load(const uchar *&c, size_t &remaining_length) override {
-        uint8_t nb;
-        uint64_t nw, fc;
-        read(fc, c, remaining_length);
-        if (fc < 1 || fc > F_) throw std::runtime_error("SZ3 BioMD: corrupt stream");
-        Fc_ = size_t(fc);
-        read(fill_, c, remaining_length);
+        uint8_t classes;
+        uint64_t waters, coded, raw_size = 0;
+        read(coded, c, remaining_length);
+        if (coded < 1 || coded > frames_) throw std::runtime_error("SZ3 BioMD: corrupt stream");
+        coded_frames_ = size_t(coded);
+        read(fill_value_, c, remaining_length);
         read(step_, c, remaining_length);
-        read(R2_, c, remaining_length);
-        read(D2_, c, remaining_length);
-        read(nw, c, remaining_length);
-        nwat_ = size_t(std::min<uint64_t>(nw, A_));
-        read(nb, c, remaining_length);
-        BR2_.resize(nb);
-        if (nb) read(BR2_.data(), nb, c, remaining_length);
-        modes_.resize(Fc_ * biomd::NGROUP);
+        read(water_oh2_, c, remaining_length);
+        read(water_hh2_, c, remaining_length);
+        read(waters, c, remaining_length);
+        num_waters_ = size_t(std::min<uint64_t>(waters, atoms_));
+        read(classes, c, remaining_length);
+        bond_r2_.resize(classes);
+        if (classes) read(bond_r2_.data(), classes, c, remaining_length);
+        modes_.resize(coded_frames_ * biomd::NUM_GROUPS);
         read(modes_.data(), modes_.size(), c, remaining_length);
-        omin_.resize(Fc_ * 3);
-        read(omin_.data(), omin_.size(), c, remaining_length);
-        oside_.resize(Fc_ * 3);
-        read(oside_.data(), oside_.size(), c, remaining_length);
-        uint64_t nr = 0;
-        read(nr, c, remaining_length);
-        if (nr > remaining_length) throw std::runtime_error("SZ3 BioMD: corrupt stream");
-        raw_.resize(size_t(nr));
-        if (nr) read(raw_.data(), raw_.size(), c, remaining_length);
-        bool ok = nw <= A_ && R2_ >= 0 && R2_ < (int64_t(1) << 28) && D2_ >= 0 && D2_ < (int64_t(1) << 30) &&
-                  nb <= biomd::MAXCLS;
-        for (int64_t b : BR2_) ok = ok && b >= 0;  // classes of RMAXB2 or more are stored, no atom refers to them
-        for (uint32_t r : oside_) ok = ok && r >= 1 && r <= (uint32_t(1) << 30);
+        box_min_.resize(coded_frames_ * 3);
+        read(box_min_.data(), box_min_.size(), c, remaining_length);
+        box_size_.resize(coded_frames_ * 3);
+        read(box_size_.data(), box_size_.size(), c, remaining_length);
+        read(raw_size, c, remaining_length);
+        if (raw_size > remaining_length) throw std::runtime_error("SZ3 BioMD: corrupt stream");
+        raw_bits_.resize(size_t(raw_size));
+        if (raw_size) read(raw_bits_.data(), raw_bits_.size(), c, remaining_length);
+        bool ok = waters <= atoms_ && water_oh2_ >= 0 && water_oh2_ < (int64_t(1) << 28) && water_hh2_ >= 0 &&
+                  water_hh2_ < (int64_t(1) << 30) && classes <= biomd::MAX_BOND_CLASSES;
+        for (int64_t r2 : bond_r2_)
+            ok = ok && r2 >= 0;  // classes of MAX_BOND_R2 or more are stored, no atom refers to them
+        for (uint32_t side : box_size_) ok = ok && side >= 1 && side <= (uint32_t(1) << 30);
         if (!ok) throw std::runtime_error("SZ3 BioMD: corrupt stream");
     }
 
-    size_t size_est() override { return 64 + 8 * BR2_.size() + 24 * F_ + raw_.size(); }
+    size_t size_est() override { return 64 + 8 * bond_r2_.size() + 24 * frames_ + raw_bits_.size(); }
 
     std::pair<int, int> get_out_range() override { return {0, 0}; }  // SegmentedEncoder takes any int
 
    private:
-    size_t F_, A_, Fc_ = 1;  // frames, atoms, frames before the fill
-    T fill_ = 0;
-    double eb_, step_ = 0;
-    int64_t R2_ = 0, D2_ = 0;
-    size_t nwat_ = 0;
-    std::vector<int64_t> BR2_;
-    std::vector<uint8_t> modes_;   // per frame and group
-    std::vector<int32_t> omin_;    // per frame: the corner of the water O box
-    std::vector<uint32_t> oside_;  // per frame: its sides
-    std::vector<uchar> raw_;       // the water O's of intra frames
+    size_t frames_, atoms_, coded_frames_ = 1;  // coded: the frames before the fill
+    T fill_value_ = 0;
+    double error_bound_, step_ = 0;
+    int64_t water_oh2_ = 0, water_hh2_ = 0;  // squared O-H and H-H distances of the water (lattice units)
+    size_t num_waters_ = 0;
+    std::vector<int64_t> bond_r2_;    // squared bond lengths per class (lattice units)
+    std::vector<uint8_t> modes_;      // per frame and group
+    std::vector<int32_t> box_min_;    // per frame: the corner of the box of the water O's
+    std::vector<uint32_t> box_size_;  // per frame: its sides
+    std::vector<uchar> raw_bits_;     // intra water O's and the low bytes of escaped values
 };
 
 template <class T, uint N>
