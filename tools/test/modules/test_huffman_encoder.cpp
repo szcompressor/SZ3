@@ -79,11 +79,18 @@ std::vector<T> decode(const Encoded<T> &e, size_t n) {
     return out;
 }
 
-// The bit count encode() writes in front of the codes.
-uint64_t payload_bits(const std::vector<uchar> &v) {
-    uint64_t bits = 0;
+// The bit counts encode() writes in front of the codes: one, or four for four parts from kSplit bins on.
+size_t payload_parts(size_t n, size_t distinct) { return n >= (size_t(1) << 12) && distinct >= 2 ? 4 : 1; }
+uint64_t payload_bits(const std::vector<uchar> &v, size_t parts = 1, uint64_t *bytes = nullptr) {
+    uint64_t bits = 0, b = 0;
     const uchar *p = v.data();
-    SZ3::read(bits, p);
+    if (bytes) *bytes = parts * sizeof(uint64_t);
+    for (size_t k = 0; k < parts; k++) {
+        SZ3::read(b, p);
+        if (k == 0 && parts == 4) b &= ~(uint64_t(1) << 63);  // the flag for runs
+        bits += b;
+        if (bytes) *bytes += (b + 7) / 8;
+    }
     return bits;
 }
 
@@ -123,8 +130,9 @@ Encoded<T> check(const std::vector<T> &bins, bool expect_optimal = true) {
     Encoded<T> e = encode(bins);
     EXPECT_EQ(e.tree.size(), e.est) << "save() must write exactly size_est()";
     EXPECT_LE(e.tree.size() + e.data.size(), SZ3::HuffmanEncoder<T>::size_bound(bins.size(), distinct(bins)));
-    const uint64_t bits = payload_bits(e.data);
-    EXPECT_EQ(e.data.size(), sizeof(uint64_t) + (bits + 7) / 8);
+    uint64_t bytes = 0;
+    const uint64_t bits = payload_bits(e.data, payload_parts(bins.size(), distinct(bins)), &bytes);
+    EXPECT_EQ(e.data.size(), bytes);
     if (expect_optimal) EXPECT_EQ(bits, optimal_bits(bins));
     auto out = decode(e, bins.size());
     EXPECT_TRUE(out == bins) << "round trip differs, n = " << bins.size();
@@ -272,7 +280,7 @@ TEST(SZ3_HuffmanEncoder, LengthLimited) {
     const uint64_t opt = optimal_bits(bins, &depth);
     ASSERT_GT(depth, 32);
     auto e = check(bins, false);
-    const uint64_t bits = payload_bits(e.data);
+    const uint64_t bits = payload_bits(e.data, payload_parts(bins.size(), distinct(bins)));
     EXPECT_GE(bits, opt);
     EXPECT_LE(bits, opt + opt / 1000000);
 }
