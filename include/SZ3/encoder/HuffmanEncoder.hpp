@@ -23,9 +23,9 @@ namespace SZ3 {
  * save() writes the number of distinct bins D as a uint32; if D > 0, the smallest bin; if D > 1, for each bin in
  * ascending order the Elias-gamma code of its gap from the one before (none for the first), then the Elias-gamma
  * code of 1 + the zigzag of its code length minus the previous one's (0 before the first). encode() writes the
- * payload's bit count as a uint64, then the codes MSB-first; from kSplit bins on, the bins are four consecutive parts,
- * each with its bit count (four uint64 first, the top bit of the first one set when nine in ten bins or more have a
- * one-bit code, so the decoder takes runs of it whole) and codes.
+ * payload's bit count as a uint64, then the codes MSB-first. From kSplit bins on, the bins are four consecutive parts
+ * (four bit counts, then the codes of each), decoded side by side; unless nine in ten bins or more have a one-bit code,
+ * whose runs the decoder takes whole: then there is one part, and its bit count has the top bit set.
  *
  * Code lengths, capped at 32 bits, are those of a Huffman tree built in (frequency, bin) order, so every platform
  * writes the same bytes.
@@ -100,12 +100,12 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                     throw std::invalid_argument("SZ3 Huffman: bin not seen by preprocess_encode");
             return bytes - start;
         }
-        const unsigned parts = n >= kSplit ? 4 : 1;
+        const unsigned parts = n >= kSplit && !runs_ ? 4 : 1;
         uchar *head = bytes;
         bytes += 8 * parts;
         const U off = static_cast<U>(offset_);
         uint64_t total = 0;
-        const uint64_t flag = parts == 4 && runs_ ? uint64_t(1) << 63 : 0;
+        const uint64_t flag = n >= kSplit && runs_ ? uint64_t(1) << 63 : 0;  // one part, runs taken whole
         for (unsigned k = 0; k < parts; k++) {
             uint64_t acc = 0;
             unsigned nb = 0;
@@ -138,7 +138,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                 *p++ = static_cast<uchar>(acc >> nb);
             }
             if (nb) *p++ = static_cast<uchar>(acc << (8 - nb));
-            write(k == 0 && parts == 4 ? bits | flag : bits, head);
+            write(bits | flag, head);
             total += bits;
             bytes = p;
         }
@@ -178,15 +178,14 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     std::vector<T> decode(const uchar *&bytes, size_t targetLength, size_t &remaining_length) override {
         const uchar *p = bytes;
         size_t rem = remaining_length;
-        const unsigned parts = targetLength >= kSplit && syms_.size() >= 2 ? 4 : 1;
+        unsigned parts = targetLength >= kSplit && syms_.size() >= 2 ? 4 : 1;
         uint64_t bits[4] = {0};
         size_t nbytes[4] = {0}, total = 0;
-        bool runs = false;
         for (unsigned k = 0; k < parts; k++) {
             read(bits[k], p, rem);
-            if (k == 0 && parts == 4) {
-                runs = bits[0] >> 63;
+            if (k == 0 && parts == 4 && bits[0] >> 63) {  // one part, runs taken whole
                 bits[0] &= ~(uint64_t(1) << 63);
+                parts = 1;
             }
             if (bits[k] > static_cast<uint64_t>(rem) * 8)
                 throw std::out_of_range("SZ3 Huffman: payload exceeds the buffer");
@@ -213,9 +212,8 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                 if (bits[k] < nk[k] || bits[k] / kMaxLen > nk[k])
                     throw std::out_of_range("SZ3 Huffman: payload does not match the value count");
             }
-            // A one-bit code is all zeros, so a run of zero bits is a run of its symbol: with many runs the parts go
-            // one after the other with runs taken whole, else side by side.
-            if (parts == 4 && !(runs && count_[1]))
+            // A one-bit code is all zeros, so a run of zero bits is a run of its symbol.
+            if (parts == 4)
                 decode4(pk, nbytes, bits, ok, nk);
             else
                 for (unsigned k = 0; k < parts; k++)

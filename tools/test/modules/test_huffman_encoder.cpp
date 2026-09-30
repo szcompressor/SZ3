@@ -79,18 +79,22 @@ std::vector<T> decode(const Encoded<T> &e, size_t n) {
     return out;
 }
 
-// The bit counts encode() writes in front of the codes: one, or four for four parts from kSplit bins on.
+// The bit counts encode() writes in front of the codes: one, or from 4096 bins on four for four parts, unless the top
+// bit of the first says there is one part.
 size_t payload_parts(size_t n, size_t distinct) { return n >= (size_t(1) << 12) && distinct >= 2 ? 4 : 1; }
 uint64_t payload_bits(const std::vector<uchar> &v, size_t parts = 1, uint64_t *bytes = nullptr) {
     uint64_t bits = 0, b = 0;
     const uchar *p = v.data();
-    if (bytes) *bytes = parts * sizeof(uint64_t);
     for (size_t k = 0; k < parts; k++) {
         SZ3::read(b, p);
-        if (k == 0 && parts == 4) b &= ~(uint64_t(1) << 63);  // the flag for runs
+        if (k == 0 && parts == 4 && (b >> 63)) {
+            b &= ~(uint64_t(1) << 63);
+            parts = 1;
+        }
         bits += b;
         if (bytes) *bytes += (b + 7) / 8;
     }
+    if (bytes) *bytes += parts * sizeof(uint64_t);
     return bits;
 }
 
