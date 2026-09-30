@@ -104,34 +104,37 @@ void detect_water(const T *x, size_t atoms, Layout &layout, double step) {
               dz = float(x[3 * a + 2] - x[3 * b + 2]);
         return dx * dx + dy * dy + dz * dz;
     };
-    // Candidates: O-H in [0.08, 0.125] nm, H-H in [0.13, 0.2] nm, probed across the frame. Rigid water gives sharp
-    // O-H / H-H peaks, flexible CH2/NH2 groups broad ones.
+    // Candidates: O-H in [0.08, 0.125] nm, H-H in [0.13, 0.2] nm, probed at PROBES places across the frame. Rigid
+    // water gives sharp O-H / H-H peaks, flexible CH2/NH2 groups broad ones.
+    constexpr float OH2_MIN = 0.0064f, OH2_MAX = 0.015625f, HH2_MIN = 0.0169f, HH2_MAX = 0.04f;  // nm^2
+    constexpr size_t PROBES = 300, MIN_COUNT = 16;  // fewer candidates, or waters, than MIN_COUNT: no water
     std::vector<float> cand_oh, cand_hh;
-    const size_t probe = std::max<size_t>(1, atoms / 300);
+    const size_t probe = std::max<size_t>(1, atoms / PROBES);
     for (size_t i = 0; i + 2 < atoms; i += probe)
         for (size_t o = 0; o < 3 && i + o + 2 < atoms; o++) {
             const size_t k = i + o;
             const float a = dist2(k, k + 1), b = dist2(k, k + 2), c = dist2(k + 1, k + 2);
-            if (a > 0.0064f && a < 0.015625f && b > 0.0064f && b < 0.015625f && c > 0.0169f && c < 0.04f) {
+            if (a > OH2_MIN && a < OH2_MAX && b > OH2_MIN && b < OH2_MAX && c > HH2_MIN && c < HH2_MAX) {
                 cand_hh.push_back(std::sqrt(c));
                 cand_oh.push_back(std::sqrt(a));
                 cand_oh.push_back(std::sqrt(b));
                 break;
             }
         }
-    if (cand_hh.size() < 16) return;
-    // tolerances stay well below the O-H / C-H difference (> 0.01 nm) that separates water from CH2/NH2
+    if (cand_hh.size() < MIN_COUNT) return;
+    // tolerances (nm) stay well below the O-H / C-H difference (> 0.01 nm) that separates water from CH2/NH2
     const double tight = std::max(0.001, step), tol = std::max(0.002, 2.0 * step), loose = std::max(0.01, 3.0 * tight);
-    auto peak = [](std::vector<float> v) {  // median of the values within 0.003 nm of the heaviest 0.004 nm window
+    constexpr float PEAK_WINDOW = 0.004f, PEAK_SPREAD = 0.003f;  // nm
+    auto peak = [](std::vector<float> v) {  // median of the values within PEAK_SPREAD of the heaviest PEAK_WINDOW
         std::sort(v.begin(), v.end());
         size_t best = 0, n = 0;
         for (size_t lo = 0, hi = 0; hi < v.size(); hi++) {
-            while (v[hi] - v[lo] > 0.004f) lo++;
+            while (v[hi] - v[lo] > PEAK_WINDOW) lo++;
             if (hi - lo + 1 > n) n = hi - lo + 1, best = (lo + hi) / 2;
         }
         std::vector<float> w;
         for (float y : v)
-            if (std::fabs(y - v[best]) < 0.003f) w.push_back(y);
+            if (std::fabs(y - v[best]) < PEAK_SPREAD) w.push_back(y);
         return double(w[w.size() / 2]);
     };
     const double hh = peak(cand_hh);
@@ -141,7 +144,7 @@ void detect_water(const T *x, size_t atoms, Layout &layout, double step) {
             oh_of_hh.push_back(cand_oh[2 * c]), oh_of_hh.push_back(cand_oh[2 * c + 1]);
     if (oh_of_hh.empty()) return;
     const double oh = peak(oh_of_hh);
-    // rigidity test: rigid water puts nearly all nearby candidates within `tight` of both peaks
+    // rigidity test: rigid water puts at least six in ten of the nearby candidates within `tight` of both peaks
     size_t n_tight = 0, n_loose = 0, n_rigid = 0;
     double sum_oh = 0, sum_hh = 0;
     for (size_t c = 0; c < cand_hh.size(); c++) {
@@ -154,7 +157,7 @@ void detect_water(const T *x, size_t atoms, Layout &layout, double step) {
         if (dh < tol && da < tol && db < tol)
             sum_oh += double(cand_oh[2 * c]) + cand_oh[2 * c + 1], sum_hh += cand_hh[c], n_rigid++;
     }
-    if (n_loose < 16 || n_tight * 10 < n_loose * 6) return;
+    if (n_loose < MIN_COUNT || n_tight * 10 < n_loose * 6) return;
     const float oh2_lo = float((oh - tol) * (oh - tol)), oh2_hi = float((oh + tol) * (oh + tol));
     const float hh2_lo = float((hh - tol) * (hh - tol)), hh2_hi = float((hh + tol) * (hh + tol));
     size_t waters = 0;
@@ -170,7 +173,7 @@ void detect_water(const T *x, size_t atoms, Layout &layout, double step) {
             i++;
         }
     }
-    if (waters < 16) {
+    if (waters < MIN_COUNT) {
         std::fill(layout.kind.begin(), layout.kind.end(), K_OTHER);
         return;
     }
@@ -183,7 +186,15 @@ void detect_water(const T *x, size_t atoms, Layout &layout, double step) {
 // virtual site of 4-site water is a 0.015 nm bond to its O).
 template <class T>
 void detect_bonds(const T *x, size_t atoms, Layout &layout) {
+    // bond lengths in bins of BIN_WIDTH from BOND_MIN up to 0.25 nm, the partner nearer than that
+    constexpr double BOND_MIN = 0.01, BIN_WIDTH = 1e-4, BINS_PER_NM = 1e4;
     constexpr size_t NUM_BINS = 2400;
+    constexpr float BOND2_MIN = 0.0001f, BOND2_MAX = 0.0625f;  // BOND_MIN^2, 0.25^2
+    // a class: the heaviest window of +-PEAK_HALF bins, of at least MIN_PEAK atoms and a MIN_SHARE-th of the bonded
+    // ones; it then suppresses +-SUPPRESS_HALF bins, and takes the bins within ASSIGN_HALF that are nearest to it
+    constexpr size_t PEAK_HALF = 10, SUPPRESS_HALF = 30;
+    constexpr long ASSIGN_HALF = 40;
+    constexpr int64_t MIN_PEAK = 8, MIN_SHARE = 200;
     layout.bond.assign(atoms, 0);
     layout.bond_lengths.clear();
     std::vector<uint8_t> partner(atoms, 0);  // offset of the nearest previous atom
@@ -200,13 +211,11 @@ void detect_bonds(const T *x, size_t atoms, Layout &layout) {
             best = std::min(best, v);
         }
         partner[i] = uint8_t(offset);
-        if (best > 0.0001f && best < 0.0625f) {
-            bin[i] = uint16_t(std::min(NUM_BINS - 1, size_t((std::sqrt(best) - 0.01f) * 1e4f)));
+        if (best > BOND2_MIN && best < BOND2_MAX) {
+            bin[i] = uint16_t(std::min(NUM_BINS - 1, size_t((std::sqrt(best) - float(BOND_MIN)) * float(BINS_PER_NM))));
             hist[bin[i]]++;
         }
     }
-    // peaks: the heaviest +-10-bin window, then suppress +-30 bins; classes under 0.5% of the bonded atoms are ignored.
-    // Bins within 0.004 nm (40 bins) of a class go to the nearest one.
     std::vector<int8_t> bin_class(NUM_BINS + 1, -1);
     std::vector<uint8_t> bin_distance(NUM_BINS, 255);
     std::vector<int64_t> left = hist, prefix(NUM_BINS + 1);
@@ -217,17 +226,20 @@ void detect_bonds(const T *x, size_t atoms, Layout &layout) {
         size_t peak = 0;
         int64_t peak_weight = 0;
         for (size_t k = 0; k < NUM_BINS; k++) {
-            const int64_t w = prefix[std::min(NUM_BINS, k + 11)] - prefix[k >= 10 ? k - 10 : 0];
+            const int64_t w =
+                prefix[std::min(NUM_BINS, k + PEAK_HALF + 1)] - prefix[k >= PEAK_HALF ? k - PEAK_HALF : 0];
             if (w > peak_weight) peak_weight = w, peak = k;
         }
-        if (peak_weight < 8 || peak_weight * 200 < total) break;
+        if (peak_weight < MIN_PEAK || peak_weight * MIN_SHARE < total) break;
         double weight = 0, length = 0;
-        for (size_t w = peak >= 10 ? peak - 10 : 0; w < std::min(NUM_BINS, peak + 11); w++)
-            weight += hist[w], length += hist[w] * (0.01 + (w + 0.5) * 1e-4);
+        for (size_t w = peak >= PEAK_HALF ? peak - PEAK_HALF : 0; w < std::min(NUM_BINS, peak + PEAK_HALF + 1); w++)
+            weight += hist[w], length += hist[w] * (BOND_MIN + (w + 0.5) * BIN_WIDTH);
         layout.bond_lengths.push_back(length / weight);
-        for (size_t w = peak >= 30 ? peak - 30 : 0; w < std::min(NUM_BINS, peak + 31); w++) left[w] = 0;
-        const long centre = long((layout.bond_lengths.back() - 0.01) * 1e4);
-        for (long k = std::max(0L, centre - 40); k <= std::min(long(NUM_BINS) - 1, centre + 40); k++)
+        for (size_t w = peak >= SUPPRESS_HALF ? peak - SUPPRESS_HALF : 0;
+             w < std::min(NUM_BINS, peak + SUPPRESS_HALF + 1); w++)
+            left[w] = 0;
+        const long centre = long((layout.bond_lengths.back() - BOND_MIN) * BINS_PER_NM);
+        for (long k = std::max(0L, centre - ASSIGN_HALF); k <= std::min(long(NUM_BINS) - 1, centre + ASSIGN_HALF); k++)
             if (uint8_t(std::labs(k - centre)) < bin_distance[k])
                 bin_distance[k] = uint8_t(std::labs(k - centre)), bin_class[k] = int8_t(cls);
     }
