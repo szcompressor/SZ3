@@ -31,12 +31,10 @@ constexpr int MAXOFF = 4;                     // a bond partner is one of the pr
 constexpr int MAXCLS = 15;                    // bond-length classes
 constexpr int64_t RMAXB2 = int64_t(1) << 28;  // bonds of 16384 lattice units or more are not coded as spheres
 enum { G_O, G_WH, G_NB, G_NU, NGROUP };
-enum { S_W, S_REF, S_O, S_OH, S_OL, S_FE, S_KEPT, S_E, S_CA, S_CE, S_BFE, S_BK, S_BE, S_U, NS };
-constexpr int NMODE[NGROUP] = {2, 2, 2, 2};
-// each stream is split by the mode of its group, so each (stream, mode) gets its own code
-constexpr int SGROUP[NS] = {-1, -1, G_O, G_O, G_O, G_WH, G_WH, G_WH, G_WH, G_WH, G_NB, G_NB, G_NB, G_NU};
-constexpr int PER_UNIT[NS] = {1, 1, 3, 3, 3, 2, 4,
-                              2, 1, 2, 1, 3, 1, 3};  // most symbols per unit of the group, per frame
+enum { S_W, S_REF, S_LO, S_O, S_FE, S_KEPT, S_E, S_CA, S_CE, S_BFE, S_BK, S_BE, S_U, NS };
+// each stream is split by the mode (0 intra, 1 previous frame) of its group, so each (stream, mode) gets its own code
+constexpr int SGROUP[NS] = {-1, -1, -1, G_O, G_WH, G_WH, G_WH, G_WH, G_WH, G_NB, G_NB, G_NB, G_NU};
+constexpr int PER_UNIT[NS] = {1, 1, 3, 3, 2, 4, 2, 1, 2, 1, 3, 1, 3};  // most symbols per unit of the group, per frame
 
 inline uint32_t zz(int64_t v) { return uint32_t((uint64_t(v) << 1) ^ uint64_t(v >> 63)); }
 inline int64_t unzz(uint32_t u) { return int64_t(u >> 1) ^ -int64_t(u & 1); }
@@ -159,11 +157,14 @@ void detect_bonds(const T *x, size_t N, Layout &L) {
     for (size_t i = 1; i < N; i++) {
         if (L.kind[i] != 2) continue;
         float best = 1e30f;
-        for (size_t o = 1; o <= size_t(MAXOFF) && o <= i; o++) {
+        unsigned off = 0;  // locals and no branch: a byte store may alias x, and which one is nearest is random
+        for (unsigned o = 1; o <= unsigned(MAXOFF) && o <= i; o++) {
             const float dx = float(x[3 * i] - x[3 * (i - o)]), dy = float(x[3 * i + 1] - x[3 * (i - o) + 1]),
                         dz = float(x[3 * i + 2] - x[3 * (i - o) + 2]), v = dx * dx + dy * dy + dz * dz;
-            if (v < best) best = v, dof[i] = uint8_t(o);
+            off = v < best ? o : off;
+            best = std::min(best, v);
         }
+        dof[i] = uint8_t(off);
         if (best > 0.0001f && best < 0.0625f) {
             bin[i] = uint16_t(std::min(NB - 1, size_t((std::sqrt(best) - 0.01f) * 1e4f)));
             hist[bin[i]]++;
@@ -229,6 +230,19 @@ struct In {  // a cursor per stream
         return uint32_t(*p[s]++);
     }
 };
+
+// v as one symbol below E, else as E + v / 256 and its low byte in S_LO
+template <uint32_t E, class S>
+ALWAYS_INLINE void sym_big(S &k, int s, uint32_t v) {
+    if (v < E) return k.sym(s, v);
+    k.sym(s, E + (v >> 8));
+    k.sym(S_LO, v & 255);
+}
+template <uint32_t E>
+ALWAYS_INLINE uint32_t get_big(In &k, int s) {
+    const uint32_t v = k.sym(s);
+    return v < E ? v : (v - E) << 8 | k.sym(S_LO);
+}
 
 struct Frame {
     int32_t *q, *qp;  // this frame and the one before, on the lattice
@@ -343,22 +357,15 @@ ALWAYS_INLINE void enc_atom(const Frame &C, const int *mode, size_t i, S &k) {
     const Layout &L = *C.L;
     const int32_t *q = C.q;
     if (L.kind[i] == 0) {
-        for (int c = 0; c < 3; c++) {
-            if (mode[G_O] == 0) {
-                const uint32_t u = uint32_t(q[3 * i + c] - C.omin[c]);
-                k.sym(S_OH, u >> 8);
-                k.sym(S_OL, u & 255);
-            } else {
-                k.sym(S_O, zz(q[3 * i + c] - C.qp[3 * i + c]));
-            }
-        }
+        for (int c = 0; c < 3; c++)  // intra: the offset in the box of the water O's
+            sym_big<256>(k, S_O, mode[G_O] ? zz(q[3 * i + c] - C.qp[3 * i + c]) : uint32_t(q[3 * i + c] - C.omin[c]));
         enc_sph(C, mode[G_WH], i + 1, i, C.R2, S_FE, S_KEPT, S_E, k);
         enc_circ(C, mode[G_WH], i, k);
     } else if (L.kind[i] == 2) {
         if (L.ref[i]) {
             enc_sph(C, mode[G_NB], i, i - (L.ref[i] >> 4), C.BR2[(L.ref[i] & 15) - 1], S_BFE, S_BK, S_BE, k);
         } else {
-            for (int c = 0; c < 3; c++) k.sym(S_U, zz(q[3 * i + c] - pred_NU(C, mode[G_NU], i, c)));
+            for (int c = 0; c < 3; c++) sym_big<4096>(k, S_U, zz(q[3 * i + c] - pred_NU(C, mode[G_NU], i, c)));
         }
     }
 }
@@ -367,12 +374,8 @@ ALWAYS_INLINE void dec_atom(const Frame &C, const int *mode, size_t i, In &k) {
     int32_t *q = C.q;
     if (L.kind[i] == 0) {
         for (int c = 0; c < 3; c++) {
-            if (mode[G_O] == 0) {
-                const uint32_t hi = k.sym(S_OH);
-                q[3 * i + c] = int32_t(C.omin[c] + int64_t(hi << 8 | k.sym(S_OL)));
-            } else {
-                q[3 * i + c] = int32_t(C.qp[3 * i + c] + unzz(k.sym(S_O)));
-            }
+            const uint32_t v = get_big<256>(k, S_O);
+            q[3 * i + c] = int32_t(mode[G_O] ? C.qp[3 * i + c] + unzz(v) : C.omin[c] + int64_t(v));
         }
         dec_sph(C, mode[G_WH], i + 1, i, C.R2, S_FE, S_KEPT, S_E, k);
         dec_circ(C, mode[G_WH], i, k);
@@ -380,7 +383,8 @@ ALWAYS_INLINE void dec_atom(const Frame &C, const int *mode, size_t i, In &k) {
         if (L.ref[i]) {
             dec_sph(C, mode[G_NB], i, i - (L.ref[i] >> 4), C.BR2[(L.ref[i] & 15) - 1], S_BFE, S_BK, S_BE, k);
         } else {
-            for (int c = 0; c < 3; c++) q[3 * i + c] = int32_t(pred_NU(C, mode[G_NU], i, c) + unzz(k.sym(S_U)));
+            for (int c = 0; c < 3; c++)
+                q[3 * i + c] = int32_t(pred_NU(C, mode[G_NU], i, c) + unzz(get_big<4096>(k, S_U)));
         }
     }
 }
@@ -457,20 +461,20 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         nwat_ = wo.size();
 
         // per (stream, mode) a buffer, kept long enough for the next frame's symbols
-        biomd::Grow buf_s[NS * 4];
-        size_t len[NS * 4] = {0};
+        biomd::Grow buf_s[NS * 2];
+        size_t len[NS * 2] = {0};
         const size_t nunit[NGROUP + 1] = {wo.size(), wo.size(), ub[0].size(), ub[1].size() + ub[0].size(), A_};
         Out o;
         auto open = [&](const int *mode) {
             for (int s = 0; s < NS; s++) {
-                const size_t k = s * 4 + (SGROUP[s] < 0 ? 0 : mode[SGROUP[s]]);
+                const size_t k = s * 2 + (SGROUP[s] < 0 ? 0 : mode[SGROUP[s]]);
                 const size_t need = len[k] + PER_UNIT[s] * nunit[SGROUP[s] < 0 ? NGROUP : SGROUP[s]] + 16;
                 o.p[s] = buf_s[k].fit(len[k], need) + len[k];
             }
         };
         auto close = [&](const int *mode) {
             for (int s = 0; s < NS; s++) {
-                const size_t k = s * 4 + (SGROUP[s] < 0 ? 0 : mode[SGROUP[s]]);
+                const size_t k = s * 2 + (SGROUP[s] < 0 ? 0 : mode[SGROUP[s]]);
                 len[k] = size_t(o.p[s] - buf_s[k].p.get());
             }
         };
@@ -504,7 +508,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
                 for (int g = 0; g < NGROUP; g++) {
                     const auto &u = *units[g];
                     double best = 1e300;
-                    for (int m = 0; m < NMODE[g] && !u.empty(); m++) {
+                    for (int m = 0; m < 2 && !u.empty(); m++) {
                         Est est;
                         int md[NGROUP] = {mode[0], mode[1], mode[2], mode[3]};
                         md[g] = m;
@@ -529,10 +533,10 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         }
         // the streams one after the other, each as [count, symbols], for SegmentedEncoder
         std::vector<int> seg;
-        size_t n = NS * 4;
-        for (size_t k = 0; k < NS * 4; k++) n += len[k];
+        size_t n = NS * 2;
+        for (size_t k = 0; k < NS * 2; k++) n += len[k];
         seg.reserve(n);
-        for (size_t k = 0; k < NS * 4; k++) {
+        for (size_t k = 0; k < NS * 2; k++) {
             seg.push_back(int(len[k]));
             seg.insert(seg.end(), buf_s[k].p.get(), buf_s[k].p.get() + len[k]);
         }
@@ -542,8 +546,8 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     T *decompress(const Config & /*conf*/, std::vector<int> &quant_inds, T *dec_data) override {
         using namespace biomd;
         Layout L;
-        const int *cur[NS * 4], *end[NS * 4];
-        for (size_t k = 0, s = 0; s < NS * 4; s++) {
+        const int *cur[NS * 2], *end[NS * 2];
+        for (size_t k = 0, s = 0; s < NS * 2; s++) {
             const size_t n = k < quant_inds.size() ? size_t(quant_inds[k]) : 0;
             if (k >= quant_inds.size() || n > quant_inds.size() - k - 1)
                 throw std::runtime_error("SZ3 BioMD: corrupt stream");
@@ -554,13 +558,13 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         In in;
         auto open = [&](const int *mode) {
             for (int s = 0; s < NS; s++) {
-                const size_t k = s * 4 + (SGROUP[s] < 0 ? 0 : mode[SGROUP[s]]);
+                const size_t k = s * 2 + (SGROUP[s] < 0 ? 0 : mode[SGROUP[s]]);
                 in.p[s] = cur[k];
                 in.end[s] = end[k];
             }
         };
         auto close = [&](const int *mode) {
-            for (int s = 0; s < NS; s++) cur[s * 4 + (SGROUP[s] < 0 ? 0 : mode[SGROUP[s]])] = in.p[s];
+            for (int s = 0; s < NS; s++) cur[s * 2 + (SGROUP[s] < 0 ? 0 : mode[SGROUP[s]])] = in.p[s];
         };
         const int mode0[NGROUP] = {0, 0, 0, 0};
         open(mode0);
@@ -585,7 +589,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         Frame C{buf.get(), buf.get() + 3 * A_, &L, R2_, D2_, BR2_.data(), {0, 0, 0}};
         for (size_t t = 0; t < Fc_; t++) {
             int mode[NGROUP];
-            for (int g = 0; g < NGROUP; g++) mode[g] = modes_[t * NGROUP + g] % NMODE[g];
+            for (int g = 0; g < NGROUP; g++) mode[g] = modes_[t * NGROUP + g] & 1;
             for (int c = 0; c < 3; c++) C.omin[c] = omin_[t * 3 + c];
             open(mode);
             for (size_t i = 0; i < A_; i++) dec_atom(C, mode, i, in);

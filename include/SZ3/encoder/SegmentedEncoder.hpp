@@ -62,7 +62,9 @@ class SegmentedEncoder : public concepts::EncoderInterface<int> {
     void save(uchar *&c) override {
         write(uint32_t(enc_.size()), c);
         for (size_t s = 0; s < enc_.size(); s++) {
-            write(uint64_t(segs_[s].size()), c);
+            uint64_t n = segs_[s].size();  // in 7-bit groups, low first
+            for (; n >= 128; n >>= 7) *c++ = uchar(n | 128);
+            *c++ = uchar(n);
             if (!segs_[s].empty()) enc_[s].save(c);
         }
     }
@@ -70,18 +72,22 @@ class SegmentedEncoder : public concepts::EncoderInterface<int> {
     void load(const uchar *&c, size_t &remaining_length) override {
         uint32_t n = 0;
         read(n, c, remaining_length);
-        if (n > remaining_length / sizeof(uint64_t)) throw std::out_of_range("SZ3: segment count exceeds the buffer");
+        if (n > remaining_length) throw std::out_of_range("SZ3: segment count exceeds the buffer");
         enc_.assign(n, Encoder());
         sizes_.resize(n);
         for (uint32_t s = 0; s < n; s++) {
-            read(sizes_[s], c, remaining_length);
+            sizes_[s] = 0;
+            for (uint8_t b = 128, sh = 0; b >= 128 && sh < 64; sh += 7) {
+                read(b, c, remaining_length);
+                sizes_[s] |= uint64_t(b & 127) << sh;
+            }
             if (sizes_[s]) enc_[s].load(c, remaining_length);
         }
     }
 
     size_t size_est() override {
         size_t e = sizeof(uint32_t);
-        for (auto &enc : enc_) e += sizeof(uint64_t) + enc.size_est();
+        for (auto &enc : enc_) e += 10 + enc.size_est();
         return e;
     }
 
