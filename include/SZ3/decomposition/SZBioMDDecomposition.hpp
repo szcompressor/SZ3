@@ -358,7 +358,10 @@ ALWAYS_INLINE void enc_atom(const Frame &C, const int *mode, size_t i, S &k) {
     const int32_t *q = C.q;
     if (L.kind[i] == 0) {
         for (int c = 0; c < 3; c++)  // intra: the offset in the box of the water O's
-            sym_big<256>(k, S_O, mode[G_O] ? zz(q[3 * i + c] - C.qp[3 * i + c]) : uint32_t(q[3 * i + c] - C.omin[c]));
+            if (mode[G_O])
+                k.sym(S_O, zz(q[3 * i + c] - C.qp[3 * i + c]));
+            else
+                sym_big<256>(k, S_O, uint32_t(q[3 * i + c] - C.omin[c]));
         enc_sph(C, mode[G_WH], i + 1, i, C.R2, S_FE, S_KEPT, S_E, k);
         enc_circ(C, mode[G_WH], i, k);
     } else if (L.kind[i] == 2) {
@@ -373,10 +376,9 @@ ALWAYS_INLINE void dec_atom(const Frame &C, const int *mode, size_t i, In &k) {
     const Layout &L = *C.L;
     int32_t *q = C.q;
     if (L.kind[i] == 0) {
-        for (int c = 0; c < 3; c++) {
-            const uint32_t v = get_big<256>(k, S_O);
-            q[3 * i + c] = int32_t(mode[G_O] ? C.qp[3 * i + c] + unzz(v) : C.omin[c] + int64_t(v));
-        }
+        for (int c = 0; c < 3; c++)
+            q[3 * i + c] =
+                int32_t(mode[G_O] ? C.qp[3 * i + c] + unzz(k.sym(S_O)) : C.omin[c] + int64_t(get_big<256>(k, S_O)));
         dec_sph(C, mode[G_WH], i + 1, i, C.R2, S_FE, S_KEPT, S_E, k);
         dec_circ(C, mode[G_WH], i, k);
     } else if (L.kind[i] == 2) {
