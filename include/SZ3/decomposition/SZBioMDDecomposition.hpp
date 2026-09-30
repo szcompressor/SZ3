@@ -30,11 +30,12 @@ constexpr int MAXOFF = 4;                     // a bond partner is one of the pr
 constexpr int MAXCLS = 15;                    // bond-length classes
 constexpr int64_t RMAXB2 = int64_t(1) << 28;  // bonds of 16384 lattice units or more are not coded as spheres
 enum { G_O, G_WH, G_NB, G_NU, NGROUP };
-enum { S_W, S_REF, S_O, S_OH, S_OL, S_FE, S_KEPT, S_E, S_BFE, S_BK, S_BE, S_U, NS };
+enum { S_W, S_REF, S_O, S_OH, S_OL, S_FE, S_KEPT, S_E, S_CA, S_CE, S_BFE, S_BK, S_BE, S_U, NS };
 constexpr int NMODE[NGROUP] = {2, 2, 2, 2};
 // each stream is split by the mode of its group, so each (stream, mode) gets its own code
-constexpr int SGROUP[NS] = {-1, -1, G_O, G_O, G_O, G_WH, G_WH, G_WH, G_NB, G_NB, G_NB, G_NU};
-constexpr int PER_UNIT[NS] = {1, 1, 3, 3, 3, 2, 4, 2, 1, 3, 1, 3};  // most symbols per unit of the group, per frame
+constexpr int SGROUP[NS] = {-1, -1, G_O, G_O, G_O, G_WH, G_WH, G_WH, G_WH, G_WH, G_NB, G_NB, G_NB, G_NU};
+constexpr int PER_UNIT[NS] = {1, 1, 3, 3, 3, 2, 4,
+                              2, 1, 2, 1, 3, 1, 3};  // most symbols per unit of the group, per frame
 
 inline uint32_t zz(int64_t v) { return uint32_t((uint64_t(v) << 1) ^ uint64_t(v >> 63)); }
 inline int64_t unzz(uint32_t u) { return int64_t(u >> 1) ^ -int64_t(u & 1); }
@@ -56,8 +57,8 @@ ALWAYS_INLINE void axes(const int64_t p[3], int &f, int &i, int &j) {
 struct Layout {
     std::vector<uint8_t> kind;  // per atom: 0 = water O (then its H at i + 1, i + 2), 1 = water H, 2 = other
     std::vector<uint16_t>
-        ref;       // other atoms: 0 = no bond, else off * 16 + cls + 1 (the sphere of class cls around i - off)
-    double r = 0;  // water O-H (nm)
+        ref;               // other atoms: 0 = no bond, else off * 16 + cls + 1 (the sphere of class cls around i - off)
+    double r = 0, hh = 0;  // water O-H and H-H (nm)
     std::vector<double> blen;  // bond-length classes (nm)
 };
 
@@ -110,7 +111,7 @@ void detect_water(const T *x, size_t N, Layout &L, double step) {
     const double r0 = mode(ohs);
     // rigidity test: rigid water puts nearly all nearby candidates within `tight` of both modes
     size_t ntight = 0, nloose = 0, ns = 0;
-    double sr = 0;
+    double sr = 0, sh = 0;
     for (size_t c = 0; c < cand_hh.size(); c++) {
         const double dh = std::fabs(cand_hh[c] - h0), da = std::fabs(cand_oh[2 * c] - r0),
                      db = std::fabs(cand_oh[2 * c + 1] - r0);
@@ -118,7 +119,7 @@ void detect_water(const T *x, size_t N, Layout &L, double step) {
             nloose++;
             ntight += dh < tight && da < tight && db < tight;
         }
-        if (dh < tol && da < tol && db < tol) sr += double(cand_oh[2 * c]) + cand_oh[2 * c + 1], ns++;
+        if (dh < tol && da < tol && db < tol) sr += double(cand_oh[2 * c]) + cand_oh[2 * c + 1], sh += cand_hh[c], ns++;
     }
     if (nloose < 16 || ntight * 10 < nloose * 6) return;
     const float alo = float((r0 - tol) * (r0 - tol)), ahi = float((r0 + tol) * (r0 + tol));
@@ -140,6 +141,7 @@ void detect_water(const T *x, size_t N, Layout &L, double step) {
         return;
     }
     L.r = sr / (2.0 * ns);
+    L.hh = sh / double(ns);
 }
 
 // Bonds of the other atoms on frame x: each takes the nearest of its previous MAXOFF atoms if that is within bond
@@ -216,7 +218,7 @@ struct In {  // a cursor per stream
 struct Frame {
     int32_t *q, *qp;  // this frame and the one before, on the lattice
     const Layout *L;
-    int64_t R2;  // squared O-H distance of water (lattice units)
+    int64_t R2, D2;  // squared O-H and H-H distances of water (lattice units)
     const int64_t *BR2;
     int32_t omin[3];
 };
@@ -268,6 +270,62 @@ ALWAYS_INLINE void dec_sph(const Frame &C, int m, size_t i, size_t j, int64_t R2
     for (int c = 0; c < 3; c++) C.q[3 * i + c] = int32_t(C.q[3 * j + c] + d[c]);
 }
 
+// H2 - O = d on the circle |d|^2 = R2, 2 d.d1 = R2 + |d1|^2 - D2, d1 = H1 - O. The coordinate a of d on the axis k
+// where d1 is smallest fixes two points P of the circle (integer arithmetic and one square root, so the decoder finds
+// the same); the one meant (intra: a bit, else the one nearer the prediction p) is corrected by two residuals.
+// Beyond the lattice sizes of a water (a molecule split by the boundary) both points are {a on k, 0, 0}.
+ALWAYS_INLINE int64_t rdiv(int64_t n, int64_t d) { return (n >= 0 ? n + d / 2 : n - d / 2) / d; }  // d > 0
+ALWAYS_INLINE void circ_pts(const int64_t d1[3], int64_t R2, int64_t D2, int k, int64_t a, int64_t P[2][3]) {
+    const int i = k == 2 ? 0 : k + 1, j = k == 0 ? 2 : (k == 1 ? 0 : 1);
+    const int64_t u = d1[i], w = d1[j], g2 = u * u + w * w, lim = 16384;
+    const bool ok =
+        g2 > 0 && std::llabs(u) < lim && std::llabs(w) < lim && std::llabs(d1[k]) < lim && std::llabs(a) < lim;
+    const int64_t M = ok ? R2 + g2 + d1[k] * d1[k] - D2 - 2 * d1[k] * a : 0;  // 2 (u P_i + w P_j)
+    const int64_t s = ok ? isqrt_round(4 * g2 * (R2 - a * a) - M * M) : 0;
+    for (int r = 0; r < 2; r++) {
+        P[r][k] = a;
+        P[r][i] = ok ? rdiv(M * u - (r ? -s : s) * w, 2 * g2) : 0;
+        P[r][j] = ok ? rdiv(M * w + (r ? -s : s) * u, 2 * g2) : 0;
+    }
+}
+ALWAYS_INLINE int circ_axis(const int64_t d1[3]) {
+    int k = std::llabs(d1[1]) < std::llabs(d1[0]) ? 1 : 0;
+    return std::llabs(d1[2]) < std::llabs(d1[k]) ? 2 : k;
+}
+ALWAYS_INLINE int64_t l1(const int64_t a[3], const int64_t b[3]) {
+    return std::llabs(a[0] - b[0]) + std::llabs(a[1] - b[1]) + std::llabs(a[2] - b[2]);
+}
+template <class S>
+ALWAYS_INLINE void enc_circ(const Frame &C, int m, size_t o, S &k) {
+    int64_t d1[3], d[3], p[3], P[2][3];
+    rel(C.q, o + 1, o, d1);
+    rel(C.q, o + 2, o, d);
+    const int ax = circ_axis(d1);
+    circ_pts(d1, C.R2, C.D2, ax, d[ax], P);
+    int r = l1(P[1], d) < l1(P[0], d);
+    if (m) {
+        rel(C.qp, o + 2, o, p);
+        const int rp = l1(P[1], p) < l1(P[0], p);
+        k.sym(S_CA, zz(d[ax] - p[ax]) * 2 + uint32_t(r != rp));
+    } else {
+        k.sym(S_CA, zz(d[ax]) * 2 + uint32_t(r));
+    }
+    for (int c = 0; c < 3; c++)
+        if (c != ax) k.sym(S_CE, zz(d[c] - P[r][c]));
+}
+ALWAYS_INLINE void dec_circ(const Frame &C, int m, size_t o, In &k) {
+    int64_t d1[3], p[3] = {0, 0, 0}, P[2][3];
+    rel(C.q, o + 1, o, d1);
+    const int ax = circ_axis(d1);
+    if (m) rel(C.qp, o + 2, o, p);
+    const uint32_t v = k.sym(S_CA);
+    circ_pts(d1, C.R2, C.D2, ax, p[ax] + unzz(v >> 1), P);
+    int r = int(v & 1);
+    if (m) r ^= l1(P[1], p) < l1(P[0], p);
+    for (int c = 0; c < 3; c++)
+        C.q[3 * (o + 2) + c] = int32_t(C.q[3 * o + c] + (c == ax ? P[r][c] : P[r][c] + unzz(k.sym(S_CE))));
+}
+
 // One atom: a water (O and the rest of its molecule), or another atom. kind 1 atoms come with their O.
 template <class S>
 ALWAYS_INLINE void enc_atom(const Frame &C, const int *mode, size_t i, S &k) {
@@ -283,7 +341,8 @@ ALWAYS_INLINE void enc_atom(const Frame &C, const int *mode, size_t i, S &k) {
                 k.sym(S_O, zz(q[3 * i + c] - C.qp[3 * i + c]));
             }
         }
-        for (size_t h = 1; h <= 2; h++) enc_sph(C, mode[G_WH], i + h, i, C.R2, S_FE, S_KEPT, S_E, k);
+        enc_sph(C, mode[G_WH], i + 1, i, C.R2, S_FE, S_KEPT, S_E, k);
+        enc_circ(C, mode[G_WH], i, k);
     } else if (L.kind[i] == 2) {
         if (L.ref[i]) {
             enc_sph(C, mode[G_NB], i, i - (L.ref[i] >> 4), C.BR2[(L.ref[i] & 15) - 1], S_BFE, S_BK, S_BE, k);
@@ -304,7 +363,8 @@ ALWAYS_INLINE void dec_atom(const Frame &C, const int *mode, size_t i, In &k) {
                 q[3 * i + c] = int32_t(C.qp[3 * i + c] + unzz(k.sym(S_O)));
             }
         }
-        for (size_t h = 1; h <= 2; h++) dec_sph(C, mode[G_WH], i + h, i, C.R2, S_FE, S_KEPT, S_E, k);
+        dec_sph(C, mode[G_WH], i + 1, i, C.R2, S_FE, S_KEPT, S_E, k);
+        dec_circ(C, mode[G_WH], i, k);
     } else if (L.kind[i] == 2) {
         if (L.ref[i]) {
             dec_sph(C, mode[G_NB], i, i - (L.ref[i] >> 4), C.BR2[(L.ref[i] & 15) - 1], S_BFE, S_BK, S_BE, k);
@@ -359,12 +419,13 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         Layout L;
         std::vector<uint32_t> wo, ub[2];  // water O's; bonded, unbonded other atoms
         std::vector<int64_t> BR2;
-        int64_t R2 = 0;
+        int64_t R2 = 0, D2 = 0;
         {
             detect_water(data, A_, L, step_);
             R2 = 0;
             if (L.r > 0 && L.r / step_ < 16384) {
                 R2 = rnd((L.r / step_) * (L.r / step_));
+                D2 = rnd((L.hh / step_) * (L.hh / step_));
             } else {  // no water, or too many lattice steps across one for exact products
                 std::fill(L.kind.begin(), L.kind.end(), 2);
             }
@@ -380,6 +441,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
             }
         }
         R2_ = R2;
+        D2_ = D2 < (int64_t(1) << 30) ? D2 : 0;
         BR2_ = BR2;
         nwat_ = wo.size();
 
@@ -410,7 +472,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         close(mode0);
         thread_local std::vector<int32_t> buf;
         if (buf.size() < 6 * A_) buf.resize(6 * A_);
-        Frame C{buf.data(), buf.data() + 3 * A_, &L, R2, BR2_.data(), {0, 0, 0}};
+        Frame C{buf.data(), buf.data() + 3 * A_, &L, R2, D2_, BR2_.data(), {0, 0, 0}};
         const std::vector<uint32_t> *units[NGROUP] = {&wo, &wo, &ub[0], &ub[1]};
         int mode[NGROUP] = {0, 0, 0, 0};
         modes_.clear();
@@ -512,7 +574,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         close(mode0);
         thread_local std::vector<int32_t> buf;
         if (buf.size() < 6 * A_) buf.resize(6 * A_);
-        Frame C{buf.data(), buf.data() + 3 * A_, &L, R2_, BR2_.data(), {0, 0, 0}};
+        Frame C{buf.data(), buf.data() + 3 * A_, &L, R2_, D2_, BR2_.data(), {0, 0, 0}};
         for (size_t t = 0; t < Fc_; t++) {
             int mode[NGROUP];
             for (int g = 0; g < NGROUP; g++) mode[g] = modes_[t * NGROUP + g] % NMODE[g];
@@ -533,6 +595,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         write(fill_, c);
         write(step_, c);
         write(R2_, c);
+        write(D2_, c);
         write(uint64_t(nwat_), c);
         write(uint8_t(BR2_.size()), c);
         if (!BR2_.empty()) write(BR2_.data(), BR2_.size(), c);
@@ -549,6 +612,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         read(fill_, c, remaining_length);
         read(step_, c, remaining_length);
         read(R2_, c, remaining_length);
+        read(D2_, c, remaining_length);
         read(nw, c, remaining_length);
         nwat_ = size_t(std::min<uint64_t>(nw, A_));
         read(nb, c, remaining_length);
@@ -558,7 +622,8 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         read(modes_.data(), modes_.size(), c, remaining_length);
         omin_.resize(Fc_ * 3);
         read(omin_.data(), omin_.size(), c, remaining_length);
-        bool ok = nw <= A_ && R2_ >= 0 && R2_ < (int64_t(1) << 30) && nb <= biomd::MAXCLS;
+        bool ok = nw <= A_ && R2_ >= 0 && R2_ < (int64_t(1) << 28) && D2_ >= 0 && D2_ < (int64_t(1) << 30) &&
+                  nb <= biomd::MAXCLS;
         for (int64_t b : BR2_) ok = ok && b >= 0;  // classes of RMAXB2 or more are stored, no atom refers to them
         if (!ok) throw std::runtime_error("SZ3 BioMD: corrupt stream");
     }
@@ -571,7 +636,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     size_t F_, A_, Fc_ = 1;  // frames, atoms, frames before the fill
     T fill_ = 0;
     double eb_, step_ = 0;
-    int64_t R2_ = 0;
+    int64_t R2_ = 0, D2_ = 0;
     size_t nwat_ = 0;
     std::vector<int64_t> BR2_;
     std::vector<uint8_t> modes_;  // per frame and group
