@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
@@ -199,6 +200,20 @@ void detect_bonds(const T *x, size_t N, Layout &L) {
 }
 
 // ------------------------------------------------------------------------------------------------ symbols
+// a buffer that grows by doubling and is never cleared (every value is written before it is read)
+struct Grow {
+    std::unique_ptr<int[]> p;
+    size_t cap = 0;
+    int *fit(size_t len, size_t need) {  // room for need values, keeping the first len
+        if (cap < need) {
+            std::unique_ptr<int[]> q(new int[2 * need]);
+            if (len) std::copy(p.get(), p.get() + len, q.get());
+            p = std::move(q);
+            cap = 2 * need;
+        }
+        return p.get();
+    }
+};
 struct Out {  // the frame's buffer of each stream
     int *p[NS];
     ALWAYS_INLINE void sym(int s, uint32_t x) { *p[s]++ = int(x); }
@@ -442,7 +457,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         nwat_ = wo.size();
 
         // per (stream, mode) a buffer, kept long enough for the next frame's symbols
-        std::vector<int> buf_s[NS * 4];
+        biomd::Grow buf_s[NS * 4];
         size_t len[NS * 4] = {0};
         const size_t nunit[NGROUP + 1] = {wo.size(), wo.size(), ub[0].size(), ub[1].size() + ub[0].size(), A_};
         Out o;
@@ -450,14 +465,13 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
             for (int s = 0; s < NS; s++) {
                 const size_t k = s * 4 + (SGROUP[s] < 0 ? 0 : mode[SGROUP[s]]);
                 const size_t need = len[k] + PER_UNIT[s] * nunit[SGROUP[s] < 0 ? NGROUP : SGROUP[s]] + 16;
-                if (buf_s[k].size() < need) buf_s[k].resize(2 * need);
-                o.p[s] = buf_s[k].data() + len[k];
+                o.p[s] = buf_s[k].fit(len[k], need) + len[k];
             }
         };
         auto close = [&](const int *mode) {
             for (int s = 0; s < NS; s++) {
                 const size_t k = s * 4 + (SGROUP[s] < 0 ? 0 : mode[SGROUP[s]]);
-                len[k] = size_t(o.p[s] - buf_s[k].data());
+                len[k] = size_t(o.p[s] - buf_s[k].p.get());
             }
         };
         const int mode0[NGROUP] = {0, 0, 0, 0};
@@ -466,8 +480,8 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         for (size_t i = 0; i < A_; i++)
             if (L.kind[i] == 2) o.sym(S_REF, L.ref[i]);
         close(mode0);
-        std::vector<int32_t> buf(6 * A_);
-        Frame C{buf.data(), buf.data() + 3 * A_, &L, R2, D2_, BR2_.data(), {0, 0, 0}};
+        std::unique_ptr<int32_t[]> buf(new int32_t[6 * A_]);  // written before read
+        Frame C{buf.get(), buf.get() + 3 * A_, &L, R2, D2_, BR2_.data(), {0, 0, 0}};
         const std::vector<uint32_t> *units[NGROUP] = {&wo, &wo, &ub[0], &ub[1]};
         int mode[NGROUP] = {0, 0, 0, 0};
         modes_.clear();
@@ -520,7 +534,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         seg.reserve(n);
         for (size_t k = 0; k < NS * 4; k++) {
             seg.push_back(int(len[k]));
-            seg.insert(seg.end(), buf_s[k].begin(), buf_s[k].begin() + len[k]);
+            seg.insert(seg.end(), buf_s[k].p.get(), buf_s[k].p.get() + len[k]);
         }
         return seg;
     }
@@ -567,8 +581,8 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
                 L.ref[i] = uint16_t(r);
             }
         close(mode0);
-        std::vector<int32_t> buf(6 * A_);
-        Frame C{buf.data(), buf.data() + 3 * A_, &L, R2_, D2_, BR2_.data(), {0, 0, 0}};
+        std::unique_ptr<int32_t[]> buf(new int32_t[6 * A_]);  // written before read
+        Frame C{buf.get(), buf.get() + 3 * A_, &L, R2_, D2_, BR2_.data(), {0, 0, 0}};
         for (size_t t = 0; t < Fc_; t++) {
             int mode[NGROUP];
             for (int g = 0; g < NGROUP; g++) mode[g] = modes_[t * NGROUP + g] % NMODE[g];
