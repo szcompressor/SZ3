@@ -2,11 +2,11 @@
 #define SZ3_SZ_BIOMD_HPP
 
 #include "SZ3/compressor/SZGenericCompressor.hpp"
-#include "SZ3/compressor/specialized/SZBioMDCompressor.hpp"
 #include "SZ3/decomposition/SZBioMDDecomposition.hpp"
 #include "SZ3/decomposition/SZBioMDXtcDecomposition.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/encoder/HuffmanEncoder.hpp"
+#include "SZ3/encoder/SegmentedEncoder.hpp"
 #include "SZ3/encoder/XtcBasedEncoder.hpp"
 #include "SZ3/lossless/Lossless_bypass.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
@@ -22,16 +22,18 @@ size_t SZ_compress_bioMD(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
     assert(conf.cmprAlgo == ALGO_BIOMD);
     calAbsErrorBound(conf, data);
 
-    SZBioMDCompressor<T, N, HuffmanEncoder<int>> sz(conf);
-    return sz.compress(conf, data, cmpData, cmpCap);
+    auto sz = make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf), SegmentedEncoder<HuffmanEncoder<int>>(),
+                                               Lossless_bypass());
+    return sz->compress(conf, data, cmpData, cmpCap);
 }
 
 template <class T, uint N>
 void SZ_decompress_bioMD(const Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
     assert(conf.cmprAlgo == ALGO_BIOMD);
 
-    SZBioMDCompressor<T, N, HuffmanEncoder<int>> sz(conf);
-    sz.decompress(conf, cmpData, cmpSize, decData);
+    auto sz = make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf), SegmentedEncoder<HuffmanEncoder<int>>(),
+                                               Lossless_bypass());
+    sz->decompress(conf, cmpData, cmpSize, decData);
 }
 
 template <class T, uint N>
