@@ -444,16 +444,22 @@ ALWAYS_INLINE void get_circle(const FrameContext &frame, int mode, size_t o, Sym
             int32_t(frame.cur[3 * o + c] + (c == axis ? point[c] : point[c] + unzigzag(in.get(S_WATER_H2_RESIDUAL))));
 }
 
+// A water O: from the previous frame, or (intra) its point in the box.
+template <class Sink>
+ALWAYS_INLINE void put_water_o(const FrameContext &frame, int mode, size_t i, Sink &out) {
+    if (mode)
+        for (int c = 0; c < 3; c++) out.put(S_WATER_O, zigzag(frame.cur[3 * i + c] - frame.prev[3 * i + c]));
+    else
+        put_box_point(frame, frame.cur + 3 * i, out);
+}
+
 // One atom: a water (O and the rest of its molecule), or another atom. Water H come with their O.
 template <class Sink>
 ALWAYS_INLINE void put_atom(const FrameContext &frame, const int *mode, size_t i, Sink &out) {
     const Layout &layout = *frame.layout;
     const int32_t *q = frame.cur;
     if (layout.kind[i] == K_WATER_O) {
-        if (mode[G_WATER_O])
-            for (int c = 0; c < 3; c++) out.put(S_WATER_O, zigzag(q[3 * i + c] - frame.prev[3 * i + c]));
-        else
-            put_box_point(frame, q + 3 * i, out);
+        put_water_o(frame, mode[G_WATER_O], i, out);
         put_sphere(frame, mode[G_WATER_H], i + 1, i, frame.water_oh2, S_WATER_H1_FACE, S_WATER_H1_KEPT,
                    S_WATER_H1_RADIAL, out);
         put_circle(frame, mode[G_WATER_H], i, out);
@@ -511,7 +517,7 @@ inline void water_box(const int32_t *q, const std::vector<uint32_t> &waters, int
 
 // Per group, the mode (0 intra, 1 previous frame) that costs fewer bits on a sample of up to 256 of its atoms.
 inline void choose_modes(const FrameContext &frame, const std::vector<uint32_t> *const group_atoms[NUM_GROUPS],
-                         const int32_t box_max[3], int mode[NUM_GROUPS]) {
+                         int mode[NUM_GROUPS]) {
     for (int g = 0; g < NUM_GROUPS; g++) {
         const auto &sample = *group_atoms[g];
         double best = 1e300;
@@ -521,14 +527,10 @@ inline void choose_modes(const FrameContext &frame, const std::vector<uint32_t> 
             trial[g] = m;
             const size_t stride = std::max<size_t>(1, sample.size() / 256);
             for (size_t k = 0; k < sample.size(); k += stride) {
-                const uint32_t i = sample[k];
-                if (g != G_WATER_O)
-                    put_atom(frame, trial, i, cost);
-                else if (m == 0)  // the point in the box
-                    for (int c = 0; c < 3; c++) cost.bits += std::log2(double(box_max[c] - frame.box_min[c]) + 1.0);
+                if (g == G_WATER_O)  // the O alone: put_atom would add its molecule's H
+                    put_water_o(frame, m, sample[k], cost);
                 else
-                    for (int c = 0; c < 3; c++)
-                        cost.put(S_WATER_O, zigzag(frame.cur[3 * i + c] - frame.prev[3 * i + c]));
+                    put_atom(frame, trial, sample[k], cost);
             }
             if (cost.bits < best) best = cost.bits, mode[g] = m;
         }
@@ -581,13 +583,13 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
             quantize(data + t * frame_values, frame_values, 1.0 / step_, frame.cur);
             int32_t box_max[3];
             water_box(frame.cur, waters, frame.box_min, box_max);
-            // per group, the predictor that is cheapest on a sample of frame 1, for every frame after the first
-            if (t == 1) choose_modes(frame, group_atoms, box_max, modes_);
             for (int c = 0; c < 3; c++) {
                 box_min_.push_back(frame.box_min[c]);
                 box_size_.push_back(uint32_t(box_max[c] - frame.box_min[c]) + 1);
             }
             set_water_box(frame, &box_size_[t * 3]);
+            // per group, the predictor that is cheapest on a sample of frame 1, for every frame after the first
+            if (t == 1) choose_modes(frame, group_atoms, modes_);
             for (size_t i = 0; i < atoms_; i++) put_atom(frame, t ? modes_ : intra, i, writer);
             std::swap(frame.cur, frame.prev);
         }
