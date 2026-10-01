@@ -37,6 +37,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     static constexpr unsigned kMaxLen = 32;
     static constexpr unsigned kTableBits = 12;
     static constexpr size_t kSplit = size_t(1) << 12;
+    static constexpr uint64_t kMissing = uint64_t(1) << 63;  // the code entry of a bin preprocess_encode() did not see
 
    public:
     /// stateNum is ignored: the range is taken from the bins.
@@ -106,14 +107,14 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         const U off = static_cast<U>(offset_);
         uint64_t total = 0;
         const uint64_t flag = n >= kSplit && runs_ ? uint64_t(1) << 63 : 0;  // one part, runs taken whole
+        uint64_t missing = 0;  // kMissing once a bin preprocess_encode() did not count turns up
         for (unsigned k = 0; k < parts; k++) {
             uint64_t acc = 0;
             unsigned nb = 0;
             uchar *p = bytes;
             auto put = [&](uint64_t e) {
                 const unsigned len = static_cast<unsigned>(e & 0xff);
-                // a bin preprocess_encode() did not count has no code
-                if (len == 0) throw std::invalid_argument("SZ3 Huffman: bin not seen by preprocess_encode");
+                missing |= e;
                 acc = (acc << len) | (e >> 8);
                 nb += len;
                 if (nb >= 32) {
@@ -144,7 +145,8 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             total += bits;
             bytes = p;
         }
-        if (total != payload_bits_) throw std::invalid_argument("SZ3 Huffman: bins differ from preprocess_encode's");
+        if ((missing & kMissing) || total != payload_bits_)
+            throw std::invalid_argument("SZ3 Huffman: bins differ from preprocess_encode's");
         return bytes - start;
     }
 
@@ -359,7 +361,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                 freq_out.push_back(f64[k]);
             }
         }
-        code_.assign(span, 0);
+        code_.assign(span, kMissing);
     }
 
     // Open addressing on bin - offset, hashed so that evenly spaced bins do not pile up in neighbouring slots.
@@ -386,11 +388,11 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             }
             return val[i];
         }
-        uint64_t get(uint64_t k) const {  // 0 if absent
+        uint64_t get(uint64_t k) const {  // kMissing if absent
             const size_t m = key.size() - 1;
             for (size_t i = slot(k); used[i]; i = (i + 1) & m)
                 if (key[i] == k) return val[i];
-            return 0;
+            return kMissing;
         }
         void grow() {
             const unsigned bits = key.empty() ? 10 : 65 - shift;

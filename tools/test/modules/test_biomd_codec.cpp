@@ -316,4 +316,77 @@ TEST(BioMD, CorruptStreamsAreRefusedOrDecodeInBounds) {
     SUCCEED();
 }
 
+// Found by an audit: the rounding of x / step to the lattice and of q step back to double took more than the one ulp
+// of slack the step left.
+TEST(BioMD, DoubleNearHalfLatticePointsStaysWithinBound) {
+    const std::vector<double> x = {510.39700369221237, 0, 0, 467.45074901980968, 0, 0};
+    const double eb = 5.8345702187110699e-06;
+    const auto r = round_trip(x, 1, 2, eb);
+    EXPECT_EQ(r.algo, SZ3::ALGO_BIOMD);
+    EXPECT_LE(r.max_err, eb);
+}
+
+// A water whose O and H2 swap ends of the coordinate range between frames (2^28 lattice steps apart): the H2 symbol
+// against the previous frame must still fit 32 bits.
+template <class T>
+void water_jumps_across_the_range() {
+    const double eb = std::ldexp(1.0, -10), M = std::ldexp(1.0, 18);  // M / step = 2^28
+    const size_t waters = 40, atoms = 3 * waters + 2, frames = 3;
+    std::vector<T> x(frames * atoms * 3);
+    std::mt19937 rng(1);
+    std::uniform_real_distribution<double> U(0, 3);
+    const double r = 0.09572, th = 104.52 * std::acos(-1.0) / 180;
+    std::vector<double> O(3 * waters);
+    for (auto &v : O) v = U(rng);
+    for (size_t f = 0; f < frames; f++) {
+        T *X = &x[f * atoms * 3];
+        for (size_t w = 0; w < waters; w++) {
+            double o[3] = {O[3 * w] + 0.001 * f, O[3 * w + 1], O[3 * w + 2]};
+            double h1[3] = {o[0], o[1] + r, o[2]}, h2[3] = {o[0], o[1] + r * std::cos(th), o[2] + r * std::sin(th)};
+            if (w == 7 && f > 0) o[0] = h1[0] = (f == 1 ? M : -M), h2[0] = (f == 1 ? -M : M);
+            for (int c = 0; c < 3; c++)
+                X[9 * w + c] = T(o[c]), X[9 * w + 3 + c] = T(h1[c]), X[9 * w + 6 + c] = T(h2[c]);
+        }
+        X[9 * waters] = T(M), X[9 * waters + 3] = T(-M);  // two ions fix max|x|
+    }
+    const auto rt = round_trip(x, frames, atoms, eb);
+    EXPECT_EQ(rt.algo, SZ3::ALGO_BIOMD);
+    EXPECT_LE(rt.max_err, eb);
+}
+TEST(BioMD, WaterJumpsAcrossTheCoordinateRange) {
+    water_jumps_across_the_range<float>();
+    water_jumps_across_the_range<double>();
+}
+
+// The O-H distance at 16384 - 1e-5 lattice steps: its square rounds to 2^28, which load() refuses, so the codec must
+// not code the water on it.
+TEST(BioMD, WaterGeometryAtTheLatticeLimitDecodes) {
+    SystemSpec s;
+    size_t n;
+    const auto x = make_system(s, &n);
+    const auto r = round_trip(x, s.frames, n, 3.3979795989402915e-06);
+    EXPECT_LE(r.max_err, 3.3979795989402915e-06);
+}
+
+// An unwritten chunk is all fill, NaN included.
+TEST(BioMD, ChunkOfFillOnly) {
+    const size_t frames = 3, atoms = 10;
+    const std::vector<float> x(frames * atoms * 3, std::numeric_limits<float>::quiet_NaN());
+    const auto r = round_trip(x, frames, atoms, 5e-4);
+    EXPECT_EQ(r.algo, SZ3::ALGO_BIOMD);
+    for (float v : r.out) EXPECT_TRUE(std::isnan(v));
+}
+
+// Few atoms and many frames: what each frame stores beyond its symbols must not outgrow the data.
+TEST(BioMD, FewAtomsManyFrames) {
+    const size_t frames = 5000, atoms = 2;
+    std::vector<float> x(frames * atoms * 3);
+    std::mt19937 rng(3);
+    std::normal_distribution<float> step(0, 0.01f);
+    for (size_t i = 0; i < x.size(); i++) x[i] = (i < atoms * 3 ? 1.0f : x[i - atoms * 3]) + step(rng);
+    const auto r = round_trip(x, frames, atoms, 5e-4);
+    EXPECT_EQ(r.algo, SZ3::ALGO_BIOMD);
+    EXPECT_LE(r.max_err, 5e-4);
+}
+
 }  // namespace

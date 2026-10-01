@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "SZ3/encoder/HuffmanEncoder.hpp"
+#include "SZ3/encoder/SegmentedEncoder.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
 #include "gtest/gtest.h"
 
@@ -442,6 +443,96 @@ TEST(SZ3_HuffmanEncoder, MutationsNeverOverrun) {
     // Some mutations still decode (a flipped payload bit can map to another valid code); none may overrun.
     RecordProperty("decoded", static_cast<int>(decoded));
     RecordProperty("total", static_cast<int>(total));
+}
+
+// A value count the payload cannot hold is refused before the output is allocated.
+TEST(SZ3_HuffmanEncoder, ValueCountBeyondThePayloadIsRefusedFirst) {
+    std::vector<int> bins(5000, 0);
+    for (size_t i = 0; i < bins.size(); i += 7) bins[i] = int(i % 5);
+    const auto e = encode(bins);
+    SZ3::HuffmanEncoder<int> dec;
+    const SZ3::uchar *p = e.tree.data();
+    size_t rem = e.tree.size();
+    dec.load(p, rem);
+    p = e.data.data();
+    rem = e.data.size();
+    EXPECT_THROW(dec.decode(p, size_t(1) << 40, rem), std::out_of_range);  // would be 4 TB of ints
+}
+
+// A bin preprocess_encode() did not see has no code.
+TEST(SZ3_HuffmanEncoder, UnseenBinIsRefused) {
+    SZ3::HuffmanEncoder<int> enc;
+    enc.preprocess_encode({0, 0, 1, 3}, 0);
+    std::vector<SZ3::uchar> buf(1024);
+    SZ3::uchar *p = buf.data();
+    EXPECT_THROW(enc.encode({1, 1, 1, 2}, p), std::invalid_argument);
+}
+
+std::vector<int> segmented_round_trip(const std::vector<int> &bins) {
+    SZ3::SegmentedEncoder<SZ3::HuffmanEncoder<int>> enc;
+    enc.preprocess_encode(bins, 0);
+    std::vector<SZ3::uchar> buf(enc.size_est() + 8 * bins.size() + 1024);
+    SZ3::uchar *p = buf.data();
+    enc.save(p);
+    enc.encode(bins, p);
+    const size_t n = p - buf.data();
+    SZ3::SegmentedEncoder<SZ3::HuffmanEncoder<int>> dec;
+    const SZ3::uchar *q = buf.data();
+    size_t rem = n;
+    dec.load(q, rem);
+    return dec.decode(q, bins.size(), rem);
+}
+
+TEST(SZ3_SegmentedEncoder, RoundTrip) {
+    std::mt19937 g(5);
+    std::vector<int> bins;
+    for (int s = 0; s < 30; s++) {
+        const int n = s % 3 == 0 ? 0 : int(g() % 6000);  // empty segments too
+        bins.push_back(n);
+        for (int i = 0; i < n; i++) bins.push_back(int(g() % (s + 2)) - s / 2);
+    }
+    EXPECT_EQ(segmented_round_trip(bins), bins);
+    EXPECT_EQ(segmented_round_trip({}), std::vector<int>());
+    EXPECT_EQ(segmented_round_trip({0, 0, 0}), std::vector<int>({0, 0, 0}));
+}
+
+// Corrupt segment tables: sizes beyond an int, sizes that do not add up (even with wrap-around), and many empty
+// segments, which must cost their bytes rather than an encoder each.
+TEST(SZ3_SegmentedEncoder, CorruptSegmentTables) {
+    auto stream = [](uint32_t count, std::vector<SZ3::uchar> rest) {
+        std::vector<SZ3::uchar> b(4);
+        memcpy(b.data(), &count, 4);
+        b.insert(b.end(), rest.begin(), rest.end());
+        return b;
+    };
+    auto load = [](const std::vector<SZ3::uchar> &b, SZ3::SegmentedEncoder<SZ3::HuffmanEncoder<int>> &dec) {
+        const SZ3::uchar *p = b.data();
+        size_t rem = b.size();
+        dec.load(p, rem);
+        return rem;
+    };
+    {
+        SZ3::SegmentedEncoder<SZ3::HuffmanEncoder<int>> dec;
+        EXPECT_THROW(load(stream(1, {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01}), dec),
+                     std::out_of_range);                                                        // 2^64 - 1
+        EXPECT_THROW(load(stream(1, {0x80, 0x80, 0x80, 0x80, 0x08}), dec), std::out_of_range);  // 2^31
+    }
+    {
+        SZ3::SegmentedEncoder<SZ3::HuffmanEncoder<int>> dec;
+        load(stream(3, {0, 0, 0}), dec);
+        const SZ3::uchar *p = nullptr;
+        size_t rem = 0;
+        EXPECT_THROW(dec.decode(p, 2, rem), std::out_of_range);  // three counts are three bins
+        EXPECT_EQ(dec.decode(p, 3, rem), std::vector<int>({0, 0, 0}));
+    }
+    {
+        const uint32_t count = 1000000;
+        SZ3::SegmentedEncoder<SZ3::HuffmanEncoder<int>> dec;
+        load(stream(count, std::vector<SZ3::uchar>(count, 0)), dec);
+        const SZ3::uchar *p = nullptr;
+        size_t rem = 0;
+        EXPECT_EQ(dec.decode(p, count, rem).size(), count);
+    }
 }
 
 }  // namespace

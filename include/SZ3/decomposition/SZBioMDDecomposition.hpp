@@ -31,6 +31,8 @@ constexpr int MAX_BOND_OFFSET = 4;                 // a bond partner is one of t
 constexpr int MAX_BOND_CLASSES = 15;               // bond-length classes
 constexpr int64_t MAX_BOND_R2 = int64_t(1) << 28;  // bonds of 16384 lattice units or more are not coded as spheres
 constexpr uint32_t ESCAPE = 4096;                  // unbonded values from here on: an escape symbol and a raw byte
+// |q| <= 2^28: displacements stay within 2^29, and every symbol within 32 bits
+constexpr double MAX_LATTICE = double(1 << 28);
 
 // atom groups, each with its own predictor mode per frame
 enum { G_WATER_O, G_WATER_H, G_BONDED, G_UNBONDED, NUM_GROUPS };
@@ -56,7 +58,7 @@ enum {
 // one of them (water: one molecule) writes per frame; the two size the streams' buffers
 constexpr int STREAM_GROUP[NUM_STREAMS] = {-1,        -1,        G_WATER_O, G_WATER_H, G_WATER_H, G_WATER_H,
                                            G_WATER_H, G_WATER_H, G_BONDED,  G_BONDED,  G_BONDED,  G_UNBONDED};
-constexpr int MAX_SYMBOLS_PER_UNIT[NUM_STREAMS] = {1, 1, 3, 2, 4, 2, 1, 2, 1, 3, 1, 3};
+constexpr int MAX_SYMBOLS_PER_UNIT[NUM_STREAMS] = {1, 1, 3, 1, 2, 1, 1, 2, 1, 2, 1, 3};
 
 inline uint32_t zigzag(int64_t v) { return uint32_t((uint64_t(v) << 1) ^ uint64_t(v >> 63)); }
 inline int64_t unzigzag(uint32_t u) { return int64_t(u >> 1) ^ -int64_t(u & 1); }
@@ -384,7 +386,9 @@ ALWAYS_INLINE void get_sphere(const FrameContext &frame, int mode, size_t i, siz
     }
     d[k0] = p[k0] + unzigzag(in.get(s_kept));
     d[k1] = p[k1] + unzigzag(in.get(s_kept));
-    const int64_t r = isqrt_round(r2 - d[k0] * d[k0] - d[k1] * d[k1]) + unzigzag(radial);
+    // unsigned: a corrupt stream's squares may pass 2^63, a valid one's stay below 2^60
+    const uint64_t rest = uint64_t(r2) - uint64_t(d[k0]) * uint64_t(d[k0]) - uint64_t(d[k1]) * uint64_t(d[k1]);
+    const int64_t r = isqrt_round(int64_t(rest)) + unzigzag(radial);
     d[drop] = neg ? -r : r;
     for (int c = 0; c < 3; c++) frame.cur[3 * i + c] = int32_t(frame.cur[3 * j + c] + d[c]);
 }
@@ -406,14 +410,20 @@ ALWAYS_INLINE int circle_side(const int64_t h1[3], int axis, const int64_t v[3])
 ALWAYS_INLINE void circle_point(const int64_t h1[3], int64_t oh2, int64_t hh2, int axis, int64_t coord, int side,
                                 int64_t point[3]) {
     const int i = (axis + 1) % 3, j = (axis + 2) % 3;
-    const int64_t u = h1[i], w = h1[j], g2 = u * u + w * w, lim = 16384;
-    const bool ok =
-        g2 > 0 && std::llabs(u) < lim && std::llabs(w) < lim && std::llabs(h1[axis]) < lim && std::llabs(coord) < lim;
+    const int64_t u = h1[i], w = h1[j], lim = 16384;
+    const bool ok = std::llabs(u) < lim && std::llabs(w) < lim && std::llabs(h1[axis]) < lim &&
+                    std::llabs(coord) < lim && u * u + w * w > 0;
+    const int64_t g2 = ok ? u * u + w * w : 1;
     const int64_t M = ok ? oh2 + g2 + h1[axis] * h1[axis] - hh2 - 2 * h1[axis] * coord : 0;  // 2 (u P_i + w P_j)
     const int64_t s = ok ? (side ? -1 : 1) * isqrt_round(4 * g2 * (oh2 - coord * coord) - M * M) : 0;
     point[axis] = coord;
     point[i] = ok ? round_half_away(double(M * u - s * w) / double(2 * g2)) : 0;
     point[j] = ok ? round_half_away(double(M * w + s * u) / double(2 * g2)) : 0;
+}
+// H2 - O of the previous frame, or 0 beyond the lattice sizes of a water, so that 2 zigzag(d - p) + 1 fits 32 bits
+ALWAYS_INLINE void previous_h2(const FrameContext &frame, size_t o, int64_t p[3]) {
+    displacement(frame.prev, o + 2, o, p);
+    if (std::llabs(p[0]) >= 16384 || std::llabs(p[1]) >= 16384 || std::llabs(p[2]) >= 16384) p[0] = p[1] = p[2] = 0;
 }
 template <class Sink>
 ALWAYS_INLINE void put_circle(const FrameContext &frame, int mode, size_t o, Sink &out) {
@@ -422,7 +432,7 @@ ALWAYS_INLINE void put_circle(const FrameContext &frame, int mode, size_t o, Sin
     displacement(frame.cur, o + 2, o, d);
     const int axis = circle_axis(h1), side = circle_side(h1, axis, d);
     if (mode) {
-        displacement(frame.prev, o + 2, o, p);
+        previous_h2(frame, o, p);
         out.put(S_WATER_H2_AXIS, zigzag(d[axis] - p[axis]) * 2 + uint32_t(side != circle_side(h1, axis, p)));
     } else {
         out.put(S_WATER_H2_AXIS, zigzag(d[axis]) * 2 + uint32_t(side));
@@ -435,7 +445,7 @@ ALWAYS_INLINE void get_circle(const FrameContext &frame, int mode, size_t o, Sym
     int64_t h1[3], p[3] = {0, 0, 0}, point[3];
     displacement(frame.cur, o + 1, o, h1);
     const int axis = circle_axis(h1);
-    if (mode) displacement(frame.prev, o + 2, o, p);
+    if (mode) previous_h2(frame, o, p);
     const uint32_t v = in.get(S_WATER_H2_AXIS);
     const int side = int(v & 1) ^ (mode ? circle_side(h1, axis, p) : 0);
     circle_point(h1, frame.water_oh2, frame.water_hh2, axis, p[axis] + unzigzag(v >> 1), side, point);
@@ -515,7 +525,7 @@ inline void water_box(const int32_t *q, const std::vector<uint32_t> &waters, int
         }
 }
 
-// Per group, the mode (0 intra, 1 previous frame) that costs fewer bits on a sample of up to 256 of its atoms.
+// Per group, the mode (0 intra, 1 previous frame) that costs fewer bits on a sample of about 256 of its atoms.
 inline void choose_modes(const FrameContext &frame, const std::vector<uint32_t> *const group_atoms[NUM_GROUPS],
                          int mode[NUM_GROUPS]) {
     for (int g = 0; g < NUM_GROUPS; g++) {
@@ -582,14 +592,16 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         for (size_t t = 0; t < coded_frames_; t++) {
             quantize(data + t * frame_values, frame_values, 1.0 / step_, frame.cur);
             int32_t box_max[3];
+            uint32_t box_size[3];
             water_box(frame.cur, waters, frame.box_min, box_max);
-            for (int c = 0; c < 3; c++) {
-                box_min_.push_back(frame.box_min[c]);
-                box_size_.push_back(uint32_t(box_max[c] - frame.box_min[c]) + 1);
-            }
-            set_water_box(frame, &box_size_[t * 3]);
+            for (int c = 0; c < 3; c++) box_size[c] = uint32_t(box_max[c] - frame.box_min[c]) + 1;
+            set_water_box(frame, box_size);
             // per group, the predictor that is cheapest on a sample of frame 1, for every frame after the first
             if (t == 1) choose_modes(frame, group_atoms, modes_);
+            if (needs_box(t)) {
+                box_min_.insert(box_min_.end(), frame.box_min, frame.box_min + 3);
+                box_size_.insert(box_size_.end(), box_size, box_size + 3);
+            }
             for (size_t i = 0; i < atoms_; i++) put_atom(frame, t ? modes_ : intra, i, writer);
             std::swap(frame.cur, frame.prev);
         }
@@ -627,14 +639,20 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         std::unique_ptr<int32_t[]> lattice(new int32_t[2 * frame_values]);  // written before read
         FrameContext frame = frame_context(lattice.get(), layout);
         const int intra[NUM_GROUPS] = {0, 0, 0, 0};
-        for (size_t t = 0; t < coded_frames_; t++) {
-            for (int c = 0; c < 3; c++) frame.box_min[c] = box_min_[t * 3 + c];
-            set_water_box(frame, &box_size_[t * 3]);
+        for (size_t t = 0, box = 0; t < coded_frames_; t++) {
+            if (needs_box(t)) {
+                for (int c = 0; c < 3; c++) frame.box_min[c] = box_min_[box * 3 + c];
+                set_water_box(frame, &box_size_[box++ * 3]);
+            }
             for (size_t i = 0; i < atoms_; i++) get_atom(frame, t ? modes_ : intra, i, reader);
             T *x = dec_data + t * frame_values;
             for (size_t i = 0; i < frame_values; i++) x[i] = T(double(frame.cur[i]) * step_);
             std::swap(frame.cur, frame.prev);
         }
+        // a stream that holds more than the frames took is corrupt
+        for (int s = 0; s < NUM_STREAMS; s++)
+            if (reader.cursor[s] != reader.end[s]) throw std::runtime_error("SZ3 BioMD: corrupt stream");
+        if (reader.raw != reader.raw_end) throw std::runtime_error("SZ3 BioMD: corrupt stream");
         std::fill(dec_data + coded_frames_ * frame_values, dec_data + frames_ * frame_values, fill_value_);
         return dec_data;
     }
@@ -649,8 +667,10 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         write(uint8_t(bond_r2_.size()), c);
         if (!bond_r2_.empty()) write(bond_r2_.data(), bond_r2_.size(), c);
         for (int m : modes_) write(uint8_t(m), c);
-        write(box_min_.data(), box_min_.size(), c);
-        write(box_size_.data(), box_size_.size(), c);
+        if (!box_min_.empty()) {  // no box without water
+            write(box_min_.data(), box_min_.size(), c);
+            write(box_size_.data(), box_size_.size(), c);
+        }
         write(uint64_t(raw_bits_.size()), c);
         if (!raw_bits_.empty()) write(raw_bits_.data(), raw_bits_.size(), c);
     }
@@ -659,7 +679,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         uint8_t classes;
         uint64_t waters, coded, raw_size = 0;
         read(coded, c, remaining_length);
-        if (coded < 1 || coded > frames_) throw std::runtime_error("SZ3 BioMD: corrupt stream");
+        if (coded > frames_) throw std::runtime_error("SZ3 BioMD: corrupt stream");
         coded_frames_ = size_t(coded);
         read(fill_value_, c, remaining_length);
         read(step_, c, remaining_length);
@@ -675,16 +695,21 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
             read(v, c, remaining_length);
             m = v & 1;
         }
-        box_min_.resize(coded_frames_ * 3);
-        read(box_min_.data(), box_min_.size(), c, remaining_length);
-        box_size_.resize(coded_frames_ * 3);
-        read(box_size_.data(), box_size_.size(), c, remaining_length);
+        size_t boxes = 0;
+        for (size_t t = 0; t < coded_frames_; t++) boxes += needs_box(t);
+        box_min_.resize(boxes * 3);
+        box_size_.resize(boxes * 3);
+        if (boxes) {
+            read(box_min_.data(), box_min_.size(), c, remaining_length);
+            read(box_size_.data(), box_size_.size(), c, remaining_length);
+        }
         read(raw_size, c, remaining_length);
         if (raw_size > remaining_length) throw std::runtime_error("SZ3 BioMD: corrupt stream");
         raw_bits_.resize(size_t(raw_size));
         if (raw_size) read(raw_bits_.data(), raw_bits_.size(), c, remaining_length);
-        bool ok = waters <= atoms_ && water_oh2_ >= 0 && water_oh2_ < (int64_t(1) << 28) && water_hh2_ >= 0 &&
-                  water_hh2_ < (int64_t(1) << 30) && classes <= biomd::MAX_BOND_CLASSES;
+        bool ok = std::isfinite(step_) && step_ > 0 && waters <= atoms_ && water_oh2_ >= 0 &&
+                  water_oh2_ < (int64_t(1) << 28) && water_hh2_ >= 0 && water_hh2_ < (int64_t(1) << 30) &&
+                  classes <= biomd::MAX_BOND_CLASSES;
         for (int64_t r2 : bond_r2_)
             ok = ok && r2 >= 0;  // classes of MAX_BOND_R2 or more are stored, no atom refers to them
         for (uint32_t side : box_size_) ok = ok && side >= 1 && side <= (uint32_t(1) << 30);
@@ -696,7 +721,11 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     std::pair<int, int> get_out_range() override { return {0, 0}; }  // SegmentedEncoder takes any int
 
    private:
-    // Trailing frames all of one value (the unwritten rest of a chunk) are stored as that value.
+    // a frame whose water O are intra stores the box of the water O's
+    bool needs_box(size_t t) const { return num_waters_ && (t == 0 || !modes_[biomd::G_WATER_O]); }
+
+    // Trailing frames all of one value (the unwritten rest of a chunk) are stored as that value; a chunk may be all
+    // fill (an unwritten chunk of NaN).
     void find_fill_frames(const T *data) {
         const size_t frame_values = atoms_ * 3;
         fill_value_ = data[(frames_ - 1) * frame_values];
@@ -705,10 +734,12 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
                 if (memcmp(&data[i], &fill_value_, sizeof(T)) != 0) return false;
             return true;
         };
-        for (coded_frames_ = frames_; coded_frames_ > 1 && is_fill(coded_frames_ - 1);) coded_frames_--;
+        for (coded_frames_ = frames_; coded_frames_ > 0 && is_fill(coded_frames_ - 1);) coded_frames_--;
     }
 
-    // Lattice step: 2 (eb - ulp) for the binade of max|x|, so that q step rounded to T stays within eb.
+    // Lattice step: 2 (eb - m ulp) for the binade of max|x|, so that q step rounded to T stays within eb. The rounding
+    // of x / step to q, done in double, is off by up to 2 double ulps of x, and q step by 1 more: m = 1 for float,
+    // whose ulp is 2^29 times larger, and 4 for double.
     void choose_step(const T *data) {
         using Bits = typename std::conditional<sizeof(T) == 4, uint32_t, uint64_t>::type;
         Bits max_bits = 0;  // the largest |x| as bits: NaN and inf are above every finite value
@@ -723,9 +754,14 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         if (!(max_abs <= std::numeric_limits<T>::max())) throw std::runtime_error("SZ3 BioMD: non-finite input");
         int exponent;
         std::frexp(double(max_abs), &exponent);
-        const double ulp = std::ldexp(1.0, exponent - std::numeric_limits<T>::digits);
-        step_ = ulp < 0.5 * error_bound_ ? 2.0 * (error_bound_ - ulp) : error_bound_;
-        if (!(step_ > 0) || max_abs / step_ > double(1 << 28))
+        const double ulp = std::max(double(std::numeric_limits<T>::denorm_min()),
+                                    std::ldexp(1.0, exponent - std::numeric_limits<T>::digits)),
+                     margin = (sizeof(T) == 4 ? 1 : 4) * ulp;
+        step_ = margin < 0.5 * error_bound_ ? 2.0 * (error_bound_ - margin) : error_bound_;
+        if (!(error_bound_ > 0) || !std::isfinite(error_bound_))
+            throw std::invalid_argument("SZ3 BioMD: the error bound must be positive and finite");
+        if (!(step_ > 0) || !std::isfinite(step_) || !std::isfinite(1.0 / step_) ||
+            max_abs / step_ > biomd::MAX_LATTICE)
             throw std::runtime_error("SZ3 BioMD: error bound too small for the coordinate range");
     }
 
@@ -734,12 +770,11 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
                        std::vector<uint32_t> &bonded, std::vector<uint32_t> &unbonded) {
         using namespace biomd;
         detect_water(data, atoms_, layout, step_);
-        water_oh2_ = water_hh2_ = 0;
-        if (layout.water_oh > 0 && layout.water_oh / step_ < 16384) {
-            water_oh2_ = round_half_away((layout.water_oh / step_) * (layout.water_oh / step_));
-            water_hh2_ = round_half_away((layout.water_hh / step_) * (layout.water_hh / step_));
-            water_hh2_ = water_hh2_ < (int64_t(1) << 30) ? water_hh2_ : 0;
-        } else {  // no water, or too many lattice steps across one for exact products
+        const double oh = layout.water_oh / step_, hh = layout.water_hh / step_;
+        water_oh2_ = oh < 16384 ? round_half_away(oh * oh) : 0;  // squares that load() accepts
+        water_hh2_ = hh < 32768 ? round_half_away(hh * hh) : 0;
+        if (!(water_oh2_ > 0 && water_oh2_ < (int64_t(1) << 28) && water_hh2_ > 0 && water_hh2_ < (int64_t(1) << 30))) {
+            water_oh2_ = water_hh2_ = 0;  // no water, or too many lattice steps across one for exact products
             std::fill(layout.kind.begin(), layout.kind.end(), K_OTHER);
         }
         detect_bonds(data, atoms_, layout);
@@ -770,7 +805,8 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         for (size_t i = 0; i < atoms_; i++)
             if (layout.kind[i] == K_OTHER) {
                 const uint32_t bond = reader.get(S_BOND_REF);
-                if (bond && (bond_offset(bond) > i || bond_class(bond) >= bond_r2_.size()))  // class 0: SIZE_MAX
+                if (bond && (bond_offset(bond) == 0 || bond_offset(bond) > i ||
+                             bond_class(bond) >= bond_r2_.size()))  // class 0: SIZE_MAX
                     throw std::runtime_error("SZ3 BioMD: corrupt stream");
                 layout.bond[i] = uint16_t(bond);
             }
