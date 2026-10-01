@@ -2,7 +2,7 @@
 #define SZ3_BIOMD_DECOMPOSITION_HPP
 
 // ALGO_BIOMD: molecular-dynamics coordinates {frames, atoms, 3} (nm, absolute bound) as streams of integer symbols,
-// which SZMultiStreamCompressor codes with one Huffman code each. Every coordinate goes on a lattice,
+// which SZBioMDCompressor codes with one encoder each. Every coordinate goes on a lattice,
 //   q = round(x / step), |x - q step| <= eb,
 // and all prediction is integer arithmetic on that lattice, which the decoder repeats exactly.
 //  * rigid water (O, H1, H2): H1 on the sphere |H1 - O| = r, H2 on the circle that r and the H-H distance leave
@@ -22,7 +22,6 @@
 #include <type_traits>
 #include <vector>
 
-#include "SZ3/decomposition/MultiStreamDecomposition.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/utils/ByteUtil.hpp"
 #include "SZ3/utils/Config.hpp"
@@ -534,7 +533,7 @@ inline void choose_modes(const FrameContext &frame, const std::vector<uint32_t> 
 }  // namespace biomd
 
 template <class T, uint N>
-class SZBioMDDecomposition : public concepts::MultiStreamDecompositionInterface<T, biomd::NUM_STREAMS> {
+class SZBioMDDecomposition {
    public:
     using Streams = biomd::Streams;
 
@@ -545,7 +544,7 @@ class SZBioMDDecomposition : public concepts::MultiStreamDecompositionInterface<
     }
 
     // The symbol streams of the chunk; the rest goes to save().
-    biomd::Streams compress(const T *data) override {
+    biomd::Streams compress(const T *data) {
         using namespace biomd;
         const size_t frame_values = atoms_ * 3;
         find_fill_frames(data);
@@ -615,7 +614,7 @@ class SZBioMDDecomposition : public concepts::MultiStreamDecompositionInterface<
     }
 
     // The chunk from its symbol streams, after load().
-    T *decompress(const biomd::Streams &streams, T *dec_data) override {
+    T *decompress(const biomd::Streams &streams, T *dec_data) {
         using namespace biomd;
         const size_t frame_values = atoms_ * 3;
         SymbolReader reader;
@@ -647,7 +646,7 @@ class SZBioMDDecomposition : public concepts::MultiStreamDecompositionInterface<
         return dec_data;
     }
 
-    void save(uchar *&c) override {
+    void save(uchar *&c) {
         write(uint64_t(coded_frames_), c);
         write(fill_value_, c);
         write(step_, c);
@@ -665,7 +664,7 @@ class SZBioMDDecomposition : public concepts::MultiStreamDecompositionInterface<
         if (!raw_bits_.empty()) write(raw_bits_.data(), raw_bits_.size(), c);
     }
 
-    void load(const uchar *&c, size_t &remaining_length) override {
+    void load(const uchar *&c, size_t &remaining_length) {
         uint8_t classes;
         uint64_t waters, coded, raw_size = 0;
         read(coded, c, remaining_length);
@@ -707,10 +706,10 @@ class SZBioMDDecomposition : public concepts::MultiStreamDecompositionInterface<
     }
 
     // a bound on what save() writes
-    size_t size_est() const override { return 64 + 8 * bond_r2_.size() + 24 * frames_ + raw_bits_.size(); }
+    size_t size_est() const { return 64 + 8 * bond_r2_.size() + 24 * frames_ + raw_bits_.size(); }
 
     // the most symbols stream s can hold for the chunk load() described
-    size_t max_stream_size(size_t s) const override {
+    size_t max_stream_size(size_t s) const {
         return size_t(biomd::MAX_SYMBOLS_PER_UNIT[s]) * atoms_ * (biomd::STREAM_GROUP[s] < 0 ? 1 : coded_frames_);
     }
 

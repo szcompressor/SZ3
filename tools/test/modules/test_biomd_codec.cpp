@@ -14,6 +14,8 @@
 #include <vector>
 
 #include "SZ3/api/sz.hpp"
+#include "SZ3/compressor/specialized/SZBioMDCompressor.hpp"
+#include "SZ3/encoder/HuffmanEncoder.hpp"
 #include "gtest/gtest.h"
 
 namespace {
@@ -406,6 +408,27 @@ TEST(BioMD, FewAtomsManyFrames) {
     const auto r = round_trip(x, frames, atoms, 5e-4);
     EXPECT_EQ(r.algo, SZ3::ALGO_BIOMD);
     EXPECT_LE(r.max_err, 5e-4);
+}
+
+// The compressor writes into the caller's buffer when its bound fits and through a buffer of its own when not: the
+// same bytes either way, and a buffer smaller than them is refused.
+TEST(BioMD, OutputBufferBelowTheBound) {
+    SystemSpec s;
+    s.frames = 2;
+    size_t n;
+    const auto x = make_system(s, &n);
+    SZ3::Config conf(s.frames, n, 3);
+    conf.absErrorBound = 5e-4;
+    auto compress = [&](size_t capacity) {
+        std::vector<float> data(x);
+        SZ3::SZBioMDCompressor<float, 3, SZ3::HuffmanEncoder<int>> compressor(conf);
+        std::vector<SZ3::uchar> out(capacity);
+        out.resize(compressor.compress(conf, data.data(), out.data(), out.size()));
+        return out;
+    };
+    const auto direct = compress(x.size() * sizeof(float) * 2);
+    EXPECT_EQ(compress(direct.size()), direct);
+    EXPECT_THROW(compress(direct.size() - 1), std::length_error);
 }
 
 }  // namespace

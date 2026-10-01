@@ -1,15 +1,14 @@
-#ifndef SZ3_MULTI_STREAM_COMPRESSOR_HPP
-#define SZ3_MULTI_STREAM_COMPRESSOR_HPP
+#ifndef SZ3_BIOMD_COMPRESSOR_HPP
+#define SZ3_BIOMD_COMPRESSOR_HPP
 
 #include <cstring>
 #include <memory>
 #include <stdexcept>
-#include <tuple>
 #include <type_traits>
 #include <vector>
 
 #include "SZ3/compressor/Compressor.hpp"
-#include "SZ3/decomposition/MultiStreamDecomposition.hpp"
+#include "SZ3/decomposition/SZBioMDDecomposition.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/encoder/Encoder.hpp"
 #include "SZ3/utils/ByteUtil.hpp"
@@ -19,28 +18,25 @@
 namespace SZ3 {
 
 /**
- * The workflow of a decomposition into several streams of integer symbols
- * (concepts::MultiStreamDecompositionInterface), each coded with its own Encoder, without a lossless stage. The
- * Encoder's save() and encode() of n symbols take at most size_est() + 4 n + 40 bytes (HuffmanEncoder: codes of at most
- * 32 bits, four 8-byte part headers, each part padded to a byte).
+ * Specialized compressor for molecular-dynamics coordinates (ALGO_BIOMD): SZBioMDDecomposition turns a chunk into
+ * biomd::NUM_STREAMS streams of integer symbols, and each stream is coded with its own Encoder, without a lossless
+ * stage. The Encoder's save() and encode() of n symbols take at most size_est() + 4 n + 40 bytes (HuffmanEncoder: codes
+ * of at most 32 bits, four 8-byte part headers, each part padded to a byte).
  *
  * The output: the decomposition's save(), then for each stream its length as a LEB128 varint followed, if the stream
  * is not empty, by its encoder's save() and encode().
  */
-template <class T, class Decomposition, class Encoder>
-class SZMultiStreamCompressor : public concepts::CompressorInterface<T> {
+template <class T, uint N, class Encoder>
+class SZBioMDCompressor : public concepts::CompressorInterface<T> {
     static_assert(std::is_base_of<concepts::EncoderInterface<int>, Encoder>::value,
                   "must implement the encoder interface");
-    using Streams = typename Decomposition::Streams;
-    static constexpr int NUM_STREAMS = int(std::tuple_size<Streams>::value);
-    static_assert(std::is_base_of<concepts::MultiStreamDecompositionInterface<T, NUM_STREAMS>, Decomposition>::value,
-                  "must implement the multi-stream decomposition interface");
+    static constexpr int NUM_STREAMS = biomd::NUM_STREAMS;
 
    public:
-    explicit SZMultiStreamCompressor(Decomposition decomposition) : decomposition_(std::move(decomposition)) {}
+    explicit SZBioMDCompressor(const Config &conf) : decomposition_(conf) {}
 
     size_t compress(const Config & /*conf*/, T *data, uchar *cmpData, size_t cmpCap) override {
-        const Streams streams = decomposition_.compress(data);
+        const biomd::Streams streams = decomposition_.compress(data);
         Encoder encoders[NUM_STREAMS];
         // the decomposition's header, and per stream a varint of at most 10 bytes and what its encoder can write
         size_t bound = decomposition_.size_est();
@@ -74,11 +70,11 @@ class SZMultiStreamCompressor : public concepts::CompressorInterface<T> {
         const uchar *p = cmpData;
         size_t remaining = cmpSize;
         decomposition_.load(p, remaining);
-        Streams streams;
+        biomd::Streams streams;
         for (int s = 0; s < NUM_STREAMS; s++) {
             const uint64_t n = read_varint(p, remaining);
             if (n > decomposition_.max_stream_size(s))
-                throw std::out_of_range("SZ3 multi-stream: corrupt stream, a stream longer than the data can hold");
+                throw std::out_of_range("SZ3 BioMD: corrupt stream, a stream longer than the data can hold");
             if (n == 0) continue;
             Encoder encoder;
             encoder.load(p, remaining);
@@ -89,7 +85,7 @@ class SZMultiStreamCompressor : public concepts::CompressorInterface<T> {
     }
 
    private:
-    Decomposition decomposition_;
+    SZBioMDDecomposition<T, N> decomposition_;
 };
 
 }  // namespace SZ3
