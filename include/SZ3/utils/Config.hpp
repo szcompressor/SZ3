@@ -159,10 +159,14 @@ class Config {
      * @param begin Iterator to the beginning of the dimensions.
      * @param end Iterator to the end of the dimensions.
      * @return Total number of elements in the data.
+     * @throws std::invalid_argument If a dimension is 0: there is no data, and dropping the 0 the way a dimension
+     * of 1 is dropped would leave a shape whose values do not exist.
      */
     template <class Iter>
     size_t setDims(Iter begin, Iter end) {
         auto dims_ = std::vector<size_t>(begin, end);
+        for (auto dim : dims_)
+            if (dim == 0) throw std::invalid_argument("SZ3: a dimension of the data is 0");
         dims.clear();
         for (auto dim : dims_) {
             if (dim > 1) {

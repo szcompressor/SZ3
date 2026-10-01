@@ -368,6 +368,15 @@ TEST(BioMD, WaterGeometryAtTheLatticeLimitDecodes) {
     EXPECT_LE(r.max_err, 3.3979795989402915e-06);
 }
 
+// A dimension of 0 is no data: Config refuses it rather than drop it like a dimension of 1, which would leave a shape
+// whose values do not exist.
+TEST(BioMD, ZeroDimensionIsRefused) {
+    EXPECT_THROW(SZ3::Config(5, 0, 3), std::invalid_argument);
+    EXPECT_THROW(SZ3::Config(0, 7, 3), std::invalid_argument);
+    EXPECT_THROW(SZ3::Config(0, 0, 3), std::invalid_argument);
+    EXPECT_NO_THROW(SZ3::Config(1, 7, 3));
+}
+
 // An unwritten chunk is all fill, NaN included.
 TEST(BioMD, ChunkOfFillOnly) {
     const size_t frames = 3, atoms = 10;
