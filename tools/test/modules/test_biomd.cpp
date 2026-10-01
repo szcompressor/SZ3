@@ -177,7 +177,7 @@ TEST(SZ3_BioMD, OneAndTwoDimensionalInput) {
 
     for (SZ3::ALGO algo : kAlgos) {
         for (const std::vector<size_t> &dims : {std::vector<size_t>{atoms.size()}, std::vector<size_t>{4096, 3}}) {
-            if (algo == SZ3::ALGO_BIOMD && dims.size() == 1) continue;  // it takes {atoms, 3} or {frames, atoms, 3}
+            if (algo == SZ3::ALGO_BIOMD && dims.size() == 1) continue;  // it takes only data whose last dimension is 3
             std::vector<float> output;
             round_trip(algo, 1e-3, dims, atoms, output);
             ASSERT_EQ(output.size(), atoms.size()) << algo_name(algo) << " " << dims.size() << "D";
@@ -213,7 +213,7 @@ TEST(SZ3_BioMD, CompressionIsDeterministic) {
         const size_t atoms = dims.size() == 3 ? dims[1] : 4096;
         const auto input = make_trajectory(dims.size() == 3 ? dims[0] : 1, atoms);
         for (SZ3::ALGO algo : kAlgos) {
-            if (algo == SZ3::ALGO_BIOMD && dims.size() != 3) continue;  // it takes {frames, atoms, 3}
+            if (algo == SZ3::ALGO_BIOMD && dims.size() != 3) continue;  // it takes only data whose last dimension is 3
             std::vector<float> discard;
             const auto first = round_trip(algo, 1e-3, dims, input, discard);
             const auto second = round_trip(algo, 1e-3, dims, input, discard);

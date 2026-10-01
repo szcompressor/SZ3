@@ -79,8 +79,8 @@ std::vector<T> decode(const Encoded<T> &e, size_t n) {
     return out;
 }
 
-// The bit counts encode() writes in front of the codes: one, or from 4096 bins on four for four parts, unless the top
-// bit of the first says there is one part.
+// The parts encode() writes, each with its bit count in front: one below 4096 bins, else four, unless the top bit of
+// the first count marks a single part.
 size_t payload_parts(size_t n, size_t distinct) { return n >= (size_t(1) << 12) && distinct >= 2 ? 4 : 1; }
 uint64_t payload_bits(const std::vector<uchar> &v, size_t parts = 1, uint64_t *bytes = nullptr) {
     uint64_t bits = 0, b = 0;

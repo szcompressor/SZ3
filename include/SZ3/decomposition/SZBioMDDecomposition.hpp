@@ -2,12 +2,13 @@
 #define SZ3_BIOMD_DECOMPOSITION_HPP
 
 // ALGO_BIOMD: molecular-dynamics coordinates {frames, atoms, 3} (nm, absolute bound) as streams of integer symbols,
-// which SZMultiStreamCompressor codes with one Huffman code each. Every coordinate goes on the lattice q = round(x /
-// step), |x - q step| <= eb, and all prediction is integer arithmetic on that lattice, which the decoder repeats
-// exactly.
+// which SZMultiStreamCompressor codes with one Huffman code each. Every coordinate goes on a lattice,
+//   q = round(x / step), |x - q step| <= eb,
+// and all prediction is integer arithmetic on that lattice, which the decoder repeats exactly.
 //  * rigid water (O, H1, H2): H1 on the sphere |H1 - O| = r, H2 on the circle that r and the H-H distance leave
 //  * other atoms: on the sphere of a bond-length class around one of the previous MAX_BOND_OFFSET atoms, else a delta
-//  * per frame and atom group, intra or from the previous frame, whichever is cheaper on a sample (frame 0 is intra)
+//  * frame 0 intra; for the frames after it, per atom group intra or from the previous frame, whichever costs less on a
+//    sample of frame 1
 // The layout (which atoms are water, the bond of each other atom) is found on a chunk's first frame and stored with it.
 
 #include <algorithm>
@@ -29,13 +30,13 @@ namespace SZ3 {
 namespace biomd {
 
 constexpr int MAX_BOND_OFFSET = 4;                 // a bond partner is one of the previous MAX_BOND_OFFSET atoms
-constexpr int MAX_BOND_CLASSES = 15;               // bond-length classes
+constexpr int MAX_BOND_CLASSES = 15;               // at most this many bond-length classes
 constexpr int64_t MAX_BOND_R2 = int64_t(1) << 28;  // bonds of 16384 lattice units or more are not coded as spheres
 constexpr uint32_t ESCAPE = 4096;                  // unbonded values from here on: an escape symbol and a raw byte
 // |q| <= 2^28: displacements stay within 2^29, and every symbol within 32 bits
 constexpr double MAX_LATTICE = double(1 << 28);
 
-// atom groups, each with its own predictor mode per frame
+// atom groups, each with its own predictor mode for the frames after the first
 enum { G_WATER_O, G_WATER_H, G_BONDED, G_UNBONDED, NUM_GROUPS };
 // symbol streams: the layout (gaps between water O's, the bond of each other atom); water O from the previous frame;
 // water H1 on the sphere around O and bonded atoms on the sphere around their partner (face, kept coordinates, radial
@@ -189,7 +190,7 @@ void detect_water(const T *x, size_t atoms, Layout &layout, double step) {
 // virtual site of 4-site water is a 0.015 nm bond to its O).
 template <class T>
 void detect_bonds(const T *x, size_t atoms, Layout &layout) {
-    // bond lengths in bins of BIN_WIDTH from BOND_MIN up to 0.25 nm, the partner nearer than that
+    // bond lengths in bins of BIN_WIDTH from BOND_MIN to 0.25 nm; a nearest previous atom outside that range is no bond
     constexpr double BOND_MIN = 0.01, BIN_WIDTH = 1e-4, BINS_PER_NM = 1e4;
     constexpr size_t NUM_BINS = 2400;
     constexpr float BOND2_MIN = 0.0001f, BOND2_MAX = 0.0625f;  // BOND_MIN^2, 0.25^2
@@ -719,7 +720,7 @@ class SZBioMDDecomposition {
                   water_oh2_ < (int64_t(1) << 28) && water_hh2_ >= 0 && water_hh2_ < (int64_t(1) << 30) &&
                   classes <= biomd::MAX_BOND_CLASSES;
         for (int64_t r2 : bond_r2_)
-            ok = ok && r2 >= 0;  // classes of MAX_BOND_R2 or more are stored, no atom refers to them
+            ok = ok && r2 >= 0;  // a class of MAX_BOND_R2 or more may be stored, but no atom refers to it
         for (uint32_t side : box_size_) ok = ok && side >= 1 && side <= (uint32_t(1) << 30);
         if (!ok) throw std::runtime_error("SZ3 BioMD: corrupt stream");
     }
@@ -818,7 +819,7 @@ class SZBioMDDecomposition {
             if (layout.kind[i] == K_OTHER) {
                 const uint32_t bond = reader.get(S_BOND_REF);
                 if (bond && (bond_offset(bond) == 0 || bond_offset(bond) > i ||
-                             bond_class(bond) >= bond_r2_.size()))  // class 0: SIZE_MAX
+                             bond_class(bond) >= bond_r2_.size()))  // a class field of 0 gives SIZE_MAX
                     throw std::runtime_error("SZ3 BioMD: corrupt stream");
                 layout.bond[i] = uint16_t(bond);
             }
@@ -837,9 +838,9 @@ class SZBioMDDecomposition {
     size_t num_waters_ = 0;
     std::vector<int64_t> bond_r2_;                 // squared bond lengths per class (lattice units)
     int modes_[biomd::NUM_GROUPS] = {0, 0, 0, 0};  // per group: the predictor of the frames after the first
-    std::vector<int32_t> box_min_;                 // per frame: the corner of the box of the water O's
-    std::vector<uint32_t> box_size_;               // per frame: its sides
-    std::vector<uchar> raw_bits_;                  // intra water O's and the low bytes of escaped values
+    std::vector<int32_t> box_min_;    // per frame whose water O are intra: the corner of the box of the water O's
+    std::vector<uint32_t> box_size_;  // and its sides
+    std::vector<uchar> raw_bits_;     // intra water O's and the low bytes of escaped values
 };
 
 }  // namespace SZ3

@@ -199,8 +199,7 @@ TEST(BioMD, EdgeCasesStayWithinBound) {
     for (const auto &c : cases) {
         const size_t atoms = c.second.size() / 3;
         const auto r = round_trip(c.second, 1, atoms, 5e-4);
-        if (atoms > 1)
-            EXPECT_EQ(r.algo, SZ3::ALGO_BIOMD) << c.first;  // {1, 3} collapses to 1D, which goes to ALGO_INTERP_LORENZO
+        EXPECT_EQ(r.algo, SZ3::ALGO_BIOMD) << c.first;
         EXPECT_LE(r.max_err, 5e-4) << c.first;
     }
 }
@@ -223,7 +222,7 @@ TEST(BioMD, RefusesWhatItCannotCode) {
     EXPECT_THROW(compress(x, {3, n}), std::invalid_argument);
     {
         auto y = x;
-        for (auto &v : y) v += 1e6f;  // 2^28 lattice steps of 2 eb are not enough
+        for (auto &v : y) v += 1e6f;  // more than 2^28 lattice steps from 0
         EXPECT_THROW(compress(y, {n, 3}), std::runtime_error);
     }
     for (float bad : {std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity()}) {

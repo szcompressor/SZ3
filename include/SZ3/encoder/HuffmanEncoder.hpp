@@ -22,12 +22,14 @@ namespace SZ3 {
  *
  * save() writes the number of distinct bins D as a uint32; if D > 0, the smallest bin; if D > 1, for each bin in
  * ascending order the Elias-gamma code of its gap from the one before (none for the first), then the Elias-gamma
- * code of 1 + the zigzag of its code length minus the previous one's (0 before the first). encode() writes the
- * payload's bit count as a uint64, then the codes MSB-first. From kSplit bins on, the bins are four consecutive parts
- * (four bit counts, then the codes of each), decoded side by side; unless nine in ten bins or more have a one-bit code,
- * whose runs the decoder takes whole: then there is one part, and its bit count has the top bit set.
+ * code of 1 + the zigzag of its code length minus the previous one's (0 before the first).
  *
- * Code lengths, capped at 32 bits, are those of a Huffman tree built in (frequency, bin) order, so every platform
+ * encode() splits the bins into parts of consecutive bins and writes the bit count of each part as a uint64, then the
+ * codes of each part, MSB first. Below kSplit bins there is one part. From kSplit bins on there are four, which the
+ * decoder decodes side by side, except when one bin with a one-bit code makes up nine in ten of the bins or more: then
+ * there is one part, whose bit count has the top bit set, and the decoder takes runs of that bin whole.
+ *
+ * Code lengths are those of a Huffman tree built in (frequency, bin) order, limited to 32 bits, so every platform
  * writes the same bytes.
  */
 template <class T>
@@ -435,7 +437,8 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         for (size_t i = 0; i < d; i++) A[i] = freq[order[i]];
         minimum_redundancy(A);
 
-        // Clamp to kMaxLen, then move the deepest leaves shorter than kMaxLen down until Kraft's inequality holds.
+        // Clamp the lengths to kMaxLen, then, while Kraft's inequality fails, move one leaf of the longest length
+        // below kMaxLen one level down.
         uint64_t count[kMaxLen + 1] = {0};
         for (size_t i = 0; i < d; i++) count[std::min<uint64_t>(A[i], kMaxLen)]++;
         uint64_t kraft = 0;
@@ -573,7 +576,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     }
 
     // Four parts side by side, R codes from each 8-byte read, while each has 8 bytes and R codes left; then each on
-    // its own. Codes one at a time: for streams with few long runs of the one-bit code.
+    // its own. It takes no run of a bin whole: it serves streams in which no one-bit code makes up nine in ten bins.
     void decode4(const uchar *const p[4], const size_t nb[4], const uint64_t bits[4], T *const out[4],
                  const size_t n[4]) const {
         const Entry *tab = table_.data();
@@ -663,9 +666,9 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     std::vector<uint8_t> lens_;   // code length of each
     uint64_t header_bits_ = 0;
     uint64_t payload_bits_ = 0;
-    bool runs_ = false;                  // encoder: sets the flag for runs
     uint64_t count_[kMaxLen + 1] = {0};  // codes of each length
     // encoder
+    bool runs_ = false;  // one part with the flag: the decoder takes runs of the one-bit code whole
     bool dense_ = true;
     std::vector<uint64_t> code_;  // dense: (code << 8) | length, indexed by bin - offset_
     SymMap map_;                  // sparse: the same, keyed by bin - offset_

@@ -282,7 +282,7 @@ def run_datasets(datasets, data_dir, script_dir, sz3_executable_path, h5_plugin_
             dtype = field_info.get("dtype", "float32")
             
             for algo in algorithms:
-                # ALGO_BIOMD takes coordinates {frames, atoms, 3} only
+                # ALGO_BIOMD takes only data whose last dimension is 3 (x, y, z)
                 if algo == "ALGO_BIOMD" and dims[-1] != 3:
                     continue
                 for eb in error_bounds:
