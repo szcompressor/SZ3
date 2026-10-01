@@ -46,7 +46,6 @@ size_t SZ_compress(const SZ3::Config& config, const T* data, char* cmpData, size
     using namespace SZ3;
     Config conf(config);
 
-    if (conf.num == 0) throw std::invalid_argument("SZ3: a dimension of the data is 0");
     if (cmpCap < SZ_compress_size_bound<T>(conf)) {
         throw std::invalid_argument(SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
     }
