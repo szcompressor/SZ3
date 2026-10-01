@@ -22,7 +22,9 @@
 #include <type_traits>
 #include <vector>
 
+#include "SZ3/decomposition/MultiStreamDecomposition.hpp"
 #include "SZ3/def.hpp"
+#include "SZ3/utils/ByteUtil.hpp"
 #include "SZ3/utils/Config.hpp"
 #include "SZ3/utils/MemoryUtil.hpp"
 
@@ -63,8 +65,6 @@ constexpr int STREAM_GROUP[NUM_STREAMS] = {-1,        -1,        G_WATER_O, G_WA
 constexpr int MAX_SYMBOLS_PER_UNIT[NUM_STREAMS] = {1, 1, 3, 1, 2, 1, 1, 2, 1, 2, 1, 3};
 using Streams = std::array<std::vector<int>, NUM_STREAMS>;
 
-inline uint32_t zigzag(int64_t v) { return uint32_t((uint64_t(v) << 1) ^ uint64_t(v >> 63)); }
-inline int64_t unzigzag(uint32_t u) { return int64_t(u >> 1) ^ -int64_t(u & 1); }
 inline int64_t round_half_away(double y) { return int64_t(y + std::copysign(0.5, y)); }
 inline int64_t isqrt_round(int64_t n) { return n <= 0 ? 0 : int64_t(std::sqrt(double(n)) + 0.5); }
 // d = atom i - atom j
@@ -128,8 +128,8 @@ void detect_water(const T *x, size_t atoms, Layout &layout, double step) {
     if (cand_hh.size() < MIN_COUNT) return;
     // tolerances (nm) stay well below the O-H / C-H difference (> 0.01 nm) that separates water from CH2/NH2
     const double tight = std::max(0.001, step), tol = std::max(0.002, 2.0 * step), loose = std::max(0.01, 3.0 * tight);
-    constexpr float PEAK_WINDOW = 0.004f, PEAK_SPREAD = 0.003f;  // nm
     auto peak = [](std::vector<float> v) {  // median of the values within PEAK_SPREAD of the heaviest PEAK_WINDOW
+        constexpr float PEAK_WINDOW = 0.004f, PEAK_SPREAD = 0.003f;  // nm
         std::sort(v.begin(), v.end());
         size_t best = 0, n = 0;
         for (size_t lo = 0, hi = 0; hi < v.size(); hi++) {
@@ -255,17 +255,9 @@ void detect_bonds(const T *x, size_t atoms, Layout &layout) {
 // the position in each stream, and raw bits (LSB first)
 struct SymbolWriter {
     int *cursor[NUM_STREAMS];
-    std::vector<uchar> *raw;
-    uint64_t pending = 0;
-    int pending_bits = 0;
+    BitAppender *raw;
     ALWAYS_INLINE void put(int s, uint32_t v) { *cursor[s]++ = int(v); }
-    ALWAYS_INLINE void put_bits(uint64_t v, int bits) {  // bits <= 56
-        pending |= v << pending_bits;
-        for (pending_bits += bits; pending_bits >= 8; pending_bits -= 8, pending >>= 8) raw->push_back(uchar(pending));
-    }
-    void flush_bits() {
-        if (pending_bits > 0) raw->push_back(uchar(pending));
-    }
+    ALWAYS_INLINE void put_bits(uint64_t v, int bits) { raw->put(v, bits); }  // bits <= 56
 };
 // bits of a sample, for the predictor choice
 struct CostEstimate {
@@ -276,23 +268,12 @@ struct CostEstimate {
 // a cursor per stream, and one on the raw bits
 struct SymbolReader {
     const int *cursor[NUM_STREAMS], *end[NUM_STREAMS];
-    const uchar *raw, *raw_end;
-    uint64_t pending = 0;
-    int pending_bits = 0;
+    BitConsumer raw{nullptr, nullptr};
     ALWAYS_INLINE uint32_t get(int s) {
         if (cursor[s] == end[s]) throw std::runtime_error("SZ3 BioMD: corrupt stream");
         return uint32_t(*cursor[s]++);
     }
-    ALWAYS_INLINE uint64_t get_bits(int bits) {  // bits <= 56
-        for (; pending_bits < bits; pending_bits += 8) {
-            if (raw == raw_end) throw std::runtime_error("SZ3 BioMD: corrupt stream");
-            pending |= uint64_t(*raw++) << pending_bits;
-        }
-        const uint64_t v = pending & ((uint64_t(1) << bits) - 1);
-        pending >>= bits;
-        pending_bits -= bits;
-        return v;
-    }
+    ALWAYS_INLINE uint64_t get_bits(int bits) { return raw.get(bits); }  // bits <= 56
 };
 
 // v as one symbol below ESCAPE, else as ESCAPE + v / 256 and its low byte as raw bits
@@ -553,9 +534,9 @@ inline void choose_modes(const FrameContext &frame, const std::vector<uint32_t> 
 }  // namespace biomd
 
 template <class T, uint N>
-class SZBioMDDecomposition {
+class SZBioMDDecomposition : public concepts::MultiStreamDecompositionInterface<T, biomd::NUM_STREAMS> {
    public:
-    using Streams = biomd::Streams;  // for SZMultiStreamCompressor
+    using Streams = biomd::Streams;
 
     explicit SZBioMDDecomposition(const Config &conf)
         : frames_(N == 3 ? conf.dims[0] : 1), atoms_(N >= 2 ? conf.dims[N - 2] : 1), error_bound_(conf.absErrorBound) {
@@ -564,7 +545,7 @@ class SZBioMDDecomposition {
     }
 
     // The symbol streams of the chunk; the rest goes to save().
-    biomd::Streams compress(const T *data) {
+    biomd::Streams compress(const T *data) override {
         using namespace biomd;
         const size_t frame_values = atoms_ * 3;
         find_fill_frames(data);
@@ -595,8 +576,9 @@ class SZBioMDDecomposition {
                     streams[s].resize(size_t(writer.cursor[s] - streams[s].data()));
         };
         for (int s = 0; s < NUM_STREAMS; s++) streams[s].reserve(room(s) * (STREAM_GROUP[s] < 0 ? 1 : coded_frames_));
-        writer.raw = &raw_bits_;
         raw_bits_.clear();
+        BitAppender raw(raw_bits_);
+        writer.raw = &raw;
         begin_part(true);
         for (size_t k = 0; k < waters.size(); k++) writer.put(S_WATER_GAP, waters[k] - (k ? waters[k - 1] : 0));
         for (size_t i = 0; i < atoms_; i++)
@@ -627,13 +609,13 @@ class SZBioMDDecomposition {
             end_part(false);
             std::swap(frame.cur, frame.prev);
         }
-        writer.flush_bits();
+        raw.flush();
 
         return streams;
     }
 
     // The chunk from its symbol streams, after load().
-    T *decompress(const biomd::Streams &streams, T *dec_data) {
+    T *decompress(const biomd::Streams &streams, T *dec_data) override {
         using namespace biomd;
         const size_t frame_values = atoms_ * 3;
         SymbolReader reader;
@@ -641,8 +623,7 @@ class SZBioMDDecomposition {
             reader.cursor[s] = streams[s].data();
             reader.end[s] = streams[s].data() + streams[s].size();
         }
-        reader.raw = raw_bits_.data();
-        reader.raw_end = raw_bits_.data() + raw_bits_.size();
+        reader.raw = BitConsumer(raw_bits_.data(), raw_bits_.data() + raw_bits_.size());
         Layout layout;
         read_layout(reader, layout);
         std::unique_ptr<int32_t[]> lattice(new int32_t[2 * frame_values]);  // written before read
@@ -661,12 +642,12 @@ class SZBioMDDecomposition {
         // a stream that holds more than the frames took is corrupt
         for (int s = 0; s < NUM_STREAMS; s++)
             if (reader.cursor[s] != reader.end[s]) throw std::runtime_error("SZ3 BioMD: corrupt stream");
-        if (reader.raw != reader.raw_end) throw std::runtime_error("SZ3 BioMD: corrupt stream");
+        if (!reader.raw.at_end()) throw std::runtime_error("SZ3 BioMD: corrupt stream");
         std::fill(dec_data + coded_frames_ * frame_values, dec_data + frames_ * frame_values, fill_value_);
         return dec_data;
     }
 
-    void save(uchar *&c) {
+    void save(uchar *&c) override {
         write(uint64_t(coded_frames_), c);
         write(fill_value_, c);
         write(step_, c);
@@ -684,7 +665,7 @@ class SZBioMDDecomposition {
         if (!raw_bits_.empty()) write(raw_bits_.data(), raw_bits_.size(), c);
     }
 
-    void load(const uchar *&c, size_t &remaining_length) {
+    void load(const uchar *&c, size_t &remaining_length) override {
         uint8_t classes;
         uint64_t waters, coded, raw_size = 0;
         read(coded, c, remaining_length);
@@ -726,10 +707,10 @@ class SZBioMDDecomposition {
     }
 
     // a bound on what save() writes
-    size_t size_est() const { return 64 + 8 * bond_r2_.size() + 24 * frames_ + raw_bits_.size(); }
+    size_t size_est() const override { return 64 + 8 * bond_r2_.size() + 24 * frames_ + raw_bits_.size(); }
 
     // the most symbols stream s can hold for the chunk load() described
-    size_t max_stream_size(int s) const {
+    size_t max_stream_size(size_t s) const override {
         return size_t(biomd::MAX_SYMBOLS_PER_UNIT[s]) * atoms_ * (biomd::STREAM_GROUP[s] < 0 ? 1 : coded_frames_);
     }
 
