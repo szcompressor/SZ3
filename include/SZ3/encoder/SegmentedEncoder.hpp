@@ -26,7 +26,9 @@ class SegmentedEncoder : public concepts::EncoderInterface<int> {
         encoders_.clear();
         for (size_t k = 0; k < bins.size();) {
             const size_t n = size_t(bins[k]);
-            if (bins[k] < 0 || n > bins.size() - k - 1) throw std::invalid_argument("SZ3: bins are not segments");
+            if (bins[k] < 0 || n > bins.size() - k - 1)
+                throw std::invalid_argument(
+                    "SZ3 SegmentedEncoder: bad input format, a segment length is negative or runs past the end");
             segments_.emplace_back(bins.begin() + k + 1, bins.begin() + k + 1 + n);
             if (n) {
                 encoders_.emplace_back();
@@ -52,10 +54,13 @@ class SegmentedEncoder : public concepts::EncoderInterface<int> {
         uint64_t total = segment_sizes_.size();
         for (const uint64_t n : segment_sizes_) {
             if (total > targetLength || n > targetLength - total)
-                throw std::out_of_range("SZ3: segment sizes do not match the bin count");
+                throw std::out_of_range(
+                    "SZ3 SegmentedEncoder: corrupt stream, the segment lengths do not add up to the bin count");
             total += n;
         }
-        if (total != targetLength) throw std::out_of_range("SZ3: segment sizes do not match the bin count");
+        if (total != targetLength)
+            throw std::out_of_range(
+                "SZ3 SegmentedEncoder: corrupt stream, the segment lengths do not add up to the bin count");
         std::vector<int> out;
         out.reserve(targetLength);
         for (size_t s = 0, e = 0; s < segment_sizes_.size(); s++) {
@@ -64,7 +69,9 @@ class SegmentedEncoder : public concepts::EncoderInterface<int> {
             const auto v = encoders_[e++].decode(bytes, segment_sizes_[s], remaining_length);
             out.insert(out.end(), v.begin(), v.end());
         }
-        if (out.size() != targetLength) throw std::out_of_range("SZ3: segment sizes do not match the bin count");
+        if (out.size() != targetLength)
+            throw std::out_of_range(
+                "SZ3 SegmentedEncoder: corrupt stream, the segment lengths do not add up to the bin count");
         return out;
     }
 
@@ -83,7 +90,8 @@ class SegmentedEncoder : public concepts::EncoderInterface<int> {
     void load(const uchar *&c, size_t &remaining_length) override {
         uint32_t count = 0;
         read(count, c, remaining_length);
-        if (count > remaining_length) throw std::out_of_range("SZ3: segment count exceeds the buffer");
+        if (count > remaining_length)
+            throw std::out_of_range("SZ3 SegmentedEncoder: corrupt stream, more segments than bytes");
         // an encoder per non-empty segment as it is read, so memory follows the stream rather than the count it claims
         segment_sizes_.clear();
         encoders_.clear();
@@ -91,12 +99,13 @@ class SegmentedEncoder : public concepts::EncoderInterface<int> {
             uint64_t size = 0;
             uint8_t byte = 128;
             for (unsigned shift = 0; byte >= 128; shift += 7) {
-                if (shift > 28) throw std::out_of_range("SZ3: segment size exceeds an int");
+                if (shift > 28)
+                    throw std::out_of_range("SZ3 SegmentedEncoder: corrupt stream, a segment length beyond INT_MAX");
                 read(byte, c, remaining_length);
                 size |= uint64_t(byte & 127) << shift;
             }
             if (size > uint64_t(std::numeric_limits<int>::max()))
-                throw std::out_of_range("SZ3: segment size exceeds an int");
+                throw std::out_of_range("SZ3 SegmentedEncoder: corrupt stream, a segment length beyond INT_MAX");
             segment_sizes_.push_back(size);
             if (size) {
                 encoders_.emplace_back();
