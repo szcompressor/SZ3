@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <memory>
 #include <numeric>
 #include <random>
 #include <stdexcept>
@@ -367,13 +368,23 @@ TEST(BioMD, WaterGeometryAtTheLatticeLimitDecodes) {
     EXPECT_LE(r.max_err, 3.3979795989402915e-06);
 }
 
-// A dimension of 0 is no data: Config refuses it rather than drop it like a dimension of 1, which would leave a shape
-// whose values do not exist.
+// A dimension of 0 is no data: compression refuses it rather than drop it like a dimension of 1, which would leave a
+// shape whose values do not exist. A Config of 0 is still a placeholder for decompression, which reads the shape from
+// the stream.
 TEST(BioMD, ZeroDimensionIsRefused) {
-    EXPECT_THROW(SZ3::Config(5, 0, 3), std::invalid_argument);
-    EXPECT_THROW(SZ3::Config(0, 7, 3), std::invalid_argument);
-    EXPECT_THROW(SZ3::Config(0, 0, 3), std::invalid_argument);
-    EXPECT_NO_THROW(SZ3::Config(1, 7, 3));
+    const std::vector<float> x(21, 1.f);
+    for (const SZ3::Config &conf : {SZ3::Config(5, 0, 3), SZ3::Config(0, 7, 3), SZ3::Config(0, 0, 3)}) {
+        EXPECT_EQ(conf.num, 0u);
+        size_t cmp_size = 0;
+        EXPECT_THROW(SZ_compress(conf, x.data(), cmp_size), std::invalid_argument);
+    }
+    SZ3::Config conf(1, 7, 3);
+    conf.absErrorBound = 1e-3;
+    size_t cmp_size = 0;
+    std::unique_ptr<char[]> cmp(SZ_compress(conf, x.data(), cmp_size));
+    SZ3::Config placeholder(0);
+    std::unique_ptr<float[]> dec(SZ_decompress<float>(placeholder, cmp.get(), cmp_size));
+    EXPECT_EQ(placeholder.num, x.size());
 }
 
 // An unwritten chunk is all fill, NaN included.
