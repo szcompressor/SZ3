@@ -26,7 +26,7 @@ namespace SZ3 {
  *
  * encode() splits the bins into parts of consecutive bins and writes the bit count of each part as a uint64, then the
  * codes of each part, MSB first. Below kSplit bins there is one part. From kSplit bins on there are four, which the
- * decoder decodes side by side, except when one bin with a one-bit code makes up nine in ten of the bins or more: then
+ * decoder decodes side by side, except when one bin with a one-bit code makes up seven in ten of the bins or more: then
  * there is one part, whose bit count has the top bit set, and the decoder takes runs of that bin whole.
  *
  * Code lengths are those of a Huffman tree built in (frequency, bin) order, limited to 32 bits, so every platform
@@ -457,10 +457,11 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                 lens_[order[i]] = static_cast<uint8_t>(l);
                 payload_bits_ += freq[order[i]] * l;
             }
-        // Nine in ten bins or more of a one-bit code: the decoder takes the runs of it whole.
+        // Seven in ten bins or more of a one-bit code: the decoder takes the runs of it whole, which is faster than
+        // four parts from there on.
         uint64_t n = 0;
         for (const uint64_t f : freq) n += f;
-        for (size_t j = 0; j < d; j++) runs_ = runs_ || (lens_[j] == 1 && freq[j] * 10 >= n * 9);
+        for (size_t j = 0; j < d; j++) runs_ = runs_ || (lens_[j] == 1 && freq[j] * 10 >= n * 7);
         header_bits_ = 0;
         for (size_t j = 0; j < d; j++) {
             if (j > 0) header_bits_ += gamma_bits(syms_[j] - syms_[j - 1]);
@@ -577,7 +578,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     }
 
     // Four parts side by side, R codes from each 8-byte read, while each has 8 bytes and R codes left; then each on
-    // its own. It takes no run of a bin whole: it serves streams in which no one-bit code makes up nine in ten bins.
+    // its own. It takes no run of a bin whole: it serves streams in which no one-bit code makes up seven in ten bins.
     void decode4(const uchar *const p[4], const size_t nb[4], const uint64_t bits[4], T *const out[4],
                  const size_t n[4]) const {
         const Entry *tab = table_.data();
