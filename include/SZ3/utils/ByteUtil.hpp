@@ -279,6 +279,7 @@ inline uint64_t read_varint(const uchar *&p, size_t &remaining_length) {
         if (remaining_length == 0 || shift > 63) throw std::out_of_range("SZ3: truncated or overlong varint");
         const uchar b = *p++;
         remaining_length--;
+        if (shift == 63 && b > 1) throw std::out_of_range("SZ3: truncated or overlong varint");  // past 64 bits
         v |= uint64_t(b & 127) << shift;
         if (b < 128) return v;
     }

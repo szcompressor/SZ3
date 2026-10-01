@@ -38,6 +38,12 @@ TEST(ByteUtilTest, VarintRejectsTruncatedAndOverlong) {
     r = overlong.data();
     remaining = overlong.size();
     EXPECT_THROW(SZ3::read_varint(r, remaining), std::out_of_range);
+
+    std::vector<SZ3::uchar> past64(10, 0x80);  // a 10th byte above 1 holds bits past 64
+    past64.back() = 0x02;
+    r = past64.data();
+    remaining = past64.size();
+    EXPECT_THROW(SZ3::read_varint(r, remaining), std::out_of_range);
 }
 
 TEST(ByteUtilTest, BitsRoundTrip) {

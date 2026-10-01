@@ -22,8 +22,9 @@ size_t SZ_compress_bioMD(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
     assert(conf.cmprAlgo == ALGO_BIOMD);
     calAbsErrorBound(conf, data);
 
-    auto sz = make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf), SegmentedEncoder<HuffmanEncoder<int>>(),
-                                               Lossless_bypass());
+    auto sz =
+        make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf),
+                                         SegmentedEncoder<HuffmanEncoder<int>>(biomd::NUM_STREAMS), Lossless_bypass());
     return sz->compress(conf, data, cmpData, cmpCap);
 }
 
@@ -31,8 +32,9 @@ template <class T, uint N>
 void SZ_decompress_bioMD(const Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
     assert(conf.cmprAlgo == ALGO_BIOMD);
 
-    auto sz = make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf), SegmentedEncoder<HuffmanEncoder<int>>(),
-                                               Lossless_bypass());
+    auto sz =
+        make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf),
+                                         SegmentedEncoder<HuffmanEncoder<int>>(biomd::NUM_STREAMS), Lossless_bypass());
     sz->decompress(conf, cmpData, cmpSize, decData);
 }
 

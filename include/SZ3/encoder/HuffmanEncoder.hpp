@@ -215,7 +215,8 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             out.resize(targetLength);
             const uchar *pk[4];
             T *ok[4];
-            for (unsigned k = 0, at = 0; k < parts; k++) {
+            size_t at = 0;  // a part may start past 4 GiB
+            for (unsigned k = 0; k < parts; k++) {
                 pk[k] = p + at;
                 at += nbytes[k];
                 ok[k] = out.data() + targetLength / parts * k;

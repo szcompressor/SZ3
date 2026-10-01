@@ -744,6 +744,9 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         step_ = margin < 0.5 * error_bound_ ? 2.0 * (error_bound_ - margin) : error_bound_;
         if (!(error_bound_ > 0) || !std::isfinite(error_bound_))
             throw std::invalid_argument("SZ3 BioMD: the error bound must be positive and finite");
+        // |q step| <= max|x| + step / 2 must stay finite in T
+        if (!(double(max_abs) + step_ <= double(std::numeric_limits<T>::max())))
+            throw std::runtime_error("SZ3 BioMD: coordinates and error bound too large for the data type");
         if (!(step_ > 0) || !std::isfinite(step_) || !std::isfinite(1.0 / step_) ||
             max_abs / step_ > biomd::MAX_LATTICE)
             throw std::runtime_error("SZ3 BioMD: error bound too small for the coordinate range");

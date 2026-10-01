@@ -533,6 +533,12 @@ TEST(SZ3_SegmentedEncoder, CorruptSegmentTables) {
         size_t rem = 0;
         EXPECT_EQ(dec.decode(p, count, rem).size(), count);
     }
+    {
+        // more segments than the caller allows: refused before an encoder is built for each
+        SZ3::SegmentedEncoder<SZ3::HuffmanEncoder<int>> dec(12);
+        EXPECT_THROW(load(stream(13, std::vector<SZ3::uchar>(13 * 5, 0)), dec), std::out_of_range);
+        EXPECT_NO_THROW(load(stream(12, std::vector<SZ3::uchar>(12, 0)), dec));
+    }
 }
 
 }  // namespace

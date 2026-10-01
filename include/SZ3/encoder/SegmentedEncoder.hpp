@@ -18,10 +18,14 @@ namespace SZ3 {
  *
  * save() writes the segment count as a uint32, then for each segment its size as a LEB128 varint (at most that of
  * INT_MAX) and, unless it is empty, its encoder's save(); encode() writes the encoders' encode() in segment order.
+ * A stream with more segments than max_segments is refused on load(), before an encoder is built for each.
  */
 template <class Encoder>
 class SegmentedEncoder : public concepts::EncoderInterface<int> {
    public:
+    explicit SegmentedEncoder(uint32_t max_segments = std::numeric_limits<uint32_t>::max())
+        : max_segments_(max_segments) {}
+
     void preprocess_encode(const std::vector<int> &bins, int stateNum) override {
         segments_.clear();
         encoders_.clear();
@@ -91,6 +95,8 @@ class SegmentedEncoder : public concepts::EncoderInterface<int> {
         read(count, c, remaining_length);
         if (count > remaining_length)
             throw std::out_of_range("SZ3 SegmentedEncoder: corrupt stream, more segments than bytes");
+        if (count > max_segments_)
+            throw std::out_of_range("SZ3 SegmentedEncoder: corrupt stream, more segments than the data has");
         // an encoder per non-empty segment as it is read, so memory follows the stream rather than the count it claims
         segment_sizes_.clear();
         encoders_.clear();
@@ -116,6 +122,7 @@ class SegmentedEncoder : public concepts::EncoderInterface<int> {
     std::vector<Encoder> encoders_;  // one per non-empty segment
     std::vector<std::vector<int>> segments_;
     std::vector<uint64_t> segment_sizes_;
+    uint32_t max_segments_;
 };
 
 }  // namespace SZ3

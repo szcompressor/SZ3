@@ -233,6 +233,25 @@ TEST(BioMD, RefusesWhatItCannotCode) {
     }
 }
 
+// Coordinates and a bound so large that a lattice point past max|x| would not fit the type: refused, not decoded as
+// inf.
+TEST(BioMD, RefusesLatticePointsBeyondTheType) {
+    auto compress = [](auto value, double eb) {
+        using T = decltype(value);
+        const std::vector<T> x = {value, 0, 0, 0, value, 0};
+        SZ3::Config conf(2, 3);
+        conf.cmprAlgo = SZ3::ALGO_BIOMD;
+        conf.errorBoundMode = SZ3::EB_ABS;
+        conf.absErrorBound = eb;
+        size_t size = 0;
+        delete[] SZ_compress(conf, x.data(), size);
+    };
+    EXPECT_THROW(compress(3e38f, 1e38), std::runtime_error);
+    EXPECT_THROW(compress(1.5e308, 5e307), std::runtime_error);
+    EXPECT_THROW(compress(1.7e308, 1e308), std::runtime_error);  // the step itself is not finite
+    EXPECT_NO_THROW(compress(1.0f, 1e30));
+}
+
 // Config drops dimensions of 1: one atom arrives as {frames, 3}, one atom of one frame as {3}.
 TEST(BioMD, OneAtom) {
     for (size_t frames : {size_t(1), size_t(5)}) {
