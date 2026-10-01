@@ -112,6 +112,8 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             uchar *p = bytes;
             auto put = [&](uint64_t e) {
                 const unsigned len = static_cast<unsigned>(e & 0xff);
+                // a bin preprocess_encode() did not count has no code
+                if (len == 0) throw std::invalid_argument("SZ3 Huffman: bin not seen by preprocess_encode");
                 acc = (acc << len) | (e >> 8);
                 nb += len;
                 if (nb >= 32) {
@@ -142,7 +144,6 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             total += bits;
             bytes = p;
         }
-        // A bin preprocess_encode() did not count has a zero-length entry.
         if (total != payload_bits_) throw std::invalid_argument("SZ3 Huffman: bins differ from preprocess_encode's");
         return bytes - start;
     }
@@ -199,25 +200,27 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                 throw std::out_of_range("SZ3 Huffman: payload does not match the code table");
             out.assign(targetLength, offset_);
         } else {
-            out.resize(targetLength);
-            const uchar *pk[4];
-            T *ok[4];
+            // Every bin takes 1 to kMaxLen bits: check the parts against the value count before allocating.
             size_t nk[4];
-            for (unsigned k = 0, at = 0; k < parts; k++) {
-                pk[k] = p + at;
-                at += nbytes[k];
+            for (unsigned k = 0; k < parts; k++) {
                 const size_t lo = targetLength / parts * k;
                 nk[k] = (k + 1 == parts ? targetLength : targetLength / parts * (k + 1)) - lo;
-                ok[k] = out.data() + lo;
                 if (bits[k] < nk[k] || bits[k] / kMaxLen > nk[k])
                     throw std::out_of_range("SZ3 Huffman: payload does not match the value count");
             }
-            // A one-bit code is all zeros, so a run of zero bits is a run of its symbol.
+            out.resize(targetLength);
+            const uchar *pk[4];
+            T *ok[4];
+            for (unsigned k = 0, at = 0; k < parts; k++) {
+                pk[k] = p + at;
+                at += nbytes[k];
+                ok[k] = out.data() + targetLength / parts * k;
+            }
             if (parts == 4)
                 decode4(pk, nbytes, bits, ok, nk);
             else
                 for (unsigned k = 0; k < parts; k++)
-                    if (count_[1])
+                    if (count_[1])  // a one-bit code is all zeros, so a run of zero bits is a run of its symbol
                         decode_payload<true>(pk[k], nbytes[k], bits[k], ok[k], nk[k]);
                     else
                         decode_payload<false>(pk[k], nbytes[k], bits[k], ok[k], nk[k]);
