@@ -164,18 +164,13 @@ class Config {
      */
     template <class Iter>
     size_t setDims(Iter begin, Iter end) {
-        auto dims_ = std::vector<size_t>(begin, end);
-        for (auto dim : dims_)
+        std::vector<size_t> kept;  // dims is left as it was if a dimension is 0
+        for (Iter it = begin; it != end; ++it) {
+            const size_t dim = *it;
             if (dim == 0) throw std::invalid_argument("SZ3: a dimension of the data is 0");
-        dims.clear();
-        for (auto dim : dims_) {
-            if (dim > 1) {
-                dims.push_back(dim);
-            }
+            if (dim > 1) kept.push_back(dim);
         }
-        if (dims.empty()) {
-            dims = {1};
-        }
+        dims = kept.empty() ? std::vector<size_t>{1} : kept;
         N = dims.size();
         num = std::accumulate(dims.begin(), dims.end(), static_cast<size_t>(1), std::multiplies<size_t>());
         predDim = N;
