@@ -68,14 +68,13 @@ inline constexpr int STREAM_GROUP[NUM_STREAMS] = {-1,        -1,        G_WATER_
                                                   G_WATER_H, G_WATER_H, G_BONDED,  G_BONDED,  G_BONDED,  G_UNBONDED};
 inline constexpr int MAX_SYMBOLS_PER_UNIT[NUM_STREAMS] = {1, 1, 3, 1, 2, 1, 1, 2, 1, 2, 1, 3};
 
-// Input that BIOMD does not code, and the algorithm SZ_compress gives it to instead.
+// Input that BIOMD does not code; SZ_compress gives it to LORENZO_REG with first-order Lorenzo alone, which codes
+// coordinates best of its predictors and keeps NaN and Inf exactly.
 struct Fallback : std::runtime_error {
-    ALGO algo;
-    Fallback(ALGO to, const char *why) : std::runtime_error(why), algo(to) {}
-    // LORENZO_REG with first-order Lorenzo alone, which codes coordinates best of its predictors
-    void apply(Config &conf) const {
-        conf.cmprAlgo = algo;
-        if (algo == ALGO_LORENZO_REG) conf.lorenzo = true, conf.lorenzo2 = false, conf.regression = false;
+    using std::runtime_error::runtime_error;
+    static void apply(Config &conf) {
+        conf.cmprAlgo = ALGO_LORENZO_REG;
+        conf.lorenzo = true, conf.lorenzo2 = false, conf.regression = false;
     }
 };
 
@@ -609,7 +608,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         size_t n = NUM_STREAMS;
         for (int s = 0; s < NUM_STREAMS; s++) {
             if (size_t(writer.cursor[s] - buffers[s].get()) > size_t(std::numeric_limits<int>::max()))
-                throw Fallback(ALGO_LORENZO_REG, "SZ3 BioMD: a stream of more symbols than an int counts");
+                throw Fallback("SZ3 BioMD: a stream of more symbols than an int counts");
             n += size_t(writer.cursor[s] - buffers[s].get());
         }
         bins.reserve(n);
@@ -764,7 +763,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         T max_abs;
         memcpy(&max_abs, &max_bits, sizeof(T));
         if (!(max_abs <= std::numeric_limits<T>::max()))
-            throw biomd::Fallback(ALGO_LOSSLESS, "SZ3 BioMD: NaN or Inf in a frame that is not trailing fill");
+            throw biomd::Fallback("SZ3 BioMD: NaN or Inf in a frame that is not trailing fill");
         const double m = sizeof(T) == 4 ? 1 : 4;
         auto margin_below = [&](int exponent) {  // m ulp in the binade below 2^exponent
             return m * std::max(double(std::numeric_limits<T>::denorm_min()),
@@ -786,7 +785,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         // |q step| <= max|x| + step / 2 must stay finite in T
         if (!(step_ > 0) || !std::isfinite(step_) || !std::isfinite(1.0 / step_) ||
             max_abs / step_ > biomd::MAX_LATTICE || !(double(max_abs) + step_ <= double(std::numeric_limits<T>::max())))
-            throw biomd::Fallback(ALGO_LORENZO_REG, "SZ3 BioMD: coordinates beyond the lattice the error bound allows");
+            throw biomd::Fallback("SZ3 BioMD: coordinates beyond the lattice the error bound allows");
     }
 
     // The layout of the first frame, its geometry on the lattice, and the atoms of each group.

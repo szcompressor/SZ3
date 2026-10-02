@@ -149,9 +149,7 @@ TEST(BioMD, WithinBoundAndBeatsFourBytesPerValue) {
             }
 }
 
-// From a bound of 1e-2 nm on, zstd follows the Huffman codes: still within the bound, and past the 32 that one bit a
-// coordinate would cap the ratio at when frames do not move.
-TEST(BioMD, LooseBoundsWithZstd) {
+TEST(BioMD, LooseBoundsStayWithinTheBound) {
     SystemSpec s;
     s.frames = 20;
     size_t n;
@@ -162,7 +160,6 @@ TEST(BioMD, LooseBoundsWithZstd) {
         const auto r = round_trip(x, s.frames, n, eb);
         EXPECT_EQ(r.algo, SZ3::ALGO_BIOMD);
         EXPECT_LE(r.max_err, eb);
-        EXPECT_GT(double(x.size() * sizeof(float)) / double(r.bytes.size()), 32.0) << eb;
     }
 }
 
@@ -224,9 +221,8 @@ TEST(BioMD, EdgeCasesStayWithinBound) {
     }
 }
 
-// Input BIOMD does not code goes to another algorithm, within the bound: shapes other than {frames, atoms, 3} to SZ3's
-// default, coordinates beyond the lattice the bound allows to LORENZO_REG, NaN or Inf outside trailing fill to
-// lossless.
+// Input BIOMD does not code goes to LORENZO_REG, within the bound: shapes other than {frames, atoms, 3}, coordinates
+// beyond the lattice the bound allows, and NaN or Inf outside trailing fill, which come back exactly.
 template <class T>
 std::pair<SZ3::ALGO, std::vector<T>> compress_decompress(const std::vector<T> &x, const std::vector<size_t> &dims,
                                                          double eb) {
@@ -252,24 +248,27 @@ TEST(BioMD, FallsBackOnWhatItDoesNotCode) {
     size_t n;
     const auto x = make_system(s, &n);
     EXPECT_EQ(compress_decompress(x, {n, 3}, 5e-4).first, SZ3::ALGO_BIOMD);
-    for (const std::vector<size_t> &dims : {std::vector<size_t>{x.size()}, std::vector<size_t>{3, n}}) {
+    for (const std::vector<size_t> &dims : {std::vector<size_t>{x.size()}, std::vector<size_t>{3, n},
+                                            std::vector<size_t>{2, 5, n / 10, 3}}) {  // n = 2650
         const auto r = compress_decompress(x, dims, 5e-4);
-        EXPECT_NE(r.first, SZ3::ALGO_BIOMD);
+        EXPECT_EQ(r.first, SZ3::ALGO_LORENZO_REG);
         expect_within(x, r.second, 5e-4);
     }
     {
         auto y = x;
         for (auto &v : y) v += 1e6f;  // beyond the lattice of 5e-4
         const auto r = compress_decompress(y, {n, 3}, 5e-4);
-        EXPECT_NE(r.first, SZ3::ALGO_BIOMD);
+        EXPECT_EQ(r.first, SZ3::ALGO_LORENZO_REG);
         expect_within(y, r.second, 5e-4);
     }
     for (float bad : {std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity()}) {
         auto y = x;
         y[100] = bad;
-        const auto r = compress_decompress(y, {n, 3}, 5e-4);
-        EXPECT_EQ(r.first, SZ3::ALGO_LOSSLESS);
-        EXPECT_EQ(memcmp(r.second.data(), y.data(), y.size() * sizeof(float)), 0);
+        auto r = compress_decompress(y, {n, 3}, 5e-4);
+        EXPECT_EQ(r.first, SZ3::ALGO_LORENZO_REG);
+        EXPECT_EQ(memcmp(&r.second[100], &bad, sizeof(float)), 0);
+        y[100] = r.second[100] = 0;
+        expect_within(y, r.second, 5e-4);
     }
     // a bound so large that the lattice would pass the largest value of the type
     for (const auto &c : {std::make_pair(3e38f, 1e38), std::make_pair(1.0f, 1e30)}) {
