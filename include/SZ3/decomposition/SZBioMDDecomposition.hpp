@@ -68,14 +68,9 @@ inline constexpr int STREAM_GROUP[NUM_STREAMS] = {-1,        -1,        G_WATER_
                                                   G_WATER_H, G_WATER_H, G_BONDED,  G_BONDED,  G_BONDED,  G_UNBONDED};
 inline constexpr int MAX_SYMBOLS_PER_UNIT[NUM_STREAMS] = {1, 1, 3, 1, 2, 1, 1, 2, 1, 2, 1, 3};
 
-// Input that BIOMD does not code; SZ_compress gives it to LORENZO_REG with first-order Lorenzo alone, which codes
-// coordinates best of its predictors and keeps NaN and Inf exactly.
+// Input that BIOMD does not code; SZ_compress_bioMD gives it to another algorithm.
 struct Fallback : std::runtime_error {
     using std::runtime_error::runtime_error;
-    static void apply(Config &conf) {
-        conf.cmprAlgo = ALGO_LORENZO_REG;
-        conf.lorenzo = true, conf.lorenzo2 = false, conf.regression = false;
-    }
 };
 
 inline int64_t round_half_away(double y) { return int64_t(y + std::copysign(0.5, y)); }

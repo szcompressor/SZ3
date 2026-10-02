@@ -1,6 +1,7 @@
 #ifndef SZ3_SZ_BIOMD_HPP
 #define SZ3_SZ_BIOMD_HPP
 
+#include "SZ3/api/impl/SZAlgoLorenzoReg.hpp"
 #include "SZ3/compressor/SZGenericCompressor.hpp"
 #include "SZ3/decomposition/SZBioMDDecomposition.hpp"
 #include "SZ3/decomposition/SZBioMDXtcDecomposition.hpp"
@@ -22,16 +23,23 @@ std::shared_ptr<concepts::CompressorInterface<T>> make_compressor_biomd(const Co
                                             Lossless_bypass());
 }
 
+// Input BIOMD does not code goes to LORENZO_REG with first-order Lorenzo alone, which codes coordinates best of its
+// predictors and keeps NaN and Inf exactly. Neither writes into data: LORENZO_REG works on a padded copy of it.
 template <class T, uint N>
 size_t SZ_compress_bioMD(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
     assert(N == conf.N);
     assert(conf.cmprAlgo == ALGO_BIOMD);
-    if (N > 3 || conf.dims[N - 1] != 3) throw biomd::Fallback("SZ3 BioMD: data must be {frames, atoms, 3}");
     calAbsErrorBound(conf, data);
 
-    auto sz = make_compressor_biomd<T, N>(conf);
-    // BIOMD only reads the data the compressor interface takes as T *
-    return sz->compress(conf, const_cast<T *>(data), cmpData, cmpCap);
+    try {
+        if (N > 3 || conf.dims[N - 1] != 3) throw biomd::Fallback("SZ3 BioMD: data must be {frames, atoms, 3}");
+        return make_compressor_biomd<T, N>(conf)->compress(conf, const_cast<T *>(data), cmpData, cmpCap);
+    } catch (const biomd::Fallback &) {
+        conf.cmprAlgo = ALGO_LORENZO_REG;
+        conf.lorenzo = true, conf.lorenzo2 = false, conf.regression = false;
+        std::vector<T> dataCopy(data, data + conf.num);
+        return SZ_compress_LorenzoReg<T, N>(conf, const_cast<T *>(data), cmpData, cmpCap);
+    }
 }
 
 template <class T, uint N>

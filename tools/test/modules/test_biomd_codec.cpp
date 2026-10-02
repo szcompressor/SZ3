@@ -222,7 +222,8 @@ TEST(BioMD, EdgeCasesStayWithinBound) {
 }
 
 // Input BIOMD does not code goes to LORENZO_REG, within the bound: shapes other than {frames, atoms, 3}, coordinates
-// beyond the lattice the bound allows, and NaN or Inf outside trailing fill, which come back exactly.
+// beyond the lattice the bound allows, and NaN or Inf outside trailing fill, which come back exactly. The input stays
+// as it was.
 template <class T>
 std::pair<SZ3::ALGO, std::vector<T>> compress_decompress(const std::vector<T> &x, const std::vector<size_t> &dims,
                                                          double eb) {
@@ -232,7 +233,9 @@ std::pair<SZ3::ALGO, std::vector<T>> compress_decompress(const std::vector<T> &x
     conf.errorBoundMode = SZ3::EB_ABS;
     conf.absErrorBound = eb;
     size_t size = 0;
+    const std::vector<T> before = x;
     std::unique_ptr<char[]> cmp(SZ_compress(conf, x.data(), size));
+    EXPECT_EQ(memcmp(before.data(), x.data(), x.size() * sizeof(T)), 0) << "the input changed";
     SZ3::Config dec;
     std::unique_ptr<T[]> y(SZ_decompress<T>(dec, cmp.get(), size));
     return {static_cast<SZ3::ALGO>(dec.cmprAlgo), std::vector<T>(y.get(), y.get() + x.size())};

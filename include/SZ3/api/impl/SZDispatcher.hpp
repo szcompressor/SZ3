@@ -25,22 +25,13 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
         conf.cmprAlgo = ALGO_LOSSLESS;
     }
 
-    // BIOMD only reads its input, which needs no copy; what it does not code goes to its fallback
-    if (conf.cmprAlgo == ALGO_BIOMD) {
-        try {
-            return SZ_compress_bioMD<T, N>(conf, data, cmpData, cmpCap);
-        } catch (const biomd::Fallback &) {
-            biomd::Fallback::apply(conf);
-        } catch (std::length_error &e) {
-            if (std::string(e.what()) != SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH) throw;
-            biomd::Fallback::apply(conf);
-        }
-    }
-
     // do lossy compression
     bool isCmpCapSufficient = true;
     if (conf.cmprAlgo != ALGO_LOSSLESS) {
         try {
+            // BIOMD only reads its input, so it needs no copy; INTERP, INTERP_LORENZO, NOPRED and BIOMDXTC write their
+            // reconstruction into the data they are given, so they work on a copy
+            if (conf.cmprAlgo == ALGO_BIOMD) return SZ_compress_bioMD<T, N>(conf, data, cmpData, cmpCap);
             std::vector<T> dataCopy(data, data + conf.num);
             if (conf.cmprAlgo == ALGO_LORENZO_REG) {
                 cmpSize = SZ_compress_LorenzoReg<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
@@ -59,8 +50,7 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
         } catch (std::length_error &e) {
             if (std::string(e.what()) == SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH) {
                 isCmpCapSufficient = false;
-                // printf("SZ is downgraded to lossless mode because the buffer for compressed data is not large
-                // enough.\n");
+                // printf("SZ is downgraded to lossless mode because the buffer for compressed data is not large enough.\n");
             } else {
                 throw;
             }

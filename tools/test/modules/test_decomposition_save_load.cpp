@@ -131,7 +131,7 @@ void expect_load_charges_what_it_reads(const std::vector<size_t> &dims, MakeQuan
 }
 
 // SZBioMDDecomposition takes no quantizer: this one takes the helpers' second argument and drops it
-template <uint N>
+template <SZ3::uint N>
 struct BioMD : SZ3::SZBioMDDecomposition<float, N> {
     BioMD(const SZ3::Config &conf, int) : SZ3::SZBioMDDecomposition<float, N>(conf) {}
 };
