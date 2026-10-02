@@ -22,14 +22,10 @@ namespace SZ3 {
  *
  * save() writes the number of distinct bins D as a uint32; if D > 0, the smallest bin; if D > 1, for each bin in
  * ascending order the Elias-gamma code of its gap from the one before (none for the first), then the Elias-gamma
- * code of 1 + the zigzag of its code length minus the previous one's (0 before the first).
+ * code of 1 + the zigzag of its code length minus the previous one's (0 before the first). encode() writes the
+ * payload's bit count as a uint64, then the codes MSB-first.
  *
- * encode() splits the bins into parts of consecutive bins and writes the bit count of each part as a uint64, then the
- * codes of each part, MSB first. Below kSplit bins there is one part. From kSplit bins on there are four, which the
- * decoder decodes side by side, except when one bin with a one-bit code makes up seven in ten of the bins or more: then
- * there is one part, whose bit count has the top bit set, and the decoder takes runs of that bin whole.
- *
- * Code lengths are those of a Huffman tree built in (frequency, bin) order, limited to 32 bits, so every platform
+ * Code lengths, capped at 32 bits, are those of a Huffman tree built in (frequency, bin) order, so every platform
  * writes the same bytes.
  */
 template <class T>
@@ -38,8 +34,6 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     using U = typename std::make_unsigned<T>::type;
     static constexpr unsigned kMaxLen = 32;
     static constexpr unsigned kTableBits = 12;
-    static constexpr size_t kSplit = size_t(1) << 12;
-    static constexpr uint64_t kMissing = uint64_t(1) << 63;  // the code entry of a bin preprocess_encode() did not see
 
    public:
     /// stateNum is ignored: the range is taken from the bins.
@@ -75,7 +69,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     /// Upper bound of save() plus encode() for num_bins bins holding at most distinct_symbols values.
     static size_t size_bound(size_t num_bins, size_t distinct_symbols) {
         const size_t d = std::min(num_bins, distinct_symbols);
-        return sizeof(uint32_t) + sizeof(T) + (d * (16 * sizeof(T) + 10) + 7) / 8 + 4 * sizeof(uint64_t) +
+        return sizeof(uint32_t) + sizeof(T) + (d * (16 * sizeof(T) + 10) + 7) / 8 + sizeof(uint64_t) +
                (num_bins * kMaxLen + 7) / 8;
     }
 
@@ -95,60 +89,47 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     /// bins must be the ones preprocess_encode() saw.
     size_t encode(const std::vector<T> &bins, uchar *&bytes) override {
         uchar *const start = bytes;
-        const size_t n = bins.size();
+        write(payload_bits_, bytes);
         if (syms_.size() < 2) {
-            write(payload_bits_, bytes);
             for (const T b : bins)
                 if (syms_.empty() || b != offset_)
                     throw std::invalid_argument("SZ3 Huffman: bin not seen by preprocess_encode");
             return bytes - start;
         }
-        const unsigned parts = n >= kSplit && !runs_ ? 4 : 1;
-        uchar *head = bytes;
-        bytes += 8 * parts;
+        uint64_t acc = 0;
+        unsigned nb = 0;
+        uchar *p = bytes;
         const U off = static_cast<U>(offset_);
-        uint64_t total = 0;
-        const uint64_t flag = n >= kSplit && runs_ ? uint64_t(1) << 63 : 0;  // one part, runs taken whole
-        uint64_t missing = 0;  // kMissing once a bin preprocess_encode() did not count turns up
-        for (unsigned k = 0; k < parts; k++) {
-            uint64_t acc = 0;
-            unsigned nb = 0;
-            uchar *p = bytes;
-            auto put = [&](uint64_t e) {
-                const unsigned len = static_cast<unsigned>(e & 0xff);
-                missing |= e;
-                acc = (acc << len) | (e >> 8);
-                nb += len;
-                if (nb >= 32) {
-                    nb -= 32;
-                    int32ToBytes_bigEndian(p, static_cast<uint32_t>(acc >> nb));
-                    p += 4;
-                }
-            };
-            const size_t lo = n / parts * k, hi = k + 1 == parts ? n : n / parts * (k + 1);
-            if (dense_) {
-                const uint64_t *tab = code_.data();
-                const uint64_t size = code_.size();
-                for (size_t i = lo; i < hi; i++) {
-                    const uint64_t s = static_cast<U>(static_cast<U>(bins[i]) - off);
-                    if (s >= size) throw std::invalid_argument("SZ3 Huffman: bin not seen by preprocess_encode");
-                    put(tab[s]);
-                }
-            } else {
-                for (size_t i = lo; i < hi; i++) put(map_.get(static_cast<U>(static_cast<U>(bins[i]) - off)));
+        auto put = [&](uint64_t e) {
+            const unsigned len = static_cast<unsigned>(e & 0xff);
+            acc = (acc << len) | (e >> 8);
+            nb += len;
+            if (nb >= 32) {
+                nb -= 32;
+                int32ToBytes_bigEndian(p, static_cast<uint32_t>(acc >> nb));
+                p += 4;
             }
-            const uint64_t bits = static_cast<uint64_t>(p - bytes) * 8 + nb;
-            while (nb >= 8) {
-                nb -= 8;
-                *p++ = static_cast<uchar>(acc >> nb);
+        };
+        if (dense_) {
+            const uint64_t *tab = code_.data();
+            const uint64_t size = code_.size();
+            for (const T b : bins) {
+                const uint64_t s = static_cast<U>(static_cast<U>(b) - off);
+                if (s >= size) throw std::invalid_argument("SZ3 Huffman: bin not seen by preprocess_encode");
+                put(tab[s]);
             }
-            if (nb) *p++ = static_cast<uchar>(acc << (8 - nb));
-            write(bits | flag, head);
-            total += bits;
-            bytes = p;
+        } else {
+            for (const T b : bins) put(map_.get(static_cast<U>(static_cast<U>(b) - off)));
         }
-        if ((missing & kMissing) || total != payload_bits_)
-            throw std::invalid_argument("SZ3 Huffman: bins differ from preprocess_encode's");
+        const uint64_t bits = static_cast<uint64_t>(p - bytes) * 8 + nb;
+        while (nb >= 8) {
+            nb -= 8;
+            *p++ = static_cast<uchar>(acc >> nb);
+        }
+        if (nb) *p++ = static_cast<uchar>(acc << (8 - nb));
+        // A bin preprocess_encode() did not count has a zero-length entry.
+        if (bits != payload_bits_) throw std::invalid_argument("SZ3 Huffman: bins differ from preprocess_encode's");
+        bytes = p;
         return bytes - start;
     }
 
@@ -183,55 +164,27 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     std::vector<T> decode(const uchar *&bytes, size_t targetLength, size_t &remaining_length) override {
         const uchar *p = bytes;
         size_t rem = remaining_length;
-        unsigned parts = targetLength >= kSplit && syms_.size() >= 2 ? 4 : 1;
-        uint64_t bits[4] = {0};
-        size_t nbytes[4] = {0}, total = 0;
-        for (unsigned k = 0; k < parts; k++) {
-            read(bits[k], p, rem);
-            if (k == 0 && parts == 4 && bits[0] >> 63) {  // one part, runs taken whole
-                bits[0] &= ~(uint64_t(1) << 63);
-                parts = 1;
-            }
-            if (bits[k] > static_cast<uint64_t>(rem) * 8)
-                throw std::out_of_range("SZ3 Huffman: payload exceeds the buffer");
-            nbytes[k] = static_cast<size_t>((bits[k] + 7) / 8);
-            total += nbytes[k];
-        }
-        if (total > rem) throw std::out_of_range("SZ3 Huffman: payload exceeds the buffer");
+        uint64_t bits = 0;
+        read(bits, p, rem);
+        if (bits > static_cast<uint64_t>(rem) * 8) throw std::out_of_range("SZ3 Huffman: payload exceeds the buffer");
+        const size_t nbytes = static_cast<size_t>((bits + 7) / 8);
         std::vector<T> out;
         if (syms_.size() < 2) {
-            if (bits[0] != 0 || (syms_.empty() && targetLength != 0))
+            if (bits != 0 || (syms_.empty() && targetLength != 0))
                 throw std::out_of_range("SZ3 Huffman: payload does not match the code table");
             out.assign(targetLength, offset_);
         } else {
-            // Every bin takes 1 to kMaxLen bits: check the parts against the value count before allocating.
-            size_t nk[4];
-            for (unsigned k = 0; k < parts; k++) {
-                const size_t lo = targetLength / parts * k;
-                nk[k] = (k + 1 == parts ? targetLength : targetLength / parts * (k + 1)) - lo;
-                if (bits[k] < nk[k] || bits[k] / kMaxLen > nk[k])
-                    throw std::out_of_range("SZ3 Huffman: payload does not match the value count");
-            }
+            if (bits < targetLength || bits / kMaxLen > targetLength)
+                throw std::out_of_range("SZ3 Huffman: payload does not match the value count");
             out.resize(targetLength);
-            const uchar *pk[4];
-            T *ok[4];
-            size_t at = 0;  // a part may start past 4 GiB
-            for (unsigned k = 0; k < parts; k++) {
-                pk[k] = p + at;
-                at += nbytes[k];
-                ok[k] = out.data() + targetLength / parts * k;
-            }
-            if (parts == 4)
-                decode4(pk, nbytes, bits, ok, nk);
+            // A one-bit code is all zeros, so a run of zero bits is a run of its symbol.
+            if (count_[1])
+                decode_payload<true>(p, nbytes, bits, out.data(), targetLength);
             else
-                for (unsigned k = 0; k < parts; k++)
-                    if (count_[1])  // a one-bit code is all zeros, so a run of zero bits is a run of its symbol
-                        decode_payload<true>(pk[k], nbytes[k], bits[k], ok[k], nk[k]);
-                    else
-                        decode_payload<false>(pk[k], nbytes[k], bits[k], ok[k], nk[k]);
+                decode_payload<false>(p, nbytes, bits, out.data(), targetLength);
         }
-        bytes = p + total;
-        remaining_length = rem - total;
+        bytes = p + nbytes;
+        remaining_length = rem - nbytes;
         return out;
     }
 
@@ -310,6 +263,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
     static uint64_t gamma_bits(uint64_t v) { return 2 * (64 - clz64(v)) - 1; }
 
+    static uint64_t zigzag(int d) { return d >= 0 ? 2 * static_cast<uint64_t>(d) : 2 * static_cast<uint64_t>(-d) - 1; }
 
     void read_table(BitReader &r, size_t d) {
         syms_.resize(d);
@@ -363,7 +317,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                 freq_out.push_back(f64[k]);
             }
         }
-        code_.assign(span, kMissing);
+        code_.assign(span, 0);
     }
 
     // Open addressing on bin - offset, hashed so that evenly spaced bins do not pile up in neighbouring slots.
@@ -390,11 +344,11 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             }
             return val[i];
         }
-        uint64_t get(uint64_t k) const {  // kMissing if absent
+        uint64_t get(uint64_t k) const {  // 0 if absent
             const size_t m = key.size() - 1;
             for (size_t i = slot(k); used[i]; i = (i + 1) & m)
                 if (key[i] == k) return val[i];
-            return kMissing;
+            return 0;
         }
         void grow() {
             const unsigned bits = key.empty() ? 10 : 65 - shift;
@@ -437,8 +391,7 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         for (size_t i = 0; i < d; i++) A[i] = freq[order[i]];
         minimum_redundancy(A);
 
-        // Clamp the lengths to kMaxLen, then, while Kraft's inequality fails, move one leaf of the longest length
-        // below kMaxLen one level down.
+        // Clamp to kMaxLen, then move the deepest leaves shorter than kMaxLen down until Kraft's inequality holds.
         uint64_t count[kMaxLen + 1] = {0};
         for (size_t i = 0; i < d; i++) count[std::min<uint64_t>(A[i], kMaxLen)]++;
         uint64_t kraft = 0;
@@ -456,11 +409,6 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                 lens_[order[i]] = static_cast<uint8_t>(l);
                 payload_bits_ += freq[order[i]] * l;
             }
-        // Seven in ten bins or more of a one-bit code: the decoder takes the runs of it whole, which is faster than
-        // four parts from there on.
-        uint64_t n = 0;
-        for (const uint64_t f : freq) n += f;
-        for (size_t j = 0; j < d; j++) runs_ = runs_ || (lens_[j] == 1 && freq[j] * 10 >= n * 7);
         header_bits_ = 0;
         for (size_t j = 0; j < d; j++) {
             if (j > 0) header_bits_ += gamma_bits(syms_[j] - syms_[j - 1]);
@@ -576,46 +524,15 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         sym = sorted_[base_[len] + ((w >> (32 - len)) - first_[len])];
     }
 
-    // Four parts side by side, R codes from each 8-byte read, while each has 8 bytes and R codes left; then each on
-    // its own. It takes no run of a bin whole: it serves streams in which no one-bit code makes up seven in ten bins.
-    void decode4(const uchar *const p[4], const size_t nb[4], const uint64_t bits[4], T *const out[4],
-                 const size_t n[4]) const {
-        const Entry *tab = table_.data();
-        const unsigned tb = table_bits_;
-        const size_t R = std::max(1u, 57u / max_len_);
-        uint64_t pos[4] = {0, 0, 0, 0};
-        size_t i[4] = {0, 0, 0, 0};
-        for (;;) {
-            bool go = true;
-            for (int k = 0; k < 4; k++) go &= (pos[k] >> 3) + 8 <= nb[k] && i[k] + R <= n[k];
-            if (!go) break;
-            uint64_t acc[4];
-            for (int k = 0; k < 4; k++)
-                acc[k] = static_cast<uint64_t>(bytesToInt64_bigEndian(p[k] + (pos[k] >> 3))) << (pos[k] & 7);
-            for (size_t r = 0; r < R; r++)
-                for (int k = 0; k < 4; k++) {
-                    const Entry e = tab[acc[k] >> (64 - tb)];
-                    unsigned len = e.len;
-                    if (len)
-                        out[k][i[k]] = e.sym;
-                    else
-                        decode_long(acc[k], out[k][i[k]], len);
-                    acc[k] <<= len;
-                    pos[k] += len;
-                    i[k]++;
-                }
-        }
-        for (int k = 0; k < 4; k++) decode_payload<false>(p[k], nb[k], bits[k], out[k], n[k], pos[k], i[k]);
-    }
-
     template <bool ZeroRuns>
-    void decode_payload(const uchar *p, size_t nbytes, uint64_t bits, T *out, size_t n, uint64_t pos = 0,
-                        size_t i = 0) const {
+    void decode_payload(const uchar *p, size_t nbytes, uint64_t bits, T *out, size_t n) const {
         const Entry *tab = table_.data();
         const unsigned tb = table_bits_, ml = max_len_;
         const T zero_sym = sorted_[0];
         // With two one-bit codes, a run of ones is a run of the second symbol.
         const bool one_runs = count_[1] == 2;
+        uint64_t pos = 0;
+        size_t i = 0;
         // Whole 8-byte reads while they stay inside the payload; each gives at least 57 bits.
         while (i < n && (pos >> 3) + 8 <= nbytes) {
             uint64_t acc = static_cast<uint64_t>(bytesToInt64_bigEndian(p + (pos >> 3))) << (pos & 7);
@@ -669,7 +586,6 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     uint64_t payload_bits_ = 0;
     uint64_t count_[kMaxLen + 1] = {0};  // codes of each length
     // encoder
-    bool runs_ = false;  // one part with the flag: the decoder takes runs of the one-bit code whole
     bool dense_ = true;
     std::vector<uint64_t> code_;  // dense: (code << 8) | length, indexed by bin - offset_
     SymMap map_;                  // sparse: the same, keyed by bin - offset_
