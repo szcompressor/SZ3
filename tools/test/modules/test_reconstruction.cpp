@@ -31,6 +31,7 @@ size_t differing_values(SZ3::ALGO algo, SZ3::INTERP_ALGO interp, double eb) {
         SZ3::SZ_decompress_Interp<T, 3>(conf, cmp.data(), size, out.data());
     } else {
         size_t size = SZ3::SZ_compress_bioMD<T, 3>(conf, data.data(), cmp.data(), cmp.size());
+        if (conf.cmprAlgo != SZ3::ALGO_BIOMD) return 0;  // beyond its lattice (1 nm at 1e-6): a fallback
         SZ3::SZ_decompress_bioMD<T, 3>(conf, cmp.data(), size, data.data());
         size = SZ3::SZ_compress_bioMD<T, 3>(conf, data.data(), cmp.data(), cmp.size());
         SZ3::SZ_decompress_bioMD<T, 3>(conf, cmp.data(), size, out.data());

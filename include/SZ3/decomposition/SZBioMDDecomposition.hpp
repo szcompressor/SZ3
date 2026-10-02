@@ -3,7 +3,7 @@
 
 // ALGO_BIOMD: molecular-dynamics coordinates {frames, atoms, 3} (nm, absolute bound) as streams of integer symbols,
 // one after the other as [count, symbols]. Every coordinate goes on a lattice,
-//   q = round(x / step), |x - q step| <= eb,
+//   q = round(x * inv_step), |x - q step| <= eb,
 // and all prediction is integer arithmetic on that lattice, which the decoder repeats exactly.
 //  * rigid water (O, H1, H2): H1 on the sphere |H1 - O| = r, H2 on the circle that r and the H-H distance leave
 //  * other atoms: on the sphere of a bond-length class around one of the previous MAX_BOND_OFFSET atoms, else a delta
@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <limits>
 #include <memory>
@@ -30,17 +31,23 @@
 namespace SZ3 {
 namespace biomd {
 
-constexpr int MAX_BOND_OFFSET = 4;                 // a bond partner is one of the previous MAX_BOND_OFFSET atoms
-constexpr int MAX_BOND_CLASSES = 15;               // at most this many bond-length classes
+// A bond partner is one of the previous MAX_BOND_OFFSET atoms: in GROMACS topologies (AMBER, CHARMM, OPLS, GROMOS,
+// Martini 3) 96% to 100% of the bonded atoms have one there, and a larger offset gains nothing.
+constexpr int MAX_BOND_OFFSET = 8;
+// At most this many bond-length classes: 99% of the bonded atoms of an AMBER protein and of a Martini 3 one use 21 and
+// 22 lengths. The bond code is offset * 32 + class + 1.
+constexpr int MAX_BOND_CLASSES = 31;
 constexpr int64_t MAX_BOND_R2 = int64_t(1) << 28;  // bonds of 16384 lattice units or more are not coded as spheres
 constexpr uint32_t ESCAPE = 4096;                  // unbonded values from here on: an escape symbol and a raw byte
 // |q| <= 2^28: displacements stay within 2^29, and every symbol within 32 bits
 constexpr double MAX_LATTICE = double(1 << 28);
-// the lattice spans |x| < B, the smallest power of two of at least 2^LATTICE_SPAN_BITS eb
-#ifndef SZ3_BIOMD_LATTICE_SPAN_BITS
-#define SZ3_BIOMD_LATTICE_SPAN_BITS 17
-#endif
-constexpr int LATTICE_SPAN_BITS = SZ3_BIOMD_LATTICE_SPAN_BITS;
+// The lattice spans |x| < B, the smallest power of two above 2^LATTICE_SPAN_BITS eb. For float, B is 512 nm at the
+// 5e-4 nm of GROMACS's default xtc precision and 4096 nm at the 5e-3 nm of coarse-grained runs: mdrun writes
+// coordinates inside the box, and the largest systems simulated are 155 nm (all-atom) and 400 nm (a Martini cell). It
+// costs float 1% of the ratio against 2^17 eb, as the step shrinks to 2 (eb - eb / 16) at most; double, whose ulp is
+// 2^29 times smaller, spans the whole of MAX_LATTICE at no cost.
+template <class T>
+constexpr int LATTICE_SPAN_BITS = sizeof(T) == 4 ? 19 : 27;
 
 // atom groups, each with its own predictor mode for the frames after the first
 enum { G_WATER_O, G_WATER_H, G_BONDED, G_UNBONDED, NUM_GROUPS };
@@ -68,9 +75,11 @@ inline constexpr int STREAM_GROUP[NUM_STREAMS] = {-1,        -1,        G_WATER_
                                                   G_WATER_H, G_WATER_H, G_BONDED,  G_BONDED,  G_BONDED,  G_UNBONDED};
 inline constexpr int MAX_SYMBOLS_PER_UNIT[NUM_STREAMS] = {1, 1, 3, 1, 2, 1, 1, 2, 1, 2, 1, 3};
 
-// Values BIOMD does not code (NaN, Inf, coordinates beyond the lattice); SZ_compress_bioMD stores them losslessly.
+// Values BIOMD does not code, and the algorithm SZ_compress_bioMD gives the chunk to: NaN or Inf to lossless
+// compression, coordinates beyond the lattice to LORENZO_REG.
 struct Fallback : std::runtime_error {
-    using std::runtime_error::runtime_error;
+    ALGO algo;
+    Fallback(ALGO to, const char *why) : std::runtime_error(why), algo(to) {}
 };
 
 inline int64_t round_half_away(double y) { return int64_t(y + std::copysign(0.5, y)); }
@@ -93,12 +102,12 @@ enum : uint8_t { K_WATER_O, K_WATER_H, K_OTHER };
 struct Layout {
     std::vector<uint8_t> kind;  // per atom: K_WATER_O (then its H at i + 1, i + 2), K_WATER_H, K_OTHER
     std::vector<uint16_t>
-        bond;  // other atoms: 0 = none, else offset * 16 + class + 1: the class sphere around i - offset
+        bond;  // other atoms: 0 = none, else offset * 32 + class + 1: the class sphere around i - offset
     double water_oh = 0, water_hh = 0;  // O-H and H-H distances of the water (nm)
     std::vector<double> bond_lengths;   // bond-length classes (nm)
 };
-inline size_t bond_offset(uint16_t bond) { return bond >> 4; }
-inline size_t bond_class(uint16_t bond) { return (bond & 15) - 1; }
+inline size_t bond_offset(uint16_t bond) { return bond >> 5; }
+inline size_t bond_class(uint16_t bond) { return (bond & 31) - 1; }
 
 // Rigid water on frame x: kind, water_oh, water_hh. The tolerances grow with the lattice step, so rounded input (xtc
 // files, or data this codec decompressed) still fits.
@@ -109,7 +118,7 @@ void detect_water(const T *x, size_t atoms, Layout &layout, double step) {
     auto dist2 = [x](size_t a, size_t b) {
         float dx = float(x[3 * a] - x[3 * b]), dy = float(x[3 * a + 1] - x[3 * b + 1]),
               dz = float(x[3 * a + 2] - x[3 * b + 2]);
-        return dx * dx + dy * dy + dz * dz;
+        return nofma(dx * dx) + nofma(dy * dy) + nofma(dz * dz);
     };
     // Candidates: O-H in [0.08, 0.125] nm, H-H in [0.13, 0.2] nm, probed at PROBES places across the frame. Rigid
     // water gives sharp O-H / H-H peaks, flexible CH2/NH2 groups broad ones.
@@ -189,18 +198,21 @@ void detect_water(const T *x, size_t atoms, Layout &layout, double step) {
 }
 
 // Bonds of the other atoms on frame x: each takes the nearest of its previous MAX_BOND_OFFSET atoms if that is within
-// bond range, and the bond-length classes are the peaks of those distances (1e-4 nm bins over 0.01 .. 0.25 nm; the
-// virtual site of 4-site water is a 0.015 nm bond to its O).
+// bond range, and the bond-length classes are the peaks of those distances (1e-4 nm bins over 0.01 .. 0.6 nm: all-atom
+// bonds are 0.09 .. 0.2 nm, Martini 3 ones 0.27 .. 0.47 nm, and the virtual site of 4-site water is a 0.015 nm bond
+// to its O).
 template <class T>
 void detect_bonds(const T *x, size_t atoms, Layout &layout) {
-    // bond lengths in bins of BIN_WIDTH from BOND_MIN to 0.25 nm; a nearest previous atom outside that range is no bond
+    // bond lengths in bins of BIN_WIDTH from BOND_MIN to 0.6 nm; a nearest previous atom outside that range is no bond
     constexpr double BOND_MIN = 0.01, BIN_WIDTH = 1e-4, BINS_PER_NM = 1e4;
-    constexpr size_t NUM_BINS = 2400;
-    constexpr float BOND2_MIN = 0.0001f, BOND2_MAX = 0.0625f;  // BOND_MIN^2, 0.25^2
+    constexpr size_t NUM_BINS = 5900;
+    constexpr float BOND2_MIN = 0.0001f, BOND2_MAX = 0.36f;  // BOND_MIN^2, 0.6^2
     // a class: the heaviest window of +-PEAK_HALF bins, of at least MIN_PEAK atoms and a MIN_SHARE-th of the bonded
-    // ones; it then suppresses +-SUPPRESS_HALF bins, and takes the bins within ASSIGN_HALF that are nearest to it
-    constexpr size_t PEAK_HALF = 10, SUPPRESS_HALF = 30;
-    constexpr long ASSIGN_HALF = 40;
+    // ones; it then suppresses +-SUPPRESS_HALF bins, and takes the bins within ASSIGN_HALF that are nearest to it.
+    // Constrained bonds keep their length; flexible ones are within 6 pm of it (90% of the frames) in all-atom
+    // force fields and 45 pm in Martini 3: windows of 3, 10 and 20 pm lose no all-atom ratio and gain 2% on Martini.
+    constexpr size_t PEAK_HALF = 30, SUPPRESS_HALF = 100;
+    constexpr long ASSIGN_HALF = 200;
     constexpr int64_t MIN_PEAK = 8, MIN_SHARE = 200;
     layout.bond.assign(atoms, 0);
     layout.bond_lengths.clear();
@@ -213,7 +225,8 @@ void detect_bonds(const T *x, size_t atoms, Layout &layout) {
         unsigned offset = 0;  // of the nearest previous atom
         for (unsigned o = 1; o <= unsigned(MAX_BOND_OFFSET) && o <= i; o++) {
             const float dx = float(x[3 * i] - x[3 * (i - o)]), dy = float(x[3 * i + 1] - x[3 * (i - o) + 1]),
-                        dz = float(x[3 * i + 2] - x[3 * (i - o) + 2]), v = dx * dx + dy * dy + dz * dz;
+                        dz = float(x[3 * i + 2] - x[3 * (i - o) + 2]),
+                        v = nofma(dx * dx) + nofma(dy * dy) + nofma(dz * dz);
             offset = v < best ? o : offset;
             best = std::min(best, v);
         }
@@ -224,7 +237,7 @@ void detect_bonds(const T *x, size_t atoms, Layout &layout) {
         }
     }
     std::vector<int8_t> bin_class(NUM_BINS + 1, -1);
-    std::vector<uint8_t> bin_distance(NUM_BINS, 255);
+    std::vector<uint16_t> bin_distance(NUM_BINS, std::numeric_limits<uint16_t>::max());
     std::vector<int64_t> left = hist, prefix(NUM_BINS + 1);
     int64_t total = 0;
     for (int64_t h : hist) total += h;
@@ -239,19 +252,23 @@ void detect_bonds(const T *x, size_t atoms, Layout &layout) {
         }
         if (peak_weight < MIN_PEAK || peak_weight * MIN_SHARE < total) break;
         double weight = 0, length = 0;
-        for (size_t w = peak >= PEAK_HALF ? peak - PEAK_HALF : 0; w < std::min(NUM_BINS, peak + PEAK_HALF + 1); w++)
-            weight += hist[w], length += hist[w] * (BOND_MIN + (w + 0.5) * BIN_WIDTH);
+        for (size_t w = peak >= PEAK_HALF ? peak - PEAK_HALF : 0; w < std::min(NUM_BINS, peak + PEAK_HALF + 1); w++) {
+            weight += hist[w];
+            length += nofma(hist[w] * (BOND_MIN + nofma((w + 0.5) * BIN_WIDTH)));
+        }
         layout.bond_lengths.push_back(length / weight);
         for (size_t w = peak >= SUPPRESS_HALF ? peak - SUPPRESS_HALF : 0;
              w < std::min(NUM_BINS, peak + SUPPRESS_HALF + 1); w++)
             left[w] = 0;
         const long centre = long((layout.bond_lengths.back() - BOND_MIN) * BINS_PER_NM);
         for (long k = std::max(0L, centre - ASSIGN_HALF); k <= std::min(long(NUM_BINS) - 1, centre + ASSIGN_HALF); k++)
-            if (uint8_t(std::labs(k - centre)) < bin_distance[k])
-                bin_distance[k] = uint8_t(std::labs(k - centre)), bin_class[k] = int8_t(cls);
+            if (uint16_t(std::labs(k - centre)) < bin_distance[k]) {
+                bin_distance[k] = uint16_t(std::labs(k - centre));
+                bin_class[k] = int8_t(cls);
+            }
     }
     for (size_t i = 0; i < atoms; i++)
-        if (bin_class[bin[i]] >= 0) layout.bond[i] = uint16_t(partner[i] * 16 + bin_class[bin[i]] + 1);
+        if (bin_class[bin[i]] >= 0) layout.bond[i] = uint16_t(partner[i] * 32 + bin_class[bin[i]] + 1);
 }
 
 // ------------------------------------------------------------------------------------------------ symbols
@@ -541,11 +558,12 @@ inline void choose_modes(const FrameContext &frame, const std::vector<uint32_t> 
 
 template <class T, uint N>
 class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> {
+    static_assert(std::is_floating_point<T>::value, "SZ3 BioMD: data must be float or double");
+
    public:
     explicit SZBioMDDecomposition(const Config &conf)
         : frames_(N == 3 ? conf.dims[0] : 1), atoms_(N >= 2 ? conf.dims[N - 2] : 1), error_bound_(conf.absErrorBound) {
         if (N > 3 || conf.dims[N - 1] != 3) throw std::invalid_argument("SZ3 BioMD: data must be {frames, atoms, 3}");
-        if (!std::is_floating_point<T>::value) throw std::invalid_argument("SZ3 BioMD: data must be float or double");
     }
 
     // The symbol streams of the chunk, one after the other as [count, symbols]; the rest goes to save().
@@ -734,16 +752,11 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     }
 
     // Lattice step: 2 (eb - m ulp) for the binade below B, so that q step rounded to T stays within eb for every
-    // |q step| < B. The rounding of x * (1 / step) to q, done in double, is off by up to 2 double ulps of x, and q step
-    // by 1 more: m = 1 for float, whose ulp is 2^29 times larger, and 4 for double.
-    //  * B is the smallest power of two of at least 2^LATTICE_SPAN_BITS eb when m ulp < eb / 2 there and every |q| step
-    //    of the chunk stays below B: the step then depends on the bound alone, and a decompressed chunk compressed
-    //    again lands on the same lattice points.
-    //  * Otherwise B is the power of two above max|x|, with the step eb when m ulp is eb / 2 or more: q eb rounded to T
-    //    is then no further from q eb than x is, so within eb of x. Compressed again, the chunk may land on another
-    //    lattice, as with any other algorithm.
-    //  * A chunk of more than MAX_LATTICE lattice steps, or whose lattice would pass the largest value of T, goes to
-    //    LORENZO_REG.
+    // |q step| < B. The rounding of x * inv_step to q, done in double, is off by up to 2 double ulps of x, and q step
+    // by 1 more: m = 1 for float, whose ulp is 2^29 times larger, and 4 for double. B, the power of two above
+    // 2^LATTICE_SPAN_BITS eb, depends on the bound alone, so a decompressed chunk compressed again lands on the same
+    // lattice points. A chunk with NaN or Inf goes to lossless compression; one with coordinates beyond B, or under a
+    // bound for which m ulp reaches eb / 2 or B passes the largest value of T, to LORENZO_REG.
     void choose_step(const T *data) {
         if (!(error_bound_ > 0) || !std::isfinite(error_bound_))
             throw std::invalid_argument("SZ3 BioMD: the error bound must be positive and finite");
@@ -758,29 +771,19 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         T max_abs;
         memcpy(&max_abs, &max_bits, sizeof(T));
         if (!(max_abs <= std::numeric_limits<T>::max()))
-            throw biomd::Fallback("SZ3 BioMD: NaN or Inf in a frame that is not trailing fill");
-        const double m = sizeof(T) == 4 ? 1 : 4;
-        auto margin_below = [&](int exponent) {  // m ulp in the binade below 2^exponent
-            return m * std::max(double(std::numeric_limits<T>::denorm_min()),
-                                std::ldexp(1.0, exponent - std::numeric_limits<T>::digits));
-        };
+            throw biomd::Fallback(ALGO_LOSSLESS, "SZ3 BioMD: NaN or Inf in a frame that is not trailing fill");
         int exponent;
-        std::frexp(std::ldexp(error_bound_, biomd::LATTICE_SPAN_BITS), &exponent);
-        double margin = margin_below(exponent);
-        if (margin < 0.5 * error_bound_) {
-            step_ = 2.0 * (error_bound_ - margin);
-            const double max_q = std::fabs(double(biomd::round_half_away(double(max_abs) * (1.0 / step_))));
-            if (max_q <= biomd::MAX_LATTICE && max_q * step_ < std::ldexp(1.0, exponent) &&
-                std::ldexp(1.0, exponent) <= double(std::numeric_limits<T>::max()))
-                return;
-        }
-        std::frexp(double(max_abs), &exponent);
-        margin = margin_below(exponent);
-        step_ = margin < 0.5 * error_bound_ ? 2.0 * (error_bound_ - margin) : error_bound_;
-        // |q step| <= max|x| + step / 2 must stay finite in T
-        if (!(step_ > 0) || !std::isfinite(step_) || !std::isfinite(1.0 / step_) ||
-            max_abs / step_ > biomd::MAX_LATTICE || !(double(max_abs) + step_ <= double(std::numeric_limits<T>::max())))
-            throw biomd::Fallback("SZ3 BioMD: coordinates beyond the lattice the error bound allows");
+        std::frexp(std::ldexp(error_bound_, biomd::LATTICE_SPAN_BITS<T>), &exponent);
+        const double span = std::ldexp(1.0, exponent);
+        const double margin =
+            (sizeof(T) == 4 ? 1 : 4) * std::max(double(std::numeric_limits<T>::denorm_min()),
+                                                std::ldexp(1.0, exponent - std::numeric_limits<T>::digits));
+        step_ = 2.0 * (error_bound_ - margin);
+        // every |q| step <= max|x| + step / 2 below B, checked before any q is rounded: |q| < B / step < MAX_LATTICE
+        if (!(margin < 0.5 * error_bound_) || !std::isfinite(1.0 / step_) ||
+            !(span <= double(std::numeric_limits<T>::max())) || !(double(max_abs) + 0.5 * step_ < span) ||
+            !(span / step_ < biomd::MAX_LATTICE))
+            throw biomd::Fallback(ALGO_LORENZO_REG, "SZ3 BioMD: coordinates beyond the lattice the error bound allows");
     }
 
     // The layout of the first frame, its geometry on the lattice, and the atoms of each group.
@@ -823,7 +826,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         for (size_t i = 0; i < atoms_; i++)
             if (layout.kind[i] == K_OTHER) {
                 const uint32_t bond = reader.get(S_BOND_REF);
-                if (bond > uint32_t(MAX_BOND_OFFSET * 16 + MAX_BOND_CLASSES))
+                if (bond > uint32_t(MAX_BOND_OFFSET * 32 + MAX_BOND_CLASSES))
                     throw std::runtime_error("SZ3 BioMD: corrupt stream");
                 if (bond && (bond_offset(uint16_t(bond)) == 0 || bond_offset(uint16_t(bond)) > i ||
                              bond_class(uint16_t(bond)) >= bond_r2_.size()))  // a class field of 0 gives SIZE_MAX

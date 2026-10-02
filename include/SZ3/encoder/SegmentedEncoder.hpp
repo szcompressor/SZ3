@@ -23,8 +23,7 @@ namespace SZ3 {
 template <class Encoder>
 class SegmentedEncoder : public concepts::EncoderInterface<int> {
    public:
-    explicit SegmentedEncoder(uint32_t max_segments = std::numeric_limits<uint32_t>::max())
-        : max_segments_(max_segments) {}
+    explicit SegmentedEncoder(uint32_t max_segments) : max_segments_(max_segments) {}
 
     void preprocess_encode(const std::vector<int> &bins, int stateNum) override {
         segments_.clear();

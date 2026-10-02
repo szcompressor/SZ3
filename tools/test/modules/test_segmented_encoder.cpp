@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <random>
 #include <stdexcept>
 #include <vector>
@@ -13,14 +14,14 @@
 namespace {
 
 std::vector<int> segmented_round_trip(const std::vector<int> &bins) {
-    SZ3::SegmentedEncoder<SZ3::HuffmanEncoder<int>> enc;
+    SZ3::SegmentedEncoder<SZ3::HuffmanEncoder<int>> enc(64);
     enc.preprocess_encode(bins, 0);
     std::vector<SZ3::uchar> buf(enc.size_est() + 8 * bins.size() + 1024);
     SZ3::uchar *p = buf.data();
     enc.save(p);
     enc.encode(bins, p);
     const size_t n = p - buf.data();
-    SZ3::SegmentedEncoder<SZ3::HuffmanEncoder<int>> dec;
+    SZ3::SegmentedEncoder<SZ3::HuffmanEncoder<int>> dec(std::numeric_limits<uint32_t>::max());
     const SZ3::uchar *q = buf.data();
     size_t rem = n;
     dec.load(q, rem);
@@ -56,13 +57,13 @@ TEST(SZ3_SegmentedEncoder, CorruptSegmentTables) {
         return rem;
     };
     {
-        SZ3::SegmentedEncoder<SZ3::HuffmanEncoder<int>> dec;
+        SZ3::SegmentedEncoder<SZ3::HuffmanEncoder<int>> dec(std::numeric_limits<uint32_t>::max());
         EXPECT_THROW(load(stream(1, {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01}), dec),
                      std::out_of_range);                                                        // 2^64 - 1
         EXPECT_THROW(load(stream(1, {0x80, 0x80, 0x80, 0x80, 0x08}), dec), std::out_of_range);  // 2^31
     }
     {
-        SZ3::SegmentedEncoder<SZ3::HuffmanEncoder<int>> dec;
+        SZ3::SegmentedEncoder<SZ3::HuffmanEncoder<int>> dec(std::numeric_limits<uint32_t>::max());
         load(stream(3, {0, 0, 0}), dec);
         const SZ3::uchar *p = nullptr;
         size_t rem = 0;
@@ -71,7 +72,7 @@ TEST(SZ3_SegmentedEncoder, CorruptSegmentTables) {
     }
     {
         const uint32_t count = 1000000;
-        SZ3::SegmentedEncoder<SZ3::HuffmanEncoder<int>> dec;
+        SZ3::SegmentedEncoder<SZ3::HuffmanEncoder<int>> dec(std::numeric_limits<uint32_t>::max());
         load(stream(count, std::vector<SZ3::uchar>(count, 0)), dec);
         const SZ3::uchar *p = nullptr;
         size_t rem = 0;

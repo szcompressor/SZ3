@@ -246,7 +246,9 @@ TEST(SZ3_DecompositionSaveLoad, BioMDSizeEstBoundsSave) {
         SCOPED_TRACE("eb=" + std::to_string(eb));
 
         BioMD<3> biomd(conf, 0);
-        expect_save_stays_within_size_est(biomd, conf, ramp(conf.num), "SZBioMDDecomposition");
+        auto coordinates = ramp(conf.num);  // up to 12 nm, within BIOMD's lattice (64 nm at 1e-4)
+        for (auto &v : coordinates) v *= 0.002f;
+        expect_save_stays_within_size_est(biomd, conf, coordinates, "SZBioMDDecomposition");
 
         SZ3::SZBioMDXtcDecomposition<float, 3, SZ3::LinearQuantizer<float>> xtc(conf, xtc_quantizer(conf));
         expect_save_stays_within_size_est(xtc, conf, ramp(conf.num), "SZBioMDXtcDecomposition");

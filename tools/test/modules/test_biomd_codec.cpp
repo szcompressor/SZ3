@@ -205,8 +205,8 @@ TEST(BioMD, EdgeCasesStayWithinBound) {
     }
     {
         auto x = base;
-        for (auto &v : x) v += 1e5f;
-        cases.push_back({"offset 1e5 nm", x});
+        for (auto &v : x) v += 400.f;  // within the lattice of 5e-4 (512 nm)
+        cases.push_back({"offset 400 nm", x});
     }
     {
         auto x = base;
@@ -221,8 +221,8 @@ TEST(BioMD, EdgeCasesStayWithinBound) {
     }
 }
 
-// Input BIOMD does not code: shapes other than {frames, atoms, 3} go to LORENZO_REG, within the bound; coordinates
-// beyond the lattice the bound allows, NaN or Inf outside trailing fill, and bounds that are not positive and finite
+// Input BIOMD does not code: shapes other than {frames, atoms, 3} and coordinates beyond the lattice the bound allows
+// go to LORENZO_REG, within the bound; NaN or Inf outside trailing fill, and bounds that are not positive and finite,
 // to lossless compression. The input stays as it was.
 template <class T>
 std::pair<SZ3::ALGO, std::vector<T>> compress_decompress(const std::vector<T> &x, const std::vector<size_t> &dims,
@@ -259,10 +259,10 @@ TEST(BioMD, FallsBackOnWhatItDoesNotCode) {
     }
     {
         auto y = x;
-        for (auto &v : y) v += 1e6f;  // beyond the lattice of 5e-4
+        for (auto &v : y) v += 1e3f;  // beyond the lattice of 5e-4 (512 nm)
         const auto r = compress_decompress(y, {n, 3}, 5e-4);
-        EXPECT_EQ(r.first, SZ3::ALGO_LOSSLESS);
-        EXPECT_EQ(memcmp(r.second.data(), y.data(), y.size() * sizeof(float)), 0);
+        EXPECT_EQ(r.first, SZ3::ALGO_LORENZO_REG);
+        expect_within(y, r.second, 5e-4);
     }
     for (float bad : {std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity()}) {
         auto y = x;
@@ -441,11 +441,12 @@ TEST(BioMD, DoubleNearHalfLatticePointsStaysWithinBound) {
     EXPECT_LE(r.max_err, eb);
 }
 
-// A water whose O and H2 swap ends of the coordinate range between frames (2^28 lattice steps apart): the H2 symbol
-// against the previous frame must still fit 32 bits.
+// A water whose O and H2 swap ends of the lattice between frames: the H2 symbol against the previous frame must
+// still fit 32 bits.
 template <class T>
 void water_jumps_across_the_range() {
-    const double eb = std::ldexp(1.0, -10), M = std::ldexp(1.0, 18);  // M / step = 2^28
+    // the lattice spans |x| < 2^(LATTICE_SPAN_BITS + 1) eb when 2^LATTICE_SPAN_BITS eb is a power of two
+    const double eb = std::ldexp(1.0, -10), M = 0.99 * std::ldexp(eb, SZ3::biomd::LATTICE_SPAN_BITS<T> + 1);
     const size_t waters = 40, atoms = 3 * waters + 2, frames = 3;
     std::vector<T> x(frames * atoms * 3);
     std::mt19937 rng(1);
