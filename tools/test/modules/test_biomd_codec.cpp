@@ -149,6 +149,23 @@ TEST(BioMD, WithinBoundAndBeatsFourBytesPerValue) {
             }
 }
 
+// From a bound of 1e-2 nm on, zstd follows the Huffman codes: still within the bound, and past the 32 that one bit a
+// coordinate would cap the ratio at when frames do not move.
+TEST(BioMD, LooseBoundsWithZstd) {
+    SystemSpec s;
+    s.frames = 20;
+    size_t n;
+    auto x = make_system(s, &n);
+    for (size_t t = 1; t < s.frames; t++)  // frames that do not move
+        std::copy(x.begin(), x.begin() + 3 * n, x.begin() + t * 3 * n);
+    for (double eb : {0.02, 0.1}) {
+        const auto r = round_trip(x, s.frames, n, eb);
+        EXPECT_EQ(r.algo, SZ3::ALGO_BIOMD);
+        EXPECT_LE(r.max_err, eb);
+        EXPECT_GT(double(x.size() * sizeof(float)) / double(r.bytes.size()), 32.0) << eb;
+    }
+}
+
 TEST(BioMD, DoubleInput) {
     SystemSpec s;
     s.frames = 4;

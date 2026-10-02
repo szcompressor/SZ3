@@ -16,6 +16,16 @@
 
 namespace SZ3 {
 
+// From a bound of 1e-2 (nm) on, most residuals are 0 and zstd at level 1 shortens their runs (by 2% at 1e-2, 23% at
+// 1e-1 with one frame per chunk); below it, it gains under 2% and costs about 10% of the compression time.
+template <class T, uint N>
+std::shared_ptr<concepts::CompressorInterface<T>> make_compressor_biomd(const Config &conf) {
+    auto encoder = SegmentedEncoder<HuffmanEncoder<int>>(biomd::NUM_STREAMS);
+    if (conf.absErrorBound >= 1e-2)
+        return make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf), encoder, Lossless_zstd(1));
+    return make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf), encoder, Lossless_bypass());
+}
+
 template <class T, uint N>
 size_t SZ_compress_bioMD(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
     assert(N == conf.N);
@@ -24,9 +34,7 @@ size_t SZ_compress_bioMD(Config &conf, const T *data, uchar *cmpData, size_t cmp
         throw biomd::Fallback(ALGO_INTERP_LORENZO, "SZ3 BioMD: data must be {frames, atoms, 3}");
     calAbsErrorBound(conf, data);
 
-    auto sz =
-        make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf),
-                                         SegmentedEncoder<HuffmanEncoder<int>>(biomd::NUM_STREAMS), Lossless_bypass());
+    auto sz = make_compressor_biomd<T, N>(conf);
     // BIOMD only reads the data the compressor interface takes as T *
     return sz->compress(conf, const_cast<T *>(data), cmpData, cmpCap);
 }
@@ -35,9 +43,7 @@ template <class T, uint N>
 void SZ_decompress_bioMD(const Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
     assert(conf.cmprAlgo == ALGO_BIOMD);
 
-    auto sz =
-        make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf),
-                                         SegmentedEncoder<HuffmanEncoder<int>>(biomd::NUM_STREAMS), Lossless_bypass());
+    auto sz = make_compressor_biomd<T, N>(conf);
     sz->decompress(conf, cmpData, cmpSize, decData);
 }
 
