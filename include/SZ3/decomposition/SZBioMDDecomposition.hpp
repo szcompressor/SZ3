@@ -151,7 +151,10 @@ void detect_water(const T *x, size_t atoms, Layout &layout, double step) {
         size_t best = 0, n = 0;
         for (size_t lo = 0, hi = 0; hi < v.size(); hi++) {
             while (v[hi] - v[lo] > PEAK_WINDOW) lo++;
-            if (hi - lo + 1 > n) n = hi - lo + 1, best = (lo + hi) / 2;
+            if (hi - lo + 1 > n) {
+                n = hi - lo + 1;
+                best = (lo + hi) / 2;
+            }
         }
         std::vector<float> w;
         for (float y : v)
@@ -258,7 +261,10 @@ void detect_bonds(const T *x, size_t atoms, Layout &layout) {
         for (size_t k = 0; k < NUM_BINS; k++) {
             const int64_t w =
                 prefix[std::min(NUM_BINS, k + PEAK_HALF + 1)] - prefix[k >= PEAK_HALF ? k - PEAK_HALF : 0];
-            if (w > peak_weight) peak_weight = w, peak = k;
+            if (w > peak_weight) {
+                peak_weight = w;
+                peak = k;
+            }
         }
         if (peak_weight < MIN_PEAK || peak_weight * MIN_SHARE < total) break;
         double weight = 0, length = 0;
