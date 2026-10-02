@@ -177,9 +177,7 @@ def main():
     # memory, so the mode runs on a leading slice that still covers many chunks.
     max_small_chunks = 4096
     small_chunk = tuple(min(d, 8) for d in shape)
-    # ALGO_BIOMD takes coordinates {frames, atoms, 3}, and h5py's automatic chunks can split the 3
-    chunk_modes = ['full', 'small'] if cmpr_algo == 'ALGO_BIOMD' else ['full', 'auto', 'small']
-    for chunk in chunk_modes:
+    for chunk in ['full', 'auto', 'small']:
         print(f"Testing {raw_file} with algo = {cmpr_algo} AbsErrorBound = {bound} Chunk = {chunk}")
 
         compressed_h5 = os.path.join(output_dir, f"{base_name}_compressed_{chunk}.h5")

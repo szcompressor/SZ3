@@ -17,15 +17,18 @@
 namespace SZ3 {
 
 template <class T, uint N>
-size_t SZ_compress_bioMD(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
+size_t SZ_compress_bioMD(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
     assert(N == conf.N);
     assert(conf.cmprAlgo == ALGO_BIOMD);
+    if (N > 3 || conf.dims[N - 1] != 3)
+        throw biomd::Fallback(ALGO_INTERP_LORENZO, "SZ3 BioMD: data must be {frames, atoms, 3}");
     calAbsErrorBound(conf, data);
 
     auto sz =
         make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf),
                                          SegmentedEncoder<HuffmanEncoder<int>>(biomd::NUM_STREAMS), Lossless_bypass());
-    return sz->compress(conf, data, cmpData, cmpCap);
+    // BIOMD only reads the data the compressor interface takes as T *
+    return sz->compress(conf, const_cast<T *>(data), cmpData, cmpCap);
 }
 
 template <class T, uint N>

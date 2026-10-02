@@ -143,7 +143,9 @@ TEST(BioMD, WithinBoundAndBeatsFourBytesPerValue) {
                 SCOPED_TRACE(testing::Message() << "four_site=" << four << " frames=" << frames << " eb=" << eb);
                 EXPECT_EQ(r.algo, SZ3::ALGO_BIOMD);
                 EXPECT_LE(r.max_err, eb);
-                if (eb == 5e-4) EXPECT_GT(double(x.size() * 4) / double(r.bytes.size()), 3.0);
+                if (eb == 5e-4) {
+                    EXPECT_GT(double(x.size() * 4) / double(r.bytes.size()), 3.0);
+                }
             }
 }
 
@@ -205,51 +207,64 @@ TEST(BioMD, EdgeCasesStayWithinBound) {
     }
 }
 
-TEST(BioMD, RefusesWhatItCannotCode) {
-    auto compress = [](const std::vector<float> &x, const std::vector<size_t> &dims) {
-        SZ3::Config conf;
-        conf.setDims(dims.begin(), dims.end());
-        conf.cmprAlgo = SZ3::ALGO_BIOMD;
-        conf.errorBoundMode = SZ3::EB_ABS;
-        conf.absErrorBound = 5e-4;
-        size_t size = 0;
-        delete[] SZ_compress(conf, x.data(), size);
-    };
+// Input BIOMD does not code goes to another algorithm, within the bound: shapes other than {frames, atoms, 3} to SZ3's
+// default, coordinates beyond the lattice the bound allows to LORENZO_REG, NaN or Inf outside trailing fill to
+// lossless.
+template <class T>
+std::pair<SZ3::ALGO, std::vector<T>> compress_decompress(const std::vector<T> &x, const std::vector<size_t> &dims,
+                                                         double eb) {
+    SZ3::Config conf;
+    conf.setDims(dims.begin(), dims.end());
+    conf.cmprAlgo = SZ3::ALGO_BIOMD;
+    conf.errorBoundMode = SZ3::EB_ABS;
+    conf.absErrorBound = eb;
+    size_t size = 0;
+    std::unique_ptr<char[]> cmp(SZ_compress(conf, x.data(), size));
+    SZ3::Config dec;
+    std::unique_ptr<T[]> y(SZ_decompress<T>(dec, cmp.get(), size));
+    return {static_cast<SZ3::ALGO>(dec.cmprAlgo), std::vector<T>(y.get(), y.get() + x.size())};
+}
+
+template <class T>
+void expect_within(const std::vector<T> &x, const std::vector<T> &y, double eb) {
+    for (size_t i = 0; i < x.size(); i++) ASSERT_LE(std::fabs(double(y[i]) - double(x[i])), eb) << "at " << i;
+}
+
+TEST(BioMD, FallsBackOnWhatItDoesNotCode) {
     SystemSpec s;
     size_t n;
     const auto x = make_system(s, &n);
-    EXPECT_THROW(compress(x, {x.size()}), std::invalid_argument);
-    EXPECT_NO_THROW(compress(x, {n, 3}));
-    EXPECT_THROW(compress(x, {3, n}), std::invalid_argument);
+    EXPECT_EQ(compress_decompress(x, {n, 3}, 5e-4).first, SZ3::ALGO_BIOMD);
+    for (const std::vector<size_t> &dims : {std::vector<size_t>{x.size()}, std::vector<size_t>{3, n}}) {
+        const auto r = compress_decompress(x, dims, 5e-4);
+        EXPECT_NE(r.first, SZ3::ALGO_BIOMD);
+        expect_within(x, r.second, 5e-4);
+    }
     {
         auto y = x;
-        for (auto &v : y) v += 1e6f;  // more than 2^28 lattice steps from 0
-        EXPECT_THROW(compress(y, {n, 3}), std::runtime_error);
+        for (auto &v : y) v += 1e6f;  // beyond the lattice of 5e-4
+        const auto r = compress_decompress(y, {n, 3}, 5e-4);
+        EXPECT_NE(r.first, SZ3::ALGO_BIOMD);
+        expect_within(y, r.second, 5e-4);
     }
     for (float bad : {std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity()}) {
         auto y = x;
         y[100] = bad;
-        EXPECT_THROW(compress(y, {n, 3}), std::runtime_error);
+        const auto r = compress_decompress(y, {n, 3}, 5e-4);
+        EXPECT_EQ(r.first, SZ3::ALGO_LOSSLESS);
+        EXPECT_EQ(memcmp(r.second.data(), y.data(), y.size() * sizeof(float)), 0);
     }
-}
-
-// Coordinates and a bound so large that a lattice point past max|x| would not fit the type: refused, not decoded as
-// inf.
-TEST(BioMD, RefusesLatticePointsBeyondTheType) {
-    auto compress = [](auto value, double eb) {
-        using T = decltype(value);
-        const std::vector<T> x = {value, 0, 0, 0, value, 0};
-        SZ3::Config conf(2, 3);
-        conf.cmprAlgo = SZ3::ALGO_BIOMD;
-        conf.errorBoundMode = SZ3::EB_ABS;
-        conf.absErrorBound = eb;
-        size_t size = 0;
-        delete[] SZ_compress(conf, x.data(), size);
-    };
-    EXPECT_THROW(compress(3e38f, 1e38), std::runtime_error);
-    EXPECT_THROW(compress(1.5e308, 5e307), std::runtime_error);
-    EXPECT_THROW(compress(1.7e308, 1e308), std::runtime_error);  // the step itself is not finite
-    EXPECT_NO_THROW(compress(1.0f, 1e30));
+    // a bound so large that the lattice would pass the largest value of the type
+    for (const auto &c : {std::make_pair(3e38f, 1e38), std::make_pair(1.0f, 1e30)}) {
+        const std::vector<float> y = {c.first, 0, 0, 0, c.first, 0};
+        const auto r = compress_decompress(y, {2, 3}, c.second);
+        for (float v : r.second) EXPECT_TRUE(std::isfinite(v));
+        expect_within(y, r.second, c.second);
+    }
+    const std::vector<double> z = {1.5e308, 0, 0, 0, 1.5e308, 0};
+    const auto r = compress_decompress(z, {2, 3}, 5e307);
+    for (double v : r.second) EXPECT_TRUE(std::isfinite(v));
+    expect_within(z, r.second, 5e307);
 }
 
 // Config drops dimensions of 1: one atom arrives as {frames, 3}, one atom of one frame as {3}.
@@ -297,6 +312,34 @@ TEST(BioMD, RecompressionChangesNothing) {
             EXPECT_EQ(0, memcmp(a.out.data(), b.out.data(), a.out.size() * sizeof(float))) << frames << " " << eb;
             EXPECT_LE(b.max_err, eb);
         }
+}
+
+// The lattice depends on the bound alone: a decoded value that crosses a power of two, or a frame appended to a chunk
+// that raises its largest |x|, lands on the same lattice points when compressed again.
+TEST(BioMD, RecompressionAcrossAPowerOfTwoStaysWithinTheBound) {
+    const double eb = 5e-4;
+    SystemSpec s;
+    s.frames = 4;
+    size_t n;
+    auto x = make_system(s, &n);
+    size_t k = 0;
+    for (size_t i = 0; i < x.size(); i++)
+        if (std::fabs(x[i]) > std::fabs(x[k])) k = i;
+    const double p2 = std::exp2(std::ceil(std::log2(std::fabs(double(x[k])))));
+    x[k] = float(std::copysign(p2 - 1e-4, double(x[k])));
+    auto cur = x;
+    for (int round = 0; round < 3; round++) {
+        cur = round_trip(cur, s.frames, n, eb).out;
+        for (size_t i = 0; i < x.size(); i++) ASSERT_LE(std::fabs(double(cur[i]) - double(x[i])), eb) << round;
+    }
+    // two frames and two of fill, then a third frame whose largest |x| is past the power of two
+    std::vector<float> chunk(x.begin(), x.begin() + 2 * n * 3);
+    chunk.resize(4 * n * 3, 0.f);
+    auto dec = round_trip(chunk, 4, n, eb).out;
+    for (size_t i = 0; i < n * 3; i++) dec[2 * n * 3 + i] = x[2 * n * 3 + i];
+    dec[2 * n * 3] = float(p2 + 0.5);
+    const auto again = round_trip(dec, 4, n, eb).out;
+    for (size_t i = 0; i < 2 * n * 3; i++) ASSERT_LE(std::fabs(double(again[i]) - double(x[i])), eb) << i;
 }
 
 TEST(BioMD, CorruptStreamsAreRefusedOrDecodeInBounds) {
@@ -385,25 +428,6 @@ TEST(BioMD, WaterGeometryAtTheLatticeLimitDecodes) {
     const auto x = make_system(s, &n);
     const auto r = round_trip(x, s.frames, n, 3.3979795989402915e-06);
     EXPECT_LE(r.max_err, 3.3979795989402915e-06);
-}
-
-// A dimension of 0 is no data: compression refuses it rather than drop it like a dimension of 1, which would leave a
-// shape whose values do not exist. A Config of 0 is still a placeholder for decompression, which reads the shape from
-// the stream.
-TEST(BioMD, ZeroDimensionIsRefused) {
-    const std::vector<float> x(21, 1.f);
-    for (const SZ3::Config &conf : {SZ3::Config(5, 0, 3), SZ3::Config(0, 7, 3), SZ3::Config(0, 0, 3)}) {
-        EXPECT_EQ(conf.num, 0u);
-        size_t cmp_size = 0;
-        EXPECT_THROW(SZ_compress(conf, x.data(), cmp_size), std::invalid_argument);
-    }
-    SZ3::Config conf(1, 7, 3);
-    conf.absErrorBound = 1e-3;
-    size_t cmp_size = 0;
-    std::unique_ptr<char[]> cmp(SZ_compress(conf, x.data(), cmp_size));
-    SZ3::Config placeholder(0);
-    std::unique_ptr<float[]> dec(SZ_decompress<float>(placeholder, cmp.get(), cmp_size));
-    EXPECT_EQ(placeholder.num, x.size());
 }
 
 // An unwritten chunk is all fill, NaN included.

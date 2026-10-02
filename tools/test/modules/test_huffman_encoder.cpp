@@ -138,7 +138,9 @@ Encoded<T> check(const std::vector<T> &bins, bool expect_optimal = true) {
     uint64_t bytes = 0;
     const uint64_t bits = payload_bits(e.data, payload_parts(bins.size(), distinct(bins)), &bytes);
     EXPECT_EQ(e.data.size(), bytes);
-    if (expect_optimal) EXPECT_EQ(bits, optimal_bits(bins));
+    if (expect_optimal) {
+        EXPECT_EQ(bits, optimal_bits(bins));
+    }
     auto out = decode(e, bins.size());
     EXPECT_TRUE(out == bins) << "round trip differs, n = " << bins.size();
     return e;

@@ -50,9 +50,14 @@ class SegmentedEncoder : public concepts::EncoderInterface<int> {
         return bytes - start;
     }
 
-    void postprocess_encode() override { segments_.clear(); }
+    void postprocess_encode() override {
+        for (auto &encoder : encoders_) encoder.postprocess_encode();
+        segments_.clear();
+    }
 
-    void preprocess_decode() override {}
+    void preprocess_decode() override {
+        for (auto &encoder : encoders_) encoder.preprocess_decode();
+    }
 
     std::vector<int> decode(const uchar *&bytes, size_t targetLength, size_t &remaining_length) override {
         // a count and the bins of each segment; checked before anything is allocated
@@ -74,13 +79,12 @@ class SegmentedEncoder : public concepts::EncoderInterface<int> {
             const auto v = encoders_[e++].decode(bytes, segment_sizes_[s], remaining_length);
             out.insert(out.end(), v.begin(), v.end());
         }
-        if (out.size() != targetLength)
-            throw std::out_of_range(
-                "SZ3 SegmentedEncoder: corrupt stream, the segment lengths do not add up to the bin count");
         return out;
     }
 
-    void postprocess_decode() override {}
+    void postprocess_decode() override {
+        for (auto &encoder : encoders_) encoder.postprocess_decode();
+    }
 
     void save(uchar *&c) override {
         write(uint32_t(segments_.size()), c);

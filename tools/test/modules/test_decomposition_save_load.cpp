@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "SZ3/decomposition/BlockwiseDecomposition.hpp"
+#include "SZ3/decomposition/SZBioMDDecomposition.hpp"
 #include "SZ3/decomposition/SZBioMDXtcDecomposition.hpp"
 #include "SZ3/predictor/ComposedPredictor.hpp"
 #include "SZ3/predictor/LorenzoPredictor.hpp"
@@ -129,11 +130,30 @@ void expect_load_charges_what_it_reads(const std::vector<size_t> &dims, MakeQuan
         << "load() advanced " << advanced << " bytes but charged " << stream.size() - remaining;
 }
 
+// SZBioMDDecomposition takes no quantizer: this one takes the helpers' second argument and drops it
+template <uint N>
+struct BioMD : SZ3::SZBioMDDecomposition<float, N> {
+    BioMD(const SZ3::Config &conf, int) : SZ3::SZBioMDDecomposition<float, N>(conf) {}
+};
+auto no_quantizer = [](const SZ3::Config &) { return 0; };
 auto xtc_quantizer = [](const SZ3::Config &conf) {
     return SZ3::LinearQuantizer<float>(conf.absErrorBound, SZ3::XTC_radius, false);
 };
 
 }  // namespace
+
+TEST(SZ3_DecompositionSaveLoad, BioMDTwoDimensions) {
+    expect_header_depends_only_on_input<BioMD<2>>({777, 3}, no_quantizer);
+}
+
+TEST(SZ3_DecompositionSaveLoad, BioMDThreeDimensions) {
+    expect_header_depends_only_on_input<BioMD<3>>({5, 777, 3}, no_quantizer);
+}
+
+TEST(SZ3_DecompositionSaveLoad, BioMDChargesWhatItReads) {
+    expect_load_charges_what_it_reads<BioMD<2>>({777, 3}, no_quantizer);
+    expect_load_charges_what_it_reads<BioMD<3>>({5, 777, 3}, no_quantizer);
+}
 
 TEST(SZ3_DecompositionSaveLoad, BioMDXtcOneDimension) {
     expect_header_depends_only_on_input<SZ3::SZBioMDXtcDecomposition<float, 1, SZ3::LinearQuantizer<float>>>(
@@ -218,12 +238,15 @@ TEST(SZ3_DecompositionSaveLoad, BlockwiseRegressionOnlyFallback) {
     expect_regression_only_round_trip<4>({12, 13, 14, 15});
 }
 
-TEST(SZ3_DecompositionSaveLoad, BioMDXtcSizeEstBoundsSave) {
+TEST(SZ3_DecompositionSaveLoad, BioMDSizeEstBoundsSave) {
     for (double eb : {1e-1, 1e-2, 1e-3, 1e-4}) {
         SZ3::Config conf(5, 777, 3);
         conf.errorBoundMode = SZ3::EB_ABS;
         conf.absErrorBound = eb;
         SCOPED_TRACE("eb=" + std::to_string(eb));
+
+        BioMD<3> biomd(conf, 0);
+        expect_save_stays_within_size_est(biomd, conf, ramp(conf.num), "SZBioMDDecomposition");
 
         SZ3::SZBioMDXtcDecomposition<float, 3, SZ3::LinearQuantizer<float>> xtc(conf, xtc_quantizer(conf));
         expect_save_stays_within_size_est(xtc, conf, ramp(conf.num), "SZBioMDXtcDecomposition");

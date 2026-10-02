@@ -310,7 +310,6 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
     static uint64_t gamma_bits(uint64_t v) { return 2 * (64 - clz64(v)) - 1; }
 
-    static uint64_t zigzag(int d) { return d >= 0 ? 2 * static_cast<uint64_t>(d) : 2 * static_cast<uint64_t>(-d) - 1; }
 
     void read_table(BitReader &r, size_t d) {
         syms_.resize(d);

@@ -25,13 +25,22 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
         conf.cmprAlgo = ALGO_LOSSLESS;
     }
 
+    // BIOMD only reads its input, which needs no copy; what it does not code goes to the algorithm it names
+    if (conf.cmprAlgo == ALGO_BIOMD) {
+        try {
+            return SZ_compress_bioMD<T, N>(conf, data, cmpData, cmpCap);
+        } catch (const biomd::Fallback &fallback) {
+            fallback.apply(conf);
+        } catch (std::length_error &e) {
+            if (std::string(e.what()) != SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH) throw;
+            conf.cmprAlgo = ALGO_LOSSLESS;
+        }
+    }
+
     // do lossy compression
     bool isCmpCapSufficient = true;
     if (conf.cmprAlgo != ALGO_LOSSLESS) {
         try {
-            if (conf.cmprAlgo == ALGO_BIOMD) {  // BIOMD only reads its input
-                return SZ_compress_bioMD<T, N>(conf, const_cast<T *>(data), cmpData, cmpCap);
-            }
             std::vector<T> dataCopy(data, data + conf.num);
             if (conf.cmprAlgo == ALGO_LORENZO_REG) {
                 cmpSize = SZ_compress_LorenzoReg<T, N>(conf, dataCopy.data(), cmpData, cmpCap);

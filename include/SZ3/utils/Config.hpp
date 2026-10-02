@@ -173,7 +173,7 @@ class Config {
             dims = {1};
         }
         N = dims.size();
-        num = std::accumulate(dims_.begin(), dims_.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+        num = std::accumulate(dims.begin(), dims.end(), static_cast<size_t>(1), std::multiplies<size_t>());
         predDim = N;
         blockSize = (N == 1 ? 128 : (N == 2 ? 16 : 6));
         return num;

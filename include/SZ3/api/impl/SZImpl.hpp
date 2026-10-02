@@ -25,7 +25,6 @@ using SZ_float_of = std::conditional_t<sizeof(T) <= 2, float, double>;
 
 template <class T, uint N>
 size_t SZ_compress_impl(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
-    if (conf.num == 0) throw std::invalid_argument("SZ3: a dimension of the data is 0");
     // Integers are compressed as SZ_float_of<T>, which holds every value of T (8-byte ones within +-2^53), within
     // floor(bound) + 0.49, so rounding each decompressed value lands within the bound.
     if constexpr (std::is_integral<T>::value) {

@@ -119,7 +119,8 @@ TEST(SZ3_BioMD, TrailingFilledFramesAreRestored) {
         // Skipping the filled tail has to cost less than quantizing it, or nothing here would
         // notice the skip being removed.
         std::vector<float> without_fill_output;
-        const auto without_fill = round_trip(algo, 1e-3, dims, make_trajectory(dims[0], dims[1]), without_fill_output);
+        const auto without_fill = round_trip(algo, 1e-3, dims, make_trajectory(dims[0], dims[1]),
+                                             without_fill_output);
         EXPECT_LT(compressed.size(), without_fill.size()) << algo_name(algo);
     }
 }
@@ -176,8 +177,8 @@ TEST(SZ3_BioMD, OneAndTwoDimensionalInput) {
     const auto atoms = make_trajectory(1, 4096);
 
     for (SZ3::ALGO algo : kAlgos) {
-        for (const std::vector<size_t> &dims : {std::vector<size_t>{atoms.size()}, std::vector<size_t>{4096, 3}}) {
-            if (algo == SZ3::ALGO_BIOMD && dims.size() == 1) continue;  // it takes only data whose last dimension is 3
+        for (const std::vector<size_t> &dims :
+             {std::vector<size_t>{atoms.size()}, std::vector<size_t>{4096, 3}}) {
             std::vector<float> output;
             round_trip(algo, 1e-3, dims, atoms, output);
             ASSERT_EQ(output.size(), atoms.size()) << algo_name(algo) << " " << dims.size() << "D";
@@ -190,7 +191,7 @@ TEST(SZ3_BioMD, OneAndTwoDimensionalInput) {
 /// XtcBasedEncoder walks its magicInts table to the end whenever no entry fits, which every
 /// input shorter than two atoms does.
 TEST(SZ3_BioMD, InputsShorterThanTwoAtoms) {
-    for (SZ3::ALGO algo : {SZ3::ALGO_BIOMDXTC}) {
+    for (SZ3::ALGO algo : kAlgos) {
         for (size_t n : {size_t{1}, size_t{2}, size_t{3}, size_t{5}}) {
             std::vector<float> input(n);
             for (size_t i = 0; i < n; i++) {
@@ -213,7 +214,6 @@ TEST(SZ3_BioMD, CompressionIsDeterministic) {
         const size_t atoms = dims.size() == 3 ? dims[1] : 4096;
         const auto input = make_trajectory(dims.size() == 3 ? dims[0] : 1, atoms);
         for (SZ3::ALGO algo : kAlgos) {
-            if (algo == SZ3::ALGO_BIOMD && dims.size() != 3) continue;  // it takes only data whose last dimension is 3
             std::vector<float> discard;
             const auto first = round_trip(algo, 1e-3, dims, input, discard);
             const auto second = round_trip(algo, 1e-3, dims, input, discard);

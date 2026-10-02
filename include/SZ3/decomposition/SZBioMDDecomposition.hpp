@@ -2,7 +2,7 @@
 #define SZ3_BIOMD_DECOMPOSITION_HPP
 
 // ALGO_BIOMD: molecular-dynamics coordinates {frames, atoms, 3} (nm, absolute bound) as streams of integer symbols,
-// which SegmentedEncoder codes with one Huffman code each. Every coordinate goes on a lattice,
+// one after the other as [count, symbols]. Every coordinate goes on a lattice,
 //   q = round(x / step), |x - q step| <= eb,
 // and all prediction is integer arithmetic on that lattice, which the decoder repeats exactly.
 //  * rigid water (O, H1, H2): H1 on the sphere |H1 - O| = r, H2 on the circle that r and the H-H distance leave
@@ -36,6 +36,11 @@ constexpr int64_t MAX_BOND_R2 = int64_t(1) << 28;  // bonds of 16384 lattice uni
 constexpr uint32_t ESCAPE = 4096;                  // unbonded values from here on: an escape symbol and a raw byte
 // |q| <= 2^28: displacements stay within 2^29, and every symbol within 32 bits
 constexpr double MAX_LATTICE = double(1 << 28);
+// the lattice spans |x| < B, the smallest power of two of at least 2^LATTICE_SPAN_BITS eb
+#ifndef SZ3_BIOMD_LATTICE_SPAN_BITS
+#define SZ3_BIOMD_LATTICE_SPAN_BITS 17
+#endif
+constexpr int LATTICE_SPAN_BITS = SZ3_BIOMD_LATTICE_SPAN_BITS;
 
 // atom groups, each with its own predictor mode for the frames after the first
 enum { G_WATER_O, G_WATER_H, G_BONDED, G_UNBONDED, NUM_GROUPS };
@@ -59,20 +64,26 @@ enum {
 };
 // the group whose atoms write the stream (-1: the layout streams, one symbol per atom at most), and the most symbols
 // one of them (water: one molecule) writes per frame; the two size the streams' buffers
-constexpr int STREAM_GROUP[NUM_STREAMS] = {-1,        -1,        G_WATER_O, G_WATER_H, G_WATER_H, G_WATER_H,
-                                           G_WATER_H, G_WATER_H, G_BONDED,  G_BONDED,  G_BONDED,  G_UNBONDED};
-constexpr int MAX_SYMBOLS_PER_UNIT[NUM_STREAMS] = {1, 1, 3, 1, 2, 1, 1, 2, 1, 2, 1, 3};
+inline constexpr int STREAM_GROUP[NUM_STREAMS] = {-1,        -1,        G_WATER_O, G_WATER_H, G_WATER_H, G_WATER_H,
+                                                  G_WATER_H, G_WATER_H, G_BONDED,  G_BONDED,  G_BONDED,  G_UNBONDED};
+inline constexpr int MAX_SYMBOLS_PER_UNIT[NUM_STREAMS] = {1, 1, 3, 1, 2, 1, 1, 2, 1, 2, 1, 3};
+
+// Input that BIOMD does not code, and the algorithm SZ_compress gives it to instead.
+struct Fallback : std::runtime_error {
+    ALGO algo;
+    Fallback(ALGO to, const char *why) : std::runtime_error(why), algo(to) {}
+    // LORENZO_REG with first-order Lorenzo alone, which codes coordinates best of its predictors
+    void apply(Config &conf) const {
+        conf.cmprAlgo = algo;
+        if (algo == ALGO_LORENZO_REG) conf.lorenzo = true, conf.lorenzo2 = false, conf.regression = false;
+    }
+};
 
 inline int64_t round_half_away(double y) { return int64_t(y + std::copysign(0.5, y)); }
 inline int64_t isqrt_round(int64_t n) { return n <= 0 ? 0 : int64_t(std::sqrt(double(n)) + 0.5); }
 // d = atom i - atom j
 inline void displacement(const int32_t *q, size_t i, size_t j, int64_t d[3]) {
     for (int c = 0; c < 3; c++) d[c] = int64_t(q[3 * i + c]) - q[3 * j + c];
-}
-inline int bit_width(uint64_t v) {  // v < 2^63
-    int b = 0;
-    while (v >> b) b++;
-    return b;
 }
 
 // The largest axis of p, dropped by the sphere code, and the other two, kept.
@@ -205,7 +216,7 @@ void detect_bonds(const T *x, size_t atoms, Layout &layout) {
     for (size_t i = 1; i < atoms; i++) {
         if (layout.kind[i] != K_OTHER) continue;
         float best = 1e30f;
-        unsigned offset = 0;  // locals and no branch: a byte store may alias x, and which one is nearest is random
+        unsigned offset = 0;  // of the nearest previous atom
         for (unsigned o = 1; o <= unsigned(MAX_BOND_OFFSET) && o <= i; o++) {
             const float dx = float(x[3 * i] - x[3 * (i - o)]), dy = float(x[3 * i + 1] - x[3 * (i - o) + 1]),
                         dz = float(x[3 * i + 2] - x[3 * (i - o) + 2]), v = dx * dx + dy * dy + dz * dz;
@@ -292,15 +303,18 @@ struct FrameContext {
     int64_t water_oh2, water_hh2;  // squared O-H and H-H distances of the water (lattice units)
     const int64_t *bond_r2;        // squared bond lengths per class (lattice units)
     // the box of the water O's: corner, sides, and the bits of a point in it (x + Rx (y + Ry z)), or -1 if that
-    // takes more than 56: then each coordinate in its own bits
+    // takes more than 56: then each coordinate in the bits of its side
     int32_t box_min[3];
     uint64_t box_size[3];
-    int box_bits;
+    int box_bits, side_bits[3];
 };
 inline void set_water_box(FrameContext &frame, const uint32_t *size) {  // sides of at most 2^30
     uint64_t *R = frame.box_size;
     for (int c = 0; c < 3; c++) R[c] = size[c];
-    frame.box_bits = R[0] * R[1] < (uint64_t(1) << 56) / R[2] ? bit_width(R[0] * R[1] * R[2] - 1) : -1;
+    // bits of the largest value below n
+    auto bits_below = [](uint64_t n) { return int(vector_bit_width(std::vector<uint64_t>{n - 1})); };
+    frame.box_bits = R[0] * R[1] < (uint64_t(1) << 56) / R[2] ? bits_below(R[0] * R[1] * R[2]) : -1;
+    for (int c = 0; c < 3; c++) frame.side_bits[c] = bits_below(R[c]);
 }
 
 // a water O of an intra frame: its point in the box
@@ -310,13 +324,13 @@ inline void put_box_point(const FrameContext &frame, const int32_t *p, Sink &out
     uint64_t u[3];
     for (int c = 0; c < 3; c++) u[c] = uint64_t(int64_t(p[c]) - frame.box_min[c]);
     if (frame.box_bits >= 0) return out.put_bits(u[0] + R[0] * (u[1] + R[1] * u[2]), frame.box_bits);
-    for (int c = 0; c < 3; c++) out.put_bits(u[c], bit_width(R[c] - 1));
+    for (int c = 0; c < 3; c++) out.put_bits(u[c], frame.side_bits[c]);
 }
 inline void get_box_point(const FrameContext &frame, int32_t *p, SymbolReader &in) {
     const uint64_t *R = frame.box_size;
     uint64_t v = frame.box_bits >= 0 ? in.get_bits(frame.box_bits) : 0;
     for (int c = 0; c < 3; c++) {
-        const uint64_t u = frame.box_bits >= 0 ? v % R[c] : in.get_bits(bit_width(R[c] - 1));
+        const uint64_t u = frame.box_bits >= 0 ? v % R[c] : in.get_bits(frame.side_bits[c]);
         v /= R[c];
         p[c] = int32_t(frame.box_min[c] + int64_t(u));
     }
@@ -488,7 +502,7 @@ ALWAYS_INLINE void get_atom(const FrameContext &frame, const int *mode, size_t i
     }
 }
 
-// q = round(x / step)
+// q = round(x * inv_step), inv_step the reciprocal of the step
 template <class T>
 inline void quantize(const T *x, size_t n, double inv_step, int32_t *q) {
     for (size_t i = 0; i < n; i++) {
@@ -540,8 +554,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         if (!std::is_floating_point<T>::value) throw std::invalid_argument("SZ3 BioMD: data must be float or double");
     }
 
-    // The symbol streams of the chunk, one after the other as [count, symbols] for SegmentedEncoder; the rest goes to
-    // save().
+    // The symbol streams of the chunk, one after the other as [count, symbols]; the rest goes to save().
     std::vector<int> compress(const Config & /*conf*/, T *data) override {
         using namespace biomd;
         const size_t frame_values = atoms_ * 3;
@@ -594,7 +607,11 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
 
         std::vector<int> bins;
         size_t n = NUM_STREAMS;
-        for (int s = 0; s < NUM_STREAMS; s++) n += size_t(writer.cursor[s] - buffers[s].get());
+        for (int s = 0; s < NUM_STREAMS; s++) {
+            if (size_t(writer.cursor[s] - buffers[s].get()) > size_t(std::numeric_limits<int>::max()))
+                throw Fallback(ALGO_LORENZO_REG, "SZ3 BioMD: a stream of more symbols than an int counts");
+            n += size_t(writer.cursor[s] - buffers[s].get());
+        }
         bins.reserve(n);
         for (int s = 0; s < NUM_STREAMS; s++) {
             bins.push_back(int(writer.cursor[s] - buffers[s].get()));
@@ -702,7 +719,8 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     // a bound on what save() writes
     size_t size_est() override { return 64 + 8 * bond_r2_.size() + 24 * frames_ + raw_bits_.size(); }
 
-    std::pair<int, int> get_out_range() override { return {0, 0}; }  // SegmentedEncoder takes any int
+    // every bin, a count or a symbol, is in [0, INT_MAX]
+    std::pair<int, int> get_out_range() override { return {0, std::numeric_limits<int>::max()}; }
 
    private:
     // a frame whose water O are intra stores the box of the water O's
@@ -721,10 +739,20 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         for (coded_frames_ = frames_; coded_frames_ > 0 && is_fill(coded_frames_ - 1);) coded_frames_--;
     }
 
-    // Lattice step: 2 (eb - m ulp) for the binade of max|x|, so that q step rounded to T stays within eb. The rounding
-    // of x / step to q, done in double, is off by up to 2 double ulps of x, and q step by 1 more: m = 1 for float,
-    // whose ulp is 2^29 times larger, and 4 for double.
+    // Lattice step: 2 (eb - m ulp) for the binade below B, so that q step rounded to T stays within eb for every
+    // |q step| < B. The rounding of x * (1 / step) to q, done in double, is off by up to 2 double ulps of x, and q step
+    // by 1 more: m = 1 for float, whose ulp is 2^29 times larger, and 4 for double.
+    //  * B is the smallest power of two of at least 2^LATTICE_SPAN_BITS eb when m ulp < eb / 2 there and every |q| step
+    //    of the chunk stays below B: the step then depends on the bound alone, and a decompressed chunk compressed
+    //    again lands on the same lattice points.
+    //  * Otherwise B is the power of two above max|x|, with the step eb when m ulp is eb / 2 or more: q eb rounded to T
+    //    is then no further from q eb than x is, so within eb of x. Compressed again, the chunk may land on another
+    //    lattice, as with any other algorithm.
+    //  * A chunk of more than MAX_LATTICE lattice steps, or whose lattice would pass the largest value of T, goes to
+    //    LORENZO_REG.
     void choose_step(const T *data) {
+        if (!(error_bound_ > 0) || !std::isfinite(error_bound_))
+            throw std::invalid_argument("SZ3 BioMD: the error bound must be positive and finite");
         using Bits = typename std::conditional<sizeof(T) == 4, uint32_t, uint64_t>::type;
         Bits max_bits = 0;  // the largest |x| as bits: NaN and inf are above every finite value
         for (size_t i = 0; i < coded_frames_ * atoms_ * 3; i++) {
@@ -735,21 +763,30 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         }
         T max_abs;
         memcpy(&max_abs, &max_bits, sizeof(T));
-        if (!(max_abs <= std::numeric_limits<T>::max())) throw std::runtime_error("SZ3 BioMD: non-finite input");
+        if (!(max_abs <= std::numeric_limits<T>::max()))
+            throw biomd::Fallback(ALGO_LOSSLESS, "SZ3 BioMD: NaN or Inf in a frame that is not trailing fill");
+        const double m = sizeof(T) == 4 ? 1 : 4;
+        auto margin_below = [&](int exponent) {  // m ulp in the binade below 2^exponent
+            return m * std::max(double(std::numeric_limits<T>::denorm_min()),
+                                std::ldexp(1.0, exponent - std::numeric_limits<T>::digits));
+        };
         int exponent;
+        std::frexp(std::ldexp(error_bound_, biomd::LATTICE_SPAN_BITS), &exponent);
+        double margin = margin_below(exponent);
+        if (margin < 0.5 * error_bound_) {
+            step_ = 2.0 * (error_bound_ - margin);
+            const double max_q = std::fabs(double(biomd::round_half_away(double(max_abs) * (1.0 / step_))));
+            if (max_q <= biomd::MAX_LATTICE && max_q * step_ < std::ldexp(1.0, exponent) &&
+                std::ldexp(1.0, exponent) <= double(std::numeric_limits<T>::max()))
+                return;
+        }
         std::frexp(double(max_abs), &exponent);
-        const double ulp = std::max(double(std::numeric_limits<T>::denorm_min()),
-                                    std::ldexp(1.0, exponent - std::numeric_limits<T>::digits)),
-                     margin = (sizeof(T) == 4 ? 1 : 4) * ulp;
+        margin = margin_below(exponent);
         step_ = margin < 0.5 * error_bound_ ? 2.0 * (error_bound_ - margin) : error_bound_;
-        if (!(error_bound_ > 0) || !std::isfinite(error_bound_))
-            throw std::invalid_argument("SZ3 BioMD: the error bound must be positive and finite");
         // |q step| <= max|x| + step / 2 must stay finite in T
-        if (!(double(max_abs) + step_ <= double(std::numeric_limits<T>::max())))
-            throw std::runtime_error("SZ3 BioMD: coordinates and error bound too large for the data type");
         if (!(step_ > 0) || !std::isfinite(step_) || !std::isfinite(1.0 / step_) ||
-            max_abs / step_ > biomd::MAX_LATTICE)
-            throw std::runtime_error("SZ3 BioMD: error bound too small for the coordinate range");
+            max_abs / step_ > biomd::MAX_LATTICE || !(double(max_abs) + step_ <= double(std::numeric_limits<T>::max())))
+            throw biomd::Fallback(ALGO_LORENZO_REG, "SZ3 BioMD: coordinates beyond the lattice the error bound allows");
     }
 
     // The layout of the first frame, its geometry on the lattice, and the atoms of each group.
@@ -792,8 +829,10 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         for (size_t i = 0; i < atoms_; i++)
             if (layout.kind[i] == K_OTHER) {
                 const uint32_t bond = reader.get(S_BOND_REF);
-                if (bond && (bond_offset(bond) == 0 || bond_offset(bond) > i ||
-                             bond_class(bond) >= bond_r2_.size()))  // a class field of 0 gives SIZE_MAX
+                if (bond > uint32_t(MAX_BOND_OFFSET * 16 + MAX_BOND_CLASSES))
+                    throw std::runtime_error("SZ3 BioMD: corrupt stream");
+                if (bond && (bond_offset(uint16_t(bond)) == 0 || bond_offset(uint16_t(bond)) > i ||
+                             bond_class(uint16_t(bond)) >= bond_r2_.size()))  // a class field of 0 gives SIZE_MAX
                     throw std::runtime_error("SZ3 BioMD: corrupt stream");
                 layout.bond[i] = uint16_t(bond);
             }
