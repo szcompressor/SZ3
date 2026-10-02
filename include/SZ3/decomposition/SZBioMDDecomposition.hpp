@@ -10,6 +10,8 @@
 //  * frame 0 intra; for the frames after it, per atom group intra or from the previous frame, whichever costs less on a
 //    sample of frame 1
 // The layout (which atoms are water, the bond of each other atom) is found on a chunk's first frame and stored with it.
+// A chunk of one frame with hardly any bond or rigid water to predict from (coarse-grained runs) is stored as the
+// lattice points of its atoms in their box, in raw bits.
 
 #include <algorithm>
 #include <cmath>
@@ -253,14 +255,23 @@ void detect_bonds(const T *x, size_t atoms, Layout &layout) {
     std::vector<uint8_t> bin_distance(NUM_BINS, 255);
     std::vector<int64_t> left = hist, prefix(NUM_BINS + 1);
     int64_t total = 0;
-    for (int64_t h : hist) total += h;
-    for (int cls = 0; cls < MAX_BOND_CLASSES; cls++) {
-        for (size_t k = 0; k < NUM_BINS; k++) prefix[k + 1] = prefix[k] + left[k];
+    size_t lo = NUM_BINS, hi = 0;  // the occupied bins
+    for (size_t k = 0; k < NUM_BINS; k++)
+        if (hist[k]) {
+            total += hist[k];
+            lo = std::min(lo, k);
+            hi = k;
+        }
+    // only windows that reach an occupied bin can weigh anything: the same peaks as over all bins, at a fraction of
+    // the cost (the bins are fixed, the bonds of a small chunk few)
+    const size_t first = lo > PEAK_HALF ? lo - PEAK_HALF : 0, last = std::min(NUM_BINS, hi + PEAK_HALF + 1);
+    for (int cls = 0; cls < MAX_BOND_CLASSES && first < last; cls++) {
+        for (size_t k = first; k < last; k++) prefix[k + 1] = prefix[k] + left[k];
         size_t peak = 0;
         int64_t peak_weight = 0;
-        for (size_t k = 0; k < NUM_BINS; k++) {
+        for (size_t k = first; k < last; k++) {
             const int64_t w =
-                prefix[std::min(NUM_BINS, k + PEAK_HALF + 1)] - prefix[k >= PEAK_HALF ? k - PEAK_HALF : 0];
+                prefix[std::min(last, k + PEAK_HALF + 1)] - prefix[std::max(first, k >= PEAK_HALF ? k - PEAK_HALF : 0)];
             if (w > peak_weight) {
                 peak_weight = w;
                 peak = k;
@@ -588,6 +599,34 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         const size_t frame_values = atoms_ * 3;
         find_fill_frames(data);
         choose_step(data);
+        std::fill(modes_, modes_ + NUM_GROUPS, 0);
+        box_min_.clear();
+        box_size_.clear();
+        raw_bits_.clear();
+        BitAppender raw(raw_bits_);
+        plain_ = coded_frames_ == 1 && hardly_bonded(data);
+        if (plain_) {
+            std::unique_ptr<int32_t[]> lattice(new int32_t[2 * frame_values]);
+            Layout none;
+            FrameContext frame = frame_context(lattice.get(), none);
+            quantize(data, frame_values, 1.0 / step_, frame.cur);
+            int32_t hi[3];
+            for (int c = 0; c < 3; c++) frame.box_min[c] = hi[c] = frame.cur[c];
+            for (size_t i = 0; i < frame_values; i++) {
+                frame.box_min[i % 3] = std::min(frame.box_min[i % 3], frame.cur[i]);
+                hi[i % 3] = std::max(hi[i % 3], frame.cur[i]);
+            }
+            uint32_t box_size[3];
+            for (int c = 0; c < 3; c++) box_size[c] = uint32_t(hi[c] - frame.box_min[c]) + 1;
+            set_water_box(frame, box_size);
+            box_min_.assign(frame.box_min, frame.box_min + 3);
+            box_size_.assign(box_size, box_size + 3);
+            SymbolWriter writer;
+            writer.raw = &raw;
+            for (size_t i = 0; i < atoms_; i++) put_box_point(frame, frame.cur + 3 * i, writer);
+            raw.flush();
+            return std::vector<int>(NUM_STREAMS, 0);
+        }
         Layout layout;
         std::vector<uint32_t> waters, bonded, unbonded;  // water O's, other atoms
         detect_layout(data, layout, waters, bonded, unbonded);
@@ -602,8 +641,6 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
             buffers[s].reset(new int[MAX_SYMBOLS_PER_UNIT[s] * n + 1]);
             writer.cursor[s] = buffers[s].get();
         }
-        raw_bits_.clear();
-        BitAppender raw(raw_bits_);
         writer.raw = &raw;
         for (size_t k = 0; k < waters.size(); k++) writer.put(S_WATER_GAP, waters[k] - (k ? waters[k - 1] : 0));
         for (size_t i = 0; i < atoms_; i++)
@@ -612,9 +649,6 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         std::unique_ptr<int32_t[]> lattice(new int32_t[2 * frame_values]);  // written before read
         FrameContext frame = frame_context(lattice.get(), layout);
         const int intra[NUM_GROUPS] = {0, 0, 0, 0};
-        std::fill(modes_, modes_ + NUM_GROUPS, 0);
-        box_min_.clear();
-        box_size_.clear();
         for (size_t t = 0; t < coded_frames_; t++) {
             quantize(data + t * frame_values, frame_values, 1.0 / step_, frame.cur);
             int32_t box_max[3];
@@ -663,7 +697,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         }
         reader.raw = BitConsumer(raw_bits_.data(), raw_bits_.data() + raw_bits_.size());
         Layout layout;
-        read_layout(reader, layout);
+        if (!plain_) read_layout(reader, layout);
         std::unique_ptr<int32_t[]> lattice(new int32_t[2 * frame_values]);  // written before read
         FrameContext frame = frame_context(lattice.get(), layout);
         const int intra[NUM_GROUPS] = {0, 0, 0, 0};
@@ -672,7 +706,12 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
                 for (int c = 0; c < 3; c++) frame.box_min[c] = box_min_[box * 3 + c];
                 set_water_box(frame, &box_size_[box++ * 3]);
             }
-            for (size_t i = 0; i < atoms_; i++) get_atom(frame, t ? modes_ : intra, i, reader);
+            for (size_t i = 0; i < atoms_; i++) {
+                if (plain_)
+                    get_box_point(frame, frame.cur + 3 * i, reader);
+                else
+                    get_atom(frame, t ? modes_ : intra, i, reader);
+            }
             T *x = dec_data + t * frame_values;
             for (size_t i = 0; i < frame_values; i++) x[i] = T(double(frame.cur[i]) * step_);
             std::swap(frame.cur, frame.prev);
@@ -695,6 +734,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         write(uint8_t(bond_r2_.size()), c);
         if (!bond_r2_.empty()) write(bond_r2_.data(), bond_r2_.size(), c);
         for (int m : modes_) write(uint8_t(m), c);
+        write(uint8_t(plain_), c);
         if (!box_min_.empty()) {  // no box without water
             write(box_min_.data(), box_min_.size(), c);
             write(box_size_.data(), box_size_.size(), c);
@@ -723,6 +763,9 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
             read(v, c, remaining_length);
             m = v & 1;
         }
+        uint8_t plain;
+        read(plain, c, remaining_length);
+        plain_ = (plain & 1) && coded_frames_ == 1;
         size_t boxes = 0;
         for (size_t t = 0; t < coded_frames_; t++) boxes += needs_box(t);
         box_min_.resize(boxes * 3);
@@ -752,7 +795,27 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
 
    private:
     // a frame whose water O are intra stores the box of the water O's
-    bool needs_box(size_t t) const { return num_waters_ && (t == 0 || !modes_[biomd::G_WATER_O]); }
+    bool needs_box(size_t t) const { return plain_ || (num_waters_ && (t == 0 || !modes_[biomd::G_WATER_O])); }
+
+    // Whether under a quarter of a sample of the atoms has a previous atom within bond range: 86% to 97% of all-atom
+    // runs (water H next to their O, proteins), 0 to 3% of Martini 3 runs (single-bead water, bonds of 0.3-0.5 nm).
+    // Raw lattice points then take as few bits as BIOMD's symbols (0.95-1.10 times over 24 Martini runs). Five atoms
+    // in a row at each sample, so that no stride meets every 3-, 4- or 5-site water at its O only.
+    bool hardly_bonded(const T *x) const {
+        const size_t stride = std::max<size_t>(5, atoms_ / 256);
+        size_t sampled = 0, bonded = 0;
+        for (size_t s = 1; s < atoms_; s += stride)
+            for (size_t i = s; i < s + 5 && i < atoms_; i++, sampled++) {
+                float best = std::numeric_limits<float>::max();
+                for (size_t o = 1; o <= size_t(biomd::MAX_BOND_OFFSET) && o <= i; o++) {
+                    const float dx = float(x[3 * i] - x[3 * (i - o)]), dy = float(x[3 * i + 1] - x[3 * (i - o) + 1]),
+                                dz = float(x[3 * i + 2] - x[3 * (i - o) + 2]);
+                    best = std::min(best, nofma(dx * dx) + nofma(dy * dy) + nofma(dz * dz));
+                }
+                bonded += best > 0.0001f && best < 0.0625f;  // 0.01 .. 0.25 nm, the bond range of detect_bonds
+            }
+        return bonded * 4 < sampled;
+    }
 
     // Trailing frames all of one value (the unwritten rest of a chunk) are stored as that value; a chunk may be all
     // fill (an unwritten chunk of NaN).
@@ -864,6 +927,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     size_t num_waters_ = 0;
     std::vector<int64_t> bond_r2_;                 // squared bond lengths per class (lattice units)
     int modes_[biomd::NUM_GROUPS] = {0, 0, 0, 0};  // per group: the predictor of the frames after the first
+    bool plain_ = false;                           // one frame as raw lattice points in its box
     std::vector<int32_t> box_min_;    // per frame whose water O are intra: the corner of the box of the water O's
     std::vector<uint32_t> box_size_;  // and its sides
     std::vector<uchar> raw_bits_;     // intra water O's and the low bytes of escaped values

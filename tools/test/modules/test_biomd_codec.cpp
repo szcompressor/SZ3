@@ -340,6 +340,24 @@ TEST(BioMD, FourSiteWaterIsFoundWhereverTheProbesLand) {
     EXPECT_GT(*std::min_element(ratios.begin(), ratios.end()) / *std::max_element(ratios.begin(), ratios.end()), 0.95);
 }
 
+// A frame of beads with no bond in range (coarse-grained water) is stored as raw lattice points in its box: within
+// the bound, in about the bits of its box, and the same values when compressed again.
+TEST(BioMD, BeadsWithoutBondsAreStoredAsLatticePoints) {
+    std::mt19937 rng(5);
+    std::uniform_real_distribution<float> U(0.f, 10.f);
+    std::vector<float> x(3 * 3000);
+    for (auto &v : x) v = U(rng);
+    for (double eb : {5e-3, 5e-4}) {
+        const auto r = round_trip(x, 1, 3000, eb);
+        EXPECT_EQ(r.algo, SZ3::ALGO_BIOMD);
+        EXPECT_LE(r.max_err, eb);
+        const double bits = 3 * std::ceil(std::log2(10.0 / (2 * eb)));  // a 10 nm box at about 2 eb per point
+        EXPECT_LT(double(r.bytes.size()) * 8, 1.05 * bits * 3000 + 2048) << eb;
+        const auto again = round_trip(r.out, 1, 3000, eb);
+        EXPECT_EQ(again.out, r.out) << eb;
+    }
+}
+
 // Config drops dimensions of 1: one atom arrives as {frames, 3}, one atom of one frame as {3}.
 TEST(BioMD, OneAtom) {
     for (size_t frames : {size_t(1), size_t(5)}) {
