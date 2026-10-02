@@ -68,8 +68,7 @@ inline constexpr int STREAM_GROUP[NUM_STREAMS] = {-1,        -1,        G_WATER_
                                                   G_WATER_H, G_WATER_H, G_BONDED,  G_BONDED,  G_BONDED,  G_UNBONDED};
 inline constexpr int MAX_SYMBOLS_PER_UNIT[NUM_STREAMS] = {1, 1, 3, 1, 2, 1, 1, 2, 1, 2, 1, 3};
 
-// Values BIOMD does not code (NaN, Inf, coordinates beyond the lattice); SZ_compress_bioMD gives them to another
-// algorithm.
+// Values BIOMD does not code (NaN, Inf, coordinates beyond the lattice); SZ_compress_bioMD stores them losslessly.
 struct Fallback : std::runtime_error {
     using std::runtime_error::runtime_error;
 };

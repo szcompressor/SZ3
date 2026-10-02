@@ -221,9 +221,9 @@ TEST(BioMD, EdgeCasesStayWithinBound) {
     }
 }
 
-// Input BIOMD does not code goes to LORENZO_REG, within the bound: shapes other than {frames, atoms, 3}, coordinates
-// beyond the lattice the bound allows, and NaN or Inf outside trailing fill, which come back exactly. The input stays
-// as it was.
+// Input BIOMD does not code: shapes other than {frames, atoms, 3} go to LORENZO_REG, within the bound; coordinates
+// beyond the lattice the bound allows, NaN or Inf outside trailing fill, and bounds that are not positive and finite
+// to lossless compression. The input stays as it was.
 template <class T>
 std::pair<SZ3::ALGO, std::vector<T>> compress_decompress(const std::vector<T> &x, const std::vector<size_t> &dims,
                                                          double eb) {
@@ -261,17 +261,15 @@ TEST(BioMD, FallsBackOnWhatItDoesNotCode) {
         auto y = x;
         for (auto &v : y) v += 1e6f;  // beyond the lattice of 5e-4
         const auto r = compress_decompress(y, {n, 3}, 5e-4);
-        EXPECT_EQ(r.first, SZ3::ALGO_LORENZO_REG);
-        expect_within(y, r.second, 5e-4);
+        EXPECT_EQ(r.first, SZ3::ALGO_LOSSLESS);
+        EXPECT_EQ(memcmp(r.second.data(), y.data(), y.size() * sizeof(float)), 0);
     }
     for (float bad : {std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity()}) {
         auto y = x;
         y[100] = bad;
-        auto r = compress_decompress(y, {n, 3}, 5e-4);
-        EXPECT_EQ(r.first, SZ3::ALGO_LORENZO_REG);
-        EXPECT_EQ(memcmp(&r.second[100], &bad, sizeof(float)), 0);
-        y[100] = r.second[100] = 0;
-        expect_within(y, r.second, 5e-4);
+        const auto r = compress_decompress(y, {n, 3}, 5e-4);
+        EXPECT_EQ(r.first, SZ3::ALGO_LOSSLESS);
+        EXPECT_EQ(memcmp(r.second.data(), y.data(), y.size() * sizeof(float)), 0);
     }
     // bounds that are not positive and finite, ABS ones and REL over data with Inf, go to lossless compression
     for (double eb : {double(INFINITY), double(NAN), -1e-3}) {
@@ -303,6 +301,23 @@ TEST(BioMD, FallsBackOnWhatItDoesNotCode) {
     const auto r = compress_decompress(z, {2, 3}, 5e307);
     for (double v : r.second) EXPECT_TRUE(std::isfinite(v));
     expect_within(z, r.second, 5e307);
+}
+
+// A chunk BIOMD coded, decompressed and compressed again with a NaN in a frame appended to it (HDF5 rewriting a
+// chunk): the frames BIOMD decoded stay within the bound of the original data.
+TEST(BioMD, NaNAppendedToACodedChunkKeepsItsFramesWithinTheBound) {
+    SystemSpec s;
+    s.frames = 10;
+    size_t n;
+    const auto x = make_system(s, &n);
+    const double eb = 5e-4;
+    const auto first = compress_decompress(x, {s.frames, n, 3}, eb);
+    ASSERT_EQ(first.first, SZ3::ALGO_BIOMD);
+    auto y = first.second;
+    y[9 * n * 3 + 100] = std::numeric_limits<float>::quiet_NaN();
+    const auto second = compress_decompress(y, {s.frames, n, 3}, eb);
+    EXPECT_EQ(second.first, SZ3::ALGO_LOSSLESS);
+    for (size_t i = 0; i < 9 * n * 3; i++) ASSERT_LE(std::fabs(double(second.second[i]) - double(x[i])), eb) << i;
 }
 
 // Config drops dimensions of 1: one atom arrives as {frames, 3}, one atom of one frame as {3}.

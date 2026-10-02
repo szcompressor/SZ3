@@ -28,30 +28,36 @@ std::shared_ptr<concepts::CompressorInterface<T>> make_compressor_biomd(const Co
                                             Lossless_bypass());
 }
 
-// Input BIOMD does not code goes to LORENZO_REG with first-order Lorenzo alone, which codes coordinates best of its
-// predictors and keeps NaN and Inf exactly; neither writes into data. A bound that is not positive and finite (an ABS
-// one, or a relative one over data with Inf) bounds nothing, and the data is stored losslessly.
+// Data BIOMD does not code:
+//  * Other shapes, and chunks of more values than an int counts (a stream holds at most one symbol per value), go to
+//    LORENZO_REG with first-order Lorenzo alone, which codes coordinates best of its predictors and only reads data.
+//    A dataset keeps its shape, so no chunk of it that BIOMD coded is compressed again by LORENZO_REG.
+//  * NaN or Inf outside trailing fill frames, and coordinates beyond the lattice, can turn up in a chunk BIOMD coded
+//    before, as frames are appended: the chunk is stored losslessly, which keeps the values BIOMD decoded within the
+//    bound. So is the data under a bound that is not positive and finite (an ABS one, or a relative one over data
+//    with Inf), which bounds nothing.
 template <class T, uint N>
 size_t SZ_compress_bioMD(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
     assert(N == conf.N);
     assert(conf.cmprAlgo == ALGO_BIOMD);
     calAbsErrorBound(conf, data);
 
-    if (!(conf.absErrorBound > 0) || !std::isfinite(conf.absErrorBound)) {
-        conf.cmprAlgo = ALGO_LOSSLESS;
-        return Lossless_zstd().compress(reinterpret_cast<const uchar *>(data), conf.num * sizeof(T), cmpData, cmpCap);
-    }
-    // other shapes, and chunks of more values than an int counts (a stream holds at most one symbol per value), are
-    // known up front; NaN, Inf or coordinates beyond the lattice only once compress() has scanned the values
-    if (N <= 3 && conf.dims[N - 1] == 3 && conf.num <= size_t(std::numeric_limits<int>::max())) {
+    if (conf.absErrorBound > 0 && std::isfinite(conf.absErrorBound)) {
+        if (N > 3 || conf.dims[N - 1] != 3 || conf.num > size_t(std::numeric_limits<int>::max())) {
+            conf.cmprAlgo = ALGO_LORENZO_REG;
+            conf.lorenzo = true;
+            conf.lorenzo2 = false;
+            conf.regression = false;
+            return SZ_compress_LorenzoReg<T, N>(conf, const_cast<T *>(data), cmpData, cmpCap);
+        }
         try {
             return make_compressor_biomd<T, N>(conf)->compress(conf, const_cast<T *>(data), cmpData, cmpCap);
         } catch (const biomd::Fallback &) {
+            // NaN, Inf or coordinates beyond the lattice, found as compress() scans the values
         }
     }
-    conf.cmprAlgo = ALGO_LORENZO_REG;
-    conf.lorenzo = true, conf.lorenzo2 = false, conf.regression = false;
-    return SZ_compress_LorenzoReg<T, N>(conf, const_cast<T *>(data), cmpData, cmpCap);
+    conf.cmprAlgo = ALGO_LOSSLESS;
+    return Lossless_zstd().compress(reinterpret_cast<const uchar *>(data), conf.num * sizeof(T), cmpData, cmpCap);
 }
 
 template <class T, uint N>
