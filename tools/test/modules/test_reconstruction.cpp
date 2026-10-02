@@ -65,3 +65,20 @@ TEST(SZ3_Reconstruction, BioMD) {
     expect_identical<float>(SZ3::ALGO_BIOMD, SZ3::INTERP_ALGO_CUBIC);
     expect_identical<double>(SZ3::ALGO_BIOMD, SZ3::INTERP_ALGO_CUBIC);
 }
+
+// SZ_compress copies the input only for the algorithms that write their reconstruction into it.
+TEST(SZ3_Reconstruction, SZCompressLeavesTheInputAsItWas) {
+    for (auto algo : {SZ3::ALGO_LORENZO_REG, SZ3::ALGO_INTERP_LORENZO, SZ3::ALGO_INTERP, SZ3::ALGO_NOPRED,
+                      SZ3::ALGO_BIOMD, SZ3::ALGO_BIOMDXTC}) {
+        SZ3::Config conf(32, 341, 3);
+        conf.cmprAlgo = algo;
+        conf.errorBoundMode = SZ3::EB_ABS;
+        conf.absErrorBound = 1e-3;
+        std::vector<float> data(conf.num);
+        for (size_t i = 0; i < conf.num; i++) data[i] = static_cast<float>(std::sin(0.01 * i) + 0.1 * (i % 3));
+        const std::vector<float> before = data;
+        size_t size = 0;
+        delete[] SZ_compress(conf, data.data(), size);
+        EXPECT_EQ(std::memcmp(before.data(), data.data(), data.size() * sizeof(float)), 0) << algo;
+    }
+}
