@@ -68,7 +68,8 @@ inline constexpr int STREAM_GROUP[NUM_STREAMS] = {-1,        -1,        G_WATER_
                                                   G_WATER_H, G_WATER_H, G_BONDED,  G_BONDED,  G_BONDED,  G_UNBONDED};
 inline constexpr int MAX_SYMBOLS_PER_UNIT[NUM_STREAMS] = {1, 1, 3, 1, 2, 1, 1, 2, 1, 2, 1, 3};
 
-// Input that BIOMD does not code; SZ_compress_bioMD gives it to another algorithm.
+// Values BIOMD does not code (NaN, Inf, coordinates beyond the lattice); SZ_compress_bioMD gives them to another
+// algorithm.
 struct Fallback : std::runtime_error {
     using std::runtime_error::runtime_error;
 };
@@ -603,7 +604,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         size_t n = NUM_STREAMS;
         for (int s = 0; s < NUM_STREAMS; s++) {
             if (size_t(writer.cursor[s] - buffers[s].get()) > size_t(std::numeric_limits<int>::max()))
-                throw Fallback("SZ3 BioMD: a stream of more symbols than an int counts");
+                throw std::invalid_argument("SZ3 BioMD: a stream of more symbols than an int counts");
             n += size_t(writer.cursor[s] - buffers[s].get());
         }
         bins.reserve(n);

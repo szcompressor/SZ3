@@ -31,15 +31,17 @@ size_t SZ_compress_bioMD(Config &conf, const T *data, uchar *cmpData, size_t cmp
     assert(conf.cmprAlgo == ALGO_BIOMD);
     calAbsErrorBound(conf, data);
 
-    try {
-        if (N > 3 || conf.dims[N - 1] != 3) throw biomd::Fallback("SZ3 BioMD: data must be {frames, atoms, 3}");
-        return make_compressor_biomd<T, N>(conf)->compress(conf, const_cast<T *>(data), cmpData, cmpCap);
-    } catch (const biomd::Fallback &) {
-        conf.cmprAlgo = ALGO_LORENZO_REG;
-        conf.lorenzo = true, conf.lorenzo2 = false, conf.regression = false;
-        std::vector<T> dataCopy(data, data + conf.num);
-        return SZ_compress_LorenzoReg<T, N>(conf, const_cast<T *>(data), cmpData, cmpCap);
+    // other shapes, and chunks of more values than an int counts (a stream holds at most one symbol per value), are
+    // known up front; NaN, Inf or coordinates beyond the lattice only once compress() has scanned the values
+    if (N <= 3 && conf.dims[N - 1] == 3 && conf.num <= size_t(std::numeric_limits<int>::max())) {
+        try {
+            return make_compressor_biomd<T, N>(conf)->compress(conf, const_cast<T *>(data), cmpData, cmpCap);
+        } catch (const biomd::Fallback &) {
+        }
     }
+    conf.cmprAlgo = ALGO_LORENZO_REG;
+    conf.lorenzo = true, conf.lorenzo2 = false, conf.regression = false;
+    return SZ_compress_LorenzoReg<T, N>(conf, const_cast<T *>(data), cmpData, cmpCap);
 }
 
 template <class T, uint N>
