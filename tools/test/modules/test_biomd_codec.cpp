@@ -273,6 +273,25 @@ TEST(BioMD, FallsBackOnWhatItDoesNotCode) {
         y[100] = r.second[100] = 0;
         expect_within(y, r.second, 5e-4);
     }
+    // bounds that are not positive and finite: ABS ones, and REL over data with Inf; every value comes back exactly
+    for (double eb : {double(INFINITY), double(NAN), -1e-3}) {
+        const auto r = compress_decompress(x, {n, 3}, eb);
+        EXPECT_NE(r.first, SZ3::ALGO_BIOMD) << eb;
+        EXPECT_EQ(memcmp(r.second.data(), x.data(), x.size() * sizeof(float)), 0) << eb;
+    }
+    {
+        auto y = x;
+        y[100] = std::numeric_limits<float>::infinity();
+        SZ3::Config conf(n, 3);
+        conf.cmprAlgo = SZ3::ALGO_BIOMD;
+        conf.errorBoundMode = SZ3::EB_REL;
+        conf.relErrorBound = 1e-4;
+        size_t size = 0;
+        std::unique_ptr<char[]> cmp(SZ_compress(conf, y.data(), size));
+        SZ3::Config dec;
+        std::unique_ptr<float[]> z(SZ_decompress<float>(dec, cmp.get(), size));
+        EXPECT_EQ(memcmp(z.get(), y.data(), y.size() * sizeof(float)), 0);
+    }
     // a bound so large that the lattice would pass the largest value of the type
     for (const auto &c : {std::make_pair(3e38f, 1e38), std::make_pair(1.0f, 1e30)}) {
         const std::vector<float> y = {c.first, 0, 0, 0, c.first, 0};

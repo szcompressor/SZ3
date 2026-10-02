@@ -29,25 +29,21 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
     bool isCmpCapSufficient = true;
     if (conf.cmprAlgo != ALGO_LOSSLESS) {
         try {
-            // BIOMD and LORENZO_REG only read their input (LORENZO_REG works on a padded copy it makes)
-            if (conf.cmprAlgo == ALGO_BIOMD) {
-                return SZ_compress_bioMD<T, N>(conf, data, cmpData, cmpCap);
-            } else if (conf.cmprAlgo == ALGO_LORENZO_REG) {
-                cmpSize = SZ_compress_LorenzoReg<T, N>(conf, const_cast<T *>(data), cmpData, cmpCap);
+            // BIOMD only reads its input; the others get a copy, as they may write their reconstruction into it
+            if (conf.cmprAlgo == ALGO_BIOMD) return SZ_compress_bioMD<T, N>(conf, data, cmpData, cmpCap);
+            std::vector<T> dataCopy(data, data + conf.num);
+            if (conf.cmprAlgo == ALGO_LORENZO_REG) {
+                cmpSize = SZ_compress_LorenzoReg<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+            } else if (conf.cmprAlgo == ALGO_INTERP) {
+                cmpSize = SZ_compress_Interp<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+            } else if (conf.cmprAlgo == ALGO_INTERP_LORENZO) {
+                cmpSize = SZ_compress_Interp_lorenzo<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+            } else if (conf.cmprAlgo == ALGO_NOPRED) {
+                cmpSize = SZ_compress_nopred<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+            } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
+                return SZ_compress_bioMDXtcBased<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
             } else {
-                // the others write their reconstruction into the data they are given, so they get a copy
-                std::vector<T> dataCopy(data, data + conf.num);
-                if (conf.cmprAlgo == ALGO_INTERP) {
-                    cmpSize = SZ_compress_Interp<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
-                } else if (conf.cmprAlgo == ALGO_INTERP_LORENZO) {
-                    cmpSize = SZ_compress_Interp_lorenzo<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
-                } else if (conf.cmprAlgo == ALGO_NOPRED) {
-                    cmpSize = SZ_compress_nopred<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
-                } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
-                    return SZ_compress_bioMDXtcBased<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
-                } else {
-                    throw std::invalid_argument("Unknown compression algorithm");
-                }
+                throw std::invalid_argument("Unknown compression algorithm");
             }
 
         } catch (std::length_error &e) {

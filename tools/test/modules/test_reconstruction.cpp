@@ -66,7 +66,7 @@ TEST(SZ3_Reconstruction, BioMD) {
     expect_identical<double>(SZ3::ALGO_BIOMD, SZ3::INTERP_ALGO_CUBIC);
 }
 
-// SZ_compress copies the input only for the algorithms that write their reconstruction into it.
+// SZ_compress leaves the input as it was: BIOMD only reads it, the other algorithms get a copy.
 TEST(SZ3_Reconstruction, SZCompressLeavesTheInputAsItWas) {
     for (auto algo : {SZ3::ALGO_LORENZO_REG, SZ3::ALGO_INTERP_LORENZO, SZ3::ALGO_INTERP, SZ3::ALGO_NOPRED,
                       SZ3::ALGO_BIOMD, SZ3::ALGO_BIOMDXTC}) {

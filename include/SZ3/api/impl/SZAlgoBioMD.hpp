@@ -1,6 +1,10 @@
 #ifndef SZ3_SZ_BIOMD_HPP
 #define SZ3_SZ_BIOMD_HPP
 
+#include <cmath>
+#include <limits>
+#include <vector>
+
 #include "SZ3/api/impl/SZAlgoLorenzoReg.hpp"
 #include "SZ3/compressor/SZGenericCompressor.hpp"
 #include "SZ3/decomposition/SZBioMDDecomposition.hpp"
@@ -24,16 +28,19 @@ std::shared_ptr<concepts::CompressorInterface<T>> make_compressor_biomd(const Co
 }
 
 // Input BIOMD does not code goes to LORENZO_REG with first-order Lorenzo alone, which codes coordinates best of its
-// predictors and keeps NaN and Inf exactly. Neither writes into data: LORENZO_REG works on a padded copy of it.
+// predictors and keeps NaN and Inf exactly. BIOMD only reads data; LORENZO_REG gets a copy, as it may write into it.
 template <class T, uint N>
 size_t SZ_compress_bioMD(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
     assert(N == conf.N);
     assert(conf.cmprAlgo == ALGO_BIOMD);
     calAbsErrorBound(conf, data);
 
-    // other shapes, and chunks of more values than an int counts (a stream holds at most one symbol per value), are
-    // known up front; NaN, Inf or coordinates beyond the lattice only once compress() has scanned the values
-    if (N <= 3 && conf.dims[N - 1] == 3 && conf.num <= size_t(std::numeric_limits<int>::max())) {
+    // other shapes, chunks of more values than an int counts (a stream holds at most one symbol per value) and bounds
+    // that are not positive and finite (a relative bound over data with Inf) are known up front; NaN, Inf or
+    // coordinates beyond the lattice only once compress() has scanned the values. LORENZO_REG stores every value
+    // exactly under such a bound.
+    if (N <= 3 && conf.dims[N - 1] == 3 && conf.num <= size_t(std::numeric_limits<int>::max()) &&
+        conf.absErrorBound > 0 && std::isfinite(conf.absErrorBound)) {
         try {
             return make_compressor_biomd<T, N>(conf)->compress(conf, const_cast<T *>(data), cmpData, cmpCap);
         } catch (const biomd::Fallback &) {
@@ -41,7 +48,8 @@ size_t SZ_compress_bioMD(Config &conf, const T *data, uchar *cmpData, size_t cmp
     }
     conf.cmprAlgo = ALGO_LORENZO_REG;
     conf.lorenzo = true, conf.lorenzo2 = false, conf.regression = false;
-    return SZ_compress_LorenzoReg<T, N>(conf, const_cast<T *>(data), cmpData, cmpCap);
+    std::vector<T> dataCopy(data, data + conf.num);
+    return SZ_compress_LorenzoReg<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
 }
 
 template <class T, uint N>
