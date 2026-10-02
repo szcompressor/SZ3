@@ -320,6 +320,26 @@ TEST(BioMD, NaNAppendedToACodedChunkKeepsItsFramesWithinTheBound) {
     for (size_t i = 0; i < 9 * n * 3; i++) ASSERT_LE(std::fabs(double(second.second[i]) - double(x[i])), eb) << i;
 }
 
+// Water detection probes every atoms / 300th atom: with a probe every 8 atoms, 4-site waters are met at the same place
+// in each, which leading atoms move through O, H1, H2 and M. The waters must be found from each.
+TEST(BioMD, FourSiteWaterIsFoundWhereverTheProbesLand) {
+    SystemSpec s;
+    s.four_site = true;
+    s.waters = 600;  // 2650 atoms, and up to 3 more: a probe every 8 atoms
+    size_t n;
+    const auto base = make_system(s, &n);
+    std::vector<double> ratios;
+    for (size_t k = 0; k < 4; k++) {
+        std::vector<float> x;
+        for (size_t a = 0; a < k; a++) x.insert(x.end(), {0.5f + float(a), 0.5f, 0.5f});
+        x.insert(x.end(), base.begin(), base.end());
+        const auto r = round_trip(x, 1, n + k, 5e-4);
+        EXPECT_LE(r.max_err, 5e-4);
+        ratios.push_back(double(x.size() * sizeof(float)) / double(r.bytes.size()));
+    }
+    EXPECT_GT(*std::min_element(ratios.begin(), ratios.end()) / *std::max_element(ratios.begin(), ratios.end()), 0.95);
+}
+
 // Config drops dimensions of 1: one atom arrives as {frames, 3}, one atom of one frame as {3}.
 TEST(BioMD, OneAtom) {
     for (size_t frames : {size_t(1), size_t(5)}) {

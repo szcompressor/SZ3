@@ -127,7 +127,9 @@ void detect_water(const T *x, size_t atoms, Layout &layout, double step) {
     std::vector<float> cand_oh, cand_hh;
     const size_t probe = std::max<size_t>(1, atoms / PROBES);
     for (size_t i = 0; i + 2 < atoms; i += probe)
-        for (size_t o = 0; o < 3 && i + o + 2 < atoms; o++) {
+        // five starts reach the O of a 3-, 4- or 5-site water wherever in it a probe lands: a probe every 4th atom
+        // could otherwise meet every TIP4P water at its H1
+        for (size_t o = 0; o < 5 && i + o + 2 < atoms; o++) {
             const size_t k = i + o;
             const float a = dist2(k, k + 1), b = dist2(k, k + 2), c = dist2(k + 1, k + 2);
             if (a > OH2_MIN && a < OH2_MAX && b > OH2_MIN && b < OH2_MAX && c > HH2_MIN && c < HH2_MAX) {
