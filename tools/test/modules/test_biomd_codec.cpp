@@ -273,10 +273,10 @@ TEST(BioMD, FallsBackOnWhatItDoesNotCode) {
         y[100] = r.second[100] = 0;
         expect_within(y, r.second, 5e-4);
     }
-    // bounds that are not positive and finite: ABS ones, and REL over data with Inf; every value comes back exactly
+    // bounds that are not positive and finite, ABS ones and REL over data with Inf, go to lossless compression
     for (double eb : {double(INFINITY), double(NAN), -1e-3}) {
         const auto r = compress_decompress(x, {n, 3}, eb);
-        EXPECT_NE(r.first, SZ3::ALGO_BIOMD) << eb;
+        EXPECT_EQ(r.first, SZ3::ALGO_LOSSLESS) << eb;
         EXPECT_EQ(memcmp(r.second.data(), x.data(), x.size() * sizeof(float)), 0) << eb;
     }
     {
