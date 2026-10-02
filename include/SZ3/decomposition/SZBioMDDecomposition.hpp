@@ -38,7 +38,10 @@ constexpr int MAX_BOND_OFFSET = 4;
 // At most this many bond-length classes (the bond code is offset * 16 + class + 1); 31 changes no ratio either.
 constexpr int MAX_BOND_CLASSES = 15;
 constexpr int64_t MAX_BOND_R2 = int64_t(1) << 28;  // bonds of 16384 lattice units or more are not coded as spheres
-constexpr uint32_t ESCAPE = 4096;                  // unbonded values from here on: an escape symbol and a raw byte
+// Unbonded values from here on are an escape symbol and a raw byte. In lattice units, so the best threshold moves
+// with the density of the system and the bound: over 100 all-atom and Martini runs 2048 is the best single value
+// (512 gains up to 6% on sparse Martini proteins but loses 4.5% on cgfiber, 16384 loses 4% on Martini).
+constexpr uint32_t ESCAPE = 2048;
 // |q| <= 2^28: displacements stay within 2^29, and every symbol within 32 bits
 constexpr double MAX_LATTICE = double(1 << 28);
 // The lattice spans |x| < B, the smallest power of two above 2^LATTICE_SPAN_BITS eb. For float, B is 512 nm at the
@@ -162,7 +165,9 @@ void detect_water(const T *x, size_t atoms, Layout &layout, double step) {
             oh_of_hh.push_back(cand_oh[2 * c]), oh_of_hh.push_back(cand_oh[2 * c + 1]);
     if (oh_of_hh.empty()) return;
     const double oh = peak(oh_of_hh);
-    // rigidity test: rigid water puts at least six in ten of the nearby candidates within `tight` of both peaks
+    // rigidity test: rigid water puts at least seven in ten of the nearby candidates within `tight` of both peaks;
+    // over 100 runs that share is 0.97 to 1 with rigid water and 0 to 0.41 without (proteins alone, flexible water),
+    // and 0.7 is midway. Rigid water is within 0.002 pm of its geometry in float output, far below `tight`.
     size_t n_tight = 0, n_loose = 0, n_rigid = 0;
     double sum_oh = 0, sum_hh = 0;
     for (size_t c = 0; c < cand_hh.size(); c++) {
@@ -175,7 +180,7 @@ void detect_water(const T *x, size_t atoms, Layout &layout, double step) {
         if (dh < tol && da < tol && db < tol)
             sum_oh += double(cand_oh[2 * c]) + cand_oh[2 * c + 1], sum_hh += cand_hh[c], n_rigid++;
     }
-    if (n_loose < MIN_COUNT || n_tight * 10 < n_loose * 6) return;
+    if (n_loose < MIN_COUNT || n_tight * 10 < n_loose * 7) return;
     const float oh2_lo = float((oh - tol) * (oh - tol)), oh2_hi = float((oh + tol) * (oh + tol));
     const float hh2_lo = float((hh - tol) * (hh - tol)), hh2_hi = float((hh + tol) * (hh + tol));
     size_t waters = 0;
@@ -216,7 +221,9 @@ void detect_bonds(const T *x, size_t atoms, Layout &layout) {
     // constraints none or h-bonds): windows of 1, 3 and 4 pm; 3, 10 and 20 pm change the all-atom ratio by 0.3%.
     constexpr size_t PEAK_HALF = 10, SUPPRESS_HALF = 30;
     constexpr long ASSIGN_HALF = 40;
-    constexpr int64_t MIN_PEAK = 8, MIN_SHARE = 200;
+    // a class costs its length in the header and a code in S_BOND_REF: 16 atoms pay for it in the 100 runs measured
+    // (8 loses up to 8% on Martini proteins by classes of a few pairs that do not bond, 32 drops paying classes)
+    constexpr int64_t MIN_PEAK = 16, MIN_SHARE = 200;
     layout.bond.assign(atoms, 0);
     layout.bond_lengths.clear();
     std::vector<uint8_t> partner(atoms, 0);  // offset of the nearest previous atom
