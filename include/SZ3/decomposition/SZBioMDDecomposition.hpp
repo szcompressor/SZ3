@@ -31,12 +31,12 @@
 namespace SZ3 {
 namespace biomd {
 
-// A bond partner is one of the previous MAX_BOND_OFFSET atoms: in GROMACS topologies (AMBER, CHARMM, OPLS, GROMOS,
-// Martini 3) 96% to 100% of the bonded atoms have one there, and a larger offset gains nothing.
-constexpr int MAX_BOND_OFFSET = 8;
-// At most this many bond-length classes: 99% of the bonded atoms of an AMBER protein and of a Martini 3 one use 21 and
-// 22 lengths. The bond code is offset * 32 + class + 1.
-constexpr int MAX_BOND_CLASSES = 31;
+// A bond partner is one of the previous MAX_BOND_OFFSET atoms: in GROMACS topologies (AMBER, CHARMM, OPLS, GROMOS
+// proteins, Martini 3 proteins and lipids) 91% to 97% of the bonded atoms have one there; 8 or 16 cover up to 99% but
+// change no compression ratio by more than 0.3%.
+constexpr int MAX_BOND_OFFSET = 4;
+// At most this many bond-length classes (the bond code is offset * 16 + class + 1); 31 changes no ratio either.
+constexpr int MAX_BOND_CLASSES = 15;
 constexpr int64_t MAX_BOND_R2 = int64_t(1) << 28;  // bonds of 16384 lattice units or more are not coded as spheres
 constexpr uint32_t ESCAPE = 4096;                  // unbonded values from here on: an escape symbol and a raw byte
 // |q| <= 2^28: displacements stay within 2^29, and every symbol within 32 bits
@@ -102,12 +102,12 @@ enum : uint8_t { K_WATER_O, K_WATER_H, K_OTHER };
 struct Layout {
     std::vector<uint8_t> kind;  // per atom: K_WATER_O (then its H at i + 1, i + 2), K_WATER_H, K_OTHER
     std::vector<uint16_t>
-        bond;  // other atoms: 0 = none, else offset * 32 + class + 1: the class sphere around i - offset
+        bond;  // other atoms: 0 = none, else offset * 16 + class + 1: the class sphere around i - offset
     double water_oh = 0, water_hh = 0;  // O-H and H-H distances of the water (nm)
     std::vector<double> bond_lengths;   // bond-length classes (nm)
 };
-inline size_t bond_offset(uint16_t bond) { return bond >> 5; }
-inline size_t bond_class(uint16_t bond) { return (bond & 31) - 1; }
+inline size_t bond_offset(uint16_t bond) { return bond >> 4; }
+inline size_t bond_class(uint16_t bond) { return (bond & 15) - 1; }
 
 // Rigid water on frame x: kind, water_oh, water_hh. The tolerances grow with the lattice step, so rounded input (xtc
 // files, or data this codec decompressed) still fits.
@@ -198,21 +198,22 @@ void detect_water(const T *x, size_t atoms, Layout &layout, double step) {
 }
 
 // Bonds of the other atoms on frame x: each takes the nearest of its previous MAX_BOND_OFFSET atoms if that is within
-// bond range, and the bond-length classes are the peaks of those distances (1e-4 nm bins over 0.01 .. 0.6 nm: all-atom
-// bonds are 0.09 .. 0.2 nm, Martini 3 ones 0.27 .. 0.47 nm, and the virtual site of 4-site water is a 0.015 nm bond
-// to its O).
+// bond range, and the bond-length classes are the peaks of those distances (1e-4 nm bins over 0.01 .. 0.25 nm). The
+// range holds all-atom bonds (0.09 .. 0.2 nm) and the 0.015 nm bond of the virtual site of 4-site water to its O.
+// Martini 3 bonds (0.27 .. 0.47 nm) are flexible, 25 pm wide, so a sphere around the partner codes them in no fewer
+// bits than a delta: taking them in gains under 2% of the ratio and costs a third more compression time.
 template <class T>
 void detect_bonds(const T *x, size_t atoms, Layout &layout) {
-    // bond lengths in bins of BIN_WIDTH from BOND_MIN to 0.6 nm; a nearest previous atom outside that range is no bond
+    // bond lengths in bins of BIN_WIDTH from BOND_MIN to 0.25 nm; a nearest previous atom outside that range is no bond
     constexpr double BOND_MIN = 0.01, BIN_WIDTH = 1e-4, BINS_PER_NM = 1e4;
-    constexpr size_t NUM_BINS = 5900;
-    constexpr float BOND2_MIN = 0.0001f, BOND2_MAX = 0.36f;  // BOND_MIN^2, 0.6^2
+    constexpr size_t NUM_BINS = 2400;
+    constexpr float BOND2_MIN = 0.0001f, BOND2_MAX = 0.0625f;  // BOND_MIN^2, 0.25^2
     // a class: the heaviest window of +-PEAK_HALF bins, of at least MIN_PEAK atoms and a MIN_SHARE-th of the bonded
     // ones; it then suppresses +-SUPPRESS_HALF bins, and takes the bins within ASSIGN_HALF that are nearest to it.
-    // Constrained bonds keep their length; flexible ones are within 6 pm of it (90% of the frames) in all-atom
-    // force fields and 45 pm in Martini 3: windows of 3, 10 and 20 pm lose no all-atom ratio and gain 2% on Martini.
-    constexpr size_t PEAK_HALF = 30, SUPPRESS_HALF = 100;
-    constexpr long ASSIGN_HALF = 200;
+    // Constrained bonds keep their length and flexible all-atom ones stay within 6 pm of it (90% of the frames, with
+    // constraints none or h-bonds): windows of 1, 3 and 4 pm; 3, 10 and 20 pm change the all-atom ratio by 0.3%.
+    constexpr size_t PEAK_HALF = 10, SUPPRESS_HALF = 30;
+    constexpr long ASSIGN_HALF = 40;
     constexpr int64_t MIN_PEAK = 8, MIN_SHARE = 200;
     layout.bond.assign(atoms, 0);
     layout.bond_lengths.clear();
@@ -237,7 +238,7 @@ void detect_bonds(const T *x, size_t atoms, Layout &layout) {
         }
     }
     std::vector<int8_t> bin_class(NUM_BINS + 1, -1);
-    std::vector<uint16_t> bin_distance(NUM_BINS, std::numeric_limits<uint16_t>::max());
+    std::vector<uint8_t> bin_distance(NUM_BINS, 255);
     std::vector<int64_t> left = hist, prefix(NUM_BINS + 1);
     int64_t total = 0;
     for (int64_t h : hist) total += h;
@@ -262,13 +263,13 @@ void detect_bonds(const T *x, size_t atoms, Layout &layout) {
             left[w] = 0;
         const long centre = long((layout.bond_lengths.back() - BOND_MIN) * BINS_PER_NM);
         for (long k = std::max(0L, centre - ASSIGN_HALF); k <= std::min(long(NUM_BINS) - 1, centre + ASSIGN_HALF); k++)
-            if (uint16_t(std::labs(k - centre)) < bin_distance[k]) {
-                bin_distance[k] = uint16_t(std::labs(k - centre));
+            if (uint8_t(std::labs(k - centre)) < bin_distance[k]) {
+                bin_distance[k] = uint8_t(std::labs(k - centre));
                 bin_class[k] = int8_t(cls);
             }
     }
     for (size_t i = 0; i < atoms; i++)
-        if (bin_class[bin[i]] >= 0) layout.bond[i] = uint16_t(partner[i] * 32 + bin_class[bin[i]] + 1);
+        if (bin_class[bin[i]] >= 0) layout.bond[i] = uint16_t(partner[i] * 16 + bin_class[bin[i]] + 1);
 }
 
 // ------------------------------------------------------------------------------------------------ symbols
@@ -826,7 +827,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         for (size_t i = 0; i < atoms_; i++)
             if (layout.kind[i] == K_OTHER) {
                 const uint32_t bond = reader.get(S_BOND_REF);
-                if (bond > uint32_t(MAX_BOND_OFFSET * 32 + MAX_BOND_CLASSES))
+                if (bond > uint32_t(MAX_BOND_OFFSET * 16 + MAX_BOND_CLASSES))
                     throw std::runtime_error("SZ3 BioMD: corrupt stream");
                 if (bond && (bond_offset(uint16_t(bond)) == 0 || bond_offset(uint16_t(bond)) > i ||
                              bond_class(uint16_t(bond)) >= bond_r2_.size()))  // a class field of 0 gives SIZE_MAX
