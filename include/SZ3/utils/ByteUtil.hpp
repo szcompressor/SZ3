@@ -6,11 +6,11 @@
 #define SZ3_BYTEUTIL_HPP
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
+#include <stdexcept>
 #include <string>
 #include <vector>
-#include <cstdint>
-#include <stdexcept>
 
 #include "SZ3/def.hpp"
 
@@ -285,23 +285,31 @@ inline uint64_t read_varint(const uchar *&p, size_t &remaining_length) {
     }
 }
 
-/// Bits appended LSB first to a byte vector, up to 56 at a time.
+/// Bits appended LSB first to a byte vector, up to 56 at a time; the bytes are added by flush().
 class BitAppender {
    public:
     explicit BitAppender(std::vector<uchar> &out) : out_(out) {}
-    void put(uint64_t v, int bits) {
+    void put(uint64_t v, int bits) {  // v < 2^bits
         pending_ |= v << pending_bits_;
-        for (pending_bits_ += bits; pending_bits_ >= 8; pending_bits_ -= 8, pending_ >>= 8)
-            out_.push_back(uchar(pending_));
+        pending_bits_ += bits;
+        if (pending_bits_ < 64) return;
+        words_.push_back(pending_);  // whole words: a byte at a time costs several times more
+        pending_bits_ -= 64;
+        pending_ = v >> (bits - pending_bits_);
     }
-    void flush() {  // the last partial byte
-        if (pending_bits_ > 0) out_.push_back(uchar(pending_));
+    void flush() {
+        words_.push_back(pending_);
+        const size_t size = out_.size(), bytes = (words_.size() - 1) * 8 + size_t(pending_bits_ + 7) / 8;
+        out_.resize(size + bytes);
+        for (size_t k = 0; k < bytes; k++) out_[size + k] = uchar(words_[k / 8] >> (k % 8 * 8));
+        words_.clear();
         pending_ = 0;
         pending_bits_ = 0;
     }
 
    private:
     std::vector<uchar> &out_;
+    std::vector<uint64_t> words_;
     uint64_t pending_ = 0;
     int pending_bits_ = 0;
 };
