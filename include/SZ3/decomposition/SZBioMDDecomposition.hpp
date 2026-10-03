@@ -80,11 +80,10 @@ inline constexpr int STREAM_GROUP[NUM_STREAMS] = {-1,        -1,        G_WATER_
                                                   G_WATER_H, G_WATER_H, G_BONDED,  G_BONDED,  G_BONDED,  G_UNBONDED};
 inline constexpr int MAX_SYMBOLS_PER_UNIT[NUM_STREAMS] = {1, 1, 3, 1, 2, 1, 1, 2, 1, 2, 1, 3};
 
-// Values BIOMD does not code, and the algorithm SZ_compress_bioMD gives the chunk to: NaN or Inf to lossless
-// compression, coordinates beyond the lattice to LORENZO_REG.
+// Values BIOMD does not code (NaN or Inf outside trailing fill, coordinates beyond the lattice); SZ_compress_bioMD
+// stores the chunk losslessly.
 struct Fallback : std::runtime_error {
-    ALGO algo;
-    Fallback(ALGO to, const char *why) : std::runtime_error(why), algo(to) {}
+    using std::runtime_error::runtime_error;
 };
 
 inline int64_t round_half_away(double y) { return int64_t(y + std::copysign(0.5, y)); }
@@ -789,7 +788,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     // by 1 more: m = 1 for float, whose ulp is 2^29 times larger, and 4 for double. B, the power of two above
     // 2^LATTICE_SPAN_BITS eb, depends on the bound alone, so a decompressed chunk compressed again lands on the same
     // lattice points. A chunk with NaN or Inf goes to lossless compression; one with coordinates beyond B, or under a
-    // bound for which m ulp reaches eb / 2 or B passes the largest value of T, to LORENZO_REG.
+    // bound for which m ulp reaches eb / 2 or B passes the largest value of T, also to lossless compression.
     void choose_step(const T *data) {
         if (!(error_bound_ > 0) || !std::isfinite(error_bound_))
             throw std::invalid_argument("SZ3 BioMD: the error bound must be positive and finite");
@@ -804,7 +803,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         T max_abs;
         memcpy(&max_abs, &max_bits, sizeof(T));
         if (!(max_abs <= std::numeric_limits<T>::max()))
-            throw biomd::Fallback(ALGO_LOSSLESS, "SZ3 BioMD: NaN or Inf in a frame that is not trailing fill");
+            throw biomd::Fallback("SZ3 BioMD: NaN or Inf in a frame that is not trailing fill");
         int exponent;
         std::frexp(std::ldexp(error_bound_, biomd::LATTICE_SPAN_BITS<T>), &exponent);
         const double span = std::ldexp(1.0, exponent);
@@ -818,7 +817,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
             !(span <= double(std::numeric_limits<T>::max())) || !(span / step_ < biomd::MAX_LATTICE) ||
             !(double(max_abs) < span + step_) ||
             !(std::fabs(double(biomd::round_half_away(double(max_abs) * (1.0 / step_)))) * step_ < span))
-            throw biomd::Fallback(ALGO_LORENZO_REG, "SZ3 BioMD: coordinates beyond the lattice the error bound allows");
+            throw biomd::Fallback("SZ3 BioMD: coordinates beyond the lattice the error bound allows");
     }
 
     // The layout of the first frame, its geometry on the lattice, and the atoms of each group.

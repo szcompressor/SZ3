@@ -221,8 +221,8 @@ TEST(BioMD, EdgeCasesStayWithinBound) {
     }
 }
 
-// Input BIOMD does not code: shapes other than {frames, atoms, 3} and coordinates beyond the lattice the bound allows
-// go to LORENZO_REG, within the bound; NaN or Inf outside trailing fill, and bounds that are not positive and finite,
+// Input BIOMD does not code: shapes other than {frames, atoms, 3} go to LORENZO_REG, within the bound; coordinates
+// beyond the lattice the bound allows, NaN or Inf outside trailing fill, and bounds that are not positive and finite,
 // to lossless compression. The input stays as it was.
 template <class T>
 std::pair<SZ3::ALGO, std::vector<T>> compress_decompress(const std::vector<T> &x, const std::vector<size_t> &dims,
@@ -261,8 +261,8 @@ TEST(BioMD, FallsBackOnWhatItDoesNotCode) {
         auto y = x;
         for (auto &v : y) v += 1e3f;  // beyond the lattice of 5e-4 (512 nm)
         const auto r = compress_decompress(y, {n, 3}, 5e-4);
-        EXPECT_EQ(r.first, SZ3::ALGO_LORENZO_REG);
-        expect_within(y, r.second, 5e-4);
+        EXPECT_EQ(r.first, SZ3::ALGO_LOSSLESS);
+        EXPECT_EQ(memcmp(r.second.data(), y.data(), y.size() * sizeof(float)), 0);
     }
     for (float bad : {std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity()}) {
         auto y = x;
@@ -379,6 +379,31 @@ TEST(BioMD, CoordinatesJustBelowTheSpanCompressTheSameAgain) {
             r = again;
         }
         for (size_t i = 0; i < y.size(); i++) ASSERT_LE(std::fabs(double(r.out[i]) - double(y[i])), eb) << gap;
+    }
+}
+
+// A chunk rewritten as frames are appended and cut back (a crashed run resumed): its last frame goes past the lattice
+// span and back, so the chunk goes from BIOMD to lossless storage and back, again and again. The frames before stay
+// within the bound of the original data.
+TEST(BioMD, ChunkRewrittenAcrossTheSpanStaysWithinTheBound) {
+    SystemSpec s;
+    s.frames = 4;
+    size_t n;
+    const auto x = make_system(s, &n);
+    const double eb = 5e-4;
+    auto y = compress_decompress(x, {s.frames, n, 3}, eb).second;
+    for (int round = 0; round < 3; round++) {
+        auto out = y;
+        for (size_t i = 3 * n * 3; i < 4 * n * 3; i++) out[i] = x[i] + 600.f;  // past B = 512 nm
+        const auto past = compress_decompress(out, {s.frames, n, 3}, eb);
+        EXPECT_EQ(past.first, SZ3::ALGO_LOSSLESS);
+        y = past.second;
+        std::copy(x.begin() + 3 * n * 3, x.end(), y.begin() + 3 * n * 3);  // the frame written again, within B
+        const auto back = compress_decompress(y, {s.frames, n, 3}, eb);
+        EXPECT_EQ(back.first, SZ3::ALGO_BIOMD);
+        y = back.second;
+        for (size_t i = 0; i < 3 * n * 3; i++)
+            ASSERT_LE(std::fabs(double(y[i]) - double(x[i])), eb) << round << " " << i;
     }
 }
 
