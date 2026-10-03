@@ -23,6 +23,14 @@
 
 namespace SZ3 {
 
+namespace biomd {
+// true on the first call in the process (one function for every T and N)
+inline bool first_shape_warning() {
+    static std::atomic<bool> warned{false};
+    return !warned.exchange(true);
+}
+}  // namespace biomd
+
 // Data BIOMD does not code:
 //  * Other shapes, and chunks of more values than an int counts (a stream holds at most one symbol per value), go to
 //    LORENZO_REG with first-order Lorenzo alone, which codes coordinates best of its predictors and only reads data.
@@ -43,8 +51,7 @@ size_t SZ_compress_bioMD(Config &conf, const T *data, uchar *cmpData, size_t cmp
     if (!(conf.absErrorBound > 0) || !std::isfinite(conf.absErrorBound)) return lossless();
     bool coordinates = N <= 3 && conf.dims[N - 1] == 3;
     if (!coordinates || conf.num > size_t(std::numeric_limits<int>::max())) {
-        static std::atomic<bool> warned{false};  // once per process: an HDF5 dataset has many such chunks
-        if (!warned.exchange(true)) {
+        if (biomd::first_shape_warning()) {  // once per process: an HDF5 dataset has many such chunks
             fprintf(stderr, "SZ3 ALGO_BIOMD: %s, so it is compressed with ALGO_LORENZO_REG at a lower ratio%s\n",
                     coordinates ? "data has more values than an int counts"
                                 : "data is not of shape (atoms, 3) or (frames, atoms, 3)",

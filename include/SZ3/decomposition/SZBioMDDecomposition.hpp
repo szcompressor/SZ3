@@ -729,7 +729,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         if (!(margin < error_bound_) || !std::isfinite(1.0 / step_) ||
             !(span <= double(std::numeric_limits<T>::max())) || !(span / step_ < biomd::MAX_LATTICE) ||
             !(double(max_abs) < span + step_) ||
-            !(std::fabs(double(biomd::round_half_away(double(max_abs) * (1.0 / step_)))) * step_ < span))
+            !(nofma(std::fabs(double(biomd::round_half_away(nofma(double(max_abs) * (1.0 / step_))))) * step_) < span))
             throw biomd::Fallback("SZ3 BioMD: coordinates beyond the lattice the error bound allows");
     }
 
@@ -739,8 +739,8 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         using namespace biomd;
         detect_water(data, atoms_, layout);
         const double oh = layout.water_oh / step_, hh = layout.water_hh / step_;
-        water_oh2_ = oh < 16384 ? round_half_away(oh * oh) : 0;  // squares that load() accepts
-        water_hh2_ = hh < 32768 ? round_half_away(hh * hh) : 0;
+        water_oh2_ = oh < 16384 ? round_half_away(nofma(oh * oh)) : 0;  // squares that load() accepts
+        water_hh2_ = hh < 32768 ? round_half_away(nofma(hh * hh)) : 0;
         if (!(water_oh2_ > 0 && water_oh2_ < (int64_t(1) << 28) && water_hh2_ > 0 && water_hh2_ < (int64_t(1) << 30))) {
             water_oh2_ = water_hh2_ = 0;  // no water, or too many lattice steps across one for exact products
             std::fill(layout.kind.begin(), layout.kind.end(), K_OTHER);

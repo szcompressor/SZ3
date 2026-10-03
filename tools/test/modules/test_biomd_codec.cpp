@@ -382,6 +382,27 @@ TEST(BioMD, CoordinatesJustBelowTheSpanCompressTheSameAgain) {
     }
 }
 
+// Every float from 3 steps below the lattice span B to 2 above, alone at the end of a frame, at bounds whose step falls
+// in different places of a float ulp: a value whose rounded lattice point reaches B is stored losslessly, as one on a
+// lattice point at B would round to a float of the binade above, past the bound.
+TEST(BioMD, ValuesAroundTheSpanStayWithinTheBound) {
+    SystemSpec s;
+    size_t n;
+    const auto x = make_system(s, &n);
+    for (double eb : {5e-4, std::ldexp(1.0, -11), 3e-5, 7.3e-4}) {
+        int exponent;
+        std::frexp(std::ldexp(eb, SZ3::biomd::LATTICE_SPAN_BITS<float>), &exponent);
+        const float span = float(std::ldexp(1.0, exponent));
+        for (float sign : {1.f, -1.f})
+            for (float v = span - float(6 * eb); v < span + float(4 * eb); v = std::nextafter(v, 2 * span)) {
+                auto y = x;
+                y.back() = sign * v;
+                const auto r = round_trip(y, 1, n, eb);
+                ASSERT_LE(r.max_err, eb) << eb << " " << sign * v;
+            }
+    }
+}
+
 // A chunk rewritten as frames are appended and cut back (a crashed run resumed): its last frame goes past the lattice
 // span and back, so the chunk goes from BIOMD to lossless storage and back, again and again. The frames before stay
 // within the bound of the original data.
@@ -567,8 +588,8 @@ TEST(BioMD, WaterGeometryAtTheLatticeLimitDecodes) {
     SystemSpec s;
     size_t n;
     const auto x = make_system(s, &n);
-    const auto r = round_trip(x, s.frames, n, 3.3979795989402915e-06);
-    EXPECT_LE(r.max_err, 3.3979795989402915e-06);
+    const auto r = round_trip(x, s.frames, n, 3.0404683020245516e-06);
+    EXPECT_LE(r.max_err, 3.0404683020245516e-06);
 }
 
 // An unwritten chunk is all fill, NaN included.
