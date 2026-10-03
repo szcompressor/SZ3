@@ -29,21 +29,26 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
     bool isCmpCapSufficient = true;
     if (conf.cmprAlgo != ALGO_LOSSLESS) {
         try {
-            std::vector<T> dataCopy(data, data + conf.num);
-            if (conf.cmprAlgo == ALGO_LORENZO_REG) {
-                cmpSize = SZ_compress_LorenzoReg<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
-            } else if (conf.cmprAlgo == ALGO_INTERP) {
-                cmpSize = SZ_compress_Interp<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
-            } else if (conf.cmprAlgo == ALGO_INTERP_LORENZO) {
-                cmpSize = SZ_compress_Interp_lorenzo<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
-            } else if (conf.cmprAlgo == ALGO_NOPRED) {
-                cmpSize = SZ_compress_nopred<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
-            } else if (conf.cmprAlgo == ALGO_BIOMD) {
-                return SZ_compress_bioMD<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
-            } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
-                return SZ_compress_bioMDXtcBased<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+            // BIOMD and LORENZO_REG only read their input: LORENZO_REG's blockwise decomposition works on a copy padded
+            // by at least 2, its fallback Lorenzo's padding
+            if (conf.cmprAlgo == ALGO_BIOMD) {
+                return SZ_compress_bioMD<T, N>(conf, data, cmpData, cmpCap);
+            } else if (conf.cmprAlgo == ALGO_LORENZO_REG) {
+                cmpSize = SZ_compress_LorenzoReg<T, N>(conf, const_cast<T *>(data), cmpData, cmpCap);
             } else {
-                throw std::invalid_argument("Unknown compression algorithm");
+                // the others write their reconstruction into the data they are given, so they get a copy
+                std::vector<T> dataCopy(data, data + conf.num);
+                if (conf.cmprAlgo == ALGO_INTERP) {
+                    cmpSize = SZ_compress_Interp<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                } else if (conf.cmprAlgo == ALGO_INTERP_LORENZO) {
+                    cmpSize = SZ_compress_Interp_lorenzo<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                } else if (conf.cmprAlgo == ALGO_NOPRED) {
+                    cmpSize = SZ_compress_nopred<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
+                    return SZ_compress_bioMDXtcBased<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                } else {
+                    throw std::invalid_argument("Unknown compression algorithm");
+                }
             }
 
         } catch (std::length_error &e) {

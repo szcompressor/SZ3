@@ -1,11 +1,19 @@
 #ifndef SZ3_SZ_BIOMD_HPP
 #define SZ3_SZ_BIOMD_HPP
 
+#include <atomic>
+#include <cmath>
+#include <cstdio>
+#include <limits>
+#include <vector>
+
+#include "SZ3/api/impl/SZAlgoLorenzoReg.hpp"
 #include "SZ3/compressor/SZGenericCompressor.hpp"
 #include "SZ3/decomposition/SZBioMDDecomposition.hpp"
 #include "SZ3/decomposition/SZBioMDXtcDecomposition.hpp"
 #include "SZ3/def.hpp"
 #include "SZ3/encoder/HuffmanEncoder.hpp"
+#include "SZ3/encoder/SegmentedEncoder.hpp"
 #include "SZ3/encoder/XtcBasedEncoder.hpp"
 #include "SZ3/lossless/Lossless_bypass.hpp"
 #include "SZ3/lossless/Lossless_zstd.hpp"
@@ -15,25 +23,56 @@
 
 namespace SZ3 {
 
+// Data BIOMD does not code:
+//  * Other shapes, and chunks of more values than an int counts (a stream holds at most one symbol per value), go to
+//    LORENZO_REG with first-order Lorenzo alone, which codes coordinates best of its predictors and only reads data.
+//  * NaN or Inf outside trailing fill frames, coordinates beyond the lattice, and a bound that is not positive and
+//    finite (an ABS one, or a relative one over data with Inf): the chunk is stored losslessly. Frames appended to a
+//    chunk BIOMD coded can bring the first two; lossless storage keeps the values BIOMD decoded, which are on its
+//    lattice and come back the same from BIOMD again, so a rewritten chunk stays within the bound.
 template <class T, uint N>
-size_t SZ_compress_bioMD(Config &conf, T *data, uchar *cmpData, size_t cmpCap) {
+size_t SZ_compress_bioMD(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
     assert(N == conf.N);
     assert(conf.cmprAlgo == ALGO_BIOMD);
     calAbsErrorBound(conf, data);
 
-    auto quantizer = LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2);
-    auto sz = make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf, quantizer), HuffmanEncoder<int>(),
-                                               Lossless_zstd());
-    return sz->compress(conf, data, cmpData, cmpCap);
+    auto lossless = [&] {
+        conf.cmprAlgo = ALGO_LOSSLESS;
+        return Lossless_zstd().compress(reinterpret_cast<const uchar *>(data), conf.num * sizeof(T), cmpData, cmpCap);
+    };
+    if (!(conf.absErrorBound > 0) || !std::isfinite(conf.absErrorBound)) return lossless();
+    bool coordinates = N <= 3 && conf.dims[N - 1] == 3;
+    if (!coordinates || conf.num > size_t(std::numeric_limits<int>::max())) {
+        static std::atomic<bool> warned{false};  // once per process: an HDF5 dataset has many such chunks
+        if (!warned.exchange(true)) {
+            fprintf(stderr, "SZ3 ALGO_BIOMD: %s, so it is compressed with ALGO_LORENZO_REG at a lower ratio%s\n",
+                    coordinates ? "data has more values than an int counts"
+                                : "data is not of shape (atoms, 3) or (frames, atoms, 3)",
+                    coordinates ? "" : "; in HDF5, set chunks to (frames, atoms, 3)");
+        }
+        conf.cmprAlgo = ALGO_LORENZO_REG;
+        conf.lorenzo = true;
+        conf.lorenzo2 = false;
+        conf.regression = false;
+        return SZ_compress_LorenzoReg<T, N>(conf, const_cast<T *>(data), cmpData, cmpCap);
+    }
+    auto sz =
+        make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf),
+                                         SegmentedEncoder<HuffmanEncoder<int>>(biomd::NUM_STREAMS), Lossless_bypass());
+    try {
+        return sz->compress(conf, const_cast<T *>(data), cmpData, cmpCap);
+    } catch (const biomd::Fallback &) {
+        return lossless();
+    }
 }
 
 template <class T, uint N>
 void SZ_decompress_bioMD(const Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
     assert(conf.cmprAlgo == ALGO_BIOMD);
 
-    LinearQuantizer<T> quantizer;
-    auto sz = make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf, quantizer), HuffmanEncoder<int>(),
-                                               Lossless_zstd());
+    auto sz =
+        make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf),
+                                         SegmentedEncoder<HuffmanEncoder<int>>(biomd::NUM_STREAMS), Lossless_bypass());
     sz->decompress(conf, cmpData, cmpSize, decData);
 }
 
