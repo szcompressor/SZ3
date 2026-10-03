@@ -108,11 +108,10 @@ struct Layout {
     double water_oh = 0, water_hh = 0;  // O-H and H-H distances of the water (nm)
 };
 
-// Rigid water on frame x: kind, water_oh, water_hh.
+// Rigid water on frame x: kind, water_oh, water_hh. Without water, water_oh stays 0 and detect_layout() clears kind.
 template <class T>
 void detect_water(const T *x, size_t atoms, Layout &layout) {
     layout.kind.assign(atoms, K_OTHER);
-    layout.water_oh = 0;
     auto dist2 = [x](size_t a, size_t b) {
         float dx = float(x[3 * a] - x[3 * b]), dy = float(x[3 * a + 1] - x[3 * b + 1]),
               dz = float(x[3 * a + 2] - x[3 * b + 2]);
@@ -161,7 +160,6 @@ void detect_water(const T *x, size_t atoms, Layout &layout) {
     for (size_t c = 0; c < cand_hh.size(); c++)
         if (std::fabs(cand_hh[c] - hh) < tol)
             oh_of_hh.push_back(cand_oh[2 * c]), oh_of_hh.push_back(cand_oh[2 * c + 1]);
-    if (oh_of_hh.empty()) return;
     const double oh = peak(oh_of_hh);
     // rigidity test: rigid water puts at least seven in ten of the nearby candidates within `tight` of both peaks;
     // that share is 0.97 to 1 with rigid water and 0 to 0.41 without (proteins alone, flexible water), and 0.7 is
@@ -191,10 +189,7 @@ void detect_water(const T *x, size_t atoms, Layout &layout) {
             i++;
         }
     }
-    if (waters < MIN_COUNT) {
-        std::fill(layout.kind.begin(), layout.kind.end(), K_OTHER);
-        return;
-    }
+    if (waters < MIN_COUNT) return;
     layout.water_oh = oh;
     layout.water_hh = hh;
 }
