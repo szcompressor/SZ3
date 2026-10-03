@@ -34,9 +34,8 @@
 namespace SZ3 {
 namespace biomd {
 
-// A bond partner is one of the previous MAX_BOND_OFFSET atoms: in GROMACS topologies (AMBER, CHARMM, OPLS, GROMOS
-// proteins, Martini 3 proteins and lipids) 91% to 97% of the bonded atoms have one there; 8 or 16 cover up to 99% but
-// change no compression ratio by more than 0.3%.
+// A bond partner is one of the previous MAX_BOND_OFFSET atoms: in GROMACS all-atom topologies (AMBER, CHARMM, OPLS,
+// GROMOS) 91% to 97% of the bonded atoms have one there; 8 gains under 1% of the ratio.
 constexpr int MAX_BOND_OFFSET = 4;
 // Deltas from here on are an escape symbol and a raw byte. In lattice units, so the best threshold moves
 // with the density of the system and the bound: over 100 all-atom and Martini runs 2048 is the best single value
@@ -196,9 +195,9 @@ void detect_water(const T *x, size_t atoms, Layout &layout) {
 
 // Bonds of the other atoms on frame x: each takes the nearest of its previous MAX_BOND_OFFSET atoms if that is within
 // 0.01 .. 0.2 nm: all-atom bonds, and the 0.015 nm bond of the virtual site of 4-site water to its O. Martini 3 bonds
-// (0.27 .. 0.47 nm) are left out: taking them in gains 1-2% of the ratio on Martini runs but takes a sixth to a half
-// more time. Under one bonded atom in 16 among other atoms probed across the frame, the bonds would cost more in
-// S_BOND_REF (a bit per atom) than they save, and none is kept.
+// (0.27 .. 0.47 nm) are left out: taking them in gains up to 2% of the ratio on Martini runs (16% on Martini proteins
+// alone) but takes a sixth to a half more time. Under one bonded atom in 16 among other atoms probed across the frame,
+// the bonds would cost more in S_BOND_REF (a bit per atom) than they save, and none is kept.
 template <class T>
 void detect_bonds(const T *x, size_t atoms, Layout &layout) {
     auto partner = [&](size_t i) {  // the offset of the bond partner of other atom i, or 0
