@@ -209,15 +209,11 @@ void detect_water(const T *x, size_t atoms, Layout &layout) {
 // Bonds of the other atoms on frame x: each takes the nearest of its previous MAX_BOND_OFFSET atoms if that is within
 // 0.01 .. 0.2 nm: all-atom bonds, and the 0.015 nm bond of the virtual site of 4-site water to its O. Martini 3 bonds
 // (0.27 .. 0.47 nm) are left out: taking them in gains 1-2% of the ratio on Martini runs but takes a sixth to a half
-// more time. Under one bonded atom in 16, the bonds cost more in S_BOND_REF (a bit per atom) than they save, and none
-// is kept.
+// more time. Under one bonded atom in 16 among other atoms probed across the frame, the bonds would cost more in
+// S_BOND_REF (a bit per atom) than they save, and none is kept.
 template <class T>
 void detect_bonds(const T *x, size_t atoms, Layout &layout) {
-    layout.bond.assign(atoms, 0);
-    size_t others = 0, bonded = 0;
-    for (size_t i = 1; i < atoms; i++) {
-        if (layout.kind[i] != K_OTHER) continue;
-        others++;
+    auto partner = [&](size_t i) {  // the offset of the bond partner of other atom i, or 0
         float best = 1e30f;
         uint8_t offset = 0;  // of the nearest previous atom
         for (unsigned o = 1; o <= unsigned(MAX_BOND_OFFSET) && o <= i; o++) {
@@ -227,9 +223,15 @@ void detect_bonds(const T *x, size_t atoms, Layout &layout) {
             offset = v < best ? uint8_t(o) : offset;
             best = std::min(best, v);
         }
-        if (best > 0.0001f && best < 0.04f) layout.bond[i] = offset, bonded++;
-    }
-    if (bonded * 16 < others) layout.bond.assign(atoms, 0);
+        return best > 0.0001f && best < 0.04f ? offset : uint8_t(0);
+    };
+    layout.bond.assign(atoms, 0);
+    size_t probed = 0, bonded = 0;
+    for (size_t i = 1; i < atoms; i += std::max<size_t>(1, atoms / 256))
+        if (layout.kind[i] == K_OTHER) probed++, bonded += partner(i) != 0;
+    if (bonded * 16 < probed) return;
+    for (size_t i = 1; i < atoms; i++)
+        if (layout.kind[i] == K_OTHER) layout.bond[i] = partner(i);
 }
 
 // ------------------------------------------------------------------------------------------------ symbols
