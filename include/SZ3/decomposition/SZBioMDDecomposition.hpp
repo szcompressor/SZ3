@@ -43,13 +43,13 @@ constexpr int MAX_BOND_OFFSET = 4;
 constexpr uint32_t ESCAPE = 2048;
 // |q| <= 2^28: displacements stay within 2^29, and every symbol within 32 bits
 constexpr double MAX_LATTICE = double(1 << 28);
-// The lattice spans |x| < B, the smallest power of two above 2^LATTICE_SPAN_BITS eb. For float, B is 512 nm at the
-// 5e-4 nm of GROMACS's default xtc precision and 4096 nm at the 5e-3 nm of coarse-grained runs: mdrun writes
-// coordinates inside the box, and the largest systems simulated are 155 nm (all-atom) and 400 nm (a Martini cell). It
-// costs float 1% of the ratio against 2^17 eb, as the step shrinks to 2 (eb - eb / 16) at most; double, whose ulp is
-// 2^29 times smaller, spans the whole of MAX_LATTICE at no cost.
+// The lattice spans |x| < B, the smallest power of two above 2^LATTICE_SPAN_BITS eb. For float, B is 1024 nm at the
+// 5e-4 nm of GROMACS's default xtc precision, 8192 nm at the 5e-3 nm of coarse-grained runs and 64 nm at 5e-5 nm:
+// mdrun writes coordinates inside the box, and the largest systems simulated are 155 nm (all-atom) and 400 nm (a
+// Martini cell). It costs float 1% of the ratio against 2^18 eb, as the step shrinks to 2 eb - eb / 8 at most; double,
+// whose ulp is 2^29 times smaller, spans the whole of MAX_LATTICE at no cost.
 template <class T>
-constexpr int LATTICE_SPAN_BITS = sizeof(T) == 4 ? 19 : 27;
+constexpr int LATTICE_SPAN_BITS = sizeof(T) == 4 ? 20 : 27;
 
 // atom groups, each with its own predictor mode for the frames after the first (water O's: the previous frame)
 enum { G_WATER_O, G_WATER_H, G_BONDED, G_UNBONDED, NUM_GROUPS };
@@ -695,12 +695,13 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         for (coded_frames_ = frames_; coded_frames_ > 0 && is_fill(coded_frames_ - 1);) coded_frames_--;
     }
 
-    // Lattice step: 2 (eb - m ulp) for the binade below B, so that q step rounded to T stays within eb for every
-    // |q step| < B. The rounding of x * inv_step to q, done in double, is off by up to 2 double ulps of x, and q step
-    // by 1 more: m = 1 for float, whose ulp is 2^29 times larger, and 4 for double. B, the power of two above
+    // Lattice step: 2 eb - m ulp for the binade below B, so that q step rounded to T stays within eb for every
+    // |q step| < B. Rounding q step to float adds ulp / 2 to the step / 2 of the lattice, and the double arithmetic
+    // (x * inv_step rounded to q is off by up to 2 double ulps of x, q step by 1 more) under 2^-20 float ulps: m = 1 +
+    // 2^-10 for float. For double those ulps are its own: m = 8. B, the power of two above
     // 2^LATTICE_SPAN_BITS eb, depends on the bound alone, so a decompressed chunk compressed again lands on the same
     // lattice points. A chunk with NaN or Inf goes to lossless compression; one with coordinates beyond B, or under a
-    // bound for which m ulp reaches eb / 2 or B passes the largest value of T, also to lossless compression.
+    // bound for which m ulp reaches eb or B passes the largest value of T, also to lossless compression.
     void choose_step(const T *data) {
         if (!(error_bound_ > 0) || !std::isfinite(error_bound_))
             throw std::invalid_argument("SZ3 BioMD: the error bound must be positive and finite");
@@ -719,13 +720,13 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         int exponent;
         std::frexp(std::ldexp(error_bound_, biomd::LATTICE_SPAN_BITS<T>), &exponent);
         const double span = std::ldexp(1.0, exponent);
-        const double margin =
-            (sizeof(T) == 4 ? 1 : 4) * std::max(double(std::numeric_limits<T>::denorm_min()),
-                                                std::ldexp(1.0, exponent - std::numeric_limits<T>::digits));
-        step_ = 2.0 * (error_bound_ - margin);
+        const double margin = (sizeof(T) == 4 ? 1 + 1.0 / 1024 : 8) *
+                              std::max(double(std::numeric_limits<T>::denorm_min()),
+                                       std::ldexp(1.0, exponent - std::numeric_limits<T>::digits));
+        step_ = 2.0 * error_bound_ - margin;
         // every lattice point |q| step below B, with q rounded as quantize() does (after max|x| < B + step, which
         // keeps q within MAX_LATTICE): decompressed values land on the same points, and compress the same again
-        if (!(margin < 0.5 * error_bound_) || !std::isfinite(1.0 / step_) ||
+        if (!(margin < error_bound_) || !std::isfinite(1.0 / step_) ||
             !(span <= double(std::numeric_limits<T>::max())) || !(span / step_ < biomd::MAX_LATTICE) ||
             !(double(max_abs) < span + step_) ||
             !(std::fabs(double(biomd::round_half_away(double(max_abs) * (1.0 / step_)))) * step_ < span))

@@ -205,8 +205,8 @@ TEST(BioMD, EdgeCasesStayWithinBound) {
     }
     {
         auto x = base;
-        for (auto &v : x) v += 400.f;  // within the lattice of 5e-4 (512 nm)
-        cases.push_back({"offset 400 nm", x});
+        for (auto &v : x) v += 800.f;  // within the lattice of 5e-4 (1024 nm)
+        cases.push_back({"offset 800 nm", x});
     }
     {
         auto x = base;
@@ -259,7 +259,7 @@ TEST(BioMD, FallsBackOnWhatItDoesNotCode) {
     }
     {
         auto y = x;
-        for (auto &v : y) v += 1e3f;  // beyond the lattice of 5e-4 (512 nm)
+        for (auto &v : y) v += 2e3f;  // beyond the lattice of 5e-4 (1024 nm)
         const auto r = compress_decompress(y, {n, 3}, 5e-4);
         EXPECT_EQ(r.first, SZ3::ALGO_LOSSLESS);
         EXPECT_EQ(memcmp(r.second.data(), y.data(), y.size() * sizeof(float)), 0);
@@ -364,7 +364,7 @@ TEST(BioMD, CoordinatesJustBelowTheSpanCompressTheSameAgain) {
     SystemSpec s;
     size_t n;
     auto x = make_system(s, &n);
-    const double eb = 5e-4, span = 512;  // B for float at 5e-4: the power of two above 2^19 eb
+    const double eb = 5e-4, span = 1024;  // B for float at 5e-4: the power of two above 2^20 eb
     float hi = 0;
     for (float v : x) hi = std::max(hi, v);
     for (double gap : {0.0004, 0.0006, 0.0011}) {
@@ -394,7 +394,7 @@ TEST(BioMD, ChunkRewrittenAcrossTheSpanStaysWithinTheBound) {
     auto y = compress_decompress(x, {s.frames, n, 3}, eb).second;
     for (int round = 0; round < 3; round++) {
         auto out = y;
-        for (size_t i = 3 * n * 3; i < 4 * n * 3; i++) out[i] = x[i] + 600.f;  // past B = 512 nm
+        for (size_t i = 3 * n * 3; i < 4 * n * 3; i++) out[i] = x[i] + 1200.f;  // past B = 1024 nm
         const auto past = compress_decompress(out, {s.frames, n, 3}, eb);
         EXPECT_EQ(past.first, SZ3::ALGO_LOSSLESS);
         y = past.second;
