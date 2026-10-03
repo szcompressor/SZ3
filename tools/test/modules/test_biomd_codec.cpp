@@ -358,6 +358,30 @@ TEST(BioMD, BeadsWithoutBondsAreStoredAsLatticePoints) {
     }
 }
 
+// Coordinates within half a step below the lattice span B: decompressed onto lattice points that may round past
+// their originals, they must still be BIOMD's and compress to the same values, round after round.
+TEST(BioMD, CoordinatesJustBelowTheSpanCompressTheSameAgain) {
+    SystemSpec s;
+    size_t n;
+    auto x = make_system(s, &n);
+    const double eb = 5e-4, span = 512;  // B for float at 5e-4: the power of two above 2^19 eb
+    float hi = 0;
+    for (float v : x) hi = std::max(hi, v);
+    for (double gap : {0.0004, 0.0006, 0.0011}) {
+        auto y = x;
+        for (auto &v : y) v = float(v + (span - gap - hi));
+        auto r = round_trip(y, 1, n, eb);
+        ASSERT_EQ(r.algo, SZ3::ALGO_BIOMD) << gap;
+        for (int round = 0; round < 3; round++) {
+            const auto again = round_trip(r.out, 1, n, eb);
+            EXPECT_EQ(again.algo, SZ3::ALGO_BIOMD) << gap;
+            EXPECT_EQ(again.out, r.out) << gap << " round " << round;
+            r = again;
+        }
+        for (size_t i = 0; i < y.size(); i++) ASSERT_LE(std::fabs(double(r.out[i]) - double(y[i])), eb) << gap;
+    }
+}
+
 // Config drops dimensions of 1: one atom arrives as {frames, 3}, one atom of one frame as {3}.
 TEST(BioMD, OneAtom) {
     for (size_t frames : {size_t(1), size_t(5)}) {

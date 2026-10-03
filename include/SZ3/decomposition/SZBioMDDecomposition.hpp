@@ -117,7 +117,7 @@ inline size_t bond_class(uint16_t bond) { return (bond & 15) - 1; }
 // Rigid water on frame x: kind, water_oh, water_hh. The tolerances grow with the lattice step, so rounded input (xtc
 // files, or data this codec decompressed) still fits.
 template <class T>
-void detect_water(const T *x, size_t atoms, Layout &layout, double step) {
+void detect_water(const T *x, size_t atoms, Layout &layout) {
     layout.kind.assign(atoms, K_OTHER);
     layout.water_oh = 0;
     auto dist2 = [x](size_t a, size_t b) {
@@ -145,8 +145,11 @@ void detect_water(const T *x, size_t atoms, Layout &layout, double step) {
             }
         }
     if (cand_hh.size() < MIN_COUNT) return;
-    // tolerances (nm) stay well below the O-H / C-H difference (> 0.01 nm) that separates water from CH2/NH2
-    const double tight = std::max(0.001, step), tol = std::max(0.002, 2.0 * step), loose = std::max(0.01, 3.0 * tight);
+    // tolerances (nm), whatever the bound: rigid water is within 0.002 pm of its geometry in float output, and they
+    // stay well below the O-H / C-H difference (> 0.01 nm) that separates water from CH2/NH2. Over 50 all-atom runs the
+    // rigid share is then 0.97-1 with rigid water and 0-0.41 without at every bound from 5e-5 to 5e-2 nm; tolerances
+    // that grew with the step let proteins pass and rigid water fail from 5e-3 nm on.
+    constexpr double tight = 0.001, tol = 0.002, loose = 0.01;
     auto peak = [](std::vector<float> v) {  // median of the values within PEAK_SPREAD of the heaviest PEAK_WINDOW
         constexpr float PEAK_WINDOW = 0.004f, PEAK_SPREAD = 0.003f;  // nm
         std::sort(v.begin(), v.end());
@@ -171,8 +174,8 @@ void detect_water(const T *x, size_t atoms, Layout &layout, double step) {
     if (oh_of_hh.empty()) return;
     const double oh = peak(oh_of_hh);
     // rigidity test: rigid water puts at least seven in ten of the nearby candidates within `tight` of both peaks;
-    // over 100 runs that share is 0.97 to 1 with rigid water and 0 to 0.41 without (proteins alone, flexible water),
-    // and 0.7 is midway. Rigid water is within 0.002 pm of its geometry in float output, far below `tight`.
+    // that share is 0.97 to 1 with rigid water and 0 to 0.41 without (proteins alone, flexible water), and 0.7 is
+    // midway.
     size_t n_tight = 0, n_loose = 0, n_rigid = 0;
     double sum_oh = 0, sum_hh = 0;
     for (size_t c = 0; c < cand_hh.size(); c++) {
@@ -809,10 +812,12 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
             (sizeof(T) == 4 ? 1 : 4) * std::max(double(std::numeric_limits<T>::denorm_min()),
                                                 std::ldexp(1.0, exponent - std::numeric_limits<T>::digits));
         step_ = 2.0 * (error_bound_ - margin);
-        // every |q| step <= max|x| + step / 2 below B, checked before any q is rounded: |q| < B / step < MAX_LATTICE
+        // every lattice point |q| step below B, with q rounded as quantize() does (after max|x| < B + step, which
+        // keeps q within MAX_LATTICE): decompressed values land on the same points, and compress the same again
         if (!(margin < 0.5 * error_bound_) || !std::isfinite(1.0 / step_) ||
-            !(span <= double(std::numeric_limits<T>::max())) || !(double(max_abs) + 0.5 * step_ < span) ||
-            !(span / step_ < biomd::MAX_LATTICE))
+            !(span <= double(std::numeric_limits<T>::max())) || !(span / step_ < biomd::MAX_LATTICE) ||
+            !(double(max_abs) < span + step_) ||
+            !(std::fabs(double(biomd::round_half_away(double(max_abs) * (1.0 / step_)))) * step_ < span))
             throw biomd::Fallback(ALGO_LORENZO_REG, "SZ3 BioMD: coordinates beyond the lattice the error bound allows");
     }
 
@@ -820,7 +825,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     void detect_layout(const T *data, biomd::Layout &layout, std::vector<uint32_t> &waters,
                        std::vector<uint32_t> &bonded, std::vector<uint32_t> &unbonded) {
         using namespace biomd;
-        detect_water(data, atoms_, layout, step_);
+        detect_water(data, atoms_, layout);
         const double oh = layout.water_oh / step_, hh = layout.water_hh / step_;
         water_oh2_ = oh < 16384 ? round_half_away(oh * oh) : 0;  // squares that load() accepts
         water_hh2_ = hh < 32768 ? round_half_away(hh * hh) : 0;
