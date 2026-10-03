@@ -300,12 +300,16 @@ inline void put_box_point(const FrameContext &frame, const int32_t *p, Sink &out
 }
 inline void get_box_point(const FrameContext &frame, int32_t *p, SymbolReader &in) {
     const uint64_t *R = frame.box_size;
-    uint64_t v = frame.box_bits >= 0 ? in.get_bits(frame.box_bits) : 0;
-    for (int c = 0; c < 3; c++) {
-        const uint64_t u = frame.box_bits >= 0 ? v % R[c] : in.get_bits(frame.side_bits[c]);
-        v /= R[c];
-        p[c] = int32_t(frame.box_min[c] + int64_t(u));
+    uint64_t u[3];
+    if (frame.box_bits >= 0) {
+        const uint64_t v = in.get_bits(frame.box_bits), yz = v / R[0];
+        u[0] = v - yz * R[0];
+        u[1] = yz % R[1];
+        u[2] = yz / R[1];
+    } else {
+        for (int c = 0; c < 3; c++) u[c] = in.get_bits(frame.side_bits[c]);
     }
+    for (int c = 0; c < 3; c++) p[c] = int32_t(frame.box_min[c] + int64_t(u[c]));
 }
 
 // coordinate c of unbonded atom i: from the atom before (intra) or from the previous frame
