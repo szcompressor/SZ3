@@ -567,9 +567,11 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
             quantize(data + t * frame_values, frame_values, 1.0 / step_, frame.cur);
             int32_t box_max[3];
             uint32_t box_size[3];
-            water_box(frame.cur, unbonded_box_ ? unbonded : waters, frame.box_min, box_max);
-            for (int c = 0; c < 3; c++) box_size[c] = uint32_t(box_max[c] - frame.box_min[c]) + 1;
-            set_water_box(frame, box_size);
+            if (needs_box(t)) {  // at frame 1 always (modes_ are still 0), for choose_modes()
+                water_box(frame.cur, unbonded_box_ ? unbonded : waters, frame.box_min, box_max);
+                for (int c = 0; c < 3; c++) box_size[c] = uint32_t(box_max[c] - frame.box_min[c]) + 1;
+                set_water_box(frame, box_size);
+            }
             // per group, the predictor that is cheapest on a sample of frame 1, for every frame after the first
             if (t == 1) choose_modes(frame, group_atoms, modes_);
             if (needs_box(t)) {
