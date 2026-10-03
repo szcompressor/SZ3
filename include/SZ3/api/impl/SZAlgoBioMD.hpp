@@ -1,7 +1,9 @@
 #ifndef SZ3_SZ_BIOMD_HPP
 #define SZ3_SZ_BIOMD_HPP
 
+#include <atomic>
 #include <cmath>
+#include <cstdio>
 #include <limits>
 #include <vector>
 
@@ -39,7 +41,15 @@ size_t SZ_compress_bioMD(Config &conf, const T *data, uchar *cmpData, size_t cmp
         return Lossless_zstd().compress(reinterpret_cast<const uchar *>(data), conf.num * sizeof(T), cmpData, cmpCap);
     };
     if (!(conf.absErrorBound > 0) || !std::isfinite(conf.absErrorBound)) return lossless();
-    if (N > 3 || conf.dims[N - 1] != 3 || conf.num > size_t(std::numeric_limits<int>::max())) {
+    bool coordinates = N <= 3 && conf.dims[N - 1] == 3;
+    if (!coordinates || conf.num > size_t(std::numeric_limits<int>::max())) {
+        static std::atomic<bool> warned{false};  // once per process: an HDF5 dataset has many such chunks
+        if (!warned.exchange(true)) {
+            fprintf(stderr, "SZ3 ALGO_BIOMD: %s, so it is compressed with ALGO_LORENZO_REG at a lower ratio%s\n",
+                    coordinates ? "data has more values than an int counts"
+                                : "data is not of shape (atoms, 3) or (frames, atoms, 3)",
+                    coordinates ? "" : "; in HDF5, set chunks to (frames, atoms, 3)");
+        }
         conf.cmprAlgo = ALGO_LORENZO_REG;
         conf.lorenzo = true;
         conf.lorenzo2 = false;
