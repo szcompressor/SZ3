@@ -608,7 +608,8 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         std::copy(box_min_, box_min_ + 3, frame.box_min);
         set_water_box(frame, box_size_);
         for (size_t t = 0; t < coded_frames_; t++) {
-            for (size_t i = 0; i < atoms_; i++) get_atom(frame, t ? modes_ : intra, i, reader);
+            for (size_t i = 0; i < atoms_; i += layout.kind[i] == K_WATER_O ? 3 : 1)  // a water's H come with its O
+                get_atom(frame, t ? modes_ : intra, i, reader);
             T *x = dec_data + t * frame_values;
             for (size_t i = 0; i < frame_values; i++) x[i] = T(double(frame.cur[i]) * step_);
             std::swap(frame.cur, frame.prev);
