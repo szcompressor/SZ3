@@ -108,8 +108,7 @@ struct Layout {
     double water_oh = 0, water_hh = 0;  // O-H and H-H distances of the water (nm)
 };
 
-// Rigid water on frame x: kind, water_oh, water_hh. The tolerances grow with the lattice step, so rounded input (xtc
-// files, or data this codec decompressed) still fits.
+// Rigid water on frame x: kind, water_oh, water_hh.
 template <class T>
 void detect_water(const T *x, size_t atoms, Layout &layout) {
     layout.kind.assign(atoms, K_OTHER);
@@ -144,8 +143,8 @@ void detect_water(const T *x, size_t atoms, Layout &layout) {
     // rigid share is then 0.97-1 with rigid water and 0-0.41 without at every bound from 5e-5 to 5e-2 nm; tolerances
     // that grew with the step let proteins pass and rigid water fail from 5e-3 nm on.
     constexpr double tight = 0.001, tol = 0.002, loose = 0.01;
-    auto peak = [](std::vector<float> v) {  // median of the values within PEAK_SPREAD of the heaviest PEAK_WINDOW
-        constexpr float PEAK_WINDOW = 0.004f, PEAK_SPREAD = 0.003f;  // nm
+    auto peak = [](std::vector<float> v) {     // the median of the heaviest window of PEAK_WINDOW
+        constexpr float PEAK_WINDOW = 0.004f;  // nm
         std::sort(v.begin(), v.end());
         size_t best = 0, n = 0;
         for (size_t lo = 0, hi = 0; hi < v.size(); hi++) {
@@ -155,10 +154,7 @@ void detect_water(const T *x, size_t atoms, Layout &layout) {
                 best = (lo + hi) / 2;
             }
         }
-        std::vector<float> w;
-        for (float y : v)
-            if (std::fabs(y - v[best]) < PEAK_SPREAD) w.push_back(y);
-        return double(w[w.size() / 2]);
+        return double(v[best]);
     };
     const double hh = peak(cand_hh);
     std::vector<float> oh_of_hh;
@@ -170,8 +166,7 @@ void detect_water(const T *x, size_t atoms, Layout &layout) {
     // rigidity test: rigid water puts at least seven in ten of the nearby candidates within `tight` of both peaks;
     // that share is 0.97 to 1 with rigid water and 0 to 0.41 without (proteins alone, flexible water), and 0.7 is
     // midway.
-    size_t n_tight = 0, n_loose = 0, n_rigid = 0;
-    double sum_oh = 0, sum_hh = 0;
+    size_t n_tight = 0, n_loose = 0;
     for (size_t c = 0; c < cand_hh.size(); c++) {
         const double dh = std::fabs(cand_hh[c] - hh), da = std::fabs(cand_oh[2 * c] - oh),
                      db = std::fabs(cand_oh[2 * c + 1] - oh);
@@ -179,8 +174,6 @@ void detect_water(const T *x, size_t atoms, Layout &layout) {
             n_loose++;
             n_tight += dh < tight && da < tight && db < tight;
         }
-        if (dh < tol && da < tol && db < tol)
-            sum_oh += double(cand_oh[2 * c]) + cand_oh[2 * c + 1], sum_hh += cand_hh[c], n_rigid++;
     }
     if (n_loose < MIN_COUNT || n_tight * 10 < n_loose * 7) return;
     const float oh2_lo = float((oh - tol) * (oh - tol)), oh2_hi = float((oh + tol) * (oh + tol));
@@ -202,8 +195,8 @@ void detect_water(const T *x, size_t atoms, Layout &layout) {
         std::fill(layout.kind.begin(), layout.kind.end(), K_OTHER);
         return;
     }
-    layout.water_oh = sum_oh / (2.0 * n_rigid);
-    layout.water_hh = sum_hh / double(n_rigid);
+    layout.water_oh = oh;
+    layout.water_hh = hh;
 }
 
 // Bonds of the other atoms on frame x: each takes the nearest of its previous MAX_BOND_OFFSET atoms if that is within
