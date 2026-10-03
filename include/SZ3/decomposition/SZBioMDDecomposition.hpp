@@ -8,8 +8,8 @@
 //  * rigid water (O, H1, H2): H1 on the sphere |H1 - O| = r, H2 on the circle that r and the H-H distance leave
 //  * other atoms: from their bond partner, one of the previous MAX_BOND_OFFSET atoms (intra a delta, else on the sphere
 //    of the previous frame's bond length), else a delta
-//  * frame 0 intra; for the frames after it, per atom group intra or from the previous frame, whichever costs less on a
-//    sample of frame 1
+//  * frame 0 intra; for the frames after it water O's from the previous frame, and per other atom group intra or from
+//    the previous frame, whichever costs less on a sample of frame 1
 // The layout (which atoms are water, the bond of each other atom) is found on a chunk's first frame and stored with it.
 // In a chunk of one frame without water and with under a quarter of its atoms bonded (coarse-grained runs), unbonded
 // atoms are their points in their box, like intra water O's.
@@ -52,7 +52,7 @@ constexpr double MAX_LATTICE = double(1 << 28);
 template <class T>
 constexpr int LATTICE_SPAN_BITS = sizeof(T) == 4 ? 19 : 27;
 
-// atom groups, each with its own predictor mode for the frames after the first
+// atom groups, each with its own predictor mode for the frames after the first (water O's: the previous frame)
 enum { G_WATER_O, G_WATER_H, G_BONDED, G_UNBONDED, NUM_GROUPS };
 // symbol streams: the layout (gaps between water O's, the bond of each other atom); water O from the previous frame;
 // water H1 on the sphere around O (face, kept coordinates, radial residual); water H2 on the circle (coordinate and
@@ -493,10 +493,11 @@ inline void water_box(const int32_t *q, const std::vector<uint32_t> &waters, int
         }
 }
 
-// Per group, the mode (0 intra, 1 previous frame) that costs fewer bits on a sample of about 256 of its atoms.
+// Per group but the water O's, the mode (0 intra, 1 previous frame) that costs fewer bits on a sample of about 256 of
+// its atoms.
 inline void choose_modes(const FrameContext &frame, const std::vector<uint32_t> *const group_atoms[NUM_GROUPS],
                          int mode[NUM_GROUPS]) {
-    for (int g = 0; g < NUM_GROUPS; g++) {
+    for (int g = G_WATER_H; g < NUM_GROUPS; g++) {
         const auto &sample = *group_atoms[g];
         double best = 1e300;
         for (int m = 0; m < 2 && !sample.empty(); m++) {
@@ -504,12 +505,7 @@ inline void choose_modes(const FrameContext &frame, const std::vector<uint32_t> 
             int trial[NUM_GROUPS] = {mode[0], mode[1], mode[2], mode[3]};
             trial[g] = m;
             const size_t stride = std::max<size_t>(1, sample.size() / 256);
-            for (size_t k = 0; k < sample.size(); k += stride) {
-                if (g == G_WATER_O)  // the O alone: put_atom would add its molecule's H
-                    put_water_o(frame, m, sample[k], cost);
-                else
-                    put_atom(frame, trial, sample[k], cost);
-            }
+            for (size_t k = 0; k < sample.size(); k += stride) put_atom(frame, trial, sample[k], cost);
             if (cost.bits < best) best = cost.bits, mode[g] = m;
         }
     }
@@ -560,24 +556,17 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         std::unique_ptr<int32_t[]> lattice(new int32_t[2 * frame_values]);  // written before read
         FrameContext frame = frame_context(lattice.get(), layout);
         const int intra[NUM_GROUPS] = {0, 0, 0, 0};
-        std::fill(modes_, modes_ + NUM_GROUPS, 0);
-        box_min_.clear();
-        box_size_.clear();
+        std::fill(modes_ + G_WATER_H, modes_ + NUM_GROUPS, 0);
         for (size_t t = 0; t < coded_frames_; t++) {
             quantize(data + t * frame_values, frame_values, 1.0 / step_, frame.cur);
-            int32_t box_max[3];
-            uint32_t box_size[3];
-            if (needs_box(t)) {  // at frame 1 always (modes_ are still 0), for choose_modes()
+            if (t == 0) {  // sides of 1 without water O's or unbonded box points
+                int32_t box_max[3];
                 water_box(frame.cur, unbonded_box_ ? unbonded : waters, frame.box_min, box_max);
-                for (int c = 0; c < 3; c++) box_size[c] = uint32_t(box_max[c] - frame.box_min[c]) + 1;
-                set_water_box(frame, box_size);
+                for (int c = 0; c < 3; c++) box_min_[c] = frame.box_min[c], box_size_[c] = box_max[c] - box_min_[c] + 1;
+                set_water_box(frame, box_size_);
             }
             // per group, the predictor that is cheapest on a sample of frame 1, for every frame after the first
             if (t == 1) choose_modes(frame, group_atoms, modes_);
-            if (needs_box(t)) {
-                box_min_.insert(box_min_.end(), frame.box_min, frame.box_min + 3);
-                box_size_.insert(box_size_.end(), box_size, box_size + 3);
-            }
             for (size_t i = 0; i < atoms_; i++) put_atom(frame, t ? modes_ : intra, i, writer);
             std::swap(frame.cur, frame.prev);
         }
@@ -617,11 +606,9 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         std::unique_ptr<int32_t[]> lattice(new int32_t[2 * frame_values]);  // written before read
         FrameContext frame = frame_context(lattice.get(), layout);
         const int intra[NUM_GROUPS] = {0, 0, 0, 0};
-        for (size_t t = 0, box = 0; t < coded_frames_; t++) {
-            if (needs_box(t)) {
-                for (int c = 0; c < 3; c++) frame.box_min[c] = box_min_[box * 3 + c];
-                set_water_box(frame, &box_size_[box++ * 3]);
-            }
+        std::copy(box_min_, box_min_ + 3, frame.box_min);
+        set_water_box(frame, box_size_);
+        for (size_t t = 0; t < coded_frames_; t++) {
             for (size_t i = 0; i < atoms_; i++) get_atom(frame, t ? modes_ : intra, i, reader);
             T *x = dec_data + t * frame_values;
             for (size_t i = 0; i < frame_values; i++) x[i] = T(double(frame.cur[i]) * step_);
@@ -644,9 +631,9 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         write(uint64_t(num_waters_), c);
         for (int m : modes_) write(uint8_t(m), c);
         write(uint8_t(unbonded_box_), c);
-        if (!box_min_.empty()) {  // no box without water
-            write(box_min_.data(), box_min_.size(), c);
-            write(box_size_.data(), box_size_.size(), c);
+        if (has_box()) {
+            write(box_min_, 3, c);
+            write(box_size_, 3, c);
         }
         write(uint64_t(raw_bits_.size()), c);
         if (!raw_bits_.empty()) write(raw_bits_.data(), raw_bits_.size(), c);
@@ -671,13 +658,9 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         uint8_t unbonded_box;
         read(unbonded_box, c, remaining_length);
         unbonded_box_ = (unbonded_box & 1) && coded_frames_ == 1;
-        size_t boxes = 0;
-        for (size_t t = 0; t < coded_frames_; t++) boxes += needs_box(t);
-        box_min_.resize(boxes * 3);
-        box_size_.resize(boxes * 3);
-        if (boxes) {
-            read(box_min_.data(), box_min_.size(), c, remaining_length);
-            read(box_size_.data(), box_size_.size(), c, remaining_length);
+        if (has_box()) {
+            read(box_min_, 3, c, remaining_length);
+            read(box_size_, 3, c, remaining_length);
         }
         read(raw_size, c, remaining_length);
         if (raw_size > remaining_length) throw std::runtime_error("SZ3 BioMD: corrupt stream");
@@ -690,14 +673,14 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     }
 
     // a bound on what save() writes
-    size_t size_est() override { return 64 + 24 * frames_ + raw_bits_.size(); }
+    size_t size_est() override { return 96 + raw_bits_.size(); }
 
     // every bin, a count or a symbol, is in [0, INT_MAX]
     std::pair<int, int> get_out_range() override { return {0, std::numeric_limits<int>::max()}; }
 
    private:
-    // a frame whose water O are intra stores the box of the water O's
-    bool needs_box(size_t t) const { return unbonded_box_ || (num_waters_ && (t == 0 || !modes_[biomd::G_WATER_O])); }
+    // frame 0 stores the box of its water O's, or of its unbonded atoms
+    bool has_box() const { return unbonded_box_ || num_waters_; }
 
     // Trailing frames all of one value (the unwritten rest of a chunk) are stored as that value; a chunk may be all
     // fill (an unwritten chunk of NaN).
@@ -801,11 +784,11 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     double error_bound_, step_ = 0;
     int64_t water_oh2_ = 0, water_hh2_ = 0;  // squared O-H and H-H distances of the water (lattice units)
     size_t num_waters_ = 0;
-    int modes_[biomd::NUM_GROUPS] = {0, 0, 0, 0};  // per group: the predictor of the frames after the first
+    int modes_[biomd::NUM_GROUPS] = {1, 0, 0, 0};  // per group: the predictor of the frames after the first
     bool unbonded_box_ = false;                    // one frame, its unbonded atoms as points in their box
-    std::vector<int32_t> box_min_;    // per frame whose water O are intra: the corner of the box of the water O's
-    std::vector<uint32_t> box_size_;  // and its sides
-    std::vector<uchar> raw_bits_;     // intra water O's and the low bytes of escaped values
+    int32_t box_min_[3] = {0, 0, 0};               // the box of frame 0: corner
+    uint32_t box_size_[3] = {1, 1, 1};             // and sides
+    std::vector<uchar> raw_bits_;                  // intra water O's and the low bytes of escaped values
 };
 
 template <class T, uint N>
