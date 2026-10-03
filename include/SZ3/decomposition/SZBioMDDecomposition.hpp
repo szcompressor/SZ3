@@ -6,7 +6,8 @@
 //   q = round(x * inv_step), |x - q step| <= eb,
 // and all prediction is integer arithmetic on that lattice, which the decoder repeats exactly.
 //  * rigid water (O, H1, H2): H1 on the sphere |H1 - O| = r, H2 on the circle that r and the H-H distance leave
-//  * other atoms: on the sphere of a bond-length class around one of the previous MAX_BOND_OFFSET atoms, else a delta
+//  * other atoms: from their bond partner, one of the previous MAX_BOND_OFFSET atoms (intra a delta, else on the sphere
+//    of the previous frame's bond length), else a delta
 //  * frame 0 intra; for the frames after it, per atom group intra or from the previous frame, whichever costs less on a
 //    sample of frame 1
 // The layout (which atoms are water, the bond of each other atom) is found on a chunk's first frame and stored with it.
@@ -37,10 +38,7 @@ namespace biomd {
 // proteins, Martini 3 proteins and lipids) 91% to 97% of the bonded atoms have one there; 8 or 16 cover up to 99% but
 // change no compression ratio by more than 0.3%.
 constexpr int MAX_BOND_OFFSET = 4;
-// At most this many bond-length classes (the bond code is offset * 16 + class + 1); 31 changes no ratio either.
-constexpr int MAX_BOND_CLASSES = 15;
-constexpr int64_t MAX_BOND_R2 = int64_t(1) << 28;  // bonds of 16384 lattice units or more are not coded as spheres
-// Unbonded values from here on are an escape symbol and a raw byte. In lattice units, so the best threshold moves
+// Deltas from here on are an escape symbol and a raw byte. In lattice units, so the best threshold moves
 // with the density of the system and the bound: over 100 all-atom and Martini runs 2048 is the best single value
 // (512 gains up to 6% on sparse Martini proteins but loses 4.5% on cgfiber, 16384 loses 4% on Martini).
 constexpr uint32_t ESCAPE = 2048;
@@ -57,8 +55,9 @@ constexpr int LATTICE_SPAN_BITS = sizeof(T) == 4 ? 19 : 27;
 // atom groups, each with its own predictor mode for the frames after the first
 enum { G_WATER_O, G_WATER_H, G_BONDED, G_UNBONDED, NUM_GROUPS };
 // symbol streams: the layout (gaps between water O's, the bond of each other atom); water O from the previous frame;
-// water H1 on the sphere around O and bonded atoms on the sphere around their partner (face, kept coordinates, radial
-// residual); water H2 on the circle (coordinate and side, residuals); unbonded atoms as deltas
+// water H1 on the sphere around O (face, kept coordinates, radial residual); water H2 on the circle (coordinate and
+// side, residuals); bonded atoms intra as deltas from their partner, else on the sphere around it (kept coordinates,
+// radial residual); unbonded atoms as deltas
 enum {
     S_WATER_GAP,
     S_BOND_REF,
@@ -68,7 +67,7 @@ enum {
     S_WATER_H1_RADIAL,
     S_WATER_H2_AXIS,
     S_WATER_H2_RESIDUAL,
-    S_BOND_FACE,
+    S_BOND_DELTA,
     S_BOND_KEPT,
     S_BOND_RADIAL,
     S_UNBONDED,
@@ -78,7 +77,7 @@ enum {
 // one of them (water: one molecule) writes per frame; the two size the streams' buffers
 inline constexpr int STREAM_GROUP[NUM_STREAMS] = {-1,        -1,        G_WATER_O, G_WATER_H, G_WATER_H, G_WATER_H,
                                                   G_WATER_H, G_WATER_H, G_BONDED,  G_BONDED,  G_BONDED,  G_UNBONDED};
-inline constexpr int MAX_SYMBOLS_PER_UNIT[NUM_STREAMS] = {1, 1, 3, 1, 2, 1, 1, 2, 1, 2, 1, 3};
+inline constexpr int MAX_SYMBOLS_PER_UNIT[NUM_STREAMS] = {1, 1, 3, 1, 2, 1, 1, 2, 3, 2, 1, 3};
 
 // Values BIOMD does not code (NaN or Inf outside trailing fill, coordinates beyond the lattice); SZ_compress_bioMD
 // stores the chunk losslessly.
@@ -104,14 +103,10 @@ ALWAYS_INLINE void split_axes(const int64_t p[3], int &drop, int &keep0, int &ke
 // ------------------------------------------------------------------------------------------------ layout
 enum : uint8_t { K_WATER_O, K_WATER_H, K_OTHER };
 struct Layout {
-    std::vector<uint8_t> kind;  // per atom: K_WATER_O (then its H at i + 1, i + 2), K_WATER_H, K_OTHER
-    std::vector<uint16_t>
-        bond;  // other atoms: 0 = none, else offset * 16 + class + 1: the class sphere around i - offset
+    std::vector<uint8_t> kind;          // per atom: K_WATER_O (then its H at i + 1, i + 2), K_WATER_H, K_OTHER
+    std::vector<uint8_t> bond;          // other atoms: 0 = none, else the offset of the partner
     double water_oh = 0, water_hh = 0;  // O-H and H-H distances of the water (nm)
-    std::vector<double> bond_lengths;   // bond-length classes (nm)
 };
-inline size_t bond_offset(uint16_t bond) { return bond >> 4; }
-inline size_t bond_class(uint16_t bond) { return (bond & 15) - 1; }
 
 // Rigid water on frame x: kind, water_oh, water_hh. The tolerances grow with the lattice step, so rounded input (xtc
 // files, or data this codec decompressed) still fits.
@@ -212,83 +207,29 @@ void detect_water(const T *x, size_t atoms, Layout &layout) {
 }
 
 // Bonds of the other atoms on frame x: each takes the nearest of its previous MAX_BOND_OFFSET atoms if that is within
-// bond range, and the bond-length classes are the peaks of those distances (1e-4 nm bins over 0.01 .. 0.25 nm). The
-// range holds all-atom bonds (0.09 .. 0.2 nm) and the 0.015 nm bond of the virtual site of 4-site water to its O.
-// Martini 3 bonds (0.27 .. 0.47 nm) are flexible, 25 pm wide, so a sphere around the partner codes them in no fewer
-// bits than a delta: taking them in gains under 2% of the ratio and costs a third more compression time.
+// 0.01 .. 0.2 nm: all-atom bonds, and the 0.015 nm bond of the virtual site of 4-site water to its O. Martini 3 bonds
+// (0.27 .. 0.47 nm) are left out: taking them in gains 1-2% of the ratio on Martini runs but takes a sixth to a half
+// more time. Under one bonded atom in 16, the bonds cost more in S_BOND_REF (a bit per atom) than they save, and none
+// is kept.
 template <class T>
 void detect_bonds(const T *x, size_t atoms, Layout &layout) {
-    // bond lengths in bins of BIN_WIDTH from BOND_MIN to 0.25 nm; a nearest previous atom outside that range is no bond
-    constexpr double BOND_MIN = 0.01, BIN_WIDTH = 1e-4, BINS_PER_NM = 1e4;
-    constexpr size_t NUM_BINS = 2400;
-    constexpr float BOND2_MIN = 0.0001f, BOND2_MAX = 0.0625f;  // BOND_MIN^2, 0.25^2
-    // a class: the heaviest window of +-PEAK_HALF bins, of at least MIN_PEAK atoms and a MIN_SHARE-th of the bonded
-    // ones; it then suppresses +-SUPPRESS_HALF bins, and takes the bins within ASSIGN_HALF that are nearest to it.
-    // Constrained bonds keep their length and flexible all-atom ones stay within 6 pm of it (90% of the frames, with
-    // constraints none or h-bonds): windows of 1, 3 and 4 pm; 3, 10 and 20 pm change the all-atom ratio by 0.3%.
-    constexpr size_t PEAK_HALF = 10, SUPPRESS_HALF = 30;
-    constexpr long ASSIGN_HALF = 40;
-    // a class costs its length in the header and a code in S_BOND_REF: 16 atoms pay for it in the 100 runs measured
-    // (8 loses up to 8% on Martini proteins by classes of a few pairs that do not bond, 32 drops paying classes)
-    constexpr int64_t MIN_PEAK = 16, MIN_SHARE = 200;
     layout.bond.assign(atoms, 0);
-    layout.bond_lengths.clear();
-    std::vector<uint8_t> partner(atoms, 0);  // offset of the nearest previous atom
-    std::vector<uint16_t> bin(atoms, uint16_t(NUM_BINS));
-    std::vector<int64_t> hist(NUM_BINS, 0);
+    size_t others = 0, bonded = 0;
     for (size_t i = 1; i < atoms; i++) {
         if (layout.kind[i] != K_OTHER) continue;
+        others++;
         float best = 1e30f;
-        unsigned offset = 0;  // of the nearest previous atom
+        uint8_t offset = 0;  // of the nearest previous atom
         for (unsigned o = 1; o <= unsigned(MAX_BOND_OFFSET) && o <= i; o++) {
             const float dx = float(x[3 * i] - x[3 * (i - o)]), dy = float(x[3 * i + 1] - x[3 * (i - o) + 1]),
                         dz = float(x[3 * i + 2] - x[3 * (i - o) + 2]),
                         v = nofma(dx * dx) + nofma(dy * dy) + nofma(dz * dz);
-            offset = v < best ? o : offset;
+            offset = v < best ? uint8_t(o) : offset;
             best = std::min(best, v);
         }
-        partner[i] = uint8_t(offset);
-        if (best > BOND2_MIN && best < BOND2_MAX) {
-            bin[i] = uint16_t(std::min(NUM_BINS - 1, size_t((std::sqrt(best) - float(BOND_MIN)) * float(BINS_PER_NM))));
-            hist[bin[i]]++;
-        }
+        if (best > 0.0001f && best < 0.04f) layout.bond[i] = offset, bonded++;
     }
-    std::vector<int8_t> bin_class(NUM_BINS + 1, -1);
-    std::vector<uint8_t> bin_distance(NUM_BINS, 255);
-    std::vector<int64_t> left = hist, prefix(NUM_BINS + 1);
-    int64_t total = 0;
-    for (int64_t h : hist) total += h;
-    for (int cls = 0; cls < MAX_BOND_CLASSES; cls++) {
-        for (size_t k = 0; k < NUM_BINS; k++) prefix[k + 1] = prefix[k] + left[k];
-        size_t peak = 0;
-        int64_t peak_weight = 0;
-        for (size_t k = 0; k < NUM_BINS; k++) {
-            const int64_t w =
-                prefix[std::min(NUM_BINS, k + PEAK_HALF + 1)] - prefix[k >= PEAK_HALF ? k - PEAK_HALF : 0];
-            if (w > peak_weight) {
-                peak_weight = w;
-                peak = k;
-            }
-        }
-        if (peak_weight < MIN_PEAK || peak_weight * MIN_SHARE < total) break;
-        double weight = 0, length = 0;
-        for (size_t w = peak >= PEAK_HALF ? peak - PEAK_HALF : 0; w < std::min(NUM_BINS, peak + PEAK_HALF + 1); w++) {
-            weight += hist[w];
-            length += nofma(hist[w] * (BOND_MIN + nofma((w + 0.5) * BIN_WIDTH)));
-        }
-        layout.bond_lengths.push_back(length / weight);
-        for (size_t w = peak >= SUPPRESS_HALF ? peak - SUPPRESS_HALF : 0;
-             w < std::min(NUM_BINS, peak + SUPPRESS_HALF + 1); w++)
-            left[w] = 0;
-        const long centre = long((layout.bond_lengths.back() - BOND_MIN) * BINS_PER_NM);
-        for (long k = std::max(0L, centre - ASSIGN_HALF); k <= std::min(long(NUM_BINS) - 1, centre + ASSIGN_HALF); k++)
-            if (uint8_t(std::labs(k - centre)) < bin_distance[k]) {
-                bin_distance[k] = uint8_t(std::labs(k - centre));
-                bin_class[k] = int8_t(cls);
-            }
-    }
-    for (size_t i = 0; i < atoms; i++)
-        if (bin_class[bin[i]] >= 0) layout.bond[i] = uint16_t(partner[i] * 16 + bin_class[bin[i]] + 1);
+    if (bonded * 16 < others) layout.bond.assign(atoms, 0);
 }
 
 // ------------------------------------------------------------------------------------------------ symbols
@@ -332,7 +273,6 @@ struct FrameContext {
     int32_t *cur, *prev;  // this frame and the one before, on the lattice
     const Layout *layout;
     int64_t water_oh2, water_hh2;  // squared O-H and H-H distances of the water (lattice units)
-    const int64_t *bond_r2;        // squared bond lengths per class (lattice units)
     // the box of the water O's: corner, sides, and the bits of a point in it (x + Rx (y + Ry z)), or -1 if that
     // takes more than 56: then each coordinate in the bits of its side
     int32_t box_min[3];
@@ -373,33 +313,34 @@ ALWAYS_INLINE int64_t predict_unbonded(const FrameContext &frame, int mode, size
     return mode ? frame.prev[3 * i + c] : (i ? frame.cur[3 * (i - 1) + c] : 0);
 }
 
-// Atom i on the sphere |d|^2 = r2 around atom j: the largest axis of d is dropped and rebuilt from the other two, with
-// a radial residual. Intra (mode 0) the face (2 axis + sign) is sent with the residual and the two kept coordinates as
-// they are; else the vector p of the previous frame fixes the axis and the sign, and the kept coordinates are residuals
-// against p.
+// Atom i on the sphere |d|^2 = r2 around atom j (r2 = 0: |p|^2 up to 2^28, mode 1 alone): the largest axis of d is
+// dropped and rebuilt from the other two, with a radial residual. Intra (mode 0) the face (2 axis + sign) is sent with
+// the residual and the two kept coordinates as they are; else the vector p of the previous frame fixes the axis and the
+// sign, and the kept coordinates are residuals against p.
 template <class Sink>
-ALWAYS_INLINE void put_sphere(const FrameContext &frame, int mode, size_t i, size_t j, int64_t r2, int s_face,
-                              int s_kept, int s_radial, Sink &out) {
+ALWAYS_INLINE void put_sphere(const FrameContext &frame, int mode, size_t i, size_t j, int64_t r2, int s_kept,
+                              int s_radial, Sink &out) {
     int64_t d[3], p[3] = {0, 0, 0};
     int drop, k0, k1;
     displacement(frame.cur, i, j, d);
     if (mode) displacement(frame.prev, i, j, p);
+    if (!r2) r2 = std::min(p[0] * p[0] + p[1] * p[1] + p[2] * p[2], int64_t(1) << 28);
     split_axes(mode ? p : d, drop, k0, k1);
     const bool neg = (mode ? p[drop] : d[drop]) < 0;
     const uint32_t radial = zigzag((neg ? -d[drop] : d[drop]) - isqrt_round(r2 - d[k0] * d[k0] - d[k1] * d[k1]));
-    if (mode == 0) out.put(s_face, uint32_t(2 * drop + neg) + 6 * std::min(radial, 15u));
+    if (mode == 0) out.put(S_WATER_H1_FACE, uint32_t(2 * drop + neg) + 6 * std::min(radial, 15u));
     if (mode != 0 || radial >= 15) out.put(s_radial, mode == 0 ? radial - 15 : radial);
     out.put(s_kept, zigzag(d[k0] - p[k0]));
     out.put(s_kept, zigzag(d[k1] - p[k1]));
 }
-ALWAYS_INLINE void get_sphere(const FrameContext &frame, int mode, size_t i, size_t j, int64_t r2, int s_face,
-                              int s_kept, int s_radial, SymbolReader &in) {
+ALWAYS_INLINE void get_sphere(const FrameContext &frame, int mode, size_t i, size_t j, int64_t r2, int s_kept,
+                              int s_radial, SymbolReader &in) {
     int64_t d[3], p[3] = {0, 0, 0};
     int drop, k0, k1;
     bool neg;
     uint32_t radial;
     if (mode == 0) {
-        const uint32_t v = in.get(s_face);
+        const uint32_t v = in.get(S_WATER_H1_FACE);
         drop = int(v % 6 / 2);
         k0 = (drop + 1) % 3;
         k1 = (drop + 2) % 3;
@@ -408,6 +349,7 @@ ALWAYS_INLINE void get_sphere(const FrameContext &frame, int mode, size_t i, siz
         if (radial == 15) radial += in.get(s_radial);
     } else {
         displacement(frame.prev, i, j, p);
+        if (!r2) r2 = std::min(p[0] * p[0] + p[1] * p[1] + p[2] * p[2], int64_t(1) << 28);
         split_axes(p, drop, k0, k1);
         neg = p[drop] < 0;
         radial = in.get(s_radial);
@@ -498,14 +440,14 @@ ALWAYS_INLINE void put_atom(const FrameContext &frame, const int *mode, size_t i
     const int32_t *q = frame.cur;
     if (layout.kind[i] == K_WATER_O) {
         put_water_o(frame, mode[G_WATER_O], i, out);
-        put_sphere(frame, mode[G_WATER_H], i + 1, i, frame.water_oh2, S_WATER_H1_FACE, S_WATER_H1_KEPT,
-                   S_WATER_H1_RADIAL, out);
+        put_sphere(frame, mode[G_WATER_H], i + 1, i, frame.water_oh2, S_WATER_H1_KEPT, S_WATER_H1_RADIAL, out);
         put_circle(frame, mode[G_WATER_H], i, out);
     } else if (layout.kind[i] == K_OTHER) {
-        const uint16_t bond = layout.bond[i];
-        if (bond)
-            put_sphere(frame, mode[G_BONDED], i, i - bond_offset(bond), frame.bond_r2[bond_class(bond)], S_BOND_FACE,
-                       S_BOND_KEPT, S_BOND_RADIAL, out);
+        const size_t j = i - layout.bond[i];
+        if (j != i && mode[G_BONDED])
+            put_sphere(frame, 1, i, j, 0, S_BOND_KEPT, S_BOND_RADIAL, out);
+        else if (j != i)
+            for (int c = 0; c < 3; c++) put_escaped(out, S_BOND_DELTA, zigzag(q[3 * i + c] - q[3 * j + c]));
         else if (frame.unbonded_box)
             put_box_point(frame, q + 3 * i, out);
         else
@@ -521,14 +463,14 @@ ALWAYS_INLINE void get_atom(const FrameContext &frame, const int *mode, size_t i
             for (int c = 0; c < 3; c++) q[3 * i + c] = int32_t(frame.prev[3 * i + c] + unzigzag(in.get(S_WATER_O)));
         else
             get_box_point(frame, q + 3 * i, in);
-        get_sphere(frame, mode[G_WATER_H], i + 1, i, frame.water_oh2, S_WATER_H1_FACE, S_WATER_H1_KEPT,
-                   S_WATER_H1_RADIAL, in);
+        get_sphere(frame, mode[G_WATER_H], i + 1, i, frame.water_oh2, S_WATER_H1_KEPT, S_WATER_H1_RADIAL, in);
         get_circle(frame, mode[G_WATER_H], i, in);
     } else if (layout.kind[i] == K_OTHER) {
-        const uint16_t bond = layout.bond[i];
-        if (bond)
-            get_sphere(frame, mode[G_BONDED], i, i - bond_offset(bond), frame.bond_r2[bond_class(bond)], S_BOND_FACE,
-                       S_BOND_KEPT, S_BOND_RADIAL, in);
+        const size_t j = i - layout.bond[i];
+        if (j != i && mode[G_BONDED])
+            get_sphere(frame, 1, i, j, 0, S_BOND_KEPT, S_BOND_RADIAL, in);
+        else if (j != i)
+            for (int c = 0; c < 3; c++) q[3 * i + c] = int32_t(q[3 * j + c] + unzigzag(get_escaped(in, S_BOND_DELTA)));
         else if (frame.unbonded_box)
             get_box_point(frame, q + 3 * i, in);
         else
@@ -704,8 +646,6 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         write(water_oh2_, c);
         write(water_hh2_, c);
         write(uint64_t(num_waters_), c);
-        write(uint8_t(bond_r2_.size()), c);
-        if (!bond_r2_.empty()) write(bond_r2_.data(), bond_r2_.size(), c);
         for (int m : modes_) write(uint8_t(m), c);
         write(uint8_t(unbonded_box_), c);
         if (!box_min_.empty()) {  // no box without water
@@ -717,7 +657,6 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     }
 
     void load(const uchar *&c, size_t &remaining_length) override {
-        uint8_t classes;
         uint64_t waters, coded, raw_size = 0;
         read(coded, c, remaining_length);
         if (coded > frames_) throw std::runtime_error("SZ3 BioMD: corrupt stream");
@@ -728,9 +667,6 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         read(water_hh2_, c, remaining_length);
         read(waters, c, remaining_length);
         num_waters_ = size_t(std::min<uint64_t>(waters, atoms_));
-        read(classes, c, remaining_length);
-        bond_r2_.resize(classes);
-        if (classes) read(bond_r2_.data(), classes, c, remaining_length);
         for (int &m : modes_) {
             uint8_t v;
             read(v, c, remaining_length);
@@ -752,16 +688,13 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         raw_bits_.resize(size_t(raw_size));
         if (raw_size) read(raw_bits_.data(), raw_bits_.size(), c, remaining_length);
         bool ok = std::isfinite(step_) && step_ > 0 && waters <= atoms_ && water_oh2_ >= 0 &&
-                  water_oh2_ < (int64_t(1) << 28) && water_hh2_ >= 0 && water_hh2_ < (int64_t(1) << 30) &&
-                  classes <= biomd::MAX_BOND_CLASSES;
-        for (int64_t r2 : bond_r2_)
-            ok = ok && r2 >= 0;  // a class of MAX_BOND_R2 or more may be stored, but no atom refers to it
+                  water_oh2_ < (int64_t(1) << 28) && water_hh2_ >= 0 && water_hh2_ < (int64_t(1) << 30);
         for (uint32_t side : box_size_) ok = ok && side >= 1 && side <= (uint32_t(1) << 30);
         if (!ok) throw std::runtime_error("SZ3 BioMD: corrupt stream");
     }
 
     // a bound on what save() writes
-    size_t size_est() override { return 64 + 8 * bond_r2_.size() + 24 * frames_ + raw_bits_.size(); }
+    size_t size_est() override { return 64 + 24 * frames_ + raw_bits_.size(); }
 
     // every bin, a count or a symbol, is in [0, INT_MAX]
     std::pair<int, int> get_out_range() override { return {0, std::numeric_limits<int>::max()}; }
@@ -833,13 +766,9 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
             std::fill(layout.kind.begin(), layout.kind.end(), K_OTHER);
         }
         detect_bonds(data, atoms_, layout);
-        bond_r2_.clear();
-        for (double b : layout.bond_lengths) bond_r2_.push_back(round_half_away((b / step_) * (b / step_)));
         for (size_t i = 0; i < atoms_; i++) {
-            uint16_t &bond = layout.bond[i];
-            if (bond && bond_r2_[bond_class(bond)] >= MAX_BOND_R2) bond = 0;
             if (layout.kind[i] == K_WATER_O) waters.push_back(uint32_t(i));
-            if (layout.kind[i] == K_OTHER) (bond ? bonded : unbonded).push_back(uint32_t(i));
+            if (layout.kind[i] == K_OTHER) (layout.bond[i] ? bonded : unbonded).push_back(uint32_t(i));
         }
         num_waters_ = waters.size();
     }
@@ -860,20 +789,15 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         for (size_t i = 0; i < atoms_; i++)
             if (layout.kind[i] == K_OTHER) {
                 const uint32_t bond = reader.get(S_BOND_REF);
-                if (bond > uint32_t(MAX_BOND_OFFSET * 16 + MAX_BOND_CLASSES))
-                    throw std::runtime_error("SZ3 BioMD: corrupt stream");
-                if (bond && (bond_offset(uint16_t(bond)) == 0 || bond_offset(uint16_t(bond)) > i ||
-                             bond_class(uint16_t(bond)) >= bond_r2_.size()))  // a class field of 0 gives SIZE_MAX
-                    throw std::runtime_error("SZ3 BioMD: corrupt stream");
-                layout.bond[i] = uint16_t(bond);
+                if (bond > uint32_t(MAX_BOND_OFFSET) || bond > i) throw std::runtime_error("SZ3 BioMD: corrupt stream");
+                layout.bond[i] = uint8_t(bond);
             }
     }
 
     // the lattice holds this frame and the one before
     biomd::FrameContext frame_context(int32_t *lattice, const biomd::Layout &layout) const {
-        return {
-            lattice,   lattice + atoms_ * 3, &layout, water_oh2_, water_hh2_, bond_r2_.data(), {0, 0, 0}, {1, 1, 1}, 0,
-            {0, 0, 0}, unbonded_box_};
+        return {lattice,   lattice + atoms_ * 3, &layout, water_oh2_, water_hh2_, {0, 0, 0}, {1, 1, 1}, 0,
+                {0, 0, 0}, unbonded_box_};
     }
 
     size_t frames_, atoms_, coded_frames_ = 1;  // coded: the frames before the fill
@@ -881,7 +805,6 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     double error_bound_, step_ = 0;
     int64_t water_oh2_ = 0, water_hh2_ = 0;  // squared O-H and H-H distances of the water (lattice units)
     size_t num_waters_ = 0;
-    std::vector<int64_t> bond_r2_;                 // squared bond lengths per class (lattice units)
     int modes_[biomd::NUM_GROUPS] = {0, 0, 0, 0};  // per group: the predictor of the frames after the first
     bool unbonded_box_ = false;                    // one frame, its unbonded atoms as points in their box
     std::vector<int32_t> box_min_;    // per frame whose water O are intra: the corner of the box of the water O's
