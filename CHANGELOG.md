@@ -264,7 +264,6 @@ Tag `v3.3.2`. The GitHub release lists #104–#116, including the 3.3.1 changes.
 
 **Compatibility**
 - Data format 3.4.0. Data from 3.3.2 decompresses, except data compressed with `ALGO_NOPRED` or `ALGO_BIOMD`, which is refused. Data from 3.3.1 and earlier cannot be decompressed. [#163](https://github.com/szcompressor/SZ3/pull/163)
-- `ALGO_BIOMD` data written by earlier 3.4.0 development builds cannot be decompressed. [#169](https://github.com/szcompressor/SZ3/pull/169)
 - `SZBioMDDecomposition` and `make_decomposition_biomd` take no quantizer. [#169](https://github.com/szcompressor/SZ3/pull/169)
 - Data compressed by an earlier version built with FMA may exceed the error bound when decompressed by 3.4.0; decompress it with the build that compressed it. [#162](https://github.com/szcompressor/SZ3/pull/162)
 - CMake 3.19 or newer is required. `find_package(SZ3 <version>)` accepts only SZ3 versions with the same major version. [#161](https://github.com/szcompressor/SZ3/pull/161)
