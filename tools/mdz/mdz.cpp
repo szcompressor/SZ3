@@ -3,7 +3,6 @@
 
 inline void usage() {
     printf("Usage: \n");
-    printf("For 1D input:   mdz file_path -1 n_atoms                 -r reb\n");
     printf("For 2D input:   mdz file_path -2 n_frames n_atoms        -r reb\n");
     printf("For 3D input:   mdz file_path -3 n_frames n_atoms n_dims(x,y,z) -r reb\n");
     exit(0);
@@ -14,21 +13,21 @@ int main(int argc, char **argv) {
         usage();
     }
 
-    int dim = atoi(argv[2] + 1);
-    if (dim > 3) {
+    if (argc < 3) {
         usage();
     }
-    assert(1 <= dim && dim <= 2);
+    int dim = atoi(argv[2] + 1);
+    if (dim < 2 || dim > 3) {
+        usage();
+    }
     int argp = 3;
     std::vector<size_t> dims(dim);
     for (int i = 0; i < dim; i++) {
         dims[i] = atoi(argv[argp++]);
     }
 
-    SZ3::Config conf({1, dims[0]});
-    if (dim == 2) {
-        conf = SZ3::Config({dims[0], dims[1]});
-    } else if (dim == 3) {
+    SZ3::Config conf({dims[0], dims[1]});
+    if (dim == 3) {
         conf = SZ3::Config({dims[0], dims[1], dims[2]});
     }
 

@@ -8,6 +8,8 @@ Note: many configuration parameters are set to placeholder values
 import sys
 import struct
 
+DATA_VERSION = (3, 4, 0)
+
 class SZ3:
     def __init__(self, algo="ALGO_INTERP_LORENZO", absolute=None, relative=None, psnr=None, l2norm=None):
         if sum(x is not None for x in [absolute, relative, psnr, l2norm]) != 1:
@@ -63,8 +65,9 @@ class SZ3:
 
         serialized[0] = len(serialized)
         serialized_data = bytes(serialized)
-        self.cd_values = [int.from_bytes(serialized_data[i:i + 4], 'little')
-                     for i in range(0, len(serialized_data), 4)]
+        # cd_values[0] is the SZ3 data version (SZ3_DATA_VERSION in CMakeLists.txt), the Config follows
+        self.cd_values = [DATA_VERSION[0] << 24 | DATA_VERSION[1] << 16 | DATA_VERSION[2] << 8] + \
+                         [int.from_bytes(serialized_data[i:i + 4], 'little') for i in range(0, len(serialized_data), 4)]
 
 
     def print_h5repack_args(self):
