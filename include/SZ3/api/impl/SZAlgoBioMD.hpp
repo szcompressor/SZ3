@@ -24,10 +24,9 @@ namespace SZ3 {
 // Data BIOMD does not code:
 //  * Other shapes, and chunks of more values than an int counts (a stream holds at most one symbol per value): an
 //    exception.
-//  * NaN or Inf outside trailing fill frames, coordinates beyond the lattice, and a bound that is not positive and
-//    finite (an ABS one, or a relative one over data with Inf): the chunk is stored losslessly. Frames appended to a
-//    chunk BIOMD coded can bring the first two; lossless storage keeps the values BIOMD decoded, so a rewritten chunk
-//    stays within the bound.
+//  * NaN or Inf outside trailing fill frames, and coordinates beyond the lattice: the chunk is stored losslessly.
+//    Frames appended to a chunk BIOMD coded can bring either; lossless storage keeps the values BIOMD decoded, so a
+//    rewritten chunk stays within the bound.
 template <class T, uint N>
 size_t SZ_compress_bioMD(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
     assert(N == conf.N);
@@ -38,7 +37,6 @@ size_t SZ_compress_bioMD(Config &conf, const T *data, uchar *cmpData, size_t cmp
         conf.cmprAlgo = ALGO_LOSSLESS;
         return Lossless_zstd().compress(reinterpret_cast<const uchar *>(data), conf.num * sizeof(T), cmpData, cmpCap);
     };
-    if (!(conf.absErrorBound > 0) || !std::isfinite(conf.absErrorBound)) return lossless();
     if (N > 3 || conf.dims[N - 1] != 3)
         throw std::invalid_argument("SZ3 ALGO_BIOMD: data must be of shape (atoms, 3) or (frames, atoms, 3)");
     if (conf.num > size_t(std::numeric_limits<int>::max()))

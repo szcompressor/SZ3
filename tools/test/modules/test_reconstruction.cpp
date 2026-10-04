@@ -5,6 +5,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <memory>
 #include <vector>
 
 #include "SZ3/api/sz.hpp"
@@ -96,6 +97,28 @@ TEST(SZ3_Reconstruction, SZCompressLeavesTheInputAsItWas) {
             delete[] SZ_compress(conf, data.data(), size);
             EXPECT_EQ(std::memcmp(before.data(), data.data(), data.size() * sizeof(float)), 0)
                 << c.algo << " " << c.lorenzo << c.lorenzo2 << c.regression << " " << dims.size() << "D";
+        }
+    }
+}
+
+// An error bound that is negative or not finite leaves nothing to bound: every algorithm compresses losslessly, as with
+// a bound of 0.
+TEST(SZCompress, BoundsThatAreNotPositiveAndFiniteGoLossless) {
+    for (SZ3::ALGO algo : {SZ3::ALGO_LORENZO_REG, SZ3::ALGO_INTERP_LORENZO, SZ3::ALGO_INTERP, SZ3::ALGO_NOPRED,
+                           SZ3::ALGO_BIOMD, SZ3::ALGO_BIOMDXTC}) {
+        for (double eb : {0.0, -1e-3, double(INFINITY), double(NAN)}) {
+            SZ3::Config conf(40, 30, 3);
+            conf.cmprAlgo = algo;
+            conf.errorBoundMode = SZ3::EB_ABS;
+            conf.absErrorBound = eb;
+            std::vector<float> data(conf.num);
+            for (size_t i = 0; i < conf.num; i++) data[i] = static_cast<float>(std::sin(0.01 * i));
+            size_t size = 0;
+            std::unique_ptr<char[]> cmp(SZ_compress(conf, data.data(), size));
+            SZ3::Config dec;
+            std::unique_ptr<float[]> out(SZ_decompress<float>(dec, cmp.get(), size));
+            EXPECT_EQ(dec.cmprAlgo, SZ3::ALGO_LOSSLESS) << algo << " " << eb;
+            EXPECT_EQ(std::memcmp(out.get(), data.data(), data.size() * sizeof(float)), 0) << algo << " " << eb;
         }
     }
 }

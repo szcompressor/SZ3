@@ -1,6 +1,7 @@
 #ifndef SZ3_IMPL_SZDISPATCHER_HPP
 #define SZ3_IMPL_SZDISPATCHER_HPP
 
+#include <cmath>
 #include <memory>
 #include <stdexcept>
 
@@ -20,8 +21,8 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
     calAbsErrorBound(conf, data);
     size_t cmpSize = 0;
 
-    // if absErrorBound is 0, use lossless only mode
-    if (conf.absErrorBound == 0) {
+    // a bound that is 0, negative or not finite (a relative one over data with Inf among them): lossless only mode
+    if (!(conf.absErrorBound > 0) || !std::isfinite(conf.absErrorBound)) {
         conf.cmprAlgo = ALGO_LOSSLESS;
     }
 
