@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import re
 import sys
 from shutil import rmtree
 import tempfile
@@ -69,7 +70,14 @@ def read_raw_data(raw_file_path, shape, dtype):
         sys.exit(1)
 
 
-def write_hdf5(data, h5_file_path, dataset_name='test', compression=None, compression_opts=None, chunks=None):
+def biomd_refuses(cmpr_algo, chunk):
+    """ALGO_BIOMD takes chunks of coordinates, a last dimension of 3 after dimensions of 1 are dropped."""
+    dims = [d for d in chunk if d > 1]
+    return cmpr_algo == 'ALGO_BIOMD' and (len(dims) > 3 or not dims or dims[-1] != 3)
+
+
+def write_hdf5(data, h5_file_path, dataset_name='test', compression=None, compression_opts=None, chunks=None,
+               refusable=False):
     """
     Writes data to an HDF5 file.
 
@@ -80,6 +88,7 @@ def write_hdf5(data, h5_file_path, dataset_name='test', compression=None, compre
     - compression (str): Compression filter to use.
     - compression_opts (tuple): Compression options.
     - chunks (tuple or None): Chunk shape for the dataset.
+    - refusable (bool): raise when the filter refuses the dataset, instead of exiting.
     """
     try:
         with h5py.File(h5_file_path, 'w') as f:
@@ -88,6 +97,8 @@ def write_hdf5(data, h5_file_path, dataset_name='test', compression=None, compre
             print(f"Actual chunk size for dataset '{dataset_name}': {dset.chunks}")
         print(f"Data written to HDF5 file '{h5_file_path}' with dataset name '{dataset_name}'")
     except Exception as e:
+        if refusable:
+            raise
         print(f"Error writing HDF5 file: {e}")
         sys.exit(1)
 
@@ -195,13 +206,24 @@ def main():
                 write_hdf5(payload, reference_h5, h5_dataset_name)
                 print(f"  restricted to the leading {rows} of {shape[0]} to bound the chunk count")
 
-        if chunk == 'auto':
-            # hd5py will automatically determine chunk sizes if chunks is not set
+        # h5py chooses the chunk shape when chunks is not set ('auto')
+        chunks = None if chunk == 'auto' else payload.shape if chunk == 'full' else small_chunk
+        try:
             write_hdf5(payload, compressed_h5, h5_dataset_name, compression=compression,
-                       compression_opts=compression_opts)
-        else:
-            write_hdf5(payload, compressed_h5, h5_dataset_name, compression=compression,
-                       compression_opts=compression_opts, chunks=payload.shape if chunk == 'full' else small_chunk)
+                       compression_opts=compression_opts, chunks=chunks, refusable=cmpr_algo == 'ALGO_BIOMD')
+        except Exception as e:
+            # ALGO_BIOMD refuses a chunk shape that is not coordinates when the dataset is created, naming the shape
+            named = re.search(r'these are \(([\d, ]+)\)', str(e))
+            refused = named is not None and biomd_refuses(cmpr_algo, [int(d) for d in named.group(1).split(',')])
+            result = "PASS" if refused and (chunks is None or biomd_refuses(cmpr_algo, chunks)) else "FAIL"
+            print(f"  {e}")
+            print(f"Test Result for AbsErrorBound = {bound} Chunk = {chunk}: {result} (refused)")
+            all_pass = all_pass and result == "PASS"
+            continue
+        if chunks is not None and biomd_refuses(cmpr_algo, chunks):
+            print(f"Test Result for AbsErrorBound = {bound} Chunk = {chunk}: FAIL (chunks {chunks} were not refused)")
+            all_pass = False
+            continue
 
         with h5py.File(compressed_h5, 'r') as f_in, h5py.File(decompressed_h5, 'w') as f_out:
             f_out.create_dataset(h5_dataset_name, data=f_in[h5_dataset_name][:])

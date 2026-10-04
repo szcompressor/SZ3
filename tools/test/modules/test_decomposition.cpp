@@ -196,20 +196,31 @@ TEST(SZ3_DecompositionTest, TimeSeriesDecomposition2D) {
     });
 }
 
-// ----- SZBioMDDecomposition (1D delta quantization) ------------------------
+// ----- SZBioMDDecomposition (coordinates {atoms, 3}) ------------------------
 
-TEST(SZ3_DecompositionTest, SZBioMDDecomposition1D) {
-    constexpr SZ3::uint N = 1;
-    constexpr size_t dim = 64;
+TEST(SZ3_DecompositionTest, SZBioMDDecomposition2D) {
+    constexpr SZ3::uint N = 2;
+    constexpr size_t atoms = 64;
     const double eb = 1e-2;
-    SZ3::Config conf(dim);
+    SZ3::Config conf(atoms, 3);
     setAbsBound(conf, eb);
-    auto original = make1D<float>(dim, [](size_t i) { return 1.0f + 0.001f * i; });
+    auto original = make2D<float>(atoms, 3, [](size_t a, size_t c) { return 1.0f + 0.1f * a + 0.03f * c; });
 
-    using Quant = SZ3::LinearQuantizer<float>;
-    using Decomp = SZ3::SZBioMDDecomposition<float, N, Quant>;
-    runRoundtrip<Decomp, float>(conf, original, eb,
-                                [&] { return Decomp(conf, Quant(eb, conf.quantbinCnt / 2)); });
+    // The bins are BIOMD's symbol streams, [count, symbols] each, not one per value, so runRoundtrip does not apply.
+    using Decomp = SZ3::SZBioMDDecomposition<float, N>;
+    std::vector<float> data = original;
+    Decomp decomp(conf);
+    auto bins = decomp.compress(conf, data.data());
+    std::vector<unsigned char> buf(1u << 16);
+    unsigned char *sp = buf.data();
+    decomp.save(sp);
+    Decomp decomp2(conf);
+    const unsigned char *lp = buf.data();
+    size_t remaining = sp - buf.data();
+    decomp2.load(lp, remaining);
+    std::vector<float> dec(conf.num);
+    decomp2.decompress(conf, bins, dec.data());
+    for (size_t i = 0; i < conf.num; i++) EXPECT_LE(std::fabs(original[i] - dec[i]), eb) << i;
 }
 
 // ----- SZBioMDXtcDecomposition (2D single-frame, XTC offset) ---------------

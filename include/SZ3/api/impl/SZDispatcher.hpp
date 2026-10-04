@@ -17,6 +17,7 @@
  * - `ALGO_LOSSLESS`: Falls back to Zstd lossless-only compression.
  */
 
+#include <cmath>
 #include <memory>
 #include <stdexcept>
 #include <type_traits>
@@ -62,9 +63,9 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
     }
     size_t cmpSize = 0;
 
-    // if absErrorBound is 0, use lossless only mode
+    // a bound that is 0, negative or not finite (a relative one over data with Inf among them): lossless only mode
     // (except SPERR PSNR mode, where absErrorBound is not the controlling bound)
-    if (!sperr_psnr_mode && conf.absErrorBound == 0) {
+    if (!sperr_psnr_mode && (!(conf.absErrorBound > 0) || !std::isfinite(conf.absErrorBound))) {
         conf.cmprAlgo = ALGO_LOSSLESS;
     }
 
@@ -72,47 +73,52 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
     bool isCmpCapSufficient = true;
     if (conf.cmprAlgo != ALGO_LOSSLESS) {
         try {
-            std::vector<T> dataCopy(data, data + conf.num);
-            if (conf.cmprAlgo == ALGO_LORENZO_REG) {
-                cmpSize = SZ_compress_LorenzoReg<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
-            } else if (conf.cmprAlgo == ALGO_INTERP) {
-                cmpSize = SZ_compress_Interp<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
-            } else if (conf.cmprAlgo == ALGO_INTERP_LORENZO) {
-                cmpSize = SZ_compress_Interp_lorenzo<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
-            } else if (conf.cmprAlgo == ALGO_NOPRED) {
-                cmpSize = SZ_compress_nopred<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
-            } else if (conf.cmprAlgo == ALGO_BIOMD) {
-                return SZ_compress_bioMD<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
-            } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
-                return SZ_compress_bioMDXtcBased<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
-            } else if (conf.cmprAlgo == ALGO_ZFP) {
-                if constexpr (std::is_floating_point<T>::value) {
-                    cmpSize = SZ_compress_ZFP<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
-                } else {
-                    throw std::invalid_argument("ZFP algorithm only supports floating-point data types.");
-                }
-            } else if (conf.cmprAlgo == ALGO_SPERR) {
-#if defined(__MINGW32__)
-                throw std::invalid_argument("SPERR algorithm is disabled for this build target.");
-#else
-                if constexpr (std::is_floating_point<T>::value && N == 3) {
-                    cmpSize = SZ_compress_SPERR<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
-                } else {
-                    throw std::invalid_argument("SPERR algorithm supports 3D floating-point data only.");
-                }
-#endif
-            } else if (conf.cmprAlgo == ALGO_MGARD) {
-#if defined(__MINGW32__)
-                throw std::invalid_argument("MGARD algorithm is disabled for this build target.");
-#else
-                if constexpr (std::is_floating_point<T>::value && N >= 1 && N <= 3) {
-                    cmpSize = SZ_compress_MGARD<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
-                } else {
-                    throw std::invalid_argument("MGARD algorithm supports 1D/2D/3D floating-point data only.");
-                }
-#endif
+            // BIOMD and LORENZO_REG only read their input: LORENZO_REG's blockwise decomposition works on a copy padded
+            // by at least 2, its fallback Lorenzo's padding
+            if (conf.cmprAlgo == ALGO_BIOMD) {
+                return SZ_compress_bioMD<T, N>(conf, data, cmpData, cmpCap);
+            } else if (conf.cmprAlgo == ALGO_LORENZO_REG) {
+                cmpSize = SZ_compress_LorenzoReg<T, N>(conf, const_cast<T *>(data), cmpData, cmpCap);
             } else {
-                throw std::invalid_argument("Unknown compression algorithm");
+                // the others write their reconstruction into the data they are given, so they get a copy
+                std::vector<T> dataCopy(data, data + conf.num);
+                if (conf.cmprAlgo == ALGO_INTERP) {
+                    cmpSize = SZ_compress_Interp<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                } else if (conf.cmprAlgo == ALGO_INTERP_LORENZO) {
+                    cmpSize = SZ_compress_Interp_lorenzo<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                } else if (conf.cmprAlgo == ALGO_NOPRED) {
+                    cmpSize = SZ_compress_nopred<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
+                    return SZ_compress_bioMDXtcBased<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                } else if (conf.cmprAlgo == ALGO_ZFP) {
+                    if constexpr (std::is_floating_point<T>::value) {
+                        cmpSize = SZ_compress_ZFP<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                    } else {
+                        throw std::invalid_argument("ZFP algorithm only supports floating-point data types.");
+                    }
+                } else if (conf.cmprAlgo == ALGO_SPERR) {
+#if defined(__MINGW32__)
+                    throw std::invalid_argument("SPERR algorithm is disabled for this build target.");
+#else
+                    if constexpr (std::is_floating_point<T>::value && N == 3) {
+                        cmpSize = SZ_compress_SPERR<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                    } else {
+                        throw std::invalid_argument("SPERR algorithm supports 3D floating-point data only.");
+                    }
+#endif
+                } else if (conf.cmprAlgo == ALGO_MGARD) {
+#if defined(__MINGW32__)
+                    throw std::invalid_argument("MGARD algorithm is disabled for this build target.");
+#else
+                    if constexpr (std::is_floating_point<T>::value && N >= 1 && N <= 3) {
+                        cmpSize = SZ_compress_MGARD<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
+                    } else {
+                        throw std::invalid_argument("MGARD algorithm supports 1D/2D/3D floating-point data only.");
+                    }
+#endif
+                } else {
+                    throw std::invalid_argument("Unknown compression algorithm");
+                }
             }
 
         } catch (std::length_error &e) {

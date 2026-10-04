@@ -260,9 +260,11 @@ Tag `v3.3.2`. The GitHub release lists #104–#116, including the 3.3.1 changes.
 - HDF5 filter: `H5Pset_sz3()` sets the filter from C. The filter's `cd_values` carry the data version, each chunk is decompressed with the configuration stored in it, and the filter does not use OpenMP. See [tools/H5Z-SZ3/README.md](tools/H5Z-SZ3/README.md). [#155](https://github.com/szcompressor/SZ3/pull/155), [#161](https://github.com/szcompressor/SZ3/pull/161)
 - A build without OpenMP decompresses data compressed with OpenMP. [#160](https://github.com/szcompressor/SZ3/pull/160)
 - A Nix expression for NixOS. [#129](https://github.com/szcompressor/SZ3/pull/129)
+- `ALGO_BIOMD` is a new codec for molecular-dynamics coordinates `{frames, atoms, 3}` with an absolute bound: rigid water and bonded atoms are predicted from their geometry on an integer lattice. On 16 GROMACS trajectories at 5e-4 nm its compression ratio is 1.23 times that of the previous `ALGO_BIOMD` with one frame per chunk and 1.29 times with 20. Other shapes throw `std::invalid_argument` (in HDF5, creating the dataset fails); coordinates beyond its lattice (2048 nm at 5e-4 nm and 128 nm at 5e-5 nm for float), and NaN or Inf outside trailing fill frames, to lossless compression. [#169](https://github.com/szcompressor/SZ3/pull/169)
 
 **Compatibility**
 - Data format 3.4.0. Data from 3.3.2 decompresses, except data compressed with `ALGO_NOPRED` or `ALGO_BIOMD`, which is refused. Data from 3.3.1 and earlier cannot be decompressed. [#163](https://github.com/szcompressor/SZ3/pull/163)
+- `SZBioMDDecomposition` and `make_decomposition_biomd` take no quantizer. [#169](https://github.com/szcompressor/SZ3/pull/169)
 - Data compressed by an earlier version built with FMA may exceed the error bound when decompressed by 3.4.0; decompress it with the build that compressed it. [#162](https://github.com/szcompressor/SZ3/pull/162)
 - CMake 3.19 or newer is required. `find_package(SZ3 <version>)` accepts only SZ3 versions with the same major version. [#161](https://github.com/szcompressor/SZ3/pull/161)
 - Removed: `ArithmeticEncoder`, `RunlengthEncoder`, `SZTruncateCompressor` and the preprocessors, which no build target used, the bundled ska hash map, and `HuffmanEncoderV2`. [#150](https://github.com/szcompressor/SZ3/pull/150), [#157](https://github.com/szcompressor/SZ3/pull/157), [#163](https://github.com/szcompressor/SZ3/pull/163)
@@ -281,6 +283,7 @@ Tag `v3.3.2`. The GitHub release lists #104–#116, including the 3.3.1 changes.
 - The HDF5 filter refuses datatypes it cannot compress, instead of writing data that comes back wrong. [#158](https://github.com/szcompressor/SZ3/pull/158)
 - The HDF5 filter keeps `H5Z_FLAG_OPTIONAL` (as h5py sets it), and refuses a chunk whose size a filter before it changed. [#163](https://github.com/szcompressor/SZ3/pull/163)
 - SZ3 builds for wasm32 again. [#117](https://github.com/szcompressor/SZ3/pull/117)
+- An error bound that is negative or not finite (also a relative bound over data with Inf) compresses losslessly with every algorithm, as a bound of 0 did. [#169](https://github.com/szcompressor/SZ3/pull/169)
 
 **Compared with other compressors**
 
