@@ -43,13 +43,13 @@ constexpr int MAX_BOND_OFFSET = 4;
 constexpr uint32_t ESCAPE = 2048;
 // |q| <= 2^28: displacements stay within 2^29, and every symbol within 32 bits
 constexpr double MAX_LATTICE = double(1 << 28);
-// The lattice spans |x| < B, the smallest power of two above 2^LATTICE_SPAN_BITS eb. For float, B is 1024 nm at the
-// 5e-4 nm of GROMACS's default xtc precision, 8192 nm at the 5e-3 nm of coarse-grained runs and 64 nm at 5e-5 nm:
+// The lattice spans |x| < B, the smallest power of two above 2^LATTICE_SPAN_BITS eb. For float, B is 2048 nm at the
+// 5e-4 nm of GROMACS's default xtc precision, 16384 nm at the 5e-3 nm of coarse-grained runs and 128 nm at 5e-5 nm:
 // mdrun writes coordinates inside the box, and the largest systems simulated are 155 nm (all-atom) and 400 nm (a
-// Martini cell). It costs float 1% of the ratio against 2^18 eb, as the step shrinks to 2 eb - eb / 8 at most; double,
-// whose ulp is 2^29 times smaller, spans the whole of MAX_LATTICE at no cost.
+// Martini cell). It costs float 1 to 1.5% of the ratio against 2^20 eb, as the step shrinks to 2 eb - eb / 4 at most;
+// double, whose ulp is 2^29 times smaller, spans the whole of MAX_LATTICE at no cost.
 template <class T>
-constexpr int LATTICE_SPAN_BITS = sizeof(T) == 4 ? 20 : 27;
+constexpr int LATTICE_SPAN_BITS = sizeof(T) == 4 ? 21 : 27;
 
 // atom groups, each with its own predictor mode for the frames after the first (water O's: the previous frame)
 enum { G_WATER_O, G_WATER_H, G_BONDED, G_UNBONDED, NUM_GROUPS };

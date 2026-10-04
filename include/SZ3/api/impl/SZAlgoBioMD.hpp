@@ -1,13 +1,11 @@
 #ifndef SZ3_SZ_BIOMD_HPP
 #define SZ3_SZ_BIOMD_HPP
 
-#include <atomic>
 #include <cmath>
-#include <cstdio>
 #include <limits>
+#include <stdexcept>
 #include <vector>
 
-#include "SZ3/api/impl/SZAlgoLorenzoReg.hpp"
 #include "SZ3/compressor/SZGenericCompressor.hpp"
 #include "SZ3/decomposition/SZBioMDDecomposition.hpp"
 #include "SZ3/decomposition/SZBioMDXtcDecomposition.hpp"
@@ -23,17 +21,9 @@
 
 namespace SZ3 {
 
-namespace biomd {
-// true on the first call in the process (one function for every T and N)
-inline bool first_shape_warning() {
-    static std::atomic<bool> warned{false};
-    return !warned.exchange(true);
-}
-}  // namespace biomd
-
 // Data BIOMD does not code:
-//  * Other shapes, and chunks of more values than an int counts (a stream holds at most one symbol per value), go to
-//    LORENZO_REG with first-order Lorenzo alone, which codes coordinates best of its predictors and only reads data.
+//  * Other shapes, and chunks of more values than an int counts (a stream holds at most one symbol per value): an
+//    exception, so that the caller sees it.
 //  * NaN or Inf outside trailing fill frames, coordinates beyond the lattice, and a bound that is not positive and
 //    finite (an ABS one, or a relative one over data with Inf): the chunk is stored losslessly. Frames appended to a
 //    chunk BIOMD coded can bring the first two; lossless storage keeps the values BIOMD decoded, which are on its
@@ -49,20 +39,10 @@ size_t SZ_compress_bioMD(Config &conf, const T *data, uchar *cmpData, size_t cmp
         return Lossless_zstd().compress(reinterpret_cast<const uchar *>(data), conf.num * sizeof(T), cmpData, cmpCap);
     };
     if (!(conf.absErrorBound > 0) || !std::isfinite(conf.absErrorBound)) return lossless();
-    bool coordinates = N <= 3 && conf.dims[N - 1] == 3;
-    if (!coordinates || conf.num > size_t(std::numeric_limits<int>::max())) {
-        if (biomd::first_shape_warning()) {  // once per process: an HDF5 dataset has many such chunks
-            fprintf(stderr, "SZ3 ALGO_BIOMD: %s, so it is compressed with ALGO_LORENZO_REG at a lower ratio%s\n",
-                    coordinates ? "data has more values than an int counts"
-                                : "data is not of shape (atoms, 3) or (frames, atoms, 3)",
-                    coordinates ? "" : "; in HDF5, set chunks to (frames, atoms, 3)");
-        }
-        conf.cmprAlgo = ALGO_LORENZO_REG;
-        conf.lorenzo = true;
-        conf.lorenzo2 = false;
-        conf.regression = false;
-        return SZ_compress_LorenzoReg<T, N>(conf, const_cast<T *>(data), cmpData, cmpCap);
-    }
+    if (N > 3 || conf.dims[N - 1] != 3)
+        throw std::invalid_argument("SZ3 ALGO_BIOMD: data must be of shape (atoms, 3) or (frames, atoms, 3)");
+    if (conf.num > size_t(std::numeric_limits<int>::max()))
+        throw std::invalid_argument("SZ3 ALGO_BIOMD: more values than an int counts; compress fewer frames at a time");
     auto sz =
         make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf),
                                          SegmentedEncoder<HuffmanEncoder<int>>(biomd::NUM_STREAMS), Lossless_bypass());

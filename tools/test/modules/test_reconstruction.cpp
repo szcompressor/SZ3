@@ -31,7 +31,7 @@ size_t differing_values(SZ3::ALGO algo, SZ3::INTERP_ALGO interp, double eb) {
         SZ3::SZ_decompress_Interp<T, 3>(conf, cmp.data(), size, out.data());
     } else {
         size_t size = SZ3::SZ_compress_bioMD<T, 3>(conf, data.data(), cmp.data(), cmp.size());
-        if (conf.cmprAlgo != SZ3::ALGO_BIOMD) return 0;  // beyond its lattice (1 nm at 1e-6): a fallback
+        if (conf.cmprAlgo != SZ3::ALGO_BIOMD) return 0;  // beyond its lattice: stored losslessly
         SZ3::SZ_decompress_bioMD<T, 3>(conf, cmp.data(), size, data.data());
         size = SZ3::SZ_compress_bioMD<T, 3>(conf, data.data(), cmp.data(), cmp.size());
         SZ3::SZ_decompress_bioMD<T, 3>(conf, cmp.data(), size, out.data());
@@ -82,6 +82,7 @@ TEST(SZ3_Reconstruction, SZCompressLeavesTheInputAsItWas) {
         for (const std::vector<size_t> &dims : {std::vector<size_t>{32, 341, 3}, std::vector<size_t>{5000},
                                                 std::vector<size_t>{70, 73}, std::vector<size_t>{5, 6, 7, 9}}) {
             if (c.algo == SZ3::ALGO_BIOMDXTC && dims.size() == 4) continue;  // 1D to 3D only
+            if (c.algo == SZ3::ALGO_BIOMD && dims.back() != 3) continue;     // coordinates only
             SZ3::Config conf;
             conf.setDims(dims.begin(), dims.end());
             conf.cmprAlgo = c.algo;

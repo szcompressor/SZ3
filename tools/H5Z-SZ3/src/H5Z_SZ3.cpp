@@ -215,6 +215,9 @@ static herr_t H5Z_sz3_set_local_impl(hid_t dcpl_id, hid_t type_id, hid_t chunk_s
     if (conf.N > 4)
         H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1, "SZ3 compresses at most 4 dimensions longer than 1, not %d",
                              static_cast<int>(conf.N));
+    if (conf.cmprAlgo == SZ3::ALGO_BIOMD && (conf.N > 3 || conf.dims[conf.N - 1] != 3))
+        H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1,
+                             "SZ3 ALGO_BIOMD needs chunks of (frames, atoms, 3) or (atoms, 3), whole frames");
     //  need to update magic number and data version,
     //  as the config may be from cd_values passed by users
     conf.sz3MagicNumber = SZ3_MAGIC_NUMBER;
