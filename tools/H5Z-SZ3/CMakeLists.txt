@@ -44,7 +44,8 @@ target_include_directories(hdf5sz3
 if (BUILD_SZ3_BINARY)
     add_subdirectory(tools)
 endif ()
-if (BUILD_TESTING)
+# Only at top level, as SZ3's own tests: a parent's BUILD_TESTING is for its own tests.
+if (BUILD_TESTING AND SZ3_IS_TOP_LEVEL)
     add_subdirectory(test)
 endif ()
 
