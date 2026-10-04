@@ -101,7 +101,8 @@ else ()
     target_link_libraries(SZ3core INTERFACE sz3_zstd)
 endif ()
 
-if (BUILD_TESTING)
+# Only at top level: a parent's BUILD_TESTING is for its own tests, and SZ3's would fetch a second googletest.
+if (BUILD_TESTING AND SZ3_IS_TOP_LEVEL)
     enable_testing()
     add_subdirectory(tools/test)
 endif ()
