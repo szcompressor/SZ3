@@ -220,7 +220,7 @@ static herr_t H5Z_sz3_set_local_impl(hid_t dcpl_id, hid_t type_id, hid_t chunk_s
         std::string chunk;
         for (size_t d : dims) chunk += (chunk.empty() ? "" : ", ") + std::to_string(d);
         H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1,
-                             "SZ3 ALGO_BIOMD needs chunks of (frames, atoms, 3), whole frames; these are (%s)",
+                             "SZ3 ALGO_BIOMD needs chunks whose last dimension is 3, (frames, atoms, 3); these are (%s)",
                              chunk.c_str());
     }
     //  need to update magic number and data version,

@@ -251,7 +251,9 @@ Tag `v3.3.2`. The GitHub release lists #104–#116, including the 3.3.1 changes.
 - A bug in the compressed format; the PR does not describe it further. [#116](https://github.com/szcompressor/SZ3/pull/116)
 - The HDF5 filter works on Windows. [#107](https://github.com/szcompressor/SZ3/pull/107)
 
-## 3.4.0
+## 3.4.0 (2026-10-04)
+
+Tag `v3.4.0`. The GitHub release lists #127–#173.
 
 **New**
 - One Huffman encoder for every algorithm, replacing the two earlier ones. Its code table takes about 0.3–0.7 bytes per symbol, where the one most algorithms used took 9–26. On 81 real fields from 32 datasets, the compression ratio is 1.5% higher and decompression 1.8 times faster (geometric means). [#163](https://github.com/szcompressor/SZ3/pull/163)
@@ -260,7 +262,8 @@ Tag `v3.3.2`. The GitHub release lists #104–#116, including the 3.3.1 changes.
 - HDF5 filter: `H5Pset_sz3()` sets the filter from C. The filter's `cd_values` carry the data version, each chunk is decompressed with the configuration stored in it, and the filter does not use OpenMP. See [tools/H5Z-SZ3/README.md](tools/H5Z-SZ3/README.md). [#155](https://github.com/szcompressor/SZ3/pull/155), [#161](https://github.com/szcompressor/SZ3/pull/161)
 - A build without OpenMP decompresses data compressed with OpenMP. [#160](https://github.com/szcompressor/SZ3/pull/160)
 - A Nix expression for NixOS. [#129](https://github.com/szcompressor/SZ3/pull/129)
-- `ALGO_BIOMD` is a new codec for molecular-dynamics coordinates `{frames, atoms, 3}` with an absolute bound: rigid water and bonded atoms are predicted from their geometry on an integer lattice. On 16 GROMACS trajectories at 5e-4 nm its compression ratio is 1.23 times that of the previous `ALGO_BIOMD` with one frame per chunk and 1.29 times with 20. Other shapes throw `std::invalid_argument` (in HDF5, creating the dataset fails); coordinates beyond its lattice (2048 nm at 5e-4 nm and 128 nm at 5e-5 nm for float), and NaN or Inf outside trailing fill frames, to lossless compression. [#169](https://github.com/szcompressor/SZ3/pull/169)
+- `ALGO_BIOMD` is a new codec for molecular-dynamics coordinates `{frames, atoms, 3}` with an absolute bound: rigid water and bonded atoms are predicted from their geometry on an integer lattice. On 16 GROMACS trajectories at 5e-4 nm its compression ratio is 1.23 times that of the previous `ALGO_BIOMD` with one frame per chunk and 1.29 times with 20. Other shapes throw `std::invalid_argument` (in HDF5, creating the dataset fails); coordinates beyond its lattice (2048 nm at 5e-4 nm and 128 nm at 5e-5 nm for float) and NaN or Inf outside trailing fill frames go to lossless compression. [#169](https://github.com/szcompressor/SZ3/pull/169)
+- [docs/molecular-dynamics.md](docs/molecular-dynamics.md) for molecular-dynamics data, and the [advanced guide](docs/advanced-guide.md) for algorithms, building, CMake and packaging, the C++ API, OpenMP, floating point and contributing; the HDF5 filter's README covers using it in an application; the README is a quick start. [#173](https://github.com/szcompressor/SZ3/pull/173)
 
 **Compatibility**
 - Data format 3.4.0. Data from 3.3.2 decompresses, except data compressed with `ALGO_NOPRED` or `ALGO_BIOMD`, which is refused. Data from 3.3.1 and earlier cannot be decompressed. [#163](https://github.com/szcompressor/SZ3/pull/163)
@@ -285,6 +288,7 @@ Tag `v3.3.2`. The GitHub release lists #104–#116, including the 3.3.1 changes.
 - SZ3 builds for wasm32 again. [#117](https://github.com/szcompressor/SZ3/pull/117)
 - An error bound that is negative or not finite (also a relative bound over data with Inf) compresses losslessly with every algorithm, as a bound of 0 did. [#169](https://github.com/szcompressor/SZ3/pull/169)
 - `ALGO_BIOMD` stores a chunk with NaN or Inf losslessly also when built with GCC's `-funsafe-math-optimizations` and `-ffinite-math-only` for an FMA target, which made it code NaN as 0. [#171](https://github.com/szcompressor/SZ3/pull/171)
+- `cdvalueHelper.py` writes `cd_values` with the data version first, as the filter reads them; `mdz` accepts 3D input in Debug builds and refuses 1D input, which it could not compress. [#173](https://github.com/szcompressor/SZ3/pull/173)
 
 **Compared with other compressors**
 

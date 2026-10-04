@@ -13,7 +13,9 @@ See COPYRIGHT in top-level directory.
 ## Installation
 
 Build SZ3 with the cmake option "-DBUILD_MDZ=ON"
-You'll find all the executables in [INSTALL_DIR]/tools/mdz and header files in [INSTALL_DIR]/include
+`mdz` and `mdz_smoke_test` are installed in `[INSTALL_DIR]/bin` and the header files in `[INSTALL_DIR]/include`.
+
+`mdz` compresses and decompresses in memory and prints the compression ratio, the times and the error; it does not write a compressed file.
 
 ## Testing Examples
 mdz datafile -2 dim1 dim2 -r reb buffer_size compressor
@@ -25,9 +27,9 @@ mdz datafile -3 dim1 dim2 dim3 -r reb buffer_size compressor
 * dim1: number of timesteps
 * dim2: number of atoms
 * dim3: number of atom dimensions (x,y,z,etc.)
-* reb: relative error bound, for example, 1E-3
+* reb: relative error bound, for example, 1E-3; `-a <bound>` instead of `-r <reb>` takes an absolute error bound
 * buffer_size (optional): default 10
-* compressor (optional): -1:ADP, 0: VQ, 1:VQT, 2:MT, 3: Lorenzo+Regression;  
+* compressor (optional): -1: ADP (chooses one of the others), 0: VQ, 1: VQT, 2: MT, 3: Lorenzo+Regression, 4: TS
 
 #### examples:
 * mdz helium-mode-b-7852x1037/x.f32.dat -2 7852 1037 -r 1E-3
