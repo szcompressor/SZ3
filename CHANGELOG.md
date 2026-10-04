@@ -253,7 +253,7 @@ Tag `v3.3.2`. The GitHub release lists #104–#116, including the 3.3.1 changes.
 
 ## 3.4.0 (2026-10-04)
 
-Tag `v3.4.0`. The GitHub release lists #127–#173.
+Tag `v3.4.0`. The GitHub release lists #127–#174.
 
 **New**
 - One Huffman encoder for every algorithm, replacing the two earlier ones. Its code table takes about 0.3–0.7 bytes per symbol, where the one most algorithms used took 9–26. On 81 real fields from 32 datasets, the compression ratio is 1.5% higher and decompression 1.8 times faster (geometric means). [#163](https://github.com/szcompressor/SZ3/pull/163)
@@ -275,6 +275,7 @@ Tag `v3.4.0`. The GitHub release lists #127–#173.
 - Integer data compressed by earlier versions decompresses only with those versions. 8-byte integers beyond ±2^53 are refused. [#165](https://github.com/szcompressor/SZ3/pull/165)
 - `cmake --install` no longer installs `sz3_customized_demo` or `share/SZ3/testfloat_8_8_128.dat`.
 - `libhdf5sz3` and `libSZ3c` export only their public functions, and carry an SOVERSION. [#158](https://github.com/szcompressor/SZ3/pull/158), [#159](https://github.com/szcompressor/SZ3/pull/159)
+- A static `libhdf5sz3` keeps `H5Pset_sz3`, `set_SZ3_conf_to_H5` and `get_SZ3_conf_from_H5` hidden in the shared library it is linked into, so they cannot take over another SZ3 copy's calls. `H5PLget_plugin_type` and `H5PLget_plugin_info` stay exported, as HDF5's `H5PLextern.h` declares them. [#174](https://github.com/szcompressor/SZ3/pull/174)
 
 **Fixes**
 - Damaged or truncated compressed data makes decompression throw instead of reading past the buffer, and the HDF5 filter reports the error instead of ending the program. [#121](https://github.com/szcompressor/SZ3/pull/121), [#145](https://github.com/szcompressor/SZ3/pull/145), [#149](https://github.com/szcompressor/SZ3/pull/149)
