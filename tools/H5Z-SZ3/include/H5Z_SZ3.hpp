@@ -11,10 +11,11 @@
 #include "hdf5.h"
 #include "H5PLextern.h"
 
-#ifdef _WIN32
-    #if defined(HDF5SZ3_STATIC)
-        #define HDF5SZ3_EXPORT
-    #elif defined(hdf5sz3_EXPORTS)
+/* A static filter's functions stay hidden in the shared library it is linked into. */
+#if defined(HDF5SZ3_STATIC)
+    #define HDF5SZ3_EXPORT
+#elif defined(_WIN32)
+    #if defined(hdf5sz3_EXPORTS)
         #define HDF5SZ3_EXPORT __declspec(dllexport)
     #else
         #define HDF5SZ3_EXPORT __declspec(dllimport)

@@ -74,7 +74,9 @@ buffers with huge pages, which makes compressing and decompressing large fields 
   copy in the process cannot take over their calls.
 - Keep `INSTALL_RPATH_USE_LINK_PATH` on `hdf5sz3`: without a RUNPATH the installed filter cannot find a conda, Spack
   or module HDF5. On Windows the filter DLL is in `bin/`, which must be on `PATH`.
-- A static `hdf5sz3` is position independent and defines `HDF5SZ3_STATIC` for its consumers.
+- A static `hdf5sz3` is position independent and defines `HDF5SZ3_STATIC` for its consumers. Its own functions
+  are hidden in the shared library that links it; HDF5's `H5PLextern.h` makes `H5PLget_plugin_type` and
+  `H5PLget_plugin_info` exported.
 - Install rules use `$<TARGET_FILE:...>`. `bin/sz3_smoke_test` exits 0 on a working install; Spack runs it.
 
 ## Using SZ3 from CMake
