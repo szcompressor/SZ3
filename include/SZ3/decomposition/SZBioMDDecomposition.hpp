@@ -34,20 +34,16 @@
 namespace SZ3 {
 namespace biomd {
 
-// A bond partner is one of the previous MAX_BOND_OFFSET atoms: in GROMACS all-atom topologies (AMBER, CHARMM, OPLS,
-// GROMOS) 91% to 97% of the bonded atoms have one there; 8 gains under 1% of the ratio.
+// A bond partner is searched among the previous MAX_BOND_OFFSET atoms: topologies list an atom shortly after the atom
+// it is bonded to.
 constexpr int MAX_BOND_OFFSET = 4;
-// Deltas from here on are an escape symbol and a raw byte. In lattice units, so the best threshold moves
-// with the density of the system and the bound: over 100 all-atom and Martini runs 2048 is the best single value
-// (512 gains up to 6% on sparse Martini proteins but loses 4.5% on cgfiber, 16384 loses 4% on Martini).
+// Deltas from here on (lattice units) are an escape symbol and a raw byte, which keeps the Huffman alphabet small.
 constexpr uint32_t ESCAPE = 2048;
 // |q| <= 2^28: displacements stay within 2^29, and every symbol within 32 bits
 constexpr double MAX_LATTICE = double(1 << 28);
-// The lattice spans |x| < B, the smallest power of two above 2^LATTICE_SPAN_BITS eb. For float, B is 2048 nm at the
-// 5e-4 nm of GROMACS's default xtc precision, 16384 nm at the 5e-3 nm of coarse-grained runs and 128 nm at 5e-5 nm:
-// mdrun writes coordinates inside the box, and the largest systems simulated are 155 nm (all-atom) and 400 nm (a
-// Martini cell). It costs float 1 to 1.5% of the ratio against 2^20 eb, as the step shrinks to 2 eb - eb / 4 at most;
-// double, whose ulp is 2^29 times smaller, spans the whole of MAX_LATTICE at no cost.
+// The lattice spans |x| < B, the smallest power of two above 2^LATTICE_SPAN_BITS eb (for float 2048 nm at 5e-4 nm, 128
+// nm at 5e-5 nm). A larger span costs ratio, as the step is 2 eb less the float ulp at B (choose_step()); double's ulp
+// is small enough for B to reach MAX_LATTICE.
 template <class T>
 constexpr int LATTICE_SPAN_BITS = sizeof(T) == 4 ? 21 : 27;
 
@@ -123,8 +119,7 @@ void detect_water(const T *x, size_t atoms, Layout &layout) {
     std::vector<float> cand_oh, cand_hh;
     const size_t probe = std::max<size_t>(1, atoms / PROBES);
     for (size_t i = 0; i + 2 < atoms; i += probe)
-        // five starts reach the O of a 3-, 4- or 5-site water wherever in it a probe lands: a probe every 4th atom
-        // could otherwise meet every TIP4P water at its H1
+        // five starts: a probe can land on any site of a 3- to 5-site water, and one of them is then its O
         for (size_t o = 0; o < 5 && i + o + 2 < atoms; o++) {
             const size_t k = i + o;
             const float a = dist2(k, k + 1), b = dist2(k, k + 2), c = dist2(k + 1, k + 2);
@@ -136,10 +131,8 @@ void detect_water(const T *x, size_t atoms, Layout &layout) {
             }
         }
     if (cand_hh.size() < MIN_COUNT) return;
-    // tolerances (nm), whatever the bound: rigid water is within 0.002 pm of its geometry in float output, and they
-    // stay well below the O-H / C-H difference (> 0.01 nm) that separates water from CH2/NH2. Over 50 all-atom runs the
-    // rigid share is then 0.97-1 with rigid water and 0-0.41 without at every bound from 5e-5 to 5e-2 nm; tolerances
-    // that grew with the step let proteins pass and rigid water fail from 5e-3 nm on.
+    // tolerances (nm), the same at every bound: rigid water keeps its geometry far tighter than `tight`, and `loose`
+    // stays below the O-H / C-H difference (> 0.01 nm) that separates water from CH2/NH2
     constexpr double tight = 0.001, tol = 0.002, loose = 0.01;
     auto peak = [](std::vector<float> v) {     // the median of the heaviest window of PEAK_WINDOW
         constexpr float PEAK_WINDOW = 0.004f;  // nm
@@ -160,9 +153,8 @@ void detect_water(const T *x, size_t atoms, Layout &layout) {
         if (std::fabs(cand_hh[c] - hh) < tol)
             oh_of_hh.push_back(cand_oh[2 * c]), oh_of_hh.push_back(cand_oh[2 * c + 1]);
     const double oh = peak(oh_of_hh);
-    // rigidity test: rigid water puts at least seven in ten of the nearby candidates within `tight` of both peaks;
-    // that share is 0.97 to 1 with rigid water and 0 to 0.41 without (proteins alone, flexible water), and 0.7 is
-    // midway.
+    // rigidity test: rigid water puts nearly every nearby candidate within `tight` of both peaks, flexible water and
+    // CH2/NH2 groups under half of them
     size_t n_tight = 0, n_loose = 0;
     for (size_t c = 0; c < cand_hh.size(); c++) {
         const double dh = std::fabs(cand_hh[c] - hh), da = std::fabs(cand_oh[2 * c] - oh),
@@ -194,10 +186,9 @@ void detect_water(const T *x, size_t atoms, Layout &layout) {
 }
 
 // Bonds of the other atoms on frame x: each takes the nearest of its previous MAX_BOND_OFFSET atoms if that is within
-// 0.01 .. 0.2 nm: all-atom bonds, and the 0.015 nm bond of the virtual site of 4-site water to its O. Martini 3 bonds
-// (0.27 .. 0.47 nm) are left out: taking them in gains up to 2% of the ratio on Martini runs (16% on Martini proteins
-// alone) but takes a sixth to a half more time. Under one bonded atom in 16 among other atoms probed across the frame,
-// the bonds would cost more in S_BOND_REF (a bit per atom) than they save, and none is kept.
+// 0.01 .. 0.2 nm (covalent bonds, and the virtual site of 4-site water at 0.015 nm from its O; coarse-grained bonds are
+// longer). Under one bonded atom in 16 among other atoms probed across the frame, the S_BOND_REF symbols (one per
+// atom) would cost more than the bonds save, and none is kept.
 template <class T>
 void detect_bonds(const T *x, size_t atoms, Layout &layout) {
     auto partner = [&](size_t i) {  // the offset of the bond partner of other atom i, or 0
@@ -531,8 +522,8 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         Layout layout;
         std::vector<uint32_t> waters, bonded, unbonded;  // water O's, other atoms
         detect_layout(data, layout, waters, bonded, unbonded);
-        // over 24 Martini 3 runs and cgfiber the points take -4% to +10% of the bits of deltas, and much less time;
-        // all-atom runs have water, or 86-97% of their atoms bonded
+        // one frame without water and mostly unbonded (coarse-grained): box points cost about the bits of deltas, and
+        // less time
         unbonded_box_ = coded_frames_ == 1 && waters.empty() && bonded.size() * 4 < atoms_;
 
         // a buffer per stream, as large as the symbols the chunk can put in it (every value is written before it is

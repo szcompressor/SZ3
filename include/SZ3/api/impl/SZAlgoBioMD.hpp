@@ -23,11 +23,11 @@ namespace SZ3 {
 
 // Data BIOMD does not code:
 //  * Other shapes, and chunks of more values than an int counts (a stream holds at most one symbol per value): an
-//    exception, so that the caller sees it.
+//    exception.
 //  * NaN or Inf outside trailing fill frames, coordinates beyond the lattice, and a bound that is not positive and
 //    finite (an ABS one, or a relative one over data with Inf): the chunk is stored losslessly. Frames appended to a
-//    chunk BIOMD coded can bring the first two; lossless storage keeps the values BIOMD decoded, which are on its
-//    lattice and come back the same from BIOMD again, so a rewritten chunk stays within the bound.
+//    chunk BIOMD coded can bring the first two; lossless storage keeps the values BIOMD decoded, so a rewritten chunk
+//    stays within the bound.
 template <class T, uint N>
 size_t SZ_compress_bioMD(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
     assert(N == conf.N);

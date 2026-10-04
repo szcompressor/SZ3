@@ -293,7 +293,7 @@ class BitAppender {
         pending_ |= v << pending_bits_;
         pending_bits_ += bits;
         if (pending_bits_ < 64) return;
-        words_.push_back(pending_);  // whole words: a byte at a time costs several times more
+        words_.push_back(pending_);  // whole words, turned into bytes by flush()
         pending_bits_ -= 64;
         pending_ = v >> (bits - pending_bits_);
     }

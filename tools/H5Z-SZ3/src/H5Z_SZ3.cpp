@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iterator>
 #include <memory>
+#include <string>
 
 // The message is a printf format, so anything that is not a literal goes through "%s".
 #define H5Z_SZ_PUSH_AND_GOTO(MAJ, MIN, RET, ...)                                                  \
@@ -215,9 +216,13 @@ static herr_t H5Z_sz3_set_local_impl(hid_t dcpl_id, hid_t type_id, hid_t chunk_s
     if (conf.N > 4)
         H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1, "SZ3 compresses at most 4 dimensions longer than 1, not %d",
                              static_cast<int>(conf.N));
-    if (conf.cmprAlgo == SZ3::ALGO_BIOMD && (conf.N > 3 || conf.dims[conf.N - 1] != 3))
+    if (conf.cmprAlgo == SZ3::ALGO_BIOMD && (conf.N > 3 || conf.dims[conf.N - 1] != 3)) {
+        std::string chunk;
+        for (size_t d : dims) chunk += (chunk.empty() ? "" : ", ") + std::to_string(d);
         H5Z_SZ_PUSH_AND_GOTO(H5E_PLINE, H5E_BADVALUE, -1,
-                             "SZ3 ALGO_BIOMD needs chunks of (frames, atoms, 3) or (atoms, 3), whole frames");
+                             "SZ3 ALGO_BIOMD needs chunks of (frames, atoms, 3), whole frames; these are (%s)",
+                             chunk.c_str());
+    }
     //  need to update magic number and data version,
     //  as the config may be from cd_values passed by users
     conf.sz3MagicNumber = SZ3_MAGIC_NUMBER;

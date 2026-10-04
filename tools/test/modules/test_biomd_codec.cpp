@@ -537,8 +537,8 @@ TEST(BioMD, CorruptStreamsAreRefusedOrDecodeInBounds) {
     SUCCEED();
 }
 
-// Found by an audit: the rounding of x / step to the lattice and of q step back to double took more than the one ulp
-// of slack the step left.
+// Double values near the midpoint between two lattice points, where the double rounding of x / step and of q step
+// back takes the most of the step's margin.
 TEST(BioMD, DoubleNearHalfLatticePointsStaysWithinBound) {
     const std::vector<double> x = {510.39700369221237, 0, 0, 467.45074901980968, 0, 0};
     const double eb = 5.8345702187110699e-06;
