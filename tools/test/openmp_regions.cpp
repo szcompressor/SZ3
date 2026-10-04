@@ -18,9 +18,9 @@
 int main(int argc, char** argv) {
     const std::string mode = argc > 1 ? argv[1] : "";
     if (mode == "throw") {
-        // 5 rows over 4 threads: the chunk with 2 rows stays 4D, which ALGO_BIOMD refuses.
+        // 5 rows over 4 threads: the chunk with 2 rows stays 4D, which ALGO_BIOMDXTC refuses.
         SZ3::Config conf(5, 8, 8, 8);
-        conf.cmprAlgo = SZ3::ALGO_BIOMD;
+        conf.cmprAlgo = SZ3::ALGO_BIOMDXTC;
         conf.absErrorBound = 1e-3;
         conf.openmp = true;
         std::vector<float> data(conf.num, 1.0f);

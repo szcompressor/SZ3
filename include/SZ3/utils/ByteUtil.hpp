@@ -6,10 +6,11 @@
 #define SZ3_BYTEUTIL_HPP
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
+#include <stdexcept>
 #include <string>
 #include <vector>
-#include <cstdint>
 
 #include "SZ3/def.hpp"
 
@@ -262,6 +263,78 @@ std::vector<T> bytes2vector(const unsigned char *&c, uint8_t bit_width, size_t n
 
     return data;
 }
+
+/// Signed to unsigned with small magnitudes kept small: 0, -1, 1, -2, 2, ... to 0, 1, 2, 3, 4, ...
+inline uint64_t zigzag(int64_t v) { return (uint64_t(v) << 1) ^ uint64_t(v >> 63); }
+inline int64_t unzigzag(uint64_t u) { return int64_t(u >> 1) ^ -int64_t(u & 1); }
+
+/// LEB128: 7 bits a byte, low first, the high bit set while more follow; at most 10 bytes.
+inline void write_varint(uint64_t v, uchar *&p) {
+    for (; v >= 128; v >>= 7) *p++ = uchar(v | 128);
+    *p++ = uchar(v);
+}
+inline uint64_t read_varint(const uchar *&p, size_t &remaining_length) {
+    uint64_t v = 0;
+    for (unsigned shift = 0;; shift += 7) {
+        if (remaining_length == 0 || shift > 63) throw std::out_of_range("SZ3: truncated or overlong varint");
+        const uchar b = *p++;
+        remaining_length--;
+        if (shift == 63 && b > 1) throw std::out_of_range("SZ3: truncated or overlong varint");  // past 64 bits
+        v |= uint64_t(b & 127) << shift;
+        if (b < 128) return v;
+    }
+}
+
+/// Bits appended LSB first to a byte vector, up to 56 at a time; the bytes are added by flush().
+class BitAppender {
+   public:
+    explicit BitAppender(std::vector<uchar> &out) : out_(out) {}
+    void put(uint64_t v, int bits) {  // v < 2^bits
+        pending_ |= v << pending_bits_;
+        pending_bits_ += bits;
+        if (pending_bits_ < 64) return;
+        words_.push_back(pending_);  // whole words, turned into bytes by flush()
+        pending_bits_ -= 64;
+        pending_ = v >> (bits - pending_bits_);
+    }
+    void flush() {
+        words_.push_back(pending_);
+        const size_t size = out_.size(), bytes = (words_.size() - 1) * 8 + size_t(pending_bits_ + 7) / 8;
+        out_.resize(size + bytes);
+        for (size_t k = 0; k < bytes; k++) out_[size + k] = uchar(words_[k / 8] >> (k % 8 * 8));
+        words_.clear();
+        pending_ = 0;
+        pending_bits_ = 0;
+    }
+
+   private:
+    std::vector<uchar> &out_;
+    std::vector<uint64_t> words_;
+    uint64_t pending_ = 0;
+    int pending_bits_ = 0;
+};
+
+/// Bits read LSB first, up to 56 at a time; reading past the end throws.
+class BitConsumer {
+   public:
+    BitConsumer(const uchar *begin, const uchar *end) : p_(begin), end_(end) {}
+    uint64_t get(int bits) {
+        for (; pending_bits_ < bits; pending_bits_ += 8) {
+            if (p_ == end_) throw std::out_of_range("SZ3: bits read past the end");
+            pending_ |= uint64_t(*p_++) << pending_bits_;
+        }
+        const uint64_t v = pending_ & ((uint64_t(1) << bits) - 1);
+        pending_ >>= bits;
+        pending_bits_ -= bits;
+        return v;
+    }
+    bool at_end() const { return p_ == end_; }  // every byte taken
+
+   private:
+    const uchar *p_, *end_;
+    uint64_t pending_ = 0;
+    int pending_bits_ = 0;
+};
 
 }  // namespace SZ3
 #endif  // SZ3_BYTEUTIL_HPP

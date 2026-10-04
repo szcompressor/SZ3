@@ -16,6 +16,12 @@ def create_sz3_config(algo, path):
         f.write(f"CmprAlgo = {algo}\n")
 
 
+def biomd_refuses(cmpr_algo, shape):
+    """ALGO_BIOMD takes coordinates, a last dimension of 3 after dimensions of 1 are dropped, and refuses the rest."""
+    dims = [d for d in shape if d > 1]
+    return cmpr_algo == 'ALGO_BIOMD' and (len(dims) > 3 or not dims or dims[-1] != 3)
+
+
 def run_sz3_compress(sz3_executable, input_file, output_file, bound, dims, cwd, dtype_flag):
     """
     Runs the sz3 executable for compression.
@@ -139,6 +145,17 @@ def main():
     decompressed_file = os.path.join(output_dir, f"{base_name}_decompressed.dat")
 
     create_sz3_config(cmpr_algo, output_dir)
+
+    if biomd_refuses(cmpr_algo, shape):
+        cmd = [sz3_executable, dtype_flag, '-i', raw_file, '-z', compressed_file, '-c', 'sz3.config', '-M', 'ABS',
+               str(bound), f'-{len(shape)}'] + [str(d) for d in shape[::-1]]
+        run = subprocess.run(cmd, cwd=output_dir, capture_output=True, text=True)
+        refused = run.returncode != 0 and 'ALGO_BIOMD' in run.stdout + run.stderr
+        print((run.stdout + run.stderr).strip())
+        result = "PASS" if refused else "FAIL"
+        print(f"Test Result for AbsErrorBound = {bound}: {result} (data that is not coordinates is refused)")
+        rmtree(output_dir)
+        sys.exit(0 if refused else 1)
 
     original_wd = os.getcwd()
     os.chdir(output_dir)

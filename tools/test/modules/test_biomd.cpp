@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <cstring>
 #include <random>
+#include <stdexcept>
 #include <vector>
 
 #include "SZ3/api/sz.hpp"
@@ -119,8 +120,7 @@ TEST(SZ3_BioMD, TrailingFilledFramesAreRestored) {
         // Skipping the filled tail has to cost less than quantizing it, or nothing here would
         // notice the skip being removed.
         std::vector<float> without_fill_output;
-        const auto without_fill = round_trip(algo, 1e-3, dims, make_trajectory(dims[0], dims[1]),
-                                             without_fill_output);
+        const auto without_fill = round_trip(algo, 1e-3, dims, make_trajectory(dims[0], dims[1]), without_fill_output);
         EXPECT_LT(compressed.size(), without_fill.size()) << algo_name(algo);
     }
 }
@@ -172,14 +172,20 @@ TEST(SZ3_BioMD, TwoFrameTrajectory) {
     }
 }
 
+/// ALGO_BIOMD takes coordinates, {..., 3}, and throws on other shapes.
+bool refused(SZ3::ALGO algo, const std::vector<size_t> &dims) { return algo == SZ3::ALGO_BIOMD && dims.back() != 3; }
+
 /// The single-frame paths, which 1D and 2D data take.
 TEST(SZ3_BioMD, OneAndTwoDimensionalInput) {
     const auto atoms = make_trajectory(1, 4096);
 
     for (SZ3::ALGO algo : kAlgos) {
-        for (const std::vector<size_t> &dims :
-             {std::vector<size_t>{atoms.size()}, std::vector<size_t>{4096, 3}}) {
+        for (const std::vector<size_t> &dims : {std::vector<size_t>{atoms.size()}, std::vector<size_t>{4096, 3}}) {
             std::vector<float> output;
+            if (refused(algo, dims)) {
+                EXPECT_THROW(round_trip(algo, 1e-3, dims, atoms, output), std::invalid_argument);
+                continue;
+            }
             round_trip(algo, 1e-3, dims, atoms, output);
             ASSERT_EQ(output.size(), atoms.size()) << algo_name(algo) << " " << dims.size() << "D";
             EXPECT_LE(max_abs_error(atoms, output), 1e-3 * bound_slack(algo))
@@ -198,6 +204,10 @@ TEST(SZ3_BioMD, InputsShorterThanTwoAtoms) {
                 input[i] = 0.5f * static_cast<float>(i) - 1.0f;
             }
             std::vector<float> output;
+            if (refused(algo, {n})) {
+                EXPECT_THROW(round_trip(algo, 1e-3, {n}, input, output), std::invalid_argument);
+                continue;
+            }
             round_trip(algo, 1e-3, {n}, input, output);
             ASSERT_EQ(output.size(), n) << algo_name(algo) << " n=" << n;
             EXPECT_LE(max_abs_error(input, output), 1e-3 * bound_slack(algo)) << algo_name(algo) << " n=" << n;
@@ -215,6 +225,7 @@ TEST(SZ3_BioMD, CompressionIsDeterministic) {
         const auto input = make_trajectory(dims.size() == 3 ? dims[0] : 1, atoms);
         for (SZ3::ALGO algo : kAlgos) {
             std::vector<float> discard;
+            if (refused(algo, dims)) continue;
             const auto first = round_trip(algo, 1e-3, dims, input, discard);
             const auto second = round_trip(algo, 1e-3, dims, input, discard);
             ASSERT_EQ(first.size(), second.size()) << algo_name(algo) << " " << dims.size() << "D";

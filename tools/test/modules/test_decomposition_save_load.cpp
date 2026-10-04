@@ -130,28 +130,29 @@ void expect_load_charges_what_it_reads(const std::vector<size_t> &dims, MakeQuan
         << "load() advanced " << advanced << " bytes but charged " << stream.size() - remaining;
 }
 
-auto linear_quantizer = [](const SZ3::Config &conf) {
-    return SZ3::LinearQuantizer<float>(conf.absErrorBound, conf.quantbinCnt / 2);
+// SZBioMDDecomposition takes no quantizer: this one takes the helpers' second argument and drops it
+template <SZ3::uint N>
+struct BioMD : SZ3::SZBioMDDecomposition<float, N> {
+    BioMD(const SZ3::Config &conf, int) : SZ3::SZBioMDDecomposition<float, N>(conf) {}
 };
+auto no_quantizer = [](const SZ3::Config &) { return 0; };
 auto xtc_quantizer = [](const SZ3::Config &conf) {
     return SZ3::LinearQuantizer<float>(conf.absErrorBound, SZ3::XTC_radius, false);
 };
 
 }  // namespace
 
-TEST(SZ3_DecompositionSaveLoad, BioMDOneDimension) {
-    expect_header_depends_only_on_input<SZ3::SZBioMDDecomposition<float, 1, SZ3::LinearQuantizer<float>>>(
-        {4096}, linear_quantizer);
-}
-
 TEST(SZ3_DecompositionSaveLoad, BioMDTwoDimensions) {
-    expect_header_depends_only_on_input<SZ3::SZBioMDDecomposition<float, 2, SZ3::LinearQuantizer<float>>>(
-        {64, 64}, linear_quantizer);
+    expect_header_depends_only_on_input<BioMD<2>>({777, 3}, no_quantizer);
 }
 
 TEST(SZ3_DecompositionSaveLoad, BioMDThreeDimensions) {
-    expect_header_depends_only_on_input<SZ3::SZBioMDDecomposition<float, 3, SZ3::LinearQuantizer<float>>>(
-        {5, 777, 3}, linear_quantizer);
+    expect_header_depends_only_on_input<BioMD<3>>({5, 777, 3}, no_quantizer);
+}
+
+TEST(SZ3_DecompositionSaveLoad, BioMDChargesWhatItReads) {
+    expect_load_charges_what_it_reads<BioMD<2>>({777, 3}, no_quantizer);
+    expect_load_charges_what_it_reads<BioMD<3>>({5, 777, 3}, no_quantizer);
 }
 
 TEST(SZ3_DecompositionSaveLoad, BioMDXtcOneDimension) {
@@ -167,15 +168,6 @@ TEST(SZ3_DecompositionSaveLoad, BioMDXtcTwoDimensions) {
 TEST(SZ3_DecompositionSaveLoad, BioMDXtcThreeDimensions) {
     expect_header_depends_only_on_input<SZ3::SZBioMDXtcDecomposition<float, 3, SZ3::LinearQuantizer<float>>>(
         {5, 777, 3}, xtc_quantizer);
-}
-
-TEST(SZ3_DecompositionSaveLoad, BioMDChargesWhatItReads) {
-    expect_load_charges_what_it_reads<SZ3::SZBioMDDecomposition<float, 1, SZ3::LinearQuantizer<float>>>(
-        {4096}, linear_quantizer);
-    expect_load_charges_what_it_reads<SZ3::SZBioMDDecomposition<float, 2, SZ3::LinearQuantizer<float>>>(
-        {64, 64}, linear_quantizer);
-    expect_load_charges_what_it_reads<SZ3::SZBioMDDecomposition<float, 3, SZ3::LinearQuantizer<float>>>(
-        {5, 777, 3}, linear_quantizer);
 }
 
 TEST(SZ3_DecompositionSaveLoad, BioMDXtcChargesWhatItReads) {
@@ -253,8 +245,10 @@ TEST(SZ3_DecompositionSaveLoad, BioMDSizeEstBoundsSave) {
         conf.absErrorBound = eb;
         SCOPED_TRACE("eb=" + std::to_string(eb));
 
-        SZ3::SZBioMDDecomposition<float, 3, SZ3::LinearQuantizer<float>> biomd(conf, linear_quantizer(conf));
-        expect_save_stays_within_size_est(biomd, conf, ramp(conf.num), "SZBioMDDecomposition");
+        BioMD<3> biomd(conf, 0);
+        auto coordinates = ramp(conf.num);  // up to 12 nm, within BIOMD's lattice (64 nm at 1e-4)
+        for (auto &v : coordinates) v *= 0.002f;
+        expect_save_stays_within_size_est(biomd, conf, coordinates, "SZBioMDDecomposition");
 
         SZ3::SZBioMDXtcDecomposition<float, 3, SZ3::LinearQuantizer<float>> xtc(conf, xtc_quantizer(conf));
         expect_save_stays_within_size_est(xtc, conf, ramp(conf.num), "SZBioMDXtcDecomposition");
