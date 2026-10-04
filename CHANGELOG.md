@@ -284,6 +284,7 @@ Tag `v3.3.2`. The GitHub release lists #104–#116, including the 3.3.1 changes.
 - The HDF5 filter keeps `H5Z_FLAG_OPTIONAL` (as h5py sets it), and refuses a chunk whose size a filter before it changed. [#163](https://github.com/szcompressor/SZ3/pull/163)
 - SZ3 builds for wasm32 again. [#117](https://github.com/szcompressor/SZ3/pull/117)
 - An error bound that is negative or not finite (also a relative bound over data with Inf) compresses losslessly with every algorithm, as a bound of 0 did. [#169](https://github.com/szcompressor/SZ3/pull/169)
+- `ALGO_BIOMD` stores a chunk with NaN or Inf losslessly also when built with GCC's `-funsafe-math-optimizations` and `-ffinite-math-only` for an FMA target, which made it code NaN as 0. [#171](https://github.com/szcompressor/SZ3/pull/171)
 
 **Compared with other compressors**
 

@@ -704,10 +704,12 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
             b &= Bits(~Bits(0)) >> 1;
             max_bits = b > max_bits ? b : max_bits;
         }
+        // compared as bits: under -ffinite-math-only a floating-point test for NaN may be compiled away
+        const Bits infinity_bits = Bits(sizeof(T) == 4 ? 0x7f800000ull : 0x7ff0000000000000ull);
+        if (max_bits >= infinity_bits)
+            throw biomd::Fallback("SZ3 BioMD: NaN or Inf in a frame that is not trailing fill");
         T max_abs;
         memcpy(&max_abs, &max_bits, sizeof(T));
-        if (!(max_abs <= std::numeric_limits<T>::max()))
-            throw biomd::Fallback("SZ3 BioMD: NaN or Inf in a frame that is not trailing fill");
         int exponent;
         std::frexp(std::ldexp(error_bound_, biomd::LATTICE_SPAN_BITS<T>), &exponent);
         const double span = std::ldexp(1.0, exponent);

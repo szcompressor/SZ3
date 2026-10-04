@@ -36,6 +36,22 @@ foreach (TEST_SRC IN LISTS TEST_SOURCES)
 endforeach()
 target_compile_definitions(test_previous_data_version PRIVATE SZ3_TEST_STREAMS="${CMAKE_CURRENT_SOURCE_DIR}/streams")
 
+# GCC refuses -ffast-math but not these options, which together on an FMA target let it drop floating-point NaN tests.
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+    add_executable(biomd_finite_math biomd_finite_math.cpp)
+    target_link_libraries(biomd_finite_math PRIVATE SZ3core)
+    target_compile_options(biomd_finite_math PRIVATE -funsafe-math-optimizations -ffinite-math-only -march=x86-64-v3)
+    # it runs only where the machine has the instructions -march=x86-64-v3 uses
+    include(CheckCXXSourceRuns)
+    set(CMAKE_REQUIRED_FLAGS -march=x86-64-v3)
+    check_cxx_source_runs("int main() { return __builtin_cpu_supports(\"avx2\") && __builtin_cpu_supports(\"fma\") ? 0 : 1; }"
+            SZ3_HOST_HAS_X86_64_V3)
+    unset(CMAKE_REQUIRED_FLAGS)
+    if (SZ3_HOST_HAS_X86_64_V3)
+        add_test(NAME SZ3_BioMD_NaNUnderFiniteMath COMMAND biomd_finite_math)
+    endif ()
+endif ()
+
 # A program built without OpenMP reads back what one built with it wrote with conf.openmp = true.
 if (OpenMP_FOUND)
     add_executable(openmp_stream_with openmp_stream.cpp)
