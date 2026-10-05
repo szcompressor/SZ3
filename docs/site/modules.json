@@ -720,7 +720,7 @@
         "embedded coding",
         "progressive"
       ],
-      "best_for": "Smooth 3D floating-point scientific fields where you target PSNR or bitrate rather than absolute error. Excellent for climate, CFD pressure/velocity, and other slowly-varying physical fields. 3D-only in this build (disabled on MinGW). Recent climate-domain work (CliZ IPDPS24) shows newer prediction-based compressors can beat SPERR by ~7x at SSIM-equal quality on CESM variables, so consider SZ3/CliZ if SSIM is the target.",
+      "best_for": "Smooth 3D floating-point scientific fields where you target PSNR or bitrate rather than absolute error. Excellent for climate, CFD pressure/velocity, and other slowly-varying physical fields. 3D-only in this build (disabled on MinGW and Emscripten). Recent climate-domain work (CliZ IPDPS24) shows newer prediction-based compressors can beat SPERR by ~7x at SSIM-equal quality on CESM variables, so consider SZ3/CliZ if SSIM is the target.",
       "data_examples": [
         "CESM-T (atmosphere temperature)",
         "Sea-surface height (SSH)",
@@ -1236,7 +1236,7 @@
         "climate",
         "CFD"
       ],
-      "best_for": "Applies SPERR's conditioner and CDF 9/7 wavelet transform to a 3D field, quantizes the coefficients with a ScalarQuantizer, and SPECK-codes them. Its data flow is unusual and worth knowing before composing with it: the coefficient bitstream is held in the module's own save()/load() state, and what compress() returns as the decomposition output is an outlier-correction map, one int64 per element. So the pipeline's encoder stage codes the outliers while the coefficients ride along in the decomposition state. Mode follows the config - a PSNR bound selects SPERR's PSNR mode, which carries no outliers at all; anything else selects point-wise-error mode, where the outlier pass is what restores the absolute bound after wavelet reconstruction. Constant fields are detected and short-circuited. 3D floating-point only, and disabled on MinGW builds.",
+      "best_for": "Applies SPERR's conditioner and CDF 9/7 wavelet transform to a 3D field, quantizes the coefficients with a ScalarQuantizer, and SPECK-codes them. Its data flow is unusual and worth knowing before composing with it: the coefficient bitstream is held in the module's own save()/load() state, and what compress() returns as the decomposition output is an outlier-correction map, one int64 per element. So the pipeline's encoder stage codes the outliers while the coefficients ride along in the decomposition state. Mode follows the config - a PSNR bound selects SPERR's PSNR mode, which carries no outliers at all; anything else selects point-wise-error mode, where the outlier pass is what restores the absolute bound after wavelet reconstruction. Constant fields are detected and short-circuited. 3D floating-point only, and disabled on MinGW and Emscripten builds.",
       "data_examples": [
         "CESM-T (atmosphere temperature)",
         "Sea-surface height (SSH)",
