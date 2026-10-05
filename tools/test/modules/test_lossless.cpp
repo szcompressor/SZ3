@@ -35,3 +35,12 @@ void runAllTest() {
 
 TEST(LosslessTest, LosslessZstd) { runAllTest<SZ3::Lossless_zstd>(); }
 TEST(LosslessTest, LosslessBypass) { runAllTest<SZ3::Lossless_bypass>(); }
+
+// A buffer too small for even the size header is refused, not written past.
+TEST(LosslessTest, LosslessZstdRefusesBufferSmallerThanHeader) {
+    std::vector<SZ3::uchar> src(100, 7);
+    for (size_t cap = 0; cap < sizeof(size_t); cap++) {
+        std::vector<SZ3::uchar> dst(cap);
+        EXPECT_THROW(SZ3::Lossless_zstd().compress(src.data(), src.size(), dst.data(), cap), std::length_error);
+    }
+}
