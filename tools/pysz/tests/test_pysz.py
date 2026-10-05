@@ -83,7 +83,7 @@ def test_small_and_integer():
     config.absErrorBound = 2
     for data in (np.arange(5, dtype=np.float32),
                  np.random.randint(-1000, 1000, size=(64, 64)).astype(np.int32),
-                 np.random.randint(-2**40, 2**40, size=1000).astype(np.int64)):
+                 np.random.randint(-2**40, 2**40, size=1000, dtype=np.int64)):
         compressed, _ = sz.compress(data, config)
         decompressed, _ = sz.decompress(compressed, data.dtype, data.shape)
         max_error, _, _ = sz.verify(data, decompressed)
