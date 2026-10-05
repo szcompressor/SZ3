@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
     // unsigned int values_out[7] = {0, 0, 0, 0, 0, 0, 0}; //at most 7 parameters
 
     // hold dims
-    hsize_t dims[H5S_MAX_RANK], dims_used[5] = {0, 0, 0, 0, 0};
+    hsize_t dims[H5S_MAX_RANK];
     int ndims, dim;
 
     if (argc < 2) {
@@ -119,7 +119,6 @@ int main(int argc, char *argv[]) {
     int ndims_used = 0;
     for (int i = 0; i < ndims; i++) {
         if (dims[i] <= 1) continue;
-        dims_used[ndims_used] = dims[i];
         ndims_used++;
     }
 

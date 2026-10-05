@@ -439,6 +439,10 @@ class Config {
         if (c < c1) read(quantbinCnt, c, remaining_length);
         if (c < c1) read(blockSize, c, remaining_length);
         if (c < c1) read(predDim, c, remaining_length);
+        // Skip fields a later version appends, so whatever follows this config is read from where it starts.
+        if (c > c1) throw std::out_of_range("SZ3 Config::load: the config is longer than its declared size");
+        remaining_length -= static_cast<size_t>(c1 - c);
+        c = c1;
     }
 
     /**

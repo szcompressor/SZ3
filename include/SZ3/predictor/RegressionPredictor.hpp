@@ -61,7 +61,7 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
 
     void precompress_block_commit() noexcept override {
         pred_and_quantize_coefficients();
-        std::copy(current_coeffs.begin(), current_coeffs.end(), prev_coeffs.begin());
+        prev_coeffs = current_coeffs;
     }
 
     bool predecompress(const block_iter &block) override {
