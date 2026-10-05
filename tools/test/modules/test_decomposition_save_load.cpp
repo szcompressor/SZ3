@@ -155,6 +155,25 @@ TEST(SZ3_DecompositionSaveLoad, BioMDChargesWhatItReads) {
     expect_load_charges_what_it_reads<BioMD<3>>({5, 777, 3}, no_quantizer);
 }
 
+// The mode bytes and the box flag hold 0 or 1; any other value is a corrupt stream, not a value to truncate.
+TEST(SZ3_DecompositionSaveLoad, BioMDRefusesUnknownModeAndBoxFlag) {
+    const std::vector<size_t> dims = {5, 777, 3};
+    const auto header = header_after_compress<BioMD<3>>(dims, 0x00, no_quantizer);
+    // coded frames (8), fill value (4), step (8), water distances (8 + 8), water count (8), then 4 modes and the flag
+    const size_t modes = 44, box = modes + SZ3::biomd::NUM_GROUPS;
+    SZ3::Config conf;
+    conf.setDims(dims.begin(), dims.end());
+    for (size_t at : {modes, modes + 3, box}) {
+        auto corrupt = header;
+        ASSERT_LE(corrupt[at], 1) << "byte " << at << " is not where the mode bytes and the box flag are";
+        corrupt[at] = 2;
+        BioMD<3> reader(conf, 0);
+        const SZ3::uchar *cursor = corrupt.data();
+        size_t remaining = corrupt.size();
+        EXPECT_THROW(reader.load(cursor, remaining), std::runtime_error) << "byte " << at;
+    }
+}
+
 TEST(SZ3_DecompositionSaveLoad, BioMDXtcOneDimension) {
     expect_header_depends_only_on_input<SZ3::SZBioMDXtcDecomposition<float, 1, SZ3::LinearQuantizer<float>>>(
         {4096}, xtc_quantizer);

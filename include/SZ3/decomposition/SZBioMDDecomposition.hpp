@@ -644,11 +644,13 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         for (int &m : modes_) {
             uint8_t v;
             read(v, c, remaining_length);
-            m = v & 1;
+            if (v > 1) throw std::runtime_error("SZ3 BioMD: corrupt stream");
+            m = v;
         }
         uint8_t unbonded_box;
         read(unbonded_box, c, remaining_length);
-        unbonded_box_ = (unbonded_box & 1) && coded_frames_ == 1;
+        if (unbonded_box > 1) throw std::runtime_error("SZ3 BioMD: corrupt stream");
+        unbonded_box_ = unbonded_box && coded_frames_ == 1;
         if (has_box()) {
             read(box_min_, 3, c, remaining_length);
             read(box_size_, 3, c, remaining_length);
