@@ -15,7 +15,7 @@ jobs:
         include:
           - os: ubuntu-latest
             arch: x86_64
-          - os: macos-13  # Intel
+          - os: macos-15-intel  # Intel
             arch: x86_64
           - os: macos-latest  # Apple Silicon
             arch: arm64
@@ -37,8 +37,8 @@ jobs:
         run: python -m cibuildwheel --output-dir wheelhouse
         working-directory: tools/pysz
         env:
-          # Build for Python 3.8-3.13
-          CIBW_BUILD: cp38-* cp39-* cp310-* cp311-* cp312-* cp313-*
+          # Build for Python 3.9-3.14
+          CIBW_BUILD: cp39-* cp310-* cp311-* cp312-* cp313-* cp314-*
           
           # Use manylinux_2_28 (AlmaLinux 8) instead of manylinux2014 (CentOS 7)
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
