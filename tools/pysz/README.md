@@ -10,7 +10,7 @@ pysz provides a clean Python interface to SZ3, a fast error-bounded lossy compre
 
 ### From PyPI (recommended)
 
-**Pre-built binary wheels** are available for most platforms (Linux, macOS, Windows) and Python versions (3.8-3.13):
+**Pre-built binary wheels** are available for most platforms (Linux, macOS, Windows) and Python versions (3.9-3.14):
 
 ```bash
 pip install pysz
