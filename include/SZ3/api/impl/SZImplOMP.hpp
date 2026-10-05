@@ -215,8 +215,12 @@ void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* de
             if (conf_t[tid].num != outer * run) {
                 throw std::invalid_argument("SZ3: a chunk of the OpenMP stream does not match its share of the data");
             }
-            std::vector<T> gathered(outer > 1 ? conf_t[tid].num : 0);
-            T* dec_t = outer > 1 ? gathered.data() : decData + lo * inner;
+            T* dec_t = decData + lo * inner;
+            std::vector<T> gathered;
+            if (outer > 1) {
+                gathered.resize(conf_t[tid].num);
+                dec_t = gathered.data();
+            }
             if (conf_t[tid].N == 1) {
                 SZ_decompress_dispatcher<T, 1>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid], dec_t);
             } else if (conf_t[tid].N == 2) {
