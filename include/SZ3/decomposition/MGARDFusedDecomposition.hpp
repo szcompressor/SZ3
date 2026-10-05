@@ -157,20 +157,22 @@ class MGARDFusedDecomposition : public concepts::DecompositionInterface<T, int, 
     }
 
     void save(uchar*& c) override {
-        write(target_level_, c);
+        write<uint64_t>(target_level_, c);
         write(eb_, c);
         write(radius_, c);
         size_t nq = quantizers_.size();
-        write(nq, c);
+        write<uint64_t>(nq, c);
         for (auto& q : quantizers_) q.save(c);
         outliers_.save(c);
     }
 
     void load(const uchar*& c, size_t& remaining_length) override {
-        read(target_level_, c, remaining_length);
+        uint64_t target_level = 0;
+        read(target_level, c, remaining_length);
+        target_level_ = target_level;
         read(eb_, c, remaining_length);
         read(radius_, c, remaining_length);
-        size_t nq = 0;
+        uint64_t nq = 0;
         read(nq, c, remaining_length);
         quantizers_.assign(nq, LinearQuantizer<T>(eb_, radius_));
         for (auto& q : quantizers_) q.load(c, remaining_length);
@@ -181,7 +183,7 @@ class MGARDFusedDecomposition : public concepts::DecompositionInterface<T, int, 
 
     size_t size_est() override {
         // Header + per-quantizer estimate (each quantizer carries unpredictable list).
-        size_t s = sizeof(target_level_) + sizeof(eb_) + sizeof(radius_) + sizeof(size_t);
+        size_t s = sizeof(uint64_t) + sizeof(eb_) + sizeof(radius_) + sizeof(uint64_t);
         for (auto& q : quantizers_) s += q.size_est() + 64;
         return s + outliers_.size_est() + 64;
     }

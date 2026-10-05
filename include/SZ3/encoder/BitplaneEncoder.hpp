@@ -143,14 +143,16 @@ class BitplaneEncoder : public concepts::EncoderInterface<T> {
     }
 
     void save(uchar*& c) override {
-        write(n_, c);
+        write<uint64_t>(n_, c);
         write(num_planes_, c);
         const uint8_t flags = has_signs_ ? 1 : 0;
         write(flags, c);
     }
 
     void load(const uchar*& c, size_t& remaining_length) override {
-        read(n_, c, remaining_length);
+        uint64_t n = 0;
+        read(n, c, remaining_length);
+        n_ = n;
         read(num_planes_, c, remaining_length);
         uint8_t flags = 0;
         read(flags, c, remaining_length);
@@ -164,7 +166,7 @@ class BitplaneEncoder : public concepts::EncoderInterface<T> {
     // Size of metadata + encoded payload. SZGenericCompressor uses this to size
     // the intermediate buffer; under-reporting can mask real overruns later.
     size_t size_est() override {
-        const size_t header = sizeof(n_) + sizeof(num_planes_) + sizeof(uint8_t);
+        const size_t header = sizeof(uint64_t) + sizeof(num_planes_) + sizeof(uint8_t);
         if (n_ == 0) return header;
         const size_t plane_bytes = (n_ + 7) / 8;
         const size_t total_planes = static_cast<size_t>(num_planes_) + (has_signs_ ? 1 : 0);

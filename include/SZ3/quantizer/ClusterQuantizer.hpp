@@ -303,7 +303,7 @@ class ClusterQuantizer : public concepts::QuantizerInterface<T, int> {
         write(level_num_, c);
         write(eb_, c);
         size_t unpred_size = unpred_.size();
-        write(unpred_size, c);
+        write<uint64_t>(unpred_size, c);
         if (unpred_size > 0) {
             write(unpred_.data(), unpred_size, c);
         }
@@ -326,7 +326,7 @@ class ClusterQuantizer : public concepts::QuantizerInterface<T, int> {
         read(level_offset_, c, remaining_length);
         read(level_num_, c, remaining_length);
         read(eb_, c, remaining_length);
-        size_t unpred_size = 0;
+        uint64_t unpred_size = 0;
         read(unpred_size, c, remaining_length);
         unpred_.clear();
         if (unpred_size > 0) {

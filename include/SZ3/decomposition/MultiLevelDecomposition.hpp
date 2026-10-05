@@ -178,10 +178,10 @@ class MultiLevelDecomposition : public concepts::DecompositionInterface<T, To, N
     }
 
     void save(uchar *&c) override {
-        write(target_level_, c);
+        write<uint64_t>(target_level_, c);
         write(eb_, c);
         const size_t num_quantizers = quantizers_.size();
-        write(num_quantizers, c);
+        write<uint64_t>(num_quantizers, c);
         for (auto &q : quantizers_) {
             q.save(c);
         }
@@ -189,9 +189,11 @@ class MultiLevelDecomposition : public concepts::DecompositionInterface<T, To, N
     }
 
     void load(const uchar *&c, size_t &remaining_length) override {
-        read(target_level_, c, remaining_length);
+        uint64_t target_level = 0;
+        read(target_level, c, remaining_length);
+        target_level_ = target_level;
         read(eb_, c, remaining_length);
-        size_t num_quantizers = 0;
+        uint64_t num_quantizers = 0;
         read(num_quantizers, c, remaining_length);
         quantizers_.assign(num_quantizers, make_quantizer_(eb_));
         for (auto &q : quantizers_) {
@@ -206,7 +208,7 @@ class MultiLevelDecomposition : public concepts::DecompositionInterface<T, To, N
     std::pair<To, To> get_out_range() override { return out_range_; }
 
     size_t size_est() override {
-        size_t bytes = sizeof(target_level_) + sizeof(eb_) + sizeof(size_t) + 64 * (quantizers_.size() + 1);
+        size_t bytes = sizeof(uint64_t) + sizeof(eb_) + sizeof(uint64_t) + 64 * (quantizers_.size() + 1);
         for (auto &q : quantizers_) {
             bytes += q.size_est();
         }
