@@ -10,7 +10,7 @@ pysz provides a clean Python interface to SZ3, a fast error-bounded lossy compre
 
 ### From PyPI (recommended)
 
-**Pre-built binary wheels** are available for most platforms (Linux, macOS, Windows) and Python versions (3.8-3.13):
+**Pre-built binary wheels** are available for most platforms (Linux, macOS, Windows) and Python versions (3.9-3.14):
 
 ```bash
 pip install pysz
@@ -37,6 +37,11 @@ pip install pysz
 git clone https://github.com/szcompressor/SZ3.git
 cd SZ3/tools/pysz
 pip install -e .
+```
+
+**Or build pysz against an SZ3 you have installed** (with its Zstd in the same prefix):
+```bash
+PYSZ_SZ3_PREFIX=<INSTALL_DIR> pip install .
 ```
 
 **What happens during source installation:**

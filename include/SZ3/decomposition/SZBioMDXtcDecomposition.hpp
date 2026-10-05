@@ -53,18 +53,20 @@ public:
     }
 
     void save(uchar*& c) override {
-        write(firstFillFrame_, c);
+        write<uint64_t>(firstFillFrame_, c);
         write(fillValue_, c);
         quantizer.save(c);
     }
 
     void load(const uchar*& c, size_t& remaining_length) override {
-        read(firstFillFrame_, c, remaining_length);
+        uint64_t first_fill_frame = 0;
+        read(first_fill_frame, c, remaining_length);
+        firstFillFrame_ = first_fill_frame;
         read(fillValue_, c, remaining_length);
         quantizer.load(c, remaining_length);
     }
 
-    size_t size_est() override { return sizeof(firstFillFrame_) + sizeof(fillValue_) + quantizer.size_est(); }
+    size_t size_est() override { return sizeof(uint64_t) + sizeof(fillValue_) + quantizer.size_est(); }
 
     std::pair<int, int> get_out_range() override { return quantizer.get_out_range(); }
 

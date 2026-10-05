@@ -4,13 +4,20 @@
 
 #include "sz3c.h"
 
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <memory>
+
 #include "SZ3/api/sz.hpp"
 
 using namespace SZ3;
 
+// Errors return NULL with a message on stderr: a library must not end its caller's process, and an exception must not
+// cross into C.
 unsigned char *SZ_compress_args(int dataType, void *data, size_t *outSize, int errBoundMode, double absErrBound,
                                 double relBoundRatio, double pwrBoundRatio, size_t r5, size_t r4, size_t r3, size_t r2,
-                                size_t r1) {
+                                size_t r1) try {
     SZ3::Config conf;
     if (r2 == 0) {
         conf = SZ3::Config(r1);
@@ -36,8 +43,8 @@ unsigned char *SZ_compress_args(int dataType, void *data, size_t *outSize, int e
     } else if (errBoundMode == ABS_OR_REL) {
         conf.errorBoundMode = EB_ABS_OR_REL;
     } else {
-        printf("errBoundMode %d not support\n ", errBoundMode);
-        exit(0);
+        fprintf(stderr, "SZ3: errBoundMode %d not supported\n", errBoundMode);
+        return nullptr;
     }
 
     unsigned char *cmpr_data = nullptr;
@@ -48,20 +55,38 @@ unsigned char *SZ_compress_args(int dataType, void *data, size_t *outSize, int e
         cmpr_data = reinterpret_cast<unsigned char *>(SZ_compress<double>(conf, static_cast<double *>(data), *outSize));
 #endif
     } else {
-        printf("dataType %d not support\n", dataType);
-        exit(0);
+        fprintf(stderr, "SZ3: dataType %d not supported\n", dataType);
+        return nullptr;
     }
 
     // convert c++ memory (by 'new' operator) to c memory (by malloc)
     auto *cmpr = static_cast<unsigned char *>(malloc(*outSize));
-    memcpy(cmpr, cmpr_data, *outSize);
+    if (cmpr) memcpy(cmpr, cmpr_data, *outSize);
     delete[] cmpr_data;
 
     return cmpr;
+} catch (const std::exception &e) {
+    fprintf(stderr, "SZ3: %s\n", e.what());
+    return nullptr;
+}
+
+// Decompresses into SZ3's own buffer first: the caller's dimensions are only checked against the stream once it is
+// read.
+template <class T>
+static void *decompress(unsigned char *bytes, size_t byteLength, size_t n) {
+    SZ3::Config conf;
+    std::unique_ptr<T[]> dec(SZ_decompress<T>(conf, reinterpret_cast<char *>(bytes), byteLength));
+    if (conf.num != n) {
+        fprintf(stderr, "SZ3: the data holds %zu values, not the %zu the dimensions give\n", conf.num, n);
+        return nullptr;
+    }
+    auto *out = static_cast<T *>(malloc(n * sizeof(T)));
+    if (out) memcpy(out, dec.get(), n * sizeof(T));
+    return out;
 }
 
 void *SZ_decompress(int dataType, unsigned char *bytes, size_t byteLength, size_t r5, size_t r4, size_t r3, size_t r2,
-                    size_t r1) {
+                    size_t r1) try {
     size_t n = 0;
     if (r2 == 0) {
         n = r1;
@@ -75,21 +100,19 @@ void *SZ_decompress(int dataType, unsigned char *bytes, size_t byteLength, size_
         n = r1 * r2 * r3 * r4 * r5;
     }
 
-    SZ3::Config conf;
     if (dataType == SZ_FLOAT) {
-        auto dec_data = static_cast<float *>(malloc(n * sizeof(float)));
-        SZ_decompress<float>(conf, reinterpret_cast<char *>(bytes), byteLength, dec_data);
-        return dec_data;
+        return decompress<float>(bytes, byteLength, n);
 #if (!SZ3_DEBUG_TIMINGS)
     } else if (dataType == SZ_DOUBLE) {
-        auto dec_data = static_cast<double *>(malloc(n * sizeof(double)));
-        SZ_decompress<double>(conf, reinterpret_cast<char *>(bytes), byteLength, dec_data);
-        return dec_data;
+        return decompress<double>(bytes, byteLength, n);
 #endif
     } else {
-        printf("dataType %d not support\n", dataType);
-        exit(0);
+        fprintf(stderr, "SZ3: dataType %d not supported\n", dataType);
+        return nullptr;
     }
+} catch (const std::exception &e) {
+    fprintf(stderr, "SZ3: %s\n", e.what());
+    return nullptr;
 }
 
 void free_buf(void *p) { free(p); }

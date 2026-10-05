@@ -158,6 +158,57 @@ skip_all "this SZ3 was built without BUILD_H5Z_FILTER, so the export carries no 
     c-only-consumer-configures c-only-consumer-builds c-only-consumer-produces-an-executable
 fi
 
+# ---------------------------------------------------------------- 2b. C only, SZ3::SZ3c
+# libSZ3c is installed with the tools; a C project finds it through the export and gets NULL, not an
+# exit, for what it does not support.
+if [ -f "$LIBDIR/cmake/SZ3/SZ3c.cmake" ]; then
+mkdir -p sz3c
+cat > sz3c/CMakeLists.txt <<'EOF'
+cmake_minimum_required(VERSION 3.18)
+# CXX only so the linker brings the C++ runtime a static libSZ3c needs; the program is C.
+project(sz3c_consumer C CXX)
+find_package(SZ3 REQUIRED COMPONENTS SZ3c)
+add_executable(c2 main.c)
+target_link_libraries(c2 PRIVATE SZ3::SZ3c)
+EOF
+cat > sz3c/main.c <<'EOF'
+#include <sz3c.h>
+int main(void) {
+    float d[1000];
+    for (int i = 0; i < 1000; i++) d[i] = (float)(i % 37) * 0.1f;  /* no libm to link */
+    size_t n = 0;
+    unsigned char *c = SZ_compress_args(SZ_FLOAT, d, &n, ABS, 1e-3, 0, 0, 0, 0, 0, 0, 1000);
+    if (!c) return 1;
+    float *o = (float *)SZ_decompress(SZ_FLOAT, c, n, 0, 0, 0, 0, 1000);
+    if (!o) return 2;
+    for (int i = 0; i < 1000; i++)
+        if (!(o[i] - d[i] <= 1e-3f && d[i] - o[i] <= 1e-3f)) return 3;
+    if (SZ_decompress(SZ_FLOAT, c, n, 0, 0, 0, 0, 999)) return 4;    /* wrong dimensions */
+    if (SZ_compress_args(SZ_INT8, d, &n, ABS, 1e-3, 0, 0, 0, 0, 0, 0, 1000)) return 5;
+    if (SZ_compress_args(SZ_FLOAT, d, &n, PSNR, 1e-3, 0, 0, 0, 0, 0, 0, 1000)) return 6;
+    free_buf(o);
+    free_buf(c);
+    return 0;
+}
+EOF
+if cmake -S sz3c -B sz3c/b -DCMAKE_PREFIX_PATH="$CMPFX" \
+        -DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE="$(native "$WORK")/sz3c/b" > sz3c/cfg.log 2>&1 &&
+   cmake --build sz3c/b --config Release --parallel 4 > sz3c/build.log 2>&1; then
+    ok "sz3c-consumer-builds"
+    if sz3c/b/c2 2> sz3c/run.log; then
+        ok "sz3c-consumer-runs"
+    else
+        bad "sz3c-consumer-runs" "exit $?" "$(tail -5 sz3c/run.log)"
+    fi
+else
+    bad "sz3c-consumer-builds" "$(tail -15 sz3c/cfg.log sz3c/build.log 2>/dev/null)"
+    bad "sz3c-consumer-runs" "nothing was built"
+fi
+else
+skip_all "this SZ3 was installed without its tools, so the export carries no SZ3c" \
+    sz3c-consumer-builds sz3c-consumer-runs
+fi
+
 # ---------------------------------------------------------------- 3. the exported include paths
 # A build directory or a third party's include tree named here reaches every consumer, and points
 # at something their machine need not have.
@@ -352,7 +403,7 @@ echo "  $pass passed, $fail failed, $skip skipped"
 
 # Raise this with the check it comes with. A section that stops early otherwise shows only as a
 # smaller number at the bottom that nobody compares.
-EXPECTED=18
+EXPECTED=20
 ran=$((pass + fail + skip))
 if [ "$ran" -ne "$EXPECTED" ]; then
     echo "  the suite accounted for $ran checks, not $EXPECTED"

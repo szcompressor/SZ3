@@ -88,7 +88,6 @@ void verify(Type *ori_data, Type *data, size_t num_elements, double &psnr, doubl
     double Max = ori_data[0];
     double Min = ori_data[0];
     max_diff = fabs(data[0] - ori_data[0]);
-    double diff_sum = 0;
     double maxpw_relerr = 0;
     double sum1 = 0, sum2 = 0, l2sum = 0;
     for (i = 0; i < num_elements; i++) {
@@ -106,7 +105,6 @@ void verify(Type *ori_data, Type *data, size_t num_elements, double &psnr, doubl
 
     for (i = 0; i < num_elements; i++) {
         diff[i] = data[i] - ori_data[i];
-        diff_sum += data[i] - ori_data[i];
         if (Max < ori_data[i]) Max = ori_data[i];
         if (Min > ori_data[i]) Min = ori_data[i];
         double err = fabs(data[i] - ori_data[i]);

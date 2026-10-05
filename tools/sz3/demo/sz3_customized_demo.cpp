@@ -59,12 +59,14 @@ class MyDecomposition : public concepts::DecompositionInterface<T, int, N> {
     }
 
     void save(uchar *&c) override {
-        write(num, c);
+        write<uint64_t>(num, c);
         quantizer.save(c);
     }
 
     void load(const uchar *&c, size_t &remaining_length) override {
-        read(num, c, remaining_length);
+        uint64_t num64 = 0;
+        read(num64, c, remaining_length);
+        num = num64;
         quantizer.load(c, remaining_length);
     }
 

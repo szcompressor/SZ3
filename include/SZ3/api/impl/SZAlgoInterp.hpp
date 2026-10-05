@@ -82,7 +82,7 @@ double interp_compress_test(
     encoder.save(buffer_pos);
 
     // store the size of quant_inds is necessary as it is not always equal to conf.num
-    write<size_t>(total_quant_bins.size(), buffer_pos);
+    write<uint64_t>(total_quant_bins.size(), buffer_pos);
     encoder.encode(total_quant_bins, buffer_pos);
     encoder.postprocess_encode();
     auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);
@@ -122,7 +122,7 @@ double lorenzo_compress_test(
     encoder.save(buffer_pos);
 
     // store the size of quant_inds is necessary as it is not always equal to conf.num
-    write<size_t>(total_quant_bins.size(), buffer_pos);
+    write<uint64_t>(total_quant_bins.size(), buffer_pos);
     encoder.encode(total_quant_bins, buffer_pos);
     encoder.postprocess_encode();
     auto cmpSize = lossless.compress(buffer, buffer_pos - buffer, cmpData, cmpCap);

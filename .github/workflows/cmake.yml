@@ -222,6 +222,45 @@ jobs:
         shell: bash
         run: build-fma/tools/test/test_reconstruction
 
+  wasm32:
+    name: Build & Test (wasm32, 32-bit size_t)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Zstd
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libzstd-dev
+
+      - name: Install Emscripten
+        shell: bash
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install 6.0.11
+          "$RUNNER_TEMP/emsdk/emsdk" activate 6.0.11
+
+      # A wasm32 build has a 4-byte size_t. Every size in the stream has to be written as 8 bytes
+      # for its data and a 64-bit build's to be the same stream.
+      - name: Build
+        shell: bash
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          cmake --build build --target sz3 --parallel 4
+          source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          # Emscripten's OpenMP is found but does not link; NODERAWFS lets sz3 open files under node.
+          emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+                -DSZ3_USE_BUNDLED_ZSTD=ON -DCMAKE_DISABLE_FIND_PACKAGE_OpenMP=ON \
+                -DCMAKE_CXX_FLAGS=-fexceptions \
+                -DCMAKE_EXE_LINKER_FLAGS="-fexceptions -sNODERAWFS=1 -sALLOW_MEMORY_GROWTH=1 -sEXIT_RUNTIME=1"
+          cmake --build build-wasm --target sz3 --parallel 4
+          printf '#!/bin/sh\nexec node "$(dirname "$0")/sz3.js" "$@"\n' > build-wasm/tools/sz3/sz3
+          chmod +x build-wasm/tools/sz3/sz3
+
+      - name: Both builds decode every stream either writes to the same bytes
+        shell: bash
+        run: tools/test/crossBuildDecode.sh build build-wasm tools/sz3/testfloat_8_8_128.dat -3 ${{ env.DIMS }}
+
   toolchains:
     name: ${{ matrix.cc }} shared=${{ matrix.shared }}
     runs-on: ubuntu-latest

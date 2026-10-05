@@ -83,7 +83,7 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
 
     void precompress_block_commit() noexcept override {
         pred_and_quantize_coefficients();
-        std::copy(current_coeffs.begin(), current_coeffs.end(), prev_coeffs.begin());
+        prev_coeffs = current_coeffs;
     }
 
     bool predecompress(const block_iter &block) override {
@@ -120,18 +120,18 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
 
     size_t size_est() override {
         if (regression_coeff_quant_inds.empty()) {
-            return sizeof(size_t);
+            return sizeof(uint64_t);
         }
         // save() builds a Huffman stream over the coefficients, and nothing else counts it.
         size_t states = static_cast<size_t>(std::max(quantizer_independent.get_out_range().second,
                                                      quantizer_liner.get_out_range().second)) +
                         1;
-        return sizeof(size_t) + quantizer_independent.size_est() + quantizer_liner.size_est() +
+        return sizeof(uint64_t) + quantizer_independent.size_est() + quantizer_liner.size_est() +
                Encoder::size_bound(regression_coeff_quant_inds.size(), states);
     }
 
     void save(uchar *&c) override {
-        write(regression_coeff_quant_inds.size(), c);
+        write<uint64_t>(regression_coeff_quant_inds.size(), c);
         if (!regression_coeff_quant_inds.empty()) {
             quantizer_independent.save(c);
             quantizer_liner.save(c);
@@ -146,7 +146,7 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
     }
 
     void load(const uchar *&c, size_t &remaining_length) override {
-        size_t coeff_size = 0;
+        uint64_t coeff_size = 0;
         read(coeff_size, c, remaining_length);
         if (coeff_size > 0) {
             quantizer_independent.load(c, remaining_length);

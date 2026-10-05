@@ -56,13 +56,14 @@ class Lossless_zstd : public concepts::LosslessInterface {
      * @return length (in bytes) of the data compressed
      */
     size_t compress(const uchar *src, size_t srcLen, uchar *dst, size_t dstCap) override {
-        write(srcLen, dst);
-        dstCap -= sizeof(size_t);  // reserve space for srcLen
+        if (dstCap < sizeof(uint64_t)) throw std::length_error(SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
+        write<uint64_t>(srcLen, dst);
+        dstCap -= sizeof(uint64_t);  // reserve space for srcLen
         size_t dstLen = ZSTD_compress(dst, dstCap, src, srcLen, compression_level);
         if (ZSTD_isError(dstLen)) {
             throw std::length_error(SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
         }
-        return dstLen + sizeof(size_t);
+        return dstLen + sizeof(uint64_t);
     }
 
     /**
@@ -76,10 +77,10 @@ class Lossless_zstd : public concepts::LosslessInterface {
      */
     size_t decompress(const uchar *src, size_t srcLen, uchar *&dst, size_t dstCap) override {
         // The stream is a decompressed-size field followed by the zstd frame, all untrusted.
-        if (srcLen < sizeof(size_t)) {
+        if (srcLen < sizeof(uint64_t)) {
             throw std::out_of_range("SZ3 lossless: compressed data is smaller than the size header");
         }
-        size_t dstLen = 0;
+        uint64_t dstLen = 0;
         read(dstLen, src);
 
         // malloc, because the caller frees what it gets back with free().
@@ -95,7 +96,7 @@ class Lossless_zstd : public concepts::LosslessInterface {
         uchar *out = (dst != nullptr) ? dst : owner.get();
 
         // A short frame would leave the tail of the output uninitialized for the caller to read.
-        size_t res = ZSTD_decompress(out, dstLen, src, srcLen - sizeof(size_t));
+        size_t res = ZSTD_decompress(out, dstLen, src, srcLen - sizeof(uint64_t));
         if (ZSTD_isError(res) || res != dstLen) {
             throw std::runtime_error("SZ3 lossless: stream does not decompress to the size it declares");
         }

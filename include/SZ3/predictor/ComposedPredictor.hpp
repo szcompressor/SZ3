@@ -73,7 +73,7 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
     }
 
     size_t size_est() override {
-        size_t total = sizeof(size_t);
+        size_t total = sizeof(uint64_t);
         for (const auto &p : predictors) {
             total += p->size_est();
         }
@@ -87,7 +87,7 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
         for (const auto &p : predictors) {
             p->save(c);
         }
-        write(selection.size(), c);
+        write<uint64_t>(selection.size(), c);
         if (selection.size() > 0) {
             Encoder selection_encoder;
             selection_encoder.preprocess_encode(selection, predictors.size());
@@ -101,7 +101,7 @@ class ComposedPredictor : public concepts::PredictorInterface<T, N> {
         for (const auto &p : predictors) {
             p->load(c, remaining_length);
         }
-        size_t selection_size = 0;
+        uint64_t selection_size = 0;
         read(selection_size, c, remaining_length);
         if (selection_size > 0) {
             Encoder selection_encoder;
