@@ -249,8 +249,10 @@ jobs:
           cmake --build build --target sz3 --parallel 4
           source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
           # Emscripten's OpenMP is found but does not link; NODERAWFS lets sz3 open files under node.
+          # The fetched Eigen builds its BLAS with the runner's Fortran compiler, which cannot target wasm32.
           emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
                 -DSZ3_USE_BUNDLED_ZSTD=ON -DCMAKE_DISABLE_FIND_PACKAGE_OpenMP=ON \
+                -DCMAKE_Fortran_COMPILER=NOTFOUND \
                 -DCMAKE_CXX_FLAGS=-fexceptions \
                 -DCMAKE_EXE_LINKER_FLAGS="-fexceptions -sNODERAWFS=1 -sALLOW_MEMORY_GROWTH=1 -sEXIT_RUNTIME=1"
           cmake --build build-wasm --target sz3 --parallel 4

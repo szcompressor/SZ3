@@ -160,4 +160,5 @@ Little-endian: `[Header 16B: magic(4) + version(4) + compressed_size(8)] [Payloa
 
 - Targets Linux, macOS, Windows (MSVC + MinGW)
 - `ALGO_SPERR` and `ALGO_MGARD` are disabled on MinGW (`#if !defined(__MINGW32__)` guards in `SZDispatcher.hpp`). The reason is link-time, not compile-time: libstdc++ autolink fails on the `libhdf5sz3.dll` link. The modules compile fine on MinGW and the unit tests build them there.
+- `ALGO_SPERR` is also disabled under Emscripten (`__EMSCRIPTEN__`): the bundled SPERR does not compile for wasm32 (`uint64_t` to `size_t` narrowing, no `FE_INVALID`).
 - macOS Mach-O binaries don't run in Linux containers — verify scripts auto-fall-back from `build-release/` to `build/` if the release binary fails `--help`

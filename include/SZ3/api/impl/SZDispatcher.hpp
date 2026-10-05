@@ -31,6 +31,8 @@
 #include "SZ3/api/impl/SZAlgoZFP.hpp"
 #if !defined(__MINGW32__)
 #include "SZ3/api/impl/SZAlgoMGARD.hpp"
+#endif
+#if !defined(__MINGW32__) && !defined(__EMSCRIPTEN__)
 #include "SZ3/api/impl/SZAlgoSPERR.hpp"
 #endif
 #include "SZ3/utils/Config.hpp"
@@ -97,7 +99,7 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
                         throw std::invalid_argument("ZFP algorithm only supports floating-point data types.");
                     }
                 } else if (conf.cmprAlgo == ALGO_SPERR) {
-#if defined(__MINGW32__)
+#if defined(__MINGW32__) || defined(__EMSCRIPTEN__)
                     throw std::invalid_argument("SPERR algorithm is disabled for this build target.");
 #else
                     if constexpr (std::is_floating_point<T>::value && N == 3) {
@@ -203,7 +205,7 @@ void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize
     } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
         SZ_decompress_bioMDXtcBased<T, N>(conf, cmpData, cmpSize, decData);
     } else if (conf.cmprAlgo == ALGO_SPERR) {
-#if defined(__MINGW32__)
+#if defined(__MINGW32__) || defined(__EMSCRIPTEN__)
         throw std::invalid_argument("SPERR algorithm is disabled for this build target.");
 #else
         if constexpr (std::is_floating_point<T>::value && N == 3) {
