@@ -5,7 +5,7 @@ add_library(
 
 target_link_libraries(
         SZ3c
-        PUBLIC SZ3
+        PRIVATE SZ3
 )
 
 target_compile_definitions(SZ3c PRIVATE SZ3C_EXPORTS)
@@ -26,4 +26,5 @@ if (SZ3_INSTALL)
             RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
             )
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/SZ3c)
+    install(EXPORT SZ3c NAMESPACE SZ3:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SZ3)
 endif ()
