@@ -166,7 +166,8 @@ OpenMP is used only when you ask for it: set `conf.openmp = true`, or `OpenMP = 
 
 - SZ3 splits the data along its slowest dimension (the first one in `SZ3::Config`, the last one on the `sz3` command
   line) into one part per OpenMP thread, at most one per index of that dimension, and compresses the parts separately.
-  The number of parts is stored in the data.
+  `ALGO_BIOMD` data `{frames, atoms, 3}` is split along the atoms instead, so every part keeps all frames. The number
+  of parts and the dimension they are split along are stored in the data.
 - Decompression is correct with any number of threads: fewer than were used to compress, under `OMP_THREAD_LIMIT`, or
   inside your own parallel region.
 - A build without OpenMP decompresses data compressed with OpenMP, one part after another, and ignores `conf.openmp`

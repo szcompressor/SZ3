@@ -1,6 +1,7 @@
 #ifndef SZ3_IMPL_SZDISPATCHER_OMP_HPP
 #define SZ3_IMPL_SZDISPATCHER_OMP_HPP
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <exception>
@@ -17,6 +18,19 @@
 
 #endif
 namespace SZ3 {
+
+// The dimension the data is split along into OpenMP chunks. ALGO_BIOMD predicts each frame from the previous one, so
+// its {frames, atoms, 3} data is split along the atoms: every chunk keeps all frames.
+inline size_t omp_split_dim(const Config& conf) { return conf.cmprAlgo == ALGO_BIOMD && conf.N == 3 ? 1 : 0; }
+
+// The elements before (outer) and after (inner) dimension d, so that chunk [lo, hi) along d is outer runs of
+// (hi - lo) * inner contiguous elements.
+inline void omp_outer_inner(const Config& conf, size_t d, size_t& outer, size_t& inner) {
+    outer = 1;
+    inner = 1;
+    for (size_t i = 0; i < d; i++) outer *= conf.dims[i];
+    for (size_t i = d + 1; i < conf.dims.size(); i++) inner *= conf.dims[i];
+}
 // Without OpenMP the pragmas below drop out and the same code runs as one thread, so a build
 // without OpenMP still reads and writes this chunked layout. Keep the code outside the pragmas.
 template <class T, uint N>
@@ -29,10 +43,13 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
         nThreads = omp_get_num_threads();
     }
 #endif
-    if (conf.dims[0] < static_cast<size_t>(nThreads)) {
-        nThreads = static_cast<int>(conf.dims[0]);
+    const size_t split = omp_split_dim(conf);
+    const size_t ext = conf.dims[split];
+    size_t outer, inner;
+    omp_outer_inner(conf, split, outer, inner);
+    if (ext < static_cast<size_t>(nThreads)) {
+        nThreads = static_cast<int>(ext);
     }
-    const size_t num_t_base = conf.num / conf.dims[0];
     std::vector<T> min_t(nThreads), max_t(nThreads);
     std::vector<Config> conf_t(nThreads);
     std::vector<std::unique_ptr<uchar[]>> compressed_t(nThreads);
@@ -45,9 +62,9 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
 #pragma omp parallel for num_threads(nThreads)
 #endif
         for (int i = 0; i < nThreads; i++) {
-            size_t lo = static_cast<size_t>(i) * conf.dims[0] / nThreads;
-            size_t hi = static_cast<size_t>(i + 1) * conf.dims[0] / nThreads;
-            auto minmax = std::minmax_element(data + lo * num_t_base, data + hi * num_t_base);
+            size_t lo = static_cast<size_t>(i) * conf.num / nThreads;
+            size_t hi = static_cast<size_t>(i + 1) * conf.num / nThreads;
+            auto minmax = std::minmax_element(data + lo, data + hi);
             min_t[i] = *minmax.first;
             max_t[i] = *minmax.second;
         }
@@ -66,16 +83,25 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
 #pragma omp parallel for num_threads(nThreads)
 #endif
     for (int i = 0; i < nThreads; i++) try {
-        size_t lo = static_cast<size_t>(i) * conf.dims[0] / nThreads;
-        size_t hi = static_cast<size_t>(i + 1) * conf.dims[0] / nThreads;
+        size_t lo = static_cast<size_t>(i) * ext / nThreads;
+        size_t hi = static_cast<size_t>(i + 1) * ext / nThreads;
         auto dims_t = conf.dims;
-        dims_t[0] = hi - lo;
+        dims_t[split] = hi - lo;
         conf_t[i] = conf;
         conf_t[i].setDims(dims_t.begin(), dims_t.end());
         // Room for the size header Lossless_zstd::compress writes ahead of the zstd stream.
         size_t cmp_size_cap = sizeof(uint64_t) + Lossless_zstd::compress_bound(conf_t[i].num * sizeof(T));
         compressed_t[i].reset(new uchar[cmp_size_cap]);
-        const T* data_t = data + lo * num_t_base;
+        // Split along the first dimension, a chunk is contiguous; along another, it is gathered.
+        std::vector<T> gathered;
+        const T* data_t = data + lo * inner;
+        if (outer > 1) {
+            gathered.resize(conf_t[i].num);
+            const size_t run = (hi - lo) * inner;
+            for (size_t o = 0; o < outer; o++)
+                std::copy_n(data + (o * ext + lo) * inner, run, gathered.data() + o * run);
+            data_t = gathered.data();
+        }
         // we have to use conf_t[i].N instead of N since each chunk may be a slice of the original data
         if (conf_t[i].N == 1) {
             cmp_size_t[i] = SZ_compress_dispatcher<T, 1>(conf_t[i], data_t, compressed_t[i].get(), cmp_size_cap);
@@ -100,7 +126,7 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
         std::rethrow_exception(failure);
     }
 
-    size_t header_size = sizeof(int) + nThreads * sizeof(uint64_t);
+    size_t header_size = sizeof(int) + sizeof(uint8_t) + nThreads * sizeof(uint64_t);
     cmp_start_t[0] = 0;
     for (int i = 0; i < nThreads; i++) {
         header_size += conf_t[i].size_est();
@@ -112,6 +138,7 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
     }
     uchar* buffer_pos = cmpData;
     write(nThreads, buffer_pos);
+    write(static_cast<uint8_t>(split), buffer_pos);
     for (int i = 0; i < nThreads; i++) {
         conf_t[i].save(buffer_pos);
     }
@@ -136,6 +163,17 @@ void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* de
     // Each thread contributes at least a config and a size, so the count cannot exceed the buffer size.
     if (nThreads <= 0 || static_cast<size_t>(nThreads) > cmpSize)
         throw std::out_of_range("SZ3 OMP: invalid thread count");
+    // 3.3.2 split along the first dimension and did not say so.
+    uint8_t split = 0;
+    if (conf.sz3DataVer >= versionInt("3.4.0")) {
+        size_t remaining = static_cast<size_t>(cmp_end - cmpr_data_pos);
+        read(split, cmpr_data_pos, remaining);
+        if (split >= conf.dims.size()) throw std::out_of_range("SZ3 OMP: invalid split dimension");
+    }
+    const size_t ext = conf.dims[split];
+    if (static_cast<size_t>(nThreads) > ext) throw std::out_of_range("SZ3 OMP: more chunks than the split dimension");
+    size_t outer, inner;
+    omp_outer_inner(conf, split, outer, inner);
 
     std::vector<Config> conf_t(nThreads);
     for (int i = 0; i < nThreads; i++) {
@@ -193,32 +231,29 @@ void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* de
         const int first = 0;
 #endif
         for (int tid = first; tid < nThreads; tid += actual) {
-            auto dims_t = conf.dims;
-            size_t lo = static_cast<size_t>(tid) * conf.dims[0] / nThreads;
-            size_t hi = static_cast<size_t>(tid + 1) * conf.dims[0] / nThreads;
-            dims_t[0] = hi - lo;
-            auto it = dims_t.begin();
-            size_t num_t_base = std::accumulate(++it, dims_t.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+            size_t lo = static_cast<size_t>(tid) * ext / nThreads;
+            size_t hi = static_cast<size_t>(tid + 1) * ext / nThreads;
+            const size_t run = (hi - lo) * inner;
             // A chunk's own Config decides how much is written into its share of decData.
-            if (conf_t[tid].num != dims_t[0] * num_t_base) {
+            if (conf_t[tid].num != outer * run) {
                 throw std::invalid_argument("SZ3: a chunk of the OpenMP stream does not match its share of the data");
             }
-
+            // Split along the first dimension, a chunk is decompressed in place; along another, it is scattered.
+            std::vector<T> gathered(outer > 1 ? conf_t[tid].num : 0);
+            T* dec_t = outer > 1 ? gathered.data() : decData + lo * inner;
             if (conf_t[tid].N == 1) {
-                SZ_decompress_dispatcher<T, 1>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid],
-                                               decData + lo * num_t_base);
+                SZ_decompress_dispatcher<T, 1>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid], dec_t);
             } else if (conf_t[tid].N == 2) {
-                SZ_decompress_dispatcher<T, 2>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid],
-                                               decData + lo * num_t_base);
+                SZ_decompress_dispatcher<T, 2>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid], dec_t);
             } else if (conf_t[tid].N == 3) {
-                SZ_decompress_dispatcher<T, 3>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid],
-                                               decData + lo * num_t_base);
+                SZ_decompress_dispatcher<T, 3>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid], dec_t);
             } else if (conf_t[tid].N == 4) {
-                SZ_decompress_dispatcher<T, 4>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid],
-                                               decData + lo * num_t_base);
+                SZ_decompress_dispatcher<T, 4>(conf_t[tid], cmpr_data_p + cmp_start_t[tid], cmp_size_t[tid], dec_t);
             } else {
                 throw std::invalid_argument("Unsupported N");
             }
+            for (size_t o = 0; o < outer && outer > 1; o++)
+                std::copy_n(gathered.data() + o * run, run, decData + (o * ext + lo) * inner);
         }
     } catch (...) {
 #ifdef _OPENMP
@@ -241,16 +276,16 @@ size_t SZ_compress_size_bound_omp(const Config& conf) {
 #ifdef _OPENMP
     nThreads = omp_get_max_threads();
 #endif
-    if (conf.dims[0] < static_cast<size_t>(nThreads)) {
-        nThreads = static_cast<int>(conf.dims[0]);
+    const size_t ext = conf.dims[omp_split_dim(conf)];
+    if (ext < static_cast<size_t>(nThreads)) {
+        nThreads = static_cast<int>(ext);
     }
-    size_t chunk_size = conf.dims[0] / static_cast<size_t>(nThreads) * (conf.num / conf.dims[0]);
-    size_t last_chunk_size = (conf.dims[0] - conf.dims[0] / nThreads * (nThreads - 1)) * (conf.num / conf.dims[0]);
+    // the largest chunk: ceil(ext / nThreads) indices of the split dimension
+    size_t chunk_size = (ext + nThreads - 1) / nThreads * (conf.num / ext);
     // for each thread, we save conf, compressed size, and compressed data
     // the per-chunk compressed data may carry the size header written by Lossless_zstd::compress
-    return sizeof(int) + nThreads * conf.size_est() + 2 * nThreads * sizeof(uint64_t) +
-           (nThreads - 1) * Lossless_zstd::compress_bound(chunk_size * sizeof(T)) +
-           Lossless_zstd::compress_bound(last_chunk_size * sizeof(T));
+    return sizeof(int) + sizeof(uint8_t) + nThreads * conf.size_est() + 2 * nThreads * sizeof(uint64_t) +
+           nThreads * Lossless_zstd::compress_bound(chunk_size * sizeof(T));
 }
 } // namespace SZ3
 

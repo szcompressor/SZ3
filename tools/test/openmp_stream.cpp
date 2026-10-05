@@ -1,7 +1,9 @@
 // One stream compressed with conf.openmp = true, decoded by a build of the other kind.
 //
-//   openmp_stream <with|without> write <prefix>   compress, write <prefix>.sz3 and its decode <prefix>.dec
-//   openmp_stream <with|without> read <prefix>    decode <prefix>.sz3, compare with <prefix>.dec bit for bit
+//   openmp_stream <with|without> write <prefix> [biomd]   compress, write <prefix>.sz3 and its decode <prefix>.dec
+//   openmp_stream <with|without> read <prefix>            decode <prefix>.sz3, compare with <prefix>.dec bit for bit
+//
+// With biomd the data is ALGO_BIOMD coordinates {frames, atoms, 3}, which the chunks split along the atoms.
 //
 // tools/test/CMakeLists.txt builds this twice, with OpenMP and without, and has the build without it
 // read what the other wrote. The first argument says which build this is meant to be, so a build that got OpenMP
@@ -28,11 +30,12 @@ static void spill(const std::string& path, const char* data, size_t size) {
 }
 
 int main(int argc, char** argv) {
-    if (argc != 4) {
-        fprintf(stderr, "usage: %s <with|without> <write|read> <prefix>\n", argv[0]);
+    if (argc != 4 && argc != 5) {
+        fprintf(stderr, "usage: %s <with|without> <write|read> <prefix> [biomd]\n", argv[0]);
         return 2;
     }
     const std::string kind = argv[1], mode = argv[2], prefix = argv[3];
+    const bool biomd = argc == 5 && std::string(argv[4]) == "biomd";
 #ifdef _OPENMP
     const std::string built = "with";
 #else
@@ -45,10 +48,10 @@ int main(int argc, char** argv) {
 
     try {
         if (mode == "write") {
-            SZ3::Config conf(64, 32, 32);
-            conf.cmprAlgo = SZ3::ALGO_INTERP_LORENZO;
+            SZ3::Config conf = biomd ? SZ3::Config(20, 600, 3) : SZ3::Config(64, 32, 32);
+            conf.cmprAlgo = biomd ? SZ3::ALGO_BIOMD : SZ3::ALGO_INTERP_LORENZO;
             conf.errorBoundMode = SZ3::EB_ABS;
-            conf.absErrorBound = 1e-3;
+            conf.absErrorBound = biomd ? 5e-4 : 1e-3;
             conf.openmp = true;
             std::vector<float> data(conf.num);
             for (size_t i = 0; i < conf.num; i++) {
@@ -61,11 +64,21 @@ int main(int argc, char** argv) {
             float* decPtr = dec.data();
             SZ3::Config readConf;
             SZ_decompress(readConf, cmpData, cmpSize, decPtr);
-            // The payload of a chunked stream starts, after the 16-byte header, with its chunk count.
+            // The payload of a chunked stream starts, after the 16-byte header, with its chunk count and the
+            // dimension it is split along.
             int32_t chunks = 0;
+            uint8_t split = 0;
             if (readConf.openmp) {
                 const SZ3::uchar* pos = reinterpret_cast<const SZ3::uchar*>(cmpData) + 16;
                 SZ3::read(chunks, pos);
+                SZ3::read(split, pos);
+            }
+            for (size_t i = 0; i < conf.num; i++) {
+                if (std::fabs(dec[i] - data[i]) > conf.absErrorBound) {
+                    fprintf(stderr, "FAIL  value %zu comes back past the bound\n", i);
+                    delete[] cmpData;
+                    return 1;
+                }
             }
             printf("wrote %s.sz3: %zu bytes, openmp flag %d, %d chunks\n", prefix.c_str(), cmpSize,
                    static_cast<int>(readConf.openmp), static_cast<int>(chunks));
@@ -73,6 +86,11 @@ int main(int argc, char** argv) {
             // One chunk would decode the same through either path and prove nothing.
             if (!readConf.openmp || chunks < 2) {
                 fprintf(stderr, "FAIL  an OpenMP build wrote no multi-chunk stream; set OMP_NUM_THREADS above 1\n");
+                delete[] cmpData;
+                return 1;
+            }
+            if (split != (biomd ? 1 : 0)) {
+                fprintf(stderr, "FAIL  the chunks are split along dimension %d\n", static_cast<int>(split));
                 delete[] cmpData;
                 return 1;
             }
@@ -94,12 +112,11 @@ int main(int argc, char** argv) {
             const bool same = got == want.size() && memcmp(dec, want.data(), got) == 0;
             delete[] dec;
             if (!same) {
-                fprintf(stderr, "FAIL  %s.sz3 decodes to other bits here than where it was written\n",
-                        prefix.c_str());
+                fprintf(stderr, "FAIL  %s.sz3 decodes to other bits here than where it was written\n", prefix.c_str());
                 return 1;
             }
-            printf("read %s.sz3: openmp flag %d, %zu bytes identical\n", prefix.c_str(),
-                   static_cast<int>(conf.openmp), got);
+            printf("read %s.sz3: openmp flag %d, %zu bytes identical\n", prefix.c_str(), static_cast<int>(conf.openmp),
+                   got);
         } else {
             fprintf(stderr, "unknown mode %s\n", mode.c_str());
             return 2;

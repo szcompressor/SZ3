@@ -67,6 +67,14 @@ if (OpenMP_FOUND)
     add_test(NAME SZ3_OpenMPStream_ReadWithoutOpenMP
             COMMAND openmp_stream_without without read ${CMAKE_CURRENT_BINARY_DIR}/stream_with)
     set_tests_properties(SZ3_OpenMPStream_ReadWithoutOpenMP PROPERTIES FIXTURES_REQUIRED stream_with)
+    # ALGO_BIOMD coordinates, split along the atoms
+    add_test(NAME SZ3_OpenMPStream_BioMDWriteWithOpenMP
+            COMMAND openmp_stream_with with write ${CMAKE_CURRENT_BINARY_DIR}/stream_biomd biomd)
+    set_tests_properties(SZ3_OpenMPStream_BioMDWriteWithOpenMP PROPERTIES
+            ENVIRONMENT OMP_NUM_THREADS=4 FIXTURES_SETUP stream_biomd)
+    add_test(NAME SZ3_OpenMPStream_BioMDReadWithoutOpenMP
+            COMMAND openmp_stream_without without read ${CMAKE_CURRENT_BINARY_DIR}/stream_biomd)
+    set_tests_properties(SZ3_OpenMPStream_BioMDReadWithoutOpenMP PROPERTIES FIXTURES_REQUIRED stream_biomd)
 
     add_executable(openmp_regions openmp_regions.cpp)
     target_link_libraries(openmp_regions PRIVATE SZ3)
