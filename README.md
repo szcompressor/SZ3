@@ -7,7 +7,9 @@ library. It can also be used from C, Python, the `sz3` command line, and HDF5 th
 
 ## Installation
 
-Requirements: a C++17 compiler and CMake 3.19 or newer. Zstd and OpenMP are used when found.
+With Homebrew (macOS and Linux): `brew install szcompressor/tap/sz3`.
+
+To build from source you need a C++17 compiler and CMake 3.19 or newer. Zstd and OpenMP are used when found.
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
