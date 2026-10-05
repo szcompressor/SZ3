@@ -48,6 +48,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+/* Both return NULL on error, with a message on stderr. Free their results with free_buf(). */
 SZ3C_API unsigned char *SZ_compress_args(int dataType, void *data, size_t *outSize, int errBoundMode,
                                          double absErrBound, double relBoundRatio, double pwrBoundRatio, size_t r5,
                                          size_t r4, size_t r3, size_t r2, size_t r1);
