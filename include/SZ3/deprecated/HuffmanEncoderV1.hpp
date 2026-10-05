@@ -69,7 +69,7 @@ class HuffmanEncoderV1 : public concepts::EncoderInterface<T> {
         size_t i = 0, byteIndex = 0, count = 0;
         int r;
         node n = treeRoot;
-        size_t encodedLength = 0;
+        uint64_t encodedLength = 0;
         read(encodedLength, bytes, remaining_length);
         if (n->t)  // root->t==1 means that all state values are the same (constant)
         {
