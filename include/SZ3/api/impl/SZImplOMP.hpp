@@ -19,7 +19,7 @@
 #endif
 namespace SZ3 {
 // Without OpenMP the pragmas below drop out and the same code runs as one thread, so a build
-// without OpenMP still reads and writes this chunked layout. Keep the code outside the pragmas.
+// without OpenMP still reads this chunked layout. Keep the code outside the pragmas.
 template <class T, uint N>
 size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCap) {
     int nThreads = 1;

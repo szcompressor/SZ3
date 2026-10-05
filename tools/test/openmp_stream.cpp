@@ -48,8 +48,8 @@ int main(int argc, char** argv) {
 
     try {
         if (mode == "write") {
-            // 1000 waters and one ion: 3001 atoms, so 4 chunks start inside a water
-            SZ3::Config conf = biomd ? SZ3::Config(20, 3001, 3) : SZ3::Config(64, 32, 32);
+            // 1003 waters and one ion, 3010 atoms: 3 of the 4 chunks (at atoms 752, 1505, 2257) start inside a water
+            SZ3::Config conf = biomd ? SZ3::Config(20, 3010, 3) : SZ3::Config(64, 32, 32);
             conf.cmprAlgo = biomd ? SZ3::ALGO_BIOMD : SZ3::ALGO_INTERP_LORENZO;
             conf.errorBoundMode = SZ3::EB_ABS;
             conf.absErrorBound = biomd ? 5e-4 : 1e-3;
