@@ -258,6 +258,43 @@ void process_data(SZ3::Config& conf, void** buf, size_t* buf_size, size_t nbytes
     }
 }
 
+// SZ3 3.1.x's filter, which hdf5plugin 7.1.0 and earlier ship, stored cd_values as {dimensions (1 to 5), data type,
+// sizes}, optionally followed by 9 values of error settings, and its chunks have no header. Later versions start
+// cd_values with a data version or a Config, never with 1 to 5.
+static bool is_v3_1_cd_values(size_t cd_nelmts, const unsigned int* cd) {
+    if (cd_nelmts < 4 || cd[0] < 1 || cd[0] > 5) return false;
+    size_t sizes = cd[0] <= 2 ? 4 : cd[0] + 2;
+    return cd_nelmts == sizes || cd_nelmts == sizes + 9;
+}
+
+#ifdef H5Z_SZ3_READ_V3_1
+void* H5Z_SZ3_decompress_v3_1(int dataType, char* cmpData, size_t cmpSize, size_t* outBytes);
+#endif
+
+static size_t decompress_v3_1(const unsigned int* cd, size_t nbytes, size_t* buf_size, void** buf) {
+#ifdef H5Z_SZ3_READ_V3_1
+    // as 3.1.x counted elements: a 1D size is 64 bits in two values, big-endian; others are one value each
+    size_t num = cd[0] == 1 ? size_t(uint64_t(cd[2]) << 32 | cd[3]) : 1;
+    for (unsigned int d = 0; cd[0] > 1 && d < cd[0]; d++) num *= cd[2 + d] ? cd[2 + d] : 1;
+    if (num < 20) return nbytes;  // 3.1.x stored chunks of fewer than 20 elements raw
+    size_t outBytes = 0;
+    void* out = H5Z_SZ3_decompress_v3_1(int(cd[1]), static_cast<char*>(*buf), nbytes, &outBytes);
+    if (!out) throw std::invalid_argument("SZ3 HDF5 filter: unknown datatype in SZ3 3.1 cd_values");
+    free(*buf);
+    *buf = out;
+    *buf_size = outBytes;
+    return outBytes;
+#else
+    (void)cd;
+    (void)nbytes;
+    (void)buf_size;
+    (void)buf;
+    throw std::invalid_argument(
+        "SZ3 HDF5 filter: data is in SZ3 data format v3.1 (written by hdf5plugin 7.1.0 or earlier); build the filter "
+        "with -DH5Z_SZ3_READ_V3_1=ON to read it");
+#endif
+}
+
 /**
  * https://docs.hdfgroup.org/hdf5/v1_14/_f_i_l_t_e_r.html
  * The flags, cd_nelmts, and cd_values are the same as for the H5Pset_filter() function with the additional flag
@@ -276,6 +313,13 @@ static size_t H5Z_filter_sz3_impl(unsigned int flags, size_t cd_nelmts, const un
 
     bool is_decompress = flags & H5Z_FLAG_REVERSE;
     SZ3::Config conf;
+
+    if (is_v3_1_cd_values(cd_nelmts, cd_values)) {
+        if (!is_decompress)
+            throw std::invalid_argument(
+                "SZ3 HDF5 filter: this dataset was created by SZ3 3.1, which this build only reads");
+        return decompress_v3_1(cd_values, nbytes, buf_size, buf);
+    }
 
     if (is_decompress) {
         // The chunk carries its own Config, which gives the element count and type to decompress.
