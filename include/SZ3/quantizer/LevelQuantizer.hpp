@@ -268,7 +268,7 @@ class LevelQuantizer : public concepts::QuantizerInterface<T, int> {
         write(this->error_bound, c);
         write(this->radius, c);
         size_t unpred_size = unpred.size();
-        write(unpred_size, c);
+        write<uint64_t>(unpred_size, c);
         if (unpred_size > 0) {
             write(unpred.data(), unpred.size(), c);
         }
@@ -304,7 +304,7 @@ class LevelQuantizer : public concepts::QuantizerInterface<T, int> {
         read(this->error_bound, c, remaining_length);
         read(this->radius, c, remaining_length);
         validate(this->error_bound, this->radius, curve_);
-        size_t unpred_size = 0;
+        uint64_t unpred_size = 0;
         read(unpred_size, c, remaining_length);
         unpred.clear();
         if (unpred_size > 0) {

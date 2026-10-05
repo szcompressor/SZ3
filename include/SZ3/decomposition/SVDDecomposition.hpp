@@ -107,26 +107,25 @@ public:
     }
 
     size_t size_est() override {
-        size_t bytes = core_dims.size() * sizeof(size_t) + quantized_core.size() * sizeof(int) +
-                       factor_dims.size() * 2 * sizeof(size_t) + svd_quantizer.size_est() +
-                       res_quantizer.size_est();
-        for (const auto& v : quantized_factors) bytes += sizeof(size_t) + v.size() * sizeof(int);
+        size_t bytes = core_dims.size() * sizeof(uint64_t) + quantized_core.size() * sizeof(int) +
+                       factor_dims.size() * 2 * sizeof(uint64_t) + svd_quantizer.size_est() + res_quantizer.size_est();
+        for (const auto& v : quantized_factors) bytes += sizeof(uint64_t) + v.size() * sizeof(int);
         return bytes + 128;
     }
 
     void save(uchar*& c) override {
-        write(core_dims.size(), c);
-        write(core_dims.data(), core_dims.size(), c);
-        write(quantized_core.size(), c);
+        write<uint64_t>(core_dims.size(), c);
+        for (size_t d : core_dims) write<uint64_t>(d, c);
+        write<uint64_t>(quantized_core.size(), c);
         write(quantized_core.data(), quantized_core.size(), c);
 
-        write(factor_dims.size(), c);
+        write<uint64_t>(factor_dims.size(), c);
         for(const auto& p : factor_dims){
-            write(p.first, c);
-            write(p.second, c);
+            write<uint64_t>(p.first, c);
+            write<uint64_t>(p.second, c);
         }
         for(const auto& v : quantized_factors){
-            write(v.size(), c);
+            write<uint64_t>(v.size(), c);
             write(v.data(), v.size(), c);
         }
         svd_quantizer.save(c);
@@ -134,27 +133,33 @@ public:
     }
 
     void load(const uchar*& c, size_t& remaining_length) override {
-        size_t core_dims_size;
+        uint64_t v = 0;
+        uint64_t core_dims_size;
         read(core_dims_size, c, remaining_length);
         core_dims.resize(core_dims_size);
-        read(core_dims.data(), core_dims_size, c, remaining_length);
+        for (size_t& d : core_dims) {
+            read(v, c, remaining_length);
+            d = v;
+        }
 
-        size_t quantized_core_size;
+        uint64_t quantized_core_size;
         read(quantized_core_size, c, remaining_length);
         quantized_core.resize(quantized_core_size);
         read(quantized_core.data(), quantized_core_size, c, remaining_length);
 
-        size_t factor_dims_size;
+        uint64_t factor_dims_size;
         read(factor_dims_size, c, remaining_length);
         factor_dims.resize(factor_dims_size);
         for(size_t i=0; i<factor_dims_size; ++i){
-            read(factor_dims[i].first, c, remaining_length);
-            read(factor_dims[i].second, c, remaining_length);
+            read(v, c, remaining_length);
+            factor_dims[i].first = v;
+            read(v, c, remaining_length);
+            factor_dims[i].second = v;
         }
 
         quantized_factors.resize(factor_dims_size);
         for(size_t i=0; i<factor_dims_size; ++i){
-            size_t v_size;
+            uint64_t v_size;
             read(v_size, c, remaining_length);
             quantized_factors[i].resize(v_size);
             read(quantized_factors[i].data(), v_size, c, remaining_length);

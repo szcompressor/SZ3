@@ -123,18 +123,21 @@ class SPERREncoder : public concepts::EncoderInterface<T> {
         return from_signed_vector(signed_vals);
     }
 
-    size_t size_est() override {
-        return sizeof(total_len_) + dims_.size() * sizeof(typename SZ3::SPERR::dims_type::value_type);
-    }
+    size_t size_est() override { return sizeof(uint64_t) + dims_.size() * sizeof(uint64_t); }
 
     void save(uchar *&c) override {
-        write(total_len_, c);
-        write(dims_.data(), dims_.size(), c);
+        write<uint64_t>(total_len_, c);
+        for (size_t d : dims_) write<uint64_t>(d, c);
     }
 
     void load(const uchar *&c, size_t &remaining_length) override {
-        read(total_len_, c, remaining_length);
-        read(dims_.data(), dims_.size(), c, remaining_length);
+        uint64_t v = 0;
+        read(v, c, remaining_length);
+        total_len_ = v;
+        for (size_t &d : dims_) {
+            read(v, c, remaining_length);
+            d = v;
+        }
     }
 
     void postprocess_decode() override {}

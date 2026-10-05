@@ -271,7 +271,7 @@ class LogDomainQuantizer : public concepts::QuantizerInterface<Ti, int> {
         write(min_abs_, c);
         write(radius_, c);
         size_t unpred_size = unpred_.size();
-        write(unpred_size, c);
+        write<uint64_t>(unpred_size, c);
         if (unpred_size > 0) {
             write(unpred_.data(), unpred_.size(), c);
         }
@@ -297,7 +297,7 @@ class LogDomainQuantizer : public concepts::QuantizerInterface<Ti, int> {
         read(radius_, c, remaining_length);
         validate(rel_eb_, min_abs_, radius_);
         configure();
-        size_t unpred_size = 0;
+        uint64_t unpred_size = 0;
         read(unpred_size, c, remaining_length);
         unpred_.clear();
         if (unpred_size > 0) {

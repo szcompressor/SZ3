@@ -54,14 +54,14 @@ class SPERRFusedDecomposition : public concepts::DecompositionInterface<T, int64
     }
 
     void save(uchar *&c) override {
-        write(coeff_stream_.size(), c);
+        write<uint64_t>(coeff_stream_.size(), c);
         if (!coeff_stream_.empty()) {
             write(coeff_stream_.data(), coeff_stream_.size(), c);
         }
     }
 
     void load(const uchar *&c, size_t &remaining_length) override {
-        size_t coeff_len = 0;
+        uint64_t coeff_len = 0;
         read(coeff_len, c, remaining_length);
         coeff_stream_.resize(coeff_len);
         if (coeff_len > 0) {
@@ -69,7 +69,7 @@ class SPERRFusedDecomposition : public concepts::DecompositionInterface<T, int64
         }
     }
 
-    size_t size_est() override { return sizeof(size_t) + coeff_stream_.size(); }
+    size_t size_est() override { return sizeof(uint64_t) + coeff_stream_.size(); }
 
     std::pair<int64_t, int64_t> get_out_range() override {
         // SPERR bins are a SPECK bitstream, not a quantizer domain; 0 means "no bin range".

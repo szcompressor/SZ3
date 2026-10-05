@@ -183,9 +183,9 @@ class OutlierQuantizer : public concepts::QuantizerInterface<Ti, To> {
         write(uid(), c);
         write(tolerance_, c);
         const size_t count = corrections_.size();
-        write(count, c);
+        write<uint64_t>(count, c);
         for (size_t i = 0; i < count; i++) {
-            write(corrections_[i].pos, c);
+            write<uint64_t>(corrections_[i].pos, c);
             write(corrections_[i].bin, c);
         }
     }
@@ -205,21 +205,24 @@ class OutlierQuantizer : public concepts::QuantizerInterface<Ti, To> {
         validate_positive_tolerance(tolerance_);
         quantizer_ = ScalarQuantizer<Ti, To>(tolerance_, kOneBinReconstruct, kTailOffset);
 
-        size_t count = 0;
+        uint64_t count = 0;
         read(count, c, remaining_length);
-        if (count * (sizeof(size_t) + sizeof(To)) > remaining_length) {
+        if (count * (sizeof(uint64_t) + sizeof(To)) > remaining_length) {
             throw std::runtime_error("OutlierQuantizer correction list exceeds the remaining buffer.");
         }
         corrections_.resize(count);
         for (size_t i = 0; i < count; i++) {
-            read(corrections_[i].pos, c, remaining_length);
+            uint64_t pos = 0;
+            read(pos, c, remaining_length);
+            corrections_[i].pos = pos;
             read(corrections_[i].bin, c, remaining_length);
         }
     }
 
     /// Serialized size of `save()`.
     size_t size_est() const override {
-        return sizeof(uchar) + sizeof(double) + sizeof(size_t) + corrections_.size() * (sizeof(size_t) + sizeof(To));
+        return sizeof(uchar) + sizeof(double) + sizeof(uint64_t) +
+               corrections_.size() * (sizeof(uint64_t) + sizeof(To));
     }
 
     std::pair<To, To> get_out_range() const override {

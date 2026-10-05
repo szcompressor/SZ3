@@ -222,14 +222,16 @@ class BitplaneRLEEncoder : public concepts::EncoderInterface<T> {
     }
 
     void save(uchar*& c) override {
-        write(n_, c);
+        write<uint64_t>(n_, c);
         write(num_planes_, c);
         const uint8_t flags = has_signs_ ? 1 : 0;
         write(flags, c);
     }
 
     void load(const uchar*& c, size_t& remaining_length) override {
-        read(n_, c, remaining_length);
+        uint64_t n = 0;
+        read(n, c, remaining_length);
+        n_ = n;
         read(num_planes_, c, remaining_length);
         uint8_t flags = 0;
         read(flags, c, remaining_length);
@@ -243,7 +245,7 @@ class BitplaneRLEEncoder : public concepts::EncoderInterface<T> {
     // Worst-case bound: assume every plane chose RAW (RLE never used).
     // Covers SZGenericCompressor's buffer sizing without overruns.
     size_t size_est() override {
-        const size_t header = sizeof(n_) + sizeof(num_planes_) + sizeof(uint8_t);
+        const size_t header = sizeof(uint64_t) + sizeof(num_planes_) + sizeof(uint8_t);
         if (n_ == 0) return header;
         const size_t plane_bytes = (n_ + 7) / 8;
         const size_t per_plane_max = 1 /*mode*/ + plane_bytes;  // RAW upper bound
