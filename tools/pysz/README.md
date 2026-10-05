@@ -39,6 +39,11 @@ cd SZ3/tools/pysz
 pip install -e .
 ```
 
+**Or build pysz against an SZ3 you have installed** (with its Zstd in the same prefix):
+```bash
+PYSZ_SZ3_PREFIX=<INSTALL_DIR> pip install .
+```
+
 **What happens during source installation:**
 1. SZ3 is automatically downloaded from GitHub
 2. SZ3 is built with CMake (zstd is bundled)

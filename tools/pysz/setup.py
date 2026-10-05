@@ -1,8 +1,10 @@
 """
 Setup script for pysz - Python bindings for SZ3
-Automatically downloads and builds SZ3 with bundled zstd.
+Automatically downloads and builds SZ3 with bundled zstd, or with PYSZ_SZ3_PREFIX set, uses an installed SZ3 and the
+Zstd installed beside it.
 """
 
+import os
 import sys
 import shutil
 import subprocess
@@ -47,6 +49,18 @@ def find_zstd_library(sz3_dir):
 class BuildSZ3Extension(_build_ext):
 
     def run(self):
+        sz3_prefix = os.environ.get("PYSZ_SZ3_PREFIX")
+        if sz3_prefix:
+            # As a distribution builds it: SZ3's headers, and the Zstd it was built with, from one prefix.
+            prefix = Path(sz3_prefix)
+            zstd_name = "sz3_zstd" if any((prefix / "lib").glob("*sz3_zstd*")) else "zstd"
+            for ext in self.extensions:
+                ext.include_dirs.insert(0, str(prefix / "include"))
+                ext.library_dirs.append(str(prefix / "lib"))
+                ext.libraries.append(zstd_name)
+            super().run()
+            return
+
         sz3_dir = self.download_and_build_sz3()
         zstd_name, zstd_dir = find_zstd_library(sz3_dir)
         print(f"Linking bundled Zstd: {zstd_name} from {zstd_dir}")
@@ -117,7 +131,7 @@ def create_extensions():
     if sys.platform == 'win32':
         extra_compile_args.extend(['/std:c++17', '/O2'])
     elif sys.platform == 'darwin':
-        extra_compile_args.extend(['-std=c++17', '-O3', '-stdlib=libc++', '-mmacosx-version-min=10.9'])
+        extra_compile_args.extend(['-std=c++17', '-O3', '-stdlib=libc++'])
         extra_link_args.extend(['-stdlib=libc++', '-Wl,-rpath,@loader_path'])
     elif sys.platform == 'linux':
         extra_compile_args.extend(['-std=c++17', '-O3'])
