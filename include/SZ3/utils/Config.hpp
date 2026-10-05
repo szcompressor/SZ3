@@ -322,7 +322,7 @@ class Config {
         write(bitWidth, c);
         vector2bytes(dims, bitWidth, c);
 
-        write(num, c);
+        write<uint64_t>(num, c);
         write(cmprAlgo, c);
 
         write(errorBoundMode, c);
@@ -390,7 +390,9 @@ class Config {
         if (dim_bytes > remaining_length) throw std::out_of_range("SZ3 Config::load: dimensions exceed the buffer");
         dims = bytes2vector<size_t>(c, bitWidth, N);
         remaining_length -= dim_bytes;
-        read(num, c, remaining_length);
+        uint64_t num64 = 0;
+        read(num64, c, remaining_length);
+        num = num64;
         // num must equal the product of the dimensions, or the predictor walks more grid positions than
         // were allocated. No dimensions means no elements: the HDF5 filter loads a config from cd_values
         // before it knows the dataset shape.

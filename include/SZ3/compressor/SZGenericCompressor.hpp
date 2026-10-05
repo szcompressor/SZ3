@@ -59,7 +59,7 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         encoder.save(buffer_pos);
 
         // store the size of quant_inds is necessary as it is not always equal to conf.num
-        write<size_t>(quant_inds.size(), buffer_pos);
+        write<uint64_t>(quant_inds.size(), buffer_pos);
         encoder.encode(quant_inds, buffer_pos);
         encoder.postprocess_encode();
         
@@ -80,7 +80,7 @@ class SZGenericCompressor : public concepts::CompressorInterface<T> {
         decomposition.load(bufferPos, bufferSize);
         encoder.load(bufferPos, bufferSize);
 
-        size_t quant_inds_size = 0;
+        uint64_t quant_inds_size = 0;
         read(quant_inds_size, bufferPos, bufferSize);
         auto quant_inds = encoder.decode(bufferPos, quant_inds_size, bufferSize);
         encoder.postprocess_decode();

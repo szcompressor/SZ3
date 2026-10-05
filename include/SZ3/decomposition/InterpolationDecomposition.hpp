@@ -166,16 +166,16 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
     }
 
     size_t size_est() override {
-        return sizeof(original_dimensions) + sizeof(blocksize) + sizeof(interp_id) + sizeof(direction_sequence_id) +
+        return N * sizeof(uint64_t) + sizeof(blocksize) + sizeof(interp_id) + sizeof(direction_sequence_id) +
                quantizer.size_est() + 128;
     }
 
     void save(uchar *&c) override {
-        write(original_dimensions.data(), N, c);
+        for (size_t d : original_dimensions) write<uint64_t>(d, c);
         write(blocksize, c);
         write(interp_id, c);
         write(direction_sequence_id, c);
-        write(anchor_stride, c);
+        write<uint64_t>(anchor_stride, c);
         write(eb_alpha, c);
         write(eb_beta, c);
 
@@ -183,11 +183,16 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
     }
 
     void load(const uchar *&c, size_t &remaining_length) override {
-        read(original_dimensions.data(), N, c, remaining_length);
+        uint64_t v = 0;
+        for (size_t &d : original_dimensions) {
+            read(v, c, remaining_length);
+            d = v;
+        }
         read(blocksize, c, remaining_length);
         read(interp_id, c, remaining_length);
         read(direction_sequence_id, c, remaining_length);
-        read(anchor_stride, c, remaining_length);
+        read(v, c, remaining_length);
+        anchor_stride = v;
         read(eb_alpha, c, remaining_length);
         read(eb_beta, c, remaining_length);
 

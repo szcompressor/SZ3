@@ -93,7 +93,7 @@ public:
     }
 
     size_t size_est() {
-        return sizeof(uid) + sizeof(this->error_bound) + sizeof(this->radius) + sizeof(size_t) +
+        return sizeof(uid) + sizeof(this->error_bound) + sizeof(this->radius) + sizeof(uint64_t) +
                unpred.size() * sizeof(T);
     }
 
@@ -102,7 +102,7 @@ public:
         write(this->error_bound, c);
         write(this->radius, c);
         size_t unpred_size = unpred.size();
-        write(unpred_size, c);
+        write<uint64_t>(unpred_size, c);
         if (unpred_size > 0) {
             write(unpred.data(), unpred.size(), c);
         }
@@ -117,7 +117,7 @@ public:
         read(this->error_bound, c, remaining_length);
         this->error_bound_reciprocal = 1.0 / this->error_bound;
         read(this->radius, c, remaining_length);
-        size_t unpred_size = 0;
+        uint64_t unpred_size = 0;
         read(unpred_size, c, remaining_length);
         if (unpred_size > 0) {
             // resize() below is sized from the stream, so check the count against the bytes that exist first.
