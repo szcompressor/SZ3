@@ -251,9 +251,9 @@ Tag `v3.3.2`. The GitHub release lists #104–#116, including the 3.3.1 changes.
 - A bug in the compressed format; the PR does not describe it further. [#116](https://github.com/szcompressor/SZ3/pull/116)
 - The HDF5 filter works on Windows. [#107](https://github.com/szcompressor/SZ3/pull/107)
 
-## 3.4.0 (2026-10-04)
+## 3.4.0 (2026-10-05)
 
-Tag `v3.4.0`. The GitHub release lists #127–#174.
+Tag `v3.4.0`. The GitHub release lists #127–#178.
 
 **New**
 - One Huffman encoder for every algorithm, replacing the two earlier ones. Its code table takes about 0.3–0.7 bytes per symbol, where the one most algorithms used took 9–26. On 81 real fields from 32 datasets, the compression ratio is 1.5% higher and decompression 1.8 times faster (geometric means). [#163](https://github.com/szcompressor/SZ3/pull/163)
@@ -264,6 +264,9 @@ Tag `v3.4.0`. The GitHub release lists #127–#174.
 - A Nix expression for NixOS. [#129](https://github.com/szcompressor/SZ3/pull/129)
 - `ALGO_BIOMD` is a new codec for molecular-dynamics coordinates `{frames, atoms, 3}` with an absolute bound: rigid water and bonded atoms are predicted from their geometry on an integer lattice. On 16 GROMACS trajectories at 5e-4 nm its compression ratio is 1.23 times that of the previous `ALGO_BIOMD` with one frame per chunk and 1.29 times with 20. Other shapes throw `std::invalid_argument` (in HDF5, creating the dataset fails); coordinates beyond its lattice (2048 nm at 5e-4 nm and 128 nm at 5e-5 nm for float) and NaN or Inf outside trailing fill frames go to lossless compression. [#169](https://github.com/szcompressor/SZ3/pull/169)
 - [docs/molecular-dynamics.md](docs/molecular-dynamics.md) for molecular-dynamics data, and the [advanced guide](docs/advanced-guide.md) for algorithms, building, CMake and packaging, the C++ API, OpenMP, floating point and contributing; the HDF5 filter's README covers using it in an application; the README is a quick start. [#173](https://github.com/szcompressor/SZ3/pull/173)
+- `find_package(SZ3 COMPONENTS SZ3c)` provides `SZ3::SZ3c`, the SZ2-compatible C library. [#177](https://github.com/szcompressor/SZ3/pull/177)
+- Homebrew: `brew install szcompressor/tap/sz3`. [#176](https://github.com/szcompressor/SZ3/pull/176)
+- pysz builds against an installed SZ3 and its Zstd with `PYSZ_SZ3_PREFIX`. [#177](https://github.com/szcompressor/SZ3/pull/177)
 
 **Compatibility**
 - Data format 3.4.0. Data from 3.3.2 decompresses, except data compressed with `ALGO_NOPRED` or `ALGO_BIOMD`, which is refused. Data from 3.3.1 and earlier cannot be decompressed. [#163](https://github.com/szcompressor/SZ3/pull/163)
@@ -276,6 +279,8 @@ Tag `v3.4.0`. The GitHub release lists #127–#174.
 - `cmake --install` no longer installs `sz3_customized_demo` or `share/SZ3/testfloat_8_8_128.dat`.
 - `libhdf5sz3` and `libSZ3c` export only their public functions, and carry an SOVERSION. [#158](https://github.com/szcompressor/SZ3/pull/158), [#159](https://github.com/szcompressor/SZ3/pull/159)
 - A static `libhdf5sz3` keeps `H5Pset_sz3`, `set_SZ3_conf_to_H5` and `get_SZ3_conf_from_H5` hidden in the shared library it is linked into, so they cannot take over another SZ3 copy's calls. `H5PLget_plugin_type` and `H5PLget_plugin_info` stay exported, as HDF5's `H5PLextern.h` declares them. [#174](https://github.com/szcompressor/SZ3/pull/174)
+- 32-bit builds (wasm32) and 64-bit builds decompress each other's data: every size in the stream is 8 bytes, as 64-bit builds already wrote it. [#177](https://github.com/szcompressor/SZ3/pull/177)
+- `Config::load` skips fields that a later version appends to the end of a config. [#178](https://github.com/szcompressor/SZ3/pull/178)
 
 **Fixes**
 - Damaged or truncated compressed data makes decompression throw instead of reading past the buffer, and the HDF5 filter reports the error instead of ending the program. [#121](https://github.com/szcompressor/SZ3/pull/121), [#145](https://github.com/szcompressor/SZ3/pull/145), [#149](https://github.com/szcompressor/SZ3/pull/149)
@@ -290,6 +295,10 @@ Tag `v3.4.0`. The GitHub release lists #127–#174.
 - An error bound that is negative or not finite (also a relative bound over data with Inf) compresses losslessly with every algorithm, as a bound of 0 did. [#169](https://github.com/szcompressor/SZ3/pull/169)
 - `ALGO_BIOMD` stores a chunk with NaN or Inf losslessly also when built with GCC's `-funsafe-math-optimizations` and `-ffinite-math-only` for an FMA target, which made it code NaN as 0. [#171](https://github.com/szcompressor/SZ3/pull/171)
 - `cdvalueHelper.py` writes `cd_values` with the data version first, as the filter reads them; `mdz` accepts 3D input in Debug builds and refuses 1D input, which it could not compress. [#173](https://github.com/szcompressor/SZ3/pull/173)
+- `libSZ3c` returns NULL on an error instead of ending the program with `exit(0)`, and `SZ_decompress` checks the dimensions against the data. [#177](https://github.com/szcompressor/SZ3/pull/177)
+- `Lossless_zstd::compress` refuses a buffer under 8 bytes instead of writing past it. [#177](https://github.com/szcompressor/SZ3/pull/177)
+- `ALGO_BIOMD` refuses a corrupt mode byte or box flag instead of decoding with it. [#178](https://github.com/szcompressor/SZ3/pull/178)
+- Warnings under GCC 16. [#178](https://github.com/szcompressor/SZ3/pull/178)
 
 **Compared with other compressors**
 
