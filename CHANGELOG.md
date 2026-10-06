@@ -237,7 +237,7 @@ The data format is still 3.3.0, so 3.3.1 and 3.3.0 read each other's data.
 Tag `v3.3.2`. The GitHub release lists #104–#116, including the 3.3.1 changes.
 
 **New**
-- `ALGO_BIOMD`, for molecular-dynamics data, plus a Huffman encoder with less storage overhead. [#115](https://github.com/szcompressor/SZ3/pull/115)
+- `ALGO_BIOMD` and `ALGO_BIOMDXTC`, for molecular-dynamics data, plus a Huffman encoder with less storage overhead. [#115](https://github.com/szcompressor/SZ3/pull/115)
 - SZ3Reader, a ParaView plugin that opens SZ3-compressed files, built with `-DBUILD_PARAVIEW_PLUGIN=ON`. [#112](https://github.com/szcompressor/SZ3/pull/112)
 - The HDF5 filter builds on Windows with Visual Studio. CI builds and tests SZ3 with both Visual Studio and MinGW. [#107](https://github.com/szcompressor/SZ3/pull/107)
 - `cdvalueHelper` converts between an SZ3 configuration and the filter's `cd_values`. [#109](https://github.com/szcompressor/SZ3/pull/109)
@@ -275,6 +275,7 @@ Tag `v3.4.0`. The GitHub release lists #127–#183.
 - Data compressed by an earlier version built with FMA may exceed the error bound when decompressed by 3.4.0; decompress it with the build that compressed it. [#162](https://github.com/szcompressor/SZ3/pull/162)
 - CMake 3.19 or newer is required. `find_package(SZ3 <version>)` accepts only SZ3 versions with the same major version. [#161](https://github.com/szcompressor/SZ3/pull/161)
 - Removed: `ArithmeticEncoder`, `RunlengthEncoder`, `SZTruncateCompressor` and the preprocessors, which no build target used, the bundled ska hash map, and `HuffmanEncoderV2`. [#150](https://github.com/szcompressor/SZ3/pull/150), [#157](https://github.com/szcompressor/SZ3/pull/157), [#163](https://github.com/szcompressor/SZ3/pull/163)
+- Removed: `ALGO_BIOMDXTC` and its LGPL encoder, so SZ3 is BSD only; use `ALGO_BIOMD`. The value stays defined, and compressing with it throws `std::invalid_argument` (`H5Pset_sz3` returns an error). Data compressed with it by 3.3.2 no longer decompresses. `LinearQuantizer` no longer takes a third argument. [#183](https://github.com/szcompressor/SZ3/pull/183)
 - `Config::load` and the lossless stages take the length of the buffer they read. [#145](https://github.com/szcompressor/SZ3/pull/145)
 - Integer data compressed by earlier versions decompresses only with those versions. 8-byte integers beyond ±2^53 are refused. [#165](https://github.com/szcompressor/SZ3/pull/165)
 - `cmake --install` no longer installs `sz3_customized_demo` or `share/SZ3/testfloat_8_8_128.dat`.
