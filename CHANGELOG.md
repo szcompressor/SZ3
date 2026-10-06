@@ -237,7 +237,7 @@ The data format is still 3.3.0, so 3.3.1 and 3.3.0 read each other's data.
 Tag `v3.3.2`. The GitHub release lists #104–#116, including the 3.3.1 changes.
 
 **New**
-- `ALGO_BIOMD` and an XTC-based algorithm, for molecular-dynamics data, plus a Huffman encoder with less storage overhead. [#115](https://github.com/szcompressor/SZ3/pull/115)
+- `ALGO_BIOMD`, for molecular-dynamics data, plus a Huffman encoder with less storage overhead. [#115](https://github.com/szcompressor/SZ3/pull/115)
 - SZ3Reader, a ParaView plugin that opens SZ3-compressed files, built with `-DBUILD_PARAVIEW_PLUGIN=ON`. [#112](https://github.com/szcompressor/SZ3/pull/112)
 - The HDF5 filter builds on Windows with Visual Studio. CI builds and tests SZ3 with both Visual Studio and MinGW. [#107](https://github.com/szcompressor/SZ3/pull/107)
 - `cdvalueHelper` converts between an SZ3 configuration and the filter's `cd_values`. [#109](https://github.com/szcompressor/SZ3/pull/109)
