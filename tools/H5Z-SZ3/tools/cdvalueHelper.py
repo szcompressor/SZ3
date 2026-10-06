@@ -22,7 +22,6 @@ class SZ3:
             "ALGO_NOPRED": 3,
             "ALGO_LOSSLESS": 4,
             "ALGO_BIOMD": 5,
-            "ALGO_BIOMDXTC": 6,
         }
         algo_val = algo_map.get(algo)
         if algo_val is None:

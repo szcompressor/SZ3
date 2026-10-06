@@ -230,7 +230,7 @@ def main():
 
         max_error = compare_hdf5(reference_h5, decompressed_h5, h5_dataset_name)
 
-        if max_error <= (bound * 3 if cmpr_algo in ['ALGO_BIOMDXTC'] else bound * 1.2):
+        if max_error <= bound * 1.2:
             result = "PASS"
         else:
             result = "FAIL"

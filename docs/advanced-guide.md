@@ -14,7 +14,7 @@ Set the algorithm with `Config::cmprAlgo`, or `CmprAlgo` in a configuration file
 | `ALGO_LORENZO_REG` | Blockwise Lorenzo and regression prediction, the SZ2 algorithm. |
 | `ALGO_NOPRED` | Quantization without prediction: a fast baseline. |
 | `ALGO_LOSSLESS` | Zstd only. SZ3 also switches to it by itself when the error bound is 0, negative or not finite, or when Zstd alone gives a smaller result. |
-| `ALGO_BIOMD`, `ALGO_BIOMDXTC` | Molecular-dynamics coordinates, `{frames, atoms, 3}`. `ALGO_BIOMDXTC` follows GROMACS's xtc and can, like xtc, round a coordinate slightly past the bound. See [molecular-dynamics.md](molecular-dynamics.md). |
+| `ALGO_BIOMD` | Molecular-dynamics coordinates, `{frames, atoms, 3}`. See [molecular-dynamics.md](molecular-dynamics.md). |
 
 Set the error-bound mode with `Config::errorBoundMode`, or `-M` on the command line.
 
@@ -122,7 +122,7 @@ target_link_libraries(app PRIVATE SZ3::hdf5sz3)
 - Depend on a release tag, never on a `master` commit.
 - A project that copies SZ3 needs `CMakeLists.txt`, `include/`, `tools/zstd` (without
   `lib/decompress/huf_decompress_amd64.S`, which `ZSTD_DISABLE_ASM` leaves out) and, for the filter,
-  `tools/H5Z-SZ3` without `test/` and `tools/`. Keep the license files: `XtcBasedEncoder.hpp` is LGPL-2.1 or later.
+  `tools/H5Z-SZ3` without `test/` and `tools/`. Keep the license files.
 - The options of the parts left out still appear in the parent's cache, and turning one on then fails. Set them as
   normal variables before adding SZ3 (CMP0077), and mark the rest advanced:
 
@@ -154,10 +154,8 @@ target_link_libraries(app PRIVATE SZ3::hdf5sz3)
 - **Integer data** is compressed as floating point (float for 1- and 2-byte types, double for 4- and 8-byte types),
   then rounded and clamped back to the type, so every value is within `floor(bound)` of the original. 8-byte integers
   beyond ±2^53 are refused.
-- **Recompression.** Data decompressed and compressed again can exceed the bound, except with `ALGO_BIOMDXTC`, with
-  `ALGO_NOPRED` under an absolute bound, and with `ALGO_BIOMD` under an absolute bound. HDF5 recompresses a chunk
-  that is written again.
-- `ALGO_BIOMDXTC` is not strict, like GROMACS's xtc: a coordinate can come back up to 10% past the bound.
+- **Recompression.** Data decompressed and compressed again can exceed the bound, except with `ALGO_NOPRED` and
+  `ALGO_BIOMD` under an absolute bound. HDF5 recompresses a chunk that is written again.
 - `include/SZ3/api/sz.hpp` documents the rest of the API.
 
 ## OpenMP
@@ -252,7 +250,7 @@ Rules for SZ3's own code:
 - Subtract budgets through a checked helper. Do not guard stream values with `assert`. Own buffers with RAII.
 - Put checks where a symbol is produced, not on every bit, to keep decompression fast.
 
-## ALGO_BIOMD and ALGO_BIOMDXTC
+## ALGO_BIOMD
 
 [molecular-dynamics.md](molecular-dynamics.md) is for users. For SZ3's code:
 
@@ -263,7 +261,6 @@ Rules for SZ3's own code:
   B depends on the bound only, so decompressed data compressed again gives the same values; keep it that way.
 - BIOMD and `ALGO_LORENZO_REG` compress the caller's data without a copy because neither modifies it; a change that
   writes to the input restores the copy.
-- `ALGO_BIOMDXTC` uses `XtcBasedEncoder.hpp`, LGPL-2.1 or later.
 - `{1, 1024, 3}` is a 2D case, because `setDims` drops a dimension of 1: tests of the multi-frame path need two frames
   or more. Fill-frame tests need values off the quantization grid.
 

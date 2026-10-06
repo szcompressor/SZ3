@@ -2,7 +2,7 @@
 """Turn a published MD trajectory into the raw float32 arrays the integration tests read.
 
 The SDRBench fields the suite already covers are 1D and 2D, so the trajectory layout
-ALGO_BIOMDXTC was written for -- {frames, atoms, xyz} -- is never exercised on molecular
+ALGO_BIOMD was written for -- {frames, atoms, xyz} -- is never exercised on molecular
 dynamics data. These are the MDAnalysisData benchmark trajectories, downloaded from the
 figshare files that package points at and converted here, which keeps the test data to
 stable checksummed URLs rather than a Python package's release cadence.

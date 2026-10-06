@@ -24,11 +24,10 @@ public:
           radius(32768) {
     }
 
-    LinearQuantizer(double eb, int r = 32768, bool _strict_eb = true)
+    LinearQuantizer(double eb, int r = 32768)
         : error_bound(eb),
           error_bound_reciprocal(1.0 / eb),
-          radius(r),
-          strict_eb(_strict_eb) {
+          radius(r) {
         assert(eb != 0);
     }
 
@@ -58,7 +57,7 @@ public:
             }
             T decompressed_data = recover_pred(pred, quant_index_shifted);
             double err = fabs(static_cast<double>(decompressed_data) - data);
-            if (err <= this->error_bound || (!strict_eb && err <= this->error_bound * 1.1)) {
+            if (err <= this->error_bound) {
                 data = decompressed_data;
                 return quant_index_shifted;
             }
@@ -141,7 +140,6 @@ private:
     double error_bound;
     double error_bound_reciprocal;
     int radius; // quantization interval radius
-    bool strict_eb = true;
 };
 } // namespace SZ3
 #endif
