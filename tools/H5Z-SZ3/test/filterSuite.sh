@@ -426,7 +426,7 @@ echo "  $pass passed, $fail failed, $skip skipped"
 
 # Raise this with the check it comes with. A guard that skips the wrong list, or a section that
 # stops early, otherwise shows only as a smaller number at the bottom that nobody compares.
-EXPECTED=43
+EXPECTED=44
 ran=$((pass + fail + skip))
 if [ "$ran" -ne "$EXPECTED" ]; then
     echo "  the suite accounted for $ran checks, not $EXPECTED"
