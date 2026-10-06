@@ -38,6 +38,8 @@
 #define H5Z_SZ3_ALGO_NOPRED 3
 #define H5Z_SZ3_ALGO_LOSSLESS 4
 #define H5Z_SZ3_ALGO_BIOMD 5
+/* Removed in 3.4.0; H5Pset_sz3 refuses it. Use H5Z_SZ3_ALGO_BIOMD. */
+#define H5Z_SZ3_ALGO_BIOMDXTC 6
 
 #ifdef __cplusplus
 extern "C" {

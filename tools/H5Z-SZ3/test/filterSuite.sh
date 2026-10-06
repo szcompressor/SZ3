@@ -179,6 +179,7 @@ int main(int argc, char **argv) {
     hid_t p = H5Pcreate(H5P_DATASET_CREATE);
     H5Pset_chunk(p, 2, ch);
     if (H5Pset_sz3(p, H5Z_SZ3_ALGO_INTERP_LORENZO, 99, 0.5, 0, 0, 0) < 0) printf("UNKNOWN MODE REFUSED\n");
+    if (H5Pset_sz3(p, H5Z_SZ3_ALGO_BIOMDXTC, H5Z_SZ3_EB_ABS, 0.5, 0, 0, 0) < 0) printf("BIOMDXTC REFUSED\n");
     H5Pset_sz3(p, H5Z_SZ3_ALGO_INTERP_LORENZO, H5Z_SZ3_EB_ABS, 0.5, 0, 0, 0);
     hid_t f = H5Fcreate(argv[1], H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
     hid_t s = H5Screate_simple(2, dims, NULL);
@@ -394,6 +395,7 @@ fi
 export HDF5_PLUGIN_PATH=$NOPLUGIN_PATH
 ./b/capi c_api.h5 > c_api.log 2>&1
 want "c-api-refuses-an-unknown-mode" "UNKNOWN MODE REFUSED" c_api.log
+want "c-api-refuses-the-removed-biomdxtc" "BIOMDXTC REFUSED" c_api.log
 want "c-api-applies-its-bound"       "BOUND OK" c_api.log
 for t in compound array int24 float128 byteswapped int24in32 floatshort; do
     want "c-api-refuses-$t" "$t REFUSED" c_api.log

@@ -18,6 +18,9 @@ namespace SZ3 {
 template <class T, uint N>
 size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
     assert(N == conf.N);
+    if (conf.cmprAlgo == ALGO_BIOMDXTC) {
+        throw std::invalid_argument("SZ3: ALGO_BIOMDXTC was removed in 3.4.0; use ALGO_BIOMD");
+    }
     calAbsErrorBound(conf, data);
     size_t cmpSize = 0;
 

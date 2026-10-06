@@ -13,6 +13,7 @@
 #include <cstring>
 #include <random>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "SZ3/api/sz.hpp"
@@ -205,5 +206,23 @@ TEST(SZ3_BioMD, CompressionIsDeterministic) {
         const auto second = round_trip(1e-3, dims, input, discard);
         ASSERT_EQ(first.size(), second.size()) << " " << dims.size() << "D";
         EXPECT_EQ(0, std::memcmp(first.data(), second.data(), first.size())) << " " << dims.size() << "D";
+    }
+}
+
+/// ALGO_BIOMDXTC was removed; asking for it, also with a bound that would go lossless, says to use ALGO_BIOMD.
+TEST(SZ3_BioMD, RemovedXtcAlgorithmIsRefused) {
+    const auto input = make_trajectory(2, 100);
+    for (double eb : {1e-3, 0.0}) {
+        SZ3::Config conf(2, 100, 3);
+        conf.cmprAlgo = SZ3::ALGO_BIOMDXTC;
+        conf.errorBoundMode = SZ3::EB_ABS;
+        conf.absErrorBound = eb;
+        size_t size = 0;
+        try {
+            delete[] SZ_compress(conf, input.data(), size);
+            ADD_FAILURE() << "ALGO_BIOMDXTC compressed at eb=" << eb;
+        } catch (const std::invalid_argument &e) {
+            EXPECT_NE(std::string(e.what()).find("ALGO_BIOMD"), std::string::npos) << e.what();
+        }
     }
 }

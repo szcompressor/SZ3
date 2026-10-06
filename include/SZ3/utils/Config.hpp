@@ -66,8 +66,9 @@ enum EB { EB_ABS, EB_REL, EB_PSNR, EB_L2NORM, EB_ABS_AND_REL, EB_ABS_OR_REL };
  * - ALGO_NOPRED: No prediction.
  * - ALGO_LOSSLESS: Lossless compression.
  * - ALGO_BIOMD: data compression algorithm for biology molecular data.
+ * - ALGO_BIOMDXTC: removed in 3.4.0, kept so that code naming it compiles; compressing with it throws. Use ALGO_BIOMD.
  */
-enum ALGO { ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP, ALGO_NOPRED, ALGO_LOSSLESS, ALGO_BIOMD };
+enum ALGO { ALGO_LORENZO_REG, ALGO_INTERP_LORENZO, ALGO_INTERP, ALGO_NOPRED, ALGO_LOSSLESS, ALGO_BIOMD, ALGO_BIOMDXTC };
 
 /**
  * @enum INTERP_ALGO
@@ -82,6 +83,7 @@ const std::map<std::string, ALGO> ALGO_MAP = {
     {"ALGO_LORENZO_REG", ALGO_LORENZO_REG}, {"ALGO_INTERP_LORENZO", ALGO_INTERP_LORENZO},
     {"ALGO_INTERP", ALGO_INTERP},           {"ALGO_NOPRED", ALGO_NOPRED},
     {"ALGO_LOSSLESS", ALGO_LOSSLESS},       {"ALGO_BIOMD", ALGO_BIOMD},
+    {"ALGO_BIOMDXTC", ALGO_BIOMDXTC},
 };
 
 const std::map<std::string, EB> EB_MAP = {

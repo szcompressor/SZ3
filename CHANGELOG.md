@@ -237,7 +237,7 @@ The data format is still 3.3.0, so 3.3.1 and 3.3.0 read each other's data.
 Tag `v3.3.2`. The GitHub release lists #104–#116, including the 3.3.1 changes.
 
 **New**
-- `ALGO_BIOMD` and `ALGO_BIOMDXTC`, for molecular-dynamics data, plus a Huffman encoder with less storage overhead. [#115](https://github.com/szcompressor/SZ3/pull/115)
+- `ALGO_BIOMD` and an XTC-based algorithm, for molecular-dynamics data, plus a Huffman encoder with less storage overhead. [#115](https://github.com/szcompressor/SZ3/pull/115)
 - SZ3Reader, a ParaView plugin that opens SZ3-compressed files, built with `-DBUILD_PARAVIEW_PLUGIN=ON`. [#112](https://github.com/szcompressor/SZ3/pull/112)
 - The HDF5 filter builds on Windows with Visual Studio. CI builds and tests SZ3 with both Visual Studio and MinGW. [#107](https://github.com/szcompressor/SZ3/pull/107)
 - `cdvalueHelper` converts between an SZ3 configuration and the filter's `cd_values`. [#109](https://github.com/szcompressor/SZ3/pull/109)
@@ -270,8 +270,8 @@ Tag `v3.4.0`. The GitHub release lists #127–#183.
 - pysz builds against an installed SZ3 and its Zstd with `PYSZ_SZ3_PREFIX`. [#177](https://github.com/szcompressor/SZ3/pull/177)
 
 **Compatibility**
-- Data format 3.4.0. Data from 3.3.2 decompresses, except data compressed with `ALGO_NOPRED`, `ALGO_BIOMD` or `ALGO_BIOMDXTC`, which is refused. Data from 3.3.1 and earlier cannot be decompressed. [#163](https://github.com/szcompressor/SZ3/pull/163)
-- `ALGO_BIOMDXTC` is removed, with its XTC encoder (`XtcBasedEncoder.hpp`, LGPL-2.1+), `SZBioMDXtcDecomposition` and `H5Z_SZ3_ALGO_BIOMDXTC`: `ALGO_BIOMD` compresses better than XTC on most trajectories and keeps the bound strictly. SZ3 is BSD-licensed only. `LinearQuantizer` loses its non-strict mode, which only `ALGO_BIOMDXTC` used. [#183](https://github.com/szcompressor/SZ3/pull/183)
+- Data format 3.4.0. Data from 3.3.2 decompresses, except data compressed with `ALGO_NOPRED` or the molecular-dynamics algorithms, which is refused. Data from 3.3.1 and earlier cannot be decompressed. [#163](https://github.com/szcompressor/SZ3/pull/163)
+- The XTC-based molecular-dynamics algorithm is removed, with its LGPL-2.1+ encoder: `ALGO_BIOMD` compresses better than XTC on most trajectories and keeps the bound strictly. SZ3 is BSD-licensed only. `LinearQuantizer` loses its non-strict mode, which only that algorithm used. [#183](https://github.com/szcompressor/SZ3/pull/183)
 - `SZBioMDDecomposition` and `make_decomposition_biomd` take no quantizer. [#169](https://github.com/szcompressor/SZ3/pull/169)
 - Data compressed by an earlier version built with FMA may exceed the error bound when decompressed by 3.4.0; decompress it with the build that compressed it. [#162](https://github.com/szcompressor/SZ3/pull/162)
 - CMake 3.19 or newer is required. `find_package(SZ3 <version>)` accepts only SZ3 versions with the same major version. [#161](https://github.com/szcompressor/SZ3/pull/161)
