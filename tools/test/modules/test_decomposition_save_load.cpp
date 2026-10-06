@@ -17,7 +17,6 @@
 
 #include "SZ3/decomposition/BlockwiseDecomposition.hpp"
 #include "SZ3/decomposition/SZBioMDDecomposition.hpp"
-#include "SZ3/decomposition/SZBioMDXtcDecomposition.hpp"
 #include "SZ3/predictor/ComposedPredictor.hpp"
 #include "SZ3/predictor/LorenzoPredictor.hpp"
 #include "SZ3/predictor/RegressionPredictor.hpp"
@@ -136,9 +135,6 @@ struct BioMD : SZ3::SZBioMDDecomposition<float, N> {
     BioMD(const SZ3::Config &conf, int) : SZ3::SZBioMDDecomposition<float, N>(conf) {}
 };
 auto no_quantizer = [](const SZ3::Config &) { return 0; };
-auto xtc_quantizer = [](const SZ3::Config &conf) {
-    return SZ3::LinearQuantizer<float>(conf.absErrorBound, SZ3::XTC_radius, false);
-};
 
 }  // namespace
 
@@ -172,30 +168,6 @@ TEST(SZ3_DecompositionSaveLoad, BioMDRefusesUnknownModeAndBoxFlag) {
         size_t remaining = corrupt.size();
         EXPECT_THROW(reader.load(cursor, remaining), std::runtime_error) << "byte " << at;
     }
-}
-
-TEST(SZ3_DecompositionSaveLoad, BioMDXtcOneDimension) {
-    expect_header_depends_only_on_input<SZ3::SZBioMDXtcDecomposition<float, 1, SZ3::LinearQuantizer<float>>>(
-        {4096}, xtc_quantizer);
-}
-
-TEST(SZ3_DecompositionSaveLoad, BioMDXtcTwoDimensions) {
-    expect_header_depends_only_on_input<SZ3::SZBioMDXtcDecomposition<float, 2, SZ3::LinearQuantizer<float>>>(
-        {64, 64}, xtc_quantizer);
-}
-
-TEST(SZ3_DecompositionSaveLoad, BioMDXtcThreeDimensions) {
-    expect_header_depends_only_on_input<SZ3::SZBioMDXtcDecomposition<float, 3, SZ3::LinearQuantizer<float>>>(
-        {5, 777, 3}, xtc_quantizer);
-}
-
-TEST(SZ3_DecompositionSaveLoad, BioMDXtcChargesWhatItReads) {
-    expect_load_charges_what_it_reads<SZ3::SZBioMDXtcDecomposition<float, 1, SZ3::LinearQuantizer<float>>>(
-        {4096}, xtc_quantizer);
-    expect_load_charges_what_it_reads<SZ3::SZBioMDXtcDecomposition<float, 2, SZ3::LinearQuantizer<float>>>(
-        {64, 64}, xtc_quantizer);
-    expect_load_charges_what_it_reads<SZ3::SZBioMDXtcDecomposition<float, 3, SZ3::LinearQuantizer<float>>>(
-        {5, 777, 3}, xtc_quantizer);
 }
 
 // BlockwiseDecomposition declared nothing while save() serialised the regression coefficients,
@@ -268,8 +240,5 @@ TEST(SZ3_DecompositionSaveLoad, BioMDSizeEstBoundsSave) {
         auto coordinates = ramp(conf.num);  // up to 12 nm, within BIOMD's lattice (64 nm at 1e-4)
         for (auto &v : coordinates) v *= 0.002f;
         expect_save_stays_within_size_est(biomd, conf, coordinates, "SZBioMDDecomposition");
-
-        SZ3::SZBioMDXtcDecomposition<float, 3, SZ3::LinearQuantizer<float>> xtc(conf, xtc_quantizer(conf));
-        expect_save_stays_within_size_est(xtc, conf, ramp(conf.num), "SZBioMDXtcDecomposition");
     }
 }

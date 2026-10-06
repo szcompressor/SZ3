@@ -247,7 +247,7 @@ def main():
     h5_plugin_path = os.path.join(build_dir, "tools", "H5Z-SZ3")
 
     error_bounds = [1e-1, 1e-2, 1e-3, 1e-4]
-    algorithms = ["ALGO_INTERP_LORENZO", "ALGO_LORENZO_REG", "ALGO_BIOMD", "ALGO_BIOMDXTC"]
+    algorithms = ["ALGO_INTERP_LORENZO", "ALGO_LORENZO_REG", "ALGO_BIOMD"]
 
     results = []
     metrics = []

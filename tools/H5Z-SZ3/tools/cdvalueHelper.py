@@ -22,8 +22,9 @@ class SZ3:
             "ALGO_NOPRED": 3,
             "ALGO_LOSSLESS": 4,
             "ALGO_BIOMD": 5,
-            "ALGO_BIOMDXTC": 6,
         }
+        if algo == "ALGO_BIOMDXTC":
+            raise ValueError("ALGO_BIOMDXTC was removed in SZ3 3.4.0; use ALGO_BIOMD")
         algo_val = algo_map.get(algo)
         if algo_val is None:
             raise ValueError(f"Unknown compression algorithm: {algo}")

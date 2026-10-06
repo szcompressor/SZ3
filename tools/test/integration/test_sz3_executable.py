@@ -175,7 +175,7 @@ def main():
 
     max_error = compare_data(original_data, decompressed_data)
 
-    if max_error > (bound * 3 if cmpr_algo in ['ALGO_BIOMDXTC'] else bound * 1.2):
+    if max_error > bound * 1.2:
         result = "FAIL"
     elif ratio < 1.0:
         # No ratio is guaranteed, but producing a file larger than the input is a defect.

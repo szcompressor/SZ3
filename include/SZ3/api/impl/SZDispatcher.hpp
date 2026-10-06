@@ -18,6 +18,9 @@ namespace SZ3 {
 template <class T, uint N>
 size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
     assert(N == conf.N);
+    if (conf.cmprAlgo == ALGO_BIOMDXTC) {
+        throw std::invalid_argument("SZ3: ALGO_BIOMDXTC was removed in 3.4.0; use ALGO_BIOMD");
+    }
     calAbsErrorBound(conf, data);
     size_t cmpSize = 0;
 
@@ -45,8 +48,6 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
                     cmpSize = SZ_compress_Interp_lorenzo<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
                 } else if (conf.cmprAlgo == ALGO_NOPRED) {
                     cmpSize = SZ_compress_nopred<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
-                } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
-                    return SZ_compress_bioMDXtcBased<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
                 } else {
                     throw std::invalid_argument("Unknown compression algorithm");
                 }
@@ -97,7 +98,7 @@ void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize
                 return SZ_decompress_LorenzoReg<T, N, HuffmanEncoderV1<int>>(conf, cmpData, cmpSize, decData);
             if (conf.cmprAlgo == ALGO_INTERP)
                 return SZ_decompress_Interp<T, N, HuffmanEncoderV1<int>>(conf, cmpData, cmpSize, decData);
-            if (conf.cmprAlgo != ALGO_LOSSLESS && conf.cmprAlgo != ALGO_BIOMDXTC)
+            if (conf.cmprAlgo != ALGO_LOSSLESS)
                 throw std::invalid_argument("SZ3: " + enum_to_string(static_cast<ALGO>(conf.cmprAlgo), ALGO_MAP) +
                                             " data of version " + versionStr(conf.sz3DataVer) +
                                             " is not supported; use SZ3 v" + versionStr(conf.sz3DataVer) +
@@ -119,8 +120,6 @@ void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize
         SZ_decompress_nopred<T, N>(conf, cmpData, cmpSize, decData);
     } else if (conf.cmprAlgo == ALGO_BIOMD) {
         SZ_decompress_bioMD<T, N>(conf, cmpData, cmpSize, decData);
-    } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
-        SZ_decompress_bioMDXtcBased<T, N>(conf, cmpData, cmpSize, decData);
     } else {
         throw std::invalid_argument("Unknown compression algorithm");
     }
