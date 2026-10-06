@@ -2,7 +2,7 @@
 #include <cstdint>
 
 #include "SZ3/def.hpp"
-#include "SZ3/utils/Config.hpp"  // must precede XtcBasedEncoder; XtcBased uses Config without including it
+#include "SZ3/utils/Config.hpp"
 #include "SZ3/encoder/ArithmeticEncoder.hpp"
 #include "SZ3/encoder/BitplaneEncoder.hpp"
 #include "SZ3/encoder/BitplaneRLEEncoder.hpp"
@@ -11,7 +11,6 @@
 #include "SZ3/encoder/RunlengthEncoder.hpp"
 #include "SZ3/encoder/BitshuffleEncoder.hpp"
 #include "SZ3/encoder/SPERREncoder.hpp"
-#include "SZ3/encoder/XtcBasedEncoder.hpp"
 // ZFPEncoder is covered by test_zfp.cpp instead: it accepts only ZFPDecomposition's layout,
 // so the generic round trip below cannot drive it.
 #include "gtest/gtest.h"
@@ -135,13 +134,3 @@ TEST(SZ3_EncoderTest, SPERREncoder1D) {
     roundtripBins<SZ3::SPERREncoder<int, 1>>(bins);
 }
 
-// XtcBasedEncoder is GROMACS-derived and operates on triplets (XYZ) of
-// quantized integers. Run a tiny 4-triplet round trip.
-TEST(SZ3_EncoderTest, XtcBasedEncoder) {
-    roundtripBins<SZ3::XtcBasedEncoder<int>>({
-        0, 0, 0,
-        1, 0, 0,
-        1, 1, 0,
-        2, 1, 1,
-    });
-}

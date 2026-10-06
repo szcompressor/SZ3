@@ -5,7 +5,6 @@
 | Data | Use | Notes |
 |---|---|---|
 | Biomolecular trajectories: coordinates `{frames, atoms, 3}` (GROMACS, H5MD) | `ALGO_BIOMD` | Absolute bound, strict. Uses water and bond geometry. |
-| The same coordinates, when you want xtc's behaviour | `ALGO_BIOMDXTC` | Follows GROMACS's xtc; a coordinate can come back up to 10% past the bound. |
 | Velocities and forces | `ALGO_NOPRED` | Absolute bound. Neighbours and earlier frames do not predict them at usual output intervals. |
 | Box, step, time, energies | `ALGO_LOSSLESS`, or HDF5 shuffle + gzip | A few values per frame, needed exactly. |
 | MD of solid materials (crystals, metals) | MDZ, [tools/mdz](../tools/mdz/README.md) | Atoms vibrating around lattice sites. |

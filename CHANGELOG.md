@@ -253,7 +253,7 @@ Tag `v3.3.2`. The GitHub release lists #104–#116, including the 3.3.1 changes.
 
 ## 3.4.0 (2026-10-05)
 
-Tag `v3.4.0`. The GitHub release lists #127–#182.
+Tag `v3.4.0`. The GitHub release lists #127–#183.
 
 **New**
 - One Huffman encoder for every algorithm, replacing the two earlier ones. Its code table takes about 0.3–0.7 bytes per symbol, where the one most algorithms used took 9–26. On 81 real fields from 32 datasets, the compression ratio is 1.5% higher and decompression 1.8 times faster (geometric means). [#163](https://github.com/szcompressor/SZ3/pull/163)
@@ -270,11 +270,12 @@ Tag `v3.4.0`. The GitHub release lists #127–#182.
 - pysz builds against an installed SZ3 and its Zstd with `PYSZ_SZ3_PREFIX`. [#177](https://github.com/szcompressor/SZ3/pull/177)
 
 **Compatibility**
-- Data format 3.4.0. Data from 3.3.2 decompresses, except data compressed with `ALGO_NOPRED` or `ALGO_BIOMD`, which is refused. Data from 3.3.1 and earlier cannot be decompressed. [#163](https://github.com/szcompressor/SZ3/pull/163)
+- Data format 3.4.0. Data from 3.3.2 decompresses, except data compressed with `ALGO_NOPRED` or the molecular-dynamics algorithms, which is refused. Data from 3.3.1 and earlier cannot be decompressed. [#163](https://github.com/szcompressor/SZ3/pull/163)
 - `SZBioMDDecomposition` and `make_decomposition_biomd` take no quantizer. [#169](https://github.com/szcompressor/SZ3/pull/169)
 - Data compressed by an earlier version built with FMA may exceed the error bound when decompressed by 3.4.0; decompress it with the build that compressed it. [#162](https://github.com/szcompressor/SZ3/pull/162)
 - CMake 3.19 or newer is required. `find_package(SZ3 <version>)` accepts only SZ3 versions with the same major version. [#161](https://github.com/szcompressor/SZ3/pull/161)
 - Removed: `ArithmeticEncoder`, `RunlengthEncoder`, `SZTruncateCompressor` and the preprocessors, which no build target used, the bundled ska hash map, and `HuffmanEncoderV2`. [#150](https://github.com/szcompressor/SZ3/pull/150), [#157](https://github.com/szcompressor/SZ3/pull/157), [#163](https://github.com/szcompressor/SZ3/pull/163)
+- Removed: `ALGO_BIOMDXTC` and its LGPL encoder, so SZ3 is BSD only; use `ALGO_BIOMD`. The value stays defined, and compressing with it throws `std::invalid_argument` (`H5Pset_sz3` returns an error). Data compressed with it by 3.3.2 no longer decompresses. `LinearQuantizer` no longer takes a third argument. [#183](https://github.com/szcompressor/SZ3/pull/183)
 - `Config::load` and the lossless stages take the length of the buffer they read. [#145](https://github.com/szcompressor/SZ3/pull/145)
 - Integer data compressed by earlier versions decompresses only with those versions. 8-byte integers beyond ±2^53 are refused. [#165](https://github.com/szcompressor/SZ3/pull/165)
 - `cmake --install` no longer installs `sz3_customized_demo` or `share/SZ3/testfloat_8_8_128.dat`.
@@ -285,7 +286,6 @@ Tag `v3.4.0`. The GitHub release lists #127–#182.
 
 **Fixes**
 - Damaged or truncated compressed data makes decompression throw instead of reading past the buffer, and the HDF5 filter reports the error instead of ending the program. [#121](https://github.com/szcompressor/SZ3/pull/121), [#145](https://github.com/szcompressor/SZ3/pull/145), [#149](https://github.com/szcompressor/SZ3/pull/149)
-- `ALGO_BIOMD` and `ALGO_BIOMDXTC`: the same input now always compresses to the same bytes, and defects on valid data are fixed. [#147](https://github.com/szcompressor/SZ3/pull/147), [#161](https://github.com/szcompressor/SZ3/pull/161)
 - OpenMP: compression no longer writes an undecodable stream or hangs when a region gets fewer threads than asked or a chunk fails. [#149](https://github.com/szcompressor/SZ3/pull/149), [#161](https://github.com/szcompressor/SZ3/pull/161)
 - `ALGO_LORENZO_REG` could write past its buffer with a small `BlockSize`, and with only regression enabled it read past its buffer on 3D and 4D data. [#151](https://github.com/szcompressor/SZ3/pull/151), [#161](https://github.com/szcompressor/SZ3/pull/161)
 - Integer data is compressed as floating point and rounded back, so values near the type's limits no longer come back past the bound, and REL and PSNR bounds work on data whose range the type cannot hold. [#165](https://github.com/szcompressor/SZ3/pull/165)

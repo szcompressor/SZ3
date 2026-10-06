@@ -68,7 +68,7 @@ enum EB { EB_ABS, EB_REL, EB_PSNR, EB_L2NORM, EB_ABS_AND_REL, EB_ABS_OR_REL };
  * - ALGO_NOPRED: No prediction.
  * - ALGO_LOSSLESS: Lossless compression.
  * - ALGO_BIOMD: data compression algorithm for biology molecular data.
- * - ALGO_BIOMDXTC: The XTC data compression algorithm in GROMACS for biology molecular data.
+ * - ALGO_BIOMDXTC: removed in 3.4.0, kept so that code naming it compiles; compressing with it throws. Use ALGO_BIOMD.
  * - ALGO_ZFP: ZFP block-based transform compression for floating-point data.
  * - ALGO_SPERR: SPERR wavelet + SPECK compressor (core 3D path).
  * - ALGO_MGARD: MGARD multigrid decomposition (1D/2D/3D, floating-point) with per-level LinearQuantizer

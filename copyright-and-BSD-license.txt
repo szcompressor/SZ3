@@ -27,8 +27,3 @@ NEITHER THE UNITED STATES GOVERNMENT, NOR THE UNITED STATES DEPARTMENT OF ENERGY
 ***************************************************************************************************
 
 Contact: Sheng Di (sdi1@anl.gov), Franck Cappello(cappello@mcs.anl.gov)
-
-******************************************************************************************************
-
-include/SZ3/encoder/XtcBasedEncoder.hpp is based on libxdrf.cpp from GROMACS and is licensed under the
-GNU Lesser General Public License, version 2.1 or later (https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html).

@@ -36,18 +36,18 @@ Defined in `include/SZ3/utils/Config.hpp`. Each has a `SZAlgo*.hpp` wiring file 
 | `ALGO_INTERP` | `SZAlgoInterp.hpp` | Interpolation only |
 | `ALGO_NOPRED` | `SZAlgoNopred.hpp` | Quantize-only baseline |
 | `ALGO_LOSSLESS` | `SZDispatcher.hpp` | Zstd passthrough |
-| `ALGO_BIOMD`, `ALGO_BIOMDXTC` | `SZAlgoBioMD.hpp` | Molecular-dynamics specializations |
+| `ALGO_BIOMD` | `SZAlgoBioMD.hpp` | Molecular-dynamics specializations |
 | `ALGO_ZFP` | `SZAlgoZFP.hpp` | Bundled ZFP block transform (FP-only) |
 | `ALGO_SPERR` | `SZAlgoSPERR.hpp` | Bundled SPERR wavelet + SPECK (3D FP) |
 | `ALGO_MGARD` | `SZAlgoMGARD.hpp` | Bundled MGARD multigrid + LinearQuantizer + HuffmanEncoder + Zstd (1D/2D/3D FP) |
 
 ## Modules (compose your own pipeline)
 
-**Decomposition** (`include/SZ3/decomposition/`): `BlockwiseDecomposition`, `InterpolationDecomposition`, `NoPredictionDecomposition`, `SVDDecomposition`, `ZFPDecomposition`, `SPERRDecomposition` / `SPERRFusedDecomposition`, `MGARDDecomposition` (alias of `MultiLevelDecomposition`) / `MGARDFusedDecomposition`, `MultiLevelDecomposition`, `PaSTRIDecomposition`, `SZBioMDDecomposition`, `SZBioMDXtcDecomposition`, `TimeSeriesDecomposition`.
+**Decomposition** (`include/SZ3/decomposition/`): `BlockwiseDecomposition`, `InterpolationDecomposition`, `NoPredictionDecomposition`, `SVDDecomposition`, `ZFPDecomposition`, `SPERRDecomposition` / `SPERRFusedDecomposition`, `MGARDDecomposition` (alias of `MultiLevelDecomposition`) / `MGARDFusedDecomposition`, `MultiLevelDecomposition`, `PaSTRIDecomposition`, `SZBioMDDecomposition`, `TimeSeriesDecomposition`.
 
 **Quantizer** (`include/SZ3/quantizer/`): `LinearQuantizer<T>` (linear delta, default), `ScalarQuantizer<T,To>` (delta with reconstruction tweaks, used by SPERR), `FixedPointQuantizer<T>` (`ldexp` fixed-point, int64_t out), `LevelQuantizer<T>` (non-uniform LUT, quadratic or log level curve chosen at construction), `LogDomainQuantizer<T>` (quantizes `ln|x|`, pointwise relative bound), `ClusterQuantizer<T>` (codebook over a uniform lattice of levels), `GranularBitRoundQuantizer<T>` (keep N significant decimal digits), `BitTruncationQuantizer<T>` (drop low mantissa bytes), `OutlierQuantizer<Ti,To>` (sparse second pass for what a lossy stage missed), `TimeIntQuantizer<T>` (time-series specialization).
 
-**Encoder** (`include/SZ3/encoder/`): `HuffmanEncoder<T>` (default), `ArithmeticEncoder<T>`, `BypassEncoder<T>`, `RunlengthEncoder<T>` (value-RLE), `BitplaneEncoder<T>` (MSB→LSB packed bit-planes), `BitplaneRLEEncoder<T>` (per-plane RLE w/ raw fallback), `BitshuffleEncoder<T>`, `SPERREncoder<T,N>` (SPECK bitstream), `XtcBasedEncoder` (BioMD), `ZFPEncoder<T>`.
+**Encoder** (`include/SZ3/encoder/`): `HuffmanEncoder<T>` (default), `ArithmeticEncoder<T>`, `BypassEncoder<T>`, `RunlengthEncoder<T>` (value-RLE), `BitplaneEncoder<T>` (MSB→LSB packed bit-planes), `BitplaneRLEEncoder<T>` (per-plane RLE w/ raw fallback), `BitshuffleEncoder<T>`, `SPERREncoder<T,N>` (SPECK bitstream), `ZFPEncoder<T>`.
 
 **Lossless** (`include/SZ3/lossless/`): `Lossless_zstd` (default), `Lossless_bypass`.
 

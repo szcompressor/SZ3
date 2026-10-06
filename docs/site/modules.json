@@ -517,57 +517,6 @@
       ]
     },
     {
-      "id": "ALGO_BIOMDXTC",
-      "name": "XTC-style Trajectory (GROMACS-compatible)",
-      "category": "algorithm",
-      "wiring_file": "include/SZ3/api/impl/SZAlgoBioMD.hpp",
-      "pipeline": {
-        "decomposition": "SZBioMDXtcDecomposition",
-        "quantizer": "LinearQuantizer",
-        "encoder": "XtcBasedEncoder",
-        "lossless": "Lossless_bypass"
-      },
-      "pipeline_notes": "LinearQuantizer is configured with XTC-radius bin spacing matching the GROMACS XTC format. The XTC encoder writes the GROMACS-compatible bitstream directly, so the lossless stage is a bypass.",
-      "supported_dims": [
-        3
-      ],
-      "supported_dtypes": [
-        "float",
-        "double"
-      ],
-      "error_modes": [
-        "ABS"
-      ],
-      "keywords": [
-        "molecular dynamics",
-        "MD",
-        "XTC",
-        "GROMACS",
-        "trajectory",
-        "biomolecular",
-        "atom positions",
-        "compressed trajectory format",
-        "TNG",
-        "HRTC"
-      ],
-      "best_for": "Molecular-dynamics trajectories that mimic the GROMACS XTC compression style. Specialized for atom-coordinate data with tight absolute-error bounds typical of MD analysis pipelines.",
-      "data_examples": [
-        "GROMACS .xtc files",
-        "TNG-format trajectories (GROMACS XTC successor)",
-        "HRTC trajectory benchmark",
-        "Compressed protein trajectories at low ABS bound"
-      ],
-      "references": [
-        {
-          "title": "MDZ: An Efficient Error-bounded Lossy Compressor for Molecular Dynamics",
-          "venue": "ICDE",
-          "year": 2022,
-          "evidence": "MDZ benchmarks against TNG (the GROMACS XTC-style trajectory format) and HRTC across 8 MD datasets; TNG/HRTC are XTC-derived baselines, providing direct evidence for ALGO_BIOMDXTC's relevance to GROMACS MD pipelines."
-        }
-      ],
-      "niche_variant": true
-    },
-    {
       "id": "ALGO_ZFP",
       "name": "ZFP block transform",
       "category": "algorithm",
@@ -1385,58 +1334,6 @@
       ]
     },
     {
-      "id": "SZBioMDXtcDecomposition",
-      "name": "XTC-Style MD Decomposition (GROMACS)",
-      "category": "decomposition",
-      "header": "include/SZ3/decomposition/SZBioMDXtcDecomposition.hpp",
-      "pipeline": {
-        "decomposition": "SZBioMDXtcDecomposition",
-        "quantizer": "LinearQuantizer",
-        "encoder": "XtcBasedEncoder",
-        "lossless": "Lossless_bypass"
-      },
-      "supported_dims": [
-        1,
-        2,
-        3
-      ],
-      "supported_dtypes": [
-        "float",
-        "double"
-      ],
-      "error_modes": [
-        "ABS"
-      ],
-      "keywords": [
-        "molecular dynamics",
-        "MD",
-        "XTC",
-        "GROMACS",
-        "trajectory",
-        "atom coordinates",
-        "fixed point",
-        "fill frames",
-        "no prediction"
-      ],
-      "best_for": "Deliberately the thin half of a GROMACS-style pipeline: it does not predict at all, it converts each coordinate to an integer against the absolute error bound and shifts it by a fixed XTC radius so the bins are non-negative. All of the actual modelling - the magic-number packing and inter-atom coding that make XTC compact - lives downstream in XtcBasedEncoder, so this module and that encoder should be treated as one unit. Its own contribution beyond the fixed-point cast is trimming: it scans backwards for trailing frames filled with a single constant and drops them from the coded stream, recording the fill value and first filled frame instead. Pick it when you want GROMACS-compatible XTC behaviour; pick SZBioMDDecomposition when you want the higher-ratio MDZ prediction path.",
-      "data_examples": [
-        "GROMACS .xtc trajectories",
-        "TNG-format trajectories",
-        "Protein trajectories at tight absolute-error bounds"
-      ],
-      "used_by": [
-        "ALGO_BIOMDXTC"
-      ],
-      "references": [
-        {
-          "title": "MDZ: An Efficient Error-bounded Lossy Compressor for Molecular Dynamics",
-          "venue": "ICDE",
-          "year": 2022,
-          "evidence": "Benchmarks against TNG and HRTC, the GROMACS XTC-derived trajectory formats whose coding style this module reproduces, across 8 MD datasets."
-        }
-      ]
-    },
-    {
       "id": "TimeSeriesDecomposition",
       "name": "Time-Series Decomposition",
       "category": "decomposition",
@@ -1885,54 +1782,6 @@
       }
     },
     {
-      "id": "XtcBasedEncoder",
-      "name": "XTC-Based Encoder (GROMACS)",
-      "category": "encoder",
-      "header": "include/SZ3/encoder/XtcBasedEncoder.hpp",
-      "pipeline": {
-        "decomposition": "SZBioMDXtcDecomposition",
-        "quantizer": "LinearQuantizer",
-        "encoder": "XtcBasedEncoder",
-        "lossless": "Lossless_bypass"
-      },
-      "supported_dims": [
-        3
-      ],
-      "supported_dtypes": [
-        "int",
-        "int32"
-      ],
-      "error_modes": [
-        "ABS"
-      ],
-      "keywords": [
-        "XTC",
-        "GROMACS",
-        "molecular dynamics",
-        "trajectory",
-        "atom positions",
-        "compressed coordinates",
-        "libxdrf"
-      ],
-      "best_for": "Adapter encoder that emits a GROMACS XTC-compatible bitstream for quantized atom coordinates. Used inside ALGO_BIOMDXTC; drop-in only when the downstream consumer expects XTC-format output.",
-      "data_examples": [
-        "GROMACS .xtc trajectory output",
-        "TNG-format coordinate streams",
-        "Per-frame quantized atom coordinates"
-      ],
-      "used_by": [
-        "ALGO_BIOMDXTC"
-      ],
-      "references": [
-        {
-          "title": "MDZ: An Efficient Error-bounded Lossy Compressor for Molecular Dynamics",
-          "venue": "ICDE",
-          "year": 2022,
-          "evidence": "MDZ benchmarks against TNG (the GROMACS XTC-style trajectory format); XtcBasedEncoder is fz's port of GROMACS' libxdrf XTC coder for the BIOMDXTC pipeline."
-        }
-      ]
-    },
-    {
       "id": "ZFPEncoder",
       "name": "ZFP Bitstream Encoder",
       "category": "encoder",
@@ -2004,14 +1853,12 @@
         "self-contained bitstream",
         "memcpy"
       ],
-      "best_for": "memcpy-only passthrough that skips the final lossless stage. Use when the upstream encoder already emits a self-contained, optimally-packed bitstream (SPERR's SPECK output, GROMACS XTC) and a second lossless pass would be wasted work.",
+      "best_for": "memcpy-only passthrough that skips the final lossless stage. Use when the upstream encoder already emits a self-contained, optimally-packed bitstream (SPERR's SPECK output) and a second lossless pass would be wasted work.",
       "data_examples": [
-        "SPERR / SPECK bitstream from ALGO_SPERR",
-        "GROMACS XTC bitstream from ALGO_BIOMDXTC"
+        "SPERR / SPECK bitstream from ALGO_SPERR"
       ],
       "used_by": [
-        "ALGO_SPERR",
-        "ALGO_BIOMDXTC"
+        "ALGO_SPERR"
       ],
       "references": [
         {
@@ -2644,7 +2491,7 @@
         "default quantizer",
         "absolute error bound"
       ],
-      "best_for": "Default quantizer in fz. Uniform-spaced bins around a predicted value with absolute-error guarantee. Used by every prediction-based pipeline (LORENZO_REG, INTERP_LORENZO, INTERP, NOPRED, SVD, MGARD, BIOMD, BIOMDXTC).",
+      "best_for": "Default quantizer in fz. Uniform-spaced bins around a predicted value with absolute-error guarantee. Used by every prediction-based pipeline (LORENZO_REG, INTERP_LORENZO, INTERP, NOPRED, SVD, MGARD, BIOMD).",
       "data_examples": [
         "Residuals from any predictor"
       ],
@@ -2654,8 +2501,7 @@
         "ALGO_INTERP",
         "ALGO_NOPRED",
         "ALGO_MGARD",
-        "ALGO_BIOMD",
-        "ALGO_BIOMDXTC"
+        "ALGO_BIOMD"
       ],
       "references": [
         {

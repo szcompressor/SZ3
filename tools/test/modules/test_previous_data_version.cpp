@@ -34,9 +34,11 @@ uint64_t fnv1a(const float *data, size_t n) {
 
 TEST(SZ3_PreviousDataVersion, DecodesAsItsReleaseDid) {
     const std::pair<const char *, uint64_t> streams[] = {
-        {"biomdxtc", 0xe686c4ff7e13dca5ull},        {"interp", 0xe49ee9e883e32415ull},
-        {"interp_omp", 0x1172c536c4c77855ull},      {"lorenzo_reg", 0x3f7750a23094223dull},
-        {"lorenzo_reg_omp", 0xe32514629ac5fd3dull}, {"lorenzo_reg_rel1e-5", 0xe0885e9322ea80ccull},
+        {"interp", 0xe49ee9e883e32415ull},
+        {"interp_omp", 0x1172c536c4c77855ull},
+        {"lorenzo_reg", 0x3f7750a23094223dull},
+        {"lorenzo_reg_omp", 0xe32514629ac5fd3dull},
+        {"lorenzo_reg_rel1e-5", 0xe0885e9322ea80ccull},
         {"lossless", 0x51c93bc7f98c12a5ull},
     };
     for (const auto &s : streams) {
@@ -51,9 +53,9 @@ TEST(SZ3_PreviousDataVersion, DecodesAsItsReleaseDid) {
     }
 }
 
-// That version's ALGO_NOPRED and ALGO_BIOMD streams are not supported.
+// That version's ALGO_NOPRED and ALGO_BIOMD streams are not supported, nor the removed ALGO_BIOMDXTC.
 TEST(SZ3_PreviousDataVersion, NopredAndBioMDAreRefused) {
-    for (const char *name : {"nopred", "biomd"}) {
+    for (const char *name : {"nopred", "biomd", "biomdxtc"}) {
         const auto cmp = slurp(name);
         ASSERT_FALSE(cmp.empty()) << name;
         SZ3::Config conf;

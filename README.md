@@ -99,7 +99,6 @@ In a CMake project, add `<INSTALL_DIR>` to `CMAKE_PREFIX_PATH`, then `find_packa
 ## License and contact
 
 SZ3 is released under a BSD license; see [copyright-and-BSD-license.txt](copyright-and-BSD-license.txt).
-`include/SZ3/encoder/XtcBasedEncoder.hpp` is based on GROMACS and licensed under the LGPL, version 2.1 or later.
 The vendored Zstd in `tools/zstd` keeps its own license.
 
 * Lead developer and maintainer: Kai Zhao

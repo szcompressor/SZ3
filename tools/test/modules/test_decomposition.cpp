@@ -10,7 +10,6 @@
 #include "SZ3/decomposition/SPERRFusedDecomposition.hpp"
 #include "SZ3/decomposition/SVDDecomposition.hpp"
 #include "SZ3/decomposition/SZBioMDDecomposition.hpp"
-#include "SZ3/decomposition/SZBioMDXtcDecomposition.hpp"
 #include "SZ3/decomposition/TimeSeriesDecomposition.hpp"
 #include "SZ3/decomposition/ZFPDecomposition.hpp"
 #include "SZ3/predictor/LorenzoPredictor.hpp"
@@ -221,22 +220,6 @@ TEST(SZ3_DecompositionTest, SZBioMDDecomposition2D) {
     std::vector<float> dec(conf.num);
     decomp2.decompress(conf, bins, dec.data());
     for (size_t i = 0; i < conf.num; i++) EXPECT_LE(std::fabs(original[i] - dec[i]), eb) << i;
-}
-
-// ----- SZBioMDXtcDecomposition (2D single-frame, XTC offset) ---------------
-
-TEST(SZ3_DecompositionTest, SZBioMDXtcDecomposition2D) {
-    constexpr SZ3::uint N = 2;
-    constexpr size_t H = 4, W = 12;
-    const double eb = 1e-2;
-    SZ3::Config conf(H, W);
-    setAbsBound(conf, eb);
-    auto original = make2D<float>(H, W, [](size_t y, size_t x) { return 1.0f + 0.001f * (y + x); });
-
-    using Quant = SZ3::LinearQuantizer<float>;
-    using Decomp = SZ3::SZBioMDXtcDecomposition<float, N, Quant>;
-    runRoundtrip<Decomp, float>(conf, original, eb,
-                                [&] { return Decomp(conf, Quant(eb, SZ3::XTC_radius, false)); });
 }
 
 // ----- SVDDecomposition (ST-HOSVD + residual quantization) -----------------

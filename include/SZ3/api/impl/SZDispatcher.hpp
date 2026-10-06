@@ -10,7 +10,7 @@
  * - `ALGO_LORENZO_REG`: `SZAlgoLorenzoReg.hpp` — blockwise prediction (Lorenzo/Regression) with `BlockwiseDecomposition`.
  * - `ALGO_INTERP` / `ALGO_INTERP_LORENZO`: `SZAlgoInterp.hpp` — interpolation-based decomposition.
  * - `ALGO_NOPRED`: `SZAlgoNopred.hpp` — quantization only (no predictor).
- * - `ALGO_BIOMD` / `ALGO_BIOMDXTC`: `SZAlgoBioMD.hpp` — molecular dynamics specific compression.
+ * - `ALGO_BIOMD`: `SZAlgoBioMD.hpp` — molecular dynamics specific compression.
  * - `ALGO_ZFP`: `SZAlgoZFP.hpp` — ZFP block-based transform compression.
  * - `ALGO_SPERR`: `SZAlgoSPERR.hpp` — SPERR 3D wavelet + SPECK core path.
  * - `ALGO_MGARD`: `SZAlgoMGARD.hpp` — bundled MGARD multigrid decomposition (1D/2D/3D float).
@@ -59,6 +59,9 @@ template <class T, uint N>
 size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_t cmpCap) {
 
     assert(N == conf.N);
+    if (conf.cmprAlgo == ALGO_BIOMDXTC) {
+        throw std::invalid_argument("SZ3: ALGO_BIOMDXTC was removed in 3.4.0; use ALGO_BIOMD");
+    }
     const bool sperr_psnr_mode = (conf.cmprAlgo == ALGO_SPERR && conf.errorBoundMode == EB_PSNR);
     if (!sperr_psnr_mode) {
         calAbsErrorBound(conf, data);
@@ -90,8 +93,6 @@ size_t SZ_compress_dispatcher(Config &conf, const T *data, uchar *cmpData, size_
                     cmpSize = SZ_compress_Interp_lorenzo<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
                 } else if (conf.cmprAlgo == ALGO_NOPRED) {
                     cmpSize = SZ_compress_nopred<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
-                } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
-                    return SZ_compress_bioMDXtcBased<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
                 } else if (conf.cmprAlgo == ALGO_ZFP) {
                     if constexpr (std::is_floating_point<T>::value) {
                         cmpSize = SZ_compress_ZFP<T, N>(conf, dataCopy.data(), cmpData, cmpCap);
@@ -180,7 +181,7 @@ void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize
                 return SZ_decompress_LorenzoReg<T, N, HuffmanEncoderV1<int>>(conf, cmpData, cmpSize, decData);
             if (conf.cmprAlgo == ALGO_INTERP)
                 return SZ_decompress_Interp<T, N, HuffmanEncoderV1<int>>(conf, cmpData, cmpSize, decData);
-            if (conf.cmprAlgo != ALGO_LOSSLESS && conf.cmprAlgo != ALGO_BIOMDXTC)
+            if (conf.cmprAlgo != ALGO_LOSSLESS)
                 throw std::invalid_argument("SZ3: " + enum_to_string(static_cast<ALGO>(conf.cmprAlgo), ALGO_MAP) +
                                             " data of version " + versionStr(conf.sz3DataVer) +
                                             " is not supported; use SZ3 v" + versionStr(conf.sz3DataVer) +
@@ -202,8 +203,6 @@ void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize
         SZ_decompress_nopred<T, N>(conf, cmpData, cmpSize, decData);
     } else if (conf.cmprAlgo == ALGO_BIOMD) {
         SZ_decompress_bioMD<T, N>(conf, cmpData, cmpSize, decData);
-    } else if (conf.cmprAlgo == ALGO_BIOMDXTC) {
-        SZ_decompress_bioMDXtcBased<T, N>(conf, cmpData, cmpSize, decData);
     } else if (conf.cmprAlgo == ALGO_SPERR) {
 #if defined(__MINGW32__) || defined(__EMSCRIPTEN__)
         throw std::invalid_argument("SPERR algorithm is disabled for this build target.");

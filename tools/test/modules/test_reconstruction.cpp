@@ -79,11 +79,10 @@ TEST(SZ3_Reconstruction, SZCompressLeavesTheInputAsItWas) {
          {Case{SZ3::ALGO_LORENZO_REG}, Case{SZ3::ALGO_LORENZO_REG, true, false, false},
           Case{SZ3::ALGO_LORENZO_REG, false, true, false}, Case{SZ3::ALGO_LORENZO_REG, false, false, true},
           Case{SZ3::ALGO_LORENZO_REG, true, true, true}, Case{SZ3::ALGO_INTERP_LORENZO}, Case{SZ3::ALGO_INTERP},
-          Case{SZ3::ALGO_NOPRED}, Case{SZ3::ALGO_BIOMD}, Case{SZ3::ALGO_BIOMDXTC}}) {
+          Case{SZ3::ALGO_NOPRED}, Case{SZ3::ALGO_BIOMD}}) {
         for (const std::vector<size_t> &dims : {std::vector<size_t>{32, 341, 3}, std::vector<size_t>{5000},
                                                 std::vector<size_t>{70, 73}, std::vector<size_t>{5, 6, 7, 9}}) {
-            if (c.algo == SZ3::ALGO_BIOMDXTC && dims.size() == 4) continue;  // 1D to 3D only
-            if (c.algo == SZ3::ALGO_BIOMD && dims.back() != 3) continue;     // coordinates only
+            if (c.algo == SZ3::ALGO_BIOMD && dims.back() != 3) continue;  // coordinates only
             SZ3::Config conf;
             conf.setDims(dims.begin(), dims.end());
             conf.cmprAlgo = c.algo;
@@ -104,8 +103,8 @@ TEST(SZ3_Reconstruction, SZCompressLeavesTheInputAsItWas) {
 // An error bound that is negative or not finite leaves nothing to bound: every algorithm compresses losslessly, as with
 // a bound of 0.
 TEST(SZCompress, BoundsThatAreNotPositiveAndFiniteGoLossless) {
-    for (SZ3::ALGO algo : {SZ3::ALGO_LORENZO_REG, SZ3::ALGO_INTERP_LORENZO, SZ3::ALGO_INTERP, SZ3::ALGO_NOPRED,
-                           SZ3::ALGO_BIOMD, SZ3::ALGO_BIOMDXTC}) {
+    for (SZ3::ALGO algo :
+         {SZ3::ALGO_LORENZO_REG, SZ3::ALGO_INTERP_LORENZO, SZ3::ALGO_INTERP, SZ3::ALGO_NOPRED, SZ3::ALGO_BIOMD}) {
         for (double eb : {0.0, -1e-3, double(INFINITY), double(NAN)}) {
             SZ3::Config conf(40, 30, 3);
             conf.cmprAlgo = algo;
