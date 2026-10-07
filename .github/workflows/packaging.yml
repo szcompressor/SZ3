@@ -323,6 +323,15 @@ jobs:
           export PATH="/c/vcpkg/installed/x64-windows/bin:$PATH"
           tools/test/consumeInstalledSZ3.sh "$PWD/_prefix" /c/vcpkg/installed/x64-windows
 
+      # What vcpkg's and Conan's static Windows packages are: a consumer of the static SZ3c must not see dllimport.
+      - name: A static SZ3 installed and consumed
+        shell: bash
+        run: |
+          cmake -S . -B build-static -DBUILD_SHARED_LIBS=OFF
+          cmake --build build-static --config ${{ env.BUILD_TYPE }} --parallel 4
+          cmake --install build-static --config ${{ env.BUILD_TYPE }} --prefix "$PWD/_prefix_static"
+          tools/test/consumeInstalledSZ3.sh "$PWD/_prefix_static"
+
   windows-mingw:
     name: Install and consume (Windows MinGW)
     runs-on: windows-latest
