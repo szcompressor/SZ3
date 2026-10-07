@@ -79,8 +79,8 @@ jobs:
         shell: bash
         run: tools/H5Z-SZ3/test/filterSuite.sh "$PWD/_prefix"
 
-      # A parent that finds Zstd itself, as hdf5_plugins' ZSTD filter does, must not see SZ3's search. pkg-config caches
-      # what it finds under the prefix it is given, and libzstd.pc is installed on this runner.
+      # A parent that finds Zstd itself, as hdf5_plugins' ZSTD filter does, reads ZSTD_* from its cache. libzstd.pc is
+      # installed on this runner, so a pkg-config search for Zstd in SZ3 would leave them there.
       - name: SZ3 as a subproject leaves the parent's ZSTD_* alone
         shell: bash
         run: |
