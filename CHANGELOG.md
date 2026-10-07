@@ -265,7 +265,7 @@ Tag `v3.4.0`. The GitHub release lists #127–#183.
 - A Nix expression for NixOS. [#129](https://github.com/szcompressor/SZ3/pull/129)
 - `ALGO_BIOMD` is a new codec for molecular-dynamics coordinates `{frames, atoms, 3}` with an absolute bound: rigid water and bonded atoms are predicted from their geometry on an integer lattice. On 16 GROMACS trajectories at 5e-4 nm its compression ratio is 1.23 times that of the previous `ALGO_BIOMD` with one frame per chunk and 1.29 times with 20. Other shapes throw `std::invalid_argument` (in HDF5, creating the dataset fails); coordinates beyond its lattice (2048 nm at 5e-4 nm and 128 nm at 5e-5 nm for float) and NaN or Inf outside trailing fill frames go to lossless compression. [#169](https://github.com/szcompressor/SZ3/pull/169)
 - [docs/molecular-dynamics.md](docs/molecular-dynamics.md) for molecular-dynamics data, and the [advanced guide](docs/advanced-guide.md) for algorithms, building, CMake and packaging, the C++ API, OpenMP, floating point and contributing; the HDF5 filter's README covers using it in an application; the README is a quick start. [#173](https://github.com/szcompressor/SZ3/pull/173)
-- `find_package(SZ3 COMPONENTS SZ3c)` provides `SZ3::SZ3c`, the SZ2-compatible C library. [#177](https://github.com/szcompressor/SZ3/pull/177)
+- `find_package(SZ3 COMPONENTS SZ3c)` provides `SZ3::SZ3c`, the SZ2-compatible C library. A static one defines `SZ3C_STATIC` for its consumers, so it links on Windows. [#177](https://github.com/szcompressor/SZ3/pull/177), [#184](https://github.com/szcompressor/SZ3/pull/184)
 - Homebrew: `brew install szcompressor/tap/sz3`. [#176](https://github.com/szcompressor/SZ3/pull/176)
 - pysz builds against an installed SZ3 and its Zstd with `PYSZ_SZ3_PREFIX`. [#177](https://github.com/szcompressor/SZ3/pull/177)
 
@@ -279,6 +279,7 @@ Tag `v3.4.0`. The GitHub release lists #127–#183.
 - `Config::load` and the lossless stages take the length of the buffer they read. [#145](https://github.com/szcompressor/SZ3/pull/145)
 - Integer data compressed by earlier versions decompresses only with those versions. 8-byte integers beyond ±2^53 are refused. [#165](https://github.com/szcompressor/SZ3/pull/165)
 - `cmake --install` no longer installs `sz3_customized_demo` or `share/SZ3/testfloat_8_8_128.dat`.
+- A system Zstd is found with `find_library` (`SZ3_ZSTD_LIBRARY`), as an installed `SZ3Config.cmake` finds it, not with pkg-config, so SZ3 added as a subproject leaves the parent's `ZSTD_*` cache entries alone. [#184](https://github.com/szcompressor/SZ3/pull/184)
 - `libhdf5sz3` and `libSZ3c` export only their public functions, and carry an SOVERSION. [#158](https://github.com/szcompressor/SZ3/pull/158), [#159](https://github.com/szcompressor/SZ3/pull/159)
 - A static `libhdf5sz3` keeps `H5Pset_sz3`, `set_SZ3_conf_to_H5` and `get_SZ3_conf_from_H5` hidden in the shared library it is linked into, so they cannot take over another SZ3 copy's calls. `H5PLget_plugin_type` and `H5PLget_plugin_info` stay exported, as HDF5's `H5PLextern.h` declares them. [#174](https://github.com/szcompressor/SZ3/pull/174)
 - 32-bit builds (wasm32) and 64-bit builds decompress each other's data: every size in the stream is 8 bytes, as 64-bit builds already wrote it. [#177](https://github.com/szcompressor/SZ3/pull/177)
