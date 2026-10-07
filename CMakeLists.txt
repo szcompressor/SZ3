@@ -72,11 +72,14 @@ endif ()
 
 # "${MSVC}" reads as ON under MSVC and OFF everywhere else. Keep the quotes.
 option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" "${MSVC}")
-pkg_search_module(ZSTD libzstd)
-if (ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
-    # Not PkgConfig::ZSTD: that imported target does not exist in the consumer's project.
+# pkg-config caches its results under the prefix, so a parent's own ZSTD_* stays untouched.
+if (NOT SZ3_USE_BUNDLED_ZSTD)
+    pkg_search_module(SZ3_ZSTD libzstd)
+endif ()
+if (SZ3_ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
+    # Not PkgConfig::SZ3_ZSTD: that imported target does not exist in the consumer's project.
     # BUILD_INTERFACE, and no include directory: both are paths on this machine only.
-    target_link_libraries(SZ3core INTERFACE $<BUILD_INTERFACE:${ZSTD_LINK_LIBRARIES}>)
+    target_link_libraries(SZ3core INTERFACE $<BUILD_INTERFACE:${SZ3_ZSTD_LINK_LIBRARIES}>)
 else ()
     # What this build uses, for SZ3Config.cmake: the option only states a preference.
     set(SZ3_USE_BUNDLED_ZSTD ON)

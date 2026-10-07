@@ -79,6 +79,21 @@ jobs:
         shell: bash
         run: tools/H5Z-SZ3/test/filterSuite.sh "$PWD/_prefix"
 
+      # A parent that finds Zstd itself, as hdf5_plugins' ZSTD filter does, must not see SZ3's search. pkg-config caches
+      # what it finds under the prefix it is given, and libzstd.pc is installed on this runner.
+      - name: SZ3 as a subproject leaves the parent's ZSTD_* alone
+        shell: bash
+        run: |
+          mkdir -p _parent
+          printf 'cmake_minimum_required(VERSION 3.19)\nproject(parent CXX)\nadd_subdirectory(%s sz3)\n' "$PWD" > _parent/CMakeLists.txt
+          for bundled in ON OFF; do
+            rm -rf _parent/b
+            cmake -S _parent -B _parent/b -DSZ3_USE_BUNDLED_ZSTD=$bundled > /dev/null
+            if grep -E '^ZSTD_' _parent/b/CMakeCache.txt; then
+              echo "with SZ3_USE_BUNDLED_ZSTD=$bundled, SZ3 left the cache entries above in its parent"; exit 1
+            fi
+          done
+
       # BUILD_H5Z_FILTER is off by default, so a packaged SZ3 is likely to come without the filter;
       # find_package(SZ3 COMPONENTS hdf5sz3) must then decline and leave no targets behind.
       - name: An SZ3 installed without the filter
