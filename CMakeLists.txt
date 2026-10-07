@@ -32,8 +32,6 @@ else () #-Wunused-parameter
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wreorder -Wsign-compare -Wsuggest-override -Wold-style-cast -Wcast-qual -Wextra-semi -Wnon-virtual-dtor -Wcast-align -Wunused-variable")
 endif ()
 
-find_package(PkgConfig)
-
 configure_file(
         ${CMAKE_CURRENT_SOURCE_DIR}/include/SZ3/version.hpp.in
         ${CMAKE_CURRENT_BINARY_DIR}/include/SZ3/version.hpp)
@@ -72,14 +70,13 @@ endif ()
 
 # "${MSVC}" reads as ON under MSVC and OFF everywhere else. Keep the quotes.
 option(SZ3_USE_BUNDLED_ZSTD "prefer the bundled version of Zstd" "${MSVC}")
-# pkg-config caches its results under the prefix, so a parent's own ZSTD_* stays untouched.
 if (NOT SZ3_USE_BUNDLED_ZSTD)
-    pkg_search_module(SZ3_ZSTD libzstd)
+    # The search SZ3Config.cmake repeats in the consumer's project.
+    find_library(SZ3_ZSTD_LIBRARY NAMES zstd)
 endif ()
-if (SZ3_ZSTD_FOUND AND NOT SZ3_USE_BUNDLED_ZSTD)
-    # Not PkgConfig::SZ3_ZSTD: that imported target does not exist in the consumer's project.
+if (SZ3_ZSTD_LIBRARY AND NOT SZ3_USE_BUNDLED_ZSTD)
     # BUILD_INTERFACE, and no include directory: both are paths on this machine only.
-    target_link_libraries(SZ3core INTERFACE $<BUILD_INTERFACE:${SZ3_ZSTD_LINK_LIBRARIES}>)
+    target_link_libraries(SZ3core INTERFACE $<BUILD_INTERFACE:${SZ3_ZSTD_LIBRARY}>)
 else ()
     # What this build uses, for SZ3Config.cmake: the option only states a preference.
     set(SZ3_USE_BUNDLED_ZSTD ON)

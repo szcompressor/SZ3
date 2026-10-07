@@ -279,6 +279,7 @@ Tag `v3.4.0`. The GitHub release lists #127–#183.
 - `Config::load` and the lossless stages take the length of the buffer they read. [#145](https://github.com/szcompressor/SZ3/pull/145)
 - Integer data compressed by earlier versions decompresses only with those versions. 8-byte integers beyond ±2^53 are refused. [#165](https://github.com/szcompressor/SZ3/pull/165)
 - `cmake --install` no longer installs `sz3_customized_demo` or `share/SZ3/testfloat_8_8_128.dat`.
+- A system Zstd is found with `find_library` (`SZ3_ZSTD_LIBRARY`), as an installed `SZ3Config.cmake` finds it, not with pkg-config, so SZ3 added as a subproject leaves the parent's `ZSTD_*` cache entries alone. [#184](https://github.com/szcompressor/SZ3/pull/184)
 - `libhdf5sz3` and `libSZ3c` export only their public functions, and carry an SOVERSION. [#158](https://github.com/szcompressor/SZ3/pull/158), [#159](https://github.com/szcompressor/SZ3/pull/159)
 - A static `libhdf5sz3` keeps `H5Pset_sz3`, `set_SZ3_conf_to_H5` and `get_SZ3_conf_from_H5` hidden in the shared library it is linked into, so they cannot take over another SZ3 copy's calls. `H5PLget_plugin_type` and `H5PLget_plugin_info` stay exported, as HDF5's `H5PLextern.h` declares them. [#174](https://github.com/szcompressor/SZ3/pull/174)
 - 32-bit builds (wasm32) and 64-bit builds decompress each other's data: every size in the stream is 8 bytes, as 64-bit builds already wrote it. [#177](https://github.com/szcompressor/SZ3/pull/177)

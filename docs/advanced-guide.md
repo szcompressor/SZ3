@@ -49,7 +49,8 @@ buffers with huge pages, which makes compressing and decompressing large fields 
 
 ### Dependencies
 
-- **Zstd.** pkg-config first, else the vendored Zstd in `tools/zstd`, built as the private static target `sz3_zstd`
+- **Zstd.** `find_library(SZ3_ZSTD_LIBRARY NAMES zstd)` first, the search `SZ3Config.cmake` repeats for consumers, else
+  the vendored Zstd in `tools/zstd`, built as the private static target `sz3_zstd`
   with hidden symbols. Nothing is downloaded at configure time, so SZ3 builds offline. No SZ3 header includes
   `zstd.h` (`Lossless_zstd.hpp` declares the four functions it calls), so consumers need no Zstd include directory;
   keep it that way.
