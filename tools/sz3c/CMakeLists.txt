@@ -9,6 +9,10 @@ target_link_libraries(
 )
 
 target_compile_definitions(SZ3c PRIVATE SZ3C_EXPORTS)
+if (NOT BUILD_SHARED_LIBS)
+    # Otherwise sz3c.h marks the functions of a static SZ3c dllimport on Windows.
+    target_compile_definitions(SZ3c PUBLIC SZ3C_STATIC)
+endif ()
 set_target_properties(SZ3c PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
 set_target_properties(SZ3c PROPERTIES VERSION ${SZ3_VERSION} SOVERSION ${SZ3_VERSION_MAJOR}.${SZ3_VERSION_MINOR})
 

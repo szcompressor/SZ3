@@ -49,7 +49,8 @@ buffers with huge pages, which makes compressing and decompressing large fields 
 
 ### Dependencies
 
-- **Zstd.** pkg-config first, else the vendored Zstd in `tools/zstd`, built as the private static target `sz3_zstd`
+- **Zstd.** `find_library(SZ3_ZSTD_LIBRARY NAMES zstd)` first, the search `SZ3Config.cmake` repeats for consumers, else
+  the vendored Zstd in `tools/zstd`, built as the private static target `sz3_zstd`
   with hidden symbols. Nothing is downloaded at configure time, so SZ3 builds offline. No SZ3 header includes
   `zstd.h` (`Lossless_zstd.hpp` declares the four functions it calls), so consumers need no Zstd include directory;
   keep it that way.
@@ -77,6 +78,7 @@ buffers with huge pages, which makes compressing and decompressing large fields 
 - A static `hdf5sz3` is position independent and defines `HDF5SZ3_STATIC` for its consumers. Its own functions
   are hidden in the shared library that links it; HDF5's `H5PLextern.h` makes `H5PLget_plugin_type` and
   `H5PLget_plugin_info` exported.
+- A static `SZ3c` defines `SZ3C_STATIC` for its consumers, so `sz3c.h` does not mark its functions dllimport.
 - Install rules use `$<TARGET_FILE:...>`. `bin/sz3_smoke_test` exits 0 on a working install; Spack runs it.
 
 ## Using SZ3 from CMake

@@ -36,7 +36,9 @@
 /** End dataType in SZ2 (defines.h) **/
 
 #ifdef _WIN32
-#ifdef SZ3C_EXPORTS
+#if defined(SZ3C_STATIC)
+#define SZ3C_API
+#elif defined(SZ3C_EXPORTS)
 #define SZ3C_API __declspec(dllexport)
 #else
 #define SZ3C_API __declspec(dllimport)
