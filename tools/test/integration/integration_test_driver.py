@@ -110,12 +110,56 @@ def write_metrics(rows, path):
     print(f"Wrote {len(rows)} rows of compression metrics to {path}")
 
 
+def prepare_sdrbench(spec, dataset_dir, dataset_info):
+    """Fetches only the listed fields of an SDRBench dataset ("sdrbench:<dataset>[/<variant>]")
+    with the sdrbench package: single files from the Hugging Face mirror in parallel, sha256
+    checked, falling back to the original Globus archive. Fields keep their SDRBench file names.
+    The dims and dtype listed here must agree with the sdrbench catalog, so this table cannot
+    drift from the data. Returns the directory holding the files."""
+    import sdrbench
+
+    name, _, variant = spec.partition("/")
+    variants = [variant] if variant else sdrbench.dataset(name).variants
+    wanted = list((dataset_info or {}).get("fields", {}))
+    found = {}
+    for v in variants:  # a field is looked up by its file name in the given (or any) variant
+        ds = sdrbench.dataset(name, v)
+        for fname in wanted:
+            for f in ds.files:
+                if fname not in found and f.filename == fname and not f.transpose and f.index is None:
+                    found[fname] = f
+    missing = [f for f in wanted if f not in found]
+    if missing:
+        raise SystemExit(f"{spec}: fields {missing} are not files of this SDRBench dataset")
+    folders = {f.path.rsplit("/", 1)[0] for f in found.values()}
+    if len(folders) != 1:
+        raise SystemExit(f"{spec}: the fields live in several folders {sorted(folders)}; split the entry")
+    for fname, f in found.items():
+        info = dataset_info["fields"][fname]
+        dtype = info.get("dtype", "float32")
+        import numpy as np
+        if list(info["dims"]) != list(f.shape) or np.dtype(dtype) != np.dtype(f.dtype):
+            raise SystemExit(f"{spec}/{fname}: datasets.json says {dtype} {info['dims']}, "
+                             f"SDRBench catalog says {f.dtype} {list(f.shape)}")
+    by_variant = {}
+    for f in found.values():
+        by_variant.setdefault(f.variant, []).append(f.name)
+    for v, fields in by_variant.items():
+        for p in sdrbench.dataset(name, v).download(dataset_dir, fields=fields):
+            print(f"Fetched {p}")
+    return os.path.join(dataset_dir, folders.pop())
+
+
 def prepare_dataset(path, dataset_dir, dataset_info=None):
     """
-    Prepares the dataset: "mdtraj:<name>" fetches and converts a published MD trajectory,
+    Prepares the dataset: "sdrbench:<dataset>[/<variant>]" fetches the listed fields with the
+    sdrbench package, "mdtraj:<name>" fetches and converts a published MD trajectory,
     an http path is downloaded and extracted, a local path is copied.
     Returns the actual directory that directly containing the files.
     """
+    if path.startswith('sdrbench:'):
+        return prepare_sdrbench(path.split(':', 1)[1], dataset_dir, dataset_info)
+
     if path.startswith('mdtraj:'):
         # A published trajectory, which fetch_md_trajectory.py downloads and converts to the raw
         # arrays every other dataset here already is. Only the fields this run asks for are

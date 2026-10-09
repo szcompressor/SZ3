@@ -95,6 +95,8 @@ jobs:
         sudo apt-get install -y libhdf5-dev hdf5-tools
         python -m pip install --upgrade pip
         pip install numpy h5py requests --no-binary h5py
+        # SDRBench fields, fetched one file at a time from its Hugging Face mirror
+        pip install "sdrbench>=0.1"
         # Reads the DCD, XTC and NetCDF trajectories the md-* datasets are published as.
         pip install MDAnalysis
 
