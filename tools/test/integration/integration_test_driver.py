@@ -110,12 +110,56 @@ def write_metrics(rows, path):
     print(f"Wrote {len(rows)} rows of compression metrics to {path}")
 
 
+def expand_sdrbench(datasets):
+    """datasets.json entries with "path": "sdrbench:<dataset>/<variant>" only say what to test:
+    optionally "fields", a list of sdrbench field names (default: every field of the variant).
+    Fills in the fields of "sdrbench:<dataset>/<variant>" entries from the sdrbench catalog:
+    for each field (all of the variant unless "fields" lists sdrbench field names) its file,
+    dims and dtype. datasets.json only says what to test; the data's layout lives in sdrbench."""
+    entries = {k: v for k, v in datasets.items() if v["path"].startswith("sdrbench:")}
+    if not entries:
+        return datasets
+    import numpy as np
+    import sdrbench
+
+    for key, info in entries.items():
+        name, _, variant = info["path"].split(":", 1)[1].partition("/")
+        ds = sdrbench.dataset(name, variant or None)
+        wanted = info.get("fields") or ds.fields
+        fields = {}
+        for n in wanted:
+            f = ds.field(n)
+            if f.transpose or f.index is not None:
+                raise SystemExit(f"{key}: {n} is a derived view, not a stored file")
+            fields[f.name] = {"dims": list(f.shape), "dtype": np.dtype(f.dtype).name, "file": f.filename}
+        datasets[key] = {**info, "fields": fields}
+    return datasets
+
+
+def prepare_sdrbench(spec, dataset_dir, dataset_info):
+    """Fetches only the selected fields of an SDRBench dataset with the sdrbench package: single
+    files from its Hugging Face mirror in parallel, sha256 checked, falling back to the original
+    Globus archive. Returns the directory holding the files (original SDRBench file names)."""
+    import sdrbench
+
+    name, _, variant = spec.partition("/")
+    ds = sdrbench.dataset(name, variant or None)
+    paths = ds.download(dataset_dir, fields=list(dataset_info["fields"]))
+    for p in paths:
+        print(f"Fetched {p}")
+    return os.path.dirname(paths[0])
+
+
 def prepare_dataset(path, dataset_dir, dataset_info=None):
     """
-    Prepares the dataset: "mdtraj:<name>" fetches and converts a published MD trajectory,
+    Prepares the dataset: "sdrbench:<dataset>[/<variant>]" fetches the listed fields with the
+    sdrbench package, "mdtraj:<name>" fetches and converts a published MD trajectory,
     an http path is downloaded and extracted, a local path is copied.
     Returns the actual directory that directly containing the files.
     """
+    if path.startswith('sdrbench:'):
+        return prepare_sdrbench(path.split(':', 1)[1], dataset_dir, dataset_info)
+
     if path.startswith('mdtraj:'):
         # A published trajectory, which fetch_md_trajectory.py downloads and converts to the raw
         # arrays every other dataset here already is. Only the fields this run asks for are
@@ -208,6 +252,8 @@ def main():
         print(f"Error: Invalid JSON in '{datasets_json}': {e}")
         sys.exit(1)
 
+    datasets = expand_sdrbench(datasets)
+
     if len(sys.argv) > 2:
         # "name" runs the whole dataset, "name:a.f32,b.f32" runs those fields of it, so a dataset
         # too slow to be one job can be spread over several.
@@ -283,7 +329,7 @@ def run_datasets(datasets, data_dir, script_dir, sz3_executable_path, h5_plugin_
             
             for algo in algorithms:
                 for eb in error_bounds:
-                    data_file = os.path.join(actual_data_dir, field)
+                    data_file = os.path.join(actual_data_dir, field_info.get("file", field))
                     if not os.path.isfile(data_file):
                         print(f"Data file {data_file} does not exist. Skipping")
                         continue
