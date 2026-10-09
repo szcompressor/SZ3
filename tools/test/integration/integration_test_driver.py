@@ -110,44 +110,44 @@ def write_metrics(rows, path):
     print(f"Wrote {len(rows)} rows of compression metrics to {path}")
 
 
+def expand_sdrbench(datasets):
+    """datasets.json entries with "path": "sdrbench:<dataset>/<variant>" only say what to test:
+    optionally "fields", a list of sdrbench field names (default: every field of the variant).
+    Fills in the fields of "sdrbench:<dataset>/<variant>" entries from the sdrbench catalog:
+    for each field (all of the variant unless "fields" lists sdrbench field names) its file,
+    dims and dtype. datasets.json only says what to test; the data's layout lives in sdrbench."""
+    entries = {k: v for k, v in datasets.items() if v["path"].startswith("sdrbench:")}
+    if not entries:
+        return datasets
+    import numpy as np
+    import sdrbench
+
+    for key, info in entries.items():
+        name, _, variant = info["path"].split(":", 1)[1].partition("/")
+        ds = sdrbench.dataset(name, variant or None)
+        wanted = info.get("fields") or ds.fields
+        fields = {}
+        for n in wanted:
+            f = ds.field(n)
+            if f.transpose or f.index is not None:
+                raise SystemExit(f"{key}: {n} is a derived view, not a stored file")
+            fields[f.name] = {"dims": list(f.shape), "dtype": np.dtype(f.dtype).name, "file": f.filename}
+        datasets[key] = {**info, "fields": fields}
+    return datasets
+
+
 def prepare_sdrbench(spec, dataset_dir, dataset_info):
-    """Fetches only the listed fields of an SDRBench dataset ("sdrbench:<dataset>[/<variant>]")
-    with the sdrbench package: single files from the Hugging Face mirror in parallel, sha256
-    checked, falling back to the original Globus archive. Fields keep their SDRBench file names.
-    The dims and dtype listed here must agree with the sdrbench catalog, so this table cannot
-    drift from the data. Returns the directory holding the files."""
+    """Fetches only the selected fields of an SDRBench dataset with the sdrbench package: single
+    files from its Hugging Face mirror in parallel, sha256 checked, falling back to the original
+    Globus archive. Returns the directory holding the files (original SDRBench file names)."""
     import sdrbench
 
     name, _, variant = spec.partition("/")
-    variants = [variant] if variant else sdrbench.dataset(name).variants
-    wanted = list((dataset_info or {}).get("fields", {}))
-    found = {}
-    for v in variants:  # a field is looked up by its file name in the given (or any) variant
-        ds = sdrbench.dataset(name, v)
-        for fname in wanted:
-            for f in ds.files:
-                if fname not in found and f.filename == fname and not f.transpose and f.index is None:
-                    found[fname] = f
-    missing = [f for f in wanted if f not in found]
-    if missing:
-        raise SystemExit(f"{spec}: fields {missing} are not files of this SDRBench dataset")
-    folders = {f.path.rsplit("/", 1)[0] for f in found.values()}
-    if len(folders) != 1:
-        raise SystemExit(f"{spec}: the fields live in several folders {sorted(folders)}; split the entry")
-    for fname, f in found.items():
-        info = dataset_info["fields"][fname]
-        dtype = info.get("dtype", "float32")
-        import numpy as np
-        if list(info["dims"]) != list(f.shape) or np.dtype(dtype) != np.dtype(f.dtype):
-            raise SystemExit(f"{spec}/{fname}: datasets.json says {dtype} {info['dims']}, "
-                             f"SDRBench catalog says {f.dtype} {list(f.shape)}")
-    by_variant = {}
-    for f in found.values():
-        by_variant.setdefault(f.variant, []).append(f.name)
-    for v, fields in by_variant.items():
-        for p in sdrbench.dataset(name, v).download(dataset_dir, fields=fields):
-            print(f"Fetched {p}")
-    return os.path.join(dataset_dir, folders.pop())
+    ds = sdrbench.dataset(name, variant or None)
+    paths = ds.download(dataset_dir, fields=list(dataset_info["fields"]))
+    for p in paths:
+        print(f"Fetched {p}")
+    return os.path.dirname(paths[0])
 
 
 def prepare_dataset(path, dataset_dir, dataset_info=None):
@@ -252,6 +252,8 @@ def main():
         print(f"Error: Invalid JSON in '{datasets_json}': {e}")
         sys.exit(1)
 
+    datasets = expand_sdrbench(datasets)
+
     if len(sys.argv) > 2:
         # "name" runs the whole dataset, "name:a.f32,b.f32" runs those fields of it, so a dataset
         # too slow to be one job can be spread over several.
@@ -327,7 +329,7 @@ def run_datasets(datasets, data_dir, script_dir, sz3_executable_path, h5_plugin_
             
             for algo in algorithms:
                 for eb in error_bounds:
-                    data_file = os.path.join(actual_data_dir, field)
+                    data_file = os.path.join(actual_data_dir, field_info.get("file", field))
                     if not os.path.isfile(data_file):
                         print(f"Data file {data_file} does not exist. Skipping")
                         continue

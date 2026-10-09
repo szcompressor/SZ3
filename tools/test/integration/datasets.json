@@ -1,106 +1,14 @@
 {
-  "exaalt-small": {
-    "path": "sdrbench:exaalt/small",
-    "fields": {
-      "xx.f32": {"dims": [2869440], "dtype": "float32"},
-      "yy.f32": {"dims": [2869440], "dtype": "float32"},
-      "zz.f32": {"dims": [2869440], "dtype": "float32"},
-      "vx.f32": {"dims": [2869440], "dtype": "float32"},
-      "vy.f32": {"dims": [2869440], "dtype": "float32"},
-      "vz.f32": {"dims": [2869440], "dtype": "float32"}
-    }
-  }, 
-  "hurricane": {
-    "path": "sdrbench:hurricane-isabel/snapshot",
-    "fields": {
-      "QCLOUDf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
-      "Wf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
-      "QRAINf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
-      "QGRAUPf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
-      "QCLOUDf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
-      "QSNOWf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
-      "Uf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
-      "TCf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
-      "Pf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
-      "QVAPORf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
-      "Vf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
-      "QICEf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
-      "CLOUDf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"},
-      "PRECIPf48.bin.f32": {"dims": [100,500,500], "dtype": "float32"}
-    }
-  },
-  "miranda": {
-    "path": "sdrbench:miranda/small",
-    "fields": {
-      "velocityx.d64": {"dims": [256,384,384], "dtype": "float64"},
-      "velocityy.d64": {"dims": [256,384,384], "dtype": "float64"},
-      "diffusivity.d64": {"dims": [256,384,384], "dtype": "float64"},
-      "pressure.d64": {"dims": [256,384,384], "dtype": "float64"},
-      "velocityz.d64": {"dims": [256,384,384], "dtype": "float64"},
-      "viscocity.d64": {"dims": [256,384,384], "dtype": "float64"},
-      "density.d64": {"dims": [256,384,384], "dtype": "float64"}
-    }
-  },
-  "cesm-atm": {
-    "path": "sdrbench:cesm-atm/2d",
-    "fields": {
-      "CLDMED_1_1800_3600.f32": {"dims": [1800,3600], "dtype": "float32"},
-      "ODV_bcar1_1_1800_3600.f32": {"dims": [1800,3600], "dtype": "float32"},
-      "SNOWHICE_1_1800_3600.f32": {"dims": [1800,3600], "dtype": "float32"},
-      "QREFHT_1_1800_3600.f32": {"dims": [1800,3600], "dtype": "float32"},
-      "FLNS_1_1800_3600.f32": {"dims": [1800,3600], "dtype": "float32"}
-    }
-  },
-  "scale-letkf": {
-    "path": "sdrbench:scale-letkf/original",
-    "fields": {
-      "T-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
-      "PRES-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
-      "U-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
-      "V-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
-      "QC-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
-      "QS-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
-      "QG-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
-      "QV-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
-      "W-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
-      "QI-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
-      "RH-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"},
-      "QR-98x1200x1200.f32": {"dims": [98,1200,1200], "dtype": "float32"}
-    }
-  },
-  "hacc": {
-    "path": "sdrbench:hacc/medium",
-    "fields": {
-      "vz.f32": {"dims": [280953867], "dtype": "float32"},
-      "vx.f32": {"dims": [280953867], "dtype": "float32"},
-      "vy.f32": {"dims": [280953867], "dtype": "float32"},
-      "zz.f32": {"dims": [280953867], "dtype": "float32"},
-      "xx.f32": {"dims": [280953867], "dtype": "float32"},
-      "yy.f32": {"dims": [280953867], "dtype": "float32"}
-    }
-  }, 
-  "exaalt-copper": {
-    "path": "sdrbench:exaalt",
-    "fields": {
-      "dataset1-5423x3137.x.f32.dat": {"dims": [5423, 3137], "dtype": "float32"},
-      "dataset1-5423x3137.y.f32.dat": {"dims": [5423, 3137], "dtype": "float32"},
-      "dataset1-5423x3137.z.f32.dat": {"dims": [5423, 3137], "dtype": "float32"},
-      "dataset2-83x1077290.x.f32.dat": {"dims": [83, 1077290], "dtype": "float32"},
-      "dataset2-83x1077290.y.f32.dat": {"dims": [83, 1077290], "dtype": "float32"},
-      "dataset2-83x1077290.z.f32.dat": {"dims": [83, 1077290], "dtype": "float32"}
-    }
-  }, 
-  "exaalt-helium": {
-    "path": "sdrbench:exaalt",
-    "fields": {
-      "dataset1-7852x1037.x.f32.dat": {"dims": [7852, 1037], "dtype": "float32"},
-      "dataset1-7852x1037.y.f32.dat": {"dims": [7852, 1037], "dtype": "float32"},
-      "dataset1-7852x1037.z.f32.dat": {"dims": [7852, 1037], "dtype": "float32"},
-      "dataset2-2338x106711.x.f32.dat": {"dims": [2338, 106711], "dtype": "float32"},
-      "dataset2-2338x106711.y.f32.dat": {"dims": [2338, 106711], "dtype": "float32"},
-      "dataset2-2338x106711.z.f32.dat": {"dims": [2338, 106711], "dtype": "float32"}
-    }
-  },
+  "exaalt-small": {"path": "sdrbench:exaalt/small"},
+  "hurricane": {"path": "sdrbench:hurricane-isabel/snapshot", "fields": ["QCLOUD", "W", "QRAIN", "QGRAUP", "QSNOW", "U", "TC", "P", "QVAPOR", "V", "QICE", "CLOUD", "PRECIP"]},
+  "miranda": {"path": "sdrbench:miranda/small"},
+  "cesm-atm": {"path": "sdrbench:cesm-atm/2d", "fields": ["CLDMED", "ODV_bcar1", "SNOWHICE", "QREFHT", "FLNS"]},
+  "scale-letkf": {"path": "sdrbench:scale-letkf/original"},
+  "hacc": {"path": "sdrbench:hacc/medium"},
+  "exaalt-copper-1": {"path": "sdrbench:exaalt/copper-1"},
+  "exaalt-copper-2": {"path": "sdrbench:exaalt/copper-2"},
+  "exaalt-helium-1": {"path": "sdrbench:exaalt/helium-1"},
+  "exaalt-helium-2": {"path": "sdrbench:exaalt/helium-2"},
   "md-peg-1chain": {
     "path": "mdtraj:peg-1chain",
     "fields": {
