@@ -9,6 +9,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <random>
 #include <sstream>
@@ -66,6 +67,7 @@ template <typename Type>
 void writeTextFile(const char *file, Type *data, size_t num_elements) {
     std::ofstream fout(file);
     if (fout.is_open()) {
+        fout << std::setprecision(std::numeric_limits<Type>::max_digits10);
         for (size_t i = 0; i < num_elements; i++) {
             fout << data[i] << std::endl;
         }
