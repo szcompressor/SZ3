@@ -10,6 +10,7 @@ cmake-build-*
 install
 .DS_Store
 .vscode
+.zed
 .cache
 .claude
 tmp
