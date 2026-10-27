@@ -428,7 +428,11 @@ static int run(int argc, char *argv[]) {
     }
 
     SZ3::Config conf;
-    if (r2 == 0) {
+    if (r1 == 0) {
+        // Decompression loads dimensions from the stream; absent CLI dimensions
+        // must not become an explicitly zero-sized configuration.
+        if (compression) argError("compression requires dimensions (-1/-2/-3/-4)");
+    } else if (r2 == 0) {
         conf = SZ3::Config(r1);
     } else if (r3 == 0) {
         conf = SZ3::Config(r2, r1);

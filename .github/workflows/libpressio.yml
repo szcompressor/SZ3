@@ -64,6 +64,11 @@ jobs:
         run: |
           git clone -q https://github.com/robertu94/libpressio.git _libpressio
           git -C _libpressio checkout -q ${{ env.LIBPRESSIO_REF }}
+          # v1.0.7 uses uint64_t/int64_t in domain.h without including <cstdint>.
+          # GCC 15 no longer supplies it transitively; patch this pinned dependency
+          # so its own compilation reaches the SZ3 plugin we need to check.
+          sed -i '/^#include <cstddef>$/a #include <cstdint>' \
+            _libpressio/include/libpressio_ext/cpp/domain.h
           cmake -S _libpressio -B _libpressio/build \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
             -DBUILD_TESTING=OFF \

@@ -19,6 +19,10 @@
 #include "SZ3/api/sz.hpp"
 #include "gtest/gtest.h"
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 namespace {
 
 /// A water-box trajectory: atoms placed on a jittered lattice, then walking a little each frame.
@@ -226,3 +230,45 @@ TEST(SZ3_BioMD, RemovedXtcAlgorithmIsRefused) {
         }
     }
 }
+
+#ifdef _OPENMP
+namespace {
+
+template <class T>
+void single_atom_openmp_round_trip() {
+    // Restore the caller's OpenMP settings even if a fatal assertion or exception ends the test.
+    struct RestoreOpenMP {
+        int threads = omp_get_max_threads();
+        int dynamic = omp_get_dynamic();
+        ~RestoreOpenMP() {
+            omp_set_num_threads(threads);
+            omp_set_dynamic(dynamic);
+        }
+    } restore;
+    omp_set_dynamic(0);
+    for (int threads : {1, 2, 3, 4, 8}) {
+        SCOPED_TRACE(threads);
+        omp_set_num_threads(threads);
+        SZ3::Config conf(1, 1, 3);
+        conf.cmprAlgo = SZ3::ALGO_BIOMD;
+        conf.errorBoundMode = SZ3::EB_ABS;
+        conf.absErrorBound = 5e-4;
+        conf.openmp = true;
+        const std::vector<T> input = {T(0.1), T(0.2), T(0.3)};
+        std::vector<char> compressed(SZ3::SZ_compress_size_bound<T>(conf));
+        const size_t size = SZ_compress(conf, input.data(), compressed.data(), compressed.size());
+        std::vector<T> output(input.size());
+        T *out = output.data();
+        SZ3::Config decoded;
+        SZ_decompress(decoded, compressed.data(), size, out);
+        ASSERT_EQ(decoded.num, input.size());
+        for (size_t i = 0; i < input.size(); i++)
+            EXPECT_LE(std::fabs(double(output[i]) - double(input[i])), conf.absErrorBound);
+    }
+}
+
+}  // namespace
+
+TEST(SZ3_BioMD, SingleFloatAtomWithOpenMP) { single_atom_openmp_round_trip<float>(); }
+TEST(SZ3_BioMD, SingleDoubleAtomWithOpenMP) { single_atom_openmp_round_trip<double>(); }
+#endif
