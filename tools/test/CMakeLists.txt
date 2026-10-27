@@ -22,6 +22,15 @@ endif()
 include(CTest)
 include(GoogleTest)
 
+if (BUILD_SZ3_BINARY)
+    add_test(NAME SZ3_CLI_DecompressWithoutDimensions
+            COMMAND ${CMAKE_COMMAND}
+            -DSZ3_EXECUTABLE=$<TARGET_FILE:sz3>
+            -DINPUT=${PROJECT_SOURCE_DIR}/tools/sz3/testfloat_8_8_128.dat
+            -DWORK=${CMAKE_CURRENT_BINARY_DIR}/cli-no-dimensions
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cli_no_dimensions.cmake)
+endif ()
+
 # Collect all test source files
 file(GLOB TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/modules/*.cpp")
 

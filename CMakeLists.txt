@@ -84,6 +84,8 @@ else ()
     target_link_libraries(SZ3core INTERFACE sz3_zstd)
 endif ()
 
+option(BUILD_SZ3_BINARY "build SZ3 tools" ${SZ3_IS_TOP_LEVEL})
+
 # Only at top level: a parent's BUILD_TESTING is for its own tests, and SZ3's would fetch a second googletest.
 if (BUILD_TESTING AND SZ3_IS_TOP_LEVEL)
     enable_testing()
@@ -91,7 +93,6 @@ if (BUILD_TESTING AND SZ3_IS_TOP_LEVEL)
 endif ()
 
 
-option(BUILD_SZ3_BINARY "build SZ3 tools" ${SZ3_IS_TOP_LEVEL})
 if (BUILD_SZ3_BINARY)
     add_subdirectory(tools/sz3)
     add_subdirectory(tools/sz3c)
