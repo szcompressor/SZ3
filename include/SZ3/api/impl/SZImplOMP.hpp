@@ -37,6 +37,8 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
     if (ext < static_cast<size_t>(nThreads)) {
         nThreads = static_cast<int>(ext);
     }
+    // A normalized {1, 1, 3} shape has only its xyz axis left; it must stay whole.
+    if (conf.cmprAlgo == ALGO_BIOMD && conf.N == 1) nThreads = 1;
     std::vector<T> min_t(nThreads), max_t(nThreads);
     std::vector<Config> conf_t(nThreads);
     std::vector<std::unique_ptr<uchar[]>> compressed_t(nThreads);
