@@ -4,7 +4,10 @@
 #set(HDF5_LIBRARIES "/path/to/hdf5-1.12.1/hdf5/lib/libhdf5.so")
 #set(HDF5_INCLUDE_DIRS "/path/to/hdf5-1.12.1/hdf5/include")
 
-find_package(HDF5 COMPONENTS C REQUIRED)
+# Not when a parent project already provides HDF5::HDF5, for example one that builds HDF5 itself.
+if (NOT TARGET HDF5::HDF5)
+    find_package(HDF5 COMPONENTS C REQUIRED)
+endif ()
 
 #message("HDF5LIB PATH:" ${HDF5_LIBRARIES})
 #message("HDF5INCLUDE PATH:" ${HDF5_INCLUDE_DIRS})
