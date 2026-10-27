@@ -159,10 +159,13 @@ class Config {
      * @param begin Iterator to the beginning of the dimensions.
      * @param end Iterator to the end of the dimensions.
      * @return Total number of elements in the data.
+     * @throws std::invalid_argument if any dimension is zero.
      */
     template <class Iter>
     size_t setDims(Iter begin, Iter end) {
         auto dims_ = std::vector<size_t>(begin, end);
+        if (std::any_of(dims_.begin(), dims_.end(), [](size_t dim) { return dim == 0; }))
+            throw std::invalid_argument("SZ3: dimensions must be positive");
         dims.clear();
         for (auto dim : dims_) {
             if (dim > 1) {

@@ -48,3 +48,32 @@ TEST(SZ3_Config, LoadRefusesASizeShorterThanItsFields) {
     size_t remaining = buf.size();
     EXPECT_THROW(loaded.load(p, remaining), std::out_of_range);
 }
+
+TEST(SZ3_Config, ConstructorRejectsZeroDimensions) {
+    EXPECT_THROW((SZ3::Config(0, 17, 3)), std::invalid_argument);
+    EXPECT_THROW((SZ3::Config(17, 0, 3)), std::invalid_argument);
+    EXPECT_THROW((SZ3::Config(17, 3, 0)), std::invalid_argument);
+    EXPECT_THROW((SZ3::Config(0)), std::invalid_argument);
+}
+
+TEST(SZ3_Config, SetDimsRejectsZeroWithoutChangingTheConfig) {
+    SZ3::Config conf(2, 17, 3);
+    const auto original_dims = conf.dims;
+    const auto original_num = conf.num;
+    const auto original_n = conf.N;
+    for (const std::vector<size_t> dims : {std::vector<size_t>{0, 17, 3}, {17, 0, 3}, {17, 3, 0}, {0}}) {
+        EXPECT_THROW(conf.setDims(dims.begin(), dims.end()), std::invalid_argument);
+        EXPECT_EQ(conf.dims, original_dims);
+        EXPECT_EQ(conf.num, original_num);
+        EXPECT_EQ(conf.N, original_n);
+    }
+}
+
+TEST(SZ3_Config, SingletonDimensionsStillNormalize) {
+    SZ3::Config atom(1, 1, 3);
+    EXPECT_EQ(atom.dims, (std::vector<size_t>{3}));
+    EXPECT_EQ(atom.num, 3u);
+    SZ3::Config scalar(1, 1, 1);
+    EXPECT_EQ(scalar.dims, (std::vector<size_t>{1}));
+    EXPECT_EQ(scalar.num, 1u);
+}
