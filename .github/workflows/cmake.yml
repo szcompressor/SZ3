@@ -253,7 +253,8 @@ jobs:
 
   toolchains:
     name: ${{ matrix.cc }} shared=${{ matrix.shared }}
-    runs-on: ubuntu-latest
+    # Keep older compiler packages available as ubuntu-latest advances.
+    runs-on: ubuntu-24.04
     # Separate from build-linux, which feeds one digest to compare and one artifact to
     # build-windows; a matrix would make both ambiguous.
     strategy:
@@ -266,8 +267,11 @@ jobs:
 
       - name: Install the toolchain and HDF5
         run: |
+          toolchain=${{ matrix.cc }}
+          # g++ installs the matching gcc too; gcc alone does not install g++.
+          case "$toolchain" in gcc-*) toolchain="g++-${toolchain#gcc-}";; esac
           sudo apt-get update
-          sudo apt-get install -y libhdf5-dev hdf5-tools libzstd-dev ${{ matrix.cc }}
+          sudo apt-get install -y libhdf5-dev hdf5-tools libzstd-dev "$toolchain"
 
       - name: Build and test
         shell: bash
