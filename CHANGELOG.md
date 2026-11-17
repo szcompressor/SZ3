@@ -345,4 +345,4 @@ Single-threaded on an Intel i9-13900K (GCC 13, `-O3`). SZ3 uses its default `ALG
 - The HDF5 filter takes HDF5's include directories only from `HDF5::HDF5`, so a parent project that defines `HDF5::HDF5` itself must give that target its include directories. This fixes the filter being built from the wrong headers when an older SZ3 is installed next to HDF5 (GROMACS #5821). [#194](https://github.com/szcompressor/SZ3/pull/194)
 
 **Fixes**
-- SZ3's headers have no clang-tidy findings under GROMACS's configuration and no clang `-Wcomma` warnings. The compressed output is unchanged. [#194](https://github.com/szcompressor/SZ3/pull/194)
+- SZ3's headers have no clang `-Wcomma` warnings, and clang-tidy under GROMACS's configuration reports 8 findings instead of 350, all at code that is correct as written. The compressed output is unchanged. [#194](https://github.com/szcompressor/SZ3/pull/194)
