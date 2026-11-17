@@ -48,21 +48,21 @@ class HuffmanEncoderV1 : public concepts::EncoderInterface<T> {
         return tree;
     }
 
-    void preprocess_encode(const std::vector<T> & /*unused*/, int /*unused*/) override {
+    [[noreturn]] void preprocess_encode(const std::vector<T> & /*unused*/, int /*unused*/) override {
         throw std::logic_error(kDecodeOnly);
     }
 
-    void save(uchar *& /*unused*/) override { throw std::logic_error(kDecodeOnly); }
+    [[noreturn]] void save(uchar *& /*unused*/) override { throw std::logic_error(kDecodeOnly); }
 
-    size_t size_est() override { throw std::logic_error(kDecodeOnly); }
+    [[noreturn]] size_t size_est() override { throw std::logic_error(kDecodeOnly); }
 
-    static size_t size_bound(size_t /*unused*/, size_t /*unused*/) { throw std::logic_error(kDecodeOnly); }
+    [[noreturn]] static size_t size_bound(size_t /*unused*/, size_t /*unused*/) { throw std::logic_error(kDecodeOnly); }
 
-    size_t encode(const std::vector<T> & /*unused*/, uchar *& /*unused*/) override {
+    [[noreturn]] size_t encode(const std::vector<T> & /*unused*/, uchar *& /*unused*/) override {
         throw std::logic_error(kDecodeOnly);
     }
 
-    void postprocess_encode() override { throw std::logic_error(kDecodeOnly); }
+    [[noreturn]] void postprocess_encode() override { throw std::logic_error(kDecodeOnly); }
 
     void preprocess_decode() override {}
 
