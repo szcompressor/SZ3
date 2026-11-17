@@ -107,7 +107,9 @@ target_link_libraries(app PRIVATE SZ3::hdf5sz3)
   fall back to its own copy. No `REQUIRED` searches inside it.
 - Never export build-machine paths or build-only targets: wrap such paths in `$<BUILD_INTERFACE:...>` and quote
   generator expressions that hold paths.
-- If the consumer already has `HDF5::HDF5`, SZ3 does not search HDF5 again. OpenMP is searched per enabled language.
+- If the consumer already has `HDF5::HDF5`, SZ3 does not search HDF5 again. That target must carry HDF5's include
+  directories (`INTERFACE_INCLUDE_DIRECTORIES`): the filter takes them from the target and from nowhere else. OpenMP
+  is searched per enabled language.
 
 ### As a subproject, or copied into another tree
 
@@ -122,6 +124,13 @@ target_link_libraries(app PRIVATE SZ3::hdf5sz3)
   `CMAKE_BUILD_TYPE`), and builds neither its tests nor the filter's, even when the parent sets `BUILD_TESTING`. Any
   new top-level-only behaviour tests `SZ3_IS_TOP_LEVEL`.
 - Depend on a release tag, never on a `master` commit.
+- Added with `SYSTEM` (`FetchContent_Declare(... SYSTEM)` or `add_subdirectory(... SYSTEM)`), SZ3's headers become
+  `-isystem`. The parent's own code that includes SZ3 headers can then find another SZ3 first: an older one installed
+  in the HDF5 prefix, when the target lists HDF5's include directory itself, or one on `CPATH`, which is searched
+  before every `-isystem` (GROMACS #5821). For the HDF5 prefix, put SZ3's directories first in such a target:
+  `target_include_directories(<t> BEFORE PRIVATE $<TARGET_PROPERTY:SZ3::SZ3core,INTERFACE_INCLUDE_DIRECTORIES>)`.
+  For `CPATH`, add SZ3 without `SYSTEM`, which covers both. SZ3's own filter library needs neither, except under
+  `SYSTEM` with another SZ3 on `CPATH`.
 - A project that copies SZ3 needs `CMakeLists.txt`, `include/`, `tools/zstd` (without
   `lib/decompress/huf_decompress_amd64.S`, which `ZSTD_DISABLE_ASM` leaves out) and, for the filter,
   `tools/H5Z-SZ3` without `test/` and `tools/`. Keep the license files.
