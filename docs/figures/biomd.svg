@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 330" width="760" height="330" font-family="Helvetica, Arial, sans-serif" font-size="12">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333333"/>
+    </marker>
+    <marker id="arrb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4a6fa5"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="760" height="330" fill="#ffffff"/>
+
+  <!-- (a) pipeline -->
+  <text x="10" y="20" font-weight="bold" fill="#111111">(a) Steps for one chunk</text>
+  <g fill="#eef3fa" stroke="#4a6fa5" stroke-width="1.2">
+    <rect x="10" y="32" width="128" height="48" rx="5"/>
+    <rect x="162" y="32" width="128" height="48" rx="5"/>
+    <rect x="314" y="32" width="128" height="48" rx="5"/>
+    <rect x="466" y="32" width="128" height="48" rx="5"/>
+    <rect x="618" y="32" width="132" height="48" rx="5"/>
+  </g>
+  <g fill="#111111" text-anchor="middle">
+    <text x="74" y="52">positions</text><text x="74" y="68">(frames, atoms, 3)</text>
+    <text x="226" y="52">round to a grid</text><text x="226" y="68">error ≤ bound</text>
+    <text x="378" y="52">find water and</text><text x="378" y="68">bonds, first frame</text>
+    <text x="530" y="52">predict each atom,</text><text x="530" y="68">keep the error</text>
+    <text x="684" y="52">Huffman code</text><text x="684" y="68">each stream</text>
+  </g>
+  <g stroke="#333333" stroke-width="1.2" marker-end="url(#arr)">
+    <line x1="138" y1="56" x2="160" y2="56"/>
+    <line x1="290" y1="56" x2="312" y2="56"/>
+    <line x1="442" y1="56" x2="464" y2="56"/>
+    <line x1="594" y1="56" x2="616" y2="56"/>
+  </g>
+
+    <text x="10" y="112" font-weight="bold" fill="#111111">(b) Rigid water, first frame</text>
+  <text x="365" y="112" font-weight="bold" fill="#111111">(c) Other atoms, first frame</text>
+  <text x="590" y="112" font-weight="bold" fill="#111111">(d) Later frames</text>
+  <g transform="translate(0,-30)">
+<!-- (b) water -->
+  <circle cx="130" cy="230" r="60" fill="none" stroke="#999999" stroke-dasharray="1 3" stroke-linecap="round"/>
+  <ellipse cx="116.9" cy="237.6" rx="58.1" ry="13" transform="rotate(60 116.9 237.6)" fill="none" stroke="#c0504d" stroke-dasharray="4 3"/>
+  <line x1="130" y1="230" x2="182" y2="200" stroke="#333333" stroke-width="1.5"/>
+  <line x1="130" y1="230" x2="88" y2="187" stroke="#333333" stroke-width="1.5"/>
+  <circle cx="130" cy="230" r="9" fill="#c0504d"/>
+  <circle cx="182" cy="200" r="6" fill="#ffffff" stroke="#333333" stroke-width="1.5"/>
+  <circle cx="88" cy="187" r="6" fill="#ffffff" stroke="#333333" stroke-width="1.5"/>
+  <text x="122" y="256" fill="#111111">O</text>
+  <text x="190" y="197" fill="#111111">H1</text>
+  <text x="62" y="182" fill="#111111">H2</text>
+  <g fill="#333333" font-size="11">
+    <text x="10" y="300">O: a point in the box of all water oxygens</text>
+    <text x="10" y="315">H1: on a sphere of radius O–H around O</text>
+    <text x="10" y="330" fill="#c0504d">H2: on the circle fixed by the O–H and H–H</text>
+    <text x="10" y="345" fill="#c0504d">lengths (dashed red)</text>
+  </g>
+
+  <!-- (c) bonds -->
+  <g stroke="#333333" stroke-width="1.5">
+    <line x1="375" y1="230" x2="415" y2="200"/>
+    <line x1="415" y1="200" x2="455" y2="230"/>
+    <line x1="455" y1="230" x2="495" y2="200"/>
+    <line x1="495" y1="200" x2="535" y2="230"/>
+  </g>
+  <g fill="#ffffff" stroke="#333333" stroke-width="1.5">
+    <circle cx="375" cy="230" r="8"/>
+    <circle cx="415" cy="200" r="8"/>
+    <circle cx="455" cy="230" r="8"/>
+    <circle cx="495" cy="200" r="8"/>
+  </g>
+  <circle cx="535" cy="230" r="8" fill="#4a6fa5"/>
+  <path d="M 541 222 Q 534 190 504 190" fill="none" stroke="#4a6fa5" stroke-width="1.5" marker-end="url(#arrb)"/>
+  <g fill="#111111" font-size="11" text-anchor="middle">
+    <text x="375" y="252">i−4</text><text x="415" y="186">i−3</text><text x="455" y="252">i−2</text>
+    <text x="495" y="186">i−1</text><text x="535" y="252">i</text>
+  </g>
+  <g fill="#333333" font-size="11">
+    <text x="365" y="290">Atom i stores its offset from its bond</text>
+    <text x="365" y="304">partner, the nearest of the 4 atoms</text>
+    <text x="365" y="318">before it within 0.01–0.2 nm.</text>
+    <text x="365" y="336">Unbonded atoms: offset from atom i−1.</text>
+  </g>
+
+  <!-- (d) later frames -->
+  <circle cx="640" cy="225" r="9" fill="none" stroke="#999999" stroke-width="1.5" stroke-dasharray="3 2"/>
+  <circle cx="672" cy="205" r="9" fill="#4a6fa5"/>
+  <line x1="648" y1="220" x2="662" y2="211" stroke="#333333" stroke-width="1.2" marker-end="url(#arr)"/>
+  <text x="612" y="250" fill="#666666" font-size="11">frame t−1</text>
+  <text x="664" y="188" fill="#111111" font-size="11">frame t</text>
+  <g fill="#333333" font-size="11">
+    <text x="590" y="290">Water O: from frame t−1.</text>
+    <text x="590" y="306">Other atoms: within frame t, as</text>
+    <text x="590" y="320">in (b) and (c), or from frame t−1,</text>
+    <text x="590" y="334">whichever costs less on the</text>
+    <text x="590" y="348">second frame.</text>
+  </g>
+
+  </g>
+</svg>

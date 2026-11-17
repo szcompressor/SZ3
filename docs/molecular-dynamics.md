@@ -1,71 +1,183 @@
 # Compressing molecular-dynamics data with SZ3
 
-## Which compressor for which data
+SZ3 supports compressing molecular-dynamics (MD) simulation data, and each type of data has its own method in the list
+below.
 
-| Data | Use | Notes |
-|---|---|---|
-| Biomolecular trajectories: coordinates `{frames, atoms, 3}` (GROMACS, H5MD) | `ALGO_BIOMD` | Absolute bound, strict. Uses water and bond geometry. |
-| Velocities and forces | `ALGO_NOPRED` | Absolute bound. Neighbours and earlier frames do not predict them at usual output intervals. |
-| Box, step, time, energies | `ALGO_LOSSLESS`, or HDF5 shuffle + gzip | A few values per frame, needed exactly. |
-| MD of solid materials (crystals, metals) | MDZ, [tools/mdz](../tools/mdz/README.md) | Atoms vibrating around lattice sites. |
-| Fields on a grid (densities, potentials) | the default `ALGO_INTERP_LORENZO` | |
+- **[Positions of biomolecular systems](#biomolecular-systems)**, such as proteins and DNA in water: `ALGO_BIOMD` with
+  an absolute bound such as 5e-4 nm. It predicts each atom from the water and bond geometry it finds in the data.
+- **[Positions of solid materials](#solid-materials)**, such as crystals and metals: MDZ, which tries several predictors
+  on a sample of the data and keeps the one that compresses best. MDZ is a separate program and C++ headers, outside the
+  SZ3 API and the HDF5 filter.
+- **Velocities and forces**: `ALGO_NOPRED`, with an absolute bound such as 1e-3 nm/ps for velocities and 1 kJ/mol/nm for
+  forces.
+- **Box, step, time and energies**: lossless, with `ALGO_LOSSLESS` or the HDF5 shuffle and gzip filters.
 
-## How well ALGO_BIOMD does
+## Biomolecular systems
 
-At XTC's default precision, 5e-4 nm, on 101 trajectories (geometric means; 1 / 20 frames per chunk):
+### Input data and limits
 
-- **Compression ratio.** All-atom with water: 3.81 / 5.05, against 3.31 for XTC; the best other HDF5 filter within
-  the bound gives 2.33 / 3.18, lossless filters 1.14–1.28. All-atom without water: 3.27 / 5.36, against 3.12 for
-  XTC. Coarse-grained: 2.32 / 3.40, against 2.39 for XTC.
-- **Speed.** Compression takes 1.74 / 1.36 times XTC's time, decompression 1.34 / 1.44 times. Through HDF5 it writes
-  439 / 498 MB/s and reads 574 / 572 MB/s on one core.
-- **In GROMACS.** H5MD files of all-atom systems are 0.86–0.87 / 0.62–0.66 times the size of XTC files, and writing
-  them takes 0.09%–0.62% / 0.09%–0.60% of a GPU run (XTC 0.06%–0.43%).
-- **Error.** Every coordinate comes back within the bound.
+`ALGO_BIOMD` takes positions of shape `(frames, atoms, 3)`, or `(atoms, 3)` for a single frame, as float or double
+values in nanometers. A chunk is one HDF5 chunk or the data passed to one `SZ_compress` call. `ALGO_BIOMD` compresses
+each chunk on its own, and a chunk holds at most 2^31 - 1 values. `ALGO_BIOMD` recognizes water and bonds by their
+distances in nanometers. In positions given in another unit, such as ångström, it finds neither, and the compression
+ratio drops. Convert such positions to nanometers first, and give the bound in the same unit.
 
-Every run, the other bounds, the setup and the comparison with other HDF5 filters are in
-[#169](https://github.com/szcompressor/SZ3/pull/169).
+`ALGO_BIOMD` handles coordinates up to a limit that grows with the bound, listed in the table below for float data. For
+double data the limit is 64 times larger. A chunk that holds NaN, Inf or a coordinate above the limit is stored
+losslessly, at a compression ratio of only 1.1 to 1.5. Simulation boxes are far smaller than the limit, so the fallback
+mainly affects unwrapped coordinates from long runs.
 
-## ALGO_BIOMD
+| Bound (nm) | 1e-5 | 5e-5 | 1e-4 | 5e-4 | 1e-3 | 5e-3 |
+|---|---|---|---|---|---|---|
+| Largest coordinate, float (nm) | 32 | 128 | 256 | 2048 | 4096 | 16384 |
 
-- **Shape.** `{frames, atoms, 3}`; one frame (`{atoms, 3}`) also works. Other shapes throw `std::invalid_argument`. A
-  single call or HDF5 chunk holds at most 2^31 - 1 values.
-- **Bound.** Absolute (`EB_ABS`), in the units of the coordinates. MD trajectories are usually kept at 5e-4 nm (XTC's
-  default precision) or 5e-3 nm for coarse-grained runs. float and double.
-- **Values stored losslessly.** Coordinates go on an integer lattice that covers `|x| < B`, B the smallest power of
-  two above 2^21 times the bound for float (2^27 for double). A chunk holding a coordinate with `|x| >= B`, or NaN or
-  Inf outside trailing fill frames (frames at the end of the chunk in which every value is the same), is stored
-  losslessly, at a ratio of about 1.1 to 1.5 instead of 3 to 6:
+### Use in GROMACS
 
-  | Bound (nm) | 1e-5 | 5e-5 | 1e-4 | 5e-4 | 1e-3 | 5e-3 |
-  |---|---|---|---|---|---|---|
-  | B for float (nm) | 32 | 128 | 256 | 2048 | 4096 | 16384 |
+GROMACS 2027 can write positions compressed with `ALGO_BIOMD`. Build GROMACS with HDF5 support and give `-x` a file name
+ending in `.h5md`:
 
-- **Recompression.** Decompressing and compressing again with the same bound gives the same values, so a chunk HDF5
-  writes again stays within the bound.
-- **Frames per chunk.** Each chunk is compressed on its own, and BIOMD finds water and bonds on its first frame. More
-  frames per chunk give a higher ratio (see above). Coarse-grained runs at one frame per chunk come out below XTC:
-  most beads have no bonds or water to predict from.
+```bash
+gmx mdrun -x traj.h5md
+```
 
-## The HDF5 filter for trajectories
+H5MD output is controlled by the same `.mdp` options as XTC output, and `nstxout-compressed` must be positive. The bound
+is 1 / (2p) nm for p = `compressed-x-precision`, so the default precision of 1000 gives 5e-4 nm. GROMACS writes one
+frame per chunk. Its tools, such as `gmx trjconv`, read the file directly, and other programs read it through the SZ3
+HDF5 filter described next.
 
-[tools/H5Z-SZ3/README.md](../tools/H5Z-SZ3/README.md) covers installing and using the filter. For trajectories:
+GROMACS builds against an installed SZ3 3.4.0 or later with its HDF5 filter when CMake finds one. Without it, GROMACS
+builds its bundled copy of SZ3. The CMake option `-DGMX_USE_SZ3` overrides this choice. `INTERNAL` selects the bundled
+copy, and `EXTERNAL` selects the installed one. `-DGMX_USE_SZ3=NONE` builds GROMACS without SZ3, and `mdrun` then
+refuses an `.h5md` output file.
 
-- **Chunk shape.** An `ALGO_BIOMD` chunk must have 3 as its last dimension and should hold whole frames,
-  `(k, atoms, 3)`. Set `chunks` yourself; h5py's automatic chunking splits the atoms and xyz, and creating such a
-  dataset fails.
-- **Registering the filter.** An application that links the filter calls `H5Zregister(H5PLget_plugin_info())` when it
-  opens any file, so that a program that only reads can read SZ3 data.
-- **Appending frames.** Set `H5D_CHUNK_DONT_FILTER_PARTIAL_CHUNKS` and give the dataset a chunk cache that holds a
-  whole chunk (`H5Pset_chunk_cache`), also when the file is reopened. Otherwise HDF5 compresses a chunk again each
-  time frames are added to it. The last, partial chunk is stored uncompressed at full chunk size.
-- **Other filters.** Add `H5Pset_fletcher32` after SZ3 to detect damaged chunks; never put shuffle before SZ3.
+### Use in Python with h5py
 
-## Which setting for which GROMACS output
+Python programs write `ALGO_BIOMD` data through h5py and the SZ3 HDF5 filter. This needs SZ3 built with its HDF5 filter
+(see [tools/H5Z-SZ3/README.md](../tools/H5Z-SZ3/README.md)) and `HDF5_PLUGIN_PATH` set to the filter's directory before
+h5py is imported. Reading a file needs the same `HDF5_PLUGIN_PATH` and nothing else. The helper `cdvalueHelper.py`
+builds the filter parameters. It is in `tools/H5Z-SZ3/tools` of the SZ3 source and is not installed, so the example adds
+that directory to the Python path.
 
-| Output | SZ3 setting | Compression ratio, 1 / 20 frames per chunk |
-|---|---|---|
-| positions | `ALGO_BIOMD`, absolute bound (5e-4 nm is XTC's default), chunks of `(frames, atoms, 3)` | 3.81 / 5.05 (all-atom with water) |
-| velocities | `ALGO_NOPRED`, absolute bound (for example 1e-3 nm/ps) | 2.90–2.96 / 2.94–2.99 (Zstd 1.07) |
-| forces | `ALGO_NOPRED`, absolute bound (for example 1 kJ/mol/nm) | 3.08–3.68 / 3.10–3.70 (Zstd 1.08–1.37) |
-| box, step, time, energies | `ALGO_LOSSLESS`, or shuffle + gzip | – |
+```python
+import os, sys
+os.environ["HDF5_PLUGIN_PATH"] = "/path/to/prefix/lib/plugin"
+sys.path.insert(0, "/path/to/SZ3/tools/H5Z-SZ3/tools")
+import h5py
+import numpy as np
+from cdvalueHelper import SZ3
+
+positions = np.load("positions.npy").astype(np.float32)   # shape (frames, atoms, 3), in nm
+frames, atoms, _ = positions.shape
+config = SZ3("ALGO_BIOMD", absolute=5e-4)
+
+with h5py.File("traj.h5", "w") as f:
+    f.create_dataset("positions", data=positions,
+                     chunks=(min(frames, 20), atoms, 3),
+                     compression=32024, compression_opts=tuple(config.cd_values))
+```
+
+Set `chunks` yourself to whole frames, `(k, atoms, 3)`, because an `ALGO_BIOMD` chunk must have 3 as its last dimension.
+The automatic chunking of h5py usually splits the last dimension, and creating the dataset then fails with an error that
+names the chunk shape.
+
+The filter must be built against the HDF5 library that h5py uses, and no filter that changes the bytes may come before
+it. The h5py wheels from pip carry their own HDF5 library, and the filter README explains how to build h5py against the
+HDF5 that the filter uses. The SZ3 filter in the `hdf5plugin` package is version 3.1.7, which is too old to read these
+files. Shuffle placed before SZ3, for example, would make SZ3 compress the rearranged bytes as if they were values.
+Fletcher32 placed after SZ3 detects damaged chunks. A C program sets the filter with `H5Pset_sz3(plist,
+H5Z_SZ3_ALGO_BIOMD, H5Z_SZ3_EB_ABS, 5e-4, 0, 0, 0)`. The filter README also covers registering the filter in an
+application and appending frames without compressing a chunk twice.
+
+### Use in C++
+
+C++ programs call `SZ_compress` with `ALGO_BIOMD` and an absolute bound.
+
+```cpp
+#include <SZ3/api/sz.hpp>
+
+// positions: const float * pointing to frames * atoms * 3 values, in nm
+SZ3::Config conf(frames, atoms, 3);
+conf.cmprAlgo = SZ3::ALGO_BIOMD;
+conf.errorBoundMode = SZ3::EB_ABS;
+conf.absErrorBound = 5e-4;
+
+size_t cmpSize;
+char *cmpData = SZ_compress(conf, positions, cmpSize);
+// ... store cmpData ...
+delete[] cmpData;
+```
+
+`SZ_decompress` restores the positions as it does for any SZ3 data.
+
+### Compression ratio
+
+`ALGO_BIOMD` reaches a compression ratio of about 3.8 on all-atom systems in water at a bound of 5e-4 nm with one frame
+per chunk, against 3.3 for XTC, the usual GROMACS trajectory format, at the same precision. Chunks of 20 frames raise
+the ratio, to about 4.2 for frames written every 10 ps and 6.4 for frames written every 20 fs, because later frames are
+predicted from earlier ones. Coarse-grained systems reach 2.3 with one frame per chunk and 3.4 with 20, because most
+beads have neither water nor a bond partner to predict from. SZ3 pull request
+[#169](https://github.com/szcompressor/SZ3/pull/169) lists every trajectory measured.
+
+### Algorithm
+
+`ALGO_BIOMD` predicts each atom from the water and bond geometry of the system and from the previous frame, and it
+stores only the prediction errors. Panel (a) of the figure shows the five steps for one chunk, which the paragraphs
+below follow from left to right. Panels (b) to (d) show what each kind of atom is predicted from.
+
+![ALGO_BIOMD steps and predictions](figures/biomd.svg)
+
+*Figure. `ALGO_BIOMD` predicts each atom from water geometry, a bond partner or the previous frame. (a) Steps for one
+chunk. (b) Rigid water in the first frame. (c) Other atoms in the first frame. (d) Later frames.*
+
+Every coordinate is first rounded to a grid whose spacing is a little under twice the error bound, which keeps the
+rounding error within the bound. `ALGO_BIOMD` then works with the integer grid indices. Prediction uses integer
+arithmetic and a few exactly rounded floating-point operations, so the decompressor repeats it exactly and reaches the
+same grid points on any machine.
+
+The water molecules and bonds are found in the first frame of the chunk, and no topology file is needed. The compressor
+samples atoms across the frame and identifies rigid water by the tight O–H and H–H distances of 3-, 4- and 5-site water
+models. In flexible water and in groups such as CH2 and NH2 these distances vary more widely, so their atoms are treated
+as ordinary atoms. Each remaining atom takes as its bond partner the nearest of the four atoms listed just before it,
+provided the two lie between 0.01 and 0.2 nm apart (panel c). Four atoms are enough, because force fields list an atom
+shortly after the atom it is bonded to. The compressor drops all bonds when fewer than 1 in 16 sampled atoms has a
+partner, since storing them would then cost more than they save. The chunk stores the water and bond lists once.
+
+The first frame has no earlier frame, so each of its atoms is predicted from atoms of the same frame. In a water
+molecule (panel b), the oxygen is stored as a point in the box that encloses all water oxygens. The first hydrogen lies
+on a sphere around the oxygen with the O–H length as radius, and the second hydrogen lies on a circle fixed by the O–H
+and H–H lengths, so each hydrogen is stored as a small correction on that sphere or circle.
+
+A bonded atom is stored as its offset from its bond partner, and an unbonded atom as its offset from the atom before it
+(panel c). Coarse-grained runs typically have no water and few bonds. A one-frame chunk without water and with fewer
+than a quarter of its atoms bonded therefore stores its unbonded atoms as points in the box that encloses them.
+
+The frames after the first also draw on the previous frame (panel d), which is why chunks of several frames compress
+better than single frames. A water oxygen is predicted from its own position one frame earlier. Every other atom has two
+candidate predictions, the in-frame prediction above and one that starts from the same atom in the previous frame. The
+compressor measures both on a sample of the second frame, separately for water hydrogens, bonded atoms and unbonded
+atoms, and keeps the cheaper one for the rest of the chunk.
+
+The prediction errors go into separate streams of integer symbols, one stream per kind of value. The errors of a water
+hydrogen and the offsets of a bonded atom follow different distributions, so each stream is Huffman coded on its own. At
+a bound of 5e-4 nm, an offset of about 1 nm or more is split into a symbol for its high bits and one raw byte, which
+keeps the Huffman tables small.
+
+## Solid materials
+
+MDZ targets solid materials, whose atoms vibrate around lattice sites, and picks the predictor that suits the data best.
+Its default mode compresses a sample of up to 10 frames from the first batch of frames, which is the whole file unless a
+batch size is given, with two or three predictors and keeps the one with the smallest output. The design and its
+evaluation are in the ICDE 2022 paper
+[MDZ: An Efficient Error-bounded Lossy Compressor for Molecular Dynamics Simulations](https://ieeexplore.ieee.org/document/9835212).
+
+MDZ comes as the `mdz` program and its C++ headers, which the CMake option `-DBUILD_MDZ=ON` builds and installs. The
+program reads a raw float32 file of shape `(frames, atoms)` for one axis or `(frames, atoms, 3)`, compresses and
+decompresses it in memory, and reports the compression ratio, the time and the error. It writes no compressed file.
+
+```bash
+mdz xyz.f32.dat -3 <frames> <atoms> 3 -a 1e-3
+```
+
+The option `-a` sets an absolute bound, and `-r` sets a bound relative to the value range of each batch of frames. An
+optional batch size after the bound splits the frames into batches, and MDZ then repeats its choice of predictor every
+50 batches. [tools/mdz/README.md](../tools/mdz/README.md) lists the remaining options.
