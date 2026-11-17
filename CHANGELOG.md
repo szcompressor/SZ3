@@ -335,3 +335,14 @@ Single-threaded on an Intel i9-13900K (GCC 13, `-O3`). SZ3 uses its default `ALG
 | MGARD-X | 92 | 89 | 84 |
 | SZx | 2873 | 1716 | 1584 |
 | SZp | 7161 | 3583 | 2601 |
+
+## 3.4.1 (unreleased)
+
+**New**
+- [docs/molecular-dynamics.md](docs/molecular-dynamics.md) is rewritten for new users, with a figure that explains `ALGO_BIOMD`. [#TBD]
+
+**Changes**
+- The HDF5 filter takes HDF5's include directories only from `HDF5::HDF5`, so a parent project that defines `HDF5::HDF5` itself must give that target its include directories. This fixes the filter being built from the wrong headers when an older SZ3 is installed next to HDF5 (GROMACS #5821). [#TBD]
+
+**Fixes**
+- SZ3's headers have no clang-tidy findings under GROMACS's configuration and no clang `-Wcomma` warnings. The compressed output is unchanged. [#TBD]
