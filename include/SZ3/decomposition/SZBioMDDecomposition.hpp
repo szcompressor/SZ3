@@ -581,7 +581,8 @@ inline void choose_modes(const FrameContext &frame, const std::vector<uint32_t> 
                 put_atom(frame, trial, sample[k], cost);
             }
             if (cost.bits < best) {
-                best = cost.bits, mode[g] = m;
+                best = cost.bits;
+                mode[g] = m;
             }
         }
     }
@@ -646,7 +647,8 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
                 int32_t box_max[3];
                 water_box(frame.cur, unbonded_box_ ? unbonded : waters, frame.box_min, box_max);
                 for (int c = 0; c < 3; c++) {
-                    box_min_[c] = frame.box_min[c], box_size_[c] = box_max[c] - box_min_[c] + 1;
+                    box_min_[c] = frame.box_min[c];
+                    box_size_[c] = box_max[c] - box_min_[c] + 1;
                 }
                 set_water_box(frame, box_size_);
             }

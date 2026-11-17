@@ -198,9 +198,9 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
         size_t block_size;
     };
 
-    // copy_data_with_padding() throws only for a null pointer or N > 4. Here dst is checked, src points into the
-    // non-empty internal_buffer, and for N > 4 the constructor's own copy has already thrown (data_cp_dst is set
-    // only before that copy), so no exception can leave this destructor.
+    // copy_data_with_padding() throws only for a null pointer or N > 4. Here dst is checked and src points into the
+    // non-empty internal_buffer; SZ3 creates a block_data only for N <= 4 (the API dispatches N in 1..4, and the
+    // Lorenzo and regression predictors static_assert it), so no exception leaves this destructor.
     // NOLINTNEXTLINE(bugprone-exception-escape)
     ~block_data() {
         if (padding > 0 && !internal_buffer.empty() && data_cp_dst != nullptr) {
