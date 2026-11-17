@@ -81,8 +81,6 @@ struct Fallback : std::runtime_error {
 };
 
 inline int64_t round_half_away(double y) { return int64_t(y + std::copysign(0.5, y)); }
-// The decoder must reproduce this exact rounding to decode existing streams, so the arithmetic stays as it is.
-// NOLINTNEXTLINE(bugprone-incorrect-roundings)
 inline int64_t isqrt_round(int64_t n) { return n <= 0 ? 0 : int64_t(std::sqrt(double(n)) + 0.5); }
 // d = atom i - atom j
 inline void displacement(const int32_t *q, size_t i, size_t j, int64_t d[3]) {

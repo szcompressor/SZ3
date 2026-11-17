@@ -15,6 +15,9 @@ if (NOT BUILD_SHARED_LIBS)
     target_compile_definitions(hdf5sz3 PUBLIC HDF5SZ3_STATIC)
 endif ()
 
+# Keep SZ3core before HDF5::HDF5: inherited include directories follow this order, so this SZ3's headers
+# are searched before an older SZ3 installed in the HDF5 prefix. Do not add HDF5_INCLUDE_DIRS to hdf5sz3's
+# own include directories, which would come first.
 # SZ3core only: SZ3::SZ3 has OpenMP only where the consumer finds it, and the filter must link everywhere.
 target_link_libraries(hdf5sz3
         PUBLIC SZ3core HDF5::HDF5
@@ -28,8 +31,6 @@ set_target_properties(hdf5sz3 PROPERTIES VERSION ${SZ3_VERSION} SOVERSION ${SZ3_
 
 target_include_directories(hdf5sz3
         PUBLIC
-        # HDF5's include directories come from HDF5::HDF5, after SZ3core's, so an older SZ3 in the HDF5 prefix
-        # cannot shadow this one.
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
         "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/hdf5_sz3>"
 )

@@ -103,9 +103,7 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
          * @param block The block iterator.
          * @param func The function to apply to each element.
          */
-        // func is called once per element, so it is deliberately not std::forward-ed.
         template <typename Func>
-        // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
         static ALWAYS_INLINE void foreach (const block_iterator &block, Func && func) {
             auto range = block.get_block_range();
             if constexpr (N == 1) {
@@ -152,9 +150,7 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
          * @param block The block iterator.
          * @param func The function to apply to sampled elements.
          */
-        // func is called once per sampled element, so it is deliberately not std::forward-ed.
         template <typename Func>
-        // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
         static ALWAYS_INLINE void foreach_sampling(const block_iterator &block, Func &&func) {
             size_t min_size = std::numeric_limits<size_t>::max();
             for (const auto &r : block.get_block_range()) {
@@ -198,10 +194,6 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
         size_t block_size;
     };
 
-    // copy_data_with_padding() throws only for a null pointer or N > 4. Here dst is checked and src points into the
-    // non-empty internal_buffer; SZ3 creates a block_data only for N <= 4 (the API dispatches N in 1..4, and the
-    // Lorenzo and regression predictors static_assert it), so no exception leaves this destructor.
-    // NOLINTNEXTLINE(bugprone-exception-escape)
     ~block_data() {
         if (padding > 0 && !internal_buffer.empty() && data_cp_dst != nullptr) {
             copy_data_with_padding(data_cp_dst, ds, data_padding, ds_padding, dims);
@@ -307,8 +299,6 @@ class block_data : public std::enable_shared_from_this<block_data<T, N>> {
 template <class T, uint N, typename Func>
 ALWAYS_INLINE void foreach (T *data, size_t offset, const std::array<size_t, N> &begins,
                             const std::array<size_t, N> &ends, const std::array<size_t, N> &strides,
-                            // func is called once per element: not std::forward-ed.
-                            // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
                             const std::array<size_t, N> &dim_offsets, Func && func) {
     if constexpr (N == 1) {
         for (size_t i = begins[0]; i < ends[0]; i += strides[0]) {

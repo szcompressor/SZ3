@@ -285,8 +285,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
      */
     template <class QuantizeFunc>
     double interpolation_1d(T *data, size_t begin, size_t end, size_t stride, const std::string &interp_func,
-                            // quantize_func is called once per point: not std::forward-ed.
-                            // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
                             QuantizeFunc &&quantize_func) {
         size_t n = (end - begin) / stride + 1;
         if (n <= 1) {
@@ -341,8 +339,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
     double interpolation_1d_fastest_dim_first(T *data, const std::array<size_t, N> &begin_idx,
                                               const std::array<size_t, N> &end_idx, const size_t &direction,
                                               std::array<size_t, N> &strides, const size_t &math_stride,
-                                              // quantize_func is called once per point: not std::forward-ed.
-                                              // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
                                               const std::string &interp_func, QuantizeFunc &&quantize_func) {
         for (size_t i = 0; i < N; i++) {
             if (end_idx[i] < begin_idx[i]) {
@@ -441,8 +437,6 @@ class InterpolationDecomposition : public concepts::DecompositionInterface<T, in
 
     template <class QuantizeFunc>
     double interpolation(T *data, std::array<size_t, N> begin, std::array<size_t, N> end,
-                         // quantize_func is called once per point: not std::forward-ed.
-                         // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
                          const std::string &interp_func, QuantizeFunc &&quantize_func, const int direction,
                          size_t stride = 1) {
         if constexpr (N == 1) {  // old API
