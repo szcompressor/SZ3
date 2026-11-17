@@ -34,7 +34,7 @@ size_t SZ_compress_Interp(Config &conf, T *data, uchar *cmpData, size_t cmpCap) 
 template <class T, uint N, class Encoder = HuffmanEncoder<int>>
 void SZ_decompress_Interp(const Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
     assert(conf.cmprAlgo == ALGO_INTERP);
-    auto cmpDataPos = cmpData;
+    const auto *cmpDataPos = cmpData;
     auto sz = make_compressor_sz_generic<T, N>(
         make_decomposition_interpolation<T, N>(conf, LinearQuantizer<T>(conf.absErrorBound, conf.quantbinCnt / 2)),
         Encoder(), Lossless_zstd());
@@ -146,9 +146,15 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         shortest_edge = conf.dims[i] < shortest_edge ? conf.dims[i] : shortest_edge;
     }
     // Automatically adjust sampleblocksize.
-    while (sampleBlockSize >= shortest_edge) sampleBlockSize /= 2;
-    while (sampleBlockSize >= 16 && (pow(sampleBlockSize + 1, N) / conf.num) > 1.5 * sampleRate) sampleBlockSize /= 2;
-    if (sampleBlockSize < 8) sampleBlockSize = 8;
+    while (sampleBlockSize >= shortest_edge) {
+        sampleBlockSize /= 2;
+    }
+    while (sampleBlockSize >= 16 && (pow(sampleBlockSize + 1, N) / conf.num) > 1.5 * sampleRate) {
+        sampleBlockSize /= 2;
+    }
+    if (sampleBlockSize < 8) {
+        sampleBlockSize = 8;
+    }
 
     bool to_tune = pow(sampleBlockSize + 1, N) <= 0.05 * conf.num;  // to further revise
     for (auto &dim : conf.dims) {
@@ -195,7 +201,7 @@ size_t SZ_compress_Interp_lorenzo(Config &conf, T *data, uchar *cmpData, size_t 
         auto testConfig = conf;
         std::vector<size_t> dims(N, sampleBlockSize + 1);
         testConfig.setDims(dims.begin(), dims.end());
-        for (auto &interp_op : {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC}) {
+        for (const auto &interp_op : {INTERP_ALGO_LINEAR, INTERP_ALGO_CUBIC}) {
             testConfig.interpAlgo = interp_op;
             ratio = interp_compress_test<T, N>(sampled_blocks, testConfig, buffer, bufferCap);
             if (ratio > best_interp_ratio) {

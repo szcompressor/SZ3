@@ -194,7 +194,9 @@ void truncateArrayRecover(uchar *binary, size_t n, int byteLen, T *data) {
 
 template <typename T>
 uint8_t vector_bit_width(const std::vector<T> &data) {
-    if (data.empty()) return 0;
+    if (data.empty()) {
+        return 0;
+    }
     T max_value = *std::max_element(data.begin(), data.end());
     uint8_t bits = 0;
     while (max_value > 0) {
@@ -206,7 +208,9 @@ uint8_t vector_bit_width(const std::vector<T> &data) {
 
 template <typename T>
 void vector2bytes(const std::vector<T> &data, uint8_t bit_width, unsigned char *&c) {
-    if (data.empty()) return;
+    if (data.empty()) {
+        return;
+    }
 
     size_t current_bit = 0;
     size_t byte_index = 0;
@@ -270,18 +274,26 @@ inline int64_t unzigzag(uint64_t u) { return int64_t(u >> 1) ^ -int64_t(u & 1); 
 
 /// LEB128: 7 bits a byte, low first, the high bit set while more follow; at most 10 bytes.
 inline void write_varint(uint64_t v, uchar *&p) {
-    for (; v >= 128; v >>= 7) *p++ = uchar(v | 128);
+    for (; v >= 128; v >>= 7) {
+        *p++ = uchar(v | 128);
+    }
     *p++ = uchar(v);
 }
 inline uint64_t read_varint(const uchar *&p, size_t &remaining_length) {
     uint64_t v = 0;
     for (unsigned shift = 0;; shift += 7) {
-        if (remaining_length == 0 || shift > 63) throw std::out_of_range("SZ3: truncated or overlong varint");
+        if (remaining_length == 0 || shift > 63) {
+            throw std::out_of_range("SZ3: truncated or overlong varint");
+        }
         const uchar b = *p++;
         remaining_length--;
-        if (shift == 63 && b > 1) throw std::out_of_range("SZ3: truncated or overlong varint");  // past 64 bits
+        if (shift == 63 && b > 1) {
+            throw std::out_of_range("SZ3: truncated or overlong varint");  // past 64 bits
+        }
         v |= uint64_t(b & 127) << shift;
-        if (b < 128) return v;
+        if (b < 128) {
+            return v;
+        }
     }
 }
 
@@ -292,7 +304,9 @@ class BitAppender {
     void put(uint64_t v, int bits) {  // v < 2^bits
         pending_ |= v << pending_bits_;
         pending_bits_ += bits;
-        if (pending_bits_ < 64) return;
+        if (pending_bits_ < 64) {
+            return;
+        }
         words_.push_back(pending_);  // whole words, turned into bytes by flush()
         pending_bits_ -= 64;
         pending_ = v >> (bits - pending_bits_);
@@ -301,7 +315,9 @@ class BitAppender {
         words_.push_back(pending_);
         const size_t size = out_.size(), bytes = (words_.size() - 1) * 8 + size_t(pending_bits_ + 7) / 8;
         out_.resize(size + bytes);
-        for (size_t k = 0; k < bytes; k++) out_[size + k] = uchar(words_[k / 8] >> (k % 8 * 8));
+        for (size_t k = 0; k < bytes; k++) {
+            out_[size + k] = uchar(words_[k / 8] >> (k % 8 * 8));
+        }
         words_.clear();
         pending_ = 0;
         pending_bits_ = 0;
@@ -320,7 +336,9 @@ class BitConsumer {
     BitConsumer(const uchar *begin, const uchar *end) : p_(begin), end_(end) {}
     uint64_t get(int bits) {
         for (; pending_bits_ < bits; pending_bits_ += 8) {
-            if (p_ == end_) throw std::out_of_range("SZ3: bits read past the end");
+            if (p_ == end_) {
+                throw std::out_of_range("SZ3: bits read past the end");
+            }
             pending_ |= uint64_t(*p_++) << pending_bits_;
         }
         const uint64_t v = pending_ & ((uint64_t(1) << bits) - 1);

@@ -40,7 +40,9 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     void preprocess_encode(const std::vector<T> &bins, int /*stateNum*/) override {
         *this = HuffmanEncoder();
         const size_t n = bins.size();
-        if (n == 0) return;
+        if (n == 0) {
+            return;
+        }
         // Locals, not offset_: a store to a member of type T may alias the bins and stop the loop vectorising.
         T mn = bins[0], mx = bins[0];
         for (size_t i = 0; i < n; i++) {
@@ -62,7 +64,9 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     }
 
     size_t size_est() override {
-        if (syms_.empty()) return sizeof(uint32_t);
+        if (syms_.empty()) {
+            return sizeof(uint32_t);
+        }
         return sizeof(uint32_t) + sizeof(T) + (header_bits_ + 7) / 8;
     }
 
@@ -75,12 +79,18 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
     void save(uchar *&c) override {
         write(static_cast<uint32_t>(syms_.size()), c);
-        if (syms_.empty()) return;
+        if (syms_.empty()) {
+            return;
+        }
         write(offset_, c);
-        if (syms_.size() == 1) return;
+        if (syms_.size() == 1) {
+            return;
+        }
         BitWriter w(c);
         for (size_t i = 0; i < syms_.size(); i++) {
-            if (i > 0) w.gamma(syms_[i] - syms_[i - 1]);
+            if (i > 0) {
+                w.gamma(syms_[i] - syms_[i - 1]);
+            }
             w.gamma(zigzag(lens_[i] - (i ? lens_[i - 1] : 0)) + 1);
         }
         c = w.finish();
@@ -91,9 +101,11 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         uchar *const start = bytes;
         write(payload_bits_, bytes);
         if (syms_.size() < 2) {
-            for (const T b : bins)
-                if (syms_.empty() || b != offset_)
+            for (const T b : bins) {
+                if (syms_.empty() || b != offset_) {
                     throw std::invalid_argument("SZ3 Huffman: bin not seen by preprocess_encode");
+                }
+            }
             return bytes - start;
         }
         uint64_t acc = 0;
@@ -115,20 +127,28 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             const uint64_t size = code_.size();
             for (const T b : bins) {
                 const uint64_t s = static_cast<U>(static_cast<U>(b) - off);
-                if (s >= size) throw std::invalid_argument("SZ3 Huffman: bin not seen by preprocess_encode");
+                if (s >= size) {
+                    throw std::invalid_argument("SZ3 Huffman: bin not seen by preprocess_encode");
+                }
                 put(tab[s]);
             }
         } else {
-            for (const T b : bins) put(map_.get(static_cast<U>(static_cast<U>(b) - off)));
+            for (const T b : bins) {
+                put(map_.get(static_cast<U>(static_cast<U>(b) - off)));
+            }
         }
         const uint64_t bits = static_cast<uint64_t>(p - bytes) * 8 + nb;
         while (nb >= 8) {
             nb -= 8;
             *p++ = static_cast<uchar>(acc >> nb);
         }
-        if (nb) *p++ = static_cast<uchar>(acc << (8 - nb));
+        if (nb) {
+            *p++ = static_cast<uchar>(acc << (8 - nb));
+        }
         // A bin preprocess_encode() did not count has a zero-length entry.
-        if (bits != payload_bits_) throw std::invalid_argument("SZ3 Huffman: bins differ from preprocess_encode's");
+        if (bits != payload_bits_) {
+            throw std::invalid_argument("SZ3 Huffman: bins differ from preprocess_encode's");
+        }
         bytes = p;
         return bytes - start;
     }
@@ -143,13 +163,17 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         size_t rem = remaining_length;
         uint32_t d = 0;
         read(d, p, rem);
-        if (d > 0) read(offset_, p, rem);
+        if (d > 0) {
+            read(offset_, p, rem);
+        }
         if (d == 1) {
             syms_.assign(1, 0);
             lens_.assign(1, 0);
         } else if (d > 1) {
             // Every bin after the first takes at least two bits of the table.
-            if (d - 1 > rem * 4) throw std::out_of_range("SZ3 Huffman: code table exceeds the buffer");
+            if (d - 1 > rem * 4) {
+                throw std::out_of_range("SZ3 Huffman: code table exceeds the buffer");
+            }
             BitReader r(p, rem);
             read_table(r, d);
             const size_t used = r.bytes();
@@ -166,22 +190,27 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         size_t rem = remaining_length;
         uint64_t bits = 0;
         read(bits, p, rem);
-        if (bits > static_cast<uint64_t>(rem) * 8) throw std::out_of_range("SZ3 Huffman: payload exceeds the buffer");
+        if (bits > static_cast<uint64_t>(rem) * 8) {
+            throw std::out_of_range("SZ3 Huffman: payload exceeds the buffer");
+        }
         const size_t nbytes = static_cast<size_t>((bits + 7) / 8);
         std::vector<T> out;
         if (syms_.size() < 2) {
-            if (bits != 0 || (syms_.empty() && targetLength != 0))
+            if (bits != 0 || (syms_.empty() && targetLength != 0)) {
                 throw std::out_of_range("SZ3 Huffman: payload does not match the code table");
+            }
             out.assign(targetLength, offset_);
         } else {
-            if (bits < targetLength || bits / kMaxLen > targetLength)
+            if (bits < targetLength || bits / kMaxLen > targetLength) {
                 throw std::out_of_range("SZ3 Huffman: payload does not match the value count");
+            }
             out.resize(targetLength);
             // A one-bit code is all zeros, so a run of zero bits is a run of its symbol.
-            if (count_[1])
+            if (count_[1]) {
                 decode_payload<true>(p, nbytes, bits, out.data(), targetLength);
-            else
+            } else {
                 decode_payload<false>(p, nbytes, bits, out.data(), targetLength);
+            }
         }
         bytes = p + nbytes;
         remaining_length = rem - nbytes;
@@ -204,7 +233,9 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         }
         void gamma(uint64_t v) {  // v >= 1
             unsigned n = 64 - clz64(v);
-            for (unsigned z = n - 1; z > 0; z -= std::min(z, 32u)) put(0, std::min(z, 32u));
+            for (unsigned z = n - 1; z > 0; z -= std::min(z, 32u)) {
+                put(0, std::min(z, 32u));
+            }
             if (n > 32) {
                 put(v >> 32, n - 32);
                 n = 32;
@@ -212,7 +243,9 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             put(v, n);
         }
         uchar *finish() {
-            if (nb_) *p_++ = static_cast<uchar>(acc_ << (8 - nb_));
+            if (nb_) {
+                *p_++ = static_cast<uchar>(acc_ << (8 - nb_));
+            }
             return p_;
         }
 
@@ -226,17 +259,24 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
        public:
         BitReader(const uchar *p, size_t n) : p_(p), n_(n) {}
         unsigned bit() {
-            if (pos_ >= n_ * 8) throw std::out_of_range("SZ3 Huffman: truncated code table");
+            if (pos_ >= n_ * 8) {
+                throw std::out_of_range("SZ3 Huffman: truncated code table");
+            }
             const unsigned b = (p_[pos_ >> 3] >> (7 - (pos_ & 7))) & 1;
             pos_++;
             return b;
         }
         uint64_t gamma() {
             unsigned z = 0;
-            while (bit() == 0)
-                if (++z > 63) throw std::out_of_range("SZ3 Huffman: invalid gamma code");
+            while (bit() == 0) {
+                if (++z > 63) {
+                    throw std::out_of_range("SZ3 Huffman: invalid gamma code");
+                }
+            }
             uint64_t v = 1;
-            for (unsigned i = 0; i < z; i++) v = (v << 1) | bit();
+            for (unsigned i = 0; i < z; i++) {
+                v = (v << 1) | bit();
+            }
             return v;
         }
         size_t bytes() const { return (pos_ + 7) / 8; }
@@ -276,13 +316,19 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         for (size_t i = 0; i < d; i++) {
             if (i > 0) {
                 const uint64_t g = r.gamma();
-                if (g > max_sym - s) throw std::out_of_range("SZ3 Huffman: bin out of range");
+                if (g > max_sym - s) {
+                    throw std::out_of_range("SZ3 Huffman: bin out of range");
+                }
                 s += g;
             }
             const uint64_t z = r.gamma() - 1;
-            if (z > 2 * kMaxLen) throw std::out_of_range("SZ3 Huffman: invalid code length");
+            if (z > 2 * kMaxLen) {
+                throw std::out_of_range("SZ3 Huffman: invalid code length");
+            }
             const int len = prev + ((z & 1) ? -static_cast<int>((z + 1) / 2) : static_cast<int>(z / 2));
-            if (len < 1 || len > static_cast<int>(kMaxLen)) throw std::out_of_range("SZ3 Huffman: invalid code length");
+            if (len < 1 || len > static_cast<int>(kMaxLen)) {
+                throw std::out_of_range("SZ3 Huffman: invalid code length");
+            }
             syms_[i] = s;
             lens_[i] = static_cast<uint8_t>(len);
             prev = len;
@@ -304,12 +350,18 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                 f2[static_cast<U>(static_cast<U>(bins[i + 2]) - off)]++;
                 f3[static_cast<U>(static_cast<U>(bins[i + 3]) - off)]++;
             }
-            for (; i < n; i++) f0[static_cast<U>(static_cast<U>(bins[i]) - off)]++;
+            for (; i < n; i++) {
+                f0[static_cast<U>(static_cast<U>(bins[i]) - off)]++;
+            }
             f64.resize(span);
-            for (size_t k = 0; k < span; k++) f64[k] = uint64_t(f0[k]) + f1[k] + f2[k] + f3[k];
+            for (size_t k = 0; k < span; k++) {
+                f64[k] = uint64_t(f0[k]) + f1[k] + f2[k] + f3[k];
+            }
         } else {
             f64.assign(span, 0);
-            for (const T b : bins) f64[static_cast<U>(static_cast<U>(b) - off)]++;
+            for (const T b : bins) {
+                f64[static_cast<U>(static_cast<U>(b) - off)]++;
+            }
         }
         for (size_t k = 0; k < span; k++) {
             if (f64[k]) {
@@ -333,10 +385,14 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             return static_cast<size_t>((k ^ (k >> 31)) >> shift);
         }
         uint64_t &at(uint64_t k) {  // inserts
-            if (2 * (count + 1) > key.size()) grow();
+            if (2 * (count + 1) > key.size()) {
+                grow();
+            }
             const size_t m = key.size() - 1;
             size_t i = slot(k);
-            while (used[i] && key[i] != k) i = (i + 1) & m;
+            while (used[i] && key[i] != k) {
+                i = (i + 1) & m;
+            }
             if (!used[i]) {
                 used[i] = 1;
                 key[i] = k;
@@ -346,8 +402,11 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         }
         uint64_t get(uint64_t k) const {  // 0 if absent
             const size_t m = key.size() - 1;
-            for (size_t i = slot(k); used[i]; i = (i + 1) & m)
-                if (key[i] == k) return val[i];
+            for (size_t i = slot(k); used[i]; i = (i + 1) & m) {
+                if (key[i] == k) {
+                    return val[i];
+                }
+            }
             return 0;
         }
         void grow() {
@@ -357,19 +416,27 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             bigger.val.assign(size_t(1) << bits, 0);
             bigger.used.assign(size_t(1) << bits, 0);
             bigger.shift = 64 - bits;
-            for (size_t i = 0; i < key.size(); i++)
-                if (used[i]) bigger.at(key[i]) = val[i];
+            for (size_t i = 0; i < key.size(); i++) {
+                if (used[i]) {
+                    bigger.at(key[i]) = val[i];
+                }
+            }
             *this = std::move(bigger);
         }
     };
 
     void count_sparse(const std::vector<T> &bins, std::vector<uint64_t> &freq_out) {
         const U off = static_cast<U>(offset_);
-        for (const T b : bins) map_.at(static_cast<U>(static_cast<U>(b) - off))++;
+        for (const T b : bins) {
+            map_.at(static_cast<U>(static_cast<U>(b) - off))++;
+        }
         std::vector<std::pair<uint64_t, uint64_t>> kv;
         kv.reserve(map_.count);
-        for (size_t i = 0; i < map_.key.size(); i++)
-            if (map_.used[i]) kv.emplace_back(map_.key[i], map_.val[i]);
+        for (size_t i = 0; i < map_.key.size(); i++) {
+            if (map_.used[i]) {
+                kv.emplace_back(map_.key[i], map_.val[i]);
+            }
+        }
         std::sort(kv.begin(), kv.end());
         for (const auto &e : kv) {
             syms_.push_back(e.first);
@@ -379,39 +446,56 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
     void build_lengths(const std::vector<uint64_t> &freq) {
         const size_t d = syms_.size();
-        if (d > UINT32_MAX) throw std::invalid_argument("SZ3 Huffman: more distinct bins than a uint32 counts");
+        if (d > UINT32_MAX) {
+            throw std::invalid_argument("SZ3 Huffman: more distinct bins than a uint32 counts");
+        }
         lens_.assign(d, 0);
-        if (d == 1) return;
+        if (d == 1) {
+            return;
+        }
         // Ascending frequency, ties by bin, so the lengths do not depend on the platform's sort.
         std::vector<uint32_t> order(d);
-        for (size_t i = 0; i < d; i++) order[i] = static_cast<uint32_t>(i);
+        for (size_t i = 0; i < d; i++) {
+            order[i] = static_cast<uint32_t>(i);
+        }
         std::sort(order.begin(), order.end(),
                   [&](uint32_t a, uint32_t b) { return freq[a] != freq[b] ? freq[a] < freq[b] : a < b; });
         std::vector<uint64_t> A(d);
-        for (size_t i = 0; i < d; i++) A[i] = freq[order[i]];
+        for (size_t i = 0; i < d; i++) {
+            A[i] = freq[order[i]];
+        }
         minimum_redundancy(A);
 
         // Clamp to kMaxLen, then move the deepest leaves shorter than kMaxLen down until Kraft's inequality holds.
         uint64_t count[kMaxLen + 1] = {0};
-        for (size_t i = 0; i < d; i++) count[std::min<uint64_t>(A[i], kMaxLen)]++;
+        for (size_t i = 0; i < d; i++) {
+            count[std::min<uint64_t>(A[i], kMaxLen)]++;
+        }
         uint64_t kraft = 0;
-        for (unsigned l = 1; l <= kMaxLen; l++) kraft += count[l] << (kMaxLen - l);
+        for (unsigned l = 1; l <= kMaxLen; l++) {
+            kraft += count[l] << (kMaxLen - l);
+        }
         while (kraft > (uint64_t(1) << kMaxLen)) {
             unsigned l = kMaxLen - 1;
-            while (count[l] == 0) l--;
+            while (count[l] == 0) {
+                l--;
+            }
             count[l]--;
             count[l + 1]++;
             kraft -= uint64_t(1) << (kMaxLen - l - 1);
         }
         size_t i = 0;
-        for (unsigned l = kMaxLen; l >= 1; l--)
+        for (unsigned l = kMaxLen; l >= 1; l--) {
             for (uint64_t k = 0; k < count[l]; k++, i++) {
                 lens_[order[i]] = static_cast<uint8_t>(l);
                 payload_bits_ += freq[order[i]] * l;
             }
+        }
         header_bits_ = 0;
         for (size_t j = 0; j < d; j++) {
-            if (j > 0) header_bits_ += gamma_bits(syms_[j] - syms_[j - 1]);
+            if (j > 0) {
+                header_bits_ += gamma_bits(syms_[j] - syms_[j - 1]);
+            }
             header_bits_ += gamma_bits(zigzag(lens_[j] - (j ? lens_[j - 1] : 0)) + 1);
         }
     }
@@ -437,7 +521,9 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             }
         }
         A[n - 2] = 0;
-        for (size_t k = n - 2; k-- > 0;) A[k] = A[A[k]] + 1;
+        for (size_t k = n - 2; k-- > 0;) {
+            A[k] = A[A[k]] + 1;
+        }
         size_t avbl = 1, used = 0, depth = 0, next = n;
         size_t r = n - 1;  // one past the internal node to look at
         while (avbl > 0) {
@@ -458,7 +544,9 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     // Codes of one length are consecutive and follow bin order.
     void canonical(uint64_t first[kMaxLen + 1]) {
         std::fill(count_, count_ + kMaxLen + 1, 0);
-        for (const uint8_t l : lens_) count_[l]++;
+        for (const uint8_t l : lens_) {
+            count_[l]++;
+        }
         count_[0] = 0;
         uint64_t code = 0;
         for (unsigned l = 1; l <= kMaxLen; l++) {
@@ -468,15 +556,18 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
     }
 
     void build_codes() {
-        if (syms_.size() < 2) return;
+        if (syms_.size() < 2) {
+            return;
+        }
         uint64_t first[kMaxLen + 1];
         canonical(first);
         for (size_t i = 0; i < syms_.size(); i++) {
             const uint64_t e = (first[lens_[i]]++ << 8) | lens_[i];
-            if (dense_)
+            if (dense_) {
                 code_[syms_[i]] = e;
-            else
+            } else {
                 map_.at(syms_[i]) = e;
+            }
         }
     }
 
@@ -487,30 +578,43 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
 
     void build_decoder() {
         const size_t d = syms_.size();
-        if (d < 2) return;
+        if (d < 2) {
+            return;
+        }
         canonical(first_);
         uint64_t kraft = 0;
         for (unsigned l = 1; l <= kMaxLen; l++) {
             kraft += count_[l] << (kMaxLen - l);
-            if (count_[l]) max_len_ = l;
+            if (count_[l]) {
+                max_len_ = l;
+            }
         }
-        if (kraft > (uint64_t(1) << kMaxLen)) throw std::out_of_range("SZ3 Huffman: code lengths overfull");
+        if (kraft > (uint64_t(1) << kMaxLen)) {
+            throw std::out_of_range("SZ3 Huffman: code lengths overfull");
+        }
         base_[1] = 0;
-        for (unsigned l = 2; l <= kMaxLen; l++) base_[l] = base_[l - 1] + count_[l - 1];
+        for (unsigned l = 2; l <= kMaxLen; l++) {
+            base_[l] = base_[l - 1] + count_[l - 1];
+        }
         // Codes of length l are below limit_[l] once left-aligned in 32 bits.
-        for (unsigned l = 1; l <= kMaxLen; l++) limit_[l] = (first_[l] + count_[l]) << (kMaxLen - l);
+        for (unsigned l = 1; l <= kMaxLen; l++) {
+            limit_[l] = (first_[l] + count_[l]) << (kMaxLen - l);
+        }
         uint64_t pos[kMaxLen + 1];
         std::copy(base_, base_ + kMaxLen + 1, pos);
         sorted_.resize(d);
-        for (size_t i = 0; i < d; i++) sorted_[pos[lens_[i]]++] = static_cast<T>(static_cast<U>(offset_) + syms_[i]);
+        for (size_t i = 0; i < d; i++) {
+            sorted_[pos[lens_[i]]++] = static_cast<T>(static_cast<U>(offset_) + syms_[i]);
+        }
         table_bits_ = std::min(max_len_, kTableBits);
         table_.assign(size_t(1) << table_bits_, Entry{0, 0});
-        for (unsigned l = 1; l <= table_bits_; l++)
+        for (unsigned l = 1; l <= table_bits_; l++) {
             for (uint64_t k = 0; k < count_[l]; k++) {
                 const size_t lo = static_cast<size_t>((first_[l] + k) << (table_bits_ - l));
                 std::fill(table_.begin() + lo, table_.begin() + lo + (size_t(1) << (table_bits_ - l)),
                           Entry{sorted_[base_[l] + k], static_cast<uint8_t>(l)});
             }
+        }
     }
 
     // A code longer than the table, with its bits at the top of acc.
@@ -519,8 +623,12 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
         // mispredicted branch per length.
         const uint64_t w = acc >> 32;
         len = table_bits_ + 1;
-        for (unsigned l = table_bits_ + 1; l < max_len_; l++) len += w >= limit_[l];
-        if (w >= limit_[len]) throw std::out_of_range("SZ3 Huffman: invalid code in payload");
+        for (unsigned l = table_bits_ + 1; l < max_len_; l++) {
+            len += static_cast<unsigned int>(w >= limit_[l]);
+        }
+        if (w >= limit_[len]) {
+            throw std::out_of_range("SZ3 Huffman: invalid code in payload");
+        }
         sym = sorted_[base_[len] + ((w >> (32 - len)) - first_[len])];
     }
 
@@ -551,10 +659,11 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
                 } else {
                     const Entry e = tab[acc >> (64 - tb)];
                     len = e.len;
-                    if (len)
+                    if (len) {
                         out[i] = e.sym;
-                    else
+                    } else {
                         decode_long(acc, out[i], len);
+                    }
                     acc <<= len;
                     i++;
                 }
@@ -568,14 +677,17 @@ class HuffmanEncoder : public concepts::EncoderInterface<T> {
             const uint64_t acc = static_cast<uint64_t>(bytesToInt64_bigEndian(tail)) << (pos & 7);
             const Entry e = tab[acc >> (64 - tb)];
             unsigned len = e.len;
-            if (len)
+            if (len) {
                 out[i] = e.sym;
-            else
+            } else {
                 decode_long(acc, out[i], len);
+            }
             pos += len;
             i++;
         }
-        if (pos != bits) throw std::out_of_range("SZ3 Huffman: payload length does not match its codes");
+        if (pos != bits) {
+            throw std::out_of_range("SZ3 Huffman: payload length does not match its codes");
+        }
     }
 
     // encoder and decoder

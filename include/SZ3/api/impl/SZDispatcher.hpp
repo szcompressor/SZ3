@@ -94,20 +94,23 @@ void SZ_decompress_dispatcher(Config &conf, const uchar *cmpData, size_t cmpSize
     {
         // backward compatibility for v3.3.2; its Huffman streams are HuffmanEncoderV1's.
         if (conf.sz3DataVer < versionInt("3.4.0")) {
-            if (conf.cmprAlgo == ALGO_LORENZO_REG)
+            if (conf.cmprAlgo == ALGO_LORENZO_REG) {
                 return SZ_decompress_LorenzoReg<T, N, HuffmanEncoderV1<int>>(conf, cmpData, cmpSize, decData);
-            if (conf.cmprAlgo == ALGO_INTERP)
+            }
+            if (conf.cmprAlgo == ALGO_INTERP) {
                 return SZ_decompress_Interp<T, N, HuffmanEncoderV1<int>>(conf, cmpData, cmpSize, decData);
-            if (conf.cmprAlgo != ALGO_LOSSLESS)
+            }
+            if (conf.cmprAlgo != ALGO_LOSSLESS) {
                 throw std::invalid_argument("SZ3: " + enum_to_string(static_cast<ALGO>(conf.cmprAlgo), ALGO_MAP) +
                                             " data of version " + versionStr(conf.sz3DataVer) +
                                             " is not supported; use SZ3 v" + versionStr(conf.sz3DataVer) +
                                             " to decompress it");
+            }
         }
     }
     if (conf.cmprAlgo == ALGO_LOSSLESS) {
         auto zstd = Lossless_zstd();
-        auto decDataPos = reinterpret_cast<uchar *>(decData);
+        auto *decDataPos = reinterpret_cast<uchar *>(decData);
         size_t decDataSize = zstd.decompress(cmpData, cmpSize, decDataPos, conf.num * sizeof(T));
         if (decDataSize != conf.num * sizeof(T)) {
             throw std::runtime_error("Decompressed data size does not match the original data size");

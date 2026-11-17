@@ -38,7 +38,9 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
         nThreads = static_cast<int>(ext);
     }
     // A normalized {1, 1, 3} shape has only its xyz axis left; it must stay whole.
-    if (conf.cmprAlgo == ALGO_BIOMD && conf.N == 1) nThreads = 1;
+    if (conf.cmprAlgo == ALGO_BIOMD && conf.N == 1) {
+        nThreads = 1;
+    }
     std::vector<T> min_t(nThreads), max_t(nThreads);
     std::vector<Config> conf_t(nThreads);
     std::vector<std::unique_ptr<uchar[]>> compressed_t(nThreads);
@@ -71,42 +73,48 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
 #ifdef _OPENMP
 #pragma omp parallel for num_threads(nThreads)
 #endif
-    for (int i = 0; i < nThreads; i++) try {
-        size_t lo = static_cast<size_t>(i) * ext / nThreads;
-        size_t hi = static_cast<size_t>(i + 1) * ext / nThreads;
-        auto dims_t = conf.dims;
-        dims_t[split] = hi - lo;
-        conf_t[i] = conf;
-        conf_t[i].setDims(dims_t.begin(), dims_t.end());
-        // Room for the size header Lossless_zstd::compress writes ahead of the zstd stream.
-        size_t cmp_size_cap = sizeof(uint64_t) + Lossless_zstd::compress_bound(conf_t[i].num * sizeof(T));
-        compressed_t[i].reset(new uchar[cmp_size_cap]);
-        const T* data_t = data + lo * inner;
-        std::vector<T> gathered;
-        if (outer > 1) {
-            gathered.resize(conf_t[i].num);
-            const size_t run = (hi - lo) * inner;
-            for (size_t o = 0; o < outer; o++) std::copy_n(data + (o * ext + lo) * inner, run, &gathered[o * run]);
-            data_t = gathered.data();
-        }
-        // we have to use conf_t[i].N instead of N since each chunk may be a slice of the original data
-        if (conf_t[i].N == 1) {
-            cmp_size_t[i] = SZ_compress_dispatcher<T, 1>(conf_t[i], data_t, compressed_t[i].get(), cmp_size_cap);
-        } else if (conf_t[i].N == 2) {
-            cmp_size_t[i] = SZ_compress_dispatcher<T, 2>(conf_t[i], data_t, compressed_t[i].get(), cmp_size_cap);
-        } else if (conf_t[i].N == 3) {
-            cmp_size_t[i] = SZ_compress_dispatcher<T, 3>(conf_t[i], data_t, compressed_t[i].get(), cmp_size_cap);
-        } else if (conf_t[i].N == 4) {
-            cmp_size_t[i] = SZ_compress_dispatcher<T, 4>(conf_t[i], data_t, compressed_t[i].get(), cmp_size_cap);
-        } else {
-            throw std::invalid_argument("Unsupported N");
-        }
-    } catch (...) {
+    for (int i = 0; i < nThreads; i++) {
+        try {
+            size_t lo = static_cast<size_t>(i) * ext / nThreads;
+            size_t hi = static_cast<size_t>(i + 1) * ext / nThreads;
+            auto dims_t = conf.dims;
+            dims_t[split] = hi - lo;
+            conf_t[i] = conf;
+            conf_t[i].setDims(dims_t.begin(), dims_t.end());
+            // Room for the size header Lossless_zstd::compress writes ahead of the zstd stream.
+            size_t cmp_size_cap = sizeof(uint64_t) + Lossless_zstd::compress_bound(conf_t[i].num * sizeof(T));
+            compressed_t[i].reset(new uchar[cmp_size_cap]);
+            const T* data_t = data + lo * inner;
+            std::vector<T> gathered;
+            if (outer > 1) {
+                gathered.resize(conf_t[i].num);
+                const size_t run = (hi - lo) * inner;
+                for (size_t o = 0; o < outer; o++) {
+                    std::copy_n(data + (o * ext + lo) * inner, run, &gathered[o * run]);
+                }
+                data_t = gathered.data();
+            }
+            // we have to use conf_t[i].N instead of N since each chunk may be a slice of the original data
+            if (conf_t[i].N == 1) {
+                cmp_size_t[i] = SZ_compress_dispatcher<T, 1>(conf_t[i], data_t, compressed_t[i].get(), cmp_size_cap);
+            } else if (conf_t[i].N == 2) {
+                cmp_size_t[i] = SZ_compress_dispatcher<T, 2>(conf_t[i], data_t, compressed_t[i].get(), cmp_size_cap);
+            } else if (conf_t[i].N == 3) {
+                cmp_size_t[i] = SZ_compress_dispatcher<T, 3>(conf_t[i], data_t, compressed_t[i].get(), cmp_size_cap);
+            } else if (conf_t[i].N == 4) {
+                cmp_size_t[i] = SZ_compress_dispatcher<T, 4>(conf_t[i], data_t, compressed_t[i].get(), cmp_size_cap);
+            } else {
+                throw std::invalid_argument("Unsupported N");
+            }
+        } catch (...) {
 #ifdef _OPENMP
 #pragma omp critical
 #endif
-        {
-            if (!failure) failure = std::current_exception();
+            {
+                if (!failure) {
+                    failure = std::current_exception();
+                }
+            }
         }
     }
     if (failure) {
@@ -128,7 +136,9 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
     for (int i = 0; i < nThreads; i++) {
         conf_t[i].save(buffer_pos);
     }
-    for (int i = 0; i < nThreads; i++) write<uint64_t>(cmp_size_t[i], buffer_pos);
+    for (int i = 0; i < nThreads; i++) {
+        write<uint64_t>(cmp_size_t[i], buffer_pos);
+    }
 #ifdef _OPENMP
 #pragma omp parallel for num_threads(nThreads)
 #endif
@@ -140,15 +150,17 @@ size_t SZ_compress_OMP(Config& conf, const T* data, uchar* cmpData, size_t cmpCa
 
 template <class T, uint N>
 void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* decData) {
-    auto cmpr_data_pos = cmpData;
+    const auto* cmpr_data_pos = cmpData;
     const uchar* const cmp_end = cmpData + cmpSize;
     int nThreads = 1;
-    if (static_cast<size_t>(cmp_end - cmpr_data_pos) < sizeof(nThreads))
+    if (static_cast<size_t>(cmp_end - cmpr_data_pos) < sizeof(nThreads)) {
         throw std::out_of_range("SZ3 OMP: truncated thread count");
+    }
     read(nThreads, cmpr_data_pos);
     // Each thread contributes at least a config and a size, so the count cannot exceed the buffer size.
-    if (nThreads <= 0 || static_cast<size_t>(nThreads) > cmpSize)
+    if (nThreads <= 0 || static_cast<size_t>(nThreads) > cmpSize) {
         throw std::out_of_range("SZ3 OMP: invalid thread count");
+    }
 
     // Split as SZ_compress_OMP split it, from the same Config.
     const size_t split = conf.cmprAlgo == ALGO_BIOMD && conf.N == 3;
@@ -165,27 +177,31 @@ void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* de
     }
     {
         // backward compatibility for v3.3.2; Config::load() does not read the version the dispatcher checks.
-        for (auto& c : conf_t) c.sz3DataVer = conf.sz3DataVer;
+        for (auto& c : conf_t) {
+            c.sz3DataVer = conf.sz3DataVer;
+        }
     }
 
     std::vector<size_t> cmp_start_t, cmp_size_t;
     cmp_size_t.resize(nThreads);
-    if (static_cast<size_t>(cmp_end - cmpr_data_pos) < static_cast<size_t>(nThreads) * sizeof(uint64_t))
+    if (static_cast<size_t>(cmp_end - cmpr_data_pos) < static_cast<size_t>(nThreads) * sizeof(uint64_t)) {
         throw std::out_of_range("SZ3 OMP: truncated per-thread sizes");
+    }
     for (auto& s : cmp_size_t) {
         uint64_t v = 0;
         read(v, cmpr_data_pos);
         s = v;
     }
-    auto cmpr_data_p = cmpr_data_pos;
+    const auto* cmpr_data_p = cmpr_data_pos;
 
     cmp_start_t.resize(nThreads + 1);
     cmp_start_t[0] = 0;
     // The payloads follow back-to-back; build the offsets without overflowing so no slice points out.
     const size_t payload_avail = static_cast<size_t>(cmp_end - cmpr_data_p);
     for (int i = 1; i <= nThreads; i++) {
-        if (cmp_size_t[i - 1] > payload_avail - cmp_start_t[i - 1])
+        if (cmp_size_t[i - 1] > payload_avail - cmp_start_t[i - 1]) {
             throw std::out_of_range("SZ3 OMP: per-thread compressed sizes exceed the buffer");
+        }
         cmp_start_t[i] = cmp_start_t[i - 1] + cmp_size_t[i - 1];
     }
 
@@ -235,8 +251,9 @@ void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* de
                 throw std::invalid_argument("Unsupported N");
             }
             if (outer > 1) {
-                for (size_t o = 0; o < outer; o++)
+                for (size_t o = 0; o < outer; o++) {
                     std::copy_n(&gathered[o * run], run, decData + (o * ext + lo) * inner);
+                }
             }
         }
     } catch (...) {
@@ -244,7 +261,9 @@ void SZ_decompress_OMP(Config& conf, const uchar* cmpData, size_t cmpSize, T* de
 #pragma omp critical
 #endif
         {
-            if (!failure) failure = std::current_exception();
+            if (!failure) {
+                failure = std::current_exception();
+            }
         }
     }
     if (failure) {

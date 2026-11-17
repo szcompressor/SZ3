@@ -17,8 +17,12 @@ T data_range(const T *data, size_t num) {
     T max = data[0];
     T min = data[0];
     for (size_t i = 1; i < num; i++) {
-        if (max < data[i]) max = data[i];
-        if (min > data[i]) min = data[i];
+        if (max < data[i]) {
+            max = data[i];
+        }
+        if (min > data[i]) {
+            min = data[i];
+        }
     }
     return max - min;
 }
@@ -103,15 +107,23 @@ void verify(Type *ori_data, Type *data, size_t num_elements, double &psnr, doubl
 
     for (i = 0; i < num_elements; i++) {
         diff[i] = data[i] - ori_data[i];
-        if (Max < ori_data[i]) Max = ori_data[i];
-        if (Min > ori_data[i]) Min = ori_data[i];
+        if (Max < ori_data[i]) {
+            Max = ori_data[i];
+        }
+        if (Min > ori_data[i]) {
+            Min = ori_data[i];
+        }
         double err = fabs(data[i] - ori_data[i]);
         if (ori_data[i] != 0) {
             relerr = err / fabs(ori_data[i]);
-            if (maxpw_relerr < relerr) maxpw_relerr = relerr;
+            if (maxpw_relerr < relerr) {
+                maxpw_relerr = relerr;
+            }
         }
 
-        if (max_diff < err) max_diff = err;
+        if (max_diff < err) {
+            max_diff = err;
+        }
         prodSum += (ori_data[i] - mean1) * (data[i] - mean2);
         sum3 += (ori_data[i] - mean1) * (ori_data[i] - mean1);
         sum4 += (data[i] - mean2) * (data[i] - mean2);

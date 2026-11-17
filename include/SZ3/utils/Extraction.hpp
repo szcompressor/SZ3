@@ -16,7 +16,7 @@
 namespace SZ3 {
 
 template <uint N>
-float cal_sampling_ratio(size_t block, size_t n, size_t dmin, std::vector<size_t> dims) {
+float cal_sampling_ratio(size_t block, size_t n, size_t dmin, const std::vector<size_t> &dims) {
     size_t sample_n = 1;
     for (auto dim : dims) {
         sample_n *= dim / dmin * 2 * block;

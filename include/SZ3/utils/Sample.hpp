@@ -11,7 +11,9 @@ template <class T, uint N>
 inline void profiling_block(T* data, std::vector<size_t>& dims, std::vector<std::vector<size_t>>& starts,
                             size_t block_size, double abseb, size_t stride = 4) {
     assert(dims.size() == N);
-    if (stride == 0) stride = block_size;
+    if (stride == 0) {
+        stride = block_size;
+    }
     if constexpr (N == 4) {
         size_t dimx = dims[0], dimy = dims[1], dimz = dims[2], dimw = dims[3], dimyzw = dimy * dimz * dimw,
                dimzw = dimz * dimw;
@@ -31,10 +33,11 @@ inline void profiling_block(T* data, std::vector<size_t>& dims, std::vector<std:
                                     for (size_t ll = 0; ll <= block_size; ll += stride) {
                                         size_t cur_idx = start_idx + ii * dimyzw + jj * dimzw + kk * dimw + ll;
                                         T cur_value = data[cur_idx];
-                                        if (cur_value < min)
+                                        if (cur_value < min) {
                                             min = cur_value;
-                                        else if (cur_value > max)
+                                        } else if (cur_value > max) {
                                             max = cur_value;
+                                        }
                                     }
                                 }
                             }
@@ -63,10 +66,11 @@ inline void profiling_block(T* data, std::vector<size_t>& dims, std::vector<std:
                             for (size_t kk = 0; kk <= block_size; kk += stride) {
                                 size_t cur_idx = start_idx + ii * dimyz + jj * dimz + kk;
                                 T cur_value = data[cur_idx];
-                                if (cur_value < min)
+                                if (cur_value < min) {
                                     min = cur_value;
-                                else if (cur_value > max)
+                                } else if (cur_value > max) {
                                     max = cur_value;
+                                }
                             }
                         }
                     }
@@ -91,10 +95,11 @@ inline void profiling_block(T* data, std::vector<size_t>& dims, std::vector<std:
                     for (size_t jj = 0; jj <= block_size; jj += stride) {
                         size_t cur_idx = start_idx + ii * dimy + jj;
                         T cur_value = data[cur_idx];
-                        if (cur_value < min)
+                        if (cur_value < min) {
                             min = cur_value;
-                        else if (cur_value > max)
+                        } else if (cur_value > max) {
                             max = cur_value;
+                        }
                     }
                 }
                 if (max - min > abseb) {
@@ -115,10 +120,11 @@ inline void profiling_block(T* data, std::vector<size_t>& dims, std::vector<std:
             for (size_t ii = 0; ii <= block_size; ii += stride) {
                 size_t cur_idx = start_idx + ii;
                 T cur_value = data[cur_idx];
-                if (cur_value < min)
+                if (cur_value < min) {
                     min = cur_value;
-                else if (cur_value > max)
+                } else if (cur_value > max) {
                     max = cur_value;
+                }
             }
             if (max - min > abseb) {
                 size_t a[1] = {i};
@@ -225,7 +231,9 @@ void sampleBlocks(T* data, std::vector<size_t>& dims, size_t sampleBlockSize,
     if (profiling) {
         size_t num_filtered_blocks = starts.size();
         size_t sample_stride = static_cast<size_t>(num_filtered_blocks / (totalblock_num * sample_rate));
-        if (sample_stride <= 0) sample_stride = 1;
+        if (sample_stride <= 0) {
+            sample_stride = 1;
+        }
         for (size_t i = 0; i < num_filtered_blocks; i += sample_stride) {
             std::vector<T> s_block;
             sample_blocks<T, N>(data, s_block, dims, starts[i], sampleBlockSize + 1);
@@ -233,7 +241,9 @@ void sampleBlocks(T* data, std::vector<size_t>& dims, size_t sampleBlockSize,
         }
     } else {
         size_t sample_stride = static_cast<size_t>(1.0 / sample_rate);
-        if (sample_stride <= 0) sample_stride = 1;
+        if (sample_stride <= 0) {
+            sample_stride = 1;
+        }
         if constexpr (N == 1) {
             for (size_t x_start = 0; x_start < dims[0] - sampleBlockSize; x_start += sampleBlockSize) {
                 if (idx % sample_stride == 0) {

@@ -50,12 +50,12 @@ size_t SZ_compress(const SZ3::Config& config, const T* data, char* cmpData, size
         throw std::invalid_argument(SZ3_ERROR_COMP_BUFFER_NOT_LARGE_ENOUGH);
     }
 
-    auto cmpDataPos = reinterpret_cast<uchar*>(cmpData);
+    auto* cmpDataPos = reinterpret_cast<uchar*>(cmpData);
 
     // save 16 bytes header
     write(static_cast<uint32_t>(SZ3_MAGIC_NUMBER), cmpDataPos);  // magic number (4 bytes)
     write(versionInt(SZ3_DATA_VER), cmpDataPos);                 // data version (4 bytes)
-    auto sizeHeaderPos = cmpDataPos;
+    auto* sizeHeaderPos = cmpDataPos;
     cmpDataPos += 8; // reserve space for cmp data size (8 bytes)
 
     // begin compression
@@ -119,7 +119,7 @@ template <class T>
 void SZ_decompress(SZ3::Config& config, const char* cmpData, size_t cmpSize, T*& decData) {
     using namespace SZ3;
 
-    auto cmpDataPos = reinterpret_cast<const uchar*>(cmpData);
+    const auto* cmpDataPos = reinterpret_cast<const uchar*>(cmpData);
 
     // Header layout: magic number (4) + data version (4) + compressed payload size (8) = 16 bytes.
     if (cmpSize < 16) {
@@ -137,10 +137,11 @@ void SZ_decompress(SZ3::Config& config, const char* cmpData, size_t cmpSize, T*&
         std::stringstream ss;
         ss << "SZ3 " << SZ3_VER << " reads data versions " << SZ3_DATA_VER_OLDEST << " to " << SZ3_DATA_VER
            << ", but this data is version " << versionStr(config.sz3DataVer) << ". ";
-        if (config.sz3DataVer > versionInt(SZ3_DATA_VER))
+        if (config.sz3DataVer > versionInt(SZ3_DATA_VER)) {
             ss << "Upgrade SZ3 to decompress it.";
-        else
+        } else {
             ss << "Use SZ3 v" << versionStr(config.sz3DataVer) << " to decompress it.";
+        }
         throw std::invalid_argument(ss.str());
     }
 
@@ -151,7 +152,7 @@ void SZ_decompress(SZ3::Config& config, const char* cmpData, size_t cmpSize, T*&
     if (cmpDataSize > cmpSize - 16) {
         throw std::out_of_range("SZ3: compressed payload size exceeds the buffer");
     }
-    auto cmpConfPos = cmpDataPos + cmpDataSize;
+    const auto* cmpConfPos = cmpDataPos + cmpDataSize;
     size_t confRemaining = cmpSize - 16 - cmpDataSize;
     config.load(cmpConfPos, confRemaining);
 

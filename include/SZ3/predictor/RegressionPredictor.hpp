@@ -171,8 +171,9 @@ class RegressionPredictor : public concepts::PredictorInterface<T, N> {
     }
 
     void pred_and_recover_coefficients() {
-        if (regression_coeff_index + N + 1 > regression_coeff_quant_inds.size())
+        if (regression_coeff_index + N + 1 > regression_coeff_quant_inds.size()) {
             throw std::out_of_range("SZ3: ran out of regression coefficients while decompressing");
+        }
         for (int i = 0; i < static_cast<int>(N); i++) {
             current_coeffs[i] =
                 quantizer_liner.recover(current_coeffs[i], regression_coeff_quant_inds[regression_coeff_index++]);
