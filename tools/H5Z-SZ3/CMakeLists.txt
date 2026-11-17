@@ -1,16 +1,7 @@
-#Either use:
-#find_package(HDF5 1.12.1 REQUIRED)
-#or manually set the hdf5 paths:
-#set(HDF5_LIBRARIES "/path/to/hdf5-1.12.1/hdf5/lib/libhdf5.so")
-#set(HDF5_INCLUDE_DIRS "/path/to/hdf5-1.12.1/hdf5/include")
-
 # Not when a parent project already provides HDF5::HDF5, for example one that builds HDF5 itself.
 if (NOT TARGET HDF5::HDF5)
     find_package(HDF5 COMPONENTS C REQUIRED)
 endif ()
-
-#message("HDF5LIB PATH:" ${HDF5_LIBRARIES})
-#message("HDF5INCLUDE PATH:" ${HDF5_INCLUDE_DIRS})
 
 add_library(hdf5sz3
         src/H5Z_SZ3.cpp
@@ -37,9 +28,8 @@ set_target_properties(hdf5sz3 PROPERTIES VERSION ${SZ3_VERSION} SOVERSION ${SZ3_
 
 target_include_directories(hdf5sz3
         PUBLIC
-        # BUILD_INTERFACE only: exported, this machine's HDF5 headers would outrank a consumer's.
-        # Quoted, or CMake reads the leading $ as a relative path and prepends the source directory.
-        "$<BUILD_INTERFACE:${HDF5_INCLUDE_DIRS}>"
+        # HDF5's include directories come from HDF5::HDF5, after SZ3core's, so an older SZ3 in the HDF5 prefix
+        # cannot shadow this one.
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
         "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/hdf5_sz3>"
 )
