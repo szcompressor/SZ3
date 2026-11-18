@@ -67,7 +67,7 @@ class multi_dimensional_range : public std::enable_shared_from_this<multi_dimens
             return cpy;
         }
 
-        inline multi_dimensional_iterator &operator++() {
+        multi_dimensional_iterator &operator++() {
             size_t i = N - 1;
             local_index[i]++;
             ptrdiff_t offset = range->global_dim_strides[i];
@@ -123,14 +123,16 @@ class multi_dimensional_range : public std::enable_shared_from_this<multi_dimens
         // [input] offset for all the dimensions
         // [output] value of data at the target position
         template <class... Args>
-        inline T prev(Args &&...pos) const {
+        T prev(Args &&...pos) const {
             // TODO: check int type
             // TODO: change to offset map for efficiency
             static_assert(sizeof...(Args) == N, "Must have the same number of arguments");
             auto offset = global_offset;
             std::array<int, N> args{std::forward<Args>(pos)...};
             for (int i = 0; i < N; i++) {
-                if (local_index[i] < args[i] && range->is_left_boundary(i)) return 0;
+                if (local_index[i] < args[i] && range->is_left_boundary(i)) {
+                    return 0;
+                }
                 offset -= args[i] ? args[i] * range->global_dim_strides[i] : 0;
             }
             return range->data[offset];

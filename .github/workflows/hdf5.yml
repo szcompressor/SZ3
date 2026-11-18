@@ -187,3 +187,49 @@ jobs:
           if [ "$(grep -c 'libmpi' _mpi.log)" -gt 1 ]; then
             echo "more than one MPI in the consumer's binary"; cat _mpi.log; exit 1
           fi
+
+  # GROMACS #5821: an older SZ3 installed beside HDF5, or on CPATH, while this SZ3 is built at top
+  # level or as a subproject. No job above has a second SZ3 where a compiler can reach it.
+  shadowed:
+    name: An older SZ3 on the include path
+    runs-on: ubuntu-latest
+    env:
+      # Where Spack's sz3 package stopped, and so what shared a view with HDF5 in #5821.
+      OLD_SZ3_REF: v3.2.0
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: h5
+          create-args: >-
+            hdf5=1.14.6
+            zstd
+          init-shell: bash
+
+      - name: Install Zstd
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libzstd-dev
+
+      - name: Fetch the older SZ3
+        run: |
+          # By URL: a fork's origin need not carry the tags.
+          git fetch -q --depth 1 https://github.com/szcompressor/SZ3.git \
+              "refs/tags/${{ env.OLD_SZ3_REF }}:refs/tags/${{ env.OLD_SZ3_REF }}"
+          git worktree add _old "${{ env.OLD_SZ3_REF }}"
+          grep -m1 'project(SZ3' _old/CMakeLists.txt
+
+      - name: SZ3 is compiled from its own headers, not the older ones
+        shell: bash -el {0}
+        run: |
+          # The scenarios are named here so that adding one to the script does not add it to CI
+          # unseen. Left out because SZ3 cannot fix them, only the parent project can: the
+          # parent's own targets under SYSTEM, a SYSTEM subproject with the older SZ3 on CPATH,
+          # and a consumer of an installed SZ3 (docs/advanced-guide.md, "As a subproject").
+          # The script installs the older SZ3 into the environment, which is this job's to spend.
+          SHADOW_MUTATE_PREFIX=1 tools/test/shadowedPrefix.sh "$CONDA_PREFIX" _old "$PWD/_shadow" \
+              cpath-toplevel cpath-fetchcontent \
+              shared-toplevel shared-toplevel-nosystem \
+              shared-add_subdirectory shared-add_subdirectory-system \
+              shared-fetchcontent shared-fetchcontent-system

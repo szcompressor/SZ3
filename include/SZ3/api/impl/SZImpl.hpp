@@ -30,8 +30,9 @@ size_t SZ_compress_impl(Config &conf, const T *data, uchar *cmpData, size_t cmpC
     if constexpr (std::is_integral<T>::value) {
         std::vector<SZ_float_of<T>> values(data, data + conf.num);
         if (sizeof(T) == 8 &&
-            std::any_of(values.begin(), values.end(), [](double v) { return std::fabs(v) >= 0x1p53; }))
+            std::any_of(values.begin(), values.end(), [](double v) { return std::fabs(v) >= 0x1p53; })) {
             throw std::invalid_argument("SZ3: 8-byte integers must lie within +-2^53, where doubles hold them exactly");
+        }
         calAbsErrorBound(conf, values.data());
         conf.absErrorBound = std::floor(conf.absErrorBound) + 0.49;
         return SZ_compress_impl<SZ_float_of<T>, N>(conf, values.data(), cmpData, cmpCap);

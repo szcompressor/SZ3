@@ -35,10 +35,12 @@ size_t SZ_compress_bioMD(Config &conf, const T *data, uchar *cmpData, size_t cmp
         conf.cmprAlgo = ALGO_LOSSLESS;
         return Lossless_zstd().compress(reinterpret_cast<const uchar *>(data), conf.num * sizeof(T), cmpData, cmpCap);
     };
-    if (N > 3 || conf.dims[N - 1] != 3)
+    if (N > 3 || conf.dims[N - 1] != 3) {
         throw std::invalid_argument("SZ3 ALGO_BIOMD: data must be of shape (atoms, 3) or (frames, atoms, 3)");
-    if (conf.num > size_t(std::numeric_limits<int>::max()))
+    }
+    if (conf.num > size_t(std::numeric_limits<int>::max())) {
         throw std::invalid_argument("SZ3 ALGO_BIOMD: more values than an int counts; compress fewer frames at a time");
+    }
     auto sz =
         make_compressor_sz_generic<T, N>(make_decomposition_biomd<T, N>(conf),
                                          SegmentedEncoder<HuffmanEncoder<int>>(biomd::NUM_STREAMS), Lossless_bypass());

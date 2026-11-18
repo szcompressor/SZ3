@@ -391,3 +391,43 @@ jobs:
 
       - name: Every shape a consumer builds in
         run: tools/test/consumeInstalledSZ3.sh "$PWD/_prefix"
+
+  # cmake_minimum_required names a version that every other job, on the runner's own CMake, is
+  # years past.
+  cmake-minimum:
+    name: The oldest CMake SZ3 claims
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install HDF5 and Zstd
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libhdf5-dev hdf5-tools libzstd-dev
+
+      - name: Read the version SZ3 claims
+        id: want
+        run: |
+          WANT=$(sed -n 's/^cmake_minimum_required(VERSION \([0-9.]*\)).*/\1/p' CMakeLists.txt)
+          [ -n "$WANT" ] || { echo "no cmake_minimum_required in CMakeLists.txt"; exit 1; }
+          echo "version=$WANT" >> "$GITHUB_OUTPUT"
+
+      - uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: "${{ steps.want.outputs.version }}.x"
+
+      - name: Build, test and install with exactly that CMake
+        shell: bash
+        run: |
+          GOT=$(cmake --version | sed -n '1s/.* //p')
+          echo "cmake $GOT, SZ3 claims ${{ steps.want.outputs.version }}"
+          case $GOT in
+            "${{ steps.want.outputs.version }}".*) ;;
+            *) echo "this is not the CMake the job is named for"; exit 1 ;;
+          esac
+          # Not consumeInstalledSZ3.sh: under CMake 3.19 a C-only consumer of SZ3::hdf5sz3 stops
+          # with "Cannot use features from non-enabled language CXX", which is not fixed yet.
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DBUILD_TESTING=ON -DBUILD_H5Z_FILTER=ON
+          cmake --build build --parallel 4
+          (cd build && ctest --output-on-failure --no-tests=error -C ${{ env.BUILD_TYPE }})
+          cmake --install build --prefix "$PWD/_prefix"

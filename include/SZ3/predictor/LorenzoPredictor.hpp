@@ -43,15 +43,15 @@ class LorenzoPredictor : public concepts::PredictorInterface<T, N> {
         }
     }
 
-    bool precompress(const block_iter &) override { return true; }
+    bool precompress(const block_iter & /*unused*/) override { return true; }
 
     void precompress_block_commit() noexcept override {}
 
-    bool predecompress(const block_iter &) override { return true; }
+    bool predecompress(const block_iter & /*unused*/) override { return true; }
 
-    void save(uchar *&) override {}
+    void save(uchar *& /*unused*/) override {}
 
-    void load(const uchar *&, size_t &) override {}
+    void load(const uchar *& /*unused*/, size_t & /*unused*/) override {}
 
     void print() const override {
         std::cout << L << "-Layer " << N << "D Lorenzo predictor, noise = " << noise << "\n";

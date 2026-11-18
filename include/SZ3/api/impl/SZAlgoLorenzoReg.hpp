@@ -79,7 +79,7 @@ size_t SZ_compress_LorenzoReg(Config &conf, T *data, uchar *cmpData, size_t cmpC
 template <class T, uint N, class Encoder = HuffmanEncoder<int>>
 void SZ_decompress_LorenzoReg(const Config &conf, const uchar *cmpData, size_t cmpSize, T *decData) {
     assert(conf.cmprAlgo == ALGO_LORENZO_REG);
-    auto cmpDataPos = cmpData;
+    const auto *cmpDataPos = cmpData;
     LinearQuantizer<T> quantizer;
     auto sz = make_compressor_lorenzo_regression<T, N>(conf, quantizer, Encoder(), Lossless_zstd());
     sz->decompress(conf, cmpDataPos, cmpSize, decData);

@@ -1,16 +1,7 @@
-#Either use:
-#find_package(HDF5 1.12.1 REQUIRED)
-#or manually set the hdf5 paths:
-#set(HDF5_LIBRARIES "/path/to/hdf5-1.12.1/hdf5/lib/libhdf5.so")
-#set(HDF5_INCLUDE_DIRS "/path/to/hdf5-1.12.1/hdf5/include")
-
 # Not when a parent project already provides HDF5::HDF5, for example one that builds HDF5 itself.
 if (NOT TARGET HDF5::HDF5)
     find_package(HDF5 COMPONENTS C REQUIRED)
 endif ()
-
-#message("HDF5LIB PATH:" ${HDF5_LIBRARIES})
-#message("HDF5INCLUDE PATH:" ${HDF5_INCLUDE_DIRS})
 
 add_library(hdf5sz3
         src/H5Z_SZ3.cpp
@@ -24,6 +15,9 @@ if (NOT BUILD_SHARED_LIBS)
     target_compile_definitions(hdf5sz3 PUBLIC HDF5SZ3_STATIC)
 endif ()
 
+# Keep SZ3core before HDF5::HDF5: inherited include directories follow this order, so this SZ3's headers
+# are searched before an older SZ3 installed in the HDF5 prefix. Do not add HDF5_INCLUDE_DIRS to hdf5sz3's
+# own include directories, which would come first.
 # SZ3core only: SZ3::SZ3 has OpenMP only where the consumer finds it, and the filter must link everywhere.
 target_link_libraries(hdf5sz3
         PUBLIC SZ3core HDF5::HDF5
@@ -37,9 +31,6 @@ set_target_properties(hdf5sz3 PROPERTIES VERSION ${SZ3_VERSION} SOVERSION ${SZ3_
 
 target_include_directories(hdf5sz3
         PUBLIC
-        # BUILD_INTERFACE only: exported, this machine's HDF5 headers would outrank a consumer's.
-        # Quoted, or CMake reads the leading $ as a relative path and prepends the source directory.
-        "$<BUILD_INTERFACE:${HDF5_INCLUDE_DIRS}>"
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
         "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/hdf5_sz3>"
 )

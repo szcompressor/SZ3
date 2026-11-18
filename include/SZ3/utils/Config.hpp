@@ -164,8 +164,9 @@ class Config {
     template <class Iter>
     size_t setDims(Iter begin, Iter end) {
         auto dims_ = std::vector<size_t>(begin, end);
-        if (std::any_of(dims_.begin(), dims_.end(), [](size_t dim) { return dim == 0; }))
+        if (std::any_of(dims_.begin(), dims_.end(), [](size_t dim) { return dim == 0; })) {
             throw std::invalid_argument("SZ3: dimensions must be positive");
+        }
         dims.clear();
         for (auto dim : dims_) {
             if (dim > 1) {
@@ -221,14 +222,18 @@ class Config {
 
         while (std::getline(ss, line)) {
             trim(line);
-            if (line.empty() || line[0] == '#') continue;
+            if (line.empty() || line[0] == '#') {
+                continue;
+            }
             if (line.front() == '[') {
                 section = line.substr(1, line.find(']') - 1);
                 continue;
             }
 
             auto sep = line.find('=');
-            if (sep == std::string::npos) continue;
+            if (sep == std::string::npos) {
+                continue;
+            }
 
             std::string key = line.substr(0, sep);
             std::string value = line.substr(sep + 1);
@@ -236,43 +241,45 @@ class Config {
             trim(value);
 
             if (eq(section, "GlobalSettings")) {
-                if (eq(key, "CmprAlgo"))
+                if (eq(key, "CmprAlgo")) {
                     match_enum(value, ALGO_MAP, cmprAlgo);
-                else if (eq(key, "ErrorBoundMode"))
+                } else if (eq(key, "ErrorBoundMode")) {
                     match_enum(value, EB_MAP, errorBoundMode);
-                else if (eq(key, "AbsErrorBound"))
+                } else if (eq(key, "AbsErrorBound")) {
                     absErrorBound = std::stod(value);
-                else if (eq(key, "RelErrorBound"))
+                } else if (eq(key, "RelErrorBound")) {
                     relErrorBound = std::stod(value);
-                else if (eq(key, "PSNRErrorBound"))
+                } else if (eq(key, "PSNRErrorBound")) {
                     psnrErrorBound = std::stod(value);
-                else if (eq(key, "L2NormErrorBound"))
+                } else if (eq(key, "L2NormErrorBound")) {
                     l2normErrorBound = std::stod(value);
-                else if (eq(key, "OpenMP"))
+                } else if (eq(key, "OpenMP")) {
                     openmp = parse_bool(value);
+                }
             } else if (eq(section, "AlgoSettings")) {
-                if (eq(key, "Lorenzo"))
+                if (eq(key, "Lorenzo")) {
                     lorenzo = parse_bool(value);
-                else if (eq(key, "Lorenzo2ndOrder"))
+                } else if (eq(key, "Lorenzo2ndOrder")) {
                     lorenzo2 = parse_bool(value);
-                else if (eq(key, "Regression"))
+                } else if (eq(key, "Regression")) {
                     regression = parse_bool(value);
-                else if (eq(key, "Regression2ndOrder"))
+                } else if (eq(key, "Regression2ndOrder")) {
                     regression2 = parse_bool(value);
-                else if (eq(key, "InterpolationAlgo"))
+                } else if (eq(key, "InterpolationAlgo")) {
                     match_enum(value, INTERP_ALGO_MAP, interpAlgo);
-                else if (eq(key, "InterpolationDirection"))
+                } else if (eq(key, "InterpolationDirection")) {
                     interpDirection = std::stoi(value);
-                else if (eq(key, "BlockSize"))
+                } else if (eq(key, "BlockSize")) {
                     blockSize = std::stoi(value);
-                else if (eq(key, "QuantizationBinTotal"))
+                } else if (eq(key, "QuantizationBinTotal")) {
                     quantbinCnt = std::stoi(value);
-                else if (eq(key, "InterpolationAnchorStride"))
+                } else if (eq(key, "InterpolationAnchorStride")) {
                     interpAnchorStride = std::stoi(value);
-                else if (eq(key, "InterpolationAlpha"))
+                } else if (eq(key, "InterpolationAlpha")) {
                     interpAlpha = std::stod(value);
-                else if (eq(key, "InterpolationBeta"))
+                } else if (eq(key, "InterpolationBeta")) {
                     interpBeta = std::stod(value);
+                }
             }
         }
     }
@@ -316,7 +323,7 @@ class Config {
      * @return Size of the serialized configuration.
      */
     size_t save(unsigned char*& c) const {
-        auto c0 = c;
+        auto* c0 = c;
         c += sizeof(uchar);  // reserve space for conf size
 
         write(N, c);
@@ -337,18 +344,16 @@ class Config {
             write(psnrErrorBound, c);
         } else if (errorBoundMode == EB_L2NORM) {
             write(l2normErrorBound, c);
-        } else if (errorBoundMode == EB_ABS_OR_REL) {
-            write(absErrorBound, c);
-            write(relErrorBound, c);
-        } else if (errorBoundMode == EB_ABS_AND_REL) {
+        } else if (errorBoundMode == EB_ABS_OR_REL || errorBoundMode == EB_ABS_AND_REL) {
             write(absErrorBound, c);
             write(relErrorBound, c);
         } else {
             throw std::invalid_argument("SZ3 Config::save: unknown error bound mode");
         }
 
-        uint8_t boolvals = (lorenzo & 1) << 7 | (lorenzo2 & 1) << 6 | (regression & 1) << 5 | (regression2 & 1) << 4 |
-                           (openmp & 1) << 3;
+        uint8_t boolvals = (static_cast<int>(lorenzo) & 1) << 7 | (static_cast<int>(lorenzo2) & 1) << 6 |
+                           (static_cast<int>(regression) & 1) << 5 | (static_cast<int>(regression2) & 1) << 4 |
+                           (static_cast<int>(openmp) & 1) << 3;
         write(boolvals, c);
 
         write(dataType, c);
@@ -384,13 +389,18 @@ class Config {
 
         read(N, c, remaining_length);
         // Not `N > 4`: char may be signed, and then a byte like 0xF3 arrives negative and passes.
-        if (static_cast<unsigned char>(N) > 4)
+        if (static_cast<unsigned char>(N) > 4) {
             throw std::out_of_range("SZ3 Config::load: invalid number of dimensions");
+        }
         uint8_t bitWidth;
         read(bitWidth, c, remaining_length);
-        if (bitWidth > 64) throw std::out_of_range("SZ3 Config::load: invalid dimension bit width");
+        if (bitWidth > 64) {
+            throw std::out_of_range("SZ3 Config::load: invalid dimension bit width");
+        }
         const size_t dim_bytes = (static_cast<size_t>(N) * bitWidth + 7) / 8;
-        if (dim_bytes > remaining_length) throw std::out_of_range("SZ3 Config::load: dimensions exceed the buffer");
+        if (dim_bytes > remaining_length) {
+            throw std::out_of_range("SZ3 Config::load: dimensions exceed the buffer");
+        }
         dims = bytes2vector<size_t>(c, bitWidth, N);
         remaining_length -= dim_bytes;
         uint64_t num64 = 0;
@@ -408,8 +418,9 @@ class Config {
             }
             dims_product *= dim;
         }
-        if (!dims_ok || dims_product != num)
+        if (!dims_ok || dims_product != num) {
             throw std::out_of_range("SZ3 Config::load: dimensions inconsistent with the element count");
+        }
         read(cmprAlgo, c, remaining_length);
 
         read(errorBoundMode, c, remaining_length);
@@ -432,18 +443,28 @@ class Config {
         if (c < c1) {
             uint8_t boolvals;
             read(boolvals, c, remaining_length);
-            lorenzo = (boolvals >> 7) & 1;
-            lorenzo2 = (boolvals >> 6) & 1;
-            regression = (boolvals >> 5) & 1;
-            regression2 = (boolvals >> 4) & 1;
-            openmp = (boolvals >> 3) & 1;
+            lorenzo = (((boolvals >> 7) & 1) != 0);
+            lorenzo2 = (((boolvals >> 6) & 1) != 0);
+            regression = (((boolvals >> 5) & 1) != 0);
+            regression2 = (((boolvals >> 4) & 1) != 0);
+            openmp = (((boolvals >> 3) & 1) != 0);
         }
-        if (c < c1) read(dataType, c, remaining_length);
-        if (c < c1) read(quantbinCnt, c, remaining_length);
-        if (c < c1) read(blockSize, c, remaining_length);
-        if (c < c1) read(predDim, c, remaining_length);
+        if (c < c1) {
+            read(dataType, c, remaining_length);
+        }
+        if (c < c1) {
+            read(quantbinCnt, c, remaining_length);
+        }
+        if (c < c1) {
+            read(blockSize, c, remaining_length);
+        }
+        if (c < c1) {
+            read(predDim, c, remaining_length);
+        }
         // Skip fields a later version appends, so whatever follows this config is read from where it starts.
-        if (c > c1) throw std::out_of_range("SZ3 Config::load: the config is longer than its declared size");
+        if (c > c1) {
+            throw std::out_of_range("SZ3 Config::load: the config is longer than its declared size");
+        }
         remaining_length -= static_cast<size_t>(c1 - c);
         c = c1;
     }
@@ -470,7 +491,7 @@ class Config {
      */
     size_t size_est() const {
         std::vector<uchar> buffer(sizeof(Config) + 1024);
-        auto buffer_pos = buffer.data();
+        auto* buffer_pos = buffer.data();
         return save(buffer_pos);
     }
 

@@ -84,13 +84,17 @@ inline int64_t round_half_away(double y) { return int64_t(y + std::copysign(0.5,
 inline int64_t isqrt_round(int64_t n) { return n <= 0 ? 0 : int64_t(std::sqrt(double(n)) + 0.5); }
 // d = atom i - atom j
 inline void displacement(const int32_t *q, size_t i, size_t j, int64_t d[3]) {
-    for (int c = 0; c < 3; c++) d[c] = int64_t(q[3 * i + c]) - q[3 * j + c];
+    for (int c = 0; c < 3; c++) {
+        d[c] = int64_t(q[3 * i + c]) - q[3 * j + c];
+    }
 }
 
 // The largest axis of p, dropped by the sphere code, and the other two, kept.
 ALWAYS_INLINE void split_axes(const int64_t p[3], int &drop, int &keep0, int &keep1) {
     drop = std::llabs(p[1]) > std::llabs(p[0]) ? 1 : 0;
-    if (std::llabs(p[2]) > std::llabs(p[drop])) drop = 2;
+    if (std::llabs(p[2]) > std::llabs(p[drop])) {
+        drop = 2;
+    }
     keep0 = (drop + 1) % 3;
     keep1 = (drop + 2) % 3;
 }
@@ -118,7 +122,7 @@ void detect_water(const T *x, size_t atoms, Layout &layout) {
     constexpr size_t PROBES = 300, MIN_COUNT = 16;  // fewer candidates, or waters, than MIN_COUNT: no water
     std::vector<float> cand_oh, cand_hh;
     const size_t probe = std::max<size_t>(1, atoms / PROBES);
-    for (size_t i = 0; i + 2 < atoms; i += probe)
+    for (size_t i = 0; i + 2 < atoms; i += probe) {
         // five starts: a probe can land on any site of a 3- to 5-site water, and one of them is then its O
         for (size_t o = 0; o < 5 && i + o + 2 < atoms; o++) {
             const size_t k = i + o;
@@ -130,7 +134,10 @@ void detect_water(const T *x, size_t atoms, Layout &layout) {
                 break;
             }
         }
-    if (cand_hh.size() < MIN_COUNT) return;
+    }
+    if (cand_hh.size() < MIN_COUNT) {
+        return;
+    }
     // tolerances (nm), the same at every bound: rigid water keeps its geometry far tighter than `tight`, and `loose`
     // stays below the O-H / C-H difference (> 0.01 nm) that separates water from CH2/NH2
     constexpr double tight = 0.001, tol = 0.002, loose = 0.01;
@@ -139,7 +146,9 @@ void detect_water(const T *x, size_t atoms, Layout &layout) {
         std::sort(v.begin(), v.end());
         size_t best = 0, n = 0;
         for (size_t lo = 0, hi = 0; hi < v.size(); hi++) {
-            while (v[hi] - v[lo] > PEAK_WINDOW) lo++;
+            while (v[hi] - v[lo] > PEAK_WINDOW) {
+                lo++;
+            }
             if (hi - lo + 1 > n) {
                 n = hi - lo + 1;
                 best = (lo + hi) / 2;
@@ -149,9 +158,11 @@ void detect_water(const T *x, size_t atoms, Layout &layout) {
     };
     const double hh = peak(cand_hh);
     std::vector<float> oh_of_hh;
-    for (size_t c = 0; c < cand_hh.size(); c++)
-        if (std::fabs(cand_hh[c] - hh) < tol)
+    for (size_t c = 0; c < cand_hh.size(); c++) {
+        if (std::fabs(cand_hh[c] - hh) < tol) {
             oh_of_hh.push_back(cand_oh[2 * c]), oh_of_hh.push_back(cand_oh[2 * c + 1]);
+        }
+    }
     const double oh = peak(oh_of_hh);
     // rigidity test: rigid water puts nearly every nearby candidate within `tight` of both peaks, flexible water and
     // CH2/NH2 groups under half of them
@@ -164,7 +175,9 @@ void detect_water(const T *x, size_t atoms, Layout &layout) {
             n_tight += dh < tight && da < tight && db < tight;
         }
     }
-    if (n_loose < MIN_COUNT || n_tight * 10 < n_loose * 7) return;
+    if (n_loose < MIN_COUNT || n_tight * 10 < n_loose * 7) {
+        return;
+    }
     const float oh2_lo = float((oh - tol) * (oh - tol)), oh2_hi = float((oh + tol) * (oh + tol));
     const float hh2_lo = float((hh - tol) * (hh - tol)), hh2_hi = float((hh + tol) * (hh + tol));
     size_t waters = 0;
@@ -180,7 +193,9 @@ void detect_water(const T *x, size_t atoms, Layout &layout) {
             i++;
         }
     }
-    if (waters < MIN_COUNT) return;
+    if (waters < MIN_COUNT) {
+        return;
+    }
     layout.water_oh = oh;
     layout.water_hh = hh;
 }
@@ -205,11 +220,19 @@ void detect_bonds(const T *x, size_t atoms, Layout &layout) {
     };
     layout.bond.assign(atoms, 0);
     size_t probed = 0, bonded = 0;
-    for (size_t i = 1; i < atoms; i += std::max<size_t>(1, atoms / 256))
-        if (layout.kind[i] == K_OTHER) probed++, bonded += partner(i) != 0;
-    if (bonded * 16 < probed) return;
-    for (size_t i = 1; i < atoms; i++)
-        if (layout.kind[i] == K_OTHER) layout.bond[i] = partner(i);
+    for (size_t i = 1; i < atoms; i += std::max<size_t>(1, atoms / 256)) {
+        if (layout.kind[i] == K_OTHER) {
+            probed++, bonded += partner(i) != 0;
+        }
+    }
+    if (bonded * 16 < probed) {
+        return;
+    }
+    for (size_t i = 1; i < atoms; i++) {
+        if (layout.kind[i] == K_OTHER) {
+            layout.bond[i] = partner(i);
+        }
+    }
 }
 
 // ------------------------------------------------------------------------------------------------ symbols
@@ -223,15 +246,17 @@ struct SymbolWriter {
 // bits of a sample, for the predictor choice
 struct CostEstimate {
     double bits = 0;
-    inline void put(int, uint32_t v) { bits += std::log2(double(v) + 1.0) + 1; }
-    inline void put_bits(uint64_t, int n) { bits += n; }
+    void put(int /*unused*/, uint32_t v) { bits += std::log2(double(v) + 1.0) + 1; }
+    void put_bits(uint64_t /*unused*/, int n) { bits += n; }
 };
 // a cursor per stream, and one on the raw bits
 struct SymbolReader {
     const int *cursor[NUM_STREAMS], *end[NUM_STREAMS];
     BitConsumer raw{nullptr, nullptr};
     ALWAYS_INLINE uint32_t get(int s) {
-        if (cursor[s] == end[s]) throw std::runtime_error("SZ3 BioMD: corrupt stream");
+        if (cursor[s] == end[s]) {
+            throw std::runtime_error("SZ3 BioMD: corrupt stream");
+        }
         return uint32_t(*cursor[s]++);
     }
     ALWAYS_INLINE uint64_t get_bits(int bits) { return raw.get(bits); }  // bits <= 56
@@ -240,7 +265,9 @@ struct SymbolReader {
 // v as one symbol below ESCAPE, else as ESCAPE + v / 256 and its low byte as raw bits
 template <class Sink>
 ALWAYS_INLINE void put_escaped(Sink &out, int s, uint32_t v) {
-    if (v < ESCAPE) return out.put(s, v);
+    if (v < ESCAPE) {
+        return out.put(s, v);
+    }
     out.put(s, ESCAPE + (v >> 8));
     out.put_bits(v & 255, 8);
 }
@@ -262,11 +289,15 @@ struct FrameContext {
 };
 inline void set_water_box(FrameContext &frame, const uint32_t *size) {  // sides of at most 2^30
     uint64_t *R = frame.box_size;
-    for (int c = 0; c < 3; c++) R[c] = size[c];
+    for (int c = 0; c < 3; c++) {
+        R[c] = size[c];
+    }
     // bits of the largest value below n
     auto bits_below = [](uint64_t n) { return int(vector_bit_width(std::vector<uint64_t>{n - 1})); };
     frame.box_bits = R[0] * R[1] < (uint64_t(1) << 56) / R[2] ? bits_below(R[0] * R[1] * R[2]) : -1;
-    for (int c = 0; c < 3; c++) frame.side_bits[c] = bits_below(R[c]);
+    for (int c = 0; c < 3; c++) {
+        frame.side_bits[c] = bits_below(R[c]);
+    }
 }
 
 // a water O of an intra frame: its point in the box
@@ -274,9 +305,15 @@ template <class Sink>
 inline void put_box_point(const FrameContext &frame, const int32_t *p, Sink &out) {
     const uint64_t *R = frame.box_size;
     uint64_t u[3];
-    for (int c = 0; c < 3; c++) u[c] = uint64_t(int64_t(p[c]) - frame.box_min[c]);
-    if (frame.box_bits >= 0) return out.put_bits(u[0] + R[0] * (u[1] + R[1] * u[2]), frame.box_bits);
-    for (int c = 0; c < 3; c++) out.put_bits(u[c], frame.side_bits[c]);
+    for (int c = 0; c < 3; c++) {
+        u[c] = uint64_t(int64_t(p[c]) - frame.box_min[c]);
+    }
+    if (frame.box_bits >= 0) {
+        return out.put_bits(u[0] + R[0] * (u[1] + R[1] * u[2]), frame.box_bits);
+    }
+    for (int c = 0; c < 3; c++) {
+        out.put_bits(u[c], frame.side_bits[c]);
+    }
 }
 inline void get_box_point(const FrameContext &frame, int32_t *p, SymbolReader &in) {
     const uint64_t *R = frame.box_size;
@@ -287,9 +324,13 @@ inline void get_box_point(const FrameContext &frame, int32_t *p, SymbolReader &i
         u[1] = yz % R[1];
         u[2] = yz / R[1];
     } else {
-        for (int c = 0; c < 3; c++) u[c] = in.get_bits(frame.side_bits[c]);
+        for (int c = 0; c < 3; c++) {
+            u[c] = in.get_bits(frame.side_bits[c]);
+        }
     }
-    for (int c = 0; c < 3; c++) p[c] = int32_t(frame.box_min[c] + int64_t(u[c]));
+    for (int c = 0; c < 3; c++) {
+        p[c] = int32_t(frame.box_min[c] + int64_t(u[c]));
+    }
 }
 
 // coordinate c of unbonded atom i: from the atom before (intra) or from the previous frame
@@ -307,13 +348,21 @@ ALWAYS_INLINE void put_sphere(const FrameContext &frame, int mode, size_t i, siz
     int64_t d[3], p[3] = {0, 0, 0};
     int drop, k0, k1;
     displacement(frame.cur, i, j, d);
-    if (mode) displacement(frame.prev, i, j, p);
-    if (!r2) r2 = std::min(p[0] * p[0] + p[1] * p[1] + p[2] * p[2], int64_t(1) << 28);
+    if (mode) {
+        displacement(frame.prev, i, j, p);
+    }
+    if (!r2) {
+        r2 = std::min(p[0] * p[0] + p[1] * p[1] + p[2] * p[2], int64_t(1) << 28);
+    }
     split_axes(mode ? p : d, drop, k0, k1);
     const bool neg = (mode ? p[drop] : d[drop]) < 0;
     const uint32_t radial = zigzag((neg ? -d[drop] : d[drop]) - isqrt_round(r2 - d[k0] * d[k0] - d[k1] * d[k1]));
-    if (mode == 0) out.put(S_WATER_H1_FACE, uint32_t(2 * drop + neg) + 6 * std::min(radial, 15u));
-    if (mode != 0 || radial >= 15) out.put(s_radial, mode == 0 ? radial - 15 : radial);
+    if (mode == 0) {
+        out.put(S_WATER_H1_FACE, uint32_t(2 * drop + neg) + 6 * std::min(radial, 15u));
+    }
+    if (mode != 0 || radial >= 15) {
+        out.put(s_radial, mode == 0 ? radial - 15 : radial);
+    }
     out.put(s_kept, zigzag(d[k0] - p[k0]));
     out.put(s_kept, zigzag(d[k1] - p[k1]));
 }
@@ -328,12 +377,16 @@ ALWAYS_INLINE void get_sphere(const FrameContext &frame, int mode, size_t i, siz
         drop = int(v % 6 / 2);
         k0 = (drop + 1) % 3;
         k1 = (drop + 2) % 3;
-        neg = v & 1;
+        neg = ((v & 1) != 0u);
         radial = v / 6;
-        if (radial == 15) radial += in.get(s_radial);
+        if (radial == 15) {
+            radial += in.get(s_radial);
+        }
     } else {
         displacement(frame.prev, i, j, p);
-        if (!r2) r2 = std::min(p[0] * p[0] + p[1] * p[1] + p[2] * p[2], int64_t(1) << 28);
+        if (!r2) {
+            r2 = std::min(p[0] * p[0] + p[1] * p[1] + p[2] * p[2], int64_t(1) << 28);
+        }
         split_axes(p, drop, k0, k1);
         neg = p[drop] < 0;
         radial = in.get(s_radial);
@@ -344,7 +397,9 @@ ALWAYS_INLINE void get_sphere(const FrameContext &frame, int mode, size_t i, siz
     const uint64_t rest = uint64_t(r2) - uint64_t(d[k0]) * uint64_t(d[k0]) - uint64_t(d[k1]) * uint64_t(d[k1]);
     const int64_t r = isqrt_round(int64_t(rest)) + unzigzag(radial);
     d[drop] = neg ? -r : r;
-    for (int c = 0; c < 3; c++) frame.cur[3 * i + c] = int32_t(frame.cur[3 * j + c] + d[c]);
+    for (int c = 0; c < 3; c++) {
+        frame.cur[3 * i + c] = int32_t(frame.cur[3 * j + c] + d[c]);
+    }
 }
 
 // H2 - O = d on the circle |d|^2 = oh2, 2 d.h1 = oh2 + |h1|^2 - hh2, h1 = H1 - O. The coordinate of d on the axis
@@ -359,7 +414,7 @@ ALWAYS_INLINE int circle_axis(const int64_t h1[3]) {
 // the side of v: 1 when (-h1[j], h1[i]) . (v[i], v[j]) < 0, for the other two axes i, j
 ALWAYS_INLINE int circle_side(const int64_t h1[3], int axis, const int64_t v[3]) {
     const int i = (axis + 1) % 3, j = (axis + 2) % 3;
-    return h1[i] * v[j] - h1[j] * v[i] < 0;
+    return static_cast<int>(h1[i] * v[j] - h1[j] * v[i] < 0);
 }
 ALWAYS_INLINE void circle_point(const int64_t h1[3], int64_t oh2, int64_t hh2, int axis, int64_t coord, int side,
                                 int64_t point[3]) {
@@ -377,7 +432,9 @@ ALWAYS_INLINE void circle_point(const int64_t h1[3], int64_t oh2, int64_t hh2, i
 // H2 - O of the previous frame, or 0 beyond the lattice sizes of a water, so that 2 zigzag(d - p) + 1 fits 32 bits
 ALWAYS_INLINE void previous_h2(const FrameContext &frame, size_t o, int64_t p[3]) {
     displacement(frame.prev, o + 2, o, p);
-    if (std::llabs(p[0]) >= 16384 || std::llabs(p[1]) >= 16384 || std::llabs(p[2]) >= 16384) p[0] = p[1] = p[2] = 0;
+    if (std::llabs(p[0]) >= 16384 || std::llabs(p[1]) >= 16384 || std::llabs(p[2]) >= 16384) {
+        p[0] = p[1] = p[2] = 0;
+    }
 }
 template <class Sink>
 ALWAYS_INLINE void put_circle(const FrameContext &frame, int mode, size_t o, Sink &out) {
@@ -392,29 +449,38 @@ ALWAYS_INLINE void put_circle(const FrameContext &frame, int mode, size_t o, Sin
         out.put(S_WATER_H2_AXIS, zigzag(d[axis]) * 2 + uint32_t(side));
     }
     circle_point(h1, frame.water_oh2, frame.water_hh2, axis, d[axis], side, point);
-    for (int c = 0; c < 3; c++)
-        if (c != axis) out.put(S_WATER_H2_RESIDUAL, zigzag(d[c] - point[c]));
+    for (int c = 0; c < 3; c++) {
+        if (c != axis) {
+            out.put(S_WATER_H2_RESIDUAL, zigzag(d[c] - point[c]));
+        }
+    }
 }
 ALWAYS_INLINE void get_circle(const FrameContext &frame, int mode, size_t o, SymbolReader &in) {
     int64_t h1[3], p[3] = {0, 0, 0}, point[3];
     displacement(frame.cur, o + 1, o, h1);
     const int axis = circle_axis(h1);
-    if (mode) previous_h2(frame, o, p);
+    if (mode) {
+        previous_h2(frame, o, p);
+    }
     const uint32_t v = in.get(S_WATER_H2_AXIS);
     const int side = int(v & 1) ^ (mode ? circle_side(h1, axis, p) : 0);
     circle_point(h1, frame.water_oh2, frame.water_hh2, axis, p[axis] + unzigzag(v >> 1), side, point);
-    for (int c = 0; c < 3; c++)
+    for (int c = 0; c < 3; c++) {
         frame.cur[3 * (o + 2) + c] =
             int32_t(frame.cur[3 * o + c] + (c == axis ? point[c] : point[c] + unzigzag(in.get(S_WATER_H2_RESIDUAL))));
+    }
 }
 
 // A water O: from the previous frame, or (intra) its point in the box.
 template <class Sink>
 ALWAYS_INLINE void put_water_o(const FrameContext &frame, int mode, size_t i, Sink &out) {
-    if (mode)
-        for (int c = 0; c < 3; c++) out.put(S_WATER_O, zigzag(frame.cur[3 * i + c] - frame.prev[3 * i + c]));
-    else
+    if (mode) {
+        for (int c = 0; c < 3; c++) {
+            out.put(S_WATER_O, zigzag(frame.cur[3 * i + c] - frame.prev[3 * i + c]));
+        }
+    } else {
         put_box_point(frame, frame.cur + 3 * i, out);
+    }
 }
 
 // One atom: a water (O and the rest of its molecule), or another atom. Water H come with their O.
@@ -428,39 +494,50 @@ ALWAYS_INLINE void put_atom(const FrameContext &frame, const int *mode, size_t i
         put_circle(frame, mode[G_WATER_H], i, out);
     } else if (layout.kind[i] == K_OTHER) {
         const size_t j = i - layout.bond[i];
-        if (j != i && mode[G_BONDED])
+        if (j != i && mode[G_BONDED]) {
             put_sphere(frame, 1, i, j, 0, S_BOND_KEPT, S_BOND_RADIAL, out);
-        else if (j != i)
-            for (int c = 0; c < 3; c++) put_escaped(out, S_BOND_DELTA, zigzag(q[3 * i + c] - q[3 * j + c]));
-        else if (frame.unbonded_box)
+        } else if (j != i) {
+            for (int c = 0; c < 3; c++) {
+                put_escaped(out, S_BOND_DELTA, zigzag(q[3 * i + c] - q[3 * j + c]));
+            }
+        } else if (frame.unbonded_box) {
             put_box_point(frame, q + 3 * i, out);
-        else
-            for (int c = 0; c < 3; c++)
+        } else {
+            for (int c = 0; c < 3; c++) {
                 put_escaped(out, S_UNBONDED, zigzag(q[3 * i + c] - predict_unbonded(frame, mode[G_UNBONDED], i, c)));
+            }
+        }
     }
 }
 ALWAYS_INLINE void get_atom(const FrameContext &frame, const int *mode, size_t i, SymbolReader &in) {
     const Layout &layout = *frame.layout;
     int32_t *q = frame.cur;
     if (layout.kind[i] == K_WATER_O) {
-        if (mode[G_WATER_O])
-            for (int c = 0; c < 3; c++) q[3 * i + c] = int32_t(frame.prev[3 * i + c] + unzigzag(in.get(S_WATER_O)));
-        else
+        if (mode[G_WATER_O]) {
+            for (int c = 0; c < 3; c++) {
+                q[3 * i + c] = int32_t(frame.prev[3 * i + c] + unzigzag(in.get(S_WATER_O)));
+            }
+        } else {
             get_box_point(frame, q + 3 * i, in);
+        }
         get_sphere(frame, mode[G_WATER_H], i + 1, i, frame.water_oh2, S_WATER_H1_KEPT, S_WATER_H1_RADIAL, in);
         get_circle(frame, mode[G_WATER_H], i, in);
     } else if (layout.kind[i] == K_OTHER) {
         const size_t j = i - layout.bond[i];
-        if (j != i && mode[G_BONDED])
+        if (j != i && mode[G_BONDED]) {
             get_sphere(frame, 1, i, j, 0, S_BOND_KEPT, S_BOND_RADIAL, in);
-        else if (j != i)
-            for (int c = 0; c < 3; c++) q[3 * i + c] = int32_t(q[3 * j + c] + unzigzag(get_escaped(in, S_BOND_DELTA)));
-        else if (frame.unbonded_box)
+        } else if (j != i) {
+            for (int c = 0; c < 3; c++) {
+                q[3 * i + c] = int32_t(q[3 * j + c] + unzigzag(get_escaped(in, S_BOND_DELTA)));
+            }
+        } else if (frame.unbonded_box) {
             get_box_point(frame, q + 3 * i, in);
-        else
-            for (int c = 0; c < 3; c++)
+        } else {
+            for (int c = 0; c < 3; c++) {
                 q[3 * i + c] =
                     int32_t(predict_unbonded(frame, mode[G_UNBONDED], i, c) + unzigzag(get_escaped(in, S_UNBONDED)));
+            }
+        }
     }
 }
 
@@ -475,12 +552,15 @@ inline void quantize(const T *x, size_t n, double inv_step, int32_t *q) {
 
 // the box of the water O's of frame q
 inline void water_box(const int32_t *q, const std::vector<uint32_t> &waters, int32_t lo[3], int32_t hi[3]) {
-    for (int c = 0; c < 3; c++) lo[c] = hi[c] = waters.empty() ? 0 : q[3 * waters[0] + c];
-    for (uint32_t i : waters)
+    for (int c = 0; c < 3; c++) {
+        lo[c] = hi[c] = waters.empty() ? 0 : q[3 * waters[0] + c];
+    }
+    for (uint32_t i : waters) {
         for (int c = 0; c < 3; c++) {
             lo[c] = std::min(lo[c], q[3 * i + c]);
             hi[c] = std::max(hi[c], q[3 * i + c]);
         }
+    }
 }
 
 // Per group but the water O's, the mode (0 intra, 1 previous frame) that costs fewer bits on a sample of about 256 of
@@ -495,8 +575,13 @@ inline void choose_modes(const FrameContext &frame, const std::vector<uint32_t> 
             int trial[NUM_GROUPS] = {mode[0], mode[1], mode[2], mode[3]};
             trial[g] = m;
             const size_t stride = std::max<size_t>(1, sample.size() / 256);
-            for (size_t k = 0; k < sample.size(); k += stride) put_atom(frame, trial, sample[k], cost);
-            if (cost.bits < best) best = cost.bits, mode[g] = m;
+            for (size_t k = 0; k < sample.size(); k += stride) {
+                put_atom(frame, trial, sample[k], cost);
+            }
+            if (cost.bits < best) {
+                best = cost.bits;
+                mode[g] = m;
+            }
         }
     }
 }
@@ -510,7 +595,9 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
    public:
     explicit SZBioMDDecomposition(const Config &conf)
         : frames_(N == 3 ? conf.dims[0] : 1), atoms_(N >= 2 ? conf.dims[N - 2] : 1), error_bound_(conf.absErrorBound) {
-        if (N > 3 || conf.dims[N - 1] != 3) throw std::invalid_argument("SZ3 BioMD: data must be {frames, atoms, 3}");
+        if (N > 3 || conf.dims[N - 1] != 3) {
+            throw std::invalid_argument("SZ3 BioMD: data must be {frames, atoms, 3}");
+        }
     }
 
     // The symbol streams of the chunk, one after the other as [count, symbols]; the rest goes to save().
@@ -539,9 +626,14 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         raw_bits_.clear();
         BitAppender raw(raw_bits_);
         writer.raw = &raw;
-        for (size_t k = 0; k < waters.size(); k++) writer.put(S_WATER_GAP, waters[k] - (k ? waters[k - 1] : 0));
-        for (size_t i = 0; i < atoms_; i++)
-            if (layout.kind[i] == K_OTHER) writer.put(S_BOND_REF, layout.bond[i]);
+        for (size_t k = 0; k < waters.size(); k++) {
+            writer.put(S_WATER_GAP, waters[k] - (k ? waters[k - 1] : 0));
+        }
+        for (size_t i = 0; i < atoms_; i++) {
+            if (layout.kind[i] == K_OTHER) {
+                writer.put(S_BOND_REF, layout.bond[i]);
+            }
+        }
 
         std::unique_ptr<int32_t[]> lattice(new int32_t[2 * frame_values]);  // written before read
         FrameContext frame = frame_context(lattice.get(), layout);
@@ -552,12 +644,19 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
             if (t == 0) {  // sides of 1 without water O's or unbonded box points
                 int32_t box_max[3];
                 water_box(frame.cur, unbonded_box_ ? unbonded : waters, frame.box_min, box_max);
-                for (int c = 0; c < 3; c++) box_min_[c] = frame.box_min[c], box_size_[c] = box_max[c] - box_min_[c] + 1;
+                for (int c = 0; c < 3; c++) {
+                    box_min_[c] = frame.box_min[c];
+                    box_size_[c] = box_max[c] - box_min_[c] + 1;
+                }
                 set_water_box(frame, box_size_);
             }
             // per group, the predictor that is cheapest on a sample of frame 1, for every frame after the first
-            if (t == 1) choose_modes(frame, group_atoms, modes_);
-            for (size_t i = 0; i < atoms_; i++) put_atom(frame, t ? modes_ : intra, i, writer);
+            if (t == 1) {
+                choose_modes(frame, group_atoms, modes_);
+            }
+            for (size_t i = 0; i < atoms_; i++) {
+                put_atom(frame, t ? modes_ : intra, i, writer);
+            }
             std::swap(frame.cur, frame.prev);
         }
         raw.flush();
@@ -565,8 +664,9 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         std::vector<int> bins;
         size_t n = NUM_STREAMS;
         for (int s = 0; s < NUM_STREAMS; s++) {
-            if (size_t(writer.cursor[s] - buffers[s].get()) > size_t(std::numeric_limits<int>::max()))
+            if (size_t(writer.cursor[s] - buffers[s].get()) > size_t(std::numeric_limits<int>::max())) {
                 throw std::invalid_argument("SZ3 BioMD: a stream of more symbols than an int counts");
+            }
             n += size_t(writer.cursor[s] - buffers[s].get());
         }
         bins.reserve(n);
@@ -584,8 +684,9 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         SymbolReader reader;
         for (size_t k = 0, s = 0; s < NUM_STREAMS; s++) {
             const size_t n = k < quant_inds.size() ? size_t(quant_inds[k]) : 0;
-            if (k >= quant_inds.size() || n > quant_inds.size() - k - 1)
+            if (k >= quant_inds.size() || n > quant_inds.size() - k - 1) {
                 throw std::runtime_error("SZ3 BioMD: corrupt stream");
+            }
             reader.cursor[s] = quant_inds.data() + k + 1;
             reader.end[s] = reader.cursor[s] + n;
             k += n + 1;
@@ -599,16 +700,24 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         std::copy(box_min_, box_min_ + 3, frame.box_min);
         set_water_box(frame, box_size_);
         for (size_t t = 0; t < coded_frames_; t++) {
-            for (size_t i = 0; i < atoms_; i += layout.kind[i] == K_WATER_O ? 3 : 1)  // a water's H come with its O
+            for (size_t i = 0; i < atoms_; i += layout.kind[i] == K_WATER_O ? 3 : 1) {  // a water's H come with its O
                 get_atom(frame, t ? modes_ : intra, i, reader);
+            }
             T *x = dec_data + t * frame_values;
-            for (size_t i = 0; i < frame_values; i++) x[i] = T(double(frame.cur[i]) * step_);
+            for (size_t i = 0; i < frame_values; i++) {
+                x[i] = T(double(frame.cur[i]) * step_);
+            }
             std::swap(frame.cur, frame.prev);
         }
         // a stream that holds more than the frames took is corrupt
-        for (int s = 0; s < NUM_STREAMS; s++)
-            if (reader.cursor[s] != reader.end[s]) throw std::runtime_error("SZ3 BioMD: corrupt stream");
-        if (!reader.raw.at_end()) throw std::runtime_error("SZ3 BioMD: corrupt stream");
+        for (int s = 0; s < NUM_STREAMS; s++) {
+            if (reader.cursor[s] != reader.end[s]) {
+                throw std::runtime_error("SZ3 BioMD: corrupt stream");
+            }
+        }
+        if (!reader.raw.at_end()) {
+            throw std::runtime_error("SZ3 BioMD: corrupt stream");
+        }
         std::fill(dec_data + coded_frames_ * frame_values, dec_data + frames_ * frame_values, fill_value_);
         return dec_data;
     }
@@ -620,20 +729,26 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         write(water_oh2_, c);
         write(water_hh2_, c);
         write(uint64_t(num_waters_), c);
-        for (int m : modes_) write(uint8_t(m), c);
+        for (int m : modes_) {
+            write(uint8_t(m), c);
+        }
         write(uint8_t(unbonded_box_), c);
         if (has_box()) {
             write(box_min_, 3, c);
             write(box_size_, 3, c);
         }
         write(uint64_t(raw_bits_.size()), c);
-        if (!raw_bits_.empty()) write(raw_bits_.data(), raw_bits_.size(), c);
+        if (!raw_bits_.empty()) {
+            write(raw_bits_.data(), raw_bits_.size(), c);
+        }
     }
 
     void load(const uchar *&c, size_t &remaining_length) override {
         uint64_t waters, coded, raw_size = 0;
         read(coded, c, remaining_length);
-        if (coded > frames_) throw std::runtime_error("SZ3 BioMD: corrupt stream");
+        if (coded > frames_) {
+            throw std::runtime_error("SZ3 BioMD: corrupt stream");
+        }
         coded_frames_ = size_t(coded);
         read(fill_value_, c, remaining_length);
         read(step_, c, remaining_length);
@@ -644,25 +759,37 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         for (int &m : modes_) {
             uint8_t v;
             read(v, c, remaining_length);
-            if (v > 1) throw std::runtime_error("SZ3 BioMD: corrupt stream");
+            if (v > 1) {
+                throw std::runtime_error("SZ3 BioMD: corrupt stream");
+            }
             m = v;
         }
         uint8_t unbonded_box;
         read(unbonded_box, c, remaining_length);
-        if (unbonded_box > 1) throw std::runtime_error("SZ3 BioMD: corrupt stream");
-        unbonded_box_ = unbonded_box && coded_frames_ == 1;
+        if (unbonded_box > 1) {
+            throw std::runtime_error("SZ3 BioMD: corrupt stream");
+        }
+        unbonded_box_ = (unbonded_box != 0u) && coded_frames_ == 1;
         if (has_box()) {
             read(box_min_, 3, c, remaining_length);
             read(box_size_, 3, c, remaining_length);
         }
         read(raw_size, c, remaining_length);
-        if (raw_size > remaining_length) throw std::runtime_error("SZ3 BioMD: corrupt stream");
+        if (raw_size > remaining_length) {
+            throw std::runtime_error("SZ3 BioMD: corrupt stream");
+        }
         raw_bits_.resize(size_t(raw_size));
-        if (raw_size) read(raw_bits_.data(), raw_bits_.size(), c, remaining_length);
+        if (raw_size) {
+            read(raw_bits_.data(), raw_bits_.size(), c, remaining_length);
+        }
         bool ok = std::isfinite(step_) && step_ > 0 && waters <= atoms_ && water_oh2_ >= 0 &&
                   water_oh2_ < (int64_t(1) << 28) && water_hh2_ >= 0 && water_hh2_ < (int64_t(1) << 30);
-        for (uint32_t side : box_size_) ok = ok && side >= 1 && side <= (uint32_t(1) << 30);
-        if (!ok) throw std::runtime_error("SZ3 BioMD: corrupt stream");
+        for (uint32_t side : box_size_) {
+            ok = ok && side >= 1 && side <= (uint32_t(1) << 30);
+        }
+        if (!ok) {
+            throw std::runtime_error("SZ3 BioMD: corrupt stream");
+        }
     }
 
     // a bound on what save() writes
@@ -673,7 +800,7 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
 
    private:
     // frame 0 stores the box of its water O's, or of its unbonded atoms
-    bool has_box() const { return unbonded_box_ || num_waters_; }
+    bool has_box() const { return unbonded_box_ || (num_waters_ != 0u); }
 
     // Trailing frames all of one value (the unwritten rest of a chunk) are stored as that value; a chunk may be all
     // fill (an unwritten chunk of NaN).
@@ -681,11 +808,16 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         const size_t frame_values = atoms_ * 3;
         fill_value_ = data[(frames_ - 1) * frame_values];
         auto is_fill = [&](size_t t) {
-            for (size_t i = t * frame_values; i < (t + 1) * frame_values; i++)
-                if (memcmp(&data[i], &fill_value_, sizeof(T)) != 0) return false;
+            for (size_t i = t * frame_values; i < (t + 1) * frame_values; i++) {
+                if (memcmp(&data[i], &fill_value_, sizeof(T)) != 0) {
+                    return false;
+                }
+            }
             return true;
         };
-        for (coded_frames_ = frames_; coded_frames_ > 0 && is_fill(coded_frames_ - 1);) coded_frames_--;
+        for (coded_frames_ = frames_; coded_frames_ > 0 && is_fill(coded_frames_ - 1);) {
+            coded_frames_--;
+        }
     }
 
     // Lattice step: 2 eb - m ulp for the binade below B, so that q step rounded to T stays within eb for every
@@ -696,8 +828,9 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
     // lattice points. A chunk with NaN or Inf goes to lossless compression; one with coordinates beyond B, or under a
     // bound for which m ulp reaches eb or B passes the largest value of T, also to lossless compression.
     void choose_step(const T *data) {
-        if (!(error_bound_ > 0) || !std::isfinite(error_bound_))
+        if (!(error_bound_ > 0) || !std::isfinite(error_bound_)) {
             throw std::invalid_argument("SZ3 BioMD: the error bound must be positive and finite");
+        }
         using Bits = typename std::conditional<sizeof(T) == 4, uint32_t, uint64_t>::type;
         Bits max_bits = 0;  // the largest |x| as bits: NaN and inf are above every finite value
         for (size_t i = 0; i < coded_frames_ * atoms_ * 3; i++) {
@@ -708,8 +841,9 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         }
         // compared as bits: under -ffinite-math-only a floating-point test for NaN may be compiled away
         const Bits infinity_bits = Bits(sizeof(T) == 4 ? 0x7f800000ull : 0x7ff0000000000000ull);
-        if (max_bits >= infinity_bits)
+        if (max_bits >= infinity_bits) {
             throw biomd::Fallback("SZ3 BioMD: NaN or Inf in a frame that is not trailing fill");
+        }
         T max_abs;
         memcpy(&max_abs, &max_bits, sizeof(T));
         int exponent;
@@ -724,8 +858,10 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         if (!(margin < error_bound_) || !std::isfinite(1.0 / step_) ||
             !(span <= double(std::numeric_limits<T>::max())) || !(span / step_ < biomd::MAX_LATTICE) ||
             !(double(max_abs) < span + step_) ||
-            !(nofma(std::fabs(double(biomd::round_half_away(nofma(double(max_abs) * (1.0 / step_))))) * step_) < span))
+            !(nofma(std::fabs(double(biomd::round_half_away(nofma(double(max_abs) * (1.0 / step_))))) * step_) <
+              span)) {
             throw biomd::Fallback("SZ3 BioMD: coordinates beyond the lattice the error bound allows");
+        }
     }
 
     // The layout of the first frame, its geometry on the lattice, and the atoms of each group.
@@ -742,8 +878,12 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         }
         detect_bonds(data, atoms_, layout);
         for (size_t i = 0; i < atoms_; i++) {
-            if (layout.kind[i] == K_WATER_O) waters.push_back(uint32_t(i));
-            if (layout.kind[i] == K_OTHER) (layout.bond[i] ? bonded : unbonded).push_back(uint32_t(i));
+            if (layout.kind[i] == K_WATER_O) {
+                waters.push_back(uint32_t(i));
+            }
+            if (layout.kind[i] == K_OTHER) {
+                (layout.bond[i] ? bonded : unbonded).push_back(uint32_t(i));
+            }
         }
         num_waters_ = waters.size();
     }
@@ -754,19 +894,23 @@ class SZBioMDDecomposition : public concepts::DecompositionInterface<T, int, N> 
         layout.kind.assign(atoms_, K_OTHER);
         for (size_t k = 0, o = 0; k < num_waters_; k++) {
             const uint32_t gap = reader.get(S_WATER_GAP);
-            if ((k && gap < 3) || gap > atoms_ || o + gap + 2 >= atoms_)
+            if ((k && gap < 3) || gap > atoms_ || o + gap + 2 >= atoms_) {
                 throw std::runtime_error("SZ3 BioMD: corrupt stream");
+            }
             o += gap;
             layout.kind[o] = K_WATER_O;
             layout.kind[o + 1] = layout.kind[o + 2] = K_WATER_H;
         }
         layout.bond.assign(atoms_, 0);
-        for (size_t i = 0; i < atoms_; i++)
+        for (size_t i = 0; i < atoms_; i++) {
             if (layout.kind[i] == K_OTHER) {
                 const uint32_t bond = reader.get(S_BOND_REF);
-                if (bond > uint32_t(MAX_BOND_OFFSET) || bond > i) throw std::runtime_error("SZ3 BioMD: corrupt stream");
+                if (bond > uint32_t(MAX_BOND_OFFSET) || bond > i) {
+                    throw std::runtime_error("SZ3 BioMD: corrupt stream");
+                }
                 layout.bond[i] = uint8_t(bond);
             }
+        }
     }
 
     // the lattice holds this frame and the one before

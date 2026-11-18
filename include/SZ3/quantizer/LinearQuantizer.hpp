@@ -82,7 +82,9 @@ public:
     }
 
     ALWAYS_INLINE T recover_unpred() {
-        if (index >= unpred.size()) throw std::out_of_range("SZ3: ran out of unpredictable values while decompressing");
+        if (index >= unpred.size()) {
+            throw std::out_of_range("SZ3: ran out of unpredictable values while decompressing");
+        }
         return unpred[index++];
     }
 
@@ -120,8 +122,9 @@ public:
         read(unpred_size, c, remaining_length);
         if (unpred_size > 0) {
             // resize() below is sized from the stream, so check the count against the bytes that exist first.
-            if (unpred_size > remaining_length / sizeof(T))
+            if (unpred_size > remaining_length / sizeof(T)) {
                 throw std::out_of_range("SZ3: unpredictable value count exceeds the compressed buffer");
+            }
             unpred.resize(unpred_size);
             read(unpred.data(), unpred_size, c, remaining_length);
         }

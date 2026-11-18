@@ -30,9 +30,13 @@ unsigned int static inline estimate_quantization_intervals(const std::vector<siz
     size_t i = 0;
     for (i = 0; i < intervals.size(); i++) {
         sum += intervals[i];
-        if (sum > target) break;
+        if (sum > target) {
+            break;
+        }
     }
-    if (i == intervals.size()) i = intervals.size() - 1;
+    if (i == intervals.size()) {
+        i = intervals.size() - 1;
+    }
     unsigned int accIntervals = 2 * (i + 1);
     unsigned int num_intervals = 2 * round_up_power_of_2(accIntervals);
     return (num_intervals > 32) ? num_intervals : 32;
@@ -78,7 +82,9 @@ float sample_rough_mean_3d(const T *data, size_t r1, size_t r2, size_t r3, size_
             data_pos -= 1;
         }
     }
-    if (mean_count > 0) mean /= mean_count;
+    if (mean_count > 0) {
+        mean /= mean_count;
+    }
     return mean;
 }
 
@@ -113,7 +119,9 @@ int optimize_quant_invl_3d(const T *data, size_t r1, size_t r2, size_t r3, doubl
     while (data_pos - data < len) {
         pred_value = lorenzo_predict_3d(data_pos, r23, r3);
         pred_err = fabs(pred_value - *data_pos);
-        if (pred_err < precision) freq_count++;
+        if (pred_err < precision) {
+            freq_count++;
+        }
         pred_index = (pred_err / precision + 1) / 2;
         if (pred_index >= intervals.size()) {
             pred_index = intervals.size() - 1;
@@ -121,10 +129,11 @@ int optimize_quant_invl_3d(const T *data, size_t r1, size_t r2, size_t r3, doubl
         intervals[pred_index]++;
 
         mean_diff = *data_pos - mean_rough;
-        if (mean_diff > 0)
+        if (mean_diff > 0) {
             freq_index = static_cast<ptrdiff_t>(mean_diff / precision) + radius;
-        else
+        } else {
             freq_index = static_cast<ptrdiff_t>(mean_diff / precision) - 1 + radius;
+        }
         if (freq_index <= 0) {
             freq_intervals[0]++;
         } else if (freq_index >= static_cast<ptrdiff_t>(freq_intervals.size())) {
@@ -143,9 +152,12 @@ int optimize_quant_invl_3d(const T *data, size_t r1, size_t r2, size_t r3, doubl
             offset_count_2 = (n1_count + n2_count) % sample_distance;
             data_pos += (r3 + sample_distance - offset_count) + (sample_distance - offset_count_2);
             offset_count = (sample_distance - offset_count_2);
-            if (offset_count == 0) offset_count++;
-        } else
+            if (offset_count == 0) {
+                offset_count++;
+            }
+        } else {
             data_pos += sample_distance;
+        }
         sample_count++;
     }
     pred_freq = freq_count * 1.0 / sample_count;

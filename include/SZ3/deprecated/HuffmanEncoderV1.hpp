@@ -48,17 +48,21 @@ class HuffmanEncoderV1 : public concepts::EncoderInterface<T> {
         return tree;
     }
 
-    void preprocess_encode(const std::vector<T> &, int) override { throw std::logic_error(kDecodeOnly); }
+    [[noreturn]] void preprocess_encode(const std::vector<T> & /*unused*/, int /*unused*/) override {
+        throw std::logic_error(kDecodeOnly);
+    }
 
-    void save(uchar *&) override { throw std::logic_error(kDecodeOnly); }
+    [[noreturn]] void save(uchar *& /*unused*/) override { throw std::logic_error(kDecodeOnly); }
 
-    size_t size_est() override { throw std::logic_error(kDecodeOnly); }
+    [[noreturn]] size_t size_est() override { throw std::logic_error(kDecodeOnly); }
 
-    static size_t size_bound(size_t, size_t) { throw std::logic_error(kDecodeOnly); }
+    [[noreturn]] static size_t size_bound(size_t /*unused*/, size_t /*unused*/) { throw std::logic_error(kDecodeOnly); }
 
-    size_t encode(const std::vector<T> &, uchar *&) override { throw std::logic_error(kDecodeOnly); }
+    [[noreturn]] size_t encode(const std::vector<T> & /*unused*/, uchar *& /*unused*/) override {
+        throw std::logic_error(kDecodeOnly);
+    }
 
-    void postprocess_encode() override { throw std::logic_error(kDecodeOnly); }
+    [[noreturn]] void postprocess_encode() override { throw std::logic_error(kDecodeOnly); }
 
     void preprocess_decode() override {}
 
@@ -73,30 +77,38 @@ class HuffmanEncoderV1 : public concepts::EncoderInterface<T> {
         read(encodedLength, bytes, remaining_length);
         if (n->t)  // root->t==1 means that all state values are the same (constant)
         {
-            for (count = 0; count < targetLength; count++) out[count] = n->c + offset;
+            for (count = 0; count < targetLength; count++) {
+                out[count] = n->c + offset;
+            }
             return out;
         }
 
-        if (encodedLength > remaining_length)
+        if (encodedLength > remaining_length) {
             throw std::out_of_range("SZ3 Huffman: encoded length exceeds compressed buffer");
+        }
 
         // Walk at most the bits the stream holds, and stop once targetLength symbols are out.
         const size_t maxBits = targetLength > 0 ? encodedLength * 8 : 0;
         for (i = 0; i < maxBits; i++) {
             byteIndex = i >> 3;  // i/8
             r = i % 8;
-            if (((bytes[byteIndex] >> (7 - r)) & 0x01) == 0)
+            if (((bytes[byteIndex] >> (7 - r)) & 0x01) == 0) {
                 n = n->left;
-            else
+            } else {
                 n = n->right;
+            }
 
             if (n->t) {
                 out[count] = n->c + offset;
                 n = t;
-                if (++count == targetLength) break;
+                if (++count == targetLength) {
+                    break;
+                }
             }
         }
-        if (count < targetLength) throw std::out_of_range("SZ3 Huffman: corrupted encoded stream");
+        if (count < targetLength) {
+            throw std::out_of_range("SZ3 Huffman: corrupted encoded stream");
+        }
         bytes += encodedLength;
         remaining_length -= encodedLength;
         return out;
@@ -107,25 +119,31 @@ class HuffmanEncoderV1 : public concepts::EncoderInterface<T> {
     // load Huffman tree
     void load(const uchar *&c, size_t &remaining_length) override {
         read(offset, c, remaining_length);
-        if (remaining_length < 2 * sizeof(int)) throw std::out_of_range("SZ3 Huffman: truncated tree header");
+        if (remaining_length < 2 * sizeof(int)) {
+            throw std::out_of_range("SZ3 Huffman: truncated tree header");
+        }
         nodeCount = bytesToInt32_bigEndian(c);
         // The stored state count is skipped: it sizes the encode-side code tables, which decoding never
         // touches. nodeCount is bounded before it sizes anything, or the encodeStartIndex arithmetic
         // below overflows and the tree is read past the buffer.
-        if (nodeCount <= 0 || static_cast<size_t>(nodeCount) > remaining_length)
+        if (nodeCount <= 0 || static_cast<size_t>(nodeCount) > remaining_length) {
             throw std::out_of_range("SZ3 Huffman: invalid node count");
+        }
         size_t encodeStartIndex;
-        if (nodeCount <= 256)
+        if (nodeCount <= 256) {
             encodeStartIndex = 1 + 3 * nodeCount * sizeof(unsigned char) + nodeCount * sizeof(T);
-        else if (nodeCount <= 65536)
+        } else if (nodeCount <= 65536) {
             encodeStartIndex =
                 1 + 2 * nodeCount * sizeof(unsigned short) + nodeCount * sizeof(unsigned char) + nodeCount * sizeof(T);
-        else
+        } else {
             encodeStartIndex =
                 1 + 2 * nodeCount * sizeof(unsigned int) + nodeCount * sizeof(unsigned char) + nodeCount * sizeof(T);
+        }
 
         size_t tree_bytes = sizeof(int) + sizeof(int) + encodeStartIndex;
-        if (tree_bytes > remaining_length) throw std::out_of_range("SZ3 Huffman: tree exceeds compressed buffer");
+        if (tree_bytes > remaining_length) {
+            throw std::out_of_range("SZ3 Huffman: tree exceeds compressed buffer");
+        }
 
         // The pool is 4x what is asked for, and unpad_tree builds each of the nodeCount nodes once.
         huffmanTree = createHuffmanTree(nodeCount);
@@ -206,10 +224,14 @@ class HuffmanEncoderV1 : public concepts::EncoderInterface<T> {
             if (l != 0) {
                 // The encoder gave a child a higher index than its parent, so a valid index satisfies i < l <
                 // nodeCount_. Enforcing it keeps L/R/C/t reads inside the pool and rules out a cycle.
-                if (l <= i || l >= nodeCount_) throw std::out_of_range("SZ3 Huffman: invalid left child index in tree");
+                if (l <= i || l >= nodeCount_) {
+                    throw std::out_of_range("SZ3 Huffman: invalid left child index in tree");
+                }
                 // Increasing indices rule out a cycle but not two parents naming one child, which would
                 // expand the tree exponentially instead of building nodeCount_ nodes.
-                if (seen[l]) throw std::out_of_range("SZ3 Huffman: tree node reached twice");
+                if (seen[l]) {
+                    throw std::out_of_range("SZ3 Huffman: tree node reached twice");
+                }
                 seen[l] = true;
                 node lroot = new_node2(C[l], t[l]);
                 root->left = lroot;
@@ -217,9 +239,12 @@ class HuffmanEncoderV1 : public concepts::EncoderInterface<T> {
             }
             r = R[i];
             if (r != 0) {
-                if (r <= i || r >= nodeCount_)
+                if (r <= i || r >= nodeCount_) {
                     throw std::out_of_range("SZ3 Huffman: invalid right child index in tree");
-                if (seen[r]) throw std::out_of_range("SZ3 Huffman: tree node reached twice");
+                }
+                if (seen[r]) {
+                    throw std::out_of_range("SZ3 Huffman: tree node reached twice");
+                }
                 seen[r] = true;
                 node rroot = new_node2(C[r], t[r]);
                 root->right = rroot;
